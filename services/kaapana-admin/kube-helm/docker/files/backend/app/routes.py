@@ -32,6 +32,59 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@router.post("/filepond-upload")
+async def post_filepond_upload(request: Request):
+    try:
+        form = await request.form()
+        logger.info(f"POST filepond-upload called, req form {form}")
+        patch = file_handler.filepond_init_upload(form)
+    
+    except Exception as e:
+        logger.error(f"/file upload failed {e}")
+        return Response("Filepond Upload Initialization failed", status_code=500)
+
+    return Response(content=patch, status_code=200)
+
+
+@router.patch("/filepond-upload")
+async def patch_filepond_upload(request: Request, patch: str):
+    logger.debug(f"PATCH filepond-upload called, {request=} {patch=}")
+    ulength = request.headers.get('upload-length', None)
+    uname = request.headers.get('upload-name', None)
+    res, success = await file_handler.filepond_upload_stream(request, patch, ulength, uname)
+    if success and res == "":
+        return Response(patch, 200)
+    elif success and res != "":
+        return Response(f"{res} uploaded succesfully", 200)
+    elif not success:
+        return Response(f"Filepond upload failed: {res}", 500)
+    else:
+        return Response(f"Filepond upload failed: Internal Error", 500)
+
+
+@router.head("/filepond-upload")
+def head_filepond_upload(request: Request, patch: str):
+    logger.info(f"HEAD filepond-upload called, {request=} {patch=}")
+    ulength = request.headers.get('upload-length', None)
+    try:
+        offset = file_handler.get_offset(patch, ulength)
+        return Response(str(offset), 200)
+    except Exception as e:
+        return Response(f"HEAD /filepond-upload failed {e}", 500)
+
+
+@router.delete("/filepond-upload")
+async def delete_filepond_upload(request: Request):
+    logger.info(f"DELETE filepond-upload called, {request=}")
+    body = await request.body()
+    patch = body.decode("utf-8")
+    fname = file_handler.filepond_delete(patch)
+    if fname != "":
+        return Response(f"Deleted {fname} succesfully.", 200)
+    else:
+        return Response("Only removing the file in frontend, the file in the target location was already successfully uploaded", )
+
+
 @router.post("/file")
 async def upload_file(file: UploadFile):
     logger.info(f"chart file {file.filename}")
@@ -199,8 +252,10 @@ async def helm_install_chart(request: Request):
             cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
-        _, _, keywords, release_name, cmd = utils.helm_install(
+        not_installed, _, keywords, release_name, cmd = utils.helm_install(
             payload, shell=True, blocking=blocking, platforms=platforms, helm_command_addons=cmd_addons, execute_cmd=False)
+        if not not_installed:
+            return Response(f"Chart is already installed {release_name}", 500)
         success, stdout = await utils.helm_install_cmd_run_async(release_name, payload["version"], cmd, keywords)
         logger.debug(f"await ended {success=} {stdout=}")
         if success:

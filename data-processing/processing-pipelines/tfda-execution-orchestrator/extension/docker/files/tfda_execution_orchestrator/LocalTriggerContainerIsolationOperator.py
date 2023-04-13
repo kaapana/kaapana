@@ -16,8 +16,9 @@ class LocalTriggerContainerIsolationOperator(KaapanaPythonBaseOperator):
         self.trigger_dag_id = "dag-tfda-execution-orchestrator"
         dag_run_id = generate_run_id(self.trigger_dag_id)
         logging.info("Triggering isolated execution orchestrator...")
+        dag_config = kwargs["dag_run"].conf
         try:
-            trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id,
+            trigger(dag_id=self.trigger_dag_id, run_id=dag_run_id, conf=dag_config,
                             replace_microseconds=False)
         except Exception as e:
             logging.error(f"Error while triggering isolated workflow...")

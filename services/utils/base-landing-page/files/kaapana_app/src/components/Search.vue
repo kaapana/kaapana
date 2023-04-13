@@ -79,8 +79,8 @@
         <v-col cols="1"/>
         <v-col cols="2">
           <v-autocomplete
-              solo v-model="filter.key_select" :items="Object.keys(mapping)" :key="filter.key_select"
-              dense hide-details @change="() => {filter.item_select=[]}"
+              solo v-model="filter.key_select" :items="fieldNames" :key="filter.key_select"
+              dense hide-details @change="updateMapping(filter)"
           ></v-autocomplete>
         </v-col>
         <v-col cols="5">
@@ -111,7 +111,7 @@
 
 <script>
 /* eslint-disable */
-import {loadAvailableTags, loadDatasetByName} from "../common/api.service";
+import {loadDatasetByName, loadFieldNames, loadValues} from "../common/api.service";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 
 export default {
@@ -125,6 +125,7 @@ export default {
       display_filters: true,
       filters: [],
       counter: 0,
+      fieldNames: [],
       mapping: {},
       dialog: false
     }
@@ -140,11 +141,16 @@ export default {
         filters[0].item_select.push(value)
         this.display_filters = true
       } else if (filters.length === 0) {
-        this.filters.push({
-          id: this.counter++,
-          key_select: key,
-          item_select: [value]
-        })
+        loadValues(this.constructDatasetQuery(), key)
+            .then(res => {
+              this.mapping[key] = res.data
+              this.filters.push({
+                id: this.counter++,
+                key_select: key,
+                item_select: [value]
+              })
+            })
+
         this.display_filters = true
       }
     },
@@ -175,7 +181,7 @@ export default {
       const query = {
         "bool": {
           "must": [
-            await this.constructDatasetQuery(this.datasetName),
+            this.constructDatasetQuery(),
             ...(
                 this.filters.map(filter => this.queryFromFilter(filter)).filter(query => query !== null)
             ),
@@ -221,26 +227,34 @@ export default {
         return null
       }
     },
-    async constructDatasetQuery(datasetName = null) {
-      if (datasetName === null)
-        return ''
-      const dataset = await loadDatasetByName(datasetName)
-      if (dataset.identifiers && dataset.identifiers.length > 0) {
+    constructDatasetQuery() {
+      if (this.dataset && this.dataset.identifiers && this.dataset.identifiers.length > 0) {
         return {
           "ids": {
-            "values": dataset.identifiers
+            "values": this.dataset.identifiers
           }
         }
       } else {
         return ''
       }
+    },
+    async updateMapping(filter) {
+      filter.item_select = []
+      const key = filter.key_select
+      console.log(key)
+      loadValues(this.constructDatasetQuery(), key)
+          .then(res => {
+            console.log(res.data)
+            this.mapping[key] = res.data
+          })
     }
   },
   async mounted() {
-    const data = await this.constructDatasetQuery(this.datasetName)
+    this.dataset = this.datasetName && await loadDatasetByName(this.datasetName)
     this.search(true)
-    loadAvailableTags(data || {}).then(res => {
-      this.mapping = res.data
+    loadFieldNames().then(res => {
+      this.fieldNames = res.data
+      this.mapping = Object.assign({}, ...this.fieldNames.map(_name => ({[_name]: {"items": [], "key": ""}})))
     })
 
     // this.filters = JSON.parse(localStorage['Dataset.search.filters'] || "[]")
@@ -251,13 +265,11 @@ export default {
   watch: {
     async datasetName() {
       this.filters = []
-      this.constructDatasetQuery(this.datasetName)
-          .then(data => loadAvailableTags(data || {})
-              .then(res => {
-                this.mapping = res.data
-                this.search()
-              }))
-      // await this.search()
+      const query = this.constructDatasetQuery(this.datasetName)
+      loadFieldNames().then(res => {
+        this.fieldNames = res.data
+        this.mapping = Object.assign({}, ...this.fieldNames.map(_name => ({[_name]: {"items": [], "key": ""}})))
+      })
     }
   }
 }

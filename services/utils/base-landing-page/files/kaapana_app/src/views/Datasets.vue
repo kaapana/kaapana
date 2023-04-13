@@ -339,4 +339,23 @@ export default {
 .empty.elements {
   border: none;
 }
+
+.elements {
+  /*margin-top: 40px;*/
+  /*border: 2px solid #eee;*/
+}
+
+.selecto-area {
+  /*padding: 20px;*/
+}
+
+.selected {
+  /*TODO: This should be aligned with theme*/
+  color: #fff !important;
+  background: #4af !important;
+}
+
+.empty.elements {
+  border: none;
+}
 </style>

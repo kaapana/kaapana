@@ -1,7 +1,7 @@
-
 <template lang="pug">
     file-pond(
       allow-multiple="true"
+      credits="false"
       :label-idle='labelIdle'
       label-tap-to-undo="Remove from list"
       :accepted-file-types='acceptedFileTypes'
@@ -14,13 +14,16 @@ import vueFilePond, { setOptions } from 'vue-filepond';
 import FilePondPluginFileValidateType from 'filepond-plugin-file-validate-type'; // /dist/filepond-plugin-file-validate-type.esm.js';
 import 'filepond/dist/filepond.min.css';
 
-const FilePond = vueFilePond( FilePondPluginFileValidateType );
+const FilePond = vueFilePond(FilePondPluginFileValidateType);
 
 export default {
   name: 'upload',
   props: {
     labelIdle: String,
-    acceptedFileTypes: String,
+    acceptedFileTypes: Array,
+    onProcessFileStart: Function,
+    onProcessFile: Function,
+    url: ""
   },
   components: {
     FilePond
@@ -29,19 +32,33 @@ export default {
     setOptions({
       chunkUploads: true,
       chunkForce: true,
-      chunkSize: 1024 * 1024 * 1, // 50MB
+      chunkSize: 1024 * 1024 * 1,
       beforeAddFile: (file) => {
         let filepath = ""
-        if (file.relativePath == ''){
+        if (file.relativePath == '') {
           filepath = file.filename
         } else {
           filepath = file.relativePath
         }
         file.setMetadata("filepath", filepath)
       },
+      onprocessfilestart: (file) => {
+        console.log("onprocessfilestart")
+        console.log(this.onProcessFileStart)
+        if (typeof this.onProcessFileStart == "function") {
+          this.onProcessFileStart(file)
+        }
+      },
+      onprocessfile: (error, file) => {
+        console.log("onprocessfile")
+        console.log(this.onProcessFile)
+        if (typeof this.onProcessFile == "function") {
+          this.onProcessFile(error, file)
+        }
+      },
       server: {
         // From https://pqina.nl/filepond/docs/api/server/#process-1
-        url: '/kaapana-backend/client/minio-file-upload',
+        url: this.getURL(),
         // process: (fieldName, file, metadata, load, error, progress, abort, transfer, options) => {
         //   // fieldName is the name of the input field
         //   // file is the actual file object to send
@@ -95,6 +112,11 @@ export default {
         // },
       },
     });
-  }
+  },
+  methods: {
+    getURL() {
+      if (this.url != "") { return this.url } else { return "/kaapana-backend/client/minio-file-upload" }
+    }
+  },
 }
 </script>

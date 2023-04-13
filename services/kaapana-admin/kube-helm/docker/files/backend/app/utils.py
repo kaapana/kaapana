@@ -293,7 +293,7 @@ def helm_install(
                 for idx, sub_dict in enumerate(value):
                     for k, v in sub_dict.items():
                         default_sets[f'global.{key}[{idx}].{k}']  = v
-        
+
     if 'sets' not in payload:
         payload['sets'] = default_sets
     else:
@@ -351,9 +351,8 @@ def helm_install(
 
     # make the whole command
     helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
-
     if not execute_cmd:
-        return False, "", keywords, release_name, helm_command
+        return True, "", keywords, release_name, helm_command
 
     skip_check = False
     if helm_command_suffix != "":

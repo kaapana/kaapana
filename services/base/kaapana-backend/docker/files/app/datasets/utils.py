@@ -220,7 +220,7 @@ async def get_field_mapping(index="meta-index") -> Dict:
     }
 
     name_field_map = {
-        k: v
+        k.capitalize(): v
         for k, v in name_field_map.items()
         if len(re.findall("\d", k)) == 0 and k != "" and v != ""
     }

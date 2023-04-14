@@ -29,11 +29,7 @@
             v-col(align="left")
               v-checkbox(v-model="clientPost.ssl_check" label="SSL"  required='')
             v-col(cols=1 align="center")
-              v-btn(
-                @click="edit_ssl_check = !edit_ssl_check; updateClientForm();" 
-                small 
-                icon
-              )
+              v-btn(@click="edit_ssl_check = !edit_ssl_check; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
           v-row(v-else)
@@ -48,17 +44,9 @@
           v-row(v-if="edit_fernet_encrypted" align="center")
             v-col(align="left") Fernet key:
             v-col(align="left")
-              v-checkbox(
-                v-model="clientPost.fernet_encrypted" 
-                label="Fernet encrypted"  
-                required=''
-              )
+              v-checkbox(v-model="clientPost.fernet_encrypted" label="Fernet encrypted"  required='')
             v-col(cols=1 align="center")
-              v-btn(
-                @click="edit_fernet_encrypted = !edit_fernet_encrypted; updateClientForm();" 
-                small 
-                icon
-              )
+              v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
           v-row(v-else)
@@ -72,16 +60,9 @@
           v-row(v-if="edit_automatic_update" align="center")
             v-col(align="left") Sync remote jobs:
             v-col(align="left")
-              v-checkbox(
-                v-model="clientPost.automatic_update" 
-                label="Check automatically for remote updates"
-              )
+              v-checkbox(v-model="clientPost.automatic_update" label="Check automatically for remote updates")
             v-col(cols=1 align="center")
-              v-btn(
-                @click="edit_automatic_update = !edit_automatic_update; updateClientForm();" 
-                small 
-                icon
-              )
+              v-btn(@click="edit_automatic_update = !edit_automatic_update; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
           v-row(v-else)
@@ -96,33 +77,18 @@
           v-row(v-if="edit_automatic_job_execution" align="center")
             v-col(align="left") Autmoatically execute pending jobs:
             v-col(align="left")
-              v-checkbox(
-                v-model="clientPost.automatic_job_execution" 
-                label="Execute automatically jobs"
-              )
+              v-checkbox(v-model="clientPost.automatic_job_execution" label="Execute automatically jobs")
             v-col(cols=1 align="center")
-              v-btn(
-                @click="edit_automatic_job_execution = !edit_automatic_job_execution; updateClientForm();" 
-                small 
-                icon
-              )
+              v-btn(@click="edit_automatic_job_execution = !edit_automatic_job_execution; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
           v-row(v-else)
             v-col(align="left") Autmoatically execute pending jobs:
             v-col(align="left")
-              v-icon(
-                v-if="clientPost.automatic_job_execution" 
-                small 
-                color="green"
-              ) mdi-check-circle
+              v-icon(v-if="clientPost.automatic_job_execution" small color="green") mdi-check-circle
               v-icon(v-if="!clientPost.automatic_job_execution" small) mdi-close-circle
             v-col(cols=1 align="center")
-              v-btn(
-                @click="edit_automatic_job_execution = !edit_automatic_job_execution" 
-                small 
-                icon
-              )
+              v-btn(@click="edit_automatic_job_execution = !edit_automatic_job_execution" small icon)
                 v-icon mdi-pencil
         v-divider(vertical)
         v-col(cols=4 align="left")
@@ -130,22 +96,10 @@
           v-row(v-if="edit_allowed_dags" align="center")
             v-col(align="left") Allowed DAGs:
             v-col(align="left")
-              v-select(
-                v-model='clientPost.allowed_dags' 
-                :items='dags' 
-                label='Allowed dags' 
-                multiple='' 
-                chips='' 
-                hint='Which dags are allowed to be triggered' 
-                persistent-hint=''
-              )
+              v-select(v-model='clientPost.allowed_dags' :items='dags' label='Allowed dags' multiple='' chips='' hint='Which dags are allowed to be triggered' persistent-hint='')
               //- span( v-for='dag in instance.allowed_dags') {{dag}}
             v-col(cols=1 align="center")
-              v-btn(
-                @click="edit_allowed_dags = !edit_allowed_dags; updateClientForm();" 
-                small 
-                icon
-              )
+              v-btn(@click="edit_allowed_dags = !edit_allowed_dags; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
           v-row(v-else)
@@ -159,21 +113,9 @@
           v-row(v-if="edit_allowed_datasets" align="center")
             v-col(align="left") Allowed Datasets:
             v-col(align="left")
-              v-select(
-                v-model='clientPost.allowed_datasets' 
-                :items='datasets' 
-                label='Allowed datasets' 
-                multiple='' 
-                chips='' 
-                hint='Which datasets are allowed to be used' 
-                persistent-hint=''
-              )
+              v-select(v-model='clientPost.allowed_datasets' :items='datasets' label='Allowed datasets' multiple='' chips='' hint='Which datasets are allowed to be used' persistent-hint='')
             v-col(cols=1 align="center")
-              v-btn(
-                @click="edit_allowed_datasets = !edit_allowed_datasets; updateClientForm();" 
-                small 
-                icon
-              )
+              v-btn(@click="edit_allowed_datasets = !edit_allowed_datasets; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
           v-row(v-else)

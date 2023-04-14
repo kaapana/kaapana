@@ -13,11 +13,7 @@
             <v-divider></v-divider>
             <v-card-actions>
               <v-spacer></v-spacer>
-              <v-btn 
-                color="primary" 
-                text="" 
-                @click="dialogConfData = false"
-              >Close</v-btn>
+              <v-btn color="primary" text="" @click="dialogConfData = false">Close</v-btn>
             </v-card-actions>
           </v-card>
         </v-dialog>
@@ -54,11 +50,7 @@
           </template>
 
           <template v-slot:item.conf_data="{ item }">
-            <v-icon 
-              color="secondary" 
-              dark="" 
-              @click="openConfData(item.conf_data)"
-            >
+            <v-icon color="secondary" dark="" @click="openConfData(item.conf_data)">
                 mdi-email
             </v-icon>
           </template>
@@ -76,13 +68,7 @@
           <template v-slot:item.airflow="{ item }">
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
-                <v-btn 
-                  v-bind="attrs" 
-                  v-on="on" 
-                  @click='direct_airflow_graph(item)' 
-                  small 
-                  icon
-                >
+                <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_graph(item)' small icon>
                   <v-icon color="secondary" dark>mdi-chart-timeline-variant</v-icon>
                 </v-btn>
               </template>
@@ -90,14 +76,7 @@
             </v-tooltip>
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
-                <v-btn 
-                  v-if="item.status == 'failed'" 
-                  v-bind="attrs" 
-                  v-on="on" 
-                  @click='direct_airflow_operator_logs(item)' 
-                  small 
-                  icon
-                >
+                <v-btn v-if="item.status == 'failed'" v-bind="attrs" v-on="on" @click='direct_airflow_operator_logs(item)' small icon>
                   <v-icon color="secondary" dark>mdi-alert-decagram-outline</v-icon>
                 </v-btn>
               </template>
@@ -109,13 +88,7 @@
             <v-col v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">
-                  <v-btn 
-                    v-bind="attrs" 
-                    v-on="on" 
-                    @click='abortJob(item)' 
-                    small 
-                    icon
-                  >
+                  <v-btn v-bind="attrs" v-on="on" @click='abortJob(item)' small icon>
                     <v-icon color="secondary" dark>mdi-stop-circle-outline</v-icon>
                   </v-btn>
                 </template>
@@ -123,11 +96,7 @@
               </v-tooltip>
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">
-                  <v-btn 
-                  v-bind="attrs" 
-                  v-on="on" 
-                  @click='restartJob(item)' 
-                  small icon>
+                  <v-btn v-bind="attrs" v-on="on" @click='restartJob(item)' small icon>
                     <v-icon color="secondary" dark>mdi-rotate-left</v-icon>
                   </v-btn>
                 </template>
@@ -135,13 +104,7 @@
               </v-tooltip>
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">
-                  <v-btn 
-                    v-bind="attrs" 
-                    v-on="on" 
-                    @click='deleteJob(item)' 
-                    small 
-                    icon
-                  >
+                  <v-btn v-bind="attrs" v-on="on" @click='deleteJob(item)' small icon>
                     <v-icon color="secondary" dark>mdi-trash-can-outline</v-icon>
                   </v-btn>
                 </template>
@@ -299,27 +262,14 @@
         },
         direct_airflow_graph(item) {
           this.dag_run_datetime = item.run_id.split("-").at(-1)
-          this.dag_run_datetime = this.dag_run_datetime.slice(-6).slice(0, 2) + 
-                                   "." + 
-                                   this.dag_run_datetime.slice(-4)
-          this.dag_run_ms = item.run_id.split("-").at(-1).slice(-6).slice(0, 2) + 
-                             this.dag_run_datetime.slice(-4)
-          this.dag_run_datetime = item.time_updated.slice(0, 19) + 
-                                   "." + 
-                                   this.dag_run_ms + "+00:00"
-          this.airflow_url = item.kaapana_instance.protocol + 
-                              "://" + 
-                              item.kaapana_instance.host + 
-                              "/flow/graph?dag_id=" + 
-                              item.dag_id + 
-                              "&execution_date=" + 
-                              encodeURIComponent(this.dag_run_datetime)
+          this.dag_run_datetime = this.dag_run_datetime.slice(-6).slice(0, 2) + "." + this.dag_run_datetime.slice(-4)
+          this.dag_run_ms = item.run_id.split("-").at(-1).slice(-6).slice(0, 2) + this.dag_run_datetime.slice(-4)
+          this.dag_run_datetime = item.time_updated.slice(0, 19) + "." + this.dag_run_ms + "+00:00"
+          this.airflow_url = item.kaapana_instance.protocol + "://" + item.kaapana_instance.host + "/flow/graph?dag_id=" + item.dag_id + "&execution_date=" + encodeURIComponent(this.dag_run_datetime)
           window.open(this.airflow_url, "_blank", "noreferrer")
         },
-        // async to make await work properly
-        async direct_airflow_operator_logs(item) {
-          // task_instances and states are written to -> this.dag_run_tasks_n_states ; needs to be await to asve API result to variable
-          await this.getJobTaskinstancesAPI(item.id);  
+        async direct_airflow_operator_logs(item) {     // async to make await work properly
+          await this.getJobTaskinstancesAPI(item.id);  // task_instances and states are written to -> this.dag_run_tasks_n_states ; needs to be await to asve API result to variable
 
           // iterate over this.dag_run_tasks_n_states and search for operator with state 'failed'
           for (let key in this.dag_run_tasks_n_states) {
@@ -329,15 +279,7 @@
           }
           // compose airflow log link:
           this.dag_run_datetime = this.dag_run_tasks_n_states[this.failed_operator].at(0)
-          this.airflow_url = item.kaapana_instance.protocol + 
-                              "://" + 
-                              item.kaapana_instance.host + 
-                              "/flow/log?dag_id=" + 
-                              item.dag_id + 
-                              "&task_id=" + 
-                              this.failed_operator + 
-                              "&execution_date=" + 
-                              encodeURIComponent(this.dag_run_datetime)
+          this.airflow_url = item.kaapana_instance.protocol + "://" + item.kaapana_instance.host + "/flow/log?dag_id=" + item.dag_id + "&task_id=" + this.failed_operator + "&execution_date=" + encodeURIComponent(this.dag_run_datetime)
           window.open(this.airflow_url, "_blank", "noreferrer")
         },
         

@@ -55,11 +55,7 @@
         v-col( align="left")
           v-checkbox(v-model="instancePost.ssl_check" label="SSL"  required='')
         v-col(cols=1 align="center")
-          v-btn(
-            @click="edit_ssl_check = !edit_ssl_check; updateInstancForm();" 
-            small 
-            icon
-          )
+          v-btn(@click="edit_ssl_check = !edit_ssl_check; updateInstancForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -74,17 +70,9 @@
       v-row(v-if="edit_fernet_encrypted" align="center")
         v-col(cols=4 align="left") Fernet key:
         v-col( align="left")
-          v-checkbox(
-            v-model="instancePost.fernet_encrypted" 
-            label="Fernet encrypted"  
-            required=''
-          )
+          v-checkbox(v-model="instancePost.fernet_encrypted" label="Fernet encrypted"  required='')
         v-col(cols=1 align="center")
-          v-btn(
-            @click="edit_fernet_encrypted = !edit_fernet_encrypted; updateInstancForm();" 
-            small 
-            icon
-          )
+          v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateInstancForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -169,13 +157,11 @@
         type: Object,
         required: true
       },
-      // false for client instance; true for remote instances
-      remote: { 
+      remote: { // false for client instance; true for remote instances
         type: Boolean,
         required: true
       },
-      // needed to always re-render the remote instance whenever parent component gets remote instance from backend
-      time_updated: { 
+      time_updated: { // needed to always re-render the remote instance whenever parent component gets remote instance from backend
         type: String,
         required: true
       },
@@ -199,7 +185,7 @@
         return Date.parse(new Date().toUTCString());
       },
       diff_updated() {
-        var datetime = Date.parse(new Date(this.instance.time_updated).toUTCString());
+        var datetime = Date.parse(new Date(this.instance.time_updated).toUTCString()); // var datetime = Date.parse(new Date(this.instance.time_updated * 1000).toUTCString());
         var now = Date.parse(new Date().toUTCString());
 
         if( isNaN(datetime) )

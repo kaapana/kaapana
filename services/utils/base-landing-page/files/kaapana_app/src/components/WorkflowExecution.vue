@@ -109,11 +109,7 @@
           <!-- Conf data summarizing the configured experiment -->
           <v-row>
             <v-col cols="12">
-              <v-tooltip 
-                v-model="showConfData" 
-                top=""
-              >
-                <template v-slot:activator="{ on, attrs }">
+              <v-tooltip v-model="showConfData" top=""><template v-slot:activator="{ on, attrs }">
                   <v-btn icon="" v-bind="attrs" v-on="on">
                     <v-icon color="grey lighten-1">mdi-email</v-icon>
                   </v-btn>
@@ -121,9 +117,7 @@
                 <pre class="text-left">Experiment name: {{experiment_name}}</pre>
                 <pre class="text-left">Dag id: {{dag_id}}</pre>
                 <pre class="text-left">Instance name: {{instance_names}}</pre>
-                <pre class="text-left">
-                  External instance name: {{selected_remote_instances_w_external_dag_available}}
-                </pre>
+                <pre class="text-left">External instance name: {{selected_remote_instances_w_external_dag_available}}</pre>
                 <pre class="text-left">{{ formDataFormatted }}</pre>
               </v-tooltip>
             </v-col>
@@ -336,8 +330,7 @@
       submissionValidator() {
         let valid_check = []
         let invalid_fields = []
-        // validate dag_id and experiment_name in any cases
-        if (this.$refs.executeWorkflow.validate()) { 
+        if (this.$refs.executeWorkflow.validate()) { // validate dag_id and experiment_name in any cases
           // extract form name and attribute names of form_requiredFields
           for (let i=0; i<this.form_requiredFields.length; i++) {
             const req_field = this.form_requiredFields[i];
@@ -442,12 +435,7 @@
         // remove 'undefined' from instance_names list
 
         kaapanaApiService
-          .federatedClientApiPost("/get-ui-form-schemas", {
-              remote: this.remote, 
-              experiment_name: this.experiment_name, 
-              dag_id: this.dag_id, 
-              instance_names: this.instance_names
-            })
+          .federatedClientApiPost("/get-ui-form-schemas", {remote: this.remote, experiment_name: this.experiment_name, dag_id: this.dag_id, instance_names: this.instance_names})
           .then((response) => {
             let schemas = response.data
             this.form_requiredFields = this.findRequiredFields(schemas)
@@ -465,12 +453,7 @@
       },
       getExternalUiFormSchemas() {
         kaapanaApiService
-          .federatedClientApiPost("/get-ui-form-schemas",  {
-              remote: true, 
-              experiment_name: this.experiment_name,
-              dag_id: this.external_dag_id, 
-              instance_names: this.selected_remote_instances_w_external_dag_available
-            })
+          .federatedClientApiPost("/get-ui-form-schemas",  {remote: true, experiment_name: this.experiment_name, dag_id: this.external_dag_id, instance_names: this.selected_remote_instances_w_external_dag_available})
           .then((response) => {
             this.external_schemas = response.data
           })
@@ -482,10 +465,7 @@
       getDags() { // might need a 2nd getDags() API call ?!
         if (this.instance_names !== 0) {
           kaapanaApiService
-            .federatedClientApiPost("/get-dags", {
-                remote: this.remote, 
-                instance_names: this.instance_names
-              })
+            .federatedClientApiPost("/get-dags", {remote: this.remote, instance_names: this.instance_names})
             .then((response) => {
               this.available_dags = response.data;
             })

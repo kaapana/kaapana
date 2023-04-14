@@ -16,49 +16,22 @@
           <v-container>
             <v-row>
               <v-col cols="5">
-                <v-text-field 
-                  v-model="remotePost.instance_name" 
-                  label="Instance name" 
-                  required="" 
-                  :disabled="remoteUpdate"
-                ></v-text-field>
+                <v-text-field v-model="remotePost.instance_name" label="Instance name" required="" :disabled="remoteUpdate"></v-text-field>
               </v-col>
               <v-col cols="5">
-                <v-text-field 
-                  v-model="remotePost.host" 
-                  label="Host" 
-                  required="" 
-                  :disabled="remoteUpdate"
-                ></v-text-field>
+                <v-text-field v-model="remotePost.host" label="Host" required="" :disabled="remoteUpdate"></v-text-field>
               </v-col>
               <v-col cols="2">
-                <v-text-field 
-                  v-model="remotePost.port" 
-                  label="Port" 
-                  type="number" 
-                  required=""
-                ></v-text-field>
+                <v-text-field v-model="remotePost.port" label="Port" type="number" required=""></v-text-field>
               </v-col>
               <v-col cols="5">
-                <v-text-field 
-                  v-model="remotePost.token" 
-                  label="Token" 
-                  required=""
-                ></v-text-field>
+                <v-text-field v-model="remotePost.token" label="Token" required=""></v-text-field>
               </v-col>
               <v-col cols="5">
-                <v-text-field 
-                  v-model="remotePost.fernet_key" 
-                  label="Fernet Key" 
-                  required=""
-                ></v-text-field>
+                <v-text-field v-model="remotePost.fernet_key" label="Fernet Key" required=""></v-text-field>
               </v-col>
               <v-col cols="2">
-                <v-checkbox 
-                  v-model="remotePost.ssl_check" 
-                  label="SSL" 
-                  required=""
-                ></v-checkbox>
+                <v-checkbox v-model="remotePost.ssl_check" label="SSL" required=""></v-checkbox>
               </v-col>
             </v-row>
           </v-container>

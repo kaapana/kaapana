@@ -11,28 +11,16 @@
       <v-card-text>
         <v-container fluid="">
           <v-row dense="">
-            <v-col 
-              v-for="instance in remoteInstances" 
-              :key="instance.id" 
-              cols="6" 
-              align="left"
-            >
+            <v-col v-for="instance in remoteInstances" :key="instance.id" cols="6" align="left">
               <!-- former old KaapanaInstance-->
-              <RemoteKaapanaInstance 
-                :instance="instance" 
-                :remote="instance.remote" 
-                @refreshView="refreshRemote()" @ei="editRemoteInstance"
-              ></RemoteKaapanaInstance>
+              <RemoteKaapanaInstance :instance="instance" :remote="instance.remote" @refreshView="refreshRemote()" @ei="editRemoteInstance"></RemoteKaapanaInstance>
             </v-col>
           </v-row>
         </v-container>
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <add-remote-instance 
-          ref="addremoteinstance" 
-          :remote='true'
-        ></add-remote-instance>
+        <add-remote-instance ref="addremoteinstance" :remote='true'></add-remote-instance>
       </v-card-actions>
     </v-card>
   </v-dialog>

@@ -204,7 +204,7 @@ export default Vue.extend({
       ['Experiment execution', 'mdi-play-box', '/experiment-execution'],
       ['Experiment list', 'mdi-clipboard-text-outline', '/experiments'],
       ['Experiment results', 'mdi-chart-bar-stacked', '/results-browser'],
-      ['Federated learning', 'mdi-vector-triangle', '/federated-learning'],
+      ['Federated learning', 'mdi-vector-triangle', '/experiments'],
       ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
     ]
   }),

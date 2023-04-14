@@ -3,14 +3,10 @@
     <v-card-title>
       <v-col cols=2 align="left"> Remote Instances </v-col>
       <v-col cols=1>
-        <add-remote-instance 
-          @refreshRemoteFromAdding="refreshRemote()"
-        ></add-remote-instance>
+        <add-remote-instance @refreshRemoteFromAdding="refreshRemote()"></add-remote-instance>
       </v-col>
       <v-col>
-        <sync-remote-instances 
-          @refreshRemoteFromSyncing="refreshRemote()"
-        ></sync-remote-instances>
+        <sync-remote-instances @refreshRemoteFromSyncing="refreshRemote()"></sync-remote-instances>
       </v-col>
     </v-card-title>
     <v-card-text>

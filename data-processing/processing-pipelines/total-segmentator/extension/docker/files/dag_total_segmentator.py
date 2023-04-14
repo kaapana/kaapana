@@ -8,13 +8,10 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from totalsegmentator.LocalGetTotalSegmentatorModelsOperator import (
-    LocalGetTotalSegmentatorModelsOperator,
-)
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
 from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.LocalCombineMasksOperator import LocalCombineMasksOperator
+from kaapana.operators.CombineMasksOperator import CombineMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
 max_active_runs = 10
@@ -119,27 +116,27 @@ ui_forms = {
                 "default": True,
                 "readOnly": False,
             },
-            # "cerebral_bleed": {
-            #     "title": "enable lung_vessels",
-            #     "description": "Add segmentations for intracerebral_hemorrhage.",
-            #     "type": "boolean",
-            #     "default": True,
-            #     "readOnly": False,
-            # },
-            # "hip_implant": {
-            #     "title": "enable hip_implant",
-            #     "description": "Add segmentations for hip_implant.",
-            #     "type": "boolean",
-            #     "default": True,
-            #     "readOnly": False,
-            # },
-            # "coronary_arteries": {
-            #     "title": "enable coronary_arteries",
-            #     "description": "Add segmentations for coronary_arteries.",
-            #     "type": "boolean",
-            #     "default": True,
-            #     "readOnly": False,
-            # },
+            "cerebral_bleed": {
+                "title": "enable cerebral_bleed",
+                "description": "Add segmentations for intracerebral_hemorrhage.",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            },
+            "hip_implant": {
+                "title": "enable hip_implant",
+                "description": "Add segmentations for hip_implant.",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            },
+            "coronary_arteries": {
+                "title": "enable coronary_arteries",
+                "description": "Add segmentations for coronary_arteries.",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            },
             "body": {
                 "title": "enable body",
                 "description": "Add segmentations for body, body_trunc, body_extremities, skin",
@@ -198,10 +195,10 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_total_segmentator_model = GetZenodoModelOperator(
+get_total_segmentator_model_0 = GetZenodoModelOperator(
     dag=dag,
     model_dir="/models/total_segmentator/nnUNet",
-    task_ids="Task251_TotalSegmentator_part1_organs_1139subj,Task252_TotalSegmentator_part2_vertebrae_1139subj,Task253_TotalSegmentator_part3_cardiac_1139subj,Task254_TotalSegmentator_part4_muscles_1139subj,Task255_TotalSegmentator_part5_ribs_1139subj,Task256_TotalSegmentator_3mm_1139subj,Task258_lung_vessels_248subj,Task150_icb_v0,Task260_hip_implant_71subj,Task269_Body_extrem_6mm_1200subj,Task273_Body_extrem_1259subj,Task315_thoraxCT",
+    task_ids="Task251_TotalSegmentator_part1_organs_1139subj,Task252_TotalSegmentator_part2_vertebrae_1139subj,Task253_TotalSegmentator_part3_cardiac_1139subj,Task254_TotalSegmentator_part4_muscles_1139subj,Task255_TotalSegmentator_part5_ribs_1139subj,Task256_TotalSegmentator_3mm_1139subj",
 )
 
 get_input = LocalGetInputDataOperator(
@@ -215,16 +212,13 @@ dcm2nifti = DcmConverterOperator(
 )
 
 ta = "total"
-combine_masks_label = "combine-masks"
 total_segmentator_0 = TotalSegmentatorOperator(
     dag=dag, task=ta, input_operator=dcm2nifti
 )
-combine_masks_0 = TotalSegmentatorOperator(
+combine_masks_0 = CombineMasksOperator(
     dag=dag,
-    name=combine_masks_label,
-    task=combine_masks_label,
     input_operator=total_segmentator_0,
-    parallel_id="cm-total",
+    parallel_id=ta,
 )
 nrrd2dcmSeg_multi_0 = Itk2DcmSegOperator(
     dag=dag,
@@ -247,10 +241,16 @@ pyradiomics_0 = PyRadiomicsOperator(
     input_operator=dcm2nifti,
     segmentation_operator=total_segmentator_0,
     parallel_id=ta,
-    trigger_rule="all_done",
 )
 
 ta = "lung_vessels"
+get_total_segmentator_model_1 = GetZenodoModelOperator(
+    dag=dag,
+    model_dir="/models/total_segmentator/nnUNet",
+    task_ids="Task258_lung_vessels_248subj",
+    parallel_id=ta,
+)
+
 total_segmentator_1 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
@@ -258,12 +258,10 @@ total_segmentator_1 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_1 = TotalSegmentatorOperator(
+combine_masks_1 = CombineMasksOperator(
     dag=dag,
-    name=combine_masks_label,
-    task=combine_masks_label,
     input_operator=total_segmentator_1,
-    parallel_id="cm-lv",
+    parallel_id=ta,
 )
 nrrd2dcmSeg_multi_1 = Itk2DcmSegOperator(
     dag=dag,
@@ -288,109 +286,139 @@ pyradiomics_1 = PyRadiomicsOperator(
     parallel_id=ta,
 )
 
-# ta = "cerebral_bleed"
-# total_segmentator_2 = TotalSegmentatorOperator(
-#     dag=dag,
-#     task=ta,
-#     input_operator=dcm2nifti,
-#     delete_output_on_start=False,
-#     parallel_id=ta,
-# )
-# combine_masks_2 = TotalSegmentatorOperator(
-#     dag=dag,
-#     name=combine_masks_label,
-#     task=combine_masks_label,
-#     input_operator=total_segmentator_2,
-#     parallel_id="cm-cb",
-# )
-# nrrd2dcmSeg_multi_2 = Itk2DcmSegOperator(
-#     dag=dag,
-#     input_operator=get_input,
-#     segmentation_operator=combine_masks_2,
-#     input_type="multi_label_seg",
-#     multi_label_seg_name=alg_name,
-#     multi_label_seg_info_json="seg_info.json",
-#     skip_empty_slices=True,
-#     parallel_id=ta,
-#     alg_name=f"{alg_name}-{ta}",
-# )
-# dcmseg_send_2 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_2,parallel_id=ta,)
-# pyradiomics_2 = PyRadiomicsOperator(
-#     dag=dag,
-#     input_operator=dcm2nifti,
-#     segmentation_operator=total_segmentator_2,
-#     parallel_id=ta,
-# )
+ta = "cerebral_bleed"
+get_total_segmentator_model_2 = GetZenodoModelOperator(
+    dag=dag,
+    model_dir="/models/total_segmentator/nnUNet",
+    task_ids="Task150_icb_v0",
+    parallel_id=ta,
+)
+total_segmentator_2 = TotalSegmentatorOperator(
+    dag=dag,
+    task=ta,
+    input_operator=dcm2nifti,
+    delete_output_on_start=False,
+    parallel_id=ta,
+)
+combine_masks_2 = CombineMasksOperator(
+    dag=dag,
+    input_operator=total_segmentator_2,
+    parallel_id=ta,
+)
+nrrd2dcmSeg_multi_2 = Itk2DcmSegOperator(
+    dag=dag,
+    input_operator=get_input,
+    segmentation_operator=combine_masks_2,
+    input_type="multi_label_seg",
+    multi_label_seg_name=alg_name,
+    multi_label_seg_info_json="seg_info.json",
+    skip_empty_slices=True,
+    parallel_id=ta,
+    alg_name=f"{alg_name}-{ta}",
+)
+dcmseg_send_2 = DcmSendOperator(
+    dag=dag,
+    input_operator=nrrd2dcmSeg_multi_2,
+    parallel_id=ta,
+)
+pyradiomics_2 = PyRadiomicsOperator(
+    dag=dag,
+    input_operator=dcm2nifti,
+    segmentation_operator=total_segmentator_2,
+    parallel_id=ta,
+)
 
-# ta = "hip_implant"
-# total_segmentator_3 = TotalSegmentatorOperator(
-#     dag=dag,
-#     task=ta,
-#     input_operator=dcm2nifti,
-#     delete_output_on_start=False,
-#     parallel_id=ta,
-# )
-# combine_masks_3 = TotalSegmentatorOperator(
-#     dag=dag,
-#     name=combine_masks_label,
-#     task=combine_masks_label,
-#     input_operator=total_segmentator_3,
-#     parallel_id="cm-hi",
-# )
-# nrrd2dcmSeg_multi_3 = Itk2DcmSegOperator(
-#     dag=dag,
-#     input_operator=get_input,
-#     segmentation_operator=combine_masks_3,
-#     input_type="multi_label_seg",
-#     multi_label_seg_name=alg_name,
-#     multi_label_seg_info_json="seg_info.json",
-#     skip_empty_slices=True,
-#     parallel_id=ta,
-#     alg_name=f"{alg_name}-{ta}",
-# )
-# dcmseg_send_3 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_3,parallel_id=ta,)
-# pyradiomics_3 = PyRadiomicsOperator(
-#     dag=dag,
-#     input_operator=dcm2nifti,
-#     segmentation_operator=total_segmentator_3,
-#     parallel_id=ta,
-# )
+ta = "hip_implant"
+get_total_segmentator_model_3 = GetZenodoModelOperator(
+    dag=dag,
+    model_dir="/models/total_segmentator/nnUNet",
+    task_ids="Task260_hip_implant_71subj",
+    parallel_id=ta,
+)
+total_segmentator_3 = TotalSegmentatorOperator(
+    dag=dag,
+    task=ta,
+    input_operator=dcm2nifti,
+    delete_output_on_start=False,
+    parallel_id=ta,
+)
+combine_masks_3 = CombineMasksOperator(
+    dag=dag,
+    input_operator=total_segmentator_3,
+    parallel_id=ta,
+)
+nrrd2dcmSeg_multi_3 = Itk2DcmSegOperator(
+    dag=dag,
+    input_operator=get_input,
+    segmentation_operator=combine_masks_3,
+    input_type="multi_label_seg",
+    multi_label_seg_name=alg_name,
+    multi_label_seg_info_json="seg_info.json",
+    skip_empty_slices=True,
+    parallel_id=ta,
+    alg_name=f"{alg_name}-{ta}",
+)
+dcmseg_send_3 = DcmSendOperator(
+    dag=dag,
+    input_operator=nrrd2dcmSeg_multi_3,
+    parallel_id=ta,
+)
+pyradiomics_3 = PyRadiomicsOperator(
+    dag=dag,
+    input_operator=dcm2nifti,
+    segmentation_operator=total_segmentator_3,
+    parallel_id=ta,
+)
 
-# ta = "coronary_arteries"
-# total_segmentator_4 = TotalSegmentatorOperator(
-#     dag=dag,
-#     task=ta,
-#     input_operator=dcm2nifti,
-#     delete_output_on_start=False,
-#     parallel_id=ta,
-# )
-# combine_masks_4 = TotalSegmentatorOperator(
-#     dag=dag,
-#     name=combine_masks_label,
-#     task=combine_masks_label,
-#     input_operator=total_segmentator_4,
-#     parallel_id="cm-ca",
-# )
-# nrrd2dcmSeg_multi_4 = Itk2DcmSegOperator(
-#     dag=dag,
-#     input_operator=get_input,
-#     segmentation_operator=combine_masks_4,
-#     input_type="multi_label_seg",
-#     multi_label_seg_name=alg_name,
-#     multi_label_seg_info_json="seg_info.json",
-#     skip_empty_slices=True,
-#     parallel_id=ta,
-#     alg_name=f"{alg_name}-{ta}",
-# )
-# dcmseg_send_4 = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi_4,parallel_id=ta,)
-# pyradiomics_4 = PyRadiomicsOperator(
-#     dag=dag,
-#     input_operator=dcm2nifti,
-#     segmentation_operator=total_segmentator_4,
-#     parallel_id=ta,
-# )
+ta = "coronary_arteries"
+get_total_segmentator_model_4 = GetZenodoModelOperator(
+    dag=dag,
+    model_dir="/models/total_segmentator/nnUNet",
+    task_ids="Task503_cardiac_motion",
+    parallel_id=ta,
+)
+total_segmentator_4 = TotalSegmentatorOperator(
+    dag=dag,
+    task=ta,
+    input_operator=dcm2nifti,
+    delete_output_on_start=False,
+    parallel_id=ta,
+)
+combine_masks_4 = CombineMasksOperator(
+    dag=dag,
+    input_operator=total_segmentator_4,
+    parallel_id=ta,
+)
+nrrd2dcmSeg_multi_4 = Itk2DcmSegOperator(
+    dag=dag,
+    input_operator=get_input,
+    segmentation_operator=combine_masks_4,
+    input_type="multi_label_seg",
+    multi_label_seg_name=alg_name,
+    multi_label_seg_info_json="seg_info.json",
+    skip_empty_slices=True,
+    parallel_id=ta,
+    alg_name=f"{alg_name}-{ta}",
+)
+dcmseg_send_4 = DcmSendOperator(
+    dag=dag,
+    input_operator=nrrd2dcmSeg_multi_4,
+    parallel_id=ta,
+)
+pyradiomics_4 = PyRadiomicsOperator(
+    dag=dag,
+    input_operator=dcm2nifti,
+    segmentation_operator=total_segmentator_4,
+    parallel_id=ta,
+)
 
 ta = "body"
+get_total_segmentator_model_5 = GetZenodoModelOperator(
+    dag=dag,
+    model_dir="/models/total_segmentator/nnUNet",
+    task_ids="Task269_Body_extrem_6mm_1200subj,Task273_Body_extrem_1259subj",
+    parallel_id=ta,
+)
 total_segmentator_5 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
@@ -398,12 +426,10 @@ total_segmentator_5 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_5 = TotalSegmentatorOperator(
+combine_masks_5 = CombineMasksOperator(
     dag=dag,
-    name=combine_masks_label,
-    task=combine_masks_label,
     input_operator=total_segmentator_5,
-    parallel_id="cm-body",
+    parallel_id=ta,
 )
 nrrd2dcmSeg_multi_5 = Itk2DcmSegOperator(
     dag=dag,
@@ -429,6 +455,12 @@ pyradiomics_5 = PyRadiomicsOperator(
 )
 
 ta = "pleural_pericard_effusion"
+get_total_segmentator_model_6 = GetZenodoModelOperator(
+    dag=dag,
+    model_dir="/models/total_segmentator/nnUNet",
+    task_ids="Task315_thoraxCT",
+    parallel_id=ta,
+)
 total_segmentator_6 = TotalSegmentatorOperator(
     dag=dag,
     task=ta,
@@ -436,12 +468,10 @@ total_segmentator_6 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_6 = TotalSegmentatorOperator(
+combine_masks_6 = CombineMasksOperator(
     dag=dag,
-    name=combine_masks_label,
-    task=combine_masks_label,
     input_operator=total_segmentator_6,
-    parallel_id="cm-ppe",
+    parallel_id=ta,
 )
 nrrd2dcmSeg_multi_6 = Itk2DcmSegOperator(
     dag=dag,
@@ -472,28 +502,37 @@ put_to_minio = LocalMinioOperator(
     action_operators=[
         pyradiomics_0,
         pyradiomics_1,
-        # pyradiomics_2,
-        # pyradiomics_3,
-        # pyradiomics_4,
+        pyradiomics_2,
+        pyradiomics_3,
+        pyradiomics_4,
         pyradiomics_5,
         pyradiomics_6,
     ],
     file_white_tuples=(".json"),
-    trigger_rule="all_done",
+    trigger_rule="none_failed",
 )
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
-    trigger_rule="all_done",
+    trigger_rule="none_failed",
 )
 
-get_total_segmentator_model >> total_segmentator_0
-get_input >> dcm2nifti >> total_segmentator_0 >> combine_masks_0 >> nrrd2dcmSeg_multi_0 >> dcmseg_send_0 >> clean
+get_total_segmentator_model_0 >> total_segmentator_0
+(
+    get_input
+    >> dcm2nifti
+    >> total_segmentator_0
+    >> combine_masks_0
+    >> nrrd2dcmSeg_multi_0
+    >> dcmseg_send_0
+    >> clean
+)
 total_segmentator_0 >> pyradiomics_0 >> put_to_minio
 
 (
     total_segmentator_0
+    >> get_total_segmentator_model_1
     >> total_segmentator_1
     >> combine_masks_1
     >> nrrd2dcmSeg_multi_1
@@ -502,17 +541,42 @@ total_segmentator_0 >> pyradiomics_0 >> put_to_minio
 )
 total_segmentator_1 >> pyradiomics_1 >> put_to_minio
 
-# total_segmentator_0 >> total_segmentator_2 >> combine_masks_2 >> nrrd2dcmSeg_multi_2 >> dcmseg_send_2 >> clean
-# total_segmentator_2 >> pyradiomics_2 >> put_to_minio
-
-# total_segmentator_0 >> total_segmentator_3 >> combine_masks_3 >> nrrd2dcmSeg_multi_3 >> dcmseg_send_3 >> clean
-# total_segmentator_3 >> pyradiomics_3 >> put_to_minio
-
-# total_segmentator_0 >> total_segmentator_4 >> combine_masks_4 >> nrrd2dcmSeg_multi_4 >> dcmseg_send_4 >> clean
-# total_segmentator_4 >> pyradiomics_4 >> put_to_minio
+(
+    total_segmentator_0
+    >> get_total_segmentator_model_2
+    >> total_segmentator_2
+    >> combine_masks_2
+    >> nrrd2dcmSeg_multi_2
+    >> dcmseg_send_2
+    >> clean
+)
+total_segmentator_2 >> pyradiomics_2 >> put_to_minio
 
 (
     total_segmentator_0
+    >> get_total_segmentator_model_3
+    >> total_segmentator_3
+    >> combine_masks_3
+    >> nrrd2dcmSeg_multi_3
+    >> dcmseg_send_3
+    >> clean
+)
+total_segmentator_3 >> pyradiomics_3 >> put_to_minio
+
+(
+    total_segmentator_0
+    >> get_total_segmentator_model_4
+    >> total_segmentator_4
+    >> combine_masks_4
+    >> nrrd2dcmSeg_multi_4
+    >> dcmseg_send_4
+    >> clean
+)
+total_segmentator_4 >> pyradiomics_4 >> put_to_minio
+
+(
+    total_segmentator_0
+    >> get_total_segmentator_model_5
     >> total_segmentator_5
     >> combine_masks_5
     >> nrrd2dcmSeg_multi_5
@@ -523,11 +587,11 @@ total_segmentator_5 >> pyradiomics_5 >> put_to_minio
 
 (
     total_segmentator_0
+    >> get_total_segmentator_model_6
     >> total_segmentator_6
     >> combine_masks_6
     >> nrrd2dcmSeg_multi_6
     >> dcmseg_send_6
     >> clean
 )
-total_segmentator_6 >> pyradiomics_6 >> put_to_minio
-
+total_segmentator_6 >> pyradiomics_6 >> put_to_minio >> clean

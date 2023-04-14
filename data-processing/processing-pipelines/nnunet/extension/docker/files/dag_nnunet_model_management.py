@@ -1,34 +1,26 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-
+from nnunet.NnUnetModelOperator import NnUnetModelOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
+from nnunet.getTasks import get_tasks
 
-from nnunet.GetTaskModelOperator import GetTaskModelOperator
-
+available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 
 ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "combination_method": {
-                "title": "method",
-                "description": "Select the method for model merging.",
-                "enum": ["averaging", "test2", "test3"],
-                "default": 'averaging',
-                "required": True
-            },
-            "input": {
-                "title": "Input Modality",
-                "default": "OT",
-                "description": "Expected input modality.",
+            "uninstall_task": {
+                "title": "Unisntall nnUnet Model",
+                "description": "Select one of the installed models to uninstall.",
                 "type": "string",
-                "readOnly": True,
-            },
+                "default": "",
+                "enum": sorted(list(installed_tasks.keys()).append("")),
+                "required": False
+            }
         }
     }
 }
@@ -42,7 +34,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='nnunet-model-install',
+    dag_id='nnunet-model-uninstall',
     default_args=args,
     concurrency=1,
     max_active_runs=1,
@@ -62,15 +54,16 @@ dcm2bin = Bin2DcmOperator(
     file_extensions="*.dcm"
 )
 
-extract_model = GetTaskModelOperator(
+model_management = NnUnetModelOperator(
     dag=dag,
-    name="install-model-zip",
+    name="model-management",
     input_operator=dcm2bin,
-    mode="install_zip"
-)
-clean = LocalWorkflowCleanerOperator(
-    dag=dag,
-    clean_workflow_dir=True
 )
 
-get_input >> dcm2bin >> extract_model >> clean
+clean = LocalWorkflowCleanerOperator(
+    dag=dag,
+    clean_workflow_dir=True,
+    trigger_rule="none_failed",
+)
+
+get_input >> dcm2bin >> model_management >> clean

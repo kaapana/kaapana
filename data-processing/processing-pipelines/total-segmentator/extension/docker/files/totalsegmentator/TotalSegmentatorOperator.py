@@ -26,7 +26,7 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
     :type task: str
     """
 
-    execution_timeout = timedelta(minutes=60)
+    execution_timeout = timedelta(minutes=120)
 
     def __init__(
         self,

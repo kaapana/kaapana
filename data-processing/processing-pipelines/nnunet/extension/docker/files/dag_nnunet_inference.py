@@ -5,7 +5,6 @@ from airflow.models import DAG
 from datetime import datetime
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.getTasks import get_tasks
-from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator

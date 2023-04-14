@@ -9,13 +9,12 @@ import logging
 import torch
 import json
 import shutil
-from combine_masks import combine_mask_nifits
 
 
 # Process each file
 def process_input_file(input_path, output_path):
     global processed_count, task, output_type, multilabel, fast, preview, statistics, radiomics, body_seg, force_split, quiet, verbose, nr_thr_resamp, nr_thr_saving, roi_subset
-    logger.info(f"{basename(input_file)}: start processing ...")
+    logger.info(f"{basename(input_path)}: start processing ...")
     Path(output_path).mkdir(parents=True, exist_ok=True)
     if task != "total":
         total_output_path = join(dirname(output_path), "total-segmentator")
@@ -231,7 +230,6 @@ if __name__ == "__main__":
         "bones_tissue_test",
         "aortic_branches_test",
         "test",
-        "combine-masks",
     ]
     assert task in tasks_available
 
@@ -258,9 +256,8 @@ if __name__ == "__main__":
     with open(json_path, encoding="utf-8") as seg_info_lookup:
         seg_info_lookup_dict = json.load(seg_info_lookup)
 
-    if task != "combine-masks":
-        assert task in seg_info_lookup_dict
-        seg_info_dict = seg_info_lookup_dict[task]
+    assert task in seg_info_lookup_dict
+    seg_info_dict = seg_info_lookup_dict[task]
 
     # File-extension to search for in the input-dir
     input_file_extension = "*.nii.gz"
@@ -315,31 +312,25 @@ if __name__ == "__main__":
             logger.info("#")
             continue
 
-        if task == "combine-masks":
-            logger.info(f"# task: {task} -> starting merging of NIFIs ...")
-            processed_count = combine_mask_nifits(
-                nifti_dir=element_input_dir, target_dir=element_output_dir
-            )
-        else:
-            seg_info_path = join(element_output_dir, "seg_info.json")
-            Path(dirname(seg_info_path)).mkdir(parents=True, exist_ok=True)
-            with open(seg_info_path, "w") as fp:
-                json.dump(seg_info_dict, fp, indent=4)
+        seg_info_path = join(element_output_dir, "seg_info.json")
+        Path(dirname(seg_info_path)).mkdir(parents=True, exist_ok=True)
+        with open(seg_info_path, "w") as fp:
+            json.dump(seg_info_dict, fp, indent=4)
 
-            # creating output dir
-            input_files = glob(
-                join(element_input_dir, input_file_extension), recursive=True
-            )
-            logger.info(
-                f"# Found {len(input_files)} input-files -> start processing ..."
-            )
+        # creating output dir
+        input_files = glob(
+            join(element_input_dir, input_file_extension), recursive=True
+        )
+        logger.info(
+            f"# Found {len(input_files)} input-files -> start processing ..."
+        )
 
-            for input_file in input_files:
-                success, input_file = process_input_file(
-                    input_path=input_file, output_path=element_output_dir
-                )
-                if not success:
-                    issue_occurred = True
+        for input_file in input_files:
+            success, input_file = process_input_file(
+                input_path=input_file, output_path=element_output_dir
+            )
+            if not success:
+                issue_occurred = True
 
     logger.info("#")
     logger.info("##################################################")
@@ -370,31 +361,25 @@ if __name__ == "__main__":
             logger.info("#")
         else:
             # creating output dir
-            if task == "combine-masks":
-                logger.info(f"# task: {task} -> starting merging of NIFIs ...")
-                processed_count = combine_mask_nifits(
-                    nifti_dir=batch_input_dir, target_dir=batch_output_dir
-                )
-            else:
-                seg_info_path = join(batch_output_dir, "seg_info.json")
-                assert not exists(seg_info_path)
-                with open(seg_info_path, "w") as fp:
-                    json.dump(seg_info_dict, fp, indent=4)
+            seg_info_path = join(batch_output_dir, "seg_info.json")
+            assert not exists(seg_info_path)
+            with open(seg_info_path, "w") as fp:
+                json.dump(seg_info_dict, fp, indent=4)
 
-                # creating output dir
-                input_files = glob(
-                    join(batch_input_dir, input_file_extension), recursive=True
-                )
-                logger.info(f"# Found {len(input_files)} input-files!")
+            # creating output dir
+            input_files = glob(
+                join(batch_input_dir, input_file_extension), recursive=True
+            )
+            logger.info(f"# Found {len(input_files)} input-files!")
 
-                # Single process:
-                # Loop for every input-file found with extension 'input_file_extension'
-                for input_file in input_files:
-                    success, input_file = process_input_file(
-                        input_path=input_file, output_path=batch_output_dir
-                    )
-                    if not success:
-                        issue_occurred = True
+            # Single process:
+            # Loop for every input-file found with extension 'input_file_extension'
+            for input_file in input_files:
+                success, input_file = process_input_file(
+                    input_path=input_file, output_path=batch_output_dir
+                )
+                if not success:
+                    issue_occurred = True
 
         logger.info("#")
         logger.info("##################################################")

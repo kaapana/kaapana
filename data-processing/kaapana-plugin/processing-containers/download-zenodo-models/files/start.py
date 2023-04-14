@@ -27,6 +27,28 @@ task_ids = getenv("TASK_IDS", "None")
 task_ids = None if task_ids == "None" else task_ids
 task_ids = task_ids.split(",")
 
+enable_lung_vessels = getenv("LUNG_VESSELS", "False")
+enable_lung_vessels = True if enable_lung_vessels.lower() == "true" else False
+
+enable_cerebral_bleed = getenv("CEREBRAL_BLEED", "False")
+enable_cerebral_bleed = True if enable_cerebral_bleed.lower() == "true" else False
+
+enable_hip_implant = getenv("HIP_IMPLANT", "False")
+enable_hip_implant = True if enable_hip_implant.lower() == "true" else False
+
+enable_coronary_arteries = getenv("CORONARY_ARTERIES", "False")
+enable_coronary_arteries = (
+    True if enable_coronary_arteries.lower() == "true" else False
+)
+
+enable_body = getenv("BODY", "False")
+enable_body = True if enable_body.lower() == "true" else False
+
+enable_pleural_pericard_effusion = getenv("PLEURAL_PERICARD_EFFUSION", "False")
+enable_pleural_pericard_effusion = (
+    True if enable_pleural_pericard_effusion.lower() == "true" else False
+    )
+
 log_level = getenv("LOG_LEVEL", "info").lower()
 log_level_int = None
 if log_level == "debug":
@@ -44,7 +66,30 @@ logger = get_logger(__name__, log_level_int)
 pbar = None
 pbar_count = 0
 
-
+if len(task_ids) == 1 and not enable_lung_vessels and "Task258_lung_vessels_248subj" in task_ids:
+    logger.warning("enable_lung_vessels == False -> skipping")
+    exit(126)
+    
+if len(task_ids) == 1 and not enable_cerebral_bleed and "Task150_icb_v0" in task_ids:
+    logger.warning("enable_cerebral_bleed == False -> skipping")
+    exit(126)
+    
+if len(task_ids) == 1 and not enable_hip_implant and "Task260_hip_implant_71subj" in task_ids:
+    logger.warning("enable_hip_implant == False -> skipping")
+    exit(126)
+    
+if len(task_ids) == 1 and not enable_coronary_arteries and "Task503_cardiac_motion" in task_ids:
+    logger.warning("enable_coronary_arteries == False -> skipping")
+    exit(126)
+    
+if len(task_ids) == 2 and not enable_body and ("Task269_Body_extrem_6mm_1200subj" in task_ids or "Task273_Body_extrem_1259subj" in task_ids):
+    logger.warning("enable_body == False -> skipping")
+    exit(126)
+    
+if len(task_ids) == 1 and not enable_pleural_pericard_effusion and "Task315_thoraxCT" in task_ids:
+    logger.warning("enable_pleural_pericard_effusion == False -> skipping")
+    exit(126)
+    
 def bar_update(block_num, block_size, total_size):
     global pbar, pbar_count
 

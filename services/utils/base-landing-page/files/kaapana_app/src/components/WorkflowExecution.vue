@@ -109,7 +109,8 @@
           <!-- Conf data summarizing the configured experiment -->
           <v-row>
             <v-col cols="12">
-              <v-tooltip v-model="showConfData" top=""><template v-slot:activator="{ on, attrs }">
+              <v-tooltip v-model="showConfData" top="">
+                <template v-slot:activator="{ on, attrs }">
                   <v-btn icon="" v-bind="attrs" v-on="on">
                     <v-icon color="grey lighten-1">mdi-email</v-icon>
                   </v-btn>

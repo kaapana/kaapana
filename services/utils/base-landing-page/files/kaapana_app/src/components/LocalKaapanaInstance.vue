@@ -8,19 +8,19 @@
           v-row(align="start")
             v-col(align="left") Network: 
             v-col(align="left") {{ instance.protocol }}://{{ instance.host }}:{{ instance.port }}
-            v-col(cols=1)
-          v-row 
+            //- v-col(cols=1)
+          v-row(align="start")
             v-col(align="left") Token: 
             v-col(align="left") {{ instance.token }}
-            v-col(cols=1)
+            //- v-col(cols=1)
           v-row 
             v-col(align="left") Created: 
             v-col(align="left") {{ instance.time_created }}
-            v-col(cols=1)
+            //- v-col(cols=1)
           v-row 
             v-col(align="left") Updated: 
             v-col(align="left") {{ instance.time_updated }}
-            v-col(cols=1)
+            //- v-col(cols=1)
         v-divider(vertical)
         v-col(cols=4 align="left")
           //- SSL: edit mode
@@ -28,7 +28,7 @@
             v-col(align="left") SSL:
             v-col(align="left")
               v-checkbox(v-model="clientPost.ssl_check" label="SSL"  required='')
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_ssl_check = !edit_ssl_check; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
@@ -37,7 +37,7 @@
             v-col(align="left")
               v-icon(v-if="clientPost.ssl_check" small color="green") mdi-check-circle
               v-icon(v-if="!clientPost.ssl_check" small) mdi-close-circle
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_ssl_check = !edit_ssl_check" small icon)
                 v-icon mdi-pencil        
           //- Fernet key: edit mode
@@ -45,7 +45,7 @@
             v-col(align="left") Fernet key:
             v-col(align="left")
               v-checkbox(v-model="clientPost.fernet_encrypted" label="Fernet encrypted"  required='')
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
@@ -53,7 +53,7 @@
             v-col(align="left") Fernet key:
             v-col(align="left")
               div {{ clientPost.fernet_key }}
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted" small icon)
                 v-icon mdi-pencil
           //- Sync remote jobs: edit mode
@@ -61,7 +61,7 @@
             v-col(align="left") Sync remote jobs:
             v-col(align="left")
               v-checkbox(v-model="clientPost.automatic_update" label="Check automatically for remote updates")
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_automatic_update = !edit_automatic_update; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
@@ -70,7 +70,7 @@
             v-col(align="left")
               v-icon(v-if="clientPost.automatic_update" small color="green") mdi-check-circle
               v-icon(v-if="!clientPost.automatic_update" small) mdi-close-circle
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_automatic_update = !edit_automatic_update" small icon)
                 v-icon mdi-pencil
           //- Autmoatically execute pending jobs: edit mode
@@ -78,7 +78,7 @@
             v-col(align="left") Autmoatically execute pending jobs:
             v-col(align="left")
               v-checkbox(v-model="clientPost.automatic_job_execution" label="Execute automatically jobs")
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_automatic_job_execution = !edit_automatic_job_execution; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
@@ -87,7 +87,7 @@
             v-col(align="left")
               v-icon(v-if="clientPost.automatic_job_execution" small color="green") mdi-check-circle
               v-icon(v-if="!clientPost.automatic_job_execution" small) mdi-close-circle
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_automatic_job_execution = !edit_automatic_job_execution" small icon)
                 v-icon mdi-pencil
         v-divider(vertical)
@@ -98,7 +98,7 @@
             v-col(align="left")
               v-select(v-model='clientPost.allowed_dags' :items='dags' label='Allowed dags' multiple='' chips='' hint='Which dags are allowed to be triggered' persistent-hint='')
               //- span( v-for='dag in instance.allowed_dags') {{dag}}
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_allowed_dags = !edit_allowed_dags; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
@@ -106,7 +106,7 @@
             v-col(align="left") Allowed DAGs:
             v-col(align="left")
               v-chip(v-for='dag in clientPost.allowed_dags' small) {{dag}}
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_allowed_dags = !edit_allowed_dags" small icon)
                 v-icon mdi-pencil
           //- Allowed Datasets: edit mode
@@ -114,7 +114,7 @@
             v-col(align="left") Allowed Datasets:
             v-col(align="left")
               v-select(v-model='clientPost.allowed_datasets' :items='datasets' label='Allowed datasets' multiple='' chips='' hint='Which datasets are allowed to be used' persistent-hint='')
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_allowed_datasets = !edit_allowed_datasets; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
@@ -122,7 +122,7 @@
             v-col(align="left") Allowed Datasets:
             v-col(align="left")
               v-chip(v-for='dataset in clientPost.allowed_datasets' small) {{dataset}}
-            v-col(cols=1 align="center")
+            v-col(cols=1 align="left")
               v-btn(@click="edit_allowed_datasets = !edit_allowed_datasets" small icon)
                 v-icon mdi-pencil
     v-card-actions

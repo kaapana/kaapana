@@ -1,13 +1,10 @@
 <template>
   <v-card>
     <v-card-title>
-      <v-col cols=2 align="left"> Remote Instances </v-col>
-      <v-col cols=1>
-        <add-remote-instance @refreshRemoteFromAdding="refreshRemote()"></add-remote-instance>
-      </v-col>
-      <v-col>
-        <sync-remote-instances @refreshRemoteFromSyncing="refreshRemote()"></sync-remote-instances>
-      </v-col>
+      <!-- v-col cols=2 align="left"> Remote Instances </v-col -->
+      <p class="mx-4 my-2"> Remote Instances </p>
+      <add-remote-instance class="mx-4" @refreshRemoteFromAdding="refreshRemote()"></add-remote-instance>
+      <sync-remote-instances class="mx-4" @refreshRemoteFromSyncing="refreshRemote()"></sync-remote-instances>
     </v-card-title>
     <v-card-text>
       <v-row>

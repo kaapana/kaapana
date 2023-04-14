@@ -15,17 +15,17 @@
               </v-col>
             </v-row>
             <Search ref="search" :datasetName=datasetName @search="(query) => updatePatients(query)"
-              @saveDataset="(dict) => saveDataset(dict.name, dict.query)"
-              @updateDataset="(dict) => updateDataset(dict.name, dict.query)" />
+              @saveDataset="(dict) => saveDatasetFromQuery(dict.name, dict.query)"
+              @updateDataset="(dict) => updateDatasetFromQuery(dict.name, dict.query)" />
           </div>
           <v-divider />
         </v-card>
       </v-container>
       <v-container fluid class="gallery overflow-auto rounded-0 v-card v-sheet pa-0">
-        <VueSelecto dragContainer=".elements" :selectableTargets='[".selecto-area .v-card"]' :hitRate='0'
+        <VueSelecto ref="selecto" dragContainer=".elements" :selectableTargets='[".selecto-area .v-card"]' :hitRate='0'
       :selectByClick='true' :selectFromInside='true' :toggleContinueSelect='["shift"]' :ratio='0'
       :scrollOptions='scrollOptions' @dragStart="onDragStart" @select="onSelect" @scroll="onScroll"></VueSelecto>
-    <v-container fluid class="elements selecto-area" id="selecto1" ref="scroller" style="height: 100%">
+    <v-container fluid class="elements selecto-area pa-0" id="selecto1" ref="scroller" style="height: 100%">
         <v-skeleton-loader v-if="isLoading" class="mx-auto" type="list-item@100"></v-skeleton-loader>
         <!--        property patients in two-ways bound -->
         <StructuredGallery ref="structuredGallery" v-else-if="!isLoading && Object.entries(patients).length > 0 && settings.datasets.structured"
@@ -46,7 +46,7 @@
       <v-speed-dial v-if="selectedSeriesInstanceUIDs.length > 0" v-model="fab" bottom right absolute direction="top"
         :open-on-hover="true" transition="slide-y-reverse-transition" dense>
         <template v-slot:activator>
-          <v-btn v-model="fab" color="blue darken-2" dark fab>
+          <v-btn v-model="fab" color="primary" fab>
             <v-icon v-if="fab">
               mdi-close
             </v-icon>
@@ -55,14 +55,14 @@
             </v-icon>
           </v-btn>
         </template>
-        <v-btn fab dark small color="green">
-          <v-icon>mdi-pencil</v-icon>
-        </v-btn>
-        <v-btn fab dark small color="indigo">
+        <v-btn fab small color="indigo" class="white--text" @click="() => this.saveAsDatasetDialog=true">
           <v-icon>mdi-plus</v-icon>
         </v-btn>
-        <v-btn v-if="datasetName" fab dark small color="red" @click="removeFromDataset">
-          <v-icon>mdi-delete</v-icon>
+        <v-btn :disabled="!datasetNames || datasetNames.length === 0" class="white--text" fab small color="green" @click="() => this.addToDatasetDialog=true">
+          <v-icon>mdi-folder-plus-outline</v-icon>
+        </v-btn>
+        <v-btn :disabled="!datasetName" fab small color="red" class="white--text" @click="removeFromDataset">
+          <v-icon>mdi-folder-minus-outline</v-icon>
         </v-btn>
       </v-speed-dial>
     </v-container>
@@ -72,6 +72,37 @@
       <MetaData v-else :series-instance-u-i-ds="seriesInstanceUIDs" @dataPointSelection="d => addFilterToSearch(d)" />
       <!--      </ErrorBoundary>-->
     </v-container>
+    <div>
+    <SaveDatasetDialog
+          v-model="saveAsDatasetDialog"
+          @save="(name) => saveDatasetFromDialog(name)"
+          @cancel="() => this.saveAsDatasetDialog=false"
+      />
+    <v-dialog
+        v-model="addToDatasetDialog"
+        width="500"
+    >
+      <v-card>
+        <v-card-title>
+          Add to Dataset
+        </v-card-title>
+        <v-card-text>
+          <v-select
+          v-model="datasetToAddTo"
+          :items="datasetNames"
+          label="Dataset"
+        ></v-select>
+        </v-card-text>
+        <v-divider></v-divider>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" @click.stop="addToDataset" :disabled="!datasetToAddTo">Save</v-btn>
+          <v-btn @click.stop="addToDatasetDialog=false">Cancel</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </div>
   </v-container>
 </template>
 
@@ -87,6 +118,7 @@ import { createDataset, updateDataset, loadDatasetNames, loadPatients } from "..
 import MetaData from "@/components/MetaData.vue";
 import { settings } from "@/static/defaultUIConfig";
 import { VueSelecto } from "vue-selecto";
+import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 
 export default {
   data() {
@@ -103,6 +135,9 @@ export default {
       datasetName: null,
       metadata: {},
       fab: false,
+      saveAsDatasetDialog: false,
+      addToDatasetDialog: false,
+      datasetToAddTo: null,
       scrollOptions: {},
     };
   },
@@ -113,6 +148,7 @@ export default {
     TagBar,
     Gallery,
     MetaData,
+    SaveDatasetDialog,
     VueSelecto
   },
   methods: {
@@ -163,48 +199,87 @@ export default {
         this.isLoading = false
       })
     },
-    async updateDataset(name, query) {
+    async updateDatasetFromQuery(name, query) {
       try {
-        const items = await loadPatients({
+        const identifiers = await loadPatients({
           structured: false,
           query: query
         })
-        const body = {
-          action: 'UPDATE',
-          name: name,
-          identifiers: items,
-        }
-        await updateDataset(body)
-        this.$notify({ title: 'Dataset updated', text: `Successfully updated dataset ${name}.`, type: 'success' })
+        await this.updateDataset(name, identifiers)
         this.updatePatients(query)
       } catch (error) {
         this.$notify({ title: 'Network/Server error', text: error, type: 'error' });
       }
+    },
+    async updateDataset(name, identifiers, action='UPDATE') {
+      try {
+        const body = {
+          action: action,
+          name: name,
+          identifiers: identifiers,
+        }
+        await updateDataset(body)
+        this.$notify({ title: `Dataset updated`, text: `Successfully updated dataset ${name}.`, type: 'success' })
+        return true
+      } catch (error) {
+        this.$notify({ title: 'Network/Server error', text: error, type: 'error' });
+        return false
+      }
+    },
+    async addToDataset(){
+        const successful = await this.updateDataset(
+          this.datasetToAddTo,
+          this.selectedSeriesInstanceUIDs,
+          'ADD'
+        )
+        if (successful) {
+          this.addToDatasetDialog = false
+        }
     },
     async removeFromDataset() {
       if (!this.settings.datasets.structured) {
         this.$refs.gallery.removeFromDataset(this.selectedSeriesInstanceUIDs)
       } else {
         this.$refs.structuredGallery.removeFromDataset(this.selectedSeriesInstanceUIDs)
-      }
+      } 
     },
-    async saveDataset(name, query) {
+    async saveDatasetFromDialog(name){
+        const successful = await this.saveDataset(
+          name,
+          this.selectedSeriesInstanceUIDs,
+        )
+        if (successful) {
+          this.saveAsDatasetDialog = false
+        }
+    },
+    async saveDatasetFromQuery(name, query) {
       try {
-        const items = await loadPatients({
+        const identifiers = await loadPatients({
           structured: false,
           query: query
         })
+        const successful = await this.saveDataset(name, identifiers)
+        if (successful) {
+          this.datasetName = name
+          await this.updatePatients(query)  
+        }
+      } catch (error) {
+        this.$notify({ title: 'Network/Server error', text: error, type: 'error' });
+      }
+    },
+    async saveDataset(name, identifiers) {
+      try {
         const body = {
           name: name,
-          identifiers: items,
+          identifiers: identifiers,
         }
         await createDataset(body)
         this.$notify({ title: 'Dataset created', text: `Successfully new dataset ${name}.`, type: 'success' });
         loadDatasetNames().then(_datasetNames => this.datasetNames = _datasetNames)
-        this.datasetName = name
-        await this.updatePatients(query)
+        return true
       } catch (error) {
         this.$notify({ title: 'Network/Server error', text: error, type: 'error' });
+        return false
       }
     }
   },
@@ -244,10 +319,6 @@ export default {
   height: 100%;
   top: 48px;
   overflow: hidden;
-}
-
-.container {
-  padding: 0;
 }
 
 .elements {

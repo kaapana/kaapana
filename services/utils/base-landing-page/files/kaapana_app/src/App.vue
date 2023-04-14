@@ -140,7 +140,7 @@
                   </v-btn>
                 </v-bottom-navigation>
                 <v-bottom-navigation v-if="advancedNavigation  && drawer" color="primary" :elevation="0" inset mode="shift">
-                  <v-menu offset-y v-for="(section, sectionKey) in externalWebpages" :key="section.id">
+                  <v-menu offset-y v-for="(section, sectionKey) in externalWebpages" :key="section.id" class="kaapana-menu">
                     <template v-slot:activator="{ on, attrs }">
                       <v-btn
                         v-bind="attrs"
@@ -201,10 +201,10 @@ export default Vue.extend({
     workflowsList: [
       ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
       ['Data curation', 'mdi-view-gallery-outline', '/datasets'],
-      ['Experiment execution', 'mdi-play-box', '/experiments'],
+      ['Experiment execution', 'mdi-play-box', '/experiment-execution'],
       ['Experiment list', 'mdi-clipboard-text-outline', '/experiments'],
       ['Experiment results', 'mdi-chart-bar-stacked', '/results-browser'],
-      ['Federated learning', 'mdi-vector-triangle', '/experiments'],
+      ['Federated learning', 'mdi-vector-triangle', '/federated-learning'],
       ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
     ]
   }),
@@ -306,6 +306,10 @@ $kaapana-green: #ff7a20;
 // Example of colors
 .kaapana-blue {
   color: $kaapana-blue
+}
+
+.kaapana-menu {
+  z-index: 11;
 }
 
 .kaapana-iframe-container {

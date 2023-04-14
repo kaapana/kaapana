@@ -2,25 +2,17 @@
   <v-card>
     <v-card-title>
       <v-col cols="4">
-        <p>Experiment Management System</p>
+        <p class="mx-4 my-2">Experiment List</p>
       </v-col>
-      <v-col cols="4">
-        <workflow-execution
-          ref="workflowexecution"
-          v-if="clientInstance"
-          :remote="true"
-          :instances="allInstances"
-          :clientinstance="clientInstance"
-          @refreshView="refreshClient()"
-        ></workflow-execution>
-        <LocalKaapanaInstance
+      <v-col cols="2">
+        <!-- LocalKaapanaInstance
           v-if="clientInstance"
           :instance="clientInstance"
           :remote="false"
           @refreshView="refreshClient()"
           @ei="editClientInstance"
-        ></LocalKaapanaInstance>
-        <template>
+        ></LocalKaapanaInstance -->
+        <!-- template>
           <v-menu offset-y bottom transition="scale-transition" close-on-click>
             <template v-slot:activator="{ on, attrs }">
               <v-btn v-on="on" v-bind="attrs" color="primary" class="mx-2" dark rounded outlined> remote </v-btn>
@@ -37,24 +29,29 @@
               </v-list-item >
             </v-list>
           </v-menu>
-        </template>
+        </template -->
         <v-btn v-if="!clientInstance" color="primary" @click.stop="clientDialog=true" dark="dark">Add client instance </v-btn>
       </v-col>
-      <v-row cols="4">
+      <v-col align="right">
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn v-on="on" @click='refreshClient()' small icon>
+              <v-icon color="primary" large class="mx-2" dark>mdi-refresh</v-icon> 
+            </v-btn> 
+          </template>
+          <span>refresh experiment list</span>
+        </v-tooltip>
+      </v-col>
+      <v-col cols="4">
         <v-text-field
           v-model="search"
           append-icon="mdi-magnify"
           label="Search for Experiment"
           single-line
           hide-details
-          class="mx-6"
+          class="mb-4"
         ></v-text-field>
-      </v-row>
-      <v-row cols="3">
-        <v-btn  @click='refreshClient()' medium icon>
-          <v-icon color="primary" class="mx-2" large dark>mdi-refresh</v-icon> 
-        </v-btn> 
-      </v-row>
+      </v-col>
     </v-card-title>
     <v-data-table
       :headers="experimentHeaders"
@@ -128,7 +125,6 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import KaapanaInstance  from "@/components/KaapanaInstance.vue";
 import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
-import WorkflowExecution  from "@/components/WorkflowExecution.vue";
 import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
 import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
 import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
@@ -140,7 +136,6 @@ name: 'ExperimentTable',
 components: {
   KaapanaInstance,
   LocalKaapanaInstance,
-  WorkflowExecution,
   AddRemoteInstance,
   ViewRemoteInstances,
   SyncRemoteInstances,

@@ -8,16 +8,14 @@ import httpClient from "./httpClient";
 const WADO_ENDPOINT = process.env.VUE_APP_WADO_ENDPOINT
 const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT
 
-const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-series-from-platform') => {
+const deleteSeriesFromPlatform = async (seriesInstanceUIDs, dag_id = 'delete-series-from-platform') => {
     return await httpClient.post(
         KAAPANA_BACKEND_ENDPOINT + 'client/job',
         {
             "dag_id": dag_id,
             "conf_data": {
                 "data_form": {
-                    "identifiers": [
-                        seriesInstanceUID
-                    ]
+                    "identifiers": seriesInstanceUIDs
                 },
                 "form_data": {
                     "delete_complete_study": false,

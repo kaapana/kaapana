@@ -30,8 +30,6 @@ global minio_upload_mapping_dict
 minio_upload_mapping_dict = dict()
 
 UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
-
-
 @router.post("/minio-file-upload")
 async def post_minio_file_upload(request: Request):
     form = await request.form()
@@ -40,107 +38,75 @@ async def post_minio_file_upload(request: Request):
     # return Response(content=json.loads(form["filepond"])["filepath"])
     return Response(content=patch)
 
-
 @router.patch("/minio-file-upload")
 async def post_minio_file_upload(request: Request, patch: str):
-    uoffset = request.headers.get("upload-offset", None)
-    ulength = request.headers.get("upload-length", None)
-    uname = request.headers.get("upload-name", None)
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    uoffset = request.headers.get('upload-offset', None) 
+    ulength = request.headers.get('upload-length', None)
+    uname = request.headers.get('upload-name', None)
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp" 
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
             f.write(chunk)
     if ulength == str(fpath.stat().st_size):
         try:
             object_name = minio_upload_mapping_dict[patch]
-            target_path = Path(UPLOAD_DIR) / object_name.strip("/")
+            target_path = Path(UPLOAD_DIR)  / object_name.strip("/")
             target_path.parents[0].mkdir(parents=True, exist_ok=True)
-            logging.info(f"Moving file {fpath} to {target_path}")
+            logging.info(f'Moving file {fpath} to {target_path}')
             shutil.move(fpath, target_path)
             # Todo check if fput_objects also needs a long time... if not Minio file mount can be removed and UPLOAD_DIR might be /tmp
             # HelperMinio.minioClient.fput_object("uploads", minio_upload_mapping_dict[patch], fpath)
-            logging.info(f"Successfully saved file {uname} to Minio")
+            logging.info(f'Successfully saved file {uname} to Minio')
             # fpath.unlink()
-            filename = minio_upload_mapping_dict.pop(patch, "already deleted")
+            filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
             return Response(f"Upload of {filename} succesful!")
         except Exception as e:
             logging.error(f"Failed to upload to Minio: {e}")
             if fpath.is_file():
                 fpath.unlink()
-            filename = minio_upload_mapping_dict.pop(patch, "already deleted")
-            raise HTTPException(
-                status_code=500, detail=f"Failed to upload {filename} to Minio: {e}"
-            )
+            filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
+            raise HTTPException(status_code=500, detail=f"Failed to upload {filename} to Minio: {e}")
     return Response(patch)
-
 
 @router.head("/minio-file-upload")
 def head_minio_file_upload(request: Request, patch: str):
-    uoffset = request.headers.get("upload-offset", None)
-    ulength = request.headers.get("upload-length", None)
-    uname = request.headers.get("upload-name", None)
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    uoffset = request.headers.get('upload-offset', None)
+    ulength = request.headers.get('upload-length', None)
+    uname = request.headers.get('upload-name', None)
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp" 
     if fpath.is_file():
-        offset = int(ulength) - fpath.stat().st_size
+        offset = int(ulength)-fpath.stat().st_size
     else:
         offset = 0
     return Response(str(offset))
 
-
 @router.delete("/minio-file-upload")
 async def delete_minio_file_upload(request: Request):
     body = await request.body()
-    patch = body.decode("utf-8")
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    patch = body.decode("utf-8") 
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp" 
     if fpath.is_file():
         fpath.unlink()
-        filename = minio_upload_mapping_dict.pop(patch, "already deleted")
+        filename = minio_upload_mapping_dict.pop(patch, 'already deleted')
         return Response(f"Deleted {filename} succesfully!")
     else:
-        return Response(
-            "Only removing file in frontend. The file in the target location was already successfully uploaded"
-        )
-
+        return Response("Only removing file in frontend. The file in the target location was already successfully uploaded")
 
 @router.post("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
-def create_remote_kaapana_instance(
-    remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
-    db: Session = Depends(get_db),
-):
-    return crud.create_and_update_remote_kaapana_instance(
-        db=db, remote_kaapana_instance=remote_kaapana_instance
-    )
-
+def create_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):
+    return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance)
 
 @router.post("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
-def create_client_kaapana_instance(
-    client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
-    db: Session = Depends(get_db),
-):
-    return crud.create_and_update_client_kaapana_instance(
-        db=db, client_kaapana_instance=client_kaapana_instance
-    )
-
+def create_client_kaapana_instance(client_kaapana_instance: schemas.ClientKaapanaInstanceCreate, db: Session = Depends(get_db)):
+    return crud.create_and_update_client_kaapana_instance(db=db, client_kaapana_instance=client_kaapana_instance)
 
 @router.put("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
-def put_remote_kaapana_instance(
-    remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
-    db: Session = Depends(get_db),
-):
-    return crud.create_and_update_remote_kaapana_instance(
-        db=db, remote_kaapana_instance=remote_kaapana_instance, action="update"
-    )
-
+def put_remote_kaapana_instance(remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate, db: Session = Depends(get_db)):
+    return crud.create_and_update_remote_kaapana_instance(db=db, remote_kaapana_instance=remote_kaapana_instance, action='update')
 
 @router.put("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
-def put_client_kaapana_instance(
-    client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
-    db: Session = Depends(get_db),
-):
-    return crud.create_and_update_client_kaapana_instance(
-        db=db, client_kaapana_instance=client_kaapana_instance, action="update"
-    )
-
+def put_client_kaapana_instance(client_kaapana_instance: schemas.ClientKaapanaInstanceCreate, db: Session = Depends(get_db)):
+    return crud.create_and_update_client_kaapana_instance(db=db, client_kaapana_instance=client_kaapana_instance, action='update')
 
 @router.get("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 def get_remote_kaapana_instance(instance_name: str, db: Session = Depends(get_db)):
@@ -151,14 +117,8 @@ def get_remote_kaapana_instance(instance_name: str, db: Session = Depends(get_db
 def get_client_kaapana_instance(db: Session = Depends(get_db)):
     return crud.get_kaapana_instance(db, remote=False)
 
-
-@router.post(
-    "/get-remote-kaapana-instances", response_model=List[schemas.KaapanaInstance]
-)
-def get_remote_kaapana_instances(
-    filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
-    db: Session = Depends(get_db),
-):
+@router.post("/get-remote-kaapana-instances", response_model=List[schemas.KaapanaInstance])
+def get_remote_kaapana_instances(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
     if filter_kaapana_instances is None:
         filter_kaapana_instances = schemas.FilterKaapanaInstances(**{"remote": True})
     return crud.get_kaapana_instances(
@@ -175,10 +135,7 @@ def delete_kaapana_instance(kaapana_instance_id: int, db: Session = Depends(get_
 def delete_kaapana_instances(db: Session = Depends(get_db)):
     return crud.delete_kaapana_instances(db)
 
-
-@router.post(
-    "/job", response_model=schemas.JobWithKaapanaInstance
-)  # also okay: JobWithExperiment
+@router.post("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
 def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
     if job.username is not None:
         pass
@@ -191,32 +148,15 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
         )
     return crud.create_job(db=db, job=job)
 
-
-@router.get(
-    "/job", response_model=schemas.JobWithKaapanaInstance
-)  # also okay: JobWithExperiment
+@router.get("/job", response_model=schemas.JobWithKaapanaInstance) # also okay: JobWithExperiment
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id, run_id)
 
+@router.get("/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance])  # also okay: JobWithExperiment; JobWithKaapanaInstance
+def get_jobs(instance_name: str = None, experiment_name: str = None, status: str = None, limit: int = None, db: Session = Depends(get_db)):
+    return crud.get_jobs(db, instance_name, experiment_name, status, remote=False, limit=limit)
 
-@router.get(
-    "/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance]
-)  # also okay: JobWithExperiment; JobWithKaapanaInstance
-def get_jobs(
-    instance_name: str = None,
-    experiment_name: str = None,
-    status: str = None,
-    limit: int = None,
-    db: Session = Depends(get_db),
-):
-    return crud.get_jobs(
-        db, instance_name, experiment_name, status, remote=False, limit=limit
-    )
-
-
-@router.put(
-    "/job", response_model=schemas.JobWithExperiment
-)  # changed JobWithKaapanaInstance to JobWithExperiment
+@router.put("/job", response_model=schemas.JobWithExperiment) # changed JobWithKaapanaInstance to JobWithExperiment
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
     # return crud.update_job(db, job, remote=False)
     if job.status == "abort":
@@ -249,14 +189,9 @@ def get_job_taskinstances(job_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/get-dags")
-def ui_form_schemas(
-    filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
-    db: Session = Depends(get_db),
-):
-    if (
-        len(filter_kaapana_instances.instance_names) == 0
-        and filter_kaapana_instances.remote is False
-    ):  # necessary from old implementation to get dags in client instance view
+def ui_form_schemas(filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+
+    if len(filter_kaapana_instances.instance_names)==0 and filter_kaapana_instances.remote is False:    # necessary from old implementation to get dags in client instance view
         dags = get_dag_list(only_dag_names=True)
         return JSONResponse(content=dags)
 
@@ -300,11 +235,8 @@ def ui_form_schemas(
 
 
 @router.post("/get-ui-form-schemas")
-def ui_form_schemas(
-    request: Request,
-    filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
-    db: Session = Depends(get_db),
-):
+def ui_form_schemas(request: Request, filter_kaapana_instances: schemas.FilterKaapanaInstances = None, db: Session = Depends(get_db)):
+
     username = request.headers["x-forwarded-preferred-username"]
     dag_id = filter_kaapana_instances.dag_id
     schemas = {}
@@ -486,22 +418,15 @@ def delete_datasets(db: Session = Depends(get_db)):
 
 
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
-@router.post(
-    "/experiment", response_model=schemas.Experiment
-)  # also okay: schemas.ExperimentWithKaapanaInstance
-def create_experiment(
-    request: Request,
-    json_schema_data: schemas.JsonSchemaData,
-    db: Session = Depends(get_db),
-):
+@router.post("/experiment", response_model=schemas.Experiment)   # also okay: schemas.ExperimentWithKaapanaInstance
+def create_experiment(request: Request, json_schema_data: schemas.JsonSchemaData, db: Session = Depends(get_db)):
+
     # validate incoming json_schema_data
     try:
         jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
     except ValidationError as e:
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
-        raise HTTPException(
-            status_code=400, detail="JSON Schema is not valid for the Pydantic model."
-        )
+        raise HTTPException(status_code=400, detail="JSON Schema is not valid for the Pydantic model.")
 
     # username
     if json_schema_data.username is not None:
@@ -510,10 +435,7 @@ def create_experiment(
         username = request.headers["x-forwarded-preferred-username"]
         json_schema_data.username = username
     else:
-        raise HTTPException(
-            status_code=400,
-            detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!",
-        )
+        raise HTTPException(status_code=400, detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!")
 
     db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
     # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in experiment's runner instances ...
@@ -523,9 +445,9 @@ def create_experiment(
 
     # generate random and unique experiment id
     characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
-    exp_id = "".join(random.choices(characters, k=6))
+    exp_id = ''.join(random.choices(characters, k=6))
     # append exp_id to experiment_name
-    experiment_name = json_schema_data.experiment_name + "_exp" + exp_id
+    experiment_name = json_schema_data.experiment_name + '_exp' + exp_id
 
     if json_schema_data.federated:  # == True ;-)
         involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
@@ -534,10 +456,8 @@ def create_experiment(
         "username": username,
         "exp_id": exp_id,
         "experiment_name": experiment_name,
-        "involved_instances": json_schema_data.instance_names
-        if json_schema_data.federated == False
-        else involved_instance_names,  # instances on which experiment is created!
-        "runner_instances": json_schema_data.instance_names,  # instances on which jobs of experiment are created!
+        "involved_instances": json_schema_data.instance_names if json_schema_data.federated == False else involved_instance_names, # instances on which experiment is created!
+        "runner_instances": json_schema_data.instance_names    # instances on which jobs of experiment are created!
     }
 
     if conf_data.get("data_form") and conf_data["data_form"].get("dataset_name"):
@@ -583,9 +503,7 @@ def create_experiment(
     # async function call to queue jobs and generate db_jobs + adding them to db_experiment
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
     # asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
-    crud.queue_generate_jobs_and_add_to_exp(
-        db, db_client_kaapana, db_experiment, json_schema_data, conf_data
-    )
+    crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data)
 
     # directly return created db_experiment for fast feedback
     return db_experiment
@@ -593,37 +511,21 @@ def create_experiment(
 
 # get_experiment
 @router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
-def get_experiment(
-    exp_id: str = None, experiment_name: str = None, db: Session = Depends(get_db)
-):
+def get_experiment(exp_id: str = None, experiment_name: str = None, db: Session = Depends(get_db)):
     return crud.get_experiment(db, exp_id, experiment_name)
 
 
 # get_experiments
-@router.get(
-    "/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]
-)  # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
-def get_experiments(
-    request: Request,
-    instance_name: str = None,
-    involved_instance_name: str = None,
-    experiment_job_id: int = None,
-    limit: int = None,
-    db: Session = Depends(get_db),
-):
-    return crud.get_experiments(
-        db, instance_name, involved_instance_name, experiment_job_id, limit=limit
-    )  # , username=request.headers["x-forwarded-preferred-username"]
-
+@router.get("/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]) # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
+def get_experiments(request: Request, instance_name: str = None, involved_instance_name: str = None, experiment_job_id: int = None, limit: int = None, db: Session = Depends(get_db)):
+    return crud.get_experiments(db, instance_name, involved_instance_name, experiment_job_id, limit=limit) # , username=request.headers["x-forwarded-preferred-username"]
 
 # put/update_experiment
 @router.put("/experiment", response_model=schemas.Experiment)
 def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
-        db_experiment = crud.get_experiment(
-            db, experiment.exp_id
-        )  # better call crud method directly instead of calling client.py's def get_experiment()
+        db_experiment = crud.get_experiment(db, experiment.exp_id)   # better call crud method directly instead of calling client.py's def get_experiment()
         for db_job in db_experiment.experiment_jobs:
             # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
             job = schemas.JobUpdate(
@@ -647,9 +549,7 @@ def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(g
 
 # endpoint to update an experiment with additional experiment_jobs
 @router.put("/experiment_jobs", response_model=schemas.Experiment)
-def put_experiment_jobs(
-    experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)
-):
+def put_experiment_jobs(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     return crud.put_experiment_jobs(db, experiment)
 
 

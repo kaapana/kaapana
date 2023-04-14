@@ -112,7 +112,7 @@ class Job(Base):
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
-    exp_id = Column(String, ForeignKey("experiment.exp_id"))
+    exp_id = Column(String, ForeignKey('experiment.exp_id'))
     experiment = relationship("Experiment", back_populates="experiment_jobs")
 
     # https://www.johbo.com/2016/creating-a-partial-unique-index-with-sqlalchemy-in-postgresql.html

@@ -17,11 +17,8 @@ from .dependencies import get_query_token, get_token_header
 from .database import SessionLocal, engine
 from .decorators import repeat_every
 from .experiments import models
-from .experiments.crud import (
-    get_remote_updates,
-    sync_states_from_airflow,
-    sync_n_clean_qsr_jobs_with_airflow,
-)
+from .experiments.crud import get_remote_updates, sync_states_from_airflow, \
+    sync_n_clean_qsr_jobs_with_airflow
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -39,26 +36,21 @@ def periodically_get_remote_updates():
         try:
             get_remote_updates(db, periodically=True)
         except Exception as e:
-            logging.warning(
-                "Something went wrong updating in crud.get_remote_updates()"
-            )
+            logging.warning('Something went wrong updating in crud.get_remote_updates()')
             logging.warning(traceback.format_exc())
 
 
 @app.on_event("startup")
-@repeat_every(seconds=float(os.getenv("AIRFLOW_SYNC_INTERVAL", 10.0)))
+@repeat_every(seconds=float(os.getenv('AIRFLOW_SYNC_INTERVAL', 10.0)))
 def periodically_sync_states_from_airflow():
     with SessionLocal() as db:
         try:
-            sync_states_from_airflow(db, status="queued", periodically=True)
-            sync_states_from_airflow(db, status="scheduled", periodically=True)
-            sync_states_from_airflow(db, status="running", periodically=True)
+            sync_states_from_airflow(db, status='queued', periodically=True)
+            sync_states_from_airflow(db, status='scheduled', periodically=True)
+            sync_states_from_airflow(db, status='running', periodically=True)
         except Exception as e:
-            logging.warning(
-                "Something went wrong updating in crud.sync_states_from_airflow()"
-            )
+            logging.warning('Something went wrong updating in crud.sync_states_from_airflow()')
             logging.warning(traceback.format_exc())
-
 
 # @app.on_event("startup")
 # @repeat_every(seconds=float(60.0))

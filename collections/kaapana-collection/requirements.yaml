@@ -46,6 +46,8 @@ dependencies:
     version: 0.0.0
   - name: radiomics-workflow
     version: 0.0.0
+  - name: radiomics-federated-workflow
+    version: 0.0.0
   - name: rateme-workflow
     version: 0.0.0
   - name: rateme-chart

@@ -117,7 +117,6 @@ export default Vue.extend({
             this.allInstances.push(this.clientInstance)
             this.all_instance_names.push(this.clientInstance.instance_name)
           }
-          // console.log("clientInstance: ", this.clientInstance);
         })
         .catch((err) => {
           this.clientInstance = {}
@@ -129,7 +128,6 @@ export default Vue.extend({
         limit: 100,
         }).then((response) => {
           this.clientExperiments = response.data;
-          // console.log("clientExperiments: ", this.clientExperiments)
         })
         .catch((err) => {
           console.log(err);

@@ -44,7 +44,7 @@ class KaapanaInstance(Base):
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
-    automatic_job_execution = Column(Boolean(), default=False, index=True)
+    automatic_exp_execution = Column(Boolean(), default=False, index=True)
 
     # one-to-many relationships
     experiments = relationship(
@@ -80,6 +80,7 @@ class Experiment(Base):
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+    automatic_execution = Column(Boolean(), default=False, index=True)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
@@ -108,6 +109,7 @@ class Job(Base):
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+    automatic_execution = Column(Boolean(), default=False, index=True)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))

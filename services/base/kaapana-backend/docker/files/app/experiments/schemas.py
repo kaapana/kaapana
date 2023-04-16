@@ -8,7 +8,7 @@ from pydantic import BaseModel, validator
 class KaapanaInstanceBase(BaseModel):
     ssl_check: bool
     automatic_update: bool = False
-    automatic_job_execution: bool = False
+    automatic_exp_execution: bool = False
 
 
 class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
@@ -32,7 +32,7 @@ class RemoteKaapanaInstanceUpdateExternal(BaseModel):
     allowed_dags: dict
     allowed_datasets: list
     automatic_update: bool = False
-    automatic_job_execution: bool = False
+    automatic_exp_execution: bool = False
 
 
 class KaapanaInstance(KaapanaInstanceBase):
@@ -137,6 +137,7 @@ class JobCreate(JobBase):
     kaapana_instance_id: int
     # experiment_id: int = None
     username: str = None
+    automatic_execution: Optional[bool] = False
 
 
 class JobUpdate(JobBase):
@@ -222,6 +223,7 @@ class Experiment(ExperimentBase):
     status: str = None
     time_created: datetime.datetime = None
     time_updated: datetime.datetime = None
+    automatic_execution: Optional[bool] = False
     involved_kaapana_instances: str = None  # List = []
     dataset_name: str = None
 

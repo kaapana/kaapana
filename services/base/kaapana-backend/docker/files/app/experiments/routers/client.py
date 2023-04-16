@@ -579,6 +579,7 @@ def create_experiment(
         }
     )
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
+    print(f"CLIENT def create_experiment() db_experiment.automatic_execution = {db_experiment.automatic_execution} ; db_client_kaapana.automatic_exp_execution = {db_client_kaapana.automatic_exp_execution}")
 
     # async function call to queue jobs and generate db_jobs + adding them to db_experiment
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
@@ -621,9 +622,7 @@ def get_experiments(
 def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
-        db_experiment = crud.get_experiment(
-            db, experiment.exp_id
-        )  # better call crud method directly instead of calling client.py's def get_experiment()
+        db_experiment = crud.get_experiment(db, experiment.exp_id)
         for db_job in db_experiment.experiment_jobs:
             # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
             job = schemas.JobUpdate(

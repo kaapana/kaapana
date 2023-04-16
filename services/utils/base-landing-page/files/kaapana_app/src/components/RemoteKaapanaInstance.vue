@@ -93,8 +93,8 @@
       v-row
         v-col(cols=4 align="left") Autmoatically execute pending jobs:
         v-col( align="left")
-          v-icon(v-if="instancePost.automatic_job_execution" small color="green") mdi-check-circle
-          v-icon(v-if="!instancePost.automatic_job_execution" small) mdi-close-circle
+          v-icon(v-if="instancePost.automatic_exp_execution" small color="green") mdi-check-circle
+          v-icon(v-if="!instancePost.automatic_exp_execution" small) mdi-close-circle
         //- v-col(cols=1 align="center")
       //- Allowed DAGs: display mode
       v-row
@@ -142,7 +142,7 @@
       instancePost: {
         ssl_check: false,
         automatic_update: false,
-        automatic_job_execution: false,
+        automatic_exp_execution: false,
         fernet_encrypted: false,
         allowed_dags: [],
         allowed_datasets: []

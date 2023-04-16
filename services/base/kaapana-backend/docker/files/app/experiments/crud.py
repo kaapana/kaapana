@@ -161,7 +161,7 @@ def create_and_update_client_kaapana_instance(
             time_created=utc_timestamp,
             time_updated=utc_timestamp,
             automatic_update=client_kaapana_instance.automatic_update or False,
-            automatic_job_execution=client_kaapana_instance.automatic_job_execution
+            automatic_exp_execution=client_kaapana_instance.automatic_exp_execution
             or False,
         )
     elif action == "update":
@@ -184,8 +184,8 @@ def create_and_update_client_kaapana_instance(
         db_client_kaapana_instance.automatic_update = (
             client_kaapana_instance.automatic_update or False
         )
-        db_client_kaapana_instance.automatic_job_execution = (
-            client_kaapana_instance.automatic_job_execution or False
+        db_client_kaapana_instance.automatic_exp_execution = (
+            client_kaapana_instance.automatic_exp_execution or False
         )
     else:
         raise NameError("action must be one of create, update")
@@ -248,8 +248,8 @@ def create_and_update_remote_kaapana_instance(
             db_remote_kaapana_instance.automatic_update = (
                 remote_kaapana_instance.automatic_update or False
             )
-            db_remote_kaapana_instance.automatic_job_execution = (
-                remote_kaapana_instance.automatic_job_execution or False
+            db_remote_kaapana_instance.automatic_exp_execution = (
+                remote_kaapana_instance.automatic_exp_execution or False
             )
             db_remote_kaapana_instance.time_updated = utc_timestamp
         else:
@@ -299,6 +299,7 @@ def create_job(db: Session, job: schemas.JobCreate):
         owner_kaapana_instance_name=job.owner_kaapana_instance_name,
         # replaced addressed_kaapana_instance_name w/ owner_kaapana_instance_name or None
         status=job.status,
+        automatic_execution=job.automatic_execution,
     )
 
     db_kaapana_instance.jobs.append(db_job)
@@ -318,10 +319,16 @@ def create_job(db: Session, job: schemas.JobCreate):
 
     update_external_job(db, db_job)  # does nothing if db_job.external_job_id is None
     db.refresh(db_job)
-    if (
-        db_kaapana_instance.remote is False
-        and db_kaapana_instance.automatic_job_execution is True
-    ):
+
+    print(f"CRUD def create_job() db_job.automatic_execution = {db_job.automatic_execution}")
+    if ((
+        db_kaapana_instance.remote is False 
+        and db_kaapana_instance.automatic_exp_execution is True
+        ) 
+        or (
+        db_kaapana_instance.remote is False 
+        and db_job.automatic_execution is True
+        )):
         job = schemas.JobUpdate(
             **{
                 "job_id": db_job.id,
@@ -583,7 +590,7 @@ def sync_client_remote(
         "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
         "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
         "automatic_update": db_client_kaapana.automatic_update,
-        "automatic_job_execution": db_client_kaapana.automatic_job_execution,
+        "automatic_exp_execution": db_client_kaapana.automatic_exp_execution,
     }
     return {
         "incoming_jobs": outgoing_jobs,
@@ -675,7 +682,7 @@ def get_remote_updates(db: Session, periodically=False):
             "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
             "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
             "automatic_update": db_client_kaapana.automatic_update,
-            "automatic_job_execution": db_client_kaapana.automatic_job_execution,
+            "automatic_exp_execution": db_client_kaapana.automatic_exp_execution,
         }
 
         job_params = {
@@ -737,9 +744,7 @@ def get_remote_updates(db: Session, periodically=False):
                 # incoming_experiment['external_exp_id'] = incoming_experiment["id"]
                 incoming_experiment["involved_kaapana_instances"] = incoming_experiment[
                     "involved_kaapana_instances"
-                ][1:-1].split(
-                    ","
-                )  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+                ][1:-1].split(",")  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
                 experiment = schemas.ExperimentCreate(**incoming_experiment)
                 db_experiment = create_experiment(db, experiment)
                 logging.info(f"Created incoming remote experiment: {db_experiment}")
@@ -1078,7 +1083,9 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
         dataset_name=experiment.dataset_name,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
+        automatic_execution=db_kaapana_instance.automatic_exp_execution,
     )
+
 
     # TODO: also update all involved_kaapana_instances with the exp_id in which they are involved
 
@@ -1165,6 +1172,7 @@ def queue_generate_jobs_and_add_to_exp(
                     "status": "queued",
                     "kaapana_instance_id": db_kaapana_instance.id,
                     "owner_kaapana_instance_name": db_client_kaapana.instance_name,
+                    "automatic_execution": db_experiment.automatic_execution,
                     **jobs_to_create,
                 }
             )
@@ -1246,16 +1254,27 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
     utc_timestamp = get_utc_timestamp()
 
     db_experiment = get_experiment(db, experiment.exp_id)
+    print(f"CRUD def update_experiment() experiment.exp_id: {experiment.exp_id}")
+    print(f"CRUD def update_experiment() db_experiment: {db_experiment}")
 
-    if experiment.experiment_status != "abort":
-        for (
-            db_experiment_current_job
-        ) in db_experiment.experiment_jobs:  # iterate over db_jobs in db_experiment ...
+    if experiment.experiment_status == "confirmed":
+        print(f"CRUD def update_experiment() db_experiment.automatic_execution = {db_experiment.automatic_execution}")
+        experiment.experiment_status = "confirmed"
+        db_experiment.automatic_execution = True
+        print(f"CRUD def update_experiment() db_experiment.automatic_execution = {db_experiment.automatic_execution}")
+
+    if experiment.experiment_status != "abort": # usually 'scheduled' then
+        # iterate over db_jobs in db_experiment ...
+        for (db_experiment_current_job) in db_experiment.experiment_jobs:
             # either update db_jobs on own kaapana_instance
-            if (
+            if ((
                 db_experiment.kaapana_instance.remote is False
-                and db_experiment.kaapana_instance.automatic_job_execution is True
-            ):
+                and db_experiment.kaapana_instance.automatic_exp_execution is True
+                ) 
+                or (
+                db_experiment.kaapana_instance.remote is False 
+                and db_experiment.automatic_execution is True
+                )):
                 job = schemas.JobUpdate(
                     **{
                         "job_id": db_experiment_current_job.id,
@@ -1263,18 +1282,15 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
                         "description": "The worklow was triggered!",
                     }
                 )
-                update_job(
-                    db, job, remote=False
-                )  # def update_job() expects job of class schemas.JobUpdate
-
+                # def update_job() expects job of class schemas.JobUpdate
+                update_job(db, job, remote=False) 
             # or update db_jobs on remote kaapana_instance
             elif (
                 db_experiment.kaapana_instance.remote is True
-                and db_experiment.kaapana_instance.automatic_job_execution is True
+                and db_experiment.kaapana_instance.automatic_exp_execution is True
             ):
-                update_external_job(
-                    db, db_experiment_current_job
-                )  # def update_external_job expects db_experiment_current_job of class models.Job
+                  # def update_external_job expects db_experiment_current_job of class models.Job
+                update_external_job(db, db_experiment_current_job)
 
             else:
                 raise HTTPException(

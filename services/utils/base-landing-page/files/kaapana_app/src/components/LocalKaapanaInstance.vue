@@ -56,9 +56,9 @@
             v-col(cols=1 align="left")
               v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted" small icon)
                 v-icon mdi-pencil
-          //- Sync remote jobs: edit mode
+          //- Sync remote: edit mode
           v-row(v-if="edit_automatic_update" align="center")
-            v-col(align="left") Sync remote jobs:
+            v-col(align="left") Automatically sync remotes:
             v-col(align="left")
               v-checkbox(v-model="clientPost.automatic_update" label="Check automatically for remote updates")
             v-col(cols=1 align="left")
@@ -66,7 +66,7 @@
                 v-icon mdi-content-save
           //- display mode
           v-row(v-else)
-            v-col(align="left") Sync remote jobs:
+            v-col(align="left") Automatically sync remotes:
             v-col(align="left")
               v-icon(v-if="clientPost.automatic_update" small color="green") mdi-check-circle
               v-icon(v-if="!clientPost.automatic_update" small) mdi-close-circle
@@ -74,21 +74,21 @@
               v-btn(@click="edit_automatic_update = !edit_automatic_update" small icon)
                 v-icon mdi-pencil
           //- Autmoatically execute pending jobs: edit mode
-          v-row(v-if="edit_automatic_job_execution" align="center")
-            v-col(align="left") Autmoatically execute pending jobs:
+          v-row(v-if="edit_automatic_exp_execution" align="center")
+            v-col(align="left") Autmoatically start remote experiments:
             v-col(align="left")
-              v-checkbox(v-model="clientPost.automatic_job_execution" label="Execute automatically jobs")
+              v-checkbox(v-model="clientPost.automatic_exp_execution" label="Execute automatically jobs")
             v-col(cols=1 align="left")
-              v-btn(@click="edit_automatic_job_execution = !edit_automatic_job_execution; updateClientForm();" small icon)
+              v-btn(@click="edit_automatic_exp_execution = !edit_automatic_exp_execution; updateClientForm();" small icon)
                 v-icon mdi-content-save
           //- display mode
           v-row(v-else)
-            v-col(align="left") Autmoatically execute pending jobs:
+            v-col(align="left") Automatically start remote experiments:
             v-col(align="left")
-              v-icon(v-if="clientPost.automatic_job_execution" small color="green") mdi-check-circle
-              v-icon(v-if="!clientPost.automatic_job_execution" small) mdi-close-circle
+              v-icon(v-if="clientPost.automatic_exp_execution" small color="green") mdi-check-circle
+              v-icon(v-if="!clientPost.automatic_exp_execution" small) mdi-close-circle
             v-col(cols=1 align="left")
-              v-btn(@click="edit_automatic_job_execution = !edit_automatic_job_execution" small icon)
+              v-btn(@click="edit_automatic_exp_execution = !edit_automatic_exp_execution" small icon)
                 v-icon mdi-pencil
         v-divider(vertical)
         v-col(cols=4 align="left")
@@ -155,14 +155,14 @@
       clientPost: {
         ssl_check: false,
         automatic_update: false,
-        automatic_job_execution: false,
+        automatic_exp_execution: false,
         fernet_encrypted: false,
         allowed_dags: [],
         allowed_datasets: []
       },
       edit_ssl_check: false,
       edit_automatic_update: false,
-      edit_automatic_job_execution: false,
+      edit_automatic_exp_execution: false,
       edit_fernet_encrypted: false,
       edit_allowed_dags: false,
       edit_allowed_datasets: false,
@@ -186,6 +186,7 @@
         this.clientPost = this.instance
         this.clientPost.fernet_encrypted = false
         console.log('Getting Dags and Datasets')
+        console.log("this.clientPost:", this.clientPost)
         this.getDags();
         this.getDatasets();
       },

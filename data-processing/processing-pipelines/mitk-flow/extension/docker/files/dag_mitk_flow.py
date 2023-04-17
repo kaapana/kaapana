@@ -3,7 +3,7 @@ from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from datetime import timedelta
 from airflow.models import DAG
-from mitk_flow.MitkInputOperator import MitkInputOperator
+from mitk_flow.LocalMiktInputOperator import LocalMiktInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
@@ -52,7 +52,7 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
-mitk_input = MitkInputOperator(dag=dag, input_operator=get_input, operator_out_dir="mitk-results")
+mitk_input = LocalMiktInputOperator(dag=dag, input_operator=get_input, operator_out_dir="mitk-results")
 launch_app = KaapanaApplicationOperator(dag=dag,
                                         name="application-mitk-flow",
                                         input_operator=get_input,

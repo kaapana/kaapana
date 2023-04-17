@@ -9,7 +9,7 @@ import time
 import glob
 import requests
 
-class MitkInputOperator(KaapanaPythonBaseOperator):
+class LocalMiktInputOperator(KaapanaPythonBaseOperator):
     def downloadSeries(self, studyUID: str, seriesUID: str, target_dir: str):
 
         print("Downloading Series: %s" % seriesUID)

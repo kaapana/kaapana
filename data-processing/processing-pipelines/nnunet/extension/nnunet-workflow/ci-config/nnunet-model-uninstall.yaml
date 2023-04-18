@@ -6,7 +6,7 @@ conf_data:
     task: "Task017_AbdominalOrganSegmentation"
     single_execution: false
   data_form:
-    cohort_name: "testModel"
+    cohort_name: "testMODELS"
     cohort_limit: 1
 remote: false
 username: "kaapana"

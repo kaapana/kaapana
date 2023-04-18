@@ -106,7 +106,7 @@
         template(v-slot:item.releaseName="{ item }")
           span {{ item.releaseName }} &nbsp;
             a(
-              :href="link",
+              :href="getHref(link)",
               target="_blank",
               v-for="link in item.links",
               :key="item.link"
@@ -371,6 +371,9 @@ export default Vue.extend({
     ]),
   },
   methods: {
+    getHref(link: string){
+      return link.match(/^:(\d+)(.*)/) ? "http://" + window.location.hostname + link : link
+    },
     fileStart(file: any) {
       console.log("filestart", file)
     },

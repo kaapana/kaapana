@@ -176,7 +176,7 @@ class KaapanaFederatedTrainingBase(ABC):
         self.use_minio_mount = use_minio_mount
         self.run_in_parallel = False
         self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
-        self.workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR')
+        self.workflow_dir = workflow_dir
         print('working directory', self.workflow_dir)
 
         conf_data = self.get_conf(self.workflow_dir)
@@ -274,6 +274,7 @@ class KaapanaFederatedTrainingBase(ABC):
         with requests.Session() as s:
             r = requests_retry_session(session=s).put(f'{self.client_url}/experiment_jobs',
                     json={
+                        "exp_id": self.local_conf_data["experiment_form"]["exp_id"],
                         "experiment_name": self.local_conf_data["experiment_form"]["experiment_name"],
                         "experiment_jobs": distributed_jobs,
                     },

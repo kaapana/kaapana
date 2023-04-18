@@ -36,10 +36,28 @@ const routes = [
         },
     },
     {
+        name: 'experiment-execution',
+        path: '/experiment-execution',
+        component: () => import('@/views/ExperimentExecution.vue'),
+        title: 'Experiment Execution',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'experiments',
         path: '/experiments',
         component: () => import('@/views/Experiments.vue'),
         title: 'Experiment',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
+        name: 'federated-learning',
+        path: '/federated-learning',
+        component: () => import('@/views/FederatedLearning.vue'),
+        title: 'Federated Learning',
         permissions: {
             isPublic: false,
         },

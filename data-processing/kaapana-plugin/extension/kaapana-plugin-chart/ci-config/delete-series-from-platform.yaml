@@ -3,8 +3,8 @@ instance_names:
   - central
 conf_data:
   data_form: 
-    cohort_name: "testDELETE"
-    cohort_limit: 2
+    dataset_name: "testDELETE"
+    dataset_limit: 2
   workflow_form:
     delete_complete_study: false
     single_execution: true
@@ -16,8 +16,8 @@ remote: false
 #   - central
 # conf_data:
 #   data_form: 
-#     cohort_name: "testDELETE"
-#     cohort_limit: 2
+#     dataset_name: "testDELETE"
+#     dataset_limit: 2
 #   workflow_form:
 #     delete_complete_study: true
 #     single_execution: true

@@ -1,27 +1,8 @@
 <template lang="pug">
   .federated-panel
     v-container(text-left fluid)
-      v-row
-        v-col(cols="9", align="left")
-          experiment-table(v-if="clientInstance" :instance="clientInstance" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
-        v-col(cols="3", align="right")
-          v-container(fluid)
-            v-row(class="someSpace" justify="center" align="center")
-              workflow-execution(ref="workflowexecution" v-if="clientInstance" :remote='true' :instances="allInstances" :clientinstance="clientInstance" @refreshView="refreshClient()")
-            v-row(class="someSpace" justify="center" align="center")
-              LocalKaapanaInstance(v-if="clientInstance" :instance="clientInstance" :remote="false"  @refreshView="refreshClient()" @ei="editClientInstance")
-            v-row(class="someSpace" justify="center" align="center")
-              v-spacer
-              h2 REMOTE INSTANCES
-              v-spacer
-              add-remote-instance(ref="addremoteinstance" :remote='true')
-              v-spacer
-              view-remote-instances(ref="viewremoteinstances" :clientinstance="clientInstance" :remote='true')
-              v-spacer
-              v-btn(v-if="clientInstance" @click.stop="checkForRemoteUpdates()" small icon)
-                v-icon(color='primary' dark x-large) mdi-sync-circle
-              v-spacer
-              v-btn(v-if="!clientInstance" color='primary' @click.stop="clientDialog=true" dark) Add client instance  
+      experiment-table(v-if="clientInstance" :instance="clientInstance" :allInstances="allInstances" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
+
 </template>
 
 <script>
@@ -30,20 +11,11 @@ import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import ExperimentTable from "@/components/ExperimentTable.vue"
-import KaapanaInstance  from "@/components/KaapanaInstance.vue";
-import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
-import WorkflowExecution  from "@/components/WorkflowExecution.vue";
-import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
-import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
+import {loadDatasetNames} from "@/common/api.service";
 
 export default Vue.extend({
   components: {
     ExperimentTable,
-    KaapanaInstance,
-    LocalKaapanaInstance,
-    WorkflowExecution,
-    AddRemoteInstance,
-    ViewRemoteInstances
   },
   data: () => ({
     polling: 0,
@@ -86,22 +58,6 @@ export default Vue.extend({
     ...mapGetters(['currentUser', 'isAuthenticated'])
   },
   methods: {
-    checkForRemoteUpdates() {
-      console.log('checking remote')
-      kaapanaApiService
-        .federatedClientApiGet("/check-for-remote-updates")
-        .then((response) => {
-          this.$notify({
-            type: 'success',
-            title: 'Successfully checked for remote updates',
-            // text: 
-          })
-          this.$emit('refreshView')
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    },
     refreshClient() {
       this.getClientInstance()
       this.getClientExperiments()
@@ -148,20 +104,9 @@ export default Vue.extend({
         });
     },
     getDatasets() {
-      kaapanaApiService
-        .federatedClientApiGet("/cohort-names")
-        .then((response) => {
-          this.datasets = response.data;
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    },
-    editClientInstance(instance) {
-      this.clientPost = instance
-      this.clientPost.fernet_encrypted = false
-      this.clientDialog = true
-      this.clientUpdate = true
+      loadDatasetNames().then(_datasetNames => {
+         this.datasets = _datasetNames;
+      })
     },
     getClientInstance() {
       kaapanaApiService
@@ -172,7 +117,6 @@ export default Vue.extend({
             this.allInstances.push(this.clientInstance)
             this.all_instance_names.push(this.clientInstance.instance_name)
           }
-          // console.log("clientInstance: ", this.clientInstance);
         })
         .catch((err) => {
           this.clientInstance = {}
@@ -184,7 +128,6 @@ export default Vue.extend({
         limit: 100,
         }).then((response) => {
           this.clientExperiments = response.data;
-          // console.log("clientExperiments: ", this.clientExperiments)
         })
         .catch((err) => {
           console.log(err);
@@ -212,9 +155,9 @@ export default Vue.extend({
     startExtensionsInterval() {
       this.polling = window.setInterval(() => {
         // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
-        if (!this.$refs.workflowexecution.dialogOpen) {
-          this.refreshClient();
-        }
+        // if (!this.$refs.workflowexecution.dialogOpen) {
+        this.refreshClient();
+        // }
       }, 15000);
     }
   },

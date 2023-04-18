@@ -6,146 +6,77 @@ import dicomWebClient from "./dicomWebClient";
 import httpClient from "./httpClient";
 
 const WADO_ENDPOINT = process.env.VUE_APP_WADO_ENDPOINT
-const RS_ENDPOINT = process.env.VUE_APP_RS_ENDPOINT
-const KAAPANA_FLOW_ENDPOINT = process.env.VUE_APP_KAAPANA_FLOW_ENDPOINT
 const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT
 
-// TODO: add a wrapper for notifying when error and maybe reloading
-
-const updateTags = async (data) => {
-    const response = await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/tag', data)
-    // TODO: ideally this should return the new tags which are then assigned
-}
-
-const formatMetadata = async (data) => {
-    return await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/curation_tool/format_metadata', data)
-}
-
 const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-series-from-platform') => {
-    return await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/trigger/' + dag_id,
+    return await httpClient.post(
+        KAAPANA_BACKEND_ENDPOINT + 'client/job',
         {
-            "data_form": {
-                "cohort_identifiers": [
-                    seriesInstanceUID
-                ],
-                "cohort_query": {
-                    'index': 'meta-index'
+            "dag_id": dag_id,
+            "conf_data": {
+                "data_form": {
+                    "identifiers": [
+                        seriesInstanceUID
+                    ]
+                },
+                "form_data": {
+                    "delete_complete_study": false,
+                    "single_execution": false
                 }
             },
-            "form_data": {
-                "delete_complete_study": false,
-                "single_execution": false
-            }
-        })
+            "kaapana_instance_id": 1 // TODO: this should rather be set by the backend
+        }
+    )
 }
 
-const getDicomTags = async (studyInstanceUID, seriesInstanceUID) => {
-    try {
-        const data = await loadMetaData(studyInstanceUID, seriesInstanceUID)
-        const formattedMetadata = await formatMetadata(JSON.stringify(data[0]))
-        return formattedMetadata.data
-    } catch (e) {
-        Vue.notify({
-            type: "error",
-            title: "Network/Server error",
-            text: e
-        })
-        return {}
-    }
+const updateDataset = async (body) => {
+    return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', body)
 }
 
-const updateCohort = async (body) => {
-    return await httpClient.put(KAAPANA_BACKEND_ENDPOINT + 'cohort', body)
+const createDataset = async (body) => {
+    return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'client/dataset', body)
 }
-
-const createCohort = async (body) => {
-    return await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'cohort', body)
-}
-const loadCohorts = async () => {
+const loadDatasets = async () => {
     try {
         // TODO
-        const cohorts = (
-            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + '/cohorts')
+        const datasets = (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/datasets')
         )
-        return cohorts.data.map(cohort => ({
-            name: cohort.cohort_name,
-            identifiers: cohort.cohort_identifiers
-        }))
+        return datasets.data
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
 }
 
-const loadCohortByName = async (cohort_name) => {
+const loadDatasetByName = async (datasetName) => {
     try {
-        const cohort = (
-            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + `/cohort?cohort_name=${cohort_name}`)
+        const dataset = (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + `client/dataset?name=${datasetName}`)
         ).data
-        return {
-            name: cohort.cohort_name,
-            identifiers: cohort.cohort_identifiers
-        }
+        return dataset
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
 }
 
-const loadCohortNames = async () => {
+const loadDatasetNames = async () => {
     try {
-        const cohorts = (
-            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + '/cohort-names')
+        const datasets = (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'client/datasets')
         )
-        return cohorts.data
+        return datasets.data.map(dataset => dataset.name)
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
 }
 
 
-const loadSeriesFromMeta = async (seriesInstanceUID) => {
+const loadSeriesData = async (seriesInstanceUID) => {
     try {
         const response = (await httpClient.get(
-            KAAPANA_FLOW_ENDPOINT + `/curation_tool/seriesInstanceUID/${seriesInstanceUID}`
+            KAAPANA_BACKEND_ENDPOINT + `dataset/series/${seriesInstanceUID}`
         ))
-        const data = response.data
-
-        if (
-            data['0020000D StudyInstanceUID_keyword'] === undefined ||
-            data["0020000E SeriesInstanceUID_keyword"] === undefined ||
-            data['00080060 Modality_keyword'] === undefined ||
-            data === undefined ||
-            data['dataset_tags_keyword'] === undefined
-        ) {
-            Vue.notify(
-                {
-                    title: 'Invalid Data',
-                    text: `Received invalid data for ${seriesInstanceUID}`,
-                    type: 'error'
-                }
-            )
-        }
-
-        if (data['00080060 Modality_keyword'] === 'SEG') {
-            return {
-                src: `minio/service-segmentation-thumbnail/batch/${data["0020000E SeriesInstanceUID_keyword"]}/` +
-                    `generate-segmentation-thumbnail/${data["0020000E SeriesInstanceUID_keyword"]}.png`,
-                seriesDescription: data['0008103E SeriesDescription_keyword'] || "",
-                modality: data['00080060 Modality_keyword'],
-                seriesData: data,
-                tags: data['dataset_tags_keyword']
-            }
-        } else
-            return {
-                src: RS_ENDPOINT +
-                    `/studies/${data['0020000D StudyInstanceUID_keyword']}/` +
-                    `series/${data["0020000E SeriesInstanceUID_keyword"]}/` +
-                    `thumbnail?viewport=300,300`,
-                seriesDescription: data['0008103E SeriesDescription_keyword'] || "",
-                modality: data['00080060 Modality_keyword'],
-                seriesData: data,
-                tags: data['dataset_tags_keyword']
-            }
-
+        return response.data
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
     }
@@ -169,16 +100,8 @@ const loadDicom = async (studyUID, seriesUID, objectUID) => {
     )).data
 }
 
-const loadMetaData = async (studyUID, seriesUID) => {
-    return (await httpClient.get(
-        RS_ENDPOINT +
-        `/studies/${studyUID}/` +
-        `series/${seriesUID}/` +
-        `metadata`
-    )).data
-}
-
 const loadSeriesMetaData = async (studyInstanceUID, seriesInstanceUID) => {
+    // TODO: should also able to be unified (at least partially)
     const data = await dicomWebClient.retrieveSeriesMetadata({
         'studyInstanceUID': studyInstanceUID,
         'seriesInstanceUID': seriesInstanceUID
@@ -205,19 +128,20 @@ const loadSeriesMetaData = async (studyInstanceUID, seriesInstanceUID) => {
     }
 }
 
-const loadPatients = async (url, data) => {
+const loadPatients = async (data) => {
     try {
-        const res = await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/curation_tool/' + url, data)
+        const res = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/series?body=' + JSON.stringify(data))
         return res.data
     } catch (error) {
-        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
+        Vue.notify({title: 'Network/Server error', text: error.text, type: 'error'});
+        throw error
     }
 }
 
 const loadAvailableTags = async (body = {}) => {
     try {
         return (
-            await httpClient.post(KAAPANA_FLOW_ENDPOINT + '/curation_tool/query_values', body)
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/query_values?query=' + JSON.stringify(body))
         )
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
@@ -225,21 +149,38 @@ const loadAvailableTags = async (body = {}) => {
 }
 
 
+const updateTags = async (data) => {
+    const response = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/tag', data)
+    // TODO: ideally this should return the new tags which are then assigned
+}
+
+const loadDashboard = async (seriesInstanceUIDs, fields) => {
+    return (await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/dashboard?config=' + JSON.stringify({
+        series_instance_uids: seriesInstanceUIDs,
+        names: fields
+    }))).data
+
+}
+
+const loadDicomTagMapping = async () => {
+    return (await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/fields')).data
+}
+
+
 export {
     updateTags,
-    loadSeriesFromMeta,
     loadDicom,
     assembleWadoURI,
     loadSeriesMetaData,
     loadPatients,
     loadAvailableTags,
-    loadMetaData,
-    createCohort,
-    loadCohorts,
-    formatMetadata,
+    loadSeriesData,
+    createDataset,
+    loadDatasets,
     deleteSeriesFromPlatform,
-    updateCohort,
-    loadCohortNames,
-    getDicomTags,
-    loadCohortByName
+    updateDataset,
+    loadDatasetNames,
+    loadDatasetByName,
+    loadDashboard,
+    loadDicomTagMapping
 }

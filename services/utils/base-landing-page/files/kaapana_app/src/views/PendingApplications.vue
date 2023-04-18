@@ -43,6 +43,7 @@ export default Vue.extend({
   data: () => ({
     loading: true,
     launchedAppLinks: [] as any,
+    search: "",
     headers: [
       {
         text: "Name",

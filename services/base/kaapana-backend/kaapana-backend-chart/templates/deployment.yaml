@@ -111,6 +111,8 @@ spec:
           value: postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432
         - name: REMOTE_SYNC_INTERVAL
           value: "5"
+        - name: AIRFLOW_SYNC_INTERVAL
+          value: "10"
         - name: KEYCLOAK_ADMIN_USERNAME
           value: {{ .Values.global.credentials_keycloak_admin_username }}
         - name: KEYCLOAK_ADMIN_PASSWORD
@@ -133,12 +135,17 @@ spec:
 {{- end }}
         - name: alembic
           mountPath: /kaapana/app/alembic
+        - name: minio-data
+          mountPath: /kaapana/mounted/minio
       imagePullSecrets:
         - name: registry-secret
       volumes:
       - name: alembic
         persistentVolumeClaim:
           claimName: alembic-pv-claim
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: minio-pv-claim
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:

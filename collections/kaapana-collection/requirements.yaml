@@ -46,6 +46,8 @@ dependencies:
     version: 0.0.0
   - name: radiomics-workflow
     version: 0.0.0
+  - name: radiomics-federated-workflow
+    version: 0.0.0
   - name: rateme-workflow
     version: 0.0.0
   - name: rateme-chart
@@ -53,8 +55,6 @@ dependencies:
   - name: shapemodel-workflow
     version: 0.0.0
   - name: slicer-workbench-chart
-    version: 0.0.0
-  - name: static-website-chart
     version: 0.0.0
   - name: tensorboard-chart
     version: 0.0.0

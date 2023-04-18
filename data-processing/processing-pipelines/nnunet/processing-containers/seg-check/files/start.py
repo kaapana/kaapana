@@ -633,17 +633,6 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
     print("#")
     return True
 
-# os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210506211134235449")
-# os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210506104227376005")
-
-
-# os.environ['WORKFLOW_DIR'] = str("/home/jonas/Downloads/dice_test_data/nnunet-training-210509170732006648")
-# os.environ['ORG_IMG_IN_DIR'] = str("dcm-converter-ct")
-# os.environ['OPERATOR_IN_DIR'] = str("dcmseg2nrrd-seg")
-# os.environ['OPERATOR_OUT_DIR'] = str("seg-check")
-# os.environ['EXECUTABLE'] = str("/home/jonas/software/mitk-phenotyping/MitkCLResampleImageToReference.sh")
-# os.environ['BATCH_NAME'] = str("batch")
-
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
 assert workflow_dir is not None

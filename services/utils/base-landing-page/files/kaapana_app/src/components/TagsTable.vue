@@ -29,17 +29,14 @@
 
 <script>
 /* eslint-disable */
-import {getDicomTags} from "../common/api.service";
+import {loadSeriesData} from "../common/api.service";
 
 export default {
   name: 'TagsTable',
   props: {
     seriesInstanceUID: {
       type: String,
-    },
-    studyInstanceUID: {
-      type: String,
-    },
+    }
   },
   data: () => ({
     tagsData: [],
@@ -51,8 +48,10 @@ export default {
   }),
   methods: {
     async getDicomData() {
-      if (this.seriesInstanceUID && this.studyInstanceUID) {
-        getDicomTags(this.studyInstanceUID, this.seriesInstanceUID).then(data => this.tagsData = data)
+      if (this.seriesInstanceUID) {
+        loadSeriesData(this.seriesInstanceUID).then(data =>
+            this.tagsData = Object.entries(data['metadata']).map(i => ({name: i[0], value: i[1]}))
+        )
       }
     },
   },

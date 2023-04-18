@@ -74,7 +74,7 @@ const kaapanaApiService = {
           }
         }).then(() => {
 
-          let osDashboardsUrl = '/flow/kaapana/api/get-os-dashboards'
+          let osDashboardsUrl = '/kaapana-backend/get-os-dashboards'
           request.get(osDashboardsUrl)
             .then((response: { data: any }) => {
               var dashboards = response.data['dashboards']
@@ -226,7 +226,7 @@ const kaapanaApiService = {
   },
   kaapanaApiGet(subUrl: any, params: any = null) {
     return new Promise((resolve, reject) => {
-      request.get('/flow/kaapana/api/' + subUrl, { params }).then((response: any) => {
+      request.get('/kaapana-backend/' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.data)

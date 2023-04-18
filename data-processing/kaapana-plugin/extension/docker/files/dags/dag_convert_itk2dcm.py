@@ -5,6 +5,7 @@ from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
+from kaapana.blueprints.json_schema_templates import schema_minio_form
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -35,66 +36,14 @@ except Exception as e:
     itk_directories = ["Something does not work :/"]
     itk_zip_objects = ["Something does not work :/"]
 
-# Todo add object either or 
-ui_forms = {
-    "data_form": {
-        "type": "object",
-        "title": "Select file or folder from Minio",
-        "description": "The uplods/itk directory in Minio is crawled for zip files and folders",
-        "properties": {
-            "bucket_name": {
-                "title": "Bucket name",
-                "description": "Bucket name from MinIO",
-                "type": "string",
-                "default": "uploads",
-                "readOnly": True
-            }
-        },
-        "oneOf": [
-            {
-                "title": "Search for files",
-                "properties": {
-                    "identifier": {
-                        "type": "string",
-                        "const": "files"
-                    },
-                    "action_files":  {
-                        "title": "ZIP files from bucket",
-                        "description": "Relative paths to zip file in Bucket",
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": itk_zip_objects
-                        },
-                        "readOnly": False
-                    }
-                }
-            },
-            {
-                "title": "Search for folders",
-                "properties": {
-                    "identifier": {
-                        "type": "string",
-                        "const": "folders"
-                    },
-                    "action_operator_dirs": {
-                        "title": "Directories",
-                        "description": "Directory from bucket",
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": list(set(itk_directories))
-                        },
-                        "readOnly": False
-                    }
-                }
-            }
-        ]
-    },
+ui_forms = {**schema_minio_form(
+        select_options = "both",
+        blacklist_directory_endings = ("imagesTr", "imagesTs", "labelsTr", "labelsTs", "cases", "segs"), whitelist_object_endings = (".zip")
+    ),
     "workflow_form": {
         "type": "object",
         "properties": {
-            "modality":{
+            "modality": {
                 "title": "Modality",
                 "description": "Modality of the input images. Usually CT or MR.",
                 "type": "string",
@@ -102,19 +51,19 @@ ui_forms = {
                 "required": False,
             },
             "aetitle": {
-                "title": "Dataset tag",
+                "title": "Tag",
                 "description": "Specify a tag for your dataset.",
                 "type": "string",
                 "default": "itk2dcm",
-                "required": True
+                "required": True,
             },
             "delete_original_file": {
                 "title": "Delete file from Minio after successful upload?",
                 "type": "boolean",
                 "default": True,
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 log = LoggingMixin().log
@@ -138,6 +87,7 @@ dag = DAG(
 get_object_from_minio = LocalMinioOperator(
     action='get',
     dag=dag,
+    local_root_dir="{run_dir}/itk",
     operator_out_dir="itk")
 
 unzip_files = ZipUnzipOperator(
@@ -147,20 +97,20 @@ unzip_files = ZipUnzipOperator(
     batch_level=True,
     mode="unzip"
 )
-    
+
 convert = Itk2DcmOperator(
-    dag=dag, 
-    name="convert-itk2dcm", 
+    dag=dag,
+    name="convert-itk2dcm",
     # dev_server='code-server',
     trigger_rule="none_failed_min_one_success",
     input_operator=unzip_files
-) 
+)
 
 convert_seg = Itk2DcmSegOperator(
     dag=dag,
     name="convert-segmentation",
     input_operator=convert,
-    segmentation_in_dir='segmentations', 
+    segmentation_in_dir='segmentations',
     input_type="multi_label_seg",
     skip_empty_slices=True,
     fail_on_no_segmentation_found=False
@@ -187,7 +137,7 @@ remove_object_from_minio = LocalMinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True)
 
-def branching_zipping(**kwargs):
+def branching_zipping_callable(**kwargs):
     download_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs['dag_run'].run_id / get_object_from_minio.operator_out_dir
     conf = kwargs['dag_run'].conf
     if "action_files" in conf["data_form"]:
@@ -197,28 +147,28 @@ def branching_zipping(**kwargs):
         unzip_dir.mkdir(parents=True, exist_ok=True)
         download_dir.rename(unzip_dir)
         return [convert.name]
-    
+
 branching_zipping = BranchPythonOperator(
     task_id='branching-unzipping',
     provide_context=True,
-    python_callable=branching_zipping,
+    python_callable=branching_zipping_callable,
     dag=dag)
 
 
-def branching_sending(**kwargs):
+def branching_sending_callable(**kwargs):
     run_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs['dag_run'].run_id
     if [p for p in run_dir.rglob('seg_info.json')]:
         return [convert_seg.name, dcm_send_img.name]
     else:
         return [dcm_send_img.name]
-    
+
 branching_sending = BranchPythonOperator(
     task_id='branching-sending',
     provide_context=True,
-    python_callable=branching_sending,
+    python_callable=branching_sending_callable,
     dag=dag)
 
-def branching_cleaning_minio(**kwargs):
+def branching_cleaning_minio_callable(**kwargs):
     conf = kwargs['dag_run'].conf
     delete_original_file = conf["workflow_form"]["delete_original_file"]
     if delete_original_file:
@@ -230,7 +180,7 @@ branching_cleaning_minio = BranchPythonOperator(
     task_id='branching-cleaning-minio',
     provide_context=True,
     trigger_rule="none_failed_min_one_success",
-    python_callable=branching_cleaning_minio,
+    python_callable=branching_cleaning_minio_callable,
     dag=dag)
 
 

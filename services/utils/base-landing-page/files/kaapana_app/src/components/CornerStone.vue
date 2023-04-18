@@ -128,6 +128,7 @@ export default {
         this.loading = false
     },
     async load_data() {
+      // TODO: Improve error handling
       if (!this.loading)
         this.loading = true
 

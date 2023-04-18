@@ -7,6 +7,7 @@ from fastapi import APIRouter, Response, Request, UploadFile, WebSocket, WebSock
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.logger import logger
+from typing import Optional
 
 from config import settings
 import helm_helper
@@ -114,7 +115,7 @@ async def upload_file_chunks(file: UploadFile):
 
 
 @router.get("/import-container")
-async def import_container(filename: str, platforms: bool):
+async def import_container(filename: str, platforms: Optional[bool] = False):
     try:
         logger.info(f"/import-container called with {filename=}, {platforms=}")
         assert filename != "", "Required key 'filename' can not be empty"
@@ -172,14 +173,14 @@ async def helm_delete_chart(request: Request):
             multiinstallable=multiinstallable
         )
         if success:
-            return Response(f"Successfully ran uninstall command for {payload['release_name']}", 200)
+            return Response(f"Started uninstalling {payload['release_name']}", 200)
         else:
-            return Response(f"{stdout}", 400)
+            return Response(f"Chart uninstall command failed{stdout}", 400)
     except AssertionError as e:
         logger.error(f"/helm-delete-chart failed: {str(e)}")
         return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
     except Exception as e:
-        logger.error("/helm-delete-chart failed: {0}".format(e))
+        logger.error(f"/helm-delete-chart failed: {e}")
         return Response(f"Chart uninstall failed {str(e)}", 500)
 
 
@@ -198,19 +199,19 @@ async def helm_install_chart(request: Request):
             cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
-        _, _, _, _, cmd = utils.helm_install(
+        _, _, keywords, release_name, cmd = utils.helm_install(
             payload, shell=True, blocking=blocking, platforms=platforms, helm_command_addons=cmd_addons, execute_cmd=False)
-        success, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=5)
+        success, stdout = await utils.helm_install_cmd_run_async(release_name, payload["version"], cmd, keywords)
         logger.debug(f"await ended {success=} {stdout=}")
         if success:
-            return Response(f"Successfully installed: {stdout}", 200)
+            return Response(f"Successfully installed: {release_name}", 200)
         else:
-            return Response(f"Chart install command failed {stdout}", 500)
+            return Response(f"Chart install command failed for {release_name}", 500)
     except AssertionError as e:
         logger.error(f"/helm-install-chart failed: {str(e)}")
         return Response(f"Chart install failed, bad request {str(e)}", 400)
     except Exception as e:
-        logger.error("/helm-install-chart failed: {0}".format(e))
+        logger.error(f"/helm-install-chart failed: {e}")
         return Response(f"Chart install failed {str(e)}", 500)
 
 
@@ -230,8 +231,8 @@ async def pull_docker_image(request: Request):
         logger.error(e)
         return Response(f"Unable to download container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}", 500)
     except Exception as e:
-        logger.error("/pull-docker-image failed: {0}".format(e))
-        return Response("Pulling docker image failed {0}".format(e), 400)
+        logger.error(f"/pull-docker-image failed: {e}")
+        return Response(f"Pulling docker image failed {e}", 400)
 
 @router.get("/pending-applications")
 async def pending_applications():
@@ -253,11 +254,11 @@ async def pending_applications():
         return extensions_list
 
     except subprocess.CalledProcessError as e:
-        logger.error("/pending-applications failed {0}".format(e))
+        logger.error(f"/pending-applications failed {e}")
         return Response("Internal server error!", 500)
     except Exception as e:
-        logger.error(f"/pending-applications failed: {e}".format(e))
-        return Response(f"Pending applications failed {e}".format(e), 400)
+        logger.error(f"/pending-applications failed: {e}")
+        return Response(f"Pending applications failed {e}", 400)
 
 
 @router.get("/extensions")

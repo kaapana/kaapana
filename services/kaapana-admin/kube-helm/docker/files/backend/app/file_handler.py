@@ -82,7 +82,7 @@ def check_file_exists(filename, overwrite, platforms: bool = False):
     # check if file exists
     logger.debug(f"full path: {fpath=}")
     if os.path.exists(fpath):
-        msg = "File {0} already exists".format(fpath)
+        msg = f"File {fpath} already exists"
         logger.warning(msg + "overwrite:" + str(overwrite))
         if not overwrite:
             msg += ", returning without overwriting. "
@@ -116,8 +116,8 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
         err = f"Wrong content type '{file.content_type}'  allowed types are {allowed_types}"
         logger.error(err)
         return False, err
-    logger.debug("filename {0}".format(file.filename))
-    logger.debug("file type {0}".format(file.content_type))
+    logger.debug(f"filename {file.filename}")
+    logger.debug(f"file type {file.content_type}")
 
     fpath, msg = check_file_exists(file.filename, overwrite, platforms=platforms)
     if fpath == "":
@@ -140,7 +140,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
         # TODO: check_file_namespace(fpath)
     except Exception as e:
         logger.error(e)
-        err = "Failed to write chart file {0}".format(file.filename)
+        err = f"Failed to write chart file {file.filename}"
         logger.error(err)
         deleted = delete_file(fpath)
         if deleted:
@@ -152,8 +152,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
 
     # parse name, version
     if file.filename[-4:] != ".tgz":
-        err = "File extension must be '.tgz', can not parse {0}".format(
-            file.filename)
+        err = f"File extension must be '.tgz', can not parse {file.filename}"
         return False, err
 
     fname, fversion = file.filename.split(".tgz")[0].rsplit("-", 1)
@@ -166,7 +165,7 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
     ))
 
     if msg == "":
-        msg = "Successfully added chart file {0}".format(fname)
+        msg = f"Successfully added chart file {fname=}"
 
     return True, msg
 

@@ -43,8 +43,8 @@
         </h3>
       </v-container>
     </v-container>
-      <v-speed-dial v-if="selectedSeriesInstanceUIDs.length > 0" v-model="fab" bottom right absolute direction="top"
-        :open-on-hover="true" transition="slide-y-reverse-transition" dense>
+      <v-speed-dial v-model="fab" bottom right absolute direction="top"
+        :open-on-hover="true" transition="slide-y-reverse-transition">
         <template v-slot:activator>
           <v-btn v-model="fab" color="primary" fab>
             <v-icon v-if="fab">
@@ -64,6 +64,9 @@
         <v-btn :disabled="!datasetName" fab small color="red" class="white--text" @click="removeFromDataset">
           <v-icon>mdi-folder-minus-outline</v-icon>
         </v-btn>
+        <v-btn fab small color="primary" class="white--text" @click="() => this.workflowDialog=true">
+          <v-icon>mdi-send</v-icon>
+        </v-btn>
       </v-speed-dial>
     </v-container>
     <v-container fluid class="sidebar rounded-0 v-card v-sheet pa-0">
@@ -73,34 +76,43 @@
       <!--      </ErrorBoundary>-->
     </v-container>
     <div>
-    <SaveDatasetDialog
-          v-model="saveAsDatasetDialog"
-          @save="(name) => saveDatasetFromDialog(name)"
-          @cancel="() => this.saveAsDatasetDialog=false"
-      />
-    <v-dialog
-        v-model="addToDatasetDialog"
-        width="500"
-    >
-      <v-card>
-        <v-card-title>
-          Add to Dataset
-        </v-card-title>
-        <v-card-text>
-          <v-select
-          v-model="datasetToAddTo"
-          :items="datasetNames"
-          label="Dataset"
-        ></v-select>
-        </v-card-text>
-        <v-divider></v-divider>
+      <SaveDatasetDialog
+            v-model="saveAsDatasetDialog"
+            @save="(name) => saveDatasetFromDialog(name)"
+            @cancel="() => this.saveAsDatasetDialog=false"
+        />
+      <v-dialog
+          v-model="addToDatasetDialog"
+          width="500"
+      >
+        <v-card>
+          <v-card-title>
+            Add to Dataset
+          </v-card-title>
+          <v-card-text>
+            <v-select
+            v-model="datasetToAddTo"
+            :items="datasetNames"
+            label="Dataset"
+          ></v-select>
+          </v-card-text>
+          <v-divider></v-divider>
 
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn color="primary" @click.stop="addToDataset" :disabled="!datasetToAddTo">Save</v-btn>
-          <v-btn @click.stop="addToDatasetDialog=false">Cancel</v-btn>
-        </v-card-actions>
-      </v-card>
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn color="primary" @click.stop="addToDataset" :disabled="!datasetToAddTo">Save</v-btn>
+            <v-btn @click.stop="addToDatasetDialog=false">Cancel</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+      <v-dialog
+          v-model="workflowDialog"
+          width="500"
+      >
+      <WorkflowExecution 
+        :identifiers="fab_identifiers"
+        @successful="() => this.workflowDialog=false"
+      />
     </v-dialog>
   </div>
   </v-container>
@@ -119,6 +131,7 @@ import MetaData from "@/components/MetaData.vue";
 import { settings } from "@/static/defaultUIConfig";
 import { VueSelecto } from "vue-selecto";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
+import WorkflowExecution from "@/components/WorkflowExecution.vue";
 
 export default {
   data() {
@@ -137,6 +150,7 @@ export default {
       fab: false,
       saveAsDatasetDialog: false,
       addToDatasetDialog: false,
+      workflowDialog: false,
       datasetToAddTo: null,
       scrollOptions: {},
     };
@@ -149,7 +163,13 @@ export default {
     Gallery,
     MetaData,
     SaveDatasetDialog,
+    WorkflowExecution,
     VueSelecto
+  },
+  computed: {
+    fab_identifiers() {
+      return this.selectedSeriesInstanceUIDs.length > 0 ? this.selectedSeriesInstanceUIDs : this.seriesInstanceUIDs
+    }
   },
   methods: {
     onDragStart(e) {
@@ -229,7 +249,7 @@ export default {
     async addToDataset(){
         const successful = await this.updateDataset(
           this.datasetToAddTo,
-          this.selectedSeriesInstanceUIDs,
+          this.fab_identifiers,
           'ADD'
         )
         if (successful) {
@@ -238,15 +258,15 @@ export default {
     },
     async removeFromDataset() {
       if (!this.settings.datasets.structured) {
-        this.$refs.gallery.removeFromDataset(this.selectedSeriesInstanceUIDs)
+        this.$refs.gallery.removeFromDataset(this.fab_identifiers)
       } else {
-        this.$refs.structuredGallery.removeFromDataset(this.selectedSeriesInstanceUIDs)
+        this.$refs.structuredGallery.removeFromDataset(this.fab_identifiers)
       } 
     },
     async saveDatasetFromDialog(name){
         const successful = await this.saveDataset(
           name,
-          this.selectedSeriesInstanceUIDs,
+          this.fab_identifiers,
         )
         if (successful) {
           this.saveAsDatasetDialog = false

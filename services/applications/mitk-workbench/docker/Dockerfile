@@ -14,8 +14,8 @@ RUN wget https://www.mitk.org/download/kaapana/workbench/MITK-v2022.10-linux-x86
 # Application start definition, here a shell script is used to start the application
 COPY files/startMITK.sh /root/Desktop/
 RUN chmod 0777 /root/Desktop/startMITK.sh
-RUN ln -s /kaapana/mounted/mitk-data /root/Desktop/
-WORKDIR /kaapana/mounted/mitk-data
+RUN ln -s /kaapana/mounted/minio /root/Desktop/
+WORKDIR /kaapana/mounted/minio
 
 # A supervisord config is used to make the application managed
 COPY files/supervisord.conf /etc/supervisor/conf.d/

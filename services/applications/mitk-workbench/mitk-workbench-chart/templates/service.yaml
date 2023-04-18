@@ -7,15 +7,19 @@ metadata:
   labels:
     app: {{ .Release.Name }}
 spec:
+  type: {{ .Values.global.service_type }}
   ports:
     - protocol: TCP
       port: 80
       targetPort: 80
       name: pt-mitk-http
-  type: ClusterIP
+      {{- if eq .Values.global.service_type "NodePort" }}
+      nodePort: {{ .Values.global.nodePortMITKWorkbench }}
+      {{- end }}
   selector:
     app-name: {{ .Release.Name }}
 ---
+{{- if eq .Values.global.service_type "ClusterIP" }}
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware
 metadata:
@@ -47,4 +51,5 @@ spec:
             name: {{ .Release.Name }}
             port:
               name: pt-mitk-http
+{{- end }}
 ---

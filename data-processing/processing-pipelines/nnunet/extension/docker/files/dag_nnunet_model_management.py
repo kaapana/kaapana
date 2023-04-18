@@ -18,7 +18,7 @@ ui_forms = {
                 "description": "Select one of the installed models to uninstall.",
                 "type": "string",
                 "default": "",
-                "enum": sorted(list(installed_tasks.keys()).append("")),
+                "enum": sorted(list(installed_tasks.keys())),
                 "required": False
             }
         }

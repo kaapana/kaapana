@@ -301,6 +301,8 @@ def create_job(db: Session, job: schemas.JobCreate):
         status=job.status,
         automatic_execution=job.automatic_execution,
     )
+    db_exp_of_job = get_experiments(db, experiment_job_id=db_job.id)
+    db_job.automatic_execution = db_exp_of_job[0].automatic_execution
 
     db_kaapana_instance.jobs.append(db_job)
     db.add(db_kaapana_instance)
@@ -316,19 +318,12 @@ def create_job(db: Session, job: schemas.JobCreate):
             )
             .first()
         )
-
-    update_external_job(db, db_job)  # does nothing if db_job.external_job_id is None
+    # update_external_job() updates from remote the job on client instance
+    update_external_job(db, db_job)
     db.refresh(db_job)
 
-    print(f"CRUD def create_job() db_job.automatic_execution = {db_job.automatic_execution}")
-    if ((
-        db_kaapana_instance.remote is False 
-        and db_kaapana_instance.automatic_exp_execution is True
-        ) 
-        or (
-        db_kaapana_instance.remote is False 
-        and db_job.automatic_execution is True
-        )):
+    if db_kaapana_instance.remote is False:
+        # iff db_kp_i of db_job is the local one, then proceed and schedule the created "queued" job on local airflow via def update_job()
         job = schemas.JobUpdate(
             **{
                 "job_id": db_job.id,
@@ -376,6 +371,14 @@ def delete_job(db: Session, job_id: int, remote: bool = True):
 def delete_jobs(db: Session):
     # Todo add remote job deletion
     db.query(models.Job).delete()
+    db.commit()
+    return {"ok": True}
+
+
+# dev feature: shouldn't be used in production
+def delete_job_force(db: Session, job_id: int):
+    db_job = get_job(db, job_id)
+    db.delete(db_job)
     db.commit()
     return {"ok": True}
 
@@ -457,9 +460,8 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     if db_job.kaapana_instance.remote:
         db_job.status = job.status
 
-    if (
-        job.status == "scheduled" and db_job.kaapana_instance.remote == False
-    ):  # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
+    if job.status == "scheduled" and db_job.kaapana_instance.remote == False:
+        # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = json.loads(db_job.conf_data)
         conf_data["client_job_id"] = db_job.id
         dag_id_and_dataset = check_dag_id_and_dataset(
@@ -742,9 +744,10 @@ def get_remote_updates(db: Session, periodically=False):
                     "kaapana_instance_id"
                 ] = db_remote_kaapana_instance.id
                 # incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+                # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
                 incoming_experiment["involved_kaapana_instances"] = incoming_experiment[
                     "involved_kaapana_instances"
-                ][1:-1].split(",")  # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+                ][1:-1].split(",")
                 experiment = schemas.ExperimentCreate(**incoming_experiment)
                 db_experiment = create_experiment(db, experiment)
                 logging.info(f"Created incoming remote experiment: {db_experiment}")
@@ -767,10 +770,10 @@ def get_remote_updates(db: Session, periodically=False):
             exp_update = schemas.ExperimentUpdate(
                 **{
                     "exp_id": incoming_experiment["exp_id"],
-                    "experiment_name": incoming_experiment[
-                        "experiment_name"
-                    ],  # instead of db_incoming_experiment.experiment_name
-                    "experiment_jobs": db_jobs,  #  instead of incoming_jobs
+                    # incoming_experiment["experiment_name"] instead of db_incoming_experiment.experiment_name
+                    "experiment_name": incoming_experiment["experiment_name"],
+                    # db_jobs instead of incoming_jobs
+                    "experiment_jobs": db_jobs,
                 }
             )
             db_experiment = put_experiment_jobs(db, exp_update)
@@ -1049,18 +1052,24 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
 
 
 def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
-    if experiment.kaapana_instance_id is None:  # experiment has a kaapana_instance_id?
+    # experiment has a kaapana_instance_id?
+    if experiment.kaapana_instance_id is None:
+        # no: take first element on non-remote Kaapana instances in db
         db_kaapana_instance = (
             db.query(models.KaapanaInstance).filter_by(remote=False).first()
-        )  # no: take first element on non-remote Kaapana instances in db
+        )
     else:
+        # yes: search Kaapana instance in db according to given kaapana_instance_id
         db_kaapana_instance = (
             db.query(models.KaapanaInstance)
             .filter_by(id=experiment.kaapana_instance_id)
             .first()
-        )  # yes: search Kaapana instance in db according to given kaapana_instance_id
+        )
 
-    # if db.query(models.Experiment).filter_by(id=experiment.exp_id).first():            # experiment already exists?
+    # get local kaapana instance
+    db_local_kaapana_instance = get_kaapana_instance(db, remote=False)
+
+    # experiment already exists?
     if get_experiment(db, exp_id=experiment.exp_id):
         raise HTTPException(
             status_code=409, detail="Experiment exists already!"
@@ -1083,9 +1092,15 @@ def create_experiment(db: Session, experiment: schemas.ExperimentCreate):
         dataset_name=experiment.dataset_name,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
-        automatic_execution=db_kaapana_instance.automatic_exp_execution,
     )
-
+    if db_kaapana_instance.remote is False:
+        # db_kaapana_instance.remote is False aka. db_kaapana_instance == db_local_kaapana_instance
+        db_experiment.automatic_execution = True
+    if db_kaapana_instance.remote is True:
+        # give remote experiment always same automatic_execution permissions as local instance!
+        db_experiment.automatic_execution = (
+            db_local_kaapana_instance.automatic_exp_execution
+        )
 
     # TODO: also update all involved_kaapana_instances with the exp_id in which they are involved
 
@@ -1161,7 +1176,8 @@ def queue_generate_jobs_and_add_to_exp(
         if (
             db_client_kaapana.instance_name
             in conf_data["experiment_form"]["runner_instances"]
-        ):  # add client instance to instance list only if it is marked as an involved_instance of current experiment
+        ):
+            # add client instance to instance list only if it is marked as an involved_instance of current experiment
             db_kaapana_instances.append(db_client_kaapana)
         db_kaapana_instances.extend(db_remote_kaapana_instances)
         db_kaapana_instances_set = set(db_kaapana_instances)
@@ -1254,27 +1270,26 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
     utc_timestamp = get_utc_timestamp()
 
     db_experiment = get_experiment(db, experiment.exp_id)
-    print(f"CRUD def update_experiment() experiment.exp_id: {experiment.exp_id}")
-    print(f"CRUD def update_experiment() db_experiment: {db_experiment}")
 
     if experiment.experiment_status == "confirmed":
-        print(f"CRUD def update_experiment() db_experiment.automatic_execution = {db_experiment.automatic_execution}")
         experiment.experiment_status = "confirmed"
         db_experiment.automatic_execution = True
-        print(f"CRUD def update_experiment() db_experiment.automatic_execution = {db_experiment.automatic_execution}")
 
-    if experiment.experiment_status != "abort": # usually 'scheduled' then
+    if experiment.experiment_status != "abort":  # usually 'scheduled' then
         # iterate over db_jobs in db_experiment ...
-        for (db_experiment_current_job) in db_experiment.experiment_jobs:
+        for db_experiment_current_job in db_experiment.experiment_jobs:
             # either update db_jobs on own kaapana_instance
-            if ((
+            if (
                 db_experiment.kaapana_instance.remote is False
-                and db_experiment.kaapana_instance.automatic_exp_execution is True
-                ) 
                 or (
-                db_experiment.kaapana_instance.remote is False 
-                and db_experiment.automatic_execution is True
-                )):
+                    db_experiment.kaapana_instance.remote is True
+                    and db_experiment.kaapana_instance.automatic_exp_execution is True
+                )
+                or (
+                    db_experiment.kaapana_instance.remote is True
+                    and db_experiment.automatic_execution is True
+                )
+            ):
                 job = schemas.JobUpdate(
                     **{
                         "job_id": db_experiment_current_job.id,
@@ -1283,13 +1298,16 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
                     }
                 )
                 # def update_job() expects job of class schemas.JobUpdate
-                update_job(db, job, remote=False) 
+                update_job(db, job, remote=False)
             # or update db_jobs on remote kaapana_instance
             elif (
                 db_experiment.kaapana_instance.remote is True
                 and db_experiment.kaapana_instance.automatic_exp_execution is True
+            ) or (
+                db_experiment.kaapana_instance.remote is True
+                and db_experiment.automatic_execution is True
             ):
-                  # def update_external_job expects db_experiment_current_job of class models.Job
+                # def update_external_job expects db_experiment_current_job of class models.Job
                 update_external_job(db, db_experiment_current_job)
 
             else:
@@ -1307,8 +1325,6 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
 
 def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
     utc_timestamp = get_utc_timestamp()
-
-    print(f"CRUD def put_experiment_jobs() ExperimentUpdate experiment = {experiment}")
 
     # db_experiment = get_experiment(db, experiment_name=experiment.experiment_name)
     db_experiment = get_experiment(db, exp_id=experiment.exp_id)

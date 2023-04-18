@@ -75,9 +75,9 @@
                 v-icon mdi-pencil
           //- Autmoatically execute pending jobs: edit mode
           v-row(v-if="edit_automatic_exp_execution" align="center")
-            v-col(align="left") Autmoatically start remote experiments:
+            v-col(align="left") Automatically start remote experiments:
             v-col(align="left")
-              v-checkbox(v-model="clientPost.automatic_exp_execution" label="Execute automatically jobs")
+              v-checkbox(v-model="clientPost.automatic_exp_execution" label="Start automatically remote experiments")
             v-col(cols=1 align="left")
               v-btn(@click="edit_automatic_exp_execution = !edit_automatic_exp_execution; updateClientForm();" small icon)
                 v-icon mdi-content-save

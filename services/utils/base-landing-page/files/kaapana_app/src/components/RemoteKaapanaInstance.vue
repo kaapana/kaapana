@@ -84,14 +84,14 @@
             v-icon mdi-pencil
       //- Sync remote jobs: display mode
       v-row
-        v-col(cols=4 align="left") Sync remote jobs:
+        v-col(cols=4 align="left") Automatically sync remotes:
         v-col( align="left")
           v-icon(v-if="instancePost.automatic_update" small color="green") mdi-check-circle
           v-icon(v-if="!instancePost.automatic_update" small) mdi-close-circle
         //- v-col(cols=1 align="center")
       //- Autmoatically execute pending jobs: display mode
       v-row
-        v-col(cols=4 align="left") Autmoatically execute pending jobs:
+        v-col(cols=4 align="left") Automatically start remote experiments:
         v-col( align="left")
           v-icon(v-if="instancePost.automatic_exp_execution" small color="green") mdi-check-circle
           v-icon(v-if="!instancePost.automatic_exp_execution" small) mdi-close-circle

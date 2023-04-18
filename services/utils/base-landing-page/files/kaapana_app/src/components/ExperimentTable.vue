@@ -66,7 +66,7 @@
         <v-chip
           v-for="state in getStatesColorMap(item)"
           :color="state.color"
-          class="ma-1 my-chip"
+          class="ml-1 my-chip"
           dense
           small
           outlined>{{ state.count }}
@@ -253,6 +253,7 @@ methods: {
     const colorMap = {
       'queued': 'grey',
       'scheduled': 'blue',
+      'pending': 'orange',
       'running': 'green',
       'finished': 'black',
       'failed': 'red'
@@ -441,6 +442,6 @@ methods: {
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
   .my-chip {
-    border-width: 3px;
+    border-width: 2px;
   }
 </style>

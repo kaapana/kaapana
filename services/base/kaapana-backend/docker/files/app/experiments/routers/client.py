@@ -176,9 +176,8 @@ def delete_kaapana_instances(db: Session = Depends(get_db)):
     return crud.delete_kaapana_instances(db)
 
 
-@router.post(
-    "/job", response_model=schemas.JobWithKaapanaInstance
-)  # also okay: JobWithExperiment
+@router.post("/job", response_model=schemas.JobWithKaapanaInstance)
+# also okay: JobWithExperiment
 def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
     if job.username is not None:
         pass
@@ -199,9 +198,8 @@ def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db
     return crud.get_job(db, job_id, run_id)
 
 
-@router.get(
-    "/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance]
-)  # also okay: JobWithExperiment; JobWithKaapanaInstance
+@router.get("/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance])
+# also okay: JobWithExperiment; JobWithKaapanaInstance
 def get_jobs(
     instance_name: str = None,
     experiment_name: str = None,
@@ -236,6 +234,12 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
 def delete_jobs(db: Session = Depends(get_db)):
     # Todo add remote job deletion
     return crud.delete_jobs(db)
+
+
+# dev feature: shouldn't be used in production
+@router.delete("/job-force")
+def delete_job_force(job_id: int, db: Session = Depends(get_db)):
+    return crud.delete_job_force(db, job_id)
 
 
 @router.get("/dags")
@@ -486,9 +490,8 @@ def delete_datasets(db: Session = Depends(get_db)):
 
 
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
-@router.post(
-    "/experiment", response_model=schemas.Experiment
-)  # also okay: schemas.ExperimentWithKaapanaInstance
+@router.post("/experiment", response_model=schemas.Experiment)
+# also okay: schemas.ExperimentWithKaapanaInstance
 def create_experiment(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
@@ -579,7 +582,6 @@ def create_experiment(
         }
     )
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
-    print(f"CLIENT def create_experiment() db_experiment.automatic_execution = {db_experiment.automatic_execution} ; db_client_kaapana.automatic_exp_execution = {db_client_kaapana.automatic_exp_execution}")
 
     # async function call to queue jobs and generate db_jobs + adding them to db_experiment
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
@@ -603,7 +605,8 @@ def get_experiment(
 # get_experiments
 @router.get(
     "/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]
-)  # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
+)
+# also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
 def get_experiments(
     request: Request,
     instance_name: str = None,

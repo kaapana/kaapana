@@ -163,6 +163,10 @@
       return this.initialState();
     },
     props: {
+      identifiers: {
+        type: Array,
+        default: () => [],
+      },
     },
     created() {
     },
@@ -439,6 +443,10 @@
           .federatedClientApiPost("/get-ui-form-schemas", {remote: this.remote, experiment_name: this.experiment_name, dag_id: this.dag_id, instance_names: this.instance_names})
           .then((response) => {
             let schemas = response.data
+            if (this.identifiers.length > 0) {
+              // Data is provided via props
+              delete schemas['data_form']
+            }
             this.form_requiredFields = this.findRequiredFields(schemas)
             if ('external_schemas' in schemas) {
               this.external_dag_id = schemas["external_schemas"]
@@ -489,6 +497,12 @@
           this.formData['external_schema_instance_names'] = this.selected_remote_instances_w_external_dag_available
           this.federated_data = true
         }
+
+        if (this.identifiers.length > 0) {
+          this.formData['data_form'] = {
+            "identifiers": this.identifiers
+          }
+        }
         kaapanaApiService
           .federatedClientApiPost("/experiment", {
             experiment_name: this.experiment_name,
@@ -499,13 +513,13 @@
             federated: this.federated_data,
           })
           .then((response) => {
-            this.dialogOpen = false
             console.log(response);
             this.$notify({
               type: 'success',
               title: "Experiment successfully created!",
             })
             this.reset()
+            this.$emit('successful')
           })
           .catch((err) => {
             console.log(err);

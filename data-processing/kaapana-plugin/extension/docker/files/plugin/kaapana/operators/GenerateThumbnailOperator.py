@@ -1,17 +1,16 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
+from kaapana.operators.KaapanaBaseOperator import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+    KaapanaBaseOperator,
+)
+
 
 class GenerateThumbnailOperator(KaapanaBaseOperator):
     """
     TODO!
     """
 
-    def __init__(self,
-                 dag,
-                 orig_image_operator,
-                 env_vars=None,
-                 **kwargs
-                 ):
+    def __init__(self, dag, orig_image_operator, env_vars=None, **kwargs):
         """
         :param target_filename: Only for packing. The created file.
         TODO
@@ -32,6 +31,6 @@ class GenerateThumbnailOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             ram_mem_mb=1000,
-            ram_mem_mb_lmt=2000,
-            **kwargs
+            ram_mem_mb_lmt=3000,
+            **kwargs,
         )

@@ -274,6 +274,7 @@ class KaapanaFederatedTrainingBase(ABC):
         with requests.Session() as s:
             r = requests_retry_session(session=s).put(f'{self.client_url}/experiment_jobs',
                     json={
+                        "exp_id": self.local_conf_data["experiment_form"]["exp_id"],
                         "experiment_name": self.local_conf_data["experiment_form"]["experiment_name"],
                         "experiment_jobs": distributed_jobs,
                     },

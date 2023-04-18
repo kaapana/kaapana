@@ -13,13 +13,30 @@ from app.helm_helper import get_kube_objects, helm_show_chart
 
 
 logger = logging.getLogger("fastapi")
-logger.setLevel(logging.DEBUG)
+# set log level
+log_level = settings.log_level.upper()
+if log_level == "DEBUG":
+    log_level = logging.DEBUG
+elif log_level == "INFO":
+    log_level = logging.INFO
+elif log_level == "WARNING":
+    log_level = logging.WARNING
+elif log_level == "ERROR":
+    log_level = logging.ERROR
+elif log_level == "CRITICAL":
+    log_level = logging.CRITICAL
+else:
+    logging.error(f"Unknown log-level: {settings.log_level} -> Setting log-level to 'INFO'")
+    log_level = logging.INFO
+
+logger.setLevel(log_level)
+
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+ch.setLevel(log_level)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 ch.setFormatter(formatter)
 logger.addHandler(ch)
-logger.debug("set fastapi logger level to debug")
+logger.debug(f"set fastapi logger level to {log_level}")
 
 # init
 errors_during_preinstalling = False
@@ -64,6 +81,7 @@ for extension in preinstall_extensions:
         releases_installed[release_name] = {
             "version": extension["version"],
             "installed": False,
+            "is_platform": is_platform
         }
         if success:
             logger.info(f"Chart {release_name} successfully installed")
@@ -77,42 +95,41 @@ for extension in preinstall_extensions:
             f"Skipping {extension_path}, problems installing the extension {e}"
         )
         errors_during_preinstalling = True
+        # stop installing other extensions if any platform installation fails
+        if is_platform:
+            break
 
 if errors_during_preinstalling is True:
-    raise NameError("Problems while preinstallting the extensions!")
+    raise NameError("Problems while preinstalling extensions!")
 
 # post-install checks for helm and kube status
 for _ in range(3600):
     time.sleep(1)
     for release_name in releases_installed.keys():
         release_version = releases_installed[release_name]["version"]
-        status = helm_status(release_name)
-        _, _, _, kube_status = get_kube_objects(release_name)
-        chart = helm_show_chart(release_name, release_version)
-        is_platform = False
-        if "keywords" in chart and "kaapanaplatform" in chart["keywords"]:
-            is_platform = True
-        installed = False
-        logger.debug(f"{is_platform=}")
+        is_platform = releases_installed[release_name]["is_platform"]
+
+        helm_namespace = settings.helm_namespace
         if is_platform:
-            installed = (
-                True
-                if all_successful(
-                    set(kube_status["status"] + [i["STATUS"] for i in status])
-                )
-                == "yes"
-                else False
-            )
+            helm_namespace = "default"
+        status = helm_status(release_name, helm_namespace=helm_namespace)
+        _, _, _, kube_status = get_kube_objects(release_name, helm_namespace=helm_namespace)
+
+        installed = (
+            True
+            if all_successful(set(kube_status["status"] + [status["STATUS"]]))
+            == "yes"
+            else False
+        )
+
+        if installed:
+            logger.info(f"All Kubernetes objects for release {release_name} are successful")
         else:
-            installed = (
-                True
-                if all_successful(set(kube_status["status"] + [status["STATUS"]]))
-                == "yes"
-                else False
-            )
+            logger.warning(f"Some Kubernetes objects for release {release_name} are not successful yet")
         releases_installed[release_name] = {
             "version": extension["version"],
             "installed": installed,
+            "is_platform": is_platform
         }
     s = sum([i["installed"] for i in list(releases_installed.values())])
     if s == len(releases_installed):

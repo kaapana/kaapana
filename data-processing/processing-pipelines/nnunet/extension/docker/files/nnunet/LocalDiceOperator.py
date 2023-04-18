@@ -233,17 +233,6 @@ class LocalDiceOperator(KaapanaPythonBaseOperator):
             print("#")
             print("# DONE #")
 
-
-    # def __init__(self):
-    #     self.airflow_workflow_dir = "/home/jonas/Downloads/dice_test_data/nnunet-ensemble-210505182552676296"
-    #     self.batch_name = "nnunet-cohort"
-
-    #     self.gt_dir = "seg-check-gt"
-    #     self.ensemble_dir = "ensemble-prediction"
-    #     self.operator_in_dir = "single-model-prediction"
-    #     self.operator_out_dir = "evaluation"
-    #     self.anonymize = True
-
     def __init__(self,
                  dag,
                  gt_operator,

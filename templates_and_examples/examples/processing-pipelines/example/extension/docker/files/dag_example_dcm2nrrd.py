@@ -14,7 +14,13 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "single_execution": "$default"
+            "single_execution": {
+                "title": "single execution",
+                "description": "Should each series be processed separately?",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            }
         }
     }
 }

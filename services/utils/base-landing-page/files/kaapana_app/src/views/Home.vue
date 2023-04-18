@@ -16,7 +16,7 @@
                       v-icon(size='35px') {{section.icon}}
                     v-card-text.kaapana-card-prop
                       p {{section.description}}
-                      v-chip.kaapana-chips(v-for='(subSection, subSectionKey) in section.subSections', :key='subSection.id' color="jipgreen" small, style="margin: 5px")
+                      v-chip.kaapana-chips(v-for='(subSection, subSectionKey) in section.subSections', :key='subSection.id' small, style="margin: 5px")
                         router-link.kaapana-page-link(:to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}") {{subSection.label}}
         div(v-else)
           v-layout(align-center justify-center row fill-height)

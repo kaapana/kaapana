@@ -2,7 +2,7 @@
   <div id="app">
     <v-app id="inspire">
       <notifications position="bottom right" width="20%"/>
-      <v-navigation-drawer clipped v-model="drawer" app class="ta-center">
+      <v-navigation-drawer clipped v-model="drawer" app mobile-breakpoint="0" class="ta-center">
         <v-list dense>
           <v-list-item :to="'/'">
             <v-list-item-action>
@@ -13,6 +13,41 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
+          <div v-if="settings.navigationMode">
+          <v-list-item :to="'/experiments'" v-if="isAuthenticated">
+            <v-list-item-action>
+              <v-icon>mdi-gamepad-variant</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title>Workflows</v-list-item-title>
+            </v-list-item-content>
+            <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
+          <v-list-item :to="{ name: 'ew-section-view', params: { ewSection: 'store', ewSubSection: 'minio' }}" v-if="isAuthenticated">
+            <v-list-item-action>
+              <v-icon>mdi-palette-advanced</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title>Advanced</v-list-item-title>
+            </v-list-item-content>
+            <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
+        </div>
+          <div v-if="!settings.navigationMode">
+          <v-list-group prepend-icon="mdi-gamepad-variant">
+            <template v-slot:activator>
+              <v-list-item-title>Workflows</v-list-item-title>
+            </template>
+            <v-list-item v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to" v-if="isAuthenticated">
+              <v-list-item-content>
+                <v-list-item-title>{{ title }}</v-list-item-title>
+              </v-list-item-content>
+              <v-list-item-action>
+                <v-icon>{{ icon }}</v-icon>
+              </v-list-item-action>
+              <v-list-item-icon></v-list-item-icon>
+            </v-list-item>
+          </v-list-group>
           <v-list-group :prepend-icon="section.icon"
                         v-if="isAuthenticated && section.roles.indexOf(currentUser.role) > -1"
                         v-for="(section, sectionKey) in externalWebpages" :key="section.id">
@@ -24,51 +59,16 @@
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
           </v-list-group>
-          <v-list-item :to="'/datasets'" v-if="isAuthenticated">
+        </div>
+          <!-- <v-list-item :to="'/data-upload'" v-if="isAuthenticated">
             <v-list-item-action>
-              <v-icon>mdi-view-gallery-outline</v-icon>
+              <v-icon>mdi-cloud-upload</v-icon>
             </v-list-item-action>
             <v-list-item-content>
-              <v-list-item-title>Datasets</v-list-item-title>
+              <v-list-item-title>Uploads</v-list-item-title>
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <v-list-item :to="'/experiments'" v-if="isAuthenticated">
-            <v-list-item-action>
-              <v-icon>mdi-play-box</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Experiments</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <!-- v-list-item :to="'/federated'" v-if="isAuthenticated && federatedBackendAvailable">
-            <v-list-item-action>
-              <v-icon>mdi-vector-triangle</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Federated</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item -->
-          <v-list-item :to="'/pending-applications'" v-if="isAuthenticated">
-            <v-list-item-action>
-              <v-icon>mdi-gamepad-variant</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Pending applications</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <v-list-item :to="'/results-browser'" v-if="isAuthenticated && staticWebsiteAvailable">
-            <v-list-item-action>
-              <v-icon>mdi-file-tree</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Results browser</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
+          </v-list-item> -->
           <v-list-item :to="'/extensions'" v-if="isAuthenticated">
             <v-list-item-action>
               <v-icon>mdi-apps</v-icon>
@@ -106,8 +106,16 @@
                 <v-switch
                     label="Dark mode"
                     hide-details
-                    v-model="darkMode"
+                    v-model="settings.darkMode"
                     @change="(v) => changeMode(v)"
+                ></v-switch>
+              </v-list-item>
+              <v-list-item>
+                <v-switch
+                    label="Navigation"
+                    hide-details
+                    v-model="settings.navigationMode"
+                    @change="(v) => changeNavigation(v)"
                 ></v-switch>
               </v-list-item>
             </v-list>
@@ -124,6 +132,36 @@
         <v-container class="router-container pa-0" fluid fill-height>
           <v-layout align-start="align-start">
             <v-flex text-xs="text-xs">
+              <div v-if="settings.navigationMode">
+                <v-bottom-navigation v-if="workflowNavigation && drawer" color="primary" :elevation="0" inset mode="shift">
+                  <v-btn v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to">
+                    <v-icon>{{ icon }}</v-icon>
+                    {{ title }}
+                  </v-btn>
+                </v-bottom-navigation>
+                <v-bottom-navigation v-if="advancedNavigation  && drawer" color="primary" :elevation="0" inset mode="shift">
+                  <v-menu offset-y v-for="(section, sectionKey) in externalWebpages" :key="section.id" class="kaapana-menu">
+                    <template v-slot:activator="{ on, attrs }">
+                      <v-btn
+                        v-bind="attrs"
+                        v-on="on"
+                      >
+                      <v-icon>{{ section.icon }}</v-icon>
+                      {{ section.label }}
+                      </v-btn>
+                    </template>
+                    <v-list>
+                      <v-list-item
+                      v-for="(subSection, subSectionKey) in section.subSections" :key="subSection.id"
+                        :value="subSection.id"
+                        :to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}"
+                      >
+                        <v-list-item-title>{{ subSection.label }}</v-list-item-title>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
+                </v-bottom-navigation>
+              </div>
               <router-view></router-view>
             </v-flex>
           </v-layout>
@@ -140,6 +178,8 @@
 
 
 <script lang="ts">
+/* eslint-disable */
+
 import Vue from 'vue';
 import request from '@/request';
 import kaapanaApiService from '@/common/kaapanaApi.service'
@@ -148,6 +188,7 @@ import {mapGetters} from 'vuex';
 import {LOGIN, LOGOUT, CHECK_AUTH} from '@/store/actions.type';
 import {CHECK_AVAILABLE_WEBSITES, LOAD_COMMON_DATA} from '@/store/actions.type';
 import Settings from "@/components/Settings.vue";
+import {settings} from "@/static/defaultUIConfig";
 
 
 export default Vue.extend({
@@ -155,18 +196,46 @@ export default Vue.extend({
   components: {Settings},
   data: () => ({
     drawer: true,
-    darkMode: 'darkMode' in localStorage ? JSON.parse(localStorage['darkMode']) : false,
     federatedBackendAvailable: false,
-    staticWebsiteAvailable: false
+    settings: settings,
+    workflowsList: [
+      ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
+      ['Data curation', 'mdi-view-gallery-outline', '/datasets'],
+      ['Experiment execution', 'mdi-play-box', '/experiment-execution'],
+      ['Experiment list', 'mdi-clipboard-text-outline', '/experiments'],
+      ['Experiment results', 'mdi-chart-bar-stacked', '/results-browser'],
+      ['Federated learning', 'mdi-vector-triangle', '/federated-learning'],
+      ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
+    ]
   }),
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', 'externalWebpages', 'commonData']),
+    workflowNavigation() {
+      let routerPath = []
+      for (const workflow of this.workflowsList) {
+        routerPath.push(workflow[2])
+      }
+      console.log(routerPath.includes(this.$route.path))
+      return routerPath.includes(this.$route.path)
+    },
+    advancedNavigation() {
+      let routerPath = ["/", "/data-upload", "/extensions"]
+      for (const workflow of this.workflowsList) {
+        routerPath.push(workflow[2])
+      }
+      console.log(routerPath.includes(this.$route.path))
+      return !routerPath.includes(this.$route.path)
+    }    
   },
   methods: {
     changeMode(v: boolean) {
-      this.darkMode = v
-      localStorage['darkMode'] = JSON.stringify(v)
+      this.settings['darkMode'] = v
+      localStorage['settings'] = JSON.stringify(this.settings)
       this.$vuetify.theme.dark = v
+    },
+    changeNavigation(v: boolean) {
+      this.settings['navigationMode'] = v
+      localStorage['settings'] = JSON.stringify(this.settings)
     },
     login() {
       this.$store
@@ -180,16 +249,15 @@ export default Vue.extend({
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES)
     this.$store.dispatch(LOAD_COMMON_DATA)
+    if (!localStorage['settings']) {
+      localStorage['settings'] = JSON.stringify(settings)
+    }
   },
   mounted() {
-    this.$vuetify.theme.dark = this.darkMode
+    this.settings = JSON.parse(localStorage['settings'])
+    this.$vuetify.theme.dark = this.settings['darkMode']
     request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
       this.federatedBackendAvailable = kaapanaApiService.checkUrl(response.data, '/kaapana-backend')
-    }).catch((error: any) => {
-      console.log('Something went wrong with traefik', error)
-    })
-    request.get('/traefik/api/http/routers').then((response: { data: {} }) => {
-      this.staticWebsiteAvailable = kaapanaApiService.checkUrl(response.data, '/static-website-browser')
     }).catch((error: any) => {
       console.log('Something went wrong with traefik', error)
     })
@@ -240,6 +308,10 @@ $kaapana-green: #ff7a20;
   color: $kaapana-blue
 }
 
+.kaapana-menu {
+  z-index: 11;
+}
+
 .kaapana-iframe-container {
   height: calc(100vh - 105px);
 }
@@ -279,4 +351,5 @@ $kaapana-green: #ff7a20;
 .pa-0 {
   padding: 0;
 }
+
 </style>

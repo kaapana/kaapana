@@ -36,7 +36,7 @@ ENV HELM_PATH "/usr/local/bin/helm"
 ENV KUBECTL_PATH "kubectl"
 ENV HELM_EXTENSIONS_CACHE "/kaapana/mounted/extensions"
 ENV HELM_PLATFORMS_CACHE "/kaapana/mounted/platforms"
-ENV LOG_LEVEL="debug"
+ENV LOG_LEVEL="info"
 ENV RECENT_UPDATE_CACHE="true"
 ENV CONTAINERD_SOCK="/kaapana/mounted/containerd.sock"
 

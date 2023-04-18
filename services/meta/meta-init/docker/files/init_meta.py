@@ -253,16 +253,6 @@ print("#")
 print("# Started init-container")
 print("#")
 
-# os.environ["INIT_DASHBOARDS"] = "True"
-# os.environ["INIT_OPENSEARCH"] = "True"
-# os.environ["DOMAIN"] = "jip-dktk.dkfz-heidelberg.de"
-# os.environ["HTTPS_PORT"] = "443"
-# os.environ["INDEX"] = "index-meta"
-# os.environ["OS_HOST"] = "jip-dktk"
-# os.environ["OS_PORT"] = "80"
-# os.environ["DASHBOARDS_URL"] = "https://jip-dktk.dkfz-heidelberg.de/meta"
-# os.environ["DASHBOARDS_JSON"] = "/home/jonas/projects/kaapana/services/meta/meta-init/meta-init-chart/files/dashboard_import.json"
-
 if __name__ == "__main__":
     print("# Provisioning...")
 

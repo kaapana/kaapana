@@ -12,6 +12,7 @@ HTTP_PORT = os.getenv("HTTP_PORT","8080")
 AETITLE = os.getenv('AETITLE', 'NONE')
 AETITLE = None if AETITLE == "NONE" else AETITLE
 LEVEL = os.getenv('LEVEL', 'element')
+DICOM_GLOB_FILE_EXTENSION = os.getenv("DICOM_GLOB_FILE_EXTENSION", "*.dcm")
 
 check_arrival = os.getenv("CHECK_ARRIVAL", "False")
 check_arrival = True if check_arrival.lower() == "true" else False
@@ -60,80 +61,73 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
         else:
             return True
 
-    dicom_list = list(Path(send_dir).rglob('*.dcm'))
-    dcm_file = pydicom.dcmread(dicom_list[0])
-    series_uid = str(dcm_file[0x0020, 0x000E].value)
+    if len(list(filter(lambda f: f.is_file(), Path(send_dir).rglob(DICOM_GLOB_FILE_EXTENSION)))) == 0:
+        print(send_dir)
+        print("############### No dicoms found...!")
+        raise FileNotFoundError
 
-    print(f'Found series_uid {series_uid}')
-    if aetitle is None:
+    for dicom_dir, _, _ in os.walk(send_dir):
+        dicom_list = list(filter(lambda f: f.is_file(), Path(dicom_dir).glob(DICOM_GLOB_FILE_EXTENSION)))
+        
         if len(dicom_list) == 0:
-            print(send_dir)
-            print("############### no dicoms found...!")
-            raise FileNotFoundError
-        try:
-            aetitle = str(dcm_file[0x012, 0x020].value)
-            print(f'Found aetitle    {aetitle}')
-        except Exception as e:
-            print(f'Could not load aetitle: {e}')
-            aetitle = "KAAPANA export"
-            print(f'Using default aetitle {aetitle}')
+            continue
 
-    print(f'Sending {send_dir} to {HOST} {PORT} with aetitle {aetitle}')
-    # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
-    env = dict(os.environ)
-    command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--no-halt', '--recurse', f'{send_dir}']
-    print(" ".join(command))
-    max_retries = 5
-    try_count = 0
-    while try_count < max_retries:
-        print("Try: {}".format(try_count))
-        try_count += 1
-        try:   
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=env, timeout=timeout)
-            if output.returncode != 0 or "with status SUCCESS" not in str(output):
-                print("############### Something went wrong with dcmsend!")
-                for line in str(output).split("\\n"):
-                    print(line)
-                print("##################################################")
-                #exit(1)
-            else:
-                print(f"Success! output: {output}")
-                print("")
-                if check_arrival and not check_if_arrived(seriesUID=series_uid):
-                    print(f"Arrival check failed!")
+        dcm_file = pydicom.dcmread(dicom_list[0])
+        series_uid = str(dcm_file[0x0020, 0x000E].value)
+
+        print(f'Found {len(dicom_list)} file(s) in {dicom_dir}. Will use series_uuid {series_uid}')
+        if aetitle is None:
+            try:
+                aetitle = str(dcm_file[0x012, 0x020].value)
+                print(f'Found aetitle    {aetitle}')
+            except Exception as e:
+                print(f'Could not load aetitle: {e}')
+                aetitle = "KAAPANA export"
+                print(f'Using default aetitle {aetitle}')
+
+        print(f'Sending {dicom_dir} to {HOST} {PORT} with aetitle {aetitle}')
+        # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
+        env = dict(os.environ)
+        command = ['dcmsend', '-v', f'{HOST}', f'{PORT}', '-aet', 'kaapana', '-aec', f'{aetitle}', '--scan-directories', '--no-halt', f'{dicom_dir}']
+        print(" ".join(command))
+        max_retries = 5
+        try_count = 0
+        while try_count < max_retries:
+            print("Try: {}".format(try_count))
+            try_count += 1
+            try:   
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=env, timeout=timeout)
+                if output.returncode != 0 or "with status SUCCESS" not in str(output):
+                    print("############### Something went wrong with dcmsend!")
+                    for line in str(output).split("\\n"):
+                        print(line)
+                    print("##################################################")
                     #exit(1)
                 else:
-                    break
-        except Exception as e:
-            print(f"Something went wrong: {e}, trying again!")
+                    print(f"Success! output: {output}")
+                    print("")
+                    if check_arrival and not check_if_arrived(seriesUID=series_uid):
+                        print(f"Arrival check failed!")
+                        #exit(1)
+                    else:
+                        break
+            except Exception as e:
+                print(f"Something went wrong: {e}, trying again!")
 
-    if try_count >= max_retries:
-        print("------------------------------------")
-        print("Max retries reached!")
-        print("------------------------------------")
-        raise ValueError(f"Something went wrong with dcmsend!")
+        if try_count >= max_retries:
+            print("------------------------------------")
+            print("Max retries reached!")
+            print("------------------------------------")
+            raise ValueError(f"Something went wrong with dcmsend!")
 
-
-
-    dicom_sent_count += 1
+        dicom_sent_count += 1
 
 
 if LEVEL == 'element':
     batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
 
     for batch_element_dir in batch_folders:
-
         element_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
-        print(element_input_dir)
-
-        dcm_files = sorted(glob.glob(os.path.join(element_input_dir, "**/*.dcm*"), recursive=True))
-
-        if len(dcm_files) == 0:
-            continue
-
-        dcm_file = dcm_files[0]
-        print("dcm-file: {}".format(dcm_file))
-
         send_dicom_data(element_input_dir, check_arrival=check_arrival, timeout=600)
 
 elif LEVEL == 'batch':

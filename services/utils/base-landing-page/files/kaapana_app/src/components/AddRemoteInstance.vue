@@ -1,9 +1,13 @@
 <template>
   <v-dialog v-model="remoteDialog" max-width="600px">
     <template v-slot:activator="{ on, attrs }">
-      <v-btn v-bind="attrs" v-on="on" small icon>
-        <v-icon color="primary" dark x-large>mdi-plus-circle</v-icon>
+      <v-btn v-bind="attrs" v-on="on" color="primary" small rounded outlined>
+        <!-- v-icon color="primary" >mdi-plus-circle</v-icon -->
+        add remote
       </v-btn>
+      <!-- v-btn v-bind="attrs" v-on="on" small icon>
+        <v-icon color="primary" dark >mdi-plus-circle</v-icon>
+      </v-btn -->
     </template>
     <v-card>
       <v-form v-model="remoteValid" ref="remoteForm" lazy-validation="lazy-validation">
@@ -69,11 +73,6 @@ export default {
   },
 
   props: {
-    remote: {
-      type: Boolean,
-      required: true,
-    },
-    
   },
 
   methods: {
@@ -92,7 +91,8 @@ export default {
             console.log('getting remote')
             this.remoteUpdate = false
             this.remoteDialog = false
-            this.refreshRemote()
+            this.$emit('refreshRemoteFromAdding')
+            this.resetRemoteForm()
           })
           .catch((err) => {
             console.log(err);
@@ -103,7 +103,8 @@ export default {
           .then((response) => {
             this.remoteUpdate = false
             this.remoteDialog = false
-            this.refreshRemote()
+            this.$emit('refreshRemoteFromAdding')
+            this.resetRemoteForm()
           })
           .catch((err) => {
             console.log(err);

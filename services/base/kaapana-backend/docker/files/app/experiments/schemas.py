@@ -216,6 +216,8 @@ class ExperimentBase(BaseModel):
     experiment_name: str = None
     experiment_status: str = None
     # external_experiment_id: int = None # experiment_id on another system
+    # dag_id of jobs which are summarized in that experiment (only makes sense for service experiments)
+    dag_id: Optional[str] = None
 
 
 class Experiment(ExperimentBase):

@@ -18,7 +18,7 @@ class Dataset(Base):
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
-    identifiers = Column(String(102400))  # TODO: that sufficient?
+    identifiers = Column(String(10485760))
 
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))

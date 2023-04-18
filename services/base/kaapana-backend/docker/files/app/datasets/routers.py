@@ -64,13 +64,14 @@ async def tag_data(data: list = Body(...)):
         raise HTTPException(500, e)
 
 
-@router.get("/series")
-async def get_series(body: str):
+# This should actually be a get request but since the body is too large for a get request
+# we use a post request
+@router.post("/series")
+async def get_series(data: dict = Body(...)):
     import pandas as pd
 
-    body: dict = json.loads(body)
-    structured: bool = body.get("structured", False)
-    query: dict = body.get("query", {"query_string": {"query": "*"}})
+    structured: bool = data.get("structured", False)
+    query: dict = data.get("query", {"query_string": {"query": "*"}})
 
     if structured:
         hits = execute_opensearch_query(
@@ -153,9 +154,10 @@ async def get_field_values(query, field, size=10000):
         return []
 
 
-@router.get("/dashboard")
-async def get_dashboard(config: str):
-    config: dict = json.loads(config)
+# This should actually be a get request but since the body is too large for a get request
+# we use a post request
+@router.post("/dashboard")
+async def get_dashboard(config: dict = Body(...)):
     series_instance_uids = config.get("series_instance_uids")
     names = config.get("names", [])
 

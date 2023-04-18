@@ -76,6 +76,8 @@ class Experiment(Base):
     __tablename__ = "experiment"
     exp_id = Column(String(64), primary_key=True)
     experiment_name = Column(String(64))
+    # dag_id of jobs which are summarized in that experiment (only makes sense for service experiments)
+    dag_id = Column(String(64))
     # external_experiment_id = Column(Integer)
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))

@@ -597,9 +597,12 @@ def create_experiment(
 # get_experiment
 @router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
 def get_experiment(
-    exp_id: str = None, experiment_name: str = None, db: Session = Depends(get_db)
+    exp_id: str = None,
+    experiment_name: str = None,
+    dag_id: str = None,
+    db: Session = Depends(get_db),
 ):
-    return crud.get_experiment(db, exp_id, experiment_name)
+    return crud.get_experiment(db, exp_id, experiment_name, dag_id)
 
 
 # get_experiments

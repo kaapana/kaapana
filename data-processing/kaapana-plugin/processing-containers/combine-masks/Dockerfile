@@ -11,4 +11,4 @@ RUN python -m pip install --no-cache-dir -r /kaapana/app/requirements.txt
 
 COPY files/* /kaapana/app/
 
-CMD ["python3","-u","/kaapana/app/combine_masks.py"]
+CMD ["python3","-u","/kaapana/app/start.py"]

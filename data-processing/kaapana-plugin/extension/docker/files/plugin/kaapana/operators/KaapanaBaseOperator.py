@@ -569,6 +569,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             logging.info("MESSAGE: {}".format(message))
 
             if result == State.SKIPPED:
+                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=self.kube_name)
                 raise AirflowSkipException("Pod has been skipped!")
             elif result != State.SUCCESS:
                 raise AirflowException("Pod returned a failure!")

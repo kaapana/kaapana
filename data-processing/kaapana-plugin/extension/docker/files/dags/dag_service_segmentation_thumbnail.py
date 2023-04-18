@@ -80,6 +80,7 @@ put_to_minio = LocalMinioOperator(
     name="upload-thumbnail",
     zip_files=False,
     action="put",
+    bucket_name="thumbnails",
     action_operators=[generate_segmentation_thumbnail],
     file_white_tuples=(".png"),
 )

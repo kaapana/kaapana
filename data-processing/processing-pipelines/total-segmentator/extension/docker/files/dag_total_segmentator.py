@@ -14,6 +14,9 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.CombineMasksOperator import CombineMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
+from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+
 max_active_runs = 10
 concurrency = max_active_runs * 3
 alg_name = "TotalSegmentator"
@@ -499,6 +502,7 @@ pyradiomics_6 = PyRadiomicsOperator(
 put_to_minio = LocalMinioOperator(
     dag=dag,
     action="put",
+    bucket_name="thumbnails",
     action_operators=[
         pyradiomics_0,
         pyradiomics_1,

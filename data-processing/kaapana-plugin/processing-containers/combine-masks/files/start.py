@@ -24,56 +24,80 @@ def combine_mask_nifits(nifti_dir, target_dir):
     global processed_count, input_file_extension
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)
+    json_files = glob(join(nifti_dir, "*.json"), recursive=True)
+    json_files = [x for x in json_files if "seg_info" in x or "-meta.json" in x]
+    assert len(json_files) == 1
+    meta_json_path = json_files[0]
+    logger.info(f"seg_info JSON @{meta_json_path}")
+    with open(meta_json_path, "r") as f:
+        meta_json_dict = json.load(f)
+
+    if "seg_info.json" in meta_json_path:
+        seg_info_dict = meta_json_dict["seg_info"]
+    elif "-meta.json" in meta_json_path:
+        assert "segmentAttributes" in meta_json_dict
+        seg_info_dict = []
+        for segment in meta_json_dict["segmentAttributes"]:
+            seg_info_dict.append(
+                {
+                    "label_name": segment[0]["SegmentLabel"],
+                    "label_int": segment[0]["labelID"],
+                }
+            )
+    else:
+        logger.info(f"No valid metadata json found @{nifti_dir}")
+        exit(1)
+
     target_nifti_path = join(target_dir, "combined_masks.nii.gz")
-    seg_info_path = join(nifti_dir, "seg_info.json")
     base_img = None
     base_img_numpy = None
     base_img_labels = None
-    logger.info(f"seg_info JSON @{seg_info_path}")
     target_seg_info_dict = {"seg_info": []}
-    assert exists(seg_info_path)
-    with open(seg_info_path, "r") as f:
-        seg_info_dict = json.load(f)["seg_info"]
     logger.info("seg_info loaded:")
     logger.info(json.dumps(seg_info_dict, indent=4))
 
     nifti_search_query = join(nifti_dir, "*.nii.gz")
     logger.info(f"Collecting NIFTIs @{nifti_search_query}")
-    input_files = glob(nifti_search_query, recursive=True)
-    logger.info(f"Found {len(input_files)} NIFTI files ...")
+    input_files = glob(nifti_search_query, recursive=False)
+    logger.info(
+        f"Found {len(input_files)} NIFTI files vs {len(seg_info_dict)} seg infos ..."
+    )
     assert len(input_files) > 0
-    assert len(input_files) <= len(seg_info_dict)
 
     if len(seg_info_dict) == 1:
         logger.info("Only one label present -> no merging required.")
         assert len(input_files) == 1
-        nifti_loaded = nib.load(input_files[0])
+        label_nifti_path=input_files[0]
+        nifti_loaded = nib.load(label_nifti_path)
         nifti_numpy = nifti_loaded.get_fdata().astype(int)
         nifti_labels_found = list(np.unique(nifti_numpy))
         logger.info(f"{ nifti_labels_found= }")
         assert len(nifti_labels_found) > 1
-        shutil.copy(input_files[0], target_nifti_path)
+        shutil.copy(label_nifti_path, target_nifti_path)
         target_seg_info_dict["seg_info"].append(seg_info_dict[0])
         processed_count += 1
-        return True, nifti_dir
-
-    input_files = glob(join(nifti_dir, input_file_extension), recursive=True)
+        True, nifti_dir, target_seg_info_dict
 
     for label_entry in seg_info_dict:
+        label_entry["file_found"] = False
         label_name = label_entry["label_name"]
         label_int = label_entry["label_int"]
-        label_nifti_path = join(nifti_dir, f"{label_name}.nii.gz")
-        if not exists(label_nifti_path):
+        fitting_nifti_found = [x for x in input_files if f"{label_name}.nii.gz" in x]
+        if len(fitting_nifti_found) != 1:
             logger.warning("")
             logger.warning("")
             logger.warning("")
             logger.warning(
-                f"Segmentation {basename(label_nifti_path)} does not exist -> skipping ..."
+                f"Segmentation {basename(label_name)} does not exist -> skipping ..."
             )
             logger.warning("")
             logger.warning("")
             logger.warning("")
             continue
+
+        label_entry["file_found"] = True
+        label_nifti_path = fitting_nifti_found[0]
+        input_files.remove(label_nifti_path)
         logger.info("")
         logger.info("")
         logger.info(f"Merging {basename(label_nifti_path)}")
@@ -142,6 +166,19 @@ def combine_mask_nifits(nifti_dir, target_dir):
     result_nifti = nib.Nifti1Image(base_img_numpy, base_img.affine, base_img.header)
     result_nifti.to_filename(target_nifti_path)
     logger.info(f"Done {processed_count=}")
+
+    if len(input_files) > 0:
+        left_over_path = join(target_dir, "left_over_niftis.txt")
+        with open(left_over_path, 'w') as f:
+            for left_file in input_files:
+                logger.warning("")
+                logger.warning("#####################################################")
+                logger.warning("")
+                logger.warning(f" {basename(left_file)} has not been processed!")
+                logger.warning("")
+                logger.warning("#####################################################")
+                logger.warning("")
+                f.write(f"{basename(left_file)}\n")
 
     return True, nifti_dir, target_seg_info_dict
 

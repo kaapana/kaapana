@@ -120,7 +120,7 @@ async def get_data(series_instance_uid):
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
         thumbnail_src = (
-            f"minio/service-segmentation-thumbnail/batch/{series_instance_uid}"
+            f"minio/thumbnails/batch/{series_instance_uid}"
             f"/generate-segmentation-thumbnail/{series_instance_uid}.png"
         )
     else:

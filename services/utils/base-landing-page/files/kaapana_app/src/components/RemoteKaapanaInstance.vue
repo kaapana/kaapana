@@ -17,7 +17,7 @@
         v-col( align="left")
           v-text-field(v-model="instancePost.port" label="Port" required="")
         v-col(cols=1 align="center")
-          v-btn(@click="edit_port = !edit_port; updateInstancForm();" small icon)
+          v-btn(@click="edit_port = !edit_port; updateRemoteInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -32,7 +32,7 @@
         v-col( align="left")
           v-text-field(v-model="instancePost.token" label="Token" required="")
         v-col(cols=1 align="center")
-          v-btn(@click="edit_token = !edit_token; updateInstancForm();" small icon)
+          v-btn(@click="edit_token = !edit_token; updateRemoteInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode 
       v-row(v-else)
@@ -55,7 +55,7 @@
         v-col( align="left")
           v-checkbox(v-model="instancePost.ssl_check" label="SSL"  required='')
         v-col(cols=1 align="center")
-          v-btn(@click="edit_ssl_check = !edit_ssl_check; updateInstancForm();" small icon)
+          v-btn(@click="edit_ssl_check = !edit_ssl_check; updateRemoteInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -72,7 +72,7 @@
         v-col( align="left")
           v-checkbox(v-model="instancePost.fernet_encrypted" label="Fernet encrypted"  required='')
         v-col(cols=1 align="center")
-          v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateInstancForm();" small icon)
+          v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateRemoteInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -255,9 +255,9 @@
           this.datasets = _datasetNames;
         })
       },
-      updateInstancForm() {
+      updateRemoteInstanceForm() {
         kaapanaApiService
-          .federatedClientApiPut("/client-kaapana-instance", this.instancePost)
+          .federatedClientApiPut("/remote-kaapana-instance", this.instancePost)
           .then((response) => {
             console.log("ClientForm updated")
           })

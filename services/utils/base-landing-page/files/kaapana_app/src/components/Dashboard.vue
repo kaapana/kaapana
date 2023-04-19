@@ -144,10 +144,15 @@ export default {
           }
     },
     updateDashboard() {
-      loadDashboard(this.seriesInstanceUIDs, this.fields).then(data => {
-        this.histograms = data['histograms'] || {}
-        this.metrics = data['metrics'] || {}
-      })
+      if (this.seriesInstanceUIDs.length === 0) {
+        this.histograms = {}
+        this.metrics = {}
+      } else {
+        loadDashboard(this.seriesInstanceUIDs, this.fields).then(data => {
+          this.histograms = data['histograms'] || {}
+          this.metrics = data['metrics'] || {}
+        })
+      }
     },
     dataPointSelection(event, chartContext, config, key, value) {
       console.log(Object.keys(value['items']), config['dataPointIndex'])

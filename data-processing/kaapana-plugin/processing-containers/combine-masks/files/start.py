@@ -6,7 +6,6 @@ from logger_helper import get_logger
 import logging
 import json
 import shutil
-from os.path import join, exists, dirname, basename
 from glob import glob
 from pathlib import Path
 import shutil
@@ -14,11 +13,9 @@ import nibabel as nib
 import numpy as np
 import json
 
-input_file_extension = "*.nii.gz"
 processed_count = 0
 issue_occurred = False
 logger = None
-
 
 def combine_mask_nifits(nifti_dir, target_dir):
     global processed_count, input_file_extension
@@ -179,6 +176,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
                 logger.warning("#####################################################")
                 logger.warning("")
                 f.write(f"{basename(left_file)}\n")
+        exit(1)
 
     return True, nifti_dir, target_seg_info_dict
 

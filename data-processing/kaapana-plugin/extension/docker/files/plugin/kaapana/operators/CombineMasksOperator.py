@@ -22,7 +22,7 @@ class CombineMasksOperator(KaapanaBaseOperator):
         execution_timeout=execution_timeout,
         **kwargs,
     ):
-        ram_mem_mb = 5000
+        ram_mem_mb = 8000
         gpu_mem_mb = None
 
         super().__init__(

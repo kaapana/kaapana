@@ -1,7 +1,7 @@
 [
   {
     "search_tags": {
-      "0x0008,0x0060": "SEG,RTSTRUCT"
+      "0x0008,0x0060": "SEG"
     },
     "dag_ids": {
       "service-segmentation-thumbnail": {

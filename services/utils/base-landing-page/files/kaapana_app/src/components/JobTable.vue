@@ -28,7 +28,6 @@
           
           @update:options="options = $event"
         >
-
           <template v-slot:bottom>
             <div class="text-center pt-2">
               <v-pagination
@@ -83,9 +82,16 @@
               <span>airflow logs of failed operator</span>
             </v-tooltip>
           </template>
-          <template>hallo</template>
           <template v-slot:item.actions="{ item }">
-            <v-col v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
+            <div v-if="item.service_job">
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on }">
+                  <v-icon v-on="on" color="primary" dark>mdi-account-hard-hat-outline</v-icon>
+                </template>
+                <span> No actions for service jobs! </span>
+              </v-tooltip>
+            </div>
+            <v-col v-else-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">
                   <v-btn v-bind="attrs" v-on="on" @click='abortJob(item)' small icon>

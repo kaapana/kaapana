@@ -73,7 +73,15 @@
         </v-chip>
       </template>
       <template v-slot:item.actions="{ item }">
-        <div v-if="!item.automatic_execution">
+        <div v-if="item.service_experiment">
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on }">
+              <v-icon v-on="on" color="primary" dark>mdi-account-hard-hat-outline</v-icon>
+            </template>
+            <span> No actions for service experiments! </span>
+          </v-tooltip>
+        </div>
+        <div v-else-if="!item.automatic_execution">
           <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
               <v-btn v-bind="attrs" v-on="on" @click='startExperimentManually(item)' small icon>

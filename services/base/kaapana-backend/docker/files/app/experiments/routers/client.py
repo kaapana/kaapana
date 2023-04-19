@@ -191,9 +191,8 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
     return crud.create_job(db=db, job=job)
 
 
-@router.get(
-    "/job", response_model=schemas.JobWithKaapanaInstance
-)  # also okay: JobWithExperiment
+@router.get("/job", response_model=schemas.JobWithKaapanaInstance)
+# also okay: JobWithExperiment
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id, run_id)
 
@@ -212,9 +211,8 @@ def get_jobs(
     )
 
 
-@router.put(
-    "/job", response_model=schemas.JobWithExperiment
-)  # changed JobWithKaapanaInstance to JobWithExperiment
+@router.put("/job", response_model=schemas.JobWithExperiment)
+# changed JobWithKaapanaInstance to JobWithExperiment
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
     # return crud.update_job(db, job, remote=False)
     if job.status == "abort":

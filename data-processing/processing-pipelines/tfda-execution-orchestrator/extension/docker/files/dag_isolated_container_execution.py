@@ -10,26 +10,19 @@ buckets = HelperMinio.minioClient.list_buckets()
 bucket_names = [bucket.name for bucket in buckets]
 
 ui_forms = {
-    "data_form": {
+    "workflow_form": {
         "type": "object",
-        "title": "Select file or folder from Minio",
-        "description": "Choose Data for your analysis",
         "properties": {
             "bucket_name": {
-                "title": "Bucket name",
-                "description": "Bucket name from MinIO",
+                "title": "Select Data to process",
+                "description": "It should be the name of a Bucket from MinIO store",
                 "type": "array",
                 "items": {
                     "type": "string",
                     "enum": list(set(bucket_names))
                 },
                 "readOnly": False
-            }
-        },
-    },
-    "workflow_form": {
-        "type": "object",
-        "properties": {
+            },
             "container_name_version":{
                 "title": "Enter container name:version",
                 "type": "string",

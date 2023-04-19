@@ -38,37 +38,13 @@
       </v-col>
 
       <v-col cols="2" align="center">
-        <v-menu
-            open-on-hover
-            bottom
-            offset-y
-            :close-on-click=false
+        <v-btn
+            color="primary"
+            style="width: 100%;"
+            @click="() => search()"
         >
-          <template v-slot:activator="{ on, attrs }">
-            <v-btn
-                color="primary"
-                v-bind="attrs"
-                v-on="on"
-                style="width: 100%;"
-                @click="() => search()"
-            >
-              Search
-            </v-btn>
-          </template>
-          <v-list>
-            <v-list-item @click.stop="dialog=true">
-              Save as Dataset
-            </v-list-item>
-            <v-list-item v-if="datasetName !== null" @click="() => updateDataset()">
-              Update Dataset
-            </v-list-item>
-          </v-list>
-        </v-menu>
-        <SaveDatasetDialog
-            v-model="dialog"
-            @save="(name) => createDataset(name)"
-            @cancel="() => this.dialog=false"
-        />
+          Search
+        </v-btn>
       </v-col>
     </v-row>
     <div
@@ -163,20 +139,6 @@ export default {
     deleteFilter(id) {
       this.filters = this.filters.filter(filter => filter.id !== id)
     },
-    async createDataset(name) {
-      this.dialog = false
-
-      this.$emit('saveDataset', {
-        name: name,
-        query: await this.composeQuery()
-      })
-    },
-    async updateDataset() {
-      this.$emit('updateDataset', {
-        name: this.datasetName,
-        query: await this.composeQuery()
-      })
-    },
     async composeQuery() {
       const query = {
         "bool": {
@@ -228,7 +190,7 @@ export default {
       }
     },
     constructDatasetQuery() {
-      if (this.dataset && this.dataset.identifiers && this.dataset.identifiers.length > 0) {
+      if (this.dataset && this.dataset.identifiers) {
         return {
           "ids": {
             "values": this.dataset.identifiers

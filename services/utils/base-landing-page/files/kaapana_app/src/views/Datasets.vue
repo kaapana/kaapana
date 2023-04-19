@@ -10,41 +10,77 @@
                 <v-icon>mdi-folder</v-icon>
               </v-col>
               <v-col>
-                <v-select v-model="datasetName" :items="datasetNames" label="Select Dataset" clearable hide-details
-                  return-object single-line dense @click:clear="datasetName = null"></v-select>
+                <v-select 
+                  v-model="datasetName" 
+                  :items="datasetNames" 
+                  label="Select Dataset" 
+                  clearable
+                  hide-details
+                  return-object 
+                  single-line 
+                  dense 
+                  @click:clear="datasetName = null"
+                >
+                </v-select>
               </v-col>
             </v-row>
-            <Search ref="search" :datasetName=datasetName @search="(query) => updatePatients(query)"
-              @saveDataset="(dict) => saveDatasetFromQuery(dict.name, dict.query)"
-              @updateDataset="(dict) => updateDatasetFromQuery(dict.name, dict.query)" />
+            <Search 
+              ref="search" 
+              :datasetName=datasetName 
+              @search="(query) => updatePatients(query)"
+            />
           </div>
           <v-divider />
         </v-card>
       </v-container>
       <v-container fluid class="gallery overflow-auto rounded-0 v-card v-sheet pa-0">
-        <VueSelecto ref="selecto" dragContainer=".elements" :selectableTargets='[".selecto-area .v-card"]' :hitRate='0'
-      :selectByClick='true' :selectFromInside='true' :toggleContinueSelect='["shift"]' :ratio='0'
-      :scrollOptions='scrollOptions' @dragStart="onDragStart" @select="onSelect" @scroll="onScroll"></VueSelecto>
-    <v-container fluid class="elements selecto-area pa-0" id="selecto1" ref="scroller" style="height: 100%">
-        <v-skeleton-loader v-if="isLoading" class="mx-auto" type="list-item@100"></v-skeleton-loader>
+        <VueSelecto 
+          dragContainer=".elements" 
+          :selectableTargets='[".selecto-area .v-card"]' 
+          :hitRate='0'
+          :selectByClick='true' 
+          :selectFromInside='true' 
+          :continueSelect='false'
+          :toggleContinueSelect='["shift"]' 
+          :ratio='0'
+          @dragStart="onDragStart" 
+          @select="onSelect" 
+        >
+        </VueSelecto>
+    <v-container fluid class="elements selecto-area pa-0" style="height: 100%">
+        <v-skeleton-loader 
+          v-if="isLoading" 
+          class="mx-auto" 
+          type="list-item@100"
+        >
+        </v-skeleton-loader>
         <!--        property patients in two-ways bound -->
-        <StructuredGallery ref="structuredGallery" v-else-if="!isLoading && Object.entries(patients).length > 0 && settings.datasets.structured"
-          :patients.sync="patients" :selectedTags="tags" :datasetName="datasetName" :datasetNames="datasetNames"
+        <StructuredGallery 
+          v-else-if="!isLoading && Object.entries(patients).length > 0 && settings.datasets.structured"
+          :patients.sync="patients" 
+          :selectedTags="tags" 
           @openInDetailView="(seriesInstanceUID) => this.detailViewSeriesInstanceUID = seriesInstanceUID"
-          @selectedItems="(_seriesInstanceUIDs) => this.selectedSeriesInstanceUIDs = _seriesInstanceUIDs" />
+        />
         <!--        seriesInstanceUIDs is not bound due to issues with the Gallery embedded in StructuredGallery-->
-        <Gallery ref="gallery" v-else-if="!isLoading && seriesInstanceUIDs.length > 0 && !settings.datasets.structured"
-          :seriesInstanceUIDs="seriesInstanceUIDs" :selectedTags="tags" :datasetName="datasetName"
-          :datasetNames="datasetNames"
+        <Gallery 
+          v-else-if="!isLoading && seriesInstanceUIDs.length > 0 && !settings.datasets.structured"
+          :seriesInstanceUIDs="seriesInstanceUIDs" 
+          :selectedTags="tags"
           @openInDetailView="(seriesInstanceUID) => this.detailViewSeriesInstanceUID = seriesInstanceUID"
-          @selectedItems="(_seriesInstanceUIDs) => this.selectedSeriesInstanceUIDs = _seriesInstanceUIDs" />
+       />
         <h3 v-else>
           {{ message }}
         </h3>
       </v-container>
     </v-container>
-      <v-speed-dial v-model="fab" bottom right absolute direction="top"
-        :open-on-hover="true" transition="slide-y-reverse-transition">
+      <v-speed-dial 
+        v-model="fab" 
+        bottom 
+        right 
+        absolute 
+        direction="top"
+        transition="slide-y-reverse-transition"
+      >
         <template v-slot:activator>
           <v-btn v-model="fab" color="primary" fab>
             <v-icon v-if="fab">
@@ -70,9 +106,15 @@
       </v-speed-dial>
     </v-container>
     <v-container fluid class="sidebar rounded-0 v-card v-sheet pa-0">
-      <DetailView v-if="this.detailViewSeriesInstanceUID" :series-instance-u-i-d="this.detailViewSeriesInstanceUID"
-        @close="() => this.detailViewSeriesInstanceUID = null" />
-      <MetaData v-else :series-instance-u-i-ds="seriesInstanceUIDs" @dataPointSelection="d => addFilterToSearch(d)" />
+      <DetailView 
+        v-if="this.detailViewSeriesInstanceUID" 
+        :series-instance-u-i-d="this.detailViewSeriesInstanceUID"
+        @close="() => this.detailViewSeriesInstanceUID = null" 
+      />
+      <Dashboard
+        v-else :seriesInstanceUIDs="fab_identifiers" 
+        @dataPointSelection="d => addFilterToSearch(d)" 
+      />
       <!--      </ErrorBoundary>-->
     </v-container>
     <div>
@@ -127,11 +169,14 @@ import Gallery from "@/components/Gallery.vue";
 import Search from "@/components/Search.vue";
 import TagBar from "@/components/TagBar.vue";
 import { createDataset, updateDataset, loadDatasetNames, loadPatients } from "../common/api.service";
-import MetaData from "@/components/MetaData.vue";
+import Dashboard from "@/components/Dashboard.vue";
 import { settings } from "@/static/defaultUIConfig";
 import { VueSelecto } from "vue-selecto";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
+import KeyController from "keycon";
+
+const keycon = new KeyController();
 
 export default {
   data() {
@@ -146,13 +191,11 @@ export default {
       settings: settings,
       datasetNames: [],
       datasetName: null,
-      metadata: {},
       fab: false,
       saveAsDatasetDialog: false,
       addToDatasetDialog: false,
       workflowDialog: false,
       datasetToAddTo: null,
-      scrollOptions: {},
     };
   },
   components: {
@@ -161,24 +204,43 @@ export default {
     Search,
     TagBar,
     Gallery,
-    MetaData,
+    Dashboard,
     SaveDatasetDialog,
     WorkflowExecution,
     VueSelecto
   },
-  computed: {
-    fab_identifiers() {
-      return this.selectedSeriesInstanceUIDs.length > 0 ? this.selectedSeriesInstanceUIDs : this.seriesInstanceUIDs
-    }
+  async created() {
+    this.settings = JSON.parse(localStorage['settings'])
+    // this.datasetName = JSON.parse(localStorage['Dataset.search.datasetName'] || '')
+    loadDatasetNames().then(_datasetNames => this.datasetNames = _datasetNames)
   },
   methods: {
+    // Note: Select all could be implemented by: 
+    // const elements = selecto.getSelectableElements();
+    // selecto.setSelectedTargets(elements);
+    // https://github.com/daybrush/selecto/issues/37
+
     onDragStart(e) {
       if (e.inputEvent.target.nodeName === "BUTTON") {
         return false;
       }
+      if (!keycon.shiftKey) {
+        // clear selection if shift is not pressed while starting selecting
+        e.currentTarget.selectedTargets.forEach(el => {
+          el.classList.remove("selected");
+        })
+        e.currentTarget.selectedTargets = [];
+        e.stop();
+        return;
+      }
       return true;
+      
     },
     onSelect(e) {
+      if (!keycon.shiftKey) {
+          e.stop();
+          return;
+      }
       e.added.forEach(el => {
         el.classList.add("selected");
       });
@@ -187,12 +249,7 @@ export default {
       })
       this.selectedSeriesInstanceUIDs = e.selected.map(el => el.id)
     },
-    onScroll(e) {
-      this.$refs.scroller.scrollBy(e.direction[0] * 10, e.direction[1] * 10);
-    },
-    resetScroll() {
-      this.$refs.scroller.scrollTo(0, 0);
-    },
+    
     addFilterToSearch(selectedFilterItem) {
       this.$refs.search.addFilterItem(selectedFilterItem['key'], selectedFilterItem['value'])
     },
@@ -218,18 +275,6 @@ export default {
         this.message = e
         this.isLoading = false
       })
-    },
-    async updateDatasetFromQuery(name, query) {
-      try {
-        const identifiers = await loadPatients({
-          structured: false,
-          query: query
-        })
-        await this.updateDataset(name, identifiers)
-        this.updatePatients(query)
-      } catch (error) {
-        this.$notify({ title: 'Network/Server error', text: error, type: 'error' });
-      }
     },
     async updateDataset(name, identifiers, action='UPDATE') {
       try {
@@ -257,11 +302,40 @@ export default {
         }
     },
     async removeFromDataset() {
-      if (!this.settings.datasets.structured) {
-        this.$refs.gallery.removeFromDataset(this.fab_identifiers)
-      } else {
-        this.$refs.structuredGallery.removeFromDataset(this.fab_identifiers)
-      } 
+      const successful = await this.updateDataset(
+        this.datasetName,
+        this.fab_identifiers,
+        'DELETE'
+      )
+
+      if (!successful) {
+        return
+      }
+
+      this.seriesInstanceUIDs = this.seriesInstanceUIDs.filter(series => !this.fab_identifiers.includes(series))
+      if (this.patients) {
+        Object.keys(this.patients).forEach(patient => {
+          Object.keys(this.patients[patient]).forEach(study => {
+            const filtered_study = this.patients[patient][study].filter(series => !this.fab_identifiers.includes(series))
+            if (filtered_study.length === 0) {
+              delete this.patients[patient][study]
+            } else {
+              this.patients[patient][study] = filtered_study
+            }
+          })
+        })
+        // remove empty patients
+        Object.keys(this.patients).forEach(patient => {
+          if (Object.keys(this.patients[patient]).length === 0) {
+            delete this.patients[patient]
+          }
+        })
+      }
+
+      this.selectedSeriesInstanceUIDs = []
+
+      if (this.seriesInstanceUIDs.length === 0)
+          this.message = 'No data found.'
     },
     async saveDatasetFromDialog(name){
         const successful = await this.saveDataset(
@@ -271,21 +345,6 @@ export default {
         if (successful) {
           this.saveAsDatasetDialog = false
         }
-    },
-    async saveDatasetFromQuery(name, query) {
-      try {
-        const identifiers = await loadPatients({
-          structured: false,
-          query: query
-        })
-        const successful = await this.saveDataset(name, identifiers)
-        if (successful) {
-          this.datasetName = name
-          await this.updatePatients(query)  
-        }
-      } catch (error) {
-        this.$notify({ title: 'Network/Server error', text: error, type: 'error' });
-      }
     },
     async saveDataset(name, identifiers) {
       try {
@@ -303,10 +362,10 @@ export default {
       }
     }
   },
-  async created() {
-    this.settings = JSON.parse(localStorage['settings'])
-    // this.datasetName = JSON.parse(localStorage['Dataset.search.datasetName'] || '')
-    loadDatasetNames().then(_datasetNames => this.datasetNames = _datasetNames)
+  computed: {
+    fab_identifiers() {
+      return this.selectedSeriesInstanceUIDs.length > 0 ? this.selectedSeriesInstanceUIDs : this.seriesInstanceUIDs
+    }
   }
 };
 </script>
@@ -339,24 +398,5 @@ export default {
   height: 100%;
   top: 48px;
   overflow: hidden;
-}
-
-.elements {
-  /*margin-top: 40px;*/
-  /*border: 2px solid #eee;*/
-}
-
-.selecto-area {
-  /*padding: 20px;*/
-}
-
-.selected {
-  /*TODO: This should be aligned with theme*/
-  color: #fff !important;
-  background: #4af !important;
-}
-
-.empty.elements {
-  border: none;
 }
 </style>

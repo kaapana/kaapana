@@ -38,13 +38,13 @@
         >
           <Chip :items="[modality]"/>
           <v-spacer></v-spacer>
-          <CardMenu
-              @removeFromDataset="() => {this.$emit('removeFromDataset')}"
-              @deleteFromPlatform="() => {this.$emit('deleteFromPlatform')}"
-              :datasetNames="datasetNames"
-              :datasetName="datasetName"
-              :seriesInstanceUID="seriesInstanceUID"
-          ></CardMenu>
+          <v-btn
+              icon
+              @click.stop="() => showDetails()"
+              color="white"
+              >
+            <v-icon>mdi-eye-outline</v-icon>
+          </v-btn>
         </v-app-bar>
       </v-img>
       <v-card-text v-if="settings.datasets.cardText">
@@ -108,32 +108,23 @@
 
 import Chip from "./Chip.vue";
 import TagChip from "./TagChip.vue";
-import CardMenu from "./CardMenu";
 
 import {loadSeriesData, updateTags} from "@/common/api.service"
 import {settings} from "@/static/defaultUIConfig";
 
 
 export default {
-  name: "CardSelect",
-  components: {Chip, TagChip, CardMenu},
+  name: "SeriesCard",
+  components: {Chip, TagChip},
   emits: ['openInDetailView'],
   props: {
-    datasetName: {
-      type: String,
-      default: null
-    },
     seriesInstanceUID: {
       type: String,
     },
-    selected_tags: {
+    selectedTags: {
       type: Array,
       default: () => ([])
     },
-    datasetNames: {
-      type: Array,
-      default: () => ([])
-    }
   },
   data() {
     return {
@@ -192,7 +183,7 @@ export default {
     modifyTags() {
       let request_body = []
 
-      if (this.selected_tags.length === 0) {
+      if (this.selectedTags.length === 0) {
         // this.$notify({
         //   type: 'hint',
         //   title: 'No label selected',
@@ -201,32 +192,31 @@ export default {
         return
       }
 
-      const tagsAlreadyExist = this.selected_tags.filter(
+      const tagsAlreadyExist = this.selectedTags.filter(
           el => this.tags.includes(el)
-      ).length === this.selected_tags.length
+      ).length === this.selectedTags.length
       if (tagsAlreadyExist) {
         // the selected tags are already included in the tags => removing them
         request_body = [{
           "series_instance_uid": this.seriesInstanceUID,
           "tags": this.tags,
           "tags2add": [],
-          "tags2delete": this.selected_tags
+          "tags2delete": this.selectedTags
         }]
       } else {
         request_body = [{
           "series_instance_uid": this.seriesInstanceUID,
           "tags": this.tags,
-          "tags2add": this.selected_tags,
+          "tags2add": this.selectedTags,
           "tags2delete": []
         }]
       }
-      console.log(request_body)
       updateTags(request_body)
           .then(() => {
             this.tags =
                 tagsAlreadyExist
-                    ? this.tags.filter(tag => !this.selected_tags.includes(tag))
-                    : Array.from(new Set([...this.tags, ...this.selected_tags]))
+                    ? this.tags.filter(tag => !this.selectedTags.includes(tag))
+                    : Array.from(new Set([...this.tags, ...this.selectedTags]))
           })
     },
     onClick() {
@@ -234,8 +224,9 @@ export default {
       function single_click() {
         this.timer = setTimeout(() => {
           this.clicks = 0;
-          // single click
-          this.modifyTags()
+          // once the detail view is implemented with improved performance, include the following line again to 
+          // open the detail view on a single click
+          // this.showDetails()
         }, 300);
       }
 
@@ -247,14 +238,19 @@ export default {
       clearTimeout(this.timer);
       this.clicks = 0;
       // double click
-      this.show_details(this.seriesInstanceUID)
+      this.modifyTags()
     },
-    show_details(objectImage) {
-      this.$emit('openInDetailView', objectImage);
+    showDetails() {
+      this.$emit('openInDetailView', this.seriesInstanceUID);
     }
   }
 };
 </script>
 
-<style>
+<style scoped>
+.selected {
+  /*TODO: This should be aligned with theme*/
+  color: #fff !important;
+  background: #4af !important;
+}
 </style>

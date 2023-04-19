@@ -184,6 +184,7 @@ class Nifti2DcmConverter:
         image_slice = new_img[:,:,i]
         writer = sitk.ImageFileWriter()
         writer.KeepOriginalImageUIDOn()
+        writer.UseCompressionOn()
         
         patient_id = series_tag_values["0010|0020"]
         study_uid = series_tag_values["0020|000d"]

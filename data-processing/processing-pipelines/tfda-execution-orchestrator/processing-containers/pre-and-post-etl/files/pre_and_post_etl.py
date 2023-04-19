@@ -22,6 +22,9 @@ def run_command(command):
     return_code = process.poll()
     return return_code
 
+def post_etl():
+    logging.info("No operation, only placeholder...")
+
 def algo_pre_etl():
     logging.info("Prepare data and algorithm before being loaded into the isolated environment...")
     logging.debug("Downloading container from registry since container workflow is requested...")
@@ -59,4 +62,8 @@ logging.info(f"# workflow_dir:     {workflow_dir}")
 logging.info("#")
 logging.info(f"# dag_run_id:     {dag_run_id}")
 logging.info("#")
-algo_pre_etl()
+
+if getenv("ETL_STAGE") == "pre":
+    algo_pre_etl()
+else:
+    post_etl()

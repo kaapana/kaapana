@@ -351,14 +351,18 @@ class nnUNetDatasetParser:
 
             images = list(images_path.glob('*'))
             labels = list(labels_path.glob('*'))
+            label_names = [l.name for l in labels]
 
             images_with_segs = []
             images_without_segs = []
             for ct in images:
-                if re.findall(r"_[0000]{4}\.", str(ct)):
+                case_identifier = "_".join(ct.name.split("_")[:-1])
+                # check if label file exists and associate it to the first image channel of the respective case.
+                if re.findall(r"_[0000]{4}\.", str(ct)) and case_identifier+".nii.gz" in label_names: 
                     images_with_segs.append(ct)
                 else:
                     images_without_segs.append(ct)
+
             if len(labels) > 0:
                 assert len(images_with_segs) == len(labels)
 

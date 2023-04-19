@@ -10,18 +10,18 @@ from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPAN
 from datetime import timedelta
 
 
-class TrustedPreETLOperator(KaapanaBaseOperator):
+class TrustedPostETLOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(hours=10)
 
     def __init__(self,
                  dag,
-                 name = "trusted-pre-etl",
+                 name = "trusted-post-etl",
                  env_vars={},
                  execution_timeout=execution_timeout,
                  **kwargs):
         
         envs = {
-            "ETL_STAGE": "pre"
+            "ETL_STAGE": "post"
         }
         env_vars.update(envs)
 

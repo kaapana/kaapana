@@ -1,13 +1,6 @@
-import os
-import logging
-import requests
-import subprocess
-from subprocess import PIPE
-from pathlib import Path
-from airflow.exceptions import AirflowFailException
+from datetime import timedelta
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
-from datetime import timedelta
 
 
 class TrustedPreETLOperator(KaapanaBaseOperator):

@@ -30,7 +30,7 @@ class GenerateThumbnailOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/seg-thumbnail-generator:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
-            ram_mem_mb=1000,
-            ram_mem_mb_lmt=3000,
+            ram_mem_mb=6000,
+            ram_mem_mb_lmt=10000,
             **kwargs,
         )

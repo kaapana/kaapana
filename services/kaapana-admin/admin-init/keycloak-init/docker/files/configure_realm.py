@@ -34,7 +34,7 @@ if __name__=='__main__':
     
     redirect_uris = []
     redirect_uris.append(f"/oauth2/callback")
-    redirect_uris.append(f"{KEYCLOAK_URI}/minio-console/oauth_callback/")
+    redirect_uris.append(f"{KEYCLOAK_URI}/minio-console/oauth_callback")
     keycloak.post_client(payload, redirectUris=redirect_uris)
 
 

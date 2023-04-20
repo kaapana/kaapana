@@ -227,6 +227,7 @@ export default {
           // once the detail view is implemented with improved performance, include the following line again to 
           // open the detail view on a single click
           // this.showDetails()
+          this.modifyTags()
         }, 300);
       }
 
@@ -238,7 +239,7 @@ export default {
       clearTimeout(this.timer);
       this.clicks = 0;
       // double click
-      this.modifyTags()
+      this.showDetails()
     },
     showDetails() {
       this.$emit('openInDetailView', this.seriesInstanceUID);

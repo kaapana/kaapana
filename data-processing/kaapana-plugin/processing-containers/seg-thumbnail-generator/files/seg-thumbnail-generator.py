@@ -25,10 +25,18 @@ from subprocess import PIPE, run
 from colormath.color_objects import LabColor, sRGBColor
 from colormath.color_conversions import convert_color
 from multiprocessing.pool import ThreadPool
+import psutil
 
 logger = None
 processed_count = 0
 execution_timeout = 10
+
+
+def print_mem_usage(msg=""):
+    logger.info(
+        f"{msg}: Memory usage: {round(psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2)} MB"
+    )
+    logger.info("")
 
 
 def dicomlab2LAB(dicomlab):
@@ -64,6 +72,8 @@ def create_thumbnail(parameters):
     assert len(seg_input_files) == 1
     assert len(base_input_files) > 1
 
+    base_slice_count = len(base_input_files)
+
     seg_dcm = seg_input_files[0]
     modality_cmd = f"dcmdump {seg_dcm} --prepend --load-short --search 0008,0060"
     modality = (
@@ -81,48 +91,87 @@ def create_thumbnail(parameters):
         .replace("[", "")
         .replace("]", "")
     )
+    logger.info("Scanning base images ...!")
+    print_mem_usage()
+
+    scan_direction = None
     base_series_uids = {}
     for index, base_dcm in enumerate(base_input_files):
-        series_uid_cmd = f"dcmdump {base_dcm} --search 0008,0018"
-        series_uid = execute_command(cmd=series_uid_cmd, timeout=3)
-        series_uid = (
-            series_uid.stdout.replace("  ", "")
+        if scan_direction is None:
+            scan_dir_cmd = f"dcmdump {base_dcm} --search 0018,5100"
+            scan_direction = execute_command(cmd=scan_dir_cmd, timeout=3)
+            scan_direction = (
+                scan_direction.stdout.replace("  ", "").replace("#", "")
+                .split(" ")[2]
+                .replace("[", "")
+                .replace("]", "")
+            )
+
+        object_uid_cmd = f"dcmdump {base_dcm} --search 0008,0018"
+        object_uid = execute_command(cmd=object_uid_cmd, timeout=3)
+        object_uid = (
+            object_uid.stdout.replace("  ", "")
+            .split(" ")[2]
+            .replace("[", "")
+            .replace("]", "")
+        )
+        object_uid_cmd = f"dcmdump {base_dcm} --search 0008,0018"
+        object_uid = execute_command(cmd=object_uid_cmd, timeout=3)
+        object_uid = (
+            object_uid.stdout.replace("  ", "")
             .split(" ")[2]
             .replace("[", "")
             .replace("]", "")
         )
         slice_index_cmd = f"dcmdump {base_dcm} --search 0020,0013"
         slice_index = execute_command(cmd=slice_index_cmd, timeout=3)
-        slice_index = int(slice_index.stdout.split(" ")[2].replace("[","").replace("]",""))
+        slice_index = int(
+            slice_index.stdout.split(" ")[2].replace("[", "").replace("]", "")
+        )
+        if scan_direction[0].lower() == "f":
+            slice_index = base_slice_count - slice_index
 
-        base_series_uids[series_uid] = {
-            "slice_index": index,
+        base_series_uids[object_uid] = {
+            "slice_index": slice_index,
             "base_dcm": base_dcm,
             "seg_bmps": [],
         }
 
+    base_series_uids = {
+        k: v
+        for k, v in sorted(
+            base_series_uids.items(), key=lambda item: item[1]["slice_index"]
+        )
+    }
     if modality == "RTSTRUCT":
         logger.info("modality == RTSTRUCT")
         result = create_rtstruct_thumbnail(
-            seg_dcm, dcm_dir, base_series_uids, target_dir,seg_series_uid
+            seg_dcm, dcm_dir, base_series_uids, target_dir, seg_series_uid
         )
 
     elif modality == "SEG":
         logger.info("modality == SEG")
-        result = create_seg_thumbnail(seg_dcm, base_series_uids,target_dir,seg_series_uid)
+        print_mem_usage()
+        result = create_seg_thumbnail(
+            seg_dcm, base_series_uids, target_dir, seg_series_uid
+        )
 
     else:
         exit(1)
 
     if not result:
         logger.error("Something went wrong!")
+        print_mem_usage()
         exit(1)
     else:
         processed_count += 1
         return True, dcm_seg_dir
 
 
-def create_rtstruct_thumbnail(seg_dcm, dcm_dir, base_series_uids, target_dir,seg_series_uid):
+def create_rtstruct_thumbnail(
+    seg_dcm, dcm_dir, base_series_uids, target_dir, seg_series_uid
+):
+    logger.info("Searching for color definitions ...")
     cont_colors_cmd = (
         f"dcmdump {seg_dcm} --prepend --load-short +U8 --print-all --search 3006,002a"
     )
@@ -134,20 +183,34 @@ def create_rtstruct_thumbnail(seg_dcm, dcm_dir, base_series_uids, target_dir,seg
     ]
     cont_colors = [[int(y) for y in x] for x in cont_colors]
 
+    logger.info("Reading RTSTRUCT ...")
     try:
         rtstruct = RTStructBuilder.create_from(
             dicom_series_path=dcm_dir, rt_struct_path=seg_dcm
         )
     except:
-        logger.error("Something went wrong!")
+        logger.info("Something went wrong!")
         exit(1)
 
+    logger.info("Getting masks ...")
+    print_mem_usage()
     seg_overlay = None
     slice_concat_reshape = None
     for index, roi_name in enumerate(rtstruct.get_roi_names()):
+        logger.info(f"Processing: {roi_name} ...")
         try:
             mask_3d = rtstruct.get_roi_mask_by_name(roi_name)
-        except:
+        except Exception as e:
+            logger.error("")
+            logger.error("")
+            logger.error("")
+            logger.error(
+                f"Something went wrong loading the label: {roi_name} -> skipping "
+            )
+            logger.error("")
+            logger.error(f"Error: {e}")
+            logger.error("")
+            logger.error("")
             continue
 
         if seg_overlay is None:
@@ -169,17 +232,29 @@ def create_rtstruct_thumbnail(seg_dcm, dcm_dir, base_series_uids, target_dir,seg
         seg_overlay[:, :, :, 1][mask_3d > 0] = color[1]
         seg_overlay[:, :, :, 2][mask_3d > 0] = color[2]
         seg_overlay[:, :, :, 3][mask_3d > 0] = 200
+        print_mem_usage()
+
+    slice_segs = None
+    slice_count = None
+    mask_3d = None
+    rtstruct = None
 
     correct_slice_id = int(np.argmax(slice_concat_reshape))
+    slice_concat_reshape = None
+    logger.info(f"Best slice identified: {correct_slice_id}")
 
     base_dcm_path = None
-    for key,base_slice in base_series_uids.items():
+    for key, base_slice in base_series_uids.items():
         if base_slice["slice_index"] == correct_slice_id:
-            base_dcm_path=base_slice["base_dcm"]
-    
+            base_dcm_path = base_slice["base_dcm"]
+            break
 
+    assert base_dcm_path is not None
+    logger.info("Generating overlay ...")
     seg_overlay_slice = seg_overlay[:, :, correct_slice_id, :].astype("uint8")
+    seg_overlay = None
 
+    print_mem_usage()
     base_tmp_output_dir = join(target_dir, "tmp/base")
     shutil.rmtree(base_tmp_output_dir, ignore_errors=True)
     Path(base_tmp_output_dir).mkdir(parents=True, exist_ok=True)
@@ -190,11 +265,12 @@ def create_rtstruct_thumbnail(seg_dcm, dcm_dir, base_series_uids, target_dir,seg
     base_bmps = glob(join(base_tmp_output_dir, "*.bmp"), recursive=False)
     assert len(base_bmps) == 1
 
-    target_series_uid = target_dir.split("/")[-2]
-    target_png = join(target_dir, f"{target_series_uid}.png")
+    target_png = join(target_dir, f"{seg_series_uid}.png")
     base_img_np = load_img(img_path=base_bmps[0], rgba=True)
     im = Image.fromarray(base_img_np)
 
+    logger.info("Generating final thumbnail ...")
+    print_mem_usage()
     im_overlay = Image.fromarray(seg_overlay_slice)
     final_image = Image.alpha_composite(im, im_overlay)
     final_image = final_image.resize(
@@ -206,10 +282,14 @@ def create_rtstruct_thumbnail(seg_dcm, dcm_dir, base_series_uids, target_dir,seg
     return True
 
 
-def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
+def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
+    logger.info("in create_seg_thumbnail")
+    print_mem_usage()
     seg_ref_image_info_cmd = (
         f"dcmdump {seg_dcm} --prepend --load-short --search 0008,1155"
     )
+    logger.info("Get seg_ref_img_info ...")
+    print_mem_usage()
     seg_ref_img_info = execute_command(cmd=seg_ref_image_info_cmd, timeout=10)
     seg_ref_img_info = seg_ref_img_info.stdout.split("\n")
 
@@ -218,6 +298,8 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
     Path(seg_tmp_output_dir).mkdir(parents=True, exist_ok=True)
 
     seg_image_info_cmd = f"dcmdump {seg_dcm} --prepend --load-short --search 0020,9157"
+    logger.info("Get seg_img_info ...")
+    print_mem_usage()
     seg_img_info = execute_command(cmd=seg_image_info_cmd, timeout=10)
     seg_img_info = seg_img_info.stdout.split("\n")
     test = [x for x in seg_img_info if "(5200,9230)" not in x]
@@ -226,6 +308,8 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
     seg_ref_image_info_cmd = (
         f"dcmdump {seg_dcm} --prepend --load-short --search 0008,1155"
     )
+    logger.info("Get seg_ref_img_info ...")
+    print_mem_usage()
     seg_ref_img_info = execute_command(cmd=seg_ref_image_info_cmd, timeout=10)
     seg_ref_img_info = seg_ref_img_info.stdout.split("\n")
     seg_ref_img_info = [x for x in seg_ref_img_info if "(5200,9230)" in x and x != ""]
@@ -233,6 +317,8 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
     dicomlab_color_image_info_cmd = (
         f"dcmdump {seg_dcm} --prepend --load-short +U8 --print-all --search 0062,000d"
     )
+    logger.info("Get dicomlab_color_img_info ...")
+    print_mem_usage()
     dicomlab_color_img_info = execute_command(
         cmd=dicomlab_color_image_info_cmd, timeout=10
     )
@@ -242,6 +328,8 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
     seg_image_bmp_cmd = (
         f"dcm2pnm {seg_dcm} --write-bmp --all-frames {seg_tmp_output_dir}/seg"
     )
+    logger.info("Generate seg_bmps ...")
+    print_mem_usage()
     output_result = execute_command(cmd=seg_image_bmp_cmd, timeout=20)
     seg_bmps = sorted(glob(join(seg_tmp_output_dir, "*.bmp"), recursive=False))
     seg_bmps.sort(key=lambda f: int(re.sub("\D", "", f)))
@@ -253,6 +341,8 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
 
     assert len(seg_bmps) == len(seg_img_info) == len(seg_ref_img_info)
 
+    logger.info("Collect seg thumbnails ...")
+    print_mem_usage()
     for index, info in enumerate(seg_img_info):
         if info == "":
             continue
@@ -272,6 +362,8 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
             {"bmp_file": seg_bmps[index], "colors": color_rgb}
         )
 
+    logger.info("Identify best thumbnail slice ...")
+    print_mem_usage()
     slice_max_segs = 0
     slice_max_id = None
     for index, base_slice in enumerate(base_series_uids):
@@ -281,6 +373,7 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
             slice_max_segs = len(base_slice_element["seg_bmps"])
 
     correct_slice = base_series_uids[slice_max_id]
+    logger.info(f"Best slice: {correct_slice}")
 
     base_tmp_output_dir = join(target_dir, "tmp/base")
     shutil.rmtree(base_tmp_output_dir, ignore_errors=True)
@@ -291,6 +384,8 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
     logger.info(f"Found {len(base_bmps)} base bmps ...")
     assert len(base_bmps) == 1
 
+    logger.info("Generating overlay ...")
+    print_mem_usage()
     base_img_np = load_img(img_path=base_bmps[0])
     seg_overlay = np.zeros_like(base_img_np)
     for index, seg_bmp in enumerate(correct_slice["seg_bmps"]):
@@ -300,9 +395,9 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir,seg_series_uid):
         seg_overlay[:, :, 2][seg_img_np > 0] = seg_bmp["colors"][2]
         seg_overlay[:, :, 3][seg_img_np > 0] = 200
 
-
-    target_series_uid = target_dir.split("/")[-2]
-    target_png = join(target_dir, f"{target_series_uid}.png")
+    logger.info("Saving target thumbnail png ...")
+    print_mem_usage()
+    target_png = join(target_dir, f"{seg_series_uid}.png")
     im = Image.fromarray(base_img_np)
     im_overlay = Image.fromarray(seg_overlay)
     final_image = Image.alpha_composite(im, im_overlay)
@@ -334,14 +429,7 @@ def execute_command(cmd, timeout=1):
 
 
 if __name__ == "__main__":
-    # os.environ[
-    #     "WORKFLOW_DIR"
-    # ] = "/home/jonas/airflow/service-segmentation-thumbnail-230419084924779000/"
-    # os.environ["BATCH_NAME"] = "batch"
-    # os.environ["OPERATOR_IN_DIR"] = "get-input-data"
-    # os.environ["ORIG_IMAGE_OPERATOR_DIR"] = "get-ref-series-ct"
-    # os.environ["OPERATOR_OUT_DIR"] = "generate-segmentation-thumbnail"
-    thumbnail_size = int(getenv("SIZE", "330"))
+    thumbnail_size = int(getenv("SIZE", "300"))
     thread_count = int(getenv("THREADS", "3"))
 
     log_level = getenv("LOG_LEVEL", "info").lower()

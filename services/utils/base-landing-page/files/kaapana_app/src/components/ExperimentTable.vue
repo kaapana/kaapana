@@ -85,7 +85,7 @@
           <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
               <v-btn v-bind="attrs" v-on="on" @click='startExperimentManually(item)' small icon>
-                <v-icon color="primary" dark>mdi-play-circle-outline</v-icon>
+                <v-icon color="red" dark>mdi-play-circle-outline</v-icon>
               </v-btn>
             </template>
             <span>start scheduled experiment manually</span>

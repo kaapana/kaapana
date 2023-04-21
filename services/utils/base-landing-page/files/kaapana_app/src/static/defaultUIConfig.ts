@@ -36,7 +36,7 @@ const settings = {
                 dashboard: true
             },
             {
-                name: 'tags',
+                name: 'Tags',
                 display: false,
                 truncate: false,
                 dashboard: true

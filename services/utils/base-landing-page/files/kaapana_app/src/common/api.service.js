@@ -2,22 +2,19 @@
 
 
 import Vue from "vue";
-import dicomWebClient from "./dicomWebClient";
 import httpClient from "./httpClient";
 
 const WADO_ENDPOINT = process.env.VUE_APP_WADO_ENDPOINT
 const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT
 
-const deleteSeriesFromPlatform = async (seriesInstanceUID, dag_id = 'delete-series-from-platform') => {
+const deleteSeriesFromPlatform = async (seriesInstanceUIDs, dag_id = 'delete-series-from-platform') => {
     return await httpClient.post(
         KAAPANA_BACKEND_ENDPOINT + 'client/job',
         {
             "dag_id": dag_id,
             "conf_data": {
                 "data_form": {
-                    "identifiers": [
-                        seriesInstanceUID
-                    ]
+                    "identifiers": seriesInstanceUIDs
                 },
                 "form_data": {
                     "delete_complete_study": false,
@@ -82,55 +79,9 @@ const loadSeriesData = async (seriesInstanceUID) => {
     }
 }
 
-const assembleWadoURI = (studyUID, seriesUID, objectUID) => {
-    return WADO_ENDPOINT
-        + '?requestType=WADO'
-        + `&studyUID=${studyUID}`
-        + `&seriesUID=${seriesUID}`
-        + `&objectUID=${objectUID}`
-        + '&contentType=application/dicom'
-}
-
-const loadDicom = async (studyUID, seriesUID, objectUID) => {
-    return (await httpClient.get(
-        assembleWadoURI(studyUID, seriesUID, objectUID),
-        {
-            responseType: "arraybuffer"
-        }
-    )).data
-}
-
-const loadSeriesMetaData = async (studyInstanceUID, seriesInstanceUID) => {
-    // TODO: should also able to be unified (at least partially)
-    const data = await dicomWebClient.retrieveSeriesMetadata({
-        'studyInstanceUID': studyInstanceUID,
-        'seriesInstanceUID': seriesInstanceUID
-    })
-    return {
-        modality: data[0]['00080060']['Value'][0],
-        studyInstanceUID: data[0]["0020000D"]["Value"][0],
-        seriesInstanceUID: data[0]["0020000E"]["Value"][0],
-        objectUID: data[0]["00080018"]["Value"][0],
-        referenceSeriesInstanceUID: data[0]["00081115"] !== undefined // only seg objects
-            ? data[0]["00081115"]["Value"][0]["0020000E"]["Value"][0]
-            : '',
-        imageIds: data
-            .map(instance => ({
-                'InstanceNumber': parseInt(instance['00200013']['Value']),
-                'uri': 'wadouri: ' + assembleWadoURI(
-                    instance["0020000D"]["Value"][0],
-                    instance["0020000E"]["Value"][0],
-                    instance["00080018"]["Value"][0]
-                )
-            }))
-            .sort((a, b) => a['InstanceNumber'] - b['InstanceNumber'])
-            .map(item => item['uri'])
-    }
-}
-
 const loadPatients = async (data) => {
     try {
-        const res = await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/series?body=' + JSON.stringify(data))
+        const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
         return res.data
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error.text, type: 'error'});
@@ -138,10 +89,20 @@ const loadPatients = async (data) => {
     }
 }
 
-const loadAvailableTags = async (body = {}) => {
+const loadFieldNames = async () => {
     try {
         return (
-            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/query_values?query=' + JSON.stringify(body))
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/field_names')
+        )
+    } catch (error) {
+        Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
+    }
+}
+
+const loadValues = async (query, key) => {
+    try {
+        return (
+            await httpClient.get(KAAPANA_BACKEND_ENDPOINT + `dataset/query_values/${key}?query=${JSON.stringify(query)}`)
         )
     } catch (error) {
         Vue.notify({title: 'Network/Server error', text: error, type: 'error'});
@@ -155,10 +116,10 @@ const updateTags = async (data) => {
 }
 
 const loadDashboard = async (seriesInstanceUIDs, fields) => {
-    return (await httpClient.get(KAAPANA_BACKEND_ENDPOINT + 'dataset/dashboard?config=' + JSON.stringify({
+    return (await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/dashboard' ,{
         series_instance_uids: seriesInstanceUIDs,
         names: fields
-    }))).data
+    })).data
 
 }
 
@@ -168,12 +129,8 @@ const loadDicomTagMapping = async () => {
 
 
 export {
-    updateTags,
-    loadDicom,
-    assembleWadoURI,
-    loadSeriesMetaData,
+    updateTags,    
     loadPatients,
-    loadAvailableTags,
     loadSeriesData,
     createDataset,
     loadDatasets,
@@ -182,5 +139,7 @@ export {
     loadDatasetNames,
     loadDatasetByName,
     loadDashboard,
-    loadDicomTagMapping
+    loadDicomTagMapping,
+    loadFieldNames,
+    loadValues
 }

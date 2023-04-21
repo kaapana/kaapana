@@ -3,14 +3,13 @@
     <v-container fluid class="overview-shared pa-0">
       <v-container class="pa-0" fluid>
         <v-card class="rounded-0">
-          <div style="padding: 0 10px 10px 10px">
-            <TagBar @selectedTags="(_tags) => (this.tags = _tags)" />
-            <v-row dense align="center" style="padding-bottom: 5px">
+          <div style="padding: 10px 10px 10px 10px">
+            <v-row dense align="center">
               <v-col cols="1" align="center">
                 <v-icon>mdi-folder</v-icon>
               </v-col>
               <v-col>
-                <v-select
+                <v-autocomplete
                   v-model="datasetName"
                   :items="datasetNames"
                   label="Select Dataset"
@@ -21,7 +20,7 @@
                   dense
                   @click:clear="datasetName = null"
                 >
-                </v-select>
+                </v-autocomplete>
               </v-col>
             </v-row>
             <Search
@@ -30,6 +29,13 @@
               @search="(query) => updatePatients(query)"
             />
           </div>
+        </v-card>
+        <v-card class="rounded-0 elevation-0">
+          <v-divider></v-divider>
+          <div style="padding-left: 10px; padding-right: 10px">
+            <TagBar @selectedTags="(_tags) => (this.tags = _tags)" />
+          </div>
+          <v-divider></v-divider>
         </v-card>
       </v-container>
       <!-- Gallery View -->
@@ -70,7 +76,6 @@
           </VueSelecto>
           <v-container fluid class="pa-0">
             <v-card class="rounded-0 elevation-0">
-              <v-divider></v-divider>
               <v-card-title style="padding-left: 30px; padding-right: 30px">
                 <v-row class="pa-0">
                   <v-col class="pa-0" align="right">
@@ -111,7 +116,7 @@
                   </v-col>
                 </v-row>
               </v-card-title>
-            <v-divider></v-divider>
+              <v-divider></v-divider>
             </v-card>
           </v-container>
           <!--        property patients in two-ways bound -->
@@ -306,7 +311,7 @@ export default {
     // TODO: rename
     async updatePatients(query = {}) {
       this.isLoading = true;
-      this.selectedSeriesInstanceUIDs  = [];
+      this.selectedSeriesInstanceUIDs = [];
 
       loadPatients({
         structured: this.settings.datasets.structured,
@@ -465,7 +470,7 @@ export default {
   width: 70%;
   float: left;
   height: calc(100vh - 81px);
-  position: relative
+  position: relative;
 }
 
 .overview-full {

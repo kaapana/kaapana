@@ -274,7 +274,38 @@ export default {
       (_datasetNames) => (this.datasetNames = _datasetNames)
     );
   },
+  mounted() {
+    window.addEventListener("keydown", (event) =>
+      this.keyDownEventListener(event)
+    );
+    window.addEventListener("keyup", (event) => this.keyUpEventListener(event));
+  },
+  beforeDestroy() {
+    window.removeEventListener("keydown", (event) =>
+      this.keyDownEventListener(event)
+    );
+    window.removeEventListener("keyup", (event) =>
+      this.keyUpEventListener(event)
+    );
+  },
   methods: {
+    keyDownEventListener(event) {
+      if (
+        (event.metaKey && navigator.platform === "MacIntel") ||
+        (event.ctrlKey && navigator.platform !== "MacIntel")
+      ) {
+        this.$store.commit("setMultiSelectKeyPressed", true);
+      }
+    },
+    keyUpEventListener(event) {
+      if (
+        (event.key === "Meta" && navigator.platform === "MacIntel") ||
+        (event.key === "Control" && navigator.platform !== "MacIntel")
+      ) {
+        this.$store.commit("setMultiSelectKeyPressed", false);
+      }
+    },
+
     // Note: Select all could be implemented by:
     // const elements = selecto.getSelectableElements();
     // selecto.setSelectedTargets(elements);
@@ -297,6 +328,7 @@ export default {
         el.classList.remove("selected");
       });
       this.selectedSeriesInstanceUIDs = e.selected.map((el) => el.id);
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
     },
 
     addFilterToSearch(selectedFilterItem) {
@@ -309,6 +341,7 @@ export default {
     async updatePatients(query = {}) {
       this.isLoading = true;
       this.selectedSeriesInstanceUIDs = [];
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
 
       loadPatients({
         structured: this.settings.datasets.structured,
@@ -402,6 +435,7 @@ export default {
       }
 
       this.selectedSeriesInstanceUIDs = [];
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
 
       if (this.seriesInstanceUIDs.length === 0) this.message = "No data found.";
     },

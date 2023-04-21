@@ -1,0 +1,31 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ohif-v3
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: ohif-v3
+  template:
+    metadata:
+      labels:
+        app-name: ohif-v3
+    spec:
+      containers:
+        - name: ohif-container-v3
+          image: "{{ .Values.global.registry_url }}/ohif-v3:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              memory: 50Mi
+            limits:
+              memory: 100Mi
+      imagePullSecrets:
+      - name: registry-secret
+---
+

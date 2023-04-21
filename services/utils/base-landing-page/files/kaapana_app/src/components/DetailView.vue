@@ -9,23 +9,15 @@
         </v-col>
         <v-col cols="1" align="center">
           <v-btn icon @click="() => this.$emit('close')">
-            <v-icon>
-              mdi-close
-            </v-icon>
+            <v-icon> mdi-close </v-icon>
           </v-btn>
         </v-col>
       </v-row>
     </v-card-title>
-    <v-divider/>
+    <v-divider />
     <v-card-text>
-      <CornerStone
-          v-if="studyInstanceUID !== '' && seriesInstanceUID !== ''"
-          :series-instance-u-i-d="seriesInstanceUID"
-          :study-instance-u-i-d="studyInstanceUID"
-      />
-      <TagsTable
-          :series-instance-u-i-d="seriesInstanceUID"
-      />
+      <IFrameWindow :iFrameUrl="iFrameURL" height="400px" :fullSize="false" />
+      <TagsTable :series-instance-u-i-d="seriesInstanceUID" />
     </v-card-text>
   </v-card>
 </template>
@@ -33,32 +25,33 @@
 <script>
 /* eslint-disable */
 
-import TagsTable from './TagsTable.vue';
+import TagsTable from "./TagsTable.vue";
 import CornerStone from "./CornerStone.vue";
-import {loadSeriesData} from "../common/api.service";
+import { loadSeriesData } from "../common/api.service";
+import IFrameWindow from "./IFrameWindow.vue";
 
 export default {
-  name: 'DetailView',
+  name: "DetailView",
   components: {
     TagsTable,
-    CornerStone
+    IFrameWindow,
   },
   props: {
-    seriesInstanceUID: String
+    seriesInstanceUID: String,
   },
   data() {
     return {
-      studyInstanceUID: '',
-      seriesDescription: ''
+      studyInstanceUID: "",
+      seriesDescription: "",
     };
   },
   methods: {
     async getDicomData() {
       if (this.seriesInstanceUID) {
-        loadSeriesData(this.seriesInstanceUID).then(data => {
-          this.studyInstanceUID = data['metadata']['Study Instance UID'] || ''
-          this.seriesDescription = data['metadata']['Series Description'] || ''
-        })
+        loadSeriesData(this.seriesInstanceUID).then((data) => {
+          this.studyInstanceUID = data["metadata"]["Study Instance UID"] || "";
+          this.seriesDescription = data["metadata"]["Series Description"] || "";
+        });
       }
     },
   },
@@ -69,6 +62,16 @@ export default {
   },
   created() {
     this.getDicomData();
+  },
+  computed: {
+    iFrameURL() {
+      return (
+        "/ohif-v3/viewer?StudyInstanceUIDs=" +
+        this.studyInstanceUID +
+        "&SeriesInstanceUID=" +
+        this.seriesInstanceUID
+      );
+    },
   },
 };
 </script>

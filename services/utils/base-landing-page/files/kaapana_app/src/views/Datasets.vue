@@ -33,7 +33,7 @@
         <v-card class="rounded-0 elevation-0">
           <v-divider></v-divider>
           <div style="padding-left: 10px; padding-right: 10px">
-            <TagBar @selectedTags="(_tags) => (this.tags = _tags)" />
+            <TagBar />
           </div>
           <v-divider></v-divider>
         </v-card>
@@ -131,7 +131,6 @@
                 settings.datasets.structured
               "
               :patients.sync="patients"
-              :selectedTags="tags"
               @openInDetailView="
                 (seriesInstanceUID) =>
                   (this.detailViewSeriesInstanceUID = seriesInstanceUID)
@@ -145,7 +144,6 @@
                 !settings.datasets.structured
               "
               :seriesInstanceUIDs="seriesInstanceUIDs"
-              :selectedTags="tags"
               @openInDetailView="
                 (seriesInstanceUID) =>
                   (this.detailViewSeriesInstanceUID = seriesInstanceUID)
@@ -245,7 +243,6 @@ export default {
     return {
       seriesInstanceUIDs: [],
       patients: {},
-      tags: [],
       detailViewSeriesInstanceUID: null,
       selectedSeriesInstanceUIDs: [],
       isLoading: true,

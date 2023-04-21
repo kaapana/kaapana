@@ -34,7 +34,7 @@ export default Vue.extend({
     clientPost: {
       ssl_check: false,
       automatic_update: false,
-      automatic_job_execution: false,
+      automatic_exp_execution: false,
       fernet_encrypted: false,
       allowed_dags: [],
       allowed_datasets: []

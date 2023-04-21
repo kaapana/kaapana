@@ -44,7 +44,7 @@ class KaapanaInstance(Base):
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
-    automatic_job_execution = Column(Boolean(), default=False, index=True)
+    automatic_exp_execution = Column(Boolean(), default=False, index=True)
 
     # one-to-many relationships
     experiments = relationship(
@@ -76,10 +76,14 @@ class Experiment(Base):
     __tablename__ = "experiment"
     exp_id = Column(String(64), primary_key=True)
     experiment_name = Column(String(64))
+    # dag_id of jobs which are summarized in that experiment (only makes sense for service experiments)
+    dag_id = Column(String(64))
     # external_experiment_id = Column(Integer)
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+    automatic_execution = Column(Boolean(), default=False, index=True)
+    service_experiment = Column(Boolean(), default=False, index=True)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
@@ -98,9 +102,7 @@ class Job(Base):
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(64))
     external_job_id = Column(Integer)
-    owner_kaapana_instance_name = Column(
-        String(64)
-    )  # rather class KaapanaInstance w/ relationship
+    owner_kaapana_instance_name = Column(String(64))
     conf_data = Column(String(102400))
     status = Column(String(64), index=True)
     run_id = Column(String(64), index=True)
@@ -108,6 +110,8 @@ class Job(Base):
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+    automatic_execution = Column(Boolean(), default=False, index=True)
+    service_job = Column(Boolean(), default=False, index=True)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))

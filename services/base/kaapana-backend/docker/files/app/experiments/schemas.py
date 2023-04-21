@@ -8,7 +8,7 @@ from pydantic import BaseModel, validator
 class KaapanaInstanceBase(BaseModel):
     ssl_check: bool
     automatic_update: bool = False
-    automatic_job_execution: bool = False
+    automatic_exp_execution: bool = False
 
 
 class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
@@ -32,7 +32,7 @@ class RemoteKaapanaInstanceUpdateExternal(BaseModel):
     allowed_dags: dict
     allowed_datasets: list
     automatic_update: bool = False
-    automatic_job_execution: bool = False
+    automatic_exp_execution: bool = False
 
 
 class KaapanaInstance(KaapanaInstanceBase):
@@ -85,6 +85,7 @@ class JobBase(BaseModel):
     external_job_id: int = None  # job_id on another system
     # kaapana_instance_id: int
     owner_kaapana_instance_name: str = None  # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
+    service_job: Optional[bool] = False
 
 
 class Job(JobBase):
@@ -137,6 +138,7 @@ class JobCreate(JobBase):
     kaapana_instance_id: int
     # experiment_id: int = None
     username: str = None
+    automatic_execution: Optional[bool] = False
 
 
 class JobUpdate(JobBase):
@@ -215,6 +217,9 @@ class ExperimentBase(BaseModel):
     experiment_name: str = None
     experiment_status: str = None
     # external_experiment_id: int = None # experiment_id on another system
+    # dag_id of jobs which are summarized in that experiment (only makes sense for service experiments)
+    dag_id: Optional[str] = None
+    service_experiment: Optional[bool] = False
 
 
 class Experiment(ExperimentBase):
@@ -222,6 +227,7 @@ class Experiment(ExperimentBase):
     status: str = None
     time_created: datetime.datetime = None
     time_updated: datetime.datetime = None
+    automatic_execution: Optional[bool] = False
     involved_kaapana_instances: str = None  # List = []
     dataset_name: str = None
 

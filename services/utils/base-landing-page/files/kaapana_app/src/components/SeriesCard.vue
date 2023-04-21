@@ -1,27 +1,23 @@
 <template>
   <v-container class="pa-0" fluid style="height: 100%">
-    <v-card
-        @click="onClick"
-        height="100%"
-        :id="seriesInstanceUID"
-    >
+    <v-card @click="onClick" height="100%" :id="seriesInstanceUID">
       <!--      padding: 5px; background: red-->
       <v-img
-          :src="src"
-          aspect-ratio="1"
-          @error="() => this.img_loading_error = true"
+        :src="src"
+        aspect-ratio="1"
+        @error="() => (this.img_loading_error = true)"
       >
         <template v-slot:placeholder>
           <v-row
-              class="fill-height ma-0"
-              align="center"
-              justify="center"
-              :style="img_loading_error ? 'background-color: darkgray': ''"
+            class="fill-height ma-0"
+            align="center"
+            justify="center"
+            :style="img_loading_error ? 'background-color: darkgray' : ''"
           >
             <v-progress-circular
-                v-if="!img_loading_error"
-                indeterminate
-                color="#0088cc"
+              v-if="!img_loading_error"
+              indeterminate
+              color="#0088cc"
             ></v-progress-circular>
             <div v-else style="text-align: center">
               <p></p>
@@ -31,18 +27,10 @@
           </v-row>
         </template>
 
-        <v-app-bar
-            flat
-            dense
-            color="rgba(0, 0, 0, 0)"
-        >
-          <Chip :items="[modality]"/>
+        <v-app-bar flat dense color="rgba(0, 0, 0, 0)">
+          <Chip :items="[modality]" />
           <v-spacer></v-spacer>
-          <v-btn
-              icon
-              @click.stop="() => showDetails()"
-              color="white"
-              >
+          <v-btn icon @click.stop="() => showDetails()" color="white">
             <v-icon>mdi-eye-outline</v-icon>
           </v-btn>
         </v-app-bar>
@@ -57,24 +45,20 @@
           <v-col cols="1">
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
-                <v-icon
-                    small
-                    v-bind="attrs"
-                    v-on="on"
-                >
+                <v-icon small v-bind="attrs" v-on="on">
                   mdi-information
                 </v-icon>
               </template>
               <v-data-table
-                  :headers="[
-                    {text: 'Tag', value: 'name'},
-                    {text: 'Value', value: 'value'},
-                  ]"
-                  :items="tagsData"
-                  fixed-header
-                  :hide-default-footer="true"
-                  :items-per-page=-1
-                  dense
+                :headers="[
+                  { text: 'Tag', value: 'name' },
+                  { text: 'Value', value: 'value' },
+                ]"
+                :items="tagsData"
+                fixed-header
+                :hide-default-footer="true"
+                :items-per-page="-1"
+                dense
               />
             </v-tooltip>
           </v-col>
@@ -83,20 +67,24 @@
           <div v-if="prop['display']">
             <v-row no-gutters style="font-size: x-small">
               <v-col style="margin-bottom: -5px">
-                {{ prop['name'] }}
+                {{ prop["name"] }}
               </v-col>
             </v-row>
-            <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
+            <v-row
+              no-gutters
+              style="font-size: small; padding-top: 0"
+              align="start"
+            >
               <v-col>
                 <div :class="prop['truncate'] ? 'text-truncate' : ''">
-                  {{ seriesData[prop['name']] || 'N/A' }}
+                  {{ seriesData[prop["name"]] || "N/A" }}
                 </div>
               </v-col>
             </v-row>
           </div>
         </div>
         <v-row v-if="tags" no-gutters>
-          <TagChip :items="tags" @deleteTag="(tag) => deleteTag(tag)"/>
+          <TagChip :items="tags" @deleteTag="(tag) => deleteTag(tag)" />
         </v-row>
       </v-card-text>
     </v-card>
@@ -109,24 +97,23 @@
 import Chip from "./Chip.vue";
 import TagChip from "./TagChip.vue";
 
-import {loadSeriesData, updateTags} from "@/common/api.service"
-import {settings} from "@/static/defaultUIConfig";
-
+import { loadSeriesData, updateTags } from "@/common/api.service";
+import { settings } from "@/static/defaultUIConfig";
 
 export default {
   name: "SeriesCard",
-  components: {Chip, TagChip},
-  emits: ['openInDetailView'],
+  components: { Chip, TagChip },
+  emits: ["openInDetailView"],
   props: {
     seriesInstanceUID: {
       type: String,
-    }
+    },
   },
   data() {
     return {
-      src: '',
+      src: "",
       seriesData: {},
-      seriesDescription: '',
+      seriesDescription: "",
       modality: null,
       tags: [],
       settings: settings,
@@ -140,7 +127,7 @@ export default {
     };
   },
   created() {
-    this.settings = JSON.parse(localStorage['settings'])
+    this.settings = JSON.parse(localStorage["settings"]);
   },
   async mounted() {
     this.get_data();
@@ -149,37 +136,44 @@ export default {
     // todo: why is this needed?
     async seriesInstanceUID() {
       this.get_data();
-    }
+    },
   },
   methods: {
     get_data() {
-      if (this.seriesInstanceUID !== '') {
-        loadSeriesData(this.seriesInstanceUID).then(data => {
+      if (this.seriesInstanceUID !== "") {
+        loadSeriesData(this.seriesInstanceUID).then((data) => {
           if (data !== undefined) {
-            this.src = data['thumbnail_src'] || ''
-            this.seriesDescription = data['metadata']['Series Description'] || ''
-            this.modality = data['metadata']['Modality'] || ''
-            this.seriesData = data['metadata'] || {}
-            this.tags = data['metadata']['tags'] || []
-            this.tagsData = Object.entries(this.seriesData).map(i => ({name: i[0], value: i[1]}))
+            this.src = data["thumbnail_src"] || "";
+            this.seriesDescription =
+              data["metadata"]["Series Description"] || "";
+            this.modality = data["metadata"]["Modality"] || "";
+            this.seriesData = data["metadata"] || {};
+            this.tags = data["metadata"]["tags"] || [];
+            this.tagsData = Object.entries(this.seriesData).map((i) => ({
+              name: i[0],
+              value: i[1],
+            }));
           }
-        })
+        });
       }
     },
     async deleteTag(tag) {
-      const request_body = [{
-        "series_instance_uid": this.seriesInstanceUID,
-        "tags": this.tags,
-        "tags2add": [],
-        "tags2delete": [tag]
-      }]
-      updateTags(request_body)
-          .then(() => this.tags = this.tags.filter((_tag) => _tag !== tag))
+      const request_body = [
+        {
+          series_instance_uid: this.seriesInstanceUID,
+          tags: this.tags,
+          tags2add: [],
+          tags2delete: [tag],
+        },
+      ];
+      updateTags(request_body).then(
+        () => (this.tags = this.tags.filter((_tag) => _tag !== tag))
+      );
     },
     modifyTags() {
-      let request_body = []
+      let request_body = [];
 
-      const activeTags = this.$store.getters.activeTags
+      const activeTags = this.$store.getters.activeTags;
 
       if (activeTags.length === 0) {
         // this.$notify({
@@ -187,45 +181,52 @@ export default {
         //   title: 'No label selected',
         //   text: 'There was no label selected. First select a label and then click on the respective Item to assign it.',
         // })
-        return
+        return;
       }
 
-      const tagsAlreadyExist = activeTags.filter(
-          el => this.tags.includes(el)
-      ).length === activeTags.length
+      const tagsAlreadyExist =
+        activeTags.filter((el) => this.tags.includes(el)).length ===
+        activeTags.length;
       if (tagsAlreadyExist) {
         // the selected tags are already included in the tags => removing them
-        request_body = [{
-          "series_instance_uid": this.seriesInstanceUID,
-          "tags": this.tags,
-          "tags2add": [],
-          "tags2delete": activeTags
-        }]
+        request_body = [
+          {
+            series_instance_uid: this.seriesInstanceUID,
+            tags: this.tags,
+            tags2add: [],
+            tags2delete: activeTags,
+          },
+        ];
       } else {
-        request_body = [{
-          "series_instance_uid": this.seriesInstanceUID,
-          "tags": this.tags,
-          "tags2add": activeTags,
-          "tags2delete": []
-        }]
+        request_body = [
+          {
+            series_instance_uid: this.seriesInstanceUID,
+            tags: this.tags,
+            tags2add: activeTags,
+            tags2delete: [],
+          },
+        ];
       }
-      updateTags(request_body)
-          .then(() => {
-            this.tags =
-                tagsAlreadyExist
-                    ? this.tags.filter(tag => !activeTags.includes(tag))
-                    : Array.from(new Set([...this.tags, ...activeTags]))
-          })
+      updateTags(request_body).then(() => {
+        this.tags = tagsAlreadyExist
+          ? this.tags.filter((tag) => !activeTags.includes(tag))
+          : Array.from(new Set([...this.tags, ...activeTags]));
+      });
     },
     onClick() {
       // helper function
       function single_click() {
         this.timer = setTimeout(() => {
           this.clicks = 0;
-          // once the detail view is implemented with improved performance, include the following line again to 
-          // open the detail view on a single click
-          // this.showDetails()
-          this.modifyTags()
+          if (
+            !(
+              !settings.datasets.cardText ||
+              this.$store.getters.multiSelectKeyPressed ||
+              this.$store.getters.selectedItems.length > 1
+            )
+          ) {
+            this.modifyTags();
+          }
         }, 300);
       }
 
@@ -237,12 +238,12 @@ export default {
       clearTimeout(this.timer);
       this.clicks = 0;
       // double click
-      this.showDetails()
+      this.showDetails();
     },
     showDetails() {
-      this.$emit('openInDetailView', this.seriesInstanceUID);
-    }
-  }
+      this.$emit("openInDetailView", this.seriesInstanceUID);
+    },
+  },
 };
 </script>
 

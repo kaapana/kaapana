@@ -67,7 +67,7 @@ def head_filepond_upload(request: Request, patch: str):
     logger.info(f"HEAD filepond-upload called, {request=} {patch=}")
     ulength = request.headers.get('upload-length', None)
     try:
-        offset = file_handler.get_offset(patch, ulength)
+        offset = file_handler.filepond_get_offset(patch, ulength)
         return Response(str(offset), 200)
     except Exception as e:
         return Response(f"HEAD /filepond-upload failed {e}", 500)

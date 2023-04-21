@@ -26,7 +26,6 @@
 /* eslint-disable */
 
 import TagsTable from "./TagsTable.vue";
-import CornerStone from "./CornerStone.vue";
 import { loadSeriesData } from "../common/api.service";
 import IFrameWindow from "./IFrameWindow.vue";
 

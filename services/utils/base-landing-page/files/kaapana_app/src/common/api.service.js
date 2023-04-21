@@ -2,7 +2,6 @@
 
 
 import Vue from "vue";
-import dicomWebClient from "./dicomWebClient";
 import httpClient from "./httpClient";
 
 const WADO_ENDPOINT = process.env.VUE_APP_WADO_ENDPOINT
@@ -80,52 +79,6 @@ const loadSeriesData = async (seriesInstanceUID) => {
     }
 }
 
-const assembleWadoURI = (studyUID, seriesUID, objectUID) => {
-    return WADO_ENDPOINT
-        + '?requestType=WADO'
-        + `&studyUID=${studyUID}`
-        + `&seriesUID=${seriesUID}`
-        + `&objectUID=${objectUID}`
-        + '&contentType=application/dicom'
-}
-
-const loadDicom = async (studyUID, seriesUID, objectUID) => {
-    return (await httpClient.get(
-        assembleWadoURI(studyUID, seriesUID, objectUID),
-        {
-            responseType: "arraybuffer"
-        }
-    )).data
-}
-
-const loadSeriesMetaData = async (studyInstanceUID, seriesInstanceUID) => {
-    // TODO: should also able to be unified (at least partially)
-    const data = await dicomWebClient.retrieveSeriesMetadata({
-        'studyInstanceUID': studyInstanceUID,
-        'seriesInstanceUID': seriesInstanceUID
-    })
-    return {
-        modality: data[0]['00080060']['Value'][0],
-        studyInstanceUID: data[0]["0020000D"]["Value"][0],
-        seriesInstanceUID: data[0]["0020000E"]["Value"][0],
-        objectUID: data[0]["00080018"]["Value"][0],
-        referenceSeriesInstanceUID: data[0]["00081115"] !== undefined // only seg objects
-            ? data[0]["00081115"]["Value"][0]["0020000E"]["Value"][0]
-            : '',
-        imageIds: data
-            .map(instance => ({
-                'InstanceNumber': parseInt(instance['00200013']['Value']),
-                'uri': 'wadouri: ' + assembleWadoURI(
-                    instance["0020000D"]["Value"][0],
-                    instance["0020000E"]["Value"][0],
-                    instance["00080018"]["Value"][0]
-                )
-            }))
-            .sort((a, b) => a['InstanceNumber'] - b['InstanceNumber'])
-            .map(item => item['uri'])
-    }
-}
-
 const loadPatients = async (data) => {
     try {
         const res = await httpClient.post(KAAPANA_BACKEND_ENDPOINT + 'dataset/series', data)
@@ -176,10 +129,7 @@ const loadDicomTagMapping = async () => {
 
 
 export {
-    updateTags,
-    loadDicom,
-    assembleWadoURI,
-    loadSeriesMetaData,
+    updateTags,    
     loadPatients,
     loadSeriesData,
     createDataset,

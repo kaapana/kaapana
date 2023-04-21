@@ -519,7 +519,6 @@ export default {
   top: 48px;
   overflow: hidden;
 }
-<<<<<<< HEAD
 
 .elements {
   /*margin-top: 40px;*/
@@ -558,6 +557,4 @@ export default {
 .empty.elements {
   border: none;
 }
-=======
->>>>>>> Gallery View:
 </style>

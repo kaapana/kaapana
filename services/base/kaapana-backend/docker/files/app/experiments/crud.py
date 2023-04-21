@@ -306,9 +306,6 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         automatic_execution=job.automatic_execution,
         service_job=job.service_job,
     )
-    db_exp_of_job = get_experiments(db, experiment_job_id=db_job.id)
-    if len(db_exp_of_job) > 0:
-        db_job.automatic_execution = db_exp_of_job[0].automatic_execution
 
     db_kaapana_instance.jobs.append(db_job)
     db.add(db_kaapana_instance)
@@ -328,7 +325,11 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
     update_external_job(db, db_job)
     db.refresh(db_job)
 
-    if db_kaapana_instance.remote is False and service_job is False:
+    if (
+        db_kaapana_instance.remote is False
+        and service_job is False
+        and db_job.automatic_execution is True
+    ):
         # iff db_kp_i of db_job is the local one, then proceed and schedule the created "queued" job on local airflow via def update_job()
         job = schemas.JobUpdate(
             **{
@@ -768,6 +769,11 @@ def get_remote_updates(db: Session, periodically=False):
             incoming_job["external_job_id"] = incoming_job["id"]
             incoming_job["status"] = "pending"
             job = schemas.JobCreate(**incoming_job)
+            job.automatic_execution = (
+                db_incoming_experiment.automatic_execution
+                if db_incoming_experiment is not None
+                else db_experiment.automatic_execution
+            )
             db_job = create_job(db, job)
             db_jobs.append(db_job)
 
@@ -870,7 +876,9 @@ def create_and_update_service_experiments_and_jobs(
             "run_id": diff_job_runid,
             "kaapana_instance_id": db_local_kaapana_instance.id,
             "owner_kaapana_instance_name": db_local_kaapana_instance.instance_name,
-            "service_job": True
+            "service_job": True,
+            # service jobs should always be executed
+            "automatic_execution": True,
             # further attributes for schemas.JobCreate
         }
     )
@@ -894,7 +902,7 @@ def create_and_update_service_experiments_and_jobs(
         # if no: compose ExperimentCreate to create service-experiment ...
         exp_create = schemas.ExperimentCreate(
             **{
-                "exp_id": f"ID-{db_job.dag_id}_service-exp",
+                "exp_id": f"ID-{''.join([substring[0] for substring in db_job.dag_id.split('-')])}",
                 "experiment_name": f"{db_job.dag_id}_service-exp",
                 "kaapana_instance_id": db_local_kaapana_instance.id,
                 "dag_id": db_job.dag_id,

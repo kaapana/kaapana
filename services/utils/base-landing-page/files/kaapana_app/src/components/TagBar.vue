@@ -4,7 +4,7 @@
     <v-col cols="1" align="center">
       <v-icon>mdi-tag-outline</v-icon>
     </v-col>
-    <v-col cols="8" style="padding-top: 8px; padding-bottom: 11px">
+    <v-col cols="7" style="padding-top: 8px; padding-bottom: 11px">
       <v-combobox
         label="Tags"
         v-model="tags"
@@ -19,28 +19,30 @@
         small-chips
         hide-details
         dense
+        :disabled="disabledTagBar"
       >
       </v-combobox>
-    </v-col>
-    <v-col cols="2" align="center" justify="center">
-      <v-switch
-        v-model="multiple"
-        label="Multiple"
-        dense
-        small
-        hide-details
-        style="margin-top:0"
-      ></v-switch>
     </v-col>
     <v-col cols="1" align="center">
       <v-btn
         @click="editMode = !editMode"
         small
         icon
-        :disabled="tags.length === 0"
+        :disabled="tags.length === 0 || disabledTagBar"
       >
         <v-icon>mdi-content-save</v-icon>
       </v-btn>
+    </v-col>
+    <v-col cols="3" align="center" justify="center">
+      <v-switch
+        v-model="multiple"
+        label="Multiple Tags"
+        dense
+        small
+        hide-details
+        style="margin-top: 0"
+        :disabled="disabledTagBar"
+      ></v-switch>
     </v-col>
   </v-row>
   <!--  Tagging Mode-->
@@ -48,28 +50,36 @@
     <v-col cols="1" align="center">
       <v-icon>mdi-tag-outline</v-icon>
     </v-col>
-    <v-col cols="10" align="center">
+    <v-col cols="7" align="center">
       <v-chip-group
         v-model="selection"
         active-class="deep-purple"
         :multiple="this.multiple"
         @change="onChangeSelection"
         dense
+        :disabled="this.disabledTagBar"
       >
-        <v-chip
-          v-for="tag in tags"
-          :key="tag"
-          small
-          :disabled="!settings.datasets.cardText"
-        >
+        <v-chip v-for="tag in tags" :key="tag" small :disabled="disabledTagBar">
           {{ tag }}
         </v-chip>
       </v-chip-group>
     </v-col>
     <v-col cols="1" align="center">
-      <v-btn @click="editMode = !editMode" small icon>
+      <v-btn @click="editMode = !editMode" small icon :disabled="disabledTagBar">
         <v-icon>mdi-application-edit-outline</v-icon>
       </v-btn>
+    </v-col>
+    <v-spacer></v-spacer>
+    <v-col cols="3" align="center">
+      <v-switch
+        v-model="multiple"
+        label="Multiple Tags"
+        dense
+        small
+        hide-details
+        style="margin-top: 0"
+        :disabled="disabledTagBar"
+      ></v-switch>
     </v-col>
   </v-row>
 </template>
@@ -116,9 +126,15 @@ export default {
   methods: {
     onChangeSelection(e) {
       if (this.multiple) {
-        this.$store.commit('setActiveTags', this.selection.map((i) => this.tags[i]) || [])
+        this.$store.commit(
+          "setActiveTags",
+          this.selection.map((i) => this.tags[i]) || []
+        );
       } else {
-        this.$store.commit('setActiveTags', this.selection !== undefined ? [this.tags[this.selection]] : [])
+        this.$store.commit(
+          "setActiveTags",
+          this.selection !== undefined ? [this.tags[this.selection]] : []
+        );
       }
     },
     keypressListener(e) {
@@ -134,12 +150,27 @@ export default {
             // not selected yet -> add to selection
             this.selection.push(n);
           }
-          this.$store.commit('setActiveTags', this.selection.map((i) => this.tags[i]) || [])
+          this.$store.commit(
+            "setActiveTags",
+            this.selection.map((i) => this.tags[i]) || []
+          );
         } else {
           this.selection = n;
-          this.$store.commit('setActiveTags', this.selection !== undefined ? [this.tags[this.selection]] : [])
+          this.$store.commit(
+            "setActiveTags",
+            this.selection !== undefined ? [this.tags[this.selection]] : []
+          );
         }
       }
+    },
+  },
+  computed: {
+    disabledTagBar() {
+      return (
+        !this.settings.datasets.cardText ||
+        this.$store.getters.multiSelectKeyPressed ||
+        this.$store.getters.selectedItems.length > 1
+      )
     },
   },
   watch: {

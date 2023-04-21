@@ -11,6 +11,7 @@
             dense
             single-line
             clearable
+            hide-details
         />
       </v-col>
       <v-col cols="1" align="center">
@@ -55,8 +56,12 @@
         <v-col cols="1"/>
         <v-col cols="2">
           <v-autocomplete
-              solo v-model="filter.key_select" :items="fieldNames" :key="filter.key_select"
-              dense hide-details @change="updateMapping(filter)"
+              v-model="filter.key_select" 
+              :items="fieldNames" 
+              :key="filter.key_select"
+              dense 
+              hide-details
+              @change="updateMapping(filter)"
           ></v-autocomplete>
         </v-col>
         <v-col cols="5">

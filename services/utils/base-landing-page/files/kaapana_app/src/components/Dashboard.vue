@@ -37,56 +37,7 @@
       <apexcharts
           v-for="[key, values] in Object.entries(this.histograms)"
           :key="JSON.stringify({key: values})"
-          :options="{
-            chart: {
-              id: key,
-              events: {
-                dataPointSelection: (event, chartContext, config) => {
-                  return dataPointSelection(event, chartContext, config, key, values)
-                },
-              },
-              toolbar: {
-                show: true,
-                offsetX: 0,
-                offsetY: 0,
-                tools: {
-                  download: true,
-                  selection: true,
-                  zoom: true,
-                  zoomin: true,
-                  zoomout: true,
-                  pan: true,
-                  reset: true,
-                  //customIcons: []
-                },
-                export: {
-                  csv: {
-                    filename: undefined,
-                    columnDelimiter: ',',
-                    headerCategory: 'category',
-                    headerValue: 'value',
-                    dateFormatter(timestamp) {
-                      return new Date(timestamp).toDateString()
-                    }
-                  },
-                  svg: {
-                    filename: undefined,
-                  },
-                  png: {
-                    filename: undefined,
-                  }
-                },
-                autoSelected: 'zoom'
-              },
-            },
-            title: {
-              text: key,
-            },
-            xaxis: {
-              categories: Object.keys(values['items']),
-              tickPlacement: 'on'
-            }
-          }"
+          :options="getApexChartsOptions(key, values)"
           :series="[{
             name: key,
             data: Object.values(values['items'])
@@ -137,11 +88,71 @@ export default {
     this.updateDashboard()
   },
   methods: {
+    getApexChartsOptions(key, values) {
+      return {
+            chart: {
+              id: key,
+              events: {
+                dataPointSelection: (event, chartContext, config) => {
+                  return this.dataPointSelection(event, chartContext, config, key, values)
+                },
+              },
+              toolbar: {
+                show: true,
+                offsetX: 0,
+                offsetY: 0,
+                tools: {
+                  download: true,
+                  selection: true,
+                  zoom: true,
+                  zoomin: true,
+                  zoomout: true,
+                  pan: true,
+                  reset: true,
+                  //customIcons: []
+                },
+                export: {
+                  csv: {
+                    filename: undefined,
+                    columnDelimiter: ',',
+                    headerCategory: 'category',
+                    headerValue: 'value',
+                    dateFormatter(timestamp) {
+                      return new Date(timestamp).toDateString()
+                    }
+                  },
+                  svg: {
+                    filename: undefined,
+                  },
+                  png: {
+                    filename: undefined,
+                  }
+                },
+                autoSelected: 'zoom'
+              },
+            },
+            theme: {
+              mode: this.$vuetify.theme.dark ? 'dark' : 'light'
+            },
+            title: {
+              text: key,
+            },
+            xaxis: {
+              categories: Object.keys(values['items']),
+              tickPlacement: 'on'
+            }
+          }
+    },
     updateDashboard() {
-      loadDashboard(this.seriesInstanceUIDs, this.fields).then(data => {
-        this.histograms = data['histograms'] || {}
-        this.metrics = data['metrics'] || {}
-      })
+      if (this.seriesInstanceUIDs.length === 0) {
+        this.histograms = {}
+        this.metrics = {}
+      } else {
+        loadDashboard(this.seriesInstanceUIDs, this.fields).then(data => {
+          this.histograms = data['histograms'] || {}
+          this.metrics = data['metrics'] || {}
+        })
+      }
     },
     dataPointSelection(event, chartContext, config, key, value) {
       console.log(Object.keys(value['items']), config['dataPointIndex'])
@@ -156,5 +167,12 @@ export default {
   }
 };
 </script>
-<style scoped>
+<style>
+  .apexcharts-toolbar {
+    z-index: 0!important;
+  }
+
+  .apexcharts-canvas > svg {
+    background-color: transparent !important;
+  }
 </style>

@@ -38,37 +38,13 @@
       </v-col>
 
       <v-col cols="2" align="center">
-        <v-menu
-            open-on-hover
-            bottom
-            offset-y
-            :close-on-click=false
+        <v-btn
+            color="primary"
+            style="width: 100%;"
+            @click="() => search()"
         >
-          <template v-slot:activator="{ on, attrs }">
-            <v-btn
-                color="primary"
-                v-bind="attrs"
-                v-on="on"
-                style="width: 100%;"
-                @click="() => search()"
-            >
-              Search
-            </v-btn>
-          </template>
-          <v-list>
-            <v-list-item @click.stop="dialog=true">
-              Save as Dataset
-            </v-list-item>
-            <v-list-item v-if="datasetName !== null" @click="() => updateDataset()">
-              Update Dataset
-            </v-list-item>
-          </v-list>
-        </v-menu>
-        <SaveDatasetDialog
-            v-model="dialog"
-            @save="(name) => createDataset(name)"
-            @cancel="() => this.dialog=false"
-        />
+          Search
+        </v-btn>
       </v-col>
     </v-row>
     <div
@@ -79,8 +55,8 @@
         <v-col cols="1"/>
         <v-col cols="2">
           <v-autocomplete
-              solo v-model="filter.key_select" :items="Object.keys(mapping)" :key="filter.key_select"
-              dense hide-details @change="() => {filter.item_select=[]}"
+              solo v-model="filter.key_select" :items="fieldNames" :key="filter.key_select"
+              dense hide-details @change="updateMapping(filter)"
           ></v-autocomplete>
         </v-col>
         <v-col cols="5">
@@ -111,7 +87,7 @@
 
 <script>
 /* eslint-disable */
-import {loadAvailableTags, loadDatasetByName} from "../common/api.service";
+import {loadDatasetByName, loadFieldNames, loadValues} from "../common/api.service";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 
 export default {
@@ -125,6 +101,7 @@ export default {
       display_filters: true,
       filters: [],
       counter: 0,
+      fieldNames: [],
       mapping: {},
       dialog: false
     }
@@ -140,11 +117,16 @@ export default {
         filters[0].item_select.push(value)
         this.display_filters = true
       } else if (filters.length === 0) {
-        this.filters.push({
-          id: this.counter++,
-          key_select: key,
-          item_select: [value]
-        })
+        loadValues(this.constructDatasetQuery(), key)
+            .then(res => {
+              this.mapping[key] = res.data
+              this.filters.push({
+                id: this.counter++,
+                key_select: key,
+                item_select: [value]
+              })
+            })
+
         this.display_filters = true
       }
     },
@@ -157,25 +139,11 @@ export default {
     deleteFilter(id) {
       this.filters = this.filters.filter(filter => filter.id !== id)
     },
-    async createDataset(name) {
-      this.dialog = false
-
-      this.$emit('saveDataset', {
-        name: name,
-        query: await this.composeQuery()
-      })
-    },
-    async updateDataset() {
-      this.$emit('updateDataset', {
-        name: this.datasetName,
-        query: await this.composeQuery()
-      })
-    },
     async composeQuery() {
       const query = {
         "bool": {
           "must": [
-            await this.constructDatasetQuery(this.datasetName),
+            this.constructDatasetQuery(),
             ...(
                 this.filters.map(filter => this.queryFromFilter(filter)).filter(query => query !== null)
             ),
@@ -221,27 +189,37 @@ export default {
         return null
       }
     },
-    async constructDatasetQuery(datasetName = null) {
-      if (datasetName === null)
-        return ''
-      const dataset = await loadDatasetByName(datasetName)
-      if (dataset.identifiers && dataset.identifiers.length > 0) {
+    constructDatasetQuery() {
+      if (this.dataset && this.dataset.identifiers) {
         return {
           "ids": {
-            "values": dataset.identifiers
+            "values": this.dataset.identifiers
           }
         }
       } else {
         return ''
       }
+    },
+    async updateMapping(filter) {
+      filter.item_select = []
+      const key = filter.key_select
+      loadValues(this.constructDatasetQuery(), key)
+          .then(res => {
+            this.mapping[key] = res.data
+          })
+    },
+    async initSearch(onMount = false) {
+      this.filters = []
+      this.dataset = this.datasetName && await loadDatasetByName(this.datasetName)
+      this.search(onMount)
+      loadFieldNames().then(res => {
+        this.fieldNames = res.data
+        this.mapping = Object.assign({}, ...this.fieldNames.map(_name => ({[_name]: {"items": [], "key": ""}})))
+      })
     }
   },
   async mounted() {
-    const data = await this.constructDatasetQuery(this.datasetName)
-    this.search(true)
-    loadAvailableTags(data || {}).then(res => {
-      this.mapping = res.data
-    })
+    await this.initSearch(true)
 
     // this.filters = JSON.parse(localStorage['Dataset.search.filters'] || "[]")
     // this.counter = this.filters.length
@@ -250,14 +228,7 @@ export default {
   },
   watch: {
     async datasetName() {
-      this.filters = []
-      this.constructDatasetQuery(this.datasetName)
-          .then(data => loadAvailableTags(data || {})
-              .then(res => {
-                this.mapping = res.data
-                this.search()
-              }))
-      // await this.search()
+      await this.initSearch(false);
     }
   }
 }

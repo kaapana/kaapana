@@ -45,7 +45,7 @@
       <v-chip-group
           v-model="selection"
           active-class="deep-purple--text text--accent-4"
-          :multiple="settings.datasets.tagBar.multiple"
+          :multiple="this.multiple"
           @change="onChangeSelection"
           dense
       >
@@ -66,7 +66,7 @@
 /* eslint-disable */
 
 
-import {loadAvailableTags} from "@/common/api.service";
+import {loadValues} from "@/common/api.service";
 import {settings} from "@/static/defaultUIConfig";
 
 
@@ -90,8 +90,8 @@ export default {
     if (this.settings.datasets.tagBar.tags.length > 0)
       this.editMode = false
 
-    loadAvailableTags()
-        .then(res => this.availableTags = 'tags' in res.data ? res.data['tags']['items'].map(i => i['value']) : [])
+    loadValues({}, 'Tags')
+        .then(res => this.availableTags = ('items' in res.data ? res.data['items'].map(i => i['value']) : []))
 
     window.addEventListener("keypress", event => this.keypressListener(event));
   },
@@ -101,9 +101,9 @@ export default {
   methods: {
     onChangeSelection(e) {
       if (this.multiple) {
-        this.$emit('selectedTags', this.selection.map(i => this.tags[i]))
+        this.$emit('selectedTags', this.selection.map(i => this.tags[i]) || [])
       } else {
-        this.$emit('selectedTags', [this.tags[this.selection]])
+        this.$emit('selectedTags', this.selection !== undefined ? [this.tags[this.selection]] : [])
       }
     },
     keypressListener(e) {
@@ -130,11 +130,7 @@ export default {
   },
   watch: {
     multiple() {
-      if (this.multiple) {
-        this.selection = []
-      } else {
-        this.selection = null
-      }
+      this.selection = this.multiple ? [] : null
       const settings = JSON.parse(localStorage['settings'])
       settings.datasets.tagBar.multiple = this.multiple
       localStorage['settings'] = JSON.stringify(settings)

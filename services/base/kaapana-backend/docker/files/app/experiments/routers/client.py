@@ -176,9 +176,8 @@ def delete_kaapana_instances(db: Session = Depends(get_db)):
     return crud.delete_kaapana_instances(db)
 
 
-@router.post(
-    "/job", response_model=schemas.JobWithKaapanaInstance
-)  # also okay: JobWithExperiment
+@router.post("/job", response_model=schemas.JobWithKaapanaInstance)
+# also okay: JobWithExperiment
 def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
     if job.username is not None:
         pass
@@ -192,16 +191,14 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
     return crud.create_job(db=db, job=job)
 
 
-@router.get(
-    "/job", response_model=schemas.JobWithKaapanaInstance
-)  # also okay: JobWithExperiment
+@router.get("/job", response_model=schemas.JobWithKaapanaInstance)
+# also okay: JobWithExperiment
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id, run_id)
 
 
-@router.get(
-    "/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance]
-)  # also okay: JobWithExperiment; JobWithKaapanaInstance
+@router.get("/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance])
+# also okay: JobWithExperiment; JobWithKaapanaInstance
 def get_jobs(
     instance_name: str = None,
     experiment_name: str = None,
@@ -214,9 +211,8 @@ def get_jobs(
     )
 
 
-@router.put(
-    "/job", response_model=schemas.JobWithExperiment
-)  # changed JobWithKaapanaInstance to JobWithExperiment
+@router.put("/job", response_model=schemas.JobWithExperiment)
+# changed JobWithKaapanaInstance to JobWithExperiment
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
     # return crud.update_job(db, job, remote=False)
     if job.status == "abort":
@@ -236,6 +232,12 @@ def delete_job(job_id: int, db: Session = Depends(get_db)):
 def delete_jobs(db: Session = Depends(get_db)):
     # Todo add remote job deletion
     return crud.delete_jobs(db)
+
+
+# dev feature: shouldn't be used in production
+@router.delete("/job-force")
+def delete_job_force(job_id: int, db: Session = Depends(get_db)):
+    return crud.delete_job_force(db, job_id)
 
 
 @router.get("/dags")
@@ -486,9 +488,8 @@ def delete_datasets(db: Session = Depends(get_db)):
 
 
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
-@router.post(
-    "/experiment", response_model=schemas.Experiment
-)  # also okay: schemas.ExperimentWithKaapanaInstance
+@router.post("/experiment", response_model=schemas.Experiment)
+# also okay: schemas.ExperimentWithKaapanaInstance
 def create_experiment(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
@@ -594,15 +595,19 @@ def create_experiment(
 # get_experiment
 @router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
 def get_experiment(
-    exp_id: str = None, experiment_name: str = None, db: Session = Depends(get_db)
+    exp_id: str = None,
+    experiment_name: str = None,
+    dag_id: str = None,
+    db: Session = Depends(get_db),
 ):
-    return crud.get_experiment(db, exp_id, experiment_name)
+    return crud.get_experiment(db, exp_id, experiment_name, dag_id)
 
 
 # get_experiments
 @router.get(
     "/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]
-)  # also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
+)
+# also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
 def get_experiments(
     request: Request,
     instance_name: str = None,
@@ -621,9 +626,7 @@ def get_experiments(
 def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
-        db_experiment = crud.get_experiment(
-            db, experiment.exp_id
-        )  # better call crud method directly instead of calling client.py's def get_experiment()
+        db_experiment = crud.get_experiment(db, experiment.exp_id)
         for db_job in db_experiment.experiment_jobs:
             # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
             job = schemas.JobUpdate(

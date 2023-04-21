@@ -20,7 +20,6 @@
             <Gallery
                 :ref="studyInstanceUID"
                 :seriesInstanceUIDs="seriesInstanceUIDs"
-                :selectedTags="selectedTags"
                 @openInDetailView="(_seriesInstanceUID) => openInDetailView(_seriesInstanceUID)"
             />
           </v-lazy>
@@ -43,9 +42,6 @@ export default {
       type: Object,
       default: () => {}
     },
-    selectedTags: {
-      type: Array
-    },
   },
   data() {
     return {
@@ -58,11 +54,6 @@ export default {
     Gallery
   },
   mounted() {
-  },
-  watch: {
-    selectedTags() {
-      console.log(this.selectedTags)
-    },
   },
   methods: {
     openInDetailView(seriesInstanceUID) {

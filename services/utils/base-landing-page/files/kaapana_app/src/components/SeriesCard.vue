@@ -120,11 +120,7 @@ export default {
   props: {
     seriesInstanceUID: {
       type: String,
-    },
-    selectedTags: {
-      type: Array,
-      default: () => ([])
-    },
+    }
   },
   data() {
     return {
@@ -183,7 +179,9 @@ export default {
     modifyTags() {
       let request_body = []
 
-      if (this.selectedTags.length === 0) {
+      const activeTags = this.$store.getters.activeTags
+
+      if (activeTags.length === 0) {
         // this.$notify({
         //   type: 'hint',
         //   title: 'No label selected',
@@ -192,22 +190,22 @@ export default {
         return
       }
 
-      const tagsAlreadyExist = this.selectedTags.filter(
+      const tagsAlreadyExist = activeTags.filter(
           el => this.tags.includes(el)
-      ).length === this.selectedTags.length
+      ).length === activeTags.length
       if (tagsAlreadyExist) {
         // the selected tags are already included in the tags => removing them
         request_body = [{
           "series_instance_uid": this.seriesInstanceUID,
           "tags": this.tags,
           "tags2add": [],
-          "tags2delete": this.selectedTags
+          "tags2delete": activeTags
         }]
       } else {
         request_body = [{
           "series_instance_uid": this.seriesInstanceUID,
           "tags": this.tags,
-          "tags2add": this.selectedTags,
+          "tags2add": activeTags,
           "tags2delete": []
         }]
       }
@@ -215,8 +213,8 @@ export default {
           .then(() => {
             this.tags =
                 tagsAlreadyExist
-                    ? this.tags.filter(tag => !this.selectedTags.includes(tag))
-                    : Array.from(new Set([...this.tags, ...this.selectedTags]))
+                    ? this.tags.filter(tag => !activeTags.includes(tag))
+                    : Array.from(new Set([...this.tags, ...activeTags]))
           })
     },
     onClick() {

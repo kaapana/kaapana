@@ -184,7 +184,7 @@ class Nifti2DcmConverter:
         image_slice = new_img[:,:,i]
         writer = sitk.ImageFileWriter()
         writer.KeepOriginalImageUIDOn()
-        writer.UseCompressionOn()
+        writer.UseCompressionOn() # Uses JPEG 2000 Lesless by default.
         
         patient_id = series_tag_values["0010|0020"]
         study_uid = series_tag_values["0020|000d"]

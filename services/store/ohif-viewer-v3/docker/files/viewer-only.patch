@@ -1,0 +1,60 @@
+diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
+index 30b8932a5..3cd418552 100644
+--- a/extensions/default/src/ViewerLayout/index.tsx
++++ b/extensions/default/src/ViewerLayout/index.tsx
+@@ -204,37 +204,14 @@ function ViewerLayout({
+ 
+   return (
+     <div>
+-      <Header
+-        menuOptions={menuOptions}
+-        isReturnEnabled={!!appConfig.showStudyList}
+-        onClickReturnButton={onClickReturnButton}
+-        WhiteLabeling={appConfig.whiteLabeling}
+-      >
+-        <ErrorBoundary context="Primary Toolbar">
+-          <div className="relative flex justify-center">
+-            <Toolbar servicesManager={servicesManager} />
+-          </div>
+-        </ErrorBoundary>
+-      </Header>
+       <div
+         className="bg-black flex flex-row items-stretch w-full overflow-hidden flex-nowrap relative"
+-        style={{ height: 'calc(100vh - 52px' }}
++        style={{ height: '100vh' }}
+       >
+         <React.Fragment>
+           {showLoadingIndicator && (
+             <LoadingIndicatorProgress className="h-full w-full bg-black" />
+           )}
+-          {/* LEFT SIDEPANELS */}
+-          {leftPanelComponents.length ? (
+-            <ErrorBoundary context="Left Panel">
+-              <SidePanel
+-                side="left"
+-                activeTabIndex={leftPanelDefaultClosed ? null : 0}
+-                tabs={leftPanelComponents}
+-                servicesManager={servicesManager}
+-              />
+-            </ErrorBoundary>
+-          ) : null}
+           {/* TOOLBAR + GRID */}
+           <div className="flex flex-col flex-1 h-full">
+             <div className="flex items-center justify-center flex-1 h-full overflow-hidden bg-black relative">
+@@ -247,16 +224,6 @@ function ViewerLayout({
+               </ErrorBoundary>
+             </div>
+           </div>
+-          {rightPanelComponents.length ? (
+-            <ErrorBoundary context="Right Panel">
+-              <SidePanel
+-                side="right"
+-                activeTabIndex={rightPanelDefaultClosed ? null : 0}
+-                tabs={rightPanelComponents}
+-                servicesManager={servicesManager}
+-              />
+-            </ErrorBoundary>
+-          ) : null}
+         </React.Fragment>
+       </div>
+     </div>

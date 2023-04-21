@@ -6,3 +6,4 @@ GitPython
 semver
 alive-progress
 requests
+kubernetes

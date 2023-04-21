@@ -8,15 +8,6 @@ WORKDIR /kaapana/app
 
 RUN npm run build
 
-# # # ###############################
-# # # ############# Dev #############
-# # # ###############################
-# # # # In the landing-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
-# COPY files/dev.sh .
-# # RUN chmod +x dev.sh
-# CMD ["/bin/sh", "dev.sh"]
-# # ###############################
-
 ###############################
 ######### Production ##########
 ###############################

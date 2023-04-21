@@ -66,48 +66,68 @@
         <v-chip
           v-for="state in getStatesColorMap(item)"
           :color="state.color"
-          class="ma-1 my-chip"
+          class="ml-1 my-chip"
           dense
           small
           outlined>{{ state.count }}
         </v-chip>
       </template>
       <template v-slot:item.actions="{ item }">
-        <v-col v-if="item.kaapana_instance.instance_name == clientInstance.instance_name" >
+        <div v-if="item.service_experiment">
+          <v-tooltip bottom>
+            <template v-slot:activator="{ on }">
+              <v-icon v-on="on" color="primary" dark>mdi-account-hard-hat-outline</v-icon>
+            </template>
+            <span> No actions for service experiments! </span>
+          </v-tooltip>
+        </div>
+        <div v-else-if="!item.automatic_execution">
           <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-btn v-bind="attrs" v-on="on" @click='abortExperiment(item)' small icon>
-                <v-icon color="primary" dark>mdi-stop-circle-outline</v-icon>
+              <v-btn v-bind="attrs" v-on="on" @click='startExperimentManually(item)' small icon>
+                <v-icon color="red" dark>mdi-play-circle-outline</v-icon>
               </v-btn>
             </template>
-            <span>abort experiment including all its jobs</span>
+            <span>start scheduled experiment manually</span>
           </v-tooltip>
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn v-bind="attrs" v-on="on" @click='restartExperiment(item)' small icon>
-                <v-icon color="primary" dark>mdi-rotate-left</v-icon>
-              </v-btn>
-            </template>
-            <span>restart experiment including all its jobs</span>
-          </v-tooltip>
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn v-bind="attrs" v-on="on" @click='deleteExperiment(item)' small icon>
-                <v-icon color="primary" dark>mdi-trash-can-outline</v-icon>
-              </v-btn>
-            </template>
-            <span>delete experiment including all its jobs</span>
-          </v-tooltip>
-        </v-col>
+        </div>
         <div v-else>
-          <v-tooltip bottom>
-            <template v-slot:activator="{ on, attrs }">
-              <v-icon color="primary" dark v-bind="attrs" v-on="on">
-                mdi-cloud-braces
-              </v-icon>
-            </template>
-            <span>No actions for REMOTE experiments!</span>
-          </v-tooltip>
+          <v-col v-if="item.kaapana_instance.instance_name == clientInstance.instance_name" >
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" @click='abortExperiment(item)' small icon>
+                  <v-icon color="primary" dark>mdi-stop-circle-outline</v-icon>
+                </v-btn>
+              </template>
+              <span>abort experiment including all its jobs</span>
+            </v-tooltip>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" @click='restartExperiment(item)' small icon>
+                  <v-icon color="primary" dark>mdi-rotate-left</v-icon>
+                </v-btn>
+              </template>
+              <span>restart experiment including all its jobs</span>
+            </v-tooltip>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" @click='deleteExperiment(item)' small icon>
+                  <v-icon color="primary" dark>mdi-trash-can-outline</v-icon>
+                </v-btn>
+              </template>
+              <span>delete experiment including all its jobs</span>
+            </v-tooltip>
+          </v-col>
+          <div v-else>
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-icon color="primary" dark v-bind="attrs" v-on="on">
+                  mdi-cloud-braces
+                </v-icon>
+              </template>
+              <span>No actions for REMOTE experiments!</span>
+            </v-tooltip>
+          </div>
         </div>
       </template>
       <template #expanded-item="{headers,item}">
@@ -160,6 +180,7 @@ data () {
       { text: 'Owner Instance', value: 'kaapana_instance.instance_name' },
       { text: 'Status', value: 'status', align: 'center'},
       { text: 'Actions', value: 'actions', sortable: false, filterable: false, align: 'center'},
+      // { text: 'Auto', value: 'automatic_execution', sortable: false, filterable: false, align: 'center'}
     ],
     clientInstance: {},
     clientExperiments: {},
@@ -168,6 +189,7 @@ data () {
     jobsofExpandedExperiment: [],
     jobsofExperiments: [],
     states_jobsofExperiment: [],
+    manual_startID: '',
     abortID: '',
     restartID: '',
     deleteID: '',
@@ -239,6 +261,7 @@ methods: {
     const colorMap = {
       'queued': 'grey',
       'scheduled': 'blue',
+      'pending': 'orange',
       'running': 'green',
       'finished': 'black',
       'failed': 'red'
@@ -254,22 +277,28 @@ methods: {
     this.clientDialog = true
     this.clientUpdate = true
   },
+  startExperimentManually(item) {
+    this.shouldExpand = false
+    this.manual_startID = item.exp_id,
+    console.log("Manually start Experiment: ", this.manual_startID)
+    this.manuallyStartClientExperimentAPI(this.manual_startID, 'confirmed')
+  },
   abortExperiment(item) {
       this.shouldExpand = false
       this.abortID = item.exp_id
-      console.log("Abort Experiment:", this.abortID)
+      console.log("Abort Experiment: ", this.abortID)
       this.abortClientExperimentAPI(this.abortID, 'abort')
   },
   restartExperiment(item) {
       this.shouldExpand = false
       this.restartID = item.exp_id
-      console.log("Restart Experiment:", this.restartID)
+      console.log("Restart Experiment: ", this.restartID)
       this.restartClientExperimentAPI(this.restartID, 'scheduled')
   },
   deleteExperiment(item) {
       this.shouldExpand = false
       this.deleteID = item.exp_id
-      console.log("Delete Experiment:", this.deleteID, "Item:", item)
+      console.log("Delete Experiment: ", this.deleteID, "Item:", item)
       this.deleteClientExperimentAPI(this.deleteID)
   },
 
@@ -323,45 +352,104 @@ methods: {
           console.log(err);
         })
   },
-  deleteClientExperimentAPI(experiment_id) {
+  deleteClientExperimentAPI(exp_id) {
       kaapanaApiService
       .federatedClientApiDelete("/experiment",{
-          experiment_id,
+          exp_id,
       }).then((response) => {
+        // positive notification
+        const message = `Successfully deleted experiment ${exp_id}`
+        this.$notify({
+          type: 'success',
+          title: message,
+        })
       })
       .catch((err) => {
-          console.log(err);
+        // negative notification
+        const message = `Error while deleting experiment ${exp_id}`
+        this.$notify({
+          type: "error",
+          title: message,
+        })
+        console.log(err);
       })
   },
-  restartClientExperimentAPI(experiment_id, experiment_status) {
+  restartClientExperimentAPI(exp_id, experiment_status) {
       kaapanaApiService
       .federatedClientApiPut("/experiment",{
-          experiment_id,
+          exp_id,
           experiment_status,
       }).then((response) => {
+        // positive notification
+        const message = `Successfully restarted experiment ${exp_id}`
+        this.$notify({
+          type: "success",
+          title: message,
+        })
       })
       .catch((err) => {
+        // negative notification
+        const message = `Error while restarting experiment ${exp_id}`
+        this.$notify({
+          type: "error",
+          title: message,
+        })
           console.log(err);
       })
   },
-  abortClientExperimentAPI(experiment_id, experiment_status) {
+  abortClientExperimentAPI(exp_id, experiment_status) {
       kaapanaApiService
       .federatedClientApiPut("/experiment",{
-          experiment_id,
+          exp_id,
           experiment_status,
       }).then((response) => {
+        // positive notification
+        const message = `Successfully aborted experiment ${exp_id}`
+        this.$notify({
+          type: "success",
+          title: message,
+        })
       })
       .catch((err) => {
-          console.log(err);
+        // negative notification
+        const message = `Error while aborting experiment ${exp_id}`
+        this.$notify({
+          type: "error",
+          title: message,
+        })
+        console.log(err);
       })
   },
-}
+  manuallyStartClientExperimentAPI(exp_id, experiment_status) {
+      kaapanaApiService
+        .federatedClientApiPut("/experiment",{
+            exp_id,
+            experiment_status,
+        }).then((response) => {
+          // positive notification
+          const message = `Successfully manually started experiment ${exp_id}`
+          this.$notify({
+            type: "success",
+            title: message,
+          })
+        })
+        .catch((err) => {
+          // negative notification
+          const message = `Error while manually starting experiment ${exp_id}`
+          this.$notify({
+            type: "error",
+            title: message,
+          })
+          console.log(err);
+        })
+    }
+  }
 }
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
   .my-chip {
-    border-width: 3px;
+    border-width: 2px;
   }
 </style>

@@ -17,7 +17,7 @@
         v-col( align="left")
           v-text-field(v-model="instancePost.port" label="Port" required="")
         v-col(cols=1 align="center")
-          v-btn(@click="edit_port = !edit_port; updateInstancForm();" small icon)
+          v-btn(@click="edit_port = !edit_port; updateRemoteInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -32,7 +32,7 @@
         v-col( align="left")
           v-text-field(v-model="instancePost.token" label="Token" required="")
         v-col(cols=1 align="center")
-          v-btn(@click="edit_token = !edit_token; updateInstancForm();" small icon)
+          v-btn(@click="edit_token = !edit_token; updateRemoteInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode 
       v-row(v-else)
@@ -55,7 +55,7 @@
         v-col( align="left")
           v-checkbox(v-model="instancePost.ssl_check" label="SSL"  required='')
         v-col(cols=1 align="center")
-          v-btn(@click="edit_ssl_check = !edit_ssl_check; updateInstancForm();" small icon)
+          v-btn(@click="edit_ssl_check = !edit_ssl_check; updateRemoteInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -72,7 +72,7 @@
         v-col( align="left")
           v-checkbox(v-model="instancePost.fernet_encrypted" label="Fernet encrypted"  required='')
         v-col(cols=1 align="center")
-          v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateInstancForm();" small icon)
+          v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateRemoteInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -84,17 +84,17 @@
             v-icon mdi-pencil
       //- Sync remote jobs: display mode
       v-row
-        v-col(cols=4 align="left") Sync remote jobs:
+        v-col(cols=4 align="left") Automatically sync remotes:
         v-col( align="left")
           v-icon(v-if="instancePost.automatic_update" small color="green") mdi-check-circle
           v-icon(v-if="!instancePost.automatic_update" small) mdi-close-circle
         //- v-col(cols=1 align="center")
       //- Autmoatically execute pending jobs: display mode
       v-row
-        v-col(cols=4 align="left") Autmoatically execute pending jobs:
+        v-col(cols=4 align="left") Automatically start remote experiments:
         v-col( align="left")
-          v-icon(v-if="instancePost.automatic_job_execution" small color="green") mdi-check-circle
-          v-icon(v-if="!instancePost.automatic_job_execution" small) mdi-close-circle
+          v-icon(v-if="instancePost.automatic_exp_execution" small color="green") mdi-check-circle
+          v-icon(v-if="!instancePost.automatic_exp_execution" small) mdi-close-circle
         //- v-col(cols=1 align="center")
       //- Allowed DAGs: display mode
       v-row
@@ -142,7 +142,7 @@
       instancePost: {
         ssl_check: false,
         automatic_update: false,
-        automatic_job_execution: false,
+        automatic_exp_execution: false,
         fernet_encrypted: false,
         allowed_dags: [],
         allowed_datasets: []
@@ -255,9 +255,9 @@
           this.datasets = _datasetNames;
         })
       },
-      updateInstancForm() {
+      updateRemoteInstanceForm() {
         kaapanaApiService
-          .federatedClientApiPut("/client-kaapana-instance", this.instancePost)
+          .federatedClientApiPut("/remote-kaapana-instance", this.instancePost)
           .then((response) => {
             console.log("ClientForm updated")
           })

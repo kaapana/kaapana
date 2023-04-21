@@ -501,6 +501,7 @@
           .then((response) => {
             this.dialogOpen = false
             console.log(response);
+            this.$router.push({ name: 'experiments' });
             this.$notify({
               type: 'success',
               title: "Experiment successfully created!",

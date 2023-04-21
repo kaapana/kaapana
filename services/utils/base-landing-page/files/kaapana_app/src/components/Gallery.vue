@@ -10,8 +10,7 @@
             transition="fade-transition" class="fill-height" :min-height="400 / cols"
           >
             <SeriesCard 
-              :series-instance-u-i-d="seriesInstanceUID"
-              :selectedTags="selectedTags" 
+              :seriesInstanceUID="seriesInstanceUID"
               @openInDetailView="openInDetailView(seriesInstanceUID)"
             />
           </v-lazy>
@@ -33,10 +32,6 @@ export default {
   emits: ['openInDetailView'],
   props: {
     seriesInstanceUIDs: {
-      type: Array,
-      default: () => []
-    },
-    selectedTags: {
       type: Array,
       default: () => []
     },
@@ -85,9 +80,6 @@ export default {
     seriesInstanceUIDs() {
       this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs
     },
-    selectedTags() {
-      console.log(this.selectedTags)
-    }
   },
 };
 </script>

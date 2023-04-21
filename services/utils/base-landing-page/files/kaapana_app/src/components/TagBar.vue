@@ -51,7 +51,7 @@
     <v-col cols="10" align="center">
       <v-chip-group
         v-model="selection"
-        active-class="deep-purple--text text--accent-4"
+        active-class="deep-purple"
         :multiple="this.multiple"
         @change="onChangeSelection"
         dense
@@ -91,7 +91,6 @@ export default {
       settings: settings,
     };
   },
-  emits: ["selectedTags"],
   mounted() {
     this.settings = JSON.parse(localStorage["settings"]);
     this.multiple = this.settings.datasets.tagBar.multiple;
@@ -117,15 +116,9 @@ export default {
   methods: {
     onChangeSelection(e) {
       if (this.multiple) {
-        this.$emit(
-          "selectedTags",
-          this.selection.map((i) => this.tags[i]) || []
-        );
+        this.$store.commit('setActiveTags', this.selection.map((i) => this.tags[i]) || [])
       } else {
-        this.$emit(
-          "selectedTags",
-          this.selection !== undefined ? [this.tags[this.selection]] : []
-        );
+        this.$store.commit('setActiveTags', this.selection !== undefined ? [this.tags[this.selection]] : [])
       }
     },
     keypressListener(e) {
@@ -141,13 +134,10 @@ export default {
             // not selected yet -> add to selection
             this.selection.push(n);
           }
-          this.$emit(
-            "selectedTags",
-            this.selection.map((i) => this.tags[i])
-          );
+          this.$store.commit('setActiveTags', this.selection.map((i) => this.tags[i]) || [])
         } else {
           this.selection = n;
-          this.$emit("selectedTags", [this.tags[this.selection]]);
+          this.$store.commit('setActiveTags', this.selection !== undefined ? [this.tags[this.selection]] : [])
         }
       }
     },

@@ -86,7 +86,7 @@
             <div v-if="item.service_job">
               <v-tooltip bottom>
                 <template v-slot:activator="{ on }">
-                  <v-icon v-on="on" color="primary" dark>mdi-account-hard-hat-outline</v-icon>
+                  <v-icon v-on="on" color="secondary" dark>mdi-account-hard-hat-outline</v-icon>
                 </template>
                 <span> No actions for service jobs! </span>
               </v-tooltip>

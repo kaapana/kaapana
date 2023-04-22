@@ -30,14 +30,14 @@ args = {
     "owner": "kaapana",
     "start_date": days_ago(0),
     "retries": 3,
-    "retry_delay": timedelta(minutes=5),
+    "retry_delay": timedelta(minutes=10),
 }
 
 dag = DAG(
     dag_id="service-segmentation-thumbnail",
     default_args=args,
     concurrency=20,
-    max_active_runs=20,
+    max_active_runs=30,
     schedule_interval=None,
     tags=["service"],
 )

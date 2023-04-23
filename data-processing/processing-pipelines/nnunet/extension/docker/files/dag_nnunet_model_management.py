@@ -1,8 +1,10 @@
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from nnunet.GetTaskModelOperator import GetTaskModelOperator
+from nnunet.NnUnetModelOperator import NnUnetModelOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from nnunet.getTasks import get_tasks
 
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
@@ -11,12 +13,13 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "task": {
-                "title": "Installed nnUnet Tasks",
-                "description": "Select one of the installed tasks.",
+            "uninstall_task": {
+                "title": "Unisntall nnUnet Model",
+                "description": "Select one of the installed models to uninstall.",
                 "type": "string",
+                "default": "",
                 "enum": sorted(list(installed_tasks.keys())),
-                "required": True
+                "required": False
             }
         }
     }
@@ -38,15 +41,29 @@ dag = DAG(
     schedule_interval=None
 )
 
-delete_model = GetTaskModelOperator(
+get_input = LocalGetInputDataOperator(
     dag=dag,
-    name="uninstall-nnunet-task",
-    mode="uninstall"
+    check_modality=True,
+    parallel_downloads=5
+)
+
+dcm2bin = Bin2DcmOperator(
+    dag=dag,
+    input_operator=get_input,
+    name="extract-binary",
+    file_extensions="*.dcm"
+)
+
+model_management = NnUnetModelOperator(
+    dag=dag,
+    name="model-management",
+    input_operator=dcm2bin,
 )
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
-    clean_workflow_dir=True
+    clean_workflow_dir=True,
+    trigger_rule="none_failed",
 )
 
-delete_model >> clean 
+get_input >> dcm2bin >> model_management >> clean

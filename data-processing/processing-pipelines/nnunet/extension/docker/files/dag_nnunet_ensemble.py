@@ -1,21 +1,18 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from datetime import datetime
 from nnunet.DiceEvaluationOperator import DiceEvaluationOperator
 from nnunet.LocalDataorganizerOperator import LocalDataorganizerOperator
 from nnunet.NnUnetOperator import NnUnetOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from nnunet.GetTaskModelOperator import GetTaskModelOperator
 from nnunet.LocalSortGtOperator import LocalSortGtOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
-from nnunet.getTasks import get_tasks
+from nnunet.NnUnetModelOperator import NnUnetModelOperator
 
 # from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
@@ -230,13 +227,12 @@ dcm2bin = Bin2DcmOperator(
     dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm"
 )
 
-extract_model = GetTaskModelOperator(
+extract_model = NnUnetModelOperator(
     dag=dag,
     name="unzip-models",
     target_level="batch_element",
     input_operator=dcm2bin,
     operator_out_dir="model-exports",
-    mode="install_zip",
 )
 
 nnunet_predict = NnUnetOperator(

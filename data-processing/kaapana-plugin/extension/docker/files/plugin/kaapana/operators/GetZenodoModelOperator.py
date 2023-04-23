@@ -7,17 +7,14 @@ from datetime import timedelta
 import os
 
 
-class GetTaskModelOperator(KaapanaBaseOperator):
+class GetZenodoModelOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(minutes=240)
 
     def __init__(self,
                 dag,
-                name="get-task-model",
-                task_id=None,
-                zip_file=False,
-                target_level="default",
-                operator_out_dir="/models",
-                mode="install_pretrained",
+                model_dir = "/models/nnUNet",
+                name="get-zenodo-models",
+                task_ids=None,
                 enable_proxy=True,
                 delete_output_on_start=False,
                 env_vars={},
@@ -26,20 +23,18 @@ class GetTaskModelOperator(KaapanaBaseOperator):
                 ):
 
         envs = {
-            "MODE": str(mode),
-            "TARGET_LEVEL": str(target_level),
-            "ZIP_FILE": str(zip_file)
+            "MODEL_DIR": str(model_dir),
+            "LOG_LEVEL": "INFO"
         }
         env_vars.update(envs)
 
-        if task_id is not None:
-            env_vars["TASK"] = task_id
+        if task_ids is not None:
+            env_vars["TASK_IDS"] = task_ids
 
         super().__init__(
             dag=dag,
-            image=f"{DEFAULT_REGISTRY}/nnunet-get-models:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/download-zenodo-models:{KAAPANA_BUILD_VERSION}",
             name=name,
-            operator_out_dir=operator_out_dir,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,

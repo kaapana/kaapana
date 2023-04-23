@@ -30,7 +30,7 @@ ui_forms = {
             },
             "input": {
                 "title": "Input",
-                "default": "SEG",
+                "default": "SEG,RTSTRUCT",
                 "description": "Input-data modality",
                 "type": "string",
                 "readOnly": True,

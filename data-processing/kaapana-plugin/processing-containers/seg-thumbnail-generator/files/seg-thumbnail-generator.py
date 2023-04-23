@@ -574,11 +574,6 @@ def execute_command(cmd, timeout=1):
 
 
 if __name__ == "__main__":
-    # os.environ["WORKFLOW_DIR"] = "/home/jonas/thumb-test/2/"
-    # os.environ["BATCH_NAME"] = "batch"
-    # os.environ["OPERATOR_IN_DIR"] = "get-input-data"
-    # os.environ["ORIG_IMAGE_OPERATOR_DIR"] = "get-ref-series-ct"
-    # os.environ["OPERATOR_OUT_DIR"] = "generate-segmentation-thumbnail"
     thumbnail_size = int(getenv("SIZE", "300"))
     thread_count = int(getenv("THREADS", "3"))
 

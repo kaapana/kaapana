@@ -106,13 +106,16 @@ def create_thumbnail(parameters):
         if scan_direction is None:
             scan_dir_cmd = f"dcmdump {base_dcm} --search 0018,5100"
             scan_direction = execute_command(cmd=scan_dir_cmd, timeout=10)
-            scan_direction = (
-                scan_direction.stdout.replace("  ", "")
-                .replace("#", "")
-                .split(" ")[2]
-                .replace("[", "")
-                .replace("]", "")
-            )
+            if scan_direction.stdout != "":
+                scan_direction = (
+                    scan_direction.stdout.replace("  ", "")
+                    .replace("#", "")
+                    .split(" ")[2]
+                    .replace("[", "")
+                    .replace("]", "")
+                )
+            else:
+                scan_direction = "None"
 
         object_uid_cmd = f"dcmdump {base_dcm} --search 0008,0018"
         object_uid = execute_command(cmd=object_uid_cmd, timeout=10)
@@ -496,6 +499,9 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
 
     for index, base_slice in enumerate(base_series_uids):
         base_slice_element = base_series_uids[base_slice]
+        if len(base_slice_element["seg_bmps"]) == 0:
+            continue
+    
         if len(seg_id_list) > 1:
             if len(base_slice_element["seg_bmps"]) > slice_max_segs:
                 slice_max_id = base_slice
@@ -568,7 +574,7 @@ def execute_command(cmd, timeout=1):
 
 
 if __name__ == "__main__":
-    # os.environ["WORKFLOW_DIR"] = "/home/jonas/thumb-test/8/"
+    # os.environ["WORKFLOW_DIR"] = "/home/jonas/thumb-test/2/"
     # os.environ["BATCH_NAME"] = "batch"
     # os.environ["OPERATOR_IN_DIR"] = "get-input-data"
     # os.environ["ORIG_IMAGE_OPERATOR_DIR"] = "get-ref-series-ct"

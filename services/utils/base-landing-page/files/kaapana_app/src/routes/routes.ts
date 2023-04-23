@@ -57,20 +57,20 @@ const routes = [
         name: 'federated-learning',
         path: '/federated-learning',
         component: () => import('@/views/FederatedLearning.vue'),
-        title: 'Federated Learning',
+        title: 'Runner Instances',
         permissions: {
             isPublic: false,
         },
     },
-    {
-        name: 'federated',
-        path: '/federated',
-        component: () => import('@/views/Federated.vue'),
-        title: 'Federated',
-        permissions: {
-            isPublic: false,
-        },
-    },
+    // {
+    //     name: 'federated',
+    //     path: '/federated',
+    //     component: () => import('@/views/Federated.vue'),
+    //     title: 'Federated',
+    //     permissions: {
+    //         isPublic: false,
+    //     },
+    // },
     {
         name: 'results-browser',
         path: '/results-browser',

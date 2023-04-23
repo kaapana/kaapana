@@ -1,7 +1,7 @@
 <template lang="pug">
   .federated-panel
     v-container(text-left fluid)
-      experiment-table(v-if="clientInstance" :instance="clientInstance" :allInstances="allInstances" :experiments="clientExperiments" :remote="clientInstance.remote" @refreshView="refreshClient()")
+      experiment-table(v-if="clientInstance" :instance="clientInstance" :allInstances="allInstances" :experiments="clientExperiments" @refreshView="refreshClient()")
 
 </template>
 
@@ -19,40 +19,14 @@ export default Vue.extend({
   },
   data: () => ({
     polling: 0,
-    clientDialog: false,
-    clientUpdate: false,
-    clientValid: false,
-    openedClientPanel: null,
-    dags: [],
-    datasets: [],
-    clientJobs: [],
     clientExperiments: [],
     clientInstance: {},
-    remoteInstances: [],
     allInstances: [],
-    all_instance_names: [],
-    clientPost: {
-      ssl_check: false,
-      automatic_update: false,
-      automatic_exp_execution: false,
-      fernet_encrypted: false,
-      allowed_dags: [],
-      allowed_datasets: []
-    }
   }),
   created() {},
   mounted () {
     this.refreshClient();
     this.startExtensionsInterval()
-  },
-  watch: {
-    clientDialog: function (val) {
-      if (val == true) {
-        this.getDags();
-        this.getDatasets();
-        console.log('Getting Dags and Datasets')
-      }
-    },
   },
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated'])
@@ -61,62 +35,13 @@ export default Vue.extend({
     refreshClient() {
       this.getClientInstance()
       this.getClientExperiments()
-      // this.getClientJobs()
       this.getRemoteInstances()
-    },
-    resetClientForm () {
-      this.$refs.clientForm.reset()
-    },
-    submitClientForm () {
-      if (this.clientUpdate == false) {
-      kaapanaApiService
-        .federatedClientApiPost("/client-kaapana-instance", this.clientPost)
-        .then((response) => {
-          this.clientUpdate = false
-          this.clientDialog = false
-          this.refreshClient();
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-      } else {
-      kaapanaApiService
-        .federatedClientApiPut("/client-kaapana-instance", this.clientPost)
-        .then((response) => {
-          this.clientUpdate = false
-          this.clientDialog = false
-          get_remote_updates
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-      }
-    },
-    getDags() {
-      kaapanaApiService
-        .federatedClientApiPost("/get-dags", {remote: false})
-        .then((response) => {
-          this.dags = response.data;
-          console.log("Fetched DAGs: ", this.dags);
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    },
-    getDatasets() {
-      loadDatasetNames().then(_datasetNames => {
-         this.datasets = _datasetNames;
-      })
     },
     getClientInstance() {
       kaapanaApiService
         .federatedClientApiGet("/client-kaapana-instance")
         .then((response) => {
           this.clientInstance = response.data;
-          if (this.all_instance_names.indexOf(this.clientInstance.instance_name) === -1) {
-            this.allInstances.push(this.clientInstance)
-            this.all_instance_names.push(this.clientInstance.instance_name)
-          }
         })
         .catch((err) => {
           this.clientInstance = {}
@@ -137,13 +62,7 @@ export default Vue.extend({
       kaapanaApiService
         .federatedClientApiPost("/get-remote-kaapana-instances")
         .then((response) => {
-          this.remoteInstances = response.data;
-          this.remoteInstances.forEach(remote_instance => {
-            if (this.all_instance_names.indexOf(remote_instance.instance_name) === -1) {
-              this.allInstances.push(remote_instance)
-              this.all_instance_names.push(remote_instance.instance_name)
-            }
-          })
+          this.allInstances = response.data;
         })
         .catch((err) => {
           console.log(err);

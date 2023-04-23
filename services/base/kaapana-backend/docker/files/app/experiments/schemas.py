@@ -157,7 +157,6 @@ class KaapanaInstanceWithJobs(KaapanaInstance):
 
 
 class FilterKaapanaInstances(BaseModel):
-    remote: bool = True
     federated: bool = False
     dag_id: str = None
     instance_names: List = []

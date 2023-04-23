@@ -1,5 +1,4 @@
 FROM local-only/base-python-gpu:latest
-# FROM nvcr.io/nvidia/pytorch:22.04-py3
 
 LABEL IMAGE="total-segmentator"
 LABEL VERSION="0.1.0"
@@ -13,10 +12,9 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
-
 COPY files/requirements.txt /kaapana/app/
 RUN python -m pip install --no-cache-dir -r /kaapana/app/requirements.txt
 
 COPY files/* /kaapana/app/
 
-CMD ["python3","-u","/kaapana/app/total-segmentator.py"]
+CMD ["python3","-u","/kaapana/app/start-total-segmentator.py"]

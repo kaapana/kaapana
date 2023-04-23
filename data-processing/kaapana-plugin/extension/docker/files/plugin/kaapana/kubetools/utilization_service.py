@@ -250,16 +250,16 @@ class UtilService():
             logger.warning(f"UtilService: enable_job_scheduler disabled!")
             return True, task_instance.pool, task_instance.pool_slots
 
-        logging.info(f"{UtilService.last_update=}")
         if UtilService.last_update == None:
             UtilService.init_util_service()
             UtilService.get_utilization(logger=logger)
         elif (datetime.now() - UtilService.last_update).total_seconds() > job_scheduler_delay:
             UtilService.get_utilization(logger=logger)
+        logging.info(f"last_update: {UtilService.last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}")
 
         if "gpu_mem_mb" in task_instance.executor_config and task_instance.executor_config["gpu_mem_mb"] != None and task_instance.executor_config["gpu_mem_mb"] > 0:
             if "gpu" in str(task_instance.pool).lower():
-                logger.info(f"GPU pool already set!")
+                logger.info(f"GPU pool already set! ({task_instance.pool=})")
             else:
                 gpu_mem_mb = task_instance.executor_config["gpu_mem_mb"]
                 if len(UtilService.node_gpu_queued_dict) > 0:
@@ -273,8 +273,8 @@ class UtilService():
 
                         UtilService.node_gpu_list[i]["queued_count"] = UtilService.node_gpu_queued_dict[pool_id]
 
-                logger.info(f"GPU status:")
                 UtilService.node_gpu_list = sorted(UtilService.node_gpu_list, key=lambda d: d['queued_count'])
+                logger.info(f"GPU status for {len(UtilService.node_gpu_list)} units:")
                 for gpu_info in UtilService.node_gpu_list:
                     logger.info(json.dumps(gpu_info, indent=4))
 
@@ -291,6 +291,7 @@ class UtilService():
                         UtilService.node_gpu_queued_dict[pool_id] += 1
                         UtilService.node_gpu_list[i]["queued_count"] += 1
                         UtilService.node_gpu_list[i]["queued_mb"] += gpu_mem_mb
+                        logger.error(f"1) Identified GPU for TI: {pool_id=} {gpu_mem_mb=}")
                         return False, pool_id, gpu_mem_mb
 
                 for i in range(0, len(UtilService.node_gpu_list)):  # Check for capacity
@@ -304,10 +305,11 @@ class UtilService():
                         UtilService.node_gpu_queued_dict[pool_id] += 1
                         UtilService.node_gpu_list[i]["queued_count"] += 1
                         UtilService.node_gpu_list[i]["queued_mb"] += gpu_mem_mb
+                        logger.error(f"2) Identified GPU for TI: {pool_id=} {gpu_mem_mb=}")
                         return False, pool_id, gpu_mem_mb
 
                 logger.error(f"No GPU for the TI found! -> Not scheduling !")
-                if not GPU_SUPPORT:
+                if GPU_SUPPORT:
                     pool_id = "NODE_GPU_COUNT"
                     return False, pool_id, 1
                 else:

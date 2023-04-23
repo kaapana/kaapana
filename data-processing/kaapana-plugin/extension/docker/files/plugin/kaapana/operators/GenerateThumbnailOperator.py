@@ -3,6 +3,7 @@ from kaapana.operators.KaapanaBaseOperator import (
     KAAPANA_BUILD_VERSION,
     KaapanaBaseOperator,
 )
+from datetime import timedelta
 
 
 class GenerateThumbnailOperator(KaapanaBaseOperator):
@@ -30,7 +31,8 @@ class GenerateThumbnailOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/seg-thumbnail-generator:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
-            ram_mem_mb=1000,
-            ram_mem_mb_lmt=3000,
+            execution_timeout=timedelta(minutes=15),
+            ram_mem_mb=4000,
+            ram_mem_mb_lmt=8000,
             **kwargs,
         )

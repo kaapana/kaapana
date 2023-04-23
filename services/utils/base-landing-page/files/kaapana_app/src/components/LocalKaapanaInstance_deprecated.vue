@@ -149,7 +149,6 @@
   export default {
     name: 'LocalKaapanaInstance',
     data: () => ({
-      dialogDelete: false,
       dags: [],
       datasets: [],
       clientPost: {
@@ -172,14 +171,16 @@
         type: Object,
         required: true
       },
-      remote: { // false for client instance; true for remote instances
-        type: Boolean,
-        required: true
-      },
+      // remote: { // false for client instance; true for remote instances
+      //   type: Boolean,
+      //   required: true
+      // },
     },
     mounted () {
       console.log("Starting up Component LocalKaapanaInstance!")
       console.log("Got ClientInstance: ", this.instance)
+      this.getDags();
+      this.getDatasets();
     },
     watch: {
       instance () {
@@ -187,12 +188,10 @@
         this.clientPost.fernet_encrypted = false
         console.log('Getting Dags and Datasets')
         console.log("this.clientPost:", this.clientPost)
-        this.getDags();
-        this.getDatasets();
       },
-      dialogDelete (val) {
-        val || this.closeDelete()
-      },
+      // dialogDelete (val) {
+      //   val || this.closeDelete()
+      // },
     },
     computed: {
       instance_time_created() {
@@ -206,32 +205,31 @@
       },
     },
     methods:{
-      closeDelete() {
-        this.dialogDelete = false
-      },
-      editInstance() {
-        this.$emit('ei', this.instance)
-      },
-      deleteInstanceConfirm () {
-        let params = {
-          kaapana_instance_id: this.instance.id,
-        };
-        kaapanaApiService
-          .federatedClientApiDelete("/kaapana-instance", params)
-          .then((response) => {
-            this.$emit('refreshView')
-            this.closeDelete()
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      },
+      // closeDelete() {
+      //   this.dialogDelete = false
+      // },
+      // deleteInstanceConfirm () {
+      //   let params = {
+      //     kaapana_instance_id: this.instance.id,
+      //   };
+      //   kaapanaApiService
+      //     .federatedClientApiDelete("/kaapana-instance", params)
+      //     .then((response) => {
+      //       this.$emit('refreshView')
+      //       this.closeDelete()
+      //     })
+      //     .catch((err) => {
+      //       console.log(err);
+      //     });
+      // },
       // deleteInstance() {
       //   this.dialogDelete = true
       // },
       getDags() {
         kaapanaApiService
-          .federatedClientApiPost("/get-dags", {remote: false})
+          .federatedClientApiPost("/get-dags", {
+            instance_names: [this.instance.instance_name]
+          })
           .then((response) => {
             this.dags = response.data;
           })

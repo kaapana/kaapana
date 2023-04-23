@@ -19,7 +19,7 @@ async def dags(service: WorkflowService = Depends(get_workflow_service)):
 
 @router.post("/trigger")
 async def trigger_workflow(conf_data: dict, dry_run: str = True,  db: Session = Depends(get_db), service: WorkflowService = Depends(get_workflow_service)):
-    db_client_kaapana = crud.get_kaapana_instance(db, remote=False)
+    db_client_kaapana = crud.get_kaapana_instance(db)
     resp, err = service.trigger_workflow(db_client_kaapana, conf_data, dry_run)
     if err:
         raise HTTPException("trigger_workflow failed with Status Code: {0} , Error: {1} , ".format(

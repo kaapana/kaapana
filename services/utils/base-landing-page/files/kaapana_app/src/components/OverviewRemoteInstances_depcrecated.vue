@@ -2,32 +2,28 @@
   <v-card>
     <v-card-title>
       <!-- v-col cols=2 align="left"> Remote Instances </v-col -->
-      <p class="mx-4 my-2"> Remote Instances </p>
+      <p class="mx-4 my-2">Executing Instances </p>
       <add-remote-instance class="mx-4" @refreshRemoteFromAdding="refreshRemote()"></add-remote-instance>
       <sync-remote-instances class="mx-4" @refreshRemoteFromSyncing="refreshRemote()"></sync-remote-instances>
     </v-card-title>
     <v-card-text>
-      <v-row>
-        <v-container fluid="">
-          <v-row dense="">
-            <v-col 
-              v-for="instance in remoteInstances" 
-              :key="instance.id" 
-              cols="6" 
-              align="left"
-            >
-              <!-- former old KaapanaInstance-->
-              <RemoteKaapanaInstance 
-                :instance="instance"
-                :remote="instance.remote"
-                :time_updated="instance.time_updated"
-                @refreshView="refreshRemote()" 
-                @ei="editRemoteInstance"
-              ></RemoteKaapanaInstance>
-            </v-col>
-          </v-row>
-        </v-container>
-      </v-row>
+      <v-container fluid="">
+        <v-row dense="">
+          <v-col 
+            v-for="instance in remoteInstances" 
+            :key="instance.id" 
+            cols="6" 
+            align="left"
+          >
+            <!-- former old KaapanaInstance-->
+            <RemoteKaapanaInstance 
+              :instance="instance"
+              @refreshView="refreshRemote()" 
+              @ei="editRemoteInstance"
+            ></RemoteKaapanaInstance>
+          </v-col>
+        </v-row>
+      </v-container>
     </v-card-text>
     <v-card-actions></v-card-actions>
   </v-card>

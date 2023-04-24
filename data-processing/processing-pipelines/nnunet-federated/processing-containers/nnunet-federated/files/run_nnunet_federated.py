@@ -78,13 +78,13 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         for site_info in self.remote_sites:
             filename = current_federated_round_dir / site_info['instance_name'] / 'nnunet-training' / 'experiment_results.json'
             with open(filename) as json_file:
-                exp_data = json.load(json_file)
+                workflow_data = json.load(json_file)
             tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', self.remote_conf_data["federated_form"]["federated_dir"], os.getenv('OPERATOR_OUT_DIR', 'federated-operator'), site_info['instance_name']))
             if tensorboard_log_dir.is_dir():
                 print('Removing previous logs, since we will write all logs again...')
                 shutil.rmtree(tensorboard_log_dir)
             self.writer = SummaryWriter(log_dir=tensorboard_log_dir)
-            for epoch_data in exp_data:
+            for epoch_data in workflow_data:
                 for key, value in epoch_data.items():
                     if key != 'epoch' and key != 'fold':
                         self.writer.add_scalar(key, value, epoch_data['epoch'])

@@ -41,7 +41,7 @@ class KaapanaInstance(Base):
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
-    automatic_exp_execution = Column(Boolean(), default=False, index=True)
+    automatic_workflow_execution = Column(Boolean(), default=False, index=True)
 
     # one-to-many relationships
     workflows = relationship(
@@ -71,7 +71,7 @@ class KaapanaInstance(Base):
 
 class Workflow(Base):
     __tablename__ = "workflow"
-    exp_id = Column(String(64), primary_key=True)
+    workflow_id = Column(String(64), primary_key=True)
     workflow_name = Column(String(64))
     # dag_id of jobs which are summarized in that workflow (only makes sense for service workflows)
     dag_id = Column(String(64))
@@ -111,16 +111,16 @@ class Job(Base):
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
-    exp_id = Column(String, ForeignKey("workflow.exp_id"))
+    workflow_id = Column(String, ForeignKey("workflow.workflow_id"))
     workflow = relationship("Workflow", back_populates="workflow_jobs")
 
     # https://www.johbo.com/2016/creating-a-partial-unique-index-with-sqlalchemy-in-postgresql.html
     __table_args__ = (
         Index(
-            "ix_kaapana_id_exp_id_external_job_id",  # Index name
+            "ix_kaapana_id_workflow_id_external_job_id",  # Index name
             "kaapana_id",
-            "exp_id",
-            "external_job_id",  # Columns which are part of the index; extended with 'exp_id'
+            "workflow_id",
+            "external_job_id",  # Columns which are part of the index; extended with 'workflow_id'
             unique=True,
             postgresql_where=(external_job_id.isnot(None)),
         ),  # The condition

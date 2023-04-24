@@ -8,7 +8,7 @@ from pydantic import BaseModel, validator
 class KaapanaInstanceBase(BaseModel):
     ssl_check: bool
     automatic_update: bool = False
-    automatic_exp_execution: bool = False
+    automatic_workflow_execution: bool = False
 
 
 class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
@@ -32,7 +32,7 @@ class RemoteKaapanaInstanceUpdateExternal(BaseModel):
     allowed_dags: dict
     allowed_datasets: list
     automatic_update: bool = False
-    automatic_exp_execution: bool = False
+    automatic_workflow_execution: bool = False
 
 
 class KaapanaInstance(KaapanaInstanceBase):
@@ -223,7 +223,7 @@ class AllowedDataset(DatasetBase):
 
 
 class WorkflowBase(BaseModel):
-    exp_id: str = None
+    workflow_id: str = None
     workflow_name: str = None
     workflow_status: str = None
     # external_workflow_id: int = None # workflow_id on another system

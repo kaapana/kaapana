@@ -117,21 +117,21 @@
             v-icon mdi-pencil
         //- v-col(cols=1 align="center")
       //- Autmoatically execute pending jobs: display mode
-      v-row(v-if="edit_automatic_exp_execution" align="center")
+      v-row(v-if="edit_automatic_workflow_execution" align="center")
         v-col(cols=4  align="left") Automatically start remote workflows:
         v-col(align="left")
-          v-checkbox(v-model="instancePost.automatic_exp_execution" label="Check automatically for remote updates")
+          v-checkbox(v-model="instancePost.automatic_workflow_execution" label="Check automatically for remote updates")
         v-col(cols=1 align="center")
-          v-btn(@click="edit_automatic_exp_execution = !edit_automatic_exp_execution; updateInstanceForm();" small icon)
+          v-btn(@click="edit_automatic_workflow_execution = !edit_automatic_workflow_execution; updateInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
         v-col(cols=4 align="left") Automatically start remote workflows:
         v-col( align="left")
-          v-icon(v-if="instancePost.automatic_exp_execution" small color="green") mdi-check-circle
-          v-icon(v-if="!instancePost.automatic_exp_execution" small) mdi-close-circle
+          v-icon(v-if="instancePost.automatic_workflow_execution" small color="green") mdi-check-circle
+          v-icon(v-if="!instancePost.automatic_workflow_execution" small) mdi-close-circle
         v-col(v-if="!remote" cols=1 align="center")
-          v-btn(@click="edit_automatic_exp_execution = !edit_automatic_exp_execution" small icon)
+          v-btn(@click="edit_automatic_workflow_execution = !edit_automatic_workflow_execution" small icon)
             v-icon mdi-pencil
       //- Allowed DAGs: edit mode
       v-row(v-if="edit_allowed_dags" align="center")
@@ -185,7 +185,7 @@
       edit_allowed_dags: false,
       edit_allowed_datasets: false,
       edit_automatic_update: false,
-      edit_automatic_exp_execution: false,
+      edit_automatic_workflow_execution: false,
       edit_fernet_encrypted: false,
       edit_port: false,      
       edit_ssl_check: false,

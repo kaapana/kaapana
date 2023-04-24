@@ -49,10 +49,10 @@ class JsonWriter(object):
     def _load_json(filename):
         try:
             with open(filename) as json_file:
-                exp_data = json.load(json_file)
+                workflow_data = json.load(json_file)
         except FileNotFoundError:
-            exp_data = []
-        return exp_data
+            workflow_data = []
+        return workflow_data
 
     def __init__(self, log_dir) -> None:
         self.filename = os.path.join(log_dir, 'fl_stats.json')
@@ -60,9 +60,9 @@ class JsonWriter(object):
         # not accumulating anything because this leads to a decrease in speed over many epochs!
 
     def append_data_dict(self, data_dict):
-        exp_data = JsonWriter._load_json(self.filename)
-        exp_data.append(data_dict)
-        JsonWriter._write_json(self.filename, exp_data)
+        workflow_data = JsonWriter._load_json(self.filename)
+        workflow_data.append(data_dict)
+        JsonWriter._write_json(self.filename, workflow_data)
 
 # Todo move in Jonas library as normal function 
 def requests_retry_session(
@@ -274,7 +274,7 @@ class KaapanaFederatedTrainingBase(ABC):
         with requests.Session() as s:
             r = requests_retry_session(session=s).put(f'{self.client_url}/workflow_jobs',
                     json={
-                        "exp_id": self.local_conf_data["workflow_form"]["exp_id"],
+                        "workflow_id": self.local_conf_data["workflow_form"]["workflow_id"],
                         "workflow_name": self.local_conf_data["workflow_form"]["workflow_name"],
                         "workflow_jobs": distributed_jobs,
                     },

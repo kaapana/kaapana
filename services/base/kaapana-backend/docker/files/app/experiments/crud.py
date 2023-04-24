@@ -762,7 +762,7 @@ def get_remote_updates(db: Session, periodically=False):
                 # incoming_experiment["involved_kaapana_instances"] = json.dumps(incoming_experiment[
                 #     "involved_kaapana_instances"
                 # ])
-                experiment = schemas.ExperimentCreate(**incoming_experiment)
+                experiment = schemas.WorkflowCreate(**incoming_experiment)
                 db_experiment = create_experiment(db, experiment)
                 logging.info(f"Created incoming remote experiment: {db_experiment}")
 
@@ -786,7 +786,7 @@ def get_remote_updates(db: Session, periodically=False):
 
         # update incoming experiments
         for incoming_experiment in incoming_experiments:
-            exp_update = schemas.ExperimentUpdate(
+            exp_update = schemas.WorkflowUpdate(
                 **{
                     "exp_id": incoming_experiment["exp_id"],
                     # incoming_experiment["experiment_name"] instead of db_incoming_experiment.experiment_name
@@ -895,8 +895,8 @@ def create_and_update_service_experiments_and_jobs(
     # check whether service-experiment for that kind of service-job already exists
     db_service_experiment = get_experiment(db, dag_id=db_job.dag_id)
     if db_service_experiment:
-        # if yes: compose ExperimentUpdate and append service-jobs to service-experiment via crud.put_experiment_jobs()
-        exp_update = schemas.ExperimentUpdate(
+        # if yes: compose WorkflowUpdate and append service-jobs to service-experiment via crud.put_experiment_jobs()
+        exp_update = schemas.WorkflowUpdate(
             **{
                 "exp_id": db_service_experiment.exp_id,
                 "experiment_name": f"{db_job.dag_id}_service-exp",
@@ -906,8 +906,8 @@ def create_and_update_service_experiments_and_jobs(
         db_service_experiment = put_experiment_jobs(db, exp_update)
         logging.info(f"Updated service experiment: {db_service_experiment}")
     else:
-        # if no: compose ExperimentCreate to create service-experiment ...
-        exp_create = schemas.ExperimentCreate(
+        # if no: compose WorkflowCreate to create service-experiment ...
+        exp_create = schemas.WorkflowCreate(
             **{
                 "exp_id": f"ID-{''.join([substring[0] for substring in db_job.dag_id.split('-')])}",
                 "experiment_name": f"{db_job.dag_id}_service-exp",
@@ -923,7 +923,7 @@ def create_and_update_service_experiments_and_jobs(
         )
         logging.info(f"Created service experiment: {db_service_experiment}")
         # ... and afterwards append service-jobs to service-experiment via crud.put_experiment_jobs()
-        exp_update = schemas.ExperimentUpdate(
+        exp_update = schemas.WorkflowUpdate(
             **{
                 "exp_id": db_service_experiment.exp_id,
                 "experiment_name": db_service_experiment.experiment_name,
@@ -1140,7 +1140,7 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
 
 
 def create_experiment(
-    db: Session, experiment: schemas.ExperimentCreate, service_experiment: bool = False
+    db: Session, experiment: schemas.WorkflowCreate, service_experiment: bool = False
 ):
     # experiment has a kaapana_instance_id?
     if experiment.kaapana_instance_id is None:
@@ -1302,7 +1302,7 @@ def queue_generate_jobs_and_add_to_exp(
             db_jobs.append(db_job)
 
     # update experiment w/ created db_jobs
-    experiment = schemas.ExperimentUpdate(
+    experiment = schemas.WorkflowUpdate(
         **{
             "exp_id": db_experiment.exp_id,
             "experiment_name": db_experiment.experiment_name,
@@ -1375,7 +1375,7 @@ def get_experiments(
         )  # , aliased=True
 
 
-def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
+def update_experiment(db: Session, experiment=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
 
     db_experiment = get_experiment(db, experiment.exp_id)
@@ -1432,7 +1432,7 @@ def update_experiment(db: Session, experiment=schemas.ExperimentUpdate):
     return db_experiment
 
 
-def put_experiment_jobs(db: Session, experiment=schemas.ExperimentUpdate):
+def put_experiment_jobs(db: Session, experiment=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
 
     # db_experiment = get_experiment(db, experiment_name=experiment.experiment_name)

@@ -38,7 +38,7 @@ const routes = [
     {
         name: 'experiment-execution',
         path: '/experiment-execution',
-        component: () => import('@/views/ExperimentExecution.vue'),
+        component: () => import('@/views/WorkflowExecution.vue'),
         title: 'Workflow Execution',
         permissions: {
             isPublic: false,

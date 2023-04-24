@@ -168,7 +168,7 @@ def delete_kaapana_instances(db: Session = Depends(get_db)):
 
 
 @router.post("/job", response_model=schemas.JobWithKaapanaInstance)
-# also okay: JobWithExperiment
+# also okay: JobWithWorkflow
 def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(get_db)):
     if job.username is not None:
         pass
@@ -183,13 +183,13 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
 
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance)
-# also okay: JobWithExperiment
+# also okay: JobWithWorkflow
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     return crud.get_job(db, job_id, run_id)
 
 
-@router.get("/jobs", response_model=List[schemas.JobWithExperimentWithKaapanaInstance])
-# also okay: JobWithExperiment; JobWithKaapanaInstance
+@router.get("/jobs", response_model=List[schemas.JobWithWorkflowWithKaapanaInstance])
+# also okay: JobWithWorkflow; JobWithKaapanaInstance
 def get_jobs(
     instance_name: str = None,
     experiment_name: str = None,
@@ -202,8 +202,8 @@ def get_jobs(
     )
 
 
-@router.put("/job", response_model=schemas.JobWithExperiment)
-# changed JobWithKaapanaInstance to JobWithExperiment
+@router.put("/job", response_model=schemas.JobWithWorkflow)
+# changed JobWithKaapanaInstance to JobWithWorkflow
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
     # return crud.update_job(db, job, remote=False)
     if job.status == "abort":
@@ -457,7 +457,7 @@ def delete_datasets(db: Session = Depends(get_db)):
 
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
 @router.post("/experiment", response_model=schemas.Workflow)
-# also okay: schemas.ExperimentWithKaapanaInstance
+# also okay: schemas.WorkflowWithKaapanaInstance
 def create_experiment(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
@@ -511,7 +511,7 @@ def create_experiment(
     }
 
     # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
-    experiment = schemas.ExperimentCreate(
+    experiment = schemas.WorkflowCreate(
         **{
             "exp_id": exp_id,
             "experiment_name": experiment_name,
@@ -537,7 +537,7 @@ def create_experiment(
 
 
 # get_experiment
-@router.get("/experiment", response_model=schemas.ExperimentWithKaapanaInstance)
+@router.get("/experiment", response_model=schemas.WorkflowWithKaapanaInstance)
 def get_experiment(
     exp_id: str = None,
     experiment_name: str = None,
@@ -549,9 +549,9 @@ def get_experiment(
 
 # get_experiments
 @router.get(
-    "/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]
+    "/experiments", response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
 )
-# also okay: response_model=List[schemas.Workflow] ; List[schemas.ExperimentWithKaapanaInstance]
+# also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
 def get_experiments(
     request: Request,
     instance_name: str = None,
@@ -567,7 +567,7 @@ def get_experiments(
 
 # put/update_experiment
 @router.put("/experiment", response_model=schemas.Workflow)
-def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
+def put_experiment(experiment: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
         db_experiment = crud.get_experiment(db, experiment.exp_id)
@@ -595,7 +595,7 @@ def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(g
 # endpoint to update an experiment with additional experiment_jobs
 @router.put("/experiment_jobs", response_model=schemas.Workflow)
 def put_experiment_jobs(
-    experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)
+    experiment: schemas.WorkflowUpdate, db: Session = Depends(get_db)
 ):
     return crud.put_experiment_jobs(db, experiment)
 

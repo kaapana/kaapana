@@ -7,7 +7,7 @@
       lazy-validation
     >
       <v-card-title>
-        <h5>Experiment Execution</h5>
+        <h5>Workflow Execution</h5>
       </v-card-title>
       <v-card-text>
         <v-container>
@@ -37,20 +37,20 @@
               ></v-select>
             </v-col>
           </v-row>
-          <!-- Experiment name -->
+          <!-- Workflow name -->
           <v-row v-if="dag_id">
             <v-col cols="12">
               <v-text-field
-                label="Experiment name" 
-                v-model="experiment_name" 
-                :rules="experimentnameRules()" 
+                label="Workflow name" 
+                v-model="workflow_name" 
+                :rules="workflownameRules()" 
                 required
               ></v-text-field>
             </v-col>
-            <!-- don't do exp_id rn-->
+            <!-- don't do workflow_id rn-->
           </v-row>
           <!-- Data- and Workflow forms -->
-          <v-row v-if="experiment_name">
+          <v-row v-if="workflow_name">
             <v-col v-for="(schema, name) in schemas" cols="12">
               <p>{{name}}</p>
               <v-jsf 
@@ -87,7 +87,7 @@
               ></v-jsf>
             </v-col>
           </v-row>
-          <!-- Conf data summarizing the configured experiment -->
+          <!-- Conf data summarizing the configured workflow -->
           <v-row>
             <v-col cols="12">
               <v-tooltip v-model="showConfData" top="">
@@ -96,7 +96,7 @@
                     <v-icon color="grey lighten-1">mdi-email</v-icon>
                   </v-btn>
                 </template>
-                <pre class="text-left">Experiment name: {{experiment_name}}</pre>
+                <pre class="text-left">Workflow name: {{workflow_name}}</pre>
                 <pre class="text-left">Dag id: {{dag_id}}</pre>
                 <pre class="text-left">Instance name: {{selected_kaapana_instance_names}}</pre>
                 <pre class="text-left">External instance name: {{selected_remote_instances_w_external_dag_available}}</pre>
@@ -112,7 +112,7 @@
           @click="submissionValidator()" 
           dark="dark"
         >
-          Start Experiment
+          Start Workflow
         </v-btn>
         <v-btn 
           color="primary" 
@@ -179,7 +179,7 @@
       // watchers for dags
       dag_id(value) {
         this.resetFormData()
-        this.experiment_name = value;
+        this.workflow_name = value;
       },
       external_dag_id() {
         this.resetExternalFormData()
@@ -211,7 +211,7 @@
           external_schemas: {},
           // validation stuff
           // other stuff
-          experiment_name: null, // or to ''
+          workflow_name: null, // or to ''
           showConfData: false,
         }
       },
@@ -266,9 +266,9 @@
           (v) => !!v || "DAG is required",
         ];
       },
-      experimentnameRules() {
+      workflownameRules() {
         return [
-          (v) => !!v || "Experiment name is required",
+          (v) => !!v || "Workflow name is required",
         ];
       },
       findRequiredFields(obj, result = [], prefix = '') {
@@ -287,7 +287,7 @@
       submissionValidator() {
         let valid_check = []
         let invalid_fields = []
-        if (this.$refs.executeWorkflow.validate()) { // validate dag_id and experiment_name in any cases
+        if (this.$refs.executeWorkflow.validate()) { // validate dag_id and workflow_name in any cases
           // extract form name and attribute names of form_requiredFields
           for (let i=0; i<this.form_requiredFields.length; i++) {
             const req_field = this.form_requiredFields[i];
@@ -319,7 +319,7 @@
             }
           }
           if (valid_check.every(value => value === true)) {
-            // all checks have been successful --> start experiment & return true
+            // all checks have been successful --> start workflow & return true
             this.submitWorkflow()
             return true
           } else {
@@ -345,7 +345,7 @@
       // API Calls: Instances
       getRemoteInstances() {
         kaapanaApiService
-          .federatedClientApiPost("/get-remote-kaapana-instances")
+          .federatedClientApiPost("/get-kaapana-instances")
           .then((response) => {
             this.available_kaapana_instance_names = response.data.map(({ instance_name }) => instance_name);
           })
@@ -355,7 +355,7 @@
       },
       getRemoteInstancesWithExternalDagAvailable() {
         kaapanaApiService
-          .federatedClientApiPost("/get-remote-kaapana-instances", {dag_id: this.external_dag_id})
+          .federatedClientApiPost("/get-kaapana-instances", {dag_id: this.external_dag_id})
           .then((response) => {
             this.remote_instances_w_external_dag_available = response.data.map(({ instance_name }) => instance_name)
           })
@@ -367,7 +367,7 @@
       getUiFormSchemas() {
         // remove 'undefined' from instance_names list
         kaapanaApiService
-          .federatedClientApiPost("/get-ui-form-schemas", {experiment_name: this.experiment_name, dag_id: this.dag_id, instance_names: this.selected_kaapana_instance_names})
+          .federatedClientApiPost("/get-ui-form-schemas", {workflow_name: this.workflow_name, dag_id: this.dag_id, instance_names: this.selected_kaapana_instance_names})
           .then((response) => {
             let schemas = response.data
             if (this.identifiers.length > 0) {
@@ -389,7 +389,7 @@
       },
       getExternalUiFormSchemas() {
         kaapanaApiService
-          .federatedClientApiPost("/get-ui-form-schemas",  { experiment_name: this.experiment_name, dag_id: this.external_dag_id, instance_names: this.selected_remote_instances_w_external_dag_available})
+          .federatedClientApiPost("/get-ui-form-schemas",  { workflow_name: this.workflow_name, dag_id: this.external_dag_id, instance_names: this.selected_remote_instances_w_external_dag_available})
           .then((response) => {
             this.external_schemas = response.data
           })
@@ -425,8 +425,8 @@
           }
         }
         kaapanaApiService
-          .federatedClientApiPost("/experiment", {
-            experiment_name: this.experiment_name,
+          .federatedClientApiPost("/workflow", {
+            workflow_name: this.workflow_name,
             dag_id: this.dag_id,
             instance_names: this.selected_kaapana_instance_names,
             conf_data: this.formatFormData(this.formData),
@@ -435,10 +435,10 @@
           })
           .then((response) => {
             console.log(response);
-            this.$router.push({ name: 'experiments' });
+            this.$router.push({ name: 'workflows' });
             this.$notify({
               type: 'success',
-              title: "Experiment successfully created!",
+              title: "Workflow successfully created!",
             })
             this.reset()
             this.$emit('successful')
@@ -447,7 +447,7 @@
             console.log(err);
             this.$notify({
               type: 'error',
-              title: "An error occured during the experiment creation!",
+              title: "An error occured during the workflow creation!",
             })
           });
       }

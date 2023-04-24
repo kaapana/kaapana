@@ -26,7 +26,7 @@
               Trigger the dicom-upload or itk2dicom workflow to finalize the upload. Alternatively, use the uploaded data in a different workflow.
             </v-card-text>
             <v-card-actions>
-              <v-btn text to="experiments">Execute upload workflow</v-btn>
+              <v-btn text to="workflows">Execute upload workflow</v-btn>
             </v-card-actions>
           </v-card>
         </v-col>

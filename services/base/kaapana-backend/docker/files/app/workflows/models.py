@@ -41,18 +41,18 @@ class KaapanaInstance(Base):
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
-    automatic_exp_execution = Column(Boolean(), default=False, index=True)
+    automatic_workflow_execution = Column(Boolean(), default=False, index=True)
 
     # one-to-many relationships
-    experiments = relationship(
-        "Experiment", back_populates="kaapana_instance", cascade="all, delete"
+    workflows = relationship(
+        "Workflow", back_populates="kaapana_instance", cascade="all, delete"
     )
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
     datasets = relationship(
         "Dataset", back_populates="kaapana_instance", cascade="all, delete"
     )
     # many-to-one relationships
-    experiment_in_which_involved = Column(
+    workflow_in_which_involved = Column(
         String(64), index=True
     )  # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
 
@@ -69,26 +69,26 @@ class KaapanaInstance(Base):
         )
 
 
-class Experiment(Base):
-    __tablename__ = "experiment"
-    exp_id = Column(String(64), primary_key=True)
-    experiment_name = Column(String(64))
-    # dag_id of jobs which are summarized in that experiment (only makes sense for service experiments)
+class Workflow(Base):
+    __tablename__ = "workflow"
+    workflow_id = Column(String(64), primary_key=True)
+    workflow_name = Column(String(64))
+    # dag_id of jobs which are summarized in that workflow (only makes sense for service workflows)
     dag_id = Column(String(64))
-    # external_experiment_id = Column(Integer)
+    # external_workflow_id = Column(Integer)
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_execution = Column(Boolean(), default=False, index=True)
-    service_experiment = Column(Boolean(), default=False, index=True)
+    service_workflow = Column(Boolean(), default=False, index=True)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
-    kaapana_instance = relationship("KaapanaInstance", back_populates="experiments")
+    kaapana_instance = relationship("KaapanaInstance", back_populates="workflows")
     # one-to-many relationships
     involved_kaapana_instances = Column(String(51200), default="[]", index=True)
-    experiment_jobs = relationship(
-        "Job", back_populates="experiment"
+    workflow_jobs = relationship(
+        "Job", back_populates="workflow"
     )  # , cascade="all, delete")
 
 
@@ -111,16 +111,16 @@ class Job(Base):
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
-    exp_id = Column(String, ForeignKey("experiment.exp_id"))
-    experiment = relationship("Experiment", back_populates="experiment_jobs")
+    workflow_id = Column(String, ForeignKey("workflow.workflow_id"))
+    workflow = relationship("Workflow", back_populates="workflow_jobs")
 
     # https://www.johbo.com/2016/creating-a-partial-unique-index-with-sqlalchemy-in-postgresql.html
     __table_args__ = (
         Index(
-            "ix_kaapana_id_exp_id_external_job_id",  # Index name
+            "ix_kaapana_id_workflow_id_external_job_id",  # Index name
             "kaapana_id",
-            "exp_id",
-            "external_job_id",  # Columns which are part of the index; extended with 'exp_id'
+            "workflow_id",
+            "external_job_id",  # Columns which are part of the index; extended with 'workflow_id'
             unique=True,
             postgresql_where=(external_job_id.isnot(None)),
         ),  # The condition

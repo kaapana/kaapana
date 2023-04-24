@@ -36,41 +36,32 @@ const routes = [
         },
     },
     {
-        name: 'experiment-execution',
-        path: '/experiment-execution',
-        component: () => import('@/views/ExperimentExecution.vue'),
-        title: 'Experiment Execution',
+        name: 'workflow-execution',
+        path: '/workflow-execution',
+        component: () => import('@/views/WorkflowExecution.vue'),
+        title: 'Workflow Execution',
         permissions: {
             isPublic: false,
         },
     },
     {
-        name: 'experiments',
-        path: '/experiments',
-        component: () => import('@/views/Experiments.vue'),
-        title: 'Experiment',
+        name: 'workflows',
+        path: '/workflows',
+        component: () => import('@/views/Workflows.vue'),
+        title: 'Workflow',
         permissions: {
             isPublic: false,
         },
     },
     {
-        name: 'federated-learning',
-        path: '/federated-learning',
-        component: () => import('@/views/FederatedLearning.vue'),
+        name: 'runner-instances',
+        path: '/runner-instances',
+        component: () => import('@/views/RunnerInstances.vue'),
         title: 'Runner Instances',
         permissions: {
             isPublic: false,
         },
     },
-    // {
-    //     name: 'federated',
-    //     path: '/federated',
-    //     component: () => import('@/views/Federated.vue'),
-    //     title: 'Federated',
-    //     permissions: {
-    //         isPublic: false,
-    //     },
-    // },
     {
         name: 'results-browser',
         path: '/results-browser',

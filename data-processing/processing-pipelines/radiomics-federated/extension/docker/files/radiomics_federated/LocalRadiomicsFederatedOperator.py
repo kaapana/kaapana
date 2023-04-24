@@ -62,10 +62,10 @@ class JsonWriter(object):
     def _load_json(filename):
         try:
             with open(filename) as json_file:
-                exp_data = json.load(json_file)
+                workflow_data = json.load(json_file)
         except FileNotFoundError:
-            exp_data = []
-        return exp_data
+            workflow_data = []
+        return workflow_data
 
     def __init__(self, log_dir) -> None:
         self.filename = os.path.join(log_dir, 'fl_stats.json')
@@ -73,9 +73,9 @@ class JsonWriter(object):
         # not accumulating anything because this leads to a decrease in speed over many epochs!
 
     def append_data_dict(self, data_dict):
-        exp_data = JsonWriter._load_json(self.filename)
-        exp_data.append(data_dict)
-        JsonWriter._write_json(self.filename, exp_data)
+        workflow_data = JsonWriter._load_json(self.filename)
+        workflow_data.append(data_dict)
+        JsonWriter._write_json(self.filename, workflow_data)
 
 # Todo move in Jonas library as normal function 
 def requests_retry_session(
@@ -227,7 +227,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
         self.client_url = 'http://federated-backend-service.base.svc:5000/client'
         with requests.Session() as s:
-            r = requests_retry_session(session=s).get(f'{self.client_url}/client-kaapana-instance')
+            r = requests_retry_session(session=s).get(f'{self.client_url}/kaapana-instance')
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.client_network = r.json()
 
@@ -243,7 +243,7 @@ class KaapanaFederatedTrainingBase(ABC):
             self.federated_round_start = 0
         print(instance_names)
         with requests.Session() as s:
-            r = requests_retry_session(session=s).post(f'{self.client_url}/get-remote-kaapana-instances', json={'instance_names': instance_names})
+            r = requests_retry_session(session=s).post(f'{self.client_url}/get-kaapana-instances', json={'instance_names': instance_names})
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.remote_sites = r.json()
 

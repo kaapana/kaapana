@@ -14,9 +14,9 @@ from fastapi import (
 from sqlalchemy.orm import Session
 from app.dependencies import get_db
 
-from app.experiments import crud
-from app.experiments import schemas
-from app.experiments.utils import requests_retry_session
+from app.workflows import crud
+from app.workflows import schemas
+from app.workflows.utils import requests_retry_session
 from app.config import settings
 from urllib3.util import Timeout
 

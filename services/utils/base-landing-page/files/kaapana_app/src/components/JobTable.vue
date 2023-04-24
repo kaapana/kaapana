@@ -162,11 +162,7 @@
         jobs: {
           type: Array,
           required: true
-        },
-        remote: {
-          type: Boolean,
-          default: true
-        },
+        }
       },
 
       computed: {
@@ -333,7 +329,7 @@
         },
         async getJobTaskinstancesAPI(job_id) {
           await kaapanaApiService
-            .federatedClientApiGet("/get_job_taskinstances", {
+            .federatedClientApiGet("/get-job-taskinstances", {
               job_id,
             })
             .then((response) => {

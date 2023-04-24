@@ -14,7 +14,7 @@
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
           <div v-if="settings.navigationMode">
-          <v-list-item :to="'/experiments'" v-if="isAuthenticated">
+          <v-list-item :to="'/workflows'" v-if="isAuthenticated">
             <v-list-item-action>
               <v-icon>mdi-gamepad-variant</v-icon>
             </v-list-item-action>
@@ -201,10 +201,10 @@ export default Vue.extend({
     workflowsList: [
       ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
       ['Data Curation', 'mdi-view-gallery-outline', '/datasets'],
-      ['Experiment Execution', 'mdi-play-box', '/experiment-execution'],
-      ['Experiment List', 'mdi-clipboard-text-outline', '/experiments'],
-      ['Experiment Results', 'mdi-chart-bar-stacked', '/results-browser'],
-      ['Runner Instances', 'mdi-vector-triangle', '/federated-learning'],
+      ['Workflow Execution', 'mdi-play-box', '/workflow-execution'],
+      ['Workflow List', 'mdi-clipboard-text-outline', '/workflows'],
+      ['Workflow Results', 'mdi-chart-bar-stacked', '/results-browser'],
+      ['Runner Instances', 'mdi-vector-triangle', '/runner-instances'],
       ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
     ]
   }),

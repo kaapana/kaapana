@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from opensearchpy import OpenSearch
 
 from app.config import settings
-from app.experiments.utils import (
+from app.workflows.utils import (
     requests_retry_session,
     TIMEOUT,
     raise_kaapana_connection_error,

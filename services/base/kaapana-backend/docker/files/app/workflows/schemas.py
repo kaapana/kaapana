@@ -8,7 +8,7 @@ from pydantic import BaseModel, validator
 class KaapanaInstanceBase(BaseModel):
     ssl_check: bool
     automatic_update: bool = False
-    automatic_exp_execution: bool = False
+    automatic_workflow_execution: bool = False
 
 
 class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
@@ -32,7 +32,7 @@ class RemoteKaapanaInstanceUpdateExternal(BaseModel):
     allowed_dags: dict
     allowed_datasets: list
     automatic_update: bool = False
-    automatic_exp_execution: bool = False
+    automatic_workflow_execution: bool = False
 
 
 class KaapanaInstance(KaapanaInstanceBase):
@@ -48,7 +48,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     allowed_datasets: Optional[str]
     time_created: datetime.datetime
     time_updated: datetime.datetime
-    experiment_in_which_involved: Optional[str]
+    workflow_in_which_involved: Optional[str]
 
     @validator("allowed_dags")
     def convert_allowed_dags(cls, v):
@@ -136,13 +136,13 @@ class Job(JobBase):
 class JobCreate(JobBase):
     conf_data: dict = {}
     kaapana_instance_id: int
-    # experiment_id: int = None
+    # workflow_id: int = None
     username: str = None
     automatic_execution: Optional[bool] = False
 
 
 class JobUpdate(JobBase):
-    job_id: int  # not defined in model Experiment but still needed in client.py and crud.py
+    job_id: int  # not defined in model Workflow but still needed in client.py and crud.py
     # status: str
     # run_id: str = None
     # description: str = None
@@ -160,7 +160,7 @@ class FilterKaapanaInstances(BaseModel):
     federated: bool = False
     dag_id: str = None
     instance_names: List = []
-    experiment_name: str = None
+    workflow_name: str = None
 
 
 class JsonSchemaData(FilterKaapanaInstances):
@@ -222,17 +222,17 @@ class AllowedDataset(DatasetBase):
         orm_mode = True
 
 
-class ExperimentBase(BaseModel):
-    exp_id: str = None
-    experiment_name: str = None
-    experiment_status: str = None
-    # external_experiment_id: int = None # experiment_id on another system
-    # dag_id of jobs which are summarized in that experiment (only makes sense for service experiments)
+class WorkflowBase(BaseModel):
+    workflow_id: str = None
+    workflow_name: str = None
+    workflow_status: str = None
+    # external_workflow_id: int = None # workflow_id on another system
+    # dag_id of jobs which are summarized in that workflow (only makes sense for service workflows)
     dag_id: Optional[str] = None
-    service_experiment: Optional[bool] = False
+    service_workflow: Optional[bool] = False
 
 
-class Experiment(ExperimentBase):
+class Workflow(WorkflowBase):
     username: str = None
     status: str = None
     time_created: datetime.datetime = None
@@ -258,39 +258,39 @@ class Experiment(ExperimentBase):
         orm_mode = True
 
 
-class ExperimentCreate(ExperimentBase):
+class WorkflowCreate(WorkflowBase):
     username: str = None
     kaapana_instance_id: int
-    experiment_jobs: List = []  # List[Job] = []
+    workflow_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
 
 
-class ExperimentUpdate(ExperimentBase):
-    experiment_name: Optional[str] = None  # ... or experiment_name
-    experiment_jobs: List = []
+class WorkflowUpdate(WorkflowBase):
+    workflow_name: Optional[str] = None  # ... or workflow_name
+    workflow_jobs: List = []
 
 
-class ExperimentWithKaapanaInstance(Experiment):
+class WorkflowWithKaapanaInstance(Workflow):
     kaapana_instance: KaapanaInstance = None
     # involved_kaapana_instances: list = []
 
 
-class KaapanaInstanceWithExperiments(KaapanaInstance):
-    experiments: List[Experiment] = []
+class KaapanaInstanceWithWorkflows(KaapanaInstance):
+    workflows: List[Workflow] = []
 
 
-class JobWithExperiment(Job):
-    experiment: Experiment = None
+class JobWithWorkflow(Job):
+    workflow: Workflow = None
     # involved_kaapana_instances: Optional[list]  # idk y?
 
 
-class JobWithExperimentWithKaapanaInstance(JobWithKaapanaInstance):
-    experiment: Experiment = None
+class JobWithWorkflowWithKaapanaInstance(JobWithKaapanaInstance):
+    workflow: Workflow = None
 
 
-class ExperimentWithJobs(Experiment):
+class WorkflowWithJobs(Workflow):
     jobs: List[Job] = []
 
 
-class ExperimentWithKaapanaInstanceWithJobs(ExperimentWithKaapanaInstance):
-    experiment_jobs: List[Job] = []
+class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
+    workflow_jobs: List[Job] = []

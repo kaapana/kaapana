@@ -80,8 +80,8 @@ ui_forms = {
                 "default": TASK_NAME,
                 "required": True
             },
-            "experiment_name": {
-                "title": "Experiment name",
+            "workflow_name": {
+                "title": "Workflow name",
                 "description": "Specify a name for the training task",
                 "type": "string",
                 "required": False

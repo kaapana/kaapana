@@ -19,10 +19,10 @@
                   align="left"
                 >
                   <!-- former old KaapanaInstance-->
-                  <RemoteKaapanaInstance 
+                  <KaapanaInstance 
                     :instance="instance"
                     @refreshView="getRemoteInstances()" 
-                  ></RemoteKaapanaInstance>
+                  ></KaapanaInstance>
                 </v-col>
               </v-row>
             </v-container>
@@ -36,35 +36,33 @@
   
   <script>
   import Vue from "vue";
-  import { mapGetters } from "vuex";
   import kaapanaApiService from "@/common/kaapanaApi.service";
 
   import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
-  import RemoteKaapanaInstance  from "@/components/RemoteKaapanaInstance.vue";
+  import KaapanaInstance  from "@/components/KaapanaInstance.vue";
   import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
 
   export default Vue.extend({
     components: {
       AddRemoteInstance,
-      RemoteKaapanaInstance,
+      KaapanaInstance,
       SyncRemoteInstances
     },
     data: () => ({
+      polling: 0,
       remoteInstances: {},
     }),
 
     mounted () {
-      this.getRemoteInstances()
+      this.getRemoteInstances();
+      this.startExtensionsInterval()
     },
 
     methods: {
-      refreshRemote () {
-        this.getRemoteInstances()
-      },
       // API calls
       getRemoteInstances() {
         kaapanaApiService
-          .federatedClientApiPost("/get-remote-kaapana-instances")
+          .federatedClientApiPost("/get-kaapana-instances")
           .then((response) => {
             this.remoteInstances = response.data;
           })
@@ -72,10 +70,21 @@
             console.log(err);
           });
       },
-      // TODO: API call to fill editRemoteInstance() with life
-      // putRemoteInstance() {
-      // }
-    }
+      clearExtensionsInterval() {
+        window.clearInterval(this.polling);
+      },
+      startExtensionsInterval() {
+        this.polling = window.setInterval(() => {
+          // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
+          // if (!this.$refs.workflowexecution.dialogOpen) {
+          this.getRemoteInstances();
+          // }
+        }, 15000);
+      }
+    },
+    beforeDestroy() {
+      this.clearExtensionsInterval()
+    },
   });
 </script>
   <style lang="scss">

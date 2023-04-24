@@ -1,14 +1,36 @@
 <template>
   <v-container text-left fluid>
-    <h2> Federated Learning </h2>
-    <LocalKaapanaInstance
-      v-if="clientInstance"
-      :instance="clientInstance"
-      :remote="false"
-      @refreshView="refreshClient()"
-      @ei="editClientInstance"
-    ></LocalKaapanaInstance>
-    <OverviewRemoteInstances></OverviewRemoteInstances>
+    <v-row>
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>
+            <!-- v-col cols=2 align="left"> Remote Instances </v-col -->
+            <p class="mx-4 my-2">Runner Instances</p>
+            <add-remote-instance class="mx-4" @refreshRemoteFromAdding="getRemoteInstances()"></add-remote-instance>
+            <sync-remote-instances class="mx-4" @refreshRemoteFromSyncing="getRemoteInstances()"></sync-remote-instances>
+          </v-card-title>
+          <v-card-text>
+            <v-container fluid="">
+              <v-row dense="">
+                <v-col 
+                  v-for="instance in remoteInstances" 
+                  :key="instance.id"
+                  cols="6"
+                  align="left"
+                >
+                  <!-- former old KaapanaInstance-->
+                  <RemoteKaapanaInstance 
+                    :instance="instance"
+                    @refreshView="getRemoteInstances()" 
+                  ></RemoteKaapanaInstance>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-card-text>
+          <v-card-actions></v-card-actions>
+        </v-card>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
   
@@ -16,57 +38,46 @@
   import Vue from "vue";
   import { mapGetters } from "vuex";
   import kaapanaApiService from "@/common/kaapanaApi.service";
-  
-  import LocalKaapanaInstance  from "@/components/LocalKaapanaInstance.vue";
-  import OverviewRemoteInstances from "@/components/OverviewRemoteInstances.vue";
-  
+
+  import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
+  import RemoteKaapanaInstance  from "@/components/RemoteKaapanaInstance.vue";
+  import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
+
   export default Vue.extend({
     components: {
-      LocalKaapanaInstance,
-      OverviewRemoteInstances,
+      AddRemoteInstance,
+      RemoteKaapanaInstance,
+      SyncRemoteInstances
     },
     data: () => ({
-      clientInstance: {},
+      remoteInstances: {},
     }),
-    created() {
-    },
+
     mounted () {
-      console.log("Hello, I am the Federated Learning View!")
-      this.refreshClient();
+      this.getRemoteInstances()
     },
-    watch: {
-    },
-    computed: {
-    },
+
     methods: {
-      // General Methods
-      refreshClient() {
-        this.getClientInstance()
+      refreshRemote () {
+        this.getRemoteInstances()
       },
-
-      // Methods for Client Instance
-      editClientInstance(instance) {
-        this.clientPost = instance
-        this.clientPost.fernet_encrypted = false
-        this.clientDialog = true
-        this.clientUpdate = true
-      },
-
-      // API Calls
-      getClientInstance() {
+      // API calls
+      getRemoteInstances() {
         kaapanaApiService
-          .federatedClientApiGet("/client-kaapana-instance")
+          .federatedClientApiPost("/get-remote-kaapana-instances")
           .then((response) => {
-            this.clientInstance = response.data;
+            this.remoteInstances = response.data;
           })
           .catch((err) => {
-            this.clientInstance = {}
+            console.log(err);
           });
       },
-    },
+      // TODO: API call to fill editRemoteInstance() with life
+      // putRemoteInstance() {
+      // }
+    }
   });
-  </script>
-  
+</script>
   <style lang="scss">
   
   </style>

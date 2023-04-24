@@ -25,7 +25,6 @@ export default {
 
   methods: {
     doSyncing() {
-      this.$emit('refreshRemoteFromSyncing')
       this.checkForRemoteUpdates()
     },
     checkForRemoteUpdates() {
@@ -37,8 +36,8 @@ export default {
             type: 'success',
             title: 'Successfully checked for remote updates',
             // text: 
-          })
-          // this.$emit('refreshView')
+          }),
+          this.$emit('refreshRemoteFromSyncing')
         })
         .catch((err) => {
           console.log(err);

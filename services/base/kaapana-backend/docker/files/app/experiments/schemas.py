@@ -157,7 +157,6 @@ class KaapanaInstanceWithJobs(KaapanaInstance):
 
 
 class FilterKaapanaInstances(BaseModel):
-    remote: bool = True
     federated: bool = False
     dag_id: str = None
     instance_names: List = []
@@ -211,6 +210,17 @@ class Dataset(DatasetBase):
     class Config:
         orm_mode = True
 
+class AllowedDataset(DatasetBase):
+    username: str = None
+    identifiers: Optional[str]
+
+    @validator("identifiers")
+    def convert_identifiers(cls, v):
+        return json.loads(v)
+    
+    class Config:
+        orm_mode = True
+
 
 class ExperimentBase(BaseModel):
     exp_id: str = None
@@ -229,7 +239,6 @@ class Experiment(ExperimentBase):
     time_updated: datetime.datetime = None
     automatic_execution: Optional[bool] = False
     involved_kaapana_instances: str = None  # List = []
-    dataset_name: str = None
 
     @validator("time_created")
     def convert_time_created(cls, v):
@@ -254,7 +263,6 @@ class ExperimentCreate(ExperimentBase):
     kaapana_instance_id: int
     experiment_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
-    dataset_name: str = None
 
 
 class ExperimentUpdate(ExperimentBase):

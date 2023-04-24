@@ -143,8 +143,7 @@
 
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
-import KaapanaInstance  from "@/components/KaapanaInstance.vue";
-import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
+// import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
 import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
 import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
 import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
@@ -154,8 +153,7 @@ export default {
 name: 'ExperimentTable',
 
 components: {
-  KaapanaInstance,
-  LocalKaapanaInstance,
+  // LocalKaapanaInstance,
   AddRemoteInstance,
   ViewRemoteInstances,
   SyncRemoteInstances,

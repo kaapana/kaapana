@@ -1,15 +1,30 @@
 
 <template lang="pug">
-  v-card(max-width="800px")
-    v-card-title 
+  v-card
+    v-card-title
+     v-row(align="center")
       v-col(align="left")
         p Instance name: {{ instance.instance_name }}
+          v-tooltip(bottom v-if="remote")
+            template(v-slot:activator="{ on, attrs }")
+              v-btn(v-bind="attrs" v-on="on" @click='deleteInstance()' small icon)
+                v-icon(color="red" dark) mdi-trash-can-outline
+            span delete instance
+          v-dialog(v-model='dialogDelete' max-width='500px')
+            v-card
+              v-card-title.text-h5 Are you sure you want to delete this instance. With it all corresponding jobs are deleted?
+              v-card-actions
+                v-spacer
+                v-btn(color='primary' text='' @click='closeDelete') Cancel
+                v-btn(color='primary' text='' @click='deleteInstanceConfirm') OK
+                v-spacer    
       v-col(align="right")
-        v-tooltip(v-if="remote" bottom='')
-          template(v-slot:activator='{ on, attrs }')
-            v-icon(:color="diff_updated" small dark='' v-bind='attrs' v-on='on')
-               | mdi-circle
-          span Time since last update: green: 5 min, yellow: 1 hour, orange: 5 hours, else red)
+        p
+          v-tooltip(v-if="remote" bottom='')
+            template(v-slot:activator='{ on, attrs }')
+              v-icon(:color="diff_updated" small dark='' v-bind='attrs' v-on='on')
+                | mdi-circle
+            span Time since last update: green: 5 min, yellow: 1 hour, orange: 5 hours, else red
     v-card-text(class=text-primary)
       //- Network or rather port: edit mode
       v-row(v-if="edit_port" align="center")
@@ -17,13 +32,13 @@
         v-col( align="left")
           v-text-field(v-model="instancePost.port" label="Port" required="")
         v-col(cols=1 align="center")
-          v-btn(@click="edit_port = !edit_port; updateRemoteInstanceForm();" small icon)
+          v-btn(@click="edit_port = !edit_port; updateInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
         v-col(cols=4 align="left") Network: 
         v-col( align="left") {{ instancePost.protocol }}://{{ instancePost.host }}:{{ instancePost.port }}
-        v-col(cols=1 align="center")
+        v-col(v-if="remote" cols=1 align="center")
           v-btn(@click="edit_port = !edit_port" small icon)
             v-icon mdi-pencil   
       //- Token: edit mode
@@ -32,13 +47,13 @@
         v-col( align="left")
           v-text-field(v-model="instancePost.token" label="Token" required="")
         v-col(cols=1 align="center")
-          v-btn(@click="edit_token = !edit_token; updateRemoteInstanceForm();" small icon)
+          v-btn(@click="edit_token = !edit_token; updateInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode 
       v-row(v-else)
         v-col(cols=4 align="left") Token: 
         v-col( align="left") {{ instancePost.token }}
-        v-col(cols=1 align="center")
+        v-col(v-if="remote" cols=1 align="center")
           v-btn(@click="edit_token = !edit_token" small icon)
             v-icon mdi-pencil
       v-row 
@@ -55,7 +70,7 @@
         v-col( align="left")
           v-checkbox(v-model="instancePost.ssl_check" label="SSL"  required='')
         v-col(cols=1 align="center")
-          v-btn(@click="edit_ssl_check = !edit_ssl_check; updateRemoteInstanceForm();" small icon)
+          v-btn(@click="edit_ssl_check = !edit_ssl_check; updateInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -69,10 +84,11 @@
       //- Fernet key: edit mode
       v-row(v-if="edit_fernet_encrypted" align="center")
         v-col(cols=4 align="left") Fernet key:
-        v-col( align="left")
-          v-checkbox(v-model="instancePost.fernet_encrypted" label="Fernet encrypted"  required='')
+        v-col(align="left")
+          v-checkbox(v-if="!remote" v-model="instancePost.fernet_encrypted" label="Fernet encrypted"  required='')
+          v-text-field(v-if="remote" v-model="instancePost.fernet_key" label="Fernet key")
         v-col(cols=1 align="center")
-          v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateRemoteInstanceForm();" small icon)
+          v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted; updateInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
@@ -82,46 +98,74 @@
         v-col(cols=1 align="center")
           v-btn(@click="edit_fernet_encrypted = !edit_fernet_encrypted" small icon)
             v-icon mdi-pencil
-      //- Sync remote jobs: display mode
-      v-row
+          //- Sync remote: edit mode
+      v-row(v-if="edit_automatic_update" align="center")
+        v-col(cols=4  align="left") Automatically sync remotes:
+        v-col(align="left")
+          v-checkbox(v-model="instancePost.automatic_update" label="Check automatically for remote updates")
+        v-col(cols=1 align="center")
+          v-btn(@click="edit_automatic_update = !edit_automatic_update; updateInstanceForm();" small icon)
+            v-icon mdi-content-save
+      //- display mode
+      v-row(v-else)
         v-col(cols=4 align="left") Automatically sync remotes:
         v-col( align="left")
           v-icon(v-if="instancePost.automatic_update" small color="green") mdi-check-circle
           v-icon(v-if="!instancePost.automatic_update" small) mdi-close-circle
+        v-col(v-if="!remote" cols=1 align="center")
+          v-btn(@click="edit_automatic_update = !edit_automatic_update" small icon)
+            v-icon mdi-pencil
         //- v-col(cols=1 align="center")
       //- Autmoatically execute pending jobs: display mode
-      v-row
+      v-row(v-if="edit_automatic_exp_execution" align="center")
+        v-col(cols=4  align="left") Automatically start remote experiments:
+        v-col(align="left")
+          v-checkbox(v-model="instancePost.automatic_exp_execution" label="Check automatically for remote updates")
+        v-col(cols=1 align="center")
+          v-btn(@click="edit_automatic_exp_execution = !edit_automatic_exp_execution; updateInstanceForm();" small icon)
+            v-icon mdi-content-save
+      //- display mode
+      v-row(v-else)
         v-col(cols=4 align="left") Automatically start remote experiments:
         v-col( align="left")
           v-icon(v-if="instancePost.automatic_exp_execution" small color="green") mdi-check-circle
           v-icon(v-if="!instancePost.automatic_exp_execution" small) mdi-close-circle
-        //- v-col(cols=1 align="center")
-      //- Allowed DAGs: display mode
-      v-row
+        v-col(v-if="!remote" cols=1 align="center")
+          v-btn(@click="edit_automatic_exp_execution = !edit_automatic_exp_execution" small icon)
+            v-icon mdi-pencil
+      //- Allowed DAGs: edit mode
+      v-row(v-if="edit_allowed_dags" align="center")
         v-col(cols=4 align="left") Allowed DAGs:
-        v-col( align="left")
+        v-col(align="left")
+          v-select(v-model='instancePost.allowed_dags' :items='dags' label='Allowed dags' multiple='' chips='' hint='Which dags are allowed to be triggered' persistent-hint='')
+          //- span( v-for='dag in instance.allowed_dags') {{dag}}
+        v-col(cols=1 align="center")
+          v-btn(@click="edit_allowed_dags = !edit_allowed_dags; updateInstanceForm();" small icon)
+            v-icon mdi-content-save
+      //- display mode
+      v-row(v-else)
+        v-col(cols=4 align="left") Allowed DAGs:
+        v-col(align="left")
           v-chip(v-for='dag in instancePost.allowed_dags' small) {{dag}}
-        //- v-col(cols=1 align="center")
-      //- Allowed Datasets: display mode
-      v-row
+        v-col(v-if="!remote" cols=1 align="center")
+          v-btn(@click="edit_allowed_dags = !edit_allowed_dags" small icon)
+            v-icon mdi-pencil
+      //- Allowed Datasets: edit mode
+      v-row(v-if="edit_allowed_datasets" align="center")
         v-col(cols=4 align="left") Allowed Datasets:
-        v-col( align="left")
-          v-chip(v-for='dataset in instancePost.allowed_datasets' small) {{dataset}}
-        //- v-col(cols=1 align="center")
-    v-card-actions
-      v-tooltip(bottom)
-        template(v-slot:activator="{ on, attrs }")
-          v-btn(v-bind="attrs" v-on="on" @click='deleteInstance()' small icon)
-           v-icon(color="red" dark) mdi-trash-can-outline
-        span delete instance
-    v-dialog(v-model='dialogDelete' max-width='500px')
-      v-card
-        v-card-title.text-h5 Are you sure you want to delete this instance. With it all corresponding jobs are deleted?
-        v-card-actions
-          v-spacer
-          v-btn(color='primary' text='' @click='closeDelete') Cancel
-          v-btn(color='primary' text='' @click='deleteInstanceConfirm') OK
-          v-spacer
+        v-col(align="left")
+          v-select(v-model='instancePost.allowed_datasets' :items='datasets' label='Allowed datasets' multiple='' chips='' hint='Which datasets are allowed to be used' persistent-hint='')
+        v-col(cols=1 align="center")
+          v-btn(@click="edit_allowed_datasets = !edit_allowed_datasets; updateInstanceForm();" small icon)
+            v-icon mdi-content-save
+      //- display mode
+      v-row(v-else)
+        v-col(cols=4 align="left") Allowed Datasets:
+        v-col(align="left")
+          v-chip(v-for='dataset in instancePost.allowed_datasets' small) {{dataset.name}}
+        v-col(v-if="!remote" cols=1 align="center")
+          v-btn(@click="edit_allowed_datasets = !edit_allowed_datasets" small icon)
+            v-icon mdi-pencil
   
 </template>
   
@@ -139,17 +183,21 @@
       // clientDialog: false,
       dags: [],
       datasets: [],
-      instancePost: {
-        ssl_check: false,
-        automatic_update: false,
-        automatic_exp_execution: false,
-        fernet_encrypted: false,
-        allowed_dags: [],
-        allowed_datasets: []
-      },
-      edit_ssl_check: false,
+      // instancePost: {
+      //   ssl_check: false,
+      //   automatic_update: false,
+      //   automatic_exp_execution: false,
+      //   fernet_encrypted: false,
+      //   allowed_dags: [],
+      //   allowed_datasets: []
+      // },
+      edit_allowed_dags: false,
+      edit_allowed_datasets: false,
+      edit_automatic_update: false,
+      edit_automatic_exp_execution: false,
       edit_fernet_encrypted: false,
-      edit_port: false,
+      edit_port: false,      
+      edit_ssl_check: false,
       edit_token: false,
     }),
     props: {
@@ -157,24 +205,42 @@
         type: Object,
         required: true
       },
-      remote: { // false for client instance; true for remote instances
-        type: Boolean,
-        required: true
-      },
-      time_updated: { // needed to always re-render the remote instance whenever parent component gets remote instance from backend
-        type: String,
-        required: true
-      },
+      // remote: { // false for client instance; true for remote instances
+      //   type: Boolean,
+      //   required: true
+      // },
+      // time_updated: { // needed to always re-render the remote instance whenever parent component gets remote instance from backend
+      //   type: String,
+      //   required: true
+      // },
     },
-    mounted () {
-      this.lets_init()
-    },
+    // mounted () {
+    //   this.lets_init()
+    // },
     watch: {
       dialogDelete (val) {
         val || this.closeDelete()
       },
+      edit_allowed_dags () {
+        this.getDags()
+      },
+      edit_allowed_datasets () {
+        this.getDatasets()
+      }
     },
     computed: {
+      remote() {
+        return this.instance.remote
+      },
+      instancePost (){
+        console.log('instance', this.instance)
+        if (this.instance.fernet_key != "deactivated") {
+          this.instance.fernet_encrypted = true
+        } else {
+          this.instance.fernet_encrypted = false
+        }
+        return this.instance
+      }, 
       instance_time_created() {
         return new Date(this.instance.time_created * 1000).toUTCString();
       },
@@ -206,22 +272,8 @@
       }
     },
     methods:{
-      lets_init () {
-        this.instance_names = []
-        this.experiment_name = null
-        this.dag_id = null
-        this.external_instance_names = []
-        this.instancePost = this.instance
-        this.instancePost.fernet_encrypted = false
-        console.log('Getting Dags and Datasets')
-        this.getDags();
-        this.getDatasets();
-      },
       closeDelete() {
         this.dialogDelete = false
-      },
-      editInstance() {
-        this.$emit('ei', this.instance)
       },
       deleteInstanceConfirm () {
         let params = {
@@ -242,7 +294,9 @@
       },
       getDags() {
         kaapanaApiService
-          .federatedClientApiPost("/get-dags", {remote: false})
+          .federatedClientApiPost("/get-dags", {
+            instance_names: [this.instance.instance_name]
+          })
           .then((response) => {
             this.dags = response.data;
           })
@@ -255,15 +309,20 @@
           this.datasets = _datasetNames;
         })
       },
-      updateRemoteInstanceForm() {
+      updateInstanceForm() {
+        let target_endpoint = "/client-kaapana-instance"
+        if (this.remote) {
+          target_endpoint = "/remote-kaapana-instance"
+        }
         kaapanaApiService
-          .federatedClientApiPut("/remote-kaapana-instance", this.instancePost)
+          .federatedClientApiPut(target_endpoint, this.instancePost)
           .then((response) => {
-            console.log("ClientForm updated")
+            console.log("Updated", response)
           })
           .catch((err) => {
             console.log(err);
           });
+
       },
     }
   }

@@ -257,6 +257,9 @@ def abort_dag_run(dag_id, run_id):
 
     all_tis = [tis_r, tis, tis_n]
 
+    # prevent DAG from restarting due to set 'retries' argument
+    dag.default_args["retries"] = 0
+
     message.append(f"Result of Job abortion: {all_tis}")
     response = jsonify(message=message)
     return response

@@ -1,227 +1,229 @@
 <template>
-  <v-container fluid class="content pa-0">
-    <v-container fluid class="overview-shared pa-0">
-      <v-container class="pa-0" fluid>
-        <v-card class="rounded-0">
-          <div style="padding: 10px 10px 10px 10px">
-            <v-row dense align="center">
-              <v-col cols="1" align="center">
-                <v-icon>mdi-folder</v-icon>
-              </v-col>
-              <v-col>
-                <v-autocomplete
-                  v-model="datasetName"
-                  :items="datasetNames"
-                  label="Select Dataset"
-                  clearable
-                  hide-details
-                  return-object
-                  single-line
-                  dense
-                  @click:clear="datasetName = null"
-                >
-                </v-autocomplete>
-              </v-col>
-            </v-row>
-            <Search
-              ref="search"
-              :datasetName="datasetName"
-              @search="(query) => updatePatients(query)"
-            />
-          </div>
-        </v-card>
-        <v-card class="rounded-0 elevation-0">
-          <v-divider></v-divider>
-          <div style="padding-left: 10px; padding-right: 10px">
-            <TagBar />
-          </div>
-          <v-divider></v-divider>
-        </v-card>
-      </v-container>
-      <!-- Gallery View -->
-      <v-container fluid class="pa-0">
-        <!-- Loading -->
-        <v-skeleton-loader
-          v-if="isLoading"
-          class="mx-auto"
-          type="list-item@100"
-        >
-        </v-skeleton-loader>
-
-        <!-- Data available -->
-        <v-container
-          fluid
-          class="pa-0"
-          v-else-if="
-            (!isLoading &&
-              Object.entries(patients).length > 0 &&
-              settings.datasets.structured) ||
-            (!isLoading &&
-              seriesInstanceUIDs.length > 0 &&
-              !settings.datasets.structured)
-          "
-        >
-          <VueSelecto
-            dragContainer=".elements"
-            :selectableTargets="['.selecto-area .v-card']"
-            :hitRate="0"
-            :selectByClick="true"
-            :selectFromInside="true"
-            :continueSelect="false"
-            :toggleContinueSelect="continueSelectKey"
-            :ratio="0"
-            @dragStart="onDragStart"
-            @select="onSelect"
-          >
-          </VueSelecto>
-          <v-container fluid class="pa-0">
-            <v-card class="rounded-0 elevation-0">
-              <v-card-title style="padding-left: 30px; padding-right: 30px">
-                <v-row class="pa-0">
-                  <v-col class="pa-0" align="right">
-                    {{ this.identifiersOfInterst.length }} selected
-                    <v-tooltip bottom>
-                      <template v-slot:activator="{ on }">
-                        <span v-on="on">
-                          <v-btn
-                            :disabled="identifiersOfInterst.length == 0"
-                            icon
-                          >
-                            <v-icon
-                              v-on="on"
-                              icon
-                              color="blue"
-                              @click="saveAsDatasetDialog = true"
-                            >
-                              mdi-plus
-                            </v-icon>
-                          </v-btn>
-                        </span>
-                      </template>
-                      <span>Save as Dataset</span>
-                    </v-tooltip>
-                    <v-tooltip bottom>
-                      <template v-slot:activator="{ on }">
-                        <span v-on="on">
-                          <v-btn
-                            :disabled="identifiersOfInterst.length == 0"
-                            icon
-                          >
-                            <v-icon
-                              v-on="on"
-                              icon
-                              color="green"
-                              @click="addToDatasetDialog = true"
-                            >
-                              mdi-folder-plus-outline
-                            </v-icon>
-                          </v-btn>
-                        </span>
-                      </template>
-                      <span>Add to Dataset</span>
-                    </v-tooltip>
-                    <v-tooltip bottom>
-                      <template v-slot:activator="{ on }">
-                        <span v-on="on">
-                          <v-btn
-                            :disabled="
-                              identifiersOfInterst.length == 0 || !datasetName
-                            "
-                            icon
-                          >
-                            <v-icon
-                              v-on="on"
-                              color="red"
-                              @click="removeFromDatasetDialog = true"
-                            >
-                              mdi-folder-minus-outline
-                            </v-icon>
-                          </v-btn>
-                        </span>
-                      </template>
-                      <span>Remove from Dataset</span>
-                    </v-tooltip>
-                    <v-tooltip bottom>
-                      <template v-slot:activator="{ on }">
-                        <span v-on="on">
-                          <v-btn
-                            :disabled="identifiersOfInterst.length == 0"
-                            icon
-                          >
-                            <v-icon
-                              v-on="on"
-                              color="primary"
-                              @click="workflowDialog = true"
-                            >
-                              mdi-send
-                            </v-icon>
-                          </v-btn>
-                        </span>
-                      </template>
-                      <span>Start Workflow</span>
-                    </v-tooltip>
-                  </v-col>
-                </v-row>
-              </v-card-title>
-              <v-divider></v-divider>
-            </v-card>
-          </v-container>
-          <!--        property patients in two-ways bound -->
-          <v-container
-            fluid
-            class="gallery overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area"
-          >
-            <StructuredGallery
-              v-if="
-                !isLoading &&
-                Object.entries(patients).length > 0 &&
-                settings.datasets.structured
-              "
-              :patients.sync="patients"
-              @openInDetailView="
-                (seriesInstanceUID) =>
-                  (this.detailViewSeriesInstanceUID = seriesInstanceUID)
-              "
-            />
-            <!--        seriesInstanceUIDs is not bound due to issues with the Gallery embedded in StructuredGallery-->
-            <Gallery
-              v-else-if="
-                !isLoading &&
-                seriesInstanceUIDs.length > 0 &&
-                !settings.datasets.structured
-              "
-              :seriesInstanceUIDs="seriesInstanceUIDs"
-              @openInDetailView="
-                (seriesInstanceUID) =>
-                  (this.detailViewSeriesInstanceUID = seriesInstanceUID)
-              "
-            />
-          </v-container>
-        </v-container>
-
-        <!-- No data available or error -->
-        <v-container fluid class="pa-0" v-else>
+  <div>
+    <splitpanes>
+      <pane class="main" size="70" min-size="30">
+        <v-container class="pa-0" fluid>
           <v-card class="rounded-0">
-            <v-card-text>
-              <h3>{{ message }}</h3>
-            </v-card-text>
+            <div style="padding: 10px 10px 10px 10px">
+              <v-row dense align="center">
+                <v-col cols="1" align="center">
+                  <v-icon>mdi-folder</v-icon>
+                </v-col>
+                <v-col>
+                  <v-autocomplete
+                    v-model="datasetName"
+                    :items="datasetNames"
+                    label="Select Dataset"
+                    clearable
+                    hide-details
+                    return-object
+                    single-line
+                    dense
+                    @click:clear="datasetName = null"
+                  >
+                  </v-autocomplete>
+                </v-col>
+              </v-row>
+              <Search
+                ref="search"
+                :datasetName="datasetName"
+                @search="(query) => updatePatients(query)"
+              />
+            </div>
+          </v-card>
+          <v-card class="rounded-0 elevation-0">
+            <v-divider></v-divider>
+            <div style="padding-left: 10px; padding-right: 10px">
+              <TagBar />
+            </div>
+            <v-divider></v-divider>
           </v-card>
         </v-container>
-      </v-container>
-    </v-container>
-    <v-container fluid class="sidebar rounded-0 v-card v-sheet pa-0">
-      <DetailView
-        v-if="this.detailViewSeriesInstanceUID"
-        :series-instance-u-i-d="this.detailViewSeriesInstanceUID"
-        @close="() => (this.detailViewSeriesInstanceUID = null)"
-      />
-      <Dashboard
-        v-else
-        :seriesInstanceUIDs="identifiersOfInterst"
-        @dataPointSelection="(d) => addFilterToSearch(d)"
-      />
-      <!--      </ErrorBoundary>-->
-    </v-container>
+        <!-- Gallery View -->
+        <v-container fluid class="pa-0">
+          <!-- Loading -->
+          <v-skeleton-loader
+            v-if="isLoading"
+            class="mx-auto"
+            type="list-item@100"
+          >
+          </v-skeleton-loader>
+
+          <!-- Data available -->
+          <v-container
+            fluid
+            class="pa-0"
+            v-else-if="
+              (!isLoading &&
+                Object.entries(patients).length > 0 &&
+                settings.datasets.structured) ||
+              (!isLoading &&
+                seriesInstanceUIDs.length > 0 &&
+                !settings.datasets.structured)
+            "
+          >
+            <VueSelecto
+              dragContainer=".elements"
+              :selectableTargets="['.selecto-area .v-card']"
+              :hitRate="0"
+              :selectByClick="true"
+              :selectFromInside="true"
+              :continueSelect="false"
+              :toggleContinueSelect="continueSelectKey"
+              :ratio="0"
+              @dragStart="onDragStart"
+              @select="onSelect"
+            >
+            </VueSelecto>
+            <v-container fluid class="pa-0">
+              <v-card class="rounded-0 elevation-0">
+                <v-card-title style="padding-left: 30px; padding-right: 30px">
+                  <v-row class="pa-0">
+                    <v-col class="pa-0" align="right">
+                      {{ this.identifiersOfInterst.length }} selected
+                      <v-tooltip bottom>
+                        <template v-slot:activator="{ on }">
+                          <span v-on="on">
+                            <v-btn
+                              :disabled="identifiersOfInterst.length == 0"
+                              icon
+                            >
+                              <v-icon
+                                v-on="on"
+                                icon
+                                color="blue"
+                                @click="saveAsDatasetDialog = true"
+                              >
+                                mdi-plus
+                              </v-icon>
+                            </v-btn>
+                          </span>
+                        </template>
+                        <span>Save as Dataset</span>
+                      </v-tooltip>
+                      <v-tooltip bottom>
+                        <template v-slot:activator="{ on }">
+                          <span v-on="on">
+                            <v-btn
+                              :disabled="identifiersOfInterst.length == 0"
+                              icon
+                            >
+                              <v-icon
+                                v-on="on"
+                                icon
+                                color="green"
+                                @click="addToDatasetDialog = true"
+                              >
+                                mdi-folder-plus-outline
+                              </v-icon>
+                            </v-btn>
+                          </span>
+                        </template>
+                        <span>Add to Dataset</span>
+                      </v-tooltip>
+                      <v-tooltip bottom>
+                        <template v-slot:activator="{ on }">
+                          <span v-on="on">
+                            <v-btn
+                              :disabled="
+                                identifiersOfInterst.length == 0 || !datasetName
+                              "
+                              icon
+                            >
+                              <v-icon
+                                v-on="on"
+                                color="red"
+                                @click="removeFromDatasetDialog = true"
+                              >
+                                mdi-folder-minus-outline
+                              </v-icon>
+                            </v-btn>
+                          </span>
+                        </template>
+                        <span>Remove from Dataset</span>
+                      </v-tooltip>
+                      <v-tooltip bottom>
+                        <template v-slot:activator="{ on }">
+                          <span v-on="on">
+                            <v-btn
+                              :disabled="identifiersOfInterst.length == 0"
+                              icon
+                            >
+                              <v-icon
+                                v-on="on"
+                                color="primary"
+                                @click="workflowDialog = true"
+                              >
+                                mdi-send
+                              </v-icon>
+                            </v-btn>
+                          </span>
+                        </template>
+                        <span>Start Workflow</span>
+                      </v-tooltip>
+                    </v-col>
+                  </v-row>
+                </v-card-title>
+                <v-divider></v-divider>
+              </v-card>
+            </v-container>
+            <!--        property patients in two-ways bound -->
+            <v-container
+              fluid
+              class="gallery overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area"
+            >
+              <StructuredGallery
+                v-if="
+                  !isLoading &&
+                  Object.entries(patients).length > 0 &&
+                  settings.datasets.structured
+                "
+                :patients.sync="patients"
+                @openInDetailView="
+                  (seriesInstanceUID) =>
+                    (this.detailViewSeriesInstanceUID = seriesInstanceUID)
+                "
+              />
+              <!--        seriesInstanceUIDs is not bound due to issues with the Gallery embedded in StructuredGallery-->
+              <Gallery
+                v-else-if="
+                  !isLoading &&
+                  seriesInstanceUIDs.length > 0 &&
+                  !settings.datasets.structured
+                "
+                :seriesInstanceUIDs="seriesInstanceUIDs"
+                @openInDetailView="
+                  (seriesInstanceUID) =>
+                    (this.detailViewSeriesInstanceUID = seriesInstanceUID)
+                "
+              />
+            </v-container>
+          </v-container>
+
+          <!-- No data available or error -->
+          <v-container fluid class="pa-0" v-else>
+            <v-card class="rounded-0">
+              <v-card-text>
+                <h3>{{ message }}</h3>
+              </v-card-text>
+            </v-card>
+          </v-container>
+        </v-container>
+      </pane>
+      <pane class="sidebar" size="30" min-size="20">
+        <DetailView
+          v-if="this.detailViewSeriesInstanceUID"
+          :series-instance-u-i-d="this.detailViewSeriesInstanceUID"
+          @close="() => (this.detailViewSeriesInstanceUID = null)"
+        />
+        <Dashboard
+          v-else
+          :seriesInstanceUIDs="identifiersOfInterst"
+          @dataPointSelection="(d) => addFilterToSearch(d)"
+        />
+        <!--      </ErrorBoundary>-->
+      </pane>
+    </splitpanes>
     <div>
       <ConfirmationDialog
         :show="removeFromDatasetDialog"
@@ -271,7 +273,7 @@
         />
       </v-dialog>
     </div>
-  </v-container>
+  </div>
 </template>
 
 <script>
@@ -294,6 +296,8 @@ import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import KeyController from "keycon";
+import { Splitpanes, Pane } from "splitpanes";
+import "splitpanes/dist/splitpanes.css";
 
 const keycon = new KeyController();
 
@@ -327,6 +331,8 @@ export default {
     ConfirmationDialog,
     WorkflowExecution,
     VueSelecto,
+    Splitpanes,
+    Pane,
   },
   async created() {
     this.settings = JSON.parse(localStorage["settings"]);
@@ -530,7 +536,10 @@ export default {
       } catch (error) {
         this.$notify({
           title: "Error",
-          text: error.response && error.response.data && error.response.data.detail ? error.response.data.detail : error,
+          text:
+            error.response && error.response.data && error.response.data.detail
+              ? error.response.data.detail
+              : error,
           type: "error",
         });
         return false;
@@ -553,43 +562,17 @@ export default {
 </script>
 <style scoped>
 .sidebar {
-  width: 30%;
   height: calc(100vh - 81px);
-
-  float: left;
   overflow-y: auto;
 }
 
-.overview-shared {
-  width: 70%;
-  float: left;
+.main {
   height: calc(100vh - 81px);
   position: relative;
 }
 
-.overview-full {
-  width: 100%;
-  height: inherit;
-  float: left;
-}
-
 .gallery {
-  height: calc(100vh - 227px);
-}
-
-.content {
-  height: 100%;
-  top: 48px;
-  overflow: hidden;
-}
-
-.elements {
-  /*margin-top: 40px;*/
-  /*border: 2px solid #eee;*/
-}
-
-.selecto-area {
-  /*padding: 20px;*/
+  height: calc(100vh - 258px);
 }
 
 .selected {
@@ -597,27 +580,12 @@ export default {
   color: #fff !important;
   background: #4af !important;
 }
-
-.empty.elements {
-  border: none;
-}
-
-.elements {
-  /*margin-top: 40px;*/
-  /*border: 2px solid #eee;*/
-}
-
-.selecto-area {
-  /*padding: 20px;*/
-}
-
-.selected {
-  /*TODO: This should be aligned with theme*/
-  color: #fff !important;
-  background: #4af !important;
-}
-
-.empty.elements {
-  border: none;
+</style>
+<style>
+/* starts here */
+.splitpanes--vertical > .splitpanes__splitter {
+  min-width: 3px;
+  cursor: col-resize;
+  background-color: rgb(235, 234, 234);
 }
 </style>

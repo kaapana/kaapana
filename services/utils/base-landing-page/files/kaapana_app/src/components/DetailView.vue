@@ -2,10 +2,15 @@
   <v-card>
     <v-card-title>
       <v-row no-gutters align="center" justify="center">
-        <v-col cols="11">
+        <v-col cols="10">
           <div class="text-truncate">
             {{ seriesDescription }}
           </div>
+        </v-col>
+        <v-col cols="1" align="center">
+          <v-btn icon @click="openInOHIFViewer">
+            <v-icon> mdi-open-in-new </v-icon>
+          </v-btn>
         </v-col>
         <v-col cols="1" align="center">
           <v-btn icon @click="() => this.$emit('close')">
@@ -16,7 +21,31 @@
     </v-card-title>
     <v-divider />
     <v-card-text>
-      <IFrameWindow :iFrameUrl="iFrameURL" height="400px" :fullSize="false" />
+      <IFrameWindow
+        v-if="modalitySupported"
+        :iFrameUrl="iFrameURL"
+        height="400px"
+        :fullSize="false"
+      />
+      <v-container
+        v-else
+        style="
+          height: 400px;
+          background-color: darkgray;
+          font-size: 1.3em
+          "
+        fill-height
+        fluid
+      >
+        <v-col>
+          <v-row align="center" justify="center">
+            <v-icon large>mdi-alert-circle-outline</v-icon>
+          </v-row>
+          <v-row align="center" justify="center">
+            Modality not supported
+          </v-row>
+        </v-col>
+      </v-container>
       <TagsTable :series-instance-u-i-d="seriesInstanceUID" />
     </v-card-text>
   </v-card>
@@ -42,6 +71,7 @@ export default {
     return {
       studyInstanceUID: "",
       seriesDescription: "",
+      modality: "",
     };
   },
   methods: {
@@ -50,8 +80,12 @@ export default {
         loadSeriesData(this.seriesInstanceUID).then((data) => {
           this.studyInstanceUID = data["metadata"]["Study Instance UID"] || "";
           this.seriesDescription = data["metadata"]["Series Description"] || "";
+          this.modality = data["metadata"]["Modality"] || "";
         });
       }
+    },
+    openInOHIFViewer() {
+      window.open(`/ohif/viewer/${this.studyInstanceUID}`);
     },
   },
   watch: {
@@ -67,9 +101,12 @@ export default {
       return (
         "/ohif-v3/viewer?StudyInstanceUIDs=" +
         this.studyInstanceUID +
-        "&SeriesInstanceUID=" +
+        "&initialSeriesInstanceUID=" +
         this.seriesInstanceUID
       );
+    },
+    modalitySupported() {
+      return !["RTSTRUCT", "SEG"].includes(this.modality);
     },
   },
 };

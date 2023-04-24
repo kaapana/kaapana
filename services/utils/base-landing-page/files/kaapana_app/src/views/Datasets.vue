@@ -81,60 +81,82 @@
                   <v-col class="pa-0" align="right">
                     {{ this.identifiersOfInterst.length }} selected
                     <v-tooltip bottom>
-                      <template v-slot:activator="{ on, attrs }">
-                        <v-icon
-                          v-bind="attrs"
-                          v-on="on"
-                          icon
-                          color="blue"
-                          @click="() => (this.saveAsDatasetDialog = true)"
-                        >
-                          mdi-plus
-                        </v-icon>
+                      <template v-slot:activator="{ on }">
+                        <span v-on="on">
+                          <v-btn
+                            :disabled="identifiersOfInterst.length == 0"
+                            icon
+                          >
+                            <v-icon
+                              v-on="on"
+                              icon
+                              color="blue"
+                              @click="() => (this.saveAsDatasetDialog = true)"
+                            >
+                              mdi-plus
+                            </v-icon>
+                          </v-btn>
+                        </span>
                       </template>
                       <span>Save as Dataset</span>
                     </v-tooltip>
                     <v-tooltip bottom>
-                      <template v-slot:activator="{ on, attrs }">
-                        <v-icon
-                          v-on="on"
-                          v-bind="attrs"
-                          :disabled="!datasetNames || datasetNames.length === 0"
-                          icon
-                          color="green"
-                          @click="() => (this.addToDatasetDialog = true)"
-                        >
-                          mdi-folder-plus-outline
-                        </v-icon>
+                      <template v-slot:activator="{ on }">
+                        <span v-on="on">
+                          <v-btn
+                            :disabled="identifiersOfInterst.length == 0"
+                            icon
+                          >
+                            <v-icon
+                              v-on="on"
+                              icon
+                              color="green"
+                              @click="() => (this.addToDatasetDialog = true)"
+                            >
+                              mdi-folder-plus-outline
+                            </v-icon>
+                          </v-btn>
+                        </span>
                       </template>
                       <span>Add to Dataset</span>
                     </v-tooltip>
                     <v-tooltip bottom>
-                      <template v-slot:activator="{ on, attrs }">
-                        <v-icon
-                          v-on="on"
-                          v-bind="attrs"
-                          :disabled="!datasetName"
-                          icon
-                          color="red"
-                          @click="removeFromDatasetDialog = true"
-                        >
-                          mdi-folder-minus-outline
-                        </v-icon>
+                      <template v-slot:activator="{ on }">
+                        <span v-on="on">
+                          <v-btn
+                            :disabled="
+                              identifiersOfInterst.length == 0 || !datasetName
+                            "
+                            icon
+                          >
+                            <v-icon
+                              v-on="on"
+                              color="red"
+                              @click="removeFromDatasetDialog = true"
+                            >
+                              mdi-folder-minus-outline
+                            </v-icon>
+                          </v-btn>
+                        </span>
                       </template>
-                      <span>Delete from Dataset</span>
+                      <span>Remove from Dataset</span>
                     </v-tooltip>
                     <v-tooltip bottom>
-                      <template v-slot:activator="{ on, attrs }">
-                        <v-icon
-                          v-on="on"
-                          v-bind="attrs"
-                          icon
-                          color="primary"
-                          @click="() => (this.workflowDialog = true)"
-                        >
-                          mdi-send
-                        </v-icon>
+                      <template v-slot:activator="{ on }">
+                        <span v-on="on">
+                          <v-btn
+                            :disabled="identifiersOfInterst.length == 0"
+                            icon
+                          >
+                            <v-icon
+                              v-on="on"
+                              color="primary"
+                              @click="() => (this.workflowDialog = true)"
+                            >
+                              mdi-send
+                            </v-icon>
+                          </v-btn>
+                        </span>
                       </template>
                       <span>Start Workflow</span>
                     </v-tooltip>

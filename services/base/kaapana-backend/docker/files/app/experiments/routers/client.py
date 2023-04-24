@@ -456,7 +456,7 @@ def delete_datasets(db: Session = Depends(get_db)):
 
 
 # create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
-@router.post("/experiment", response_model=schemas.Experiment)
+@router.post("/experiment", response_model=schemas.Workflow)
 # also okay: schemas.ExperimentWithKaapanaInstance
 def create_experiment(
     request: Request,
@@ -551,7 +551,7 @@ def get_experiment(
 @router.get(
     "/experiments", response_model=List[schemas.ExperimentWithKaapanaInstanceWithJobs]
 )
-# also okay: response_model=List[schemas.Experiment] ; List[schemas.ExperimentWithKaapanaInstance]
+# also okay: response_model=List[schemas.Workflow] ; List[schemas.ExperimentWithKaapanaInstance]
 def get_experiments(
     request: Request,
     instance_name: str = None,
@@ -566,7 +566,7 @@ def get_experiments(
 
 
 # put/update_experiment
-@router.put("/experiment", response_model=schemas.Experiment)
+@router.put("/experiment", response_model=schemas.Workflow)
 def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)):
     if experiment.experiment_status == "abort":
         # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
@@ -593,7 +593,7 @@ def put_experiment(experiment: schemas.ExperimentUpdate, db: Session = Depends(g
 
 
 # endpoint to update an experiment with additional experiment_jobs
-@router.put("/experiment_jobs", response_model=schemas.Experiment)
+@router.put("/experiment_jobs", response_model=schemas.Workflow)
 def put_experiment_jobs(
     experiment: schemas.ExperimentUpdate, db: Session = Depends(get_db)
 ):

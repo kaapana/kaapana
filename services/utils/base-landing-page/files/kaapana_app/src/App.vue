@@ -201,9 +201,9 @@ export default Vue.extend({
     workflowsList: [
       ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
       ['Data Curation', 'mdi-view-gallery-outline', '/datasets'],
-      ['Experiment Execution', 'mdi-play-box', '/experiment-execution'],
-      ['Experiment List', 'mdi-clipboard-text-outline', '/experiments'],
-      ['Experiment Results', 'mdi-chart-bar-stacked', '/results-browser'],
+      ['Workflow Execution', 'mdi-play-box', '/experiment-execution'],
+      ['Workflow List', 'mdi-clipboard-text-outline', '/experiments'],
+      ['Workflow Results', 'mdi-chart-bar-stacked', '/results-browser'],
       ['Runner Instances', 'mdi-vector-triangle', '/runner-instances'],
       ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
     ]

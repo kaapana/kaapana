@@ -45,7 +45,7 @@ class KaapanaInstance(Base):
 
     # one-to-many relationships
     experiments = relationship(
-        "Experiment", back_populates="kaapana_instance", cascade="all, delete"
+        "Workflow", back_populates="kaapana_instance", cascade="all, delete"
     )
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
     datasets = relationship(
@@ -69,7 +69,7 @@ class KaapanaInstance(Base):
         )
 
 
-class Experiment(Base):
+class Workflow(Base):
     __tablename__ = "experiment"
     exp_id = Column(String(64), primary_key=True)
     experiment_name = Column(String(64))
@@ -112,7 +112,7 @@ class Job(Base):
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="jobs")
     exp_id = Column(String, ForeignKey("experiment.exp_id"))
-    experiment = relationship("Experiment", back_populates="experiment_jobs")
+    experiment = relationship("Workflow", back_populates="experiment_jobs")
 
     # https://www.johbo.com/2016/creating-a-partial-unique-index-with-sqlalchemy-in-postgresql.html
     __table_args__ = (

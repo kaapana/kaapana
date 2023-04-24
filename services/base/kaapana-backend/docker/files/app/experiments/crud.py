@@ -452,7 +452,7 @@ def get_jobs(
         return (
             db.query(models.Job)
             .join(models.Job.experiment, aliased=True)
-            .join(models.Experiment.kaapana_instance, aliased=True)
+            .join(models.Workflow.kaapana_instance, aliased=True)
             .filter_by(remote=remote)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -594,7 +594,7 @@ def sync_client_remote(
         )
         outgoing_experiment = (
             [
-                schemas.Experiment(**experiment.__dict__).dict()
+                schemas.Workflow(**experiment.__dict__).dict()
                 for experiment in db_outgoing_experiment
             ][0]
             if len(db_outgoing_experiment) > 0
@@ -1162,7 +1162,7 @@ def create_experiment(
     # experiment already exists?
     if get_experiment(db, exp_id=experiment.exp_id) and service_experiment is False:
         raise HTTPException(
-            status_code=409, detail="Experiment exists already!"
+            status_code=409, detail="Workflow exists already!"
         )  # ... raise http exception!
     if not db_kaapana_instance:  # no kaapana_instance found in db in previous "search"?
         raise HTTPException(
@@ -1171,7 +1171,7 @@ def create_experiment(
 
     utc_timestamp = get_utc_timestamp()
 
-    db_experiment = models.Experiment(
+    db_experiment = models.Workflow(
         exp_id=experiment.exp_id,
         kaapana_id=experiment.kaapana_instance_id,
         dag_id=experiment.dag_id,
@@ -1206,7 +1206,7 @@ def create_experiment(
 def queue_generate_jobs_and_add_to_exp(
     db: Session,
     db_client_kaapana: models.KaapanaInstance,
-    db_experiment: models.Experiment,
+    db_experiment: models.Workflow,
     json_schema_data: schemas.JsonSchemaData,
 ):
     conf_data = json_schema_data.conf_data
@@ -1318,17 +1318,17 @@ def get_experiment(
     db: Session, exp_id: str = None, experiment_name: str = None, dag_id: str = None
 ):
     if exp_id is not None:
-        return db.query(models.Experiment).filter_by(exp_id=exp_id).first()
+        return db.query(models.Workflow).filter_by(exp_id=exp_id).first()
     elif experiment_name is not None:
         return (
-            db.query(models.Experiment)
+            db.query(models.Workflow)
             .filter_by(experiment_name=experiment_name)
             .first()
         )
     elif dag_id is not None:
-        return db.query(models.Experiment).filter_by(dag_id=dag_id).first()
+        return db.query(models.Workflow).filter_by(dag_id=dag_id).first()
     # if not db_experiment:
-    #     raise HTTPException(status_code=404, detail="Experiment not found")
+    #     raise HTTPException(status_code=404, detail="Workflow not found")
     # return db_experiment
 
 
@@ -1341,18 +1341,18 @@ def get_experiments(
 ):
     if instance_name is not None:
         return (
-            db.query(models.Experiment)
-            .join(models.Experiment.kaapana_instance, aliased=True)
+            db.query(models.Workflow)
+            .join(models.Workflow.kaapana_instance, aliased=True)
             .filter_by(instance_name=instance_name)
-            .order_by(desc(models.Experiment.time_updated))
+            .order_by(desc(models.Workflow.time_updated))
             .limit(limit)
             .all()
         )
     elif involved_instance_name is not None:
         return (
-            db.query(models.Experiment)
+            db.query(models.Workflow)
             .filter(
-                models.Experiment.involved_kaapana_instances.contains(
+                models.Workflow.involved_kaapana_instances.contains(
                     involved_instance_name
                 )
             )
@@ -1360,16 +1360,16 @@ def get_experiments(
         )
     elif experiment_job_id is not None:
         return (
-            db.query(models.Experiment)
-            .join(models.Experiment.experiment_jobs, aliased=True)
+            db.query(models.Workflow)
+            .join(models.Workflow.experiment_jobs, aliased=True)
             .filter_by(id=experiment_job_id)
             .all()
         )
     else:
         return (
-            db.query(models.Experiment)
-            .join(models.Experiment.kaapana_instance)
-            .order_by(desc(models.Experiment.time_updated))
+            db.query(models.Workflow)
+            .join(models.Workflow.kaapana_instance)
+            .order_by(desc(models.Workflow.time_updated))
             .limit(limit)
             .all()
         )  # , aliased=True
@@ -1476,6 +1476,6 @@ def delete_experiment(db: Session, exp_id: str):
 
 def delete_experiments(db: Session):
     # TODO: add remote experiment deletion
-    db.query(models.Experiment).delete()
+    db.query(models.Workflow).delete()
     db.commit()
     return {"ok": True}

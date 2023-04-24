@@ -142,7 +142,7 @@ class JobCreate(JobBase):
 
 
 class JobUpdate(JobBase):
-    job_id: int  # not defined in model Experiment but still needed in client.py and crud.py
+    job_id: int  # not defined in model Workflow but still needed in client.py and crud.py
     # status: str
     # run_id: str = None
     # description: str = None
@@ -232,7 +232,7 @@ class ExperimentBase(BaseModel):
     service_experiment: Optional[bool] = False
 
 
-class Experiment(ExperimentBase):
+class Workflow(ExperimentBase):
     username: str = None
     status: str = None
     time_created: datetime.datetime = None
@@ -270,25 +270,25 @@ class ExperimentUpdate(ExperimentBase):
     experiment_jobs: List = []
 
 
-class ExperimentWithKaapanaInstance(Experiment):
+class ExperimentWithKaapanaInstance(Workflow):
     kaapana_instance: KaapanaInstance = None
     # involved_kaapana_instances: list = []
 
 
 class KaapanaInstanceWithExperiments(KaapanaInstance):
-    experiments: List[Experiment] = []
+    experiments: List[Workflow] = []
 
 
 class JobWithExperiment(Job):
-    experiment: Experiment = None
+    experiment: Workflow = None
     # involved_kaapana_instances: Optional[list]  # idk y?
 
 
 class JobWithExperimentWithKaapanaInstance(JobWithKaapanaInstance):
-    experiment: Experiment = None
+    experiment: Workflow = None
 
 
-class ExperimentWithJobs(Experiment):
+class ExperimentWithJobs(Workflow):
     jobs: List[Job] = []
 
 

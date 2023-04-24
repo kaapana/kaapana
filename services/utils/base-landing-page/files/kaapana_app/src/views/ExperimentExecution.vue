@@ -24,7 +24,7 @@ export default Vue.extend({
   }),
   created() {
   },
-  mounted () {console.log("Hello, I am the Experiment Execution View!")
+  mounted () {console.log("Hello, I am the Workflow Execution View!")
   },
   watch: {
   },

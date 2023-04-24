@@ -39,7 +39,7 @@ const routes = [
         name: 'experiment-execution',
         path: '/experiment-execution',
         component: () => import('@/views/ExperimentExecution.vue'),
-        title: 'Experiment Execution',
+        title: 'Workflow Execution',
         permissions: {
             isPublic: false,
         },
@@ -47,8 +47,8 @@ const routes = [
     {
         name: 'experiments',
         path: '/experiments',
-        component: () => import('@/views/Experiments.vue'),
-        title: 'Experiment',
+        component: () => import('@/views/Workflows.vue'),
+        title: 'Workflow',
         permissions: {
             isPublic: false,
         },

@@ -2,7 +2,7 @@
   <v-card>
     <v-card-title>
       <v-col cols="4">
-        <p class="mx-4 my-2">Experiment List</p>
+        <p class="mx-4 my-2">Workflow List</p>
       </v-col>
       <v-col align="right">
         <v-tooltip bottom>
@@ -18,7 +18,7 @@
         <v-text-field
           v-model="search"
           append-icon="mdi-magnify"
-          label="Search for Experiment"
+          label="Search for Workflow"
           single-line
           hide-details
           class="mb-4"
@@ -131,11 +131,11 @@ data () {
     expanded: [],
     experimentHeaders: [
       {
-        text: 'Experiment ID',
+        text: 'Workflow ID',
         align: 'start',
         value: 'exp_id',
       },
-      { text: 'Experiment Name', value: 'experiment_name' },
+      { text: 'Workflow Name', value: 'experiment_name' },
       { text: 'Dataset Name', value: 'dataset_name' },
       { text: 'Created', value: 'time_created' },
       { text: 'Updated', value: 'time_updated' },
@@ -220,25 +220,25 @@ methods: {
   startExperimentManually(item) {
     this.shouldExpand = false
     this.manual_startID = item.exp_id,
-    console.log("Manually start Experiment: ", this.manual_startID)
+    console.log("Manually start Workflow: ", this.manual_startID)
     this.manuallyStartClientExperimentAPI(this.manual_startID, 'confirmed')
   },
   abortExperiment(item) {
       this.shouldExpand = false
       this.abortID = item.exp_id
-      console.log("Abort Experiment: ", this.abortID)
+      console.log("Abort Workflow: ", this.abortID)
       this.abortClientExperimentAPI(this.abortID, 'abort')
   },
   restartExperiment(item) {
       this.shouldExpand = false
       this.restartID = item.exp_id
-      console.log("Restart Experiment: ", this.restartID)
+      console.log("Restart Workflow: ", this.restartID)
       this.restartClientExperimentAPI(this.restartID, 'scheduled')
   },
   deleteExperiment(item) {
       this.shouldExpand = false
       this.deleteID = item.exp_id
-      console.log("Delete Experiment: ", this.deleteID, "Item:", item)
+      console.log("Delete Workflow: ", this.deleteID, "Item:", item)
       this.deleteClientExperimentAPI(this.deleteID)
   },
 

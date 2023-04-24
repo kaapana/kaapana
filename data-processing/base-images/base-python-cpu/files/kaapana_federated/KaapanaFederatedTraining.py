@@ -282,7 +282,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 )
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         experiment = r.json()
-        print(f'Updated Experiment {experiment["experiment_name"]} with created jobs!')
+        print(f'Updated Workflow {experiment["experiment_name"]} with created jobs!')
         print(experiment)
         # add sth to self.tmp_federated_site_info[site_info['instance_name']] ?!
     

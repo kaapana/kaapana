@@ -7,7 +7,7 @@
       lazy-validation
     >
       <v-card-title>
-        <h5>Experiment Execution</h5>
+        <h5>Workflow Execution</h5>
       </v-card-title>
       <v-card-text>
         <v-container>
@@ -37,11 +37,11 @@
               ></v-select>
             </v-col>
           </v-row>
-          <!-- Experiment name -->
+          <!-- Workflow name -->
           <v-row v-if="dag_id">
             <v-col cols="12">
               <v-text-field
-                label="Experiment name" 
+                label="Workflow name" 
                 v-model="experiment_name" 
                 :rules="experimentnameRules()" 
                 required
@@ -96,7 +96,7 @@
                     <v-icon color="grey lighten-1">mdi-email</v-icon>
                   </v-btn>
                 </template>
-                <pre class="text-left">Experiment name: {{experiment_name}}</pre>
+                <pre class="text-left">Workflow name: {{experiment_name}}</pre>
                 <pre class="text-left">Dag id: {{dag_id}}</pre>
                 <pre class="text-left">Instance name: {{selected_kaapana_instance_names}}</pre>
                 <pre class="text-left">External instance name: {{selected_remote_instances_w_external_dag_available}}</pre>
@@ -112,7 +112,7 @@
           @click="submissionValidator()" 
           dark="dark"
         >
-          Start Experiment
+          Start Workflow
         </v-btn>
         <v-btn 
           color="primary" 
@@ -268,7 +268,7 @@
       },
       experimentnameRules() {
         return [
-          (v) => !!v || "Experiment name is required",
+          (v) => !!v || "Workflow name is required",
         ];
       },
       findRequiredFields(obj, result = [], prefix = '') {
@@ -438,7 +438,7 @@
             this.$router.push({ name: 'experiments' });
             this.$notify({
               type: 'success',
-              title: "Experiment successfully created!",
+              title: "Workflow successfully created!",
             })
             this.reset()
             this.$emit('successful')

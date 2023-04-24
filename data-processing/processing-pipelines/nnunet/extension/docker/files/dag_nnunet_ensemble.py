@@ -68,7 +68,7 @@ ui_forms = {
             #     "readOnly": True,
             # },
             "experiment_name": {
-                "title": "Experiment name",
+                "title": "Workflow name",
                 "description": "Specify a name for the training task",
                 "type": "string",
                 "required": False,

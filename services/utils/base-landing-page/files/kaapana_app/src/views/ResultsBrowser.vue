@@ -16,7 +16,7 @@
 
       v-col(cols="9")
         div(v-if="this.tree.length == 0")
-          h1 Experiment results 
+          h1 Workflow results 
           p Results from the workflows will be shown here!
           v-icon(class="results-icon") mdi-chart-bar-stacked
         v-expansion-panels(v-model="panel" accordion)

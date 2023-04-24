@@ -101,7 +101,7 @@
                       small
                       icon
                       color="red"
-                      @click="removeFromDataset"
+                      @click="removeFromDatasetDialog = true"
                     >
                       <v-icon>mdi-folder-minus-outline</v-icon>
                     </v-btn>
@@ -176,6 +176,16 @@
       <!--      </ErrorBoundary>-->
     </v-container>
     <div>
+      <ConfirmationDialog
+        :show="removeFromDatasetDialog"
+        title="Remove from Dataset"
+        @confirm="() => this.removeFromDataset()"
+        @cancel="() => (this.removeFromDatasetDialog = false)"
+      >
+        Are you sure you want to remove
+        <b>{{ this.identifiersOfInterst.length }} items</b> from the dataset
+        <b>{{ this.datasetName }}</b>?
+      </ConfirmationDialog>
       <SaveDatasetDialog
         v-model="saveAsDatasetDialog"
         @save="(name) => saveDatasetFromDialog(name)"
@@ -236,6 +246,7 @@ import { settings } from "@/static/defaultUIConfig";
 import { VueSelecto } from "vue-selecto";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
+import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import KeyController from "keycon";
 
 const keycon = new KeyController();
@@ -255,6 +266,7 @@ export default {
       saveAsDatasetDialog: false,
       addToDatasetDialog: false,
       workflowDialog: false,
+      removeFromDatasetDialog: false,
       datasetToAddTo: null,
     };
   },
@@ -266,6 +278,7 @@ export default {
     Gallery,
     Dashboard,
     SaveDatasetDialog,
+    ConfirmationDialog,
     WorkflowExecution,
     VueSelecto,
   },
@@ -407,6 +420,8 @@ export default {
         this.identifiersOfInterst,
         "DELETE"
       );
+
+      this.removeFromDatasetDialog = false;
 
       if (!successful) {
         return;

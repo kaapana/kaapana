@@ -23,9 +23,6 @@ class Dataset(Base):
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
-    experiments = relationship(
-        "Experiment", back_populates="dataset", cascade="all, delete"
-    )
 
 
 class KaapanaInstance(Base):
@@ -88,8 +85,6 @@ class Experiment(Base):
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="experiments")
-    dataset_name = Column(String(64), ForeignKey("dataset.name"))
-    dataset = relationship("Dataset", back_populates="experiments")
     # one-to-many relationships
     involved_kaapana_instances = Column(String(51200), default="[]", index=True)
     experiment_jobs = relationship(

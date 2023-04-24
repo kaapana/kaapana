@@ -162,7 +162,7 @@
       v-row(v-else)
         v-col(cols=4 align="left") Allowed Datasets:
         v-col(align="left")
-          v-chip(v-for='dataset in instancePost.allowed_datasets' small) {{dataset}}
+          v-chip(v-for='dataset in instancePost.allowed_datasets' small) {{dataset.name}}
         v-col(v-if="!remote" cols=1 align="center")
           v-btn(@click="edit_allowed_datasets = !edit_allowed_datasets" small icon)
             v-icon mdi-pencil
@@ -234,6 +234,11 @@
       },
       instancePost (){
         console.log('instance', this.instance)
+        if (this.instance.fernet_key != "deactivated") {
+          this.instance.fernet_encrypted = true
+        } else {
+          this.instance.fernet_encrypted = false
+        }
         return this.instance
       }, 
       instance_time_created() {

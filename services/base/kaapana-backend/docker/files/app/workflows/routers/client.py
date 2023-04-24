@@ -492,9 +492,9 @@ def create_workflow(
 
     # generate random and unique workflow id
     characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
-    exp_id = "".join(random.choices(characters, k=6))
-    # append exp_id to workflow_name
-    workflow_name = json_schema_data.workflow_name + "_exp" + exp_id
+    workflow_id = "".join(random.choices(characters, k=6))
+    # append workflow_id to workflow_name
+    workflow_name = json_schema_data.workflow_name + "-workflow" + workflow_id
 
     # TODO adapt involed instances per job?
     if json_schema_data.federated:  # == True ;-)
@@ -502,7 +502,7 @@ def create_workflow(
         involved_instance_names.extend(json_schema_data.conf_data["external_schema_instance_names"])
     json_schema_data.conf_data["workflow_form"] = {
         "username": username,
-        "exp_id": exp_id,
+        "workflow_id": workflow_id,
         "workflow_name": workflow_name,
         "involved_instances": json_schema_data.instance_names
         if json_schema_data.federated == False
@@ -513,7 +513,7 @@ def create_workflow(
     # create an workflow with involved_instances=conf_data["workflow_form"]["involved_instances"] and add jobs to it
     workflow = schemas.WorkflowCreate(
         **{
-            "exp_id": exp_id,
+            "workflow_id": workflow_id,
             "workflow_name": workflow_name,
             "username": username,
             "kaapana_instance_id": db_client_kaapana.id,
@@ -527,8 +527,8 @@ def create_workflow(
 
     # async function call to queue jobs and generate db_jobs + adding them to db_workflow
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
-    # asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_workflow, json_schema_data, conf_data))
-    crud.queue_generate_jobs_and_add_to_exp(
+    # asyncio.create_task(crud.queue_generate_jobs_and_add_to_workflow(db, db_client_kaapana, db_workflow, json_schema_data, conf_data))
+    crud.queue_generate_jobs_and_add_to_workflow(
         db, db_client_kaapana, db_workflow, json_schema_data
     )
 
@@ -539,12 +539,12 @@ def create_workflow(
 # get_workflow
 @router.get("/workflow", response_model=schemas.WorkflowWithKaapanaInstance)
 def get_workflow(
-    exp_id: str = None,
+    workflow_id: str = None,
     workflow_name: str = None,
     dag_id: str = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_workflow(db, exp_id, workflow_name, dag_id)
+    return crud.get_workflow(db, workflow_id, workflow_name, dag_id)
 
 
 # get_workflows
@@ -570,7 +570,7 @@ def get_workflows(
 def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
     if workflow.workflow_status == "abort":
         # iterate over workflow's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_workflow()
-        db_workflow = crud.get_workflow(db, workflow.exp_id)
+        db_workflow = crud.get_workflow(db, workflow.workflow_id)
         for db_job in db_workflow.workflow_jobs:
             # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
             job = schemas.JobUpdate(
@@ -602,8 +602,8 @@ def put_workflow_jobs(
 
 # delete_workflow
 @router.delete("/workflow")
-def delete_workflow(exp_id: str, db: Session = Depends(get_db)):
-    return crud.delete_workflow(db, exp_id)
+def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
+    return crud.delete_workflow(db, workflow_id)
 
 
 # delete_workflows

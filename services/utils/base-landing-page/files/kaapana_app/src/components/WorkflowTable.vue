@@ -133,7 +133,7 @@ data () {
       {
         text: 'Workflow ID',
         align: 'start',
-        value: 'exp_id',
+        value: 'workflow_id',
       },
       { text: 'Workflow Name', value: 'workflow_name' },
       { text: 'Dataset Name', value: 'dataset_name' },
@@ -219,25 +219,25 @@ methods: {
   },
   startWorkflowManually(item) {
     this.shouldExpand = false
-    this.manual_startID = item.exp_id,
+    this.manual_startID = item.workflow_id,
     console.log("Manually start Workflow: ", this.manual_startID)
     this.manuallyStartClientWorkflowAPI(this.manual_startID, 'confirmed')
   },
   abortWorkflow(item) {
       this.shouldExpand = false
-      this.abortID = item.exp_id
+      this.abortID = item.workflow_id
       console.log("Abort Workflow: ", this.abortID)
       this.abortClientWorkflowAPI(this.abortID, 'abort')
   },
   restartWorkflow(item) {
       this.shouldExpand = false
-      this.restartID = item.exp_id
+      this.restartID = item.workflow_id
       console.log("Restart Workflow: ", this.restartID)
       this.restartClientWorkflowAPI(this.restartID, 'scheduled')
   },
   deleteWorkflow(item) {
       this.shouldExpand = false
-      this.deleteID = item.exp_id
+      this.deleteID = item.workflow_id
       console.log("Delete Workflow: ", this.deleteID, "Item:", item)
       this.deleteClientWorkflowAPI(this.deleteID)
   },
@@ -259,13 +259,13 @@ methods: {
           console.log(err);
         })
   },
-  deleteClientWorkflowAPI(exp_id) {
+  deleteClientWorkflowAPI(workflow_id) {
       kaapanaApiService
       .federatedClientApiDelete("/workflow",{
-          exp_id,
+          workflow_id,
       }).then((response) => {
         // positive notification
-        const message = `Successfully deleted workflow ${exp_id}`
+        const message = `Successfully deleted workflow ${workflow_id}`
         this.$notify({
           type: 'success',
           title: message,
@@ -273,7 +273,7 @@ methods: {
       })
       .catch((err) => {
         // negative notification
-        const message = `Error while deleting workflow ${exp_id}`
+        const message = `Error while deleting workflow ${workflow_id}`
         this.$notify({
           type: "error",
           title: message,
@@ -281,14 +281,14 @@ methods: {
         console.log(err);
       })
   },
-  restartClientWorkflowAPI(exp_id, workflow_status) {
+  restartClientWorkflowAPI(workflow_id, workflow_status) {
       kaapanaApiService
       .federatedClientApiPut("/workflow",{
-          exp_id,
+          workflow_id,
           workflow_status,
       }).then((response) => {
         // positive notification
-        const message = `Successfully restarted workflow ${exp_id}`
+        const message = `Successfully restarted workflow ${workflow_id}`
         this.$notify({
           type: "success",
           title: message,
@@ -296,7 +296,7 @@ methods: {
       })
       .catch((err) => {
         // negative notification
-        const message = `Error while restarting workflow ${exp_id}`
+        const message = `Error while restarting workflow ${workflow_id}`
         this.$notify({
           type: "error",
           title: message,
@@ -304,14 +304,14 @@ methods: {
           console.log(err);
       })
   },
-  abortClientWorkflowAPI(exp_id, workflow_status) {
+  abortClientWorkflowAPI(workflow_id, workflow_status) {
       kaapanaApiService
       .federatedClientApiPut("/workflow",{
-          exp_id,
+          workflow_id,
           workflow_status,
       }).then((response) => {
         // positive notification
-        const message = `Successfully aborted workflow ${exp_id}`
+        const message = `Successfully aborted workflow ${workflow_id}`
         this.$notify({
           type: "success",
           title: message,
@@ -319,7 +319,7 @@ methods: {
       })
       .catch((err) => {
         // negative notification
-        const message = `Error while aborting workflow ${exp_id}`
+        const message = `Error while aborting workflow ${workflow_id}`
         this.$notify({
           type: "error",
           title: message,
@@ -327,14 +327,14 @@ methods: {
         console.log(err);
       })
   },
-  manuallyStartClientWorkflowAPI(exp_id, workflow_status) {
+  manuallyStartClientWorkflowAPI(workflow_id, workflow_status) {
       kaapanaApiService
         .federatedClientApiPut("/workflow",{
-            exp_id,
+            workflow_id,
             workflow_status,
         }).then((response) => {
           // positive notification
-          const message = `Successfully manually started workflow ${exp_id}`
+          const message = `Successfully manually started workflow ${workflow_id}`
           this.$notify({
             type: "success",
             title: message,
@@ -342,7 +342,7 @@ methods: {
         })
         .catch((err) => {
           // negative notification
-          const message = `Error while manually starting workflow ${exp_id}`
+          const message = `Error while manually starting workflow ${workflow_id}`
           this.$notify({
             type: "error",
             title: message,

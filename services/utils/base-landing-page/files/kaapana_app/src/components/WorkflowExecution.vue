@@ -47,7 +47,7 @@
                 required
               ></v-text-field>
             </v-col>
-            <!-- don't do exp_id rn-->
+            <!-- don't do workflow_id rn-->
           </v-row>
           <!-- Data- and Workflow forms -->
           <v-row v-if="workflow_name">

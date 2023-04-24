@@ -12,7 +12,7 @@ with SessionLocal() as db:
         client_kaapana_instance = ClientKaapanaInstanceCreate(**{
             "ssl_check": True,
             "automatic_update": False,
-            "automatic_exp_execution": True,
+            "automatic_workflow_execution": True,
             "fernet_encrypted": False,
             "allowed_dags": [],
             "allowed_datasets": []

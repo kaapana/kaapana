@@ -166,7 +166,7 @@ def create_and_update_client_kaapana_instance(
             time_created=utc_timestamp,
             time_updated=utc_timestamp,
             automatic_update=client_kaapana_instance.automatic_update or False,
-            automatic_exp_execution=client_kaapana_instance.automatic_exp_execution
+            automatic_workflow_execution=client_kaapana_instance.automatic_workflow_execution
             or False,
         )
     elif action == "update":
@@ -189,8 +189,8 @@ def create_and_update_client_kaapana_instance(
         db_client_kaapana_instance.automatic_update = (
             client_kaapana_instance.automatic_update or False
         )
-        db_client_kaapana_instance.automatic_exp_execution = (
-            client_kaapana_instance.automatic_exp_execution or False
+        db_client_kaapana_instance.automatic_workflow_execution = (
+            client_kaapana_instance.automatic_workflow_execution or False
         )
     else:
         raise NameError("action must be one of create, update")
@@ -253,8 +253,8 @@ def create_and_update_remote_kaapana_instance(
             db_remote_kaapana_instance.automatic_update = (
                 remote_kaapana_instance.automatic_update or False
             )
-            db_remote_kaapana_instance.automatic_exp_execution = (
-                remote_kaapana_instance.automatic_exp_execution or False
+            db_remote_kaapana_instance.automatic_workflow_execution = (
+                remote_kaapana_instance.automatic_workflow_execution or False
             )
             db_remote_kaapana_instance.time_updated = utc_timestamp
         else:
@@ -611,7 +611,7 @@ def sync_client_remote(
         "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
         "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
         "automatic_update": db_client_kaapana.automatic_update,
-        "automatic_exp_execution": db_client_kaapana.automatic_exp_execution,
+        "automatic_workflow_execution": db_client_kaapana.automatic_workflow_execution,
     }
     return {
         "incoming_jobs": outgoing_jobs,
@@ -699,7 +699,7 @@ def get_remote_updates(db: Session, periodically=False):
             "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
             "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
             "automatic_update": db_client_kaapana.automatic_update,
-            "automatic_exp_execution": db_client_kaapana.automatic_exp_execution,
+            "automatic_workflow_execution": db_client_kaapana.automatic_workflow_execution,
         }
 
         job_params = {
@@ -742,15 +742,15 @@ def get_remote_updates(db: Session, periodically=False):
         for incoming_workflow in incoming_workflows:
             # check if incoming_workflow already exists
             db_incoming_workflow = get_workflow(
-                db, exp_id=incoming_workflow["exp_id"]
+                db, workflow_id=incoming_workflow["workflow_id"]
             )
-            # db_incoming_workflow = get_workflow(db, workflow_name=incoming_workflow['workflow_name']) # rather query via workflow_name than via exp_id
+            # db_incoming_workflow = get_workflow(db, workflow_name=incoming_workflow['workflow_name']) # rather query via workflow_name than via workflow_id
             if db_incoming_workflow is None:
                 # if not: create incoming workflows
                 incoming_workflow[
                     "kaapana_instance_id"
                 ] = db_remote_kaapana_instance.id
-                # incoming_workflow['external_exp_id'] = incoming_workflow["id"]
+                # incoming_workflow['external_workflow_id'] = incoming_workflow["id"]
                 # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
                 incoming_workflow["involved_kaapana_instances"] = incoming_workflow[
                     "involved_kaapana_instances"
@@ -786,16 +786,16 @@ def get_remote_updates(db: Session, periodically=False):
 
         # update incoming workflows
         for incoming_workflow in incoming_workflows:
-            exp_update = schemas.WorkflowUpdate(
+            workflow_update = schemas.WorkflowUpdate(
                 **{
-                    "exp_id": incoming_workflow["exp_id"],
+                    "workflow_id": incoming_workflow["workflow_id"],
                     # incoming_workflow["workflow_name"] instead of db_incoming_workflow.workflow_name
                     "workflow_name": incoming_workflow["workflow_name"],
                     # db_jobs instead of incoming_jobs
                     "workflow_jobs": db_jobs,
                 }
             )
-            db_workflow = put_workflow_jobs(db, exp_update)
+            db_workflow = put_workflow_jobs(db, workflow_update)
             logging.info(f"Updated remote workflow: {db_workflow}")
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
@@ -896,21 +896,21 @@ def create_and_update_service_workflows_and_jobs(
     db_service_workflow = get_workflow(db, dag_id=db_job.dag_id)
     if db_service_workflow:
         # if yes: compose WorkflowUpdate and append service-jobs to service-workflow via crud.put_workflow_jobs()
-        exp_update = schemas.WorkflowUpdate(
+        workflow_update = schemas.WorkflowUpdate(
             **{
-                "exp_id": db_service_workflow.exp_id,
-                "workflow_name": f"{db_job.dag_id}_service-exp",
+                "workflow_id": db_service_workflow.workflow_id,
+                "workflow_name": f"{db_job.dag_id}-service-workflow",
                 "workflow_jobs": [db_job],
             }
         )
-        db_service_workflow = put_workflow_jobs(db, exp_update)
+        db_service_workflow = put_workflow_jobs(db, workflow_update)
         logging.info(f"Updated service workflow: {db_service_workflow}")
     else:
         # if no: compose WorkflowCreate to create service-workflow ...
-        exp_create = schemas.WorkflowCreate(
+        workflow_create = schemas.WorkflowCreate(
             **{
-                "exp_id": f"ID-{''.join([substring[0] for substring in db_job.dag_id.split('-')])}",
-                "workflow_name": f"{db_job.dag_id}_service-exp",
+                "workflow_id": f"ID-{''.join([substring[0] for substring in db_job.dag_id.split('-')])}",
+                "workflow_name": f"{db_job.dag_id}-service-workflow",
                 "kaapana_instance_id": db_local_kaapana_instance.id,
                 "dag_id": db_job.dag_id,
                 "service_workflow": True,
@@ -919,18 +919,18 @@ def create_and_update_service_workflows_and_jobs(
             }
         )
         db_service_workflow = create_workflow(
-            db=db, workflow=exp_create, service_workflow=True
+            db=db, workflow=workflow_create, service_workflow=True
         )
         logging.info(f"Created service workflow: {db_service_workflow}")
         # ... and afterwards append service-jobs to service-workflow via crud.put_workflow_jobs()
-        exp_update = schemas.WorkflowUpdate(
+        workflow_update = schemas.WorkflowUpdate(
             **{
-                "exp_id": db_service_workflow.exp_id,
+                "workflow_id": db_service_workflow.workflow_id,
                 "workflow_name": db_service_workflow.workflow_name,
                 "workflow_jobs": [db_job],
             }
         )
-        db_service_workflow = put_workflow_jobs(db, exp_update)
+        db_service_workflow = put_workflow_jobs(db, workflow_update)
         logging.info(f"Updated service workflow: {db_service_workflow}")
 
 
@@ -1160,7 +1160,7 @@ def create_workflow(
     db_local_kaapana_instance = get_kaapana_instance(db)
 
     # workflow already exists?
-    if get_workflow(db, exp_id=workflow.exp_id) and service_workflow is False:
+    if get_workflow(db, workflow_id=workflow.workflow_id) and service_workflow is False:
         raise HTTPException(
             status_code=409, detail="Workflow exists already!"
         )  # ... raise http exception!
@@ -1172,7 +1172,7 @@ def create_workflow(
     utc_timestamp = get_utc_timestamp()
 
     db_workflow = models.Workflow(
-        exp_id=workflow.exp_id,
+        workflow_id=workflow.workflow_id,
         kaapana_id=workflow.kaapana_instance_id,
         dag_id=workflow.dag_id,
         username=workflow.username,
@@ -1190,10 +1190,10 @@ def create_workflow(
     if db_kaapana_instance.remote is True:
         # give remote workflow always same automatic_execution permissions as local instance!
         db_workflow.automatic_execution = (
-            db_local_kaapana_instance.automatic_exp_execution
+            db_local_kaapana_instance.automatic_workflow_execution
         )
 
-    # TODO: also update all involved_kaapana_instances with the exp_id in which they are involved
+    # TODO: also update all involved_kaapana_instances with the workflow_id in which they are involved
 
     db_kaapana_instance.workflows.append(db_workflow)
     db.add(db_kaapana_instance)
@@ -1203,7 +1203,7 @@ def create_workflow(
 
 
 # TODO removed async because our current database is not able to execute async methods
-def queue_generate_jobs_and_add_to_exp(
+def queue_generate_jobs_and_add_to_workflow(
     db: Session,
     db_client_kaapana: models.KaapanaInstance,
     db_workflow: models.Workflow,
@@ -1304,7 +1304,7 @@ def queue_generate_jobs_and_add_to_exp(
     # update workflow w/ created db_jobs
     workflow = schemas.WorkflowUpdate(
         **{
-            "exp_id": db_workflow.exp_id,
+            "workflow_id": db_workflow.workflow_id,
             "workflow_name": db_workflow.workflow_name,
             "workflow_jobs": db_jobs,
         }
@@ -1315,10 +1315,10 @@ def queue_generate_jobs_and_add_to_exp(
 
 
 def get_workflow(
-    db: Session, exp_id: str = None, workflow_name: str = None, dag_id: str = None
+    db: Session, workflow_id: str = None, workflow_name: str = None, dag_id: str = None
 ):
-    if exp_id is not None:
-        return db.query(models.Workflow).filter_by(exp_id=exp_id).first()
+    if workflow_id is not None:
+        return db.query(models.Workflow).filter_by(workflow_id=workflow_id).first()
     elif workflow_name is not None:
         return (
             db.query(models.Workflow)
@@ -1378,7 +1378,7 @@ def get_workflows(
 def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
 
-    db_workflow = get_workflow(db, workflow.exp_id)
+    db_workflow = get_workflow(db, workflow.workflow_id)
 
     if workflow.workflow_status == "confirmed":
         workflow.workflow_status = "confirmed"
@@ -1392,7 +1392,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                 db_workflow.kaapana_instance.remote is False
                 or (
                     db_workflow.kaapana_instance.remote is True
-                    and db_workflow.kaapana_instance.automatic_exp_execution is True
+                    and db_workflow.kaapana_instance.automatic_workflow_execution is True
                 )
                 or (
                     db_workflow.kaapana_instance.remote is True
@@ -1411,7 +1411,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
             # or update db_jobs on remote kaapana_instance
             elif (
                 db_workflow.kaapana_instance.remote is True
-                and db_workflow.kaapana_instance.automatic_exp_execution is True
+                and db_workflow.kaapana_instance.automatic_workflow_execution is True
             ) or (
                 db_workflow.kaapana_instance.remote is True
                 and db_workflow.automatic_execution is True
@@ -1436,7 +1436,7 @@ def put_workflow_jobs(db: Session, workflow=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
 
     # db_workflow = get_workflow(db, workflow_name=workflow.workflow_name)
-    db_workflow = get_workflow(db, exp_id=workflow.exp_id)
+    db_workflow = get_workflow(db, workflow_id=workflow.workflow_id)
 
     # get db_jobs via job_id which should be added to db_workflow
     db_jobs = []
@@ -1460,8 +1460,8 @@ def put_workflow_jobs(db: Session, workflow=schemas.WorkflowUpdate):
     return db_workflow
 
 
-def delete_workflow(db: Session, exp_id: str):
-    db_workflow = get_workflow(db, exp_id)  # get db's db_workflow object
+def delete_workflow(db: Session, workflow_id: str):
+    db_workflow = get_workflow(db, workflow_id)  # get db's db_workflow object
 
     # iterate over jobs of to-be-deleted workflow
     for db_workflow_current_job in db_workflow.workflow_jobs:

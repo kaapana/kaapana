@@ -91,7 +91,7 @@
                               v-on="on"
                               icon
                               color="blue"
-                              @click="() => (this.saveAsDatasetDialog = true)"
+                              @click="saveAsDatasetDialog = true"
                             >
                               mdi-plus
                             </v-icon>
@@ -111,7 +111,7 @@
                               v-on="on"
                               icon
                               color="green"
-                              @click="() => (this.addToDatasetDialog = true)"
+                              @click="addToDatasetDialog = true"
                             >
                               mdi-folder-plus-outline
                             </v-icon>
@@ -151,7 +151,7 @@
                             <v-icon
                               v-on="on"
                               color="primary"
-                              @click="() => (this.workflowDialog = true)"
+                              @click="workflowDialog = true"
                             >
                               mdi-play-box
                             </v-icon>
@@ -531,8 +531,8 @@ export default {
         return true;
       } catch (error) {
         this.$notify({
-          title: "Network/Server error",
-          text: error,
+          title: "Error",
+          text: error.response && error.response.data && error.response.data.detail ? error.response.data.detail : error,
           type: "error",
         });
         return false;

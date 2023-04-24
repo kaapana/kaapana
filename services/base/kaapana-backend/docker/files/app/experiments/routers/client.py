@@ -142,28 +142,20 @@ def put_client_kaapana_instance(
         db=db, client_kaapana_instance=client_kaapana_instance, action="update"
     )
 
-# Todo: The following two could be combined to one
-@router.get("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
-def get_remote_kaapana_instance(instance_name: str, db: Session = Depends(get_db)):
+@router.get("/kaapana-instance", response_model=schemas.KaapanaInstance)
+def get_kaapana_instance(instance_name: str = None, db: Session = Depends(get_db)):
     return crud.get_kaapana_instance(db, instance_name)
 
-
-@router.get("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
-def get_client_kaapana_instance(db: Session = Depends(get_db)):
-    return crud.get_kaapana_instance(db)
-
-
 @router.post(
-    "/get-remote-kaapana-instances", response_model=List[schemas.KaapanaInstance]
+    "/get-kaapana-instances", response_model=List[schemas.KaapanaInstance]
 )
-def get_remote_kaapana_instances(
+def get_kaapana_instances(
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
 ):
     return crud.get_kaapana_instances(
         db, filter_kaapana_instances=filter_kaapana_instances
     )
-
 
 @router.delete("/kaapana-instance")
 def delete_kaapana_instance(kaapana_instance_id: int, db: Session = Depends(get_db)):
@@ -244,10 +236,9 @@ async def dags(only_dag_names: bool = True):
     return get_dag_list(only_dag_names=only_dag_names)
 
 
-@router.get("/get_job_taskinstances")
+@router.get("/get-job-taskinstances")
 def get_job_taskinstances(job_id: int, db: Session = Depends(get_db)):
     return crud.get_job_taskinstances(db, job_id)
-
 
 @router.post("/get-dags")
 def get_dags(

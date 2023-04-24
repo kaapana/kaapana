@@ -345,7 +345,7 @@
       // API Calls: Instances
       getRemoteInstances() {
         kaapanaApiService
-          .federatedClientApiPost("/get-remote-kaapana-instances")
+          .federatedClientApiPost("/get-kaapana-instances")
           .then((response) => {
             this.available_kaapana_instance_names = response.data.map(({ instance_name }) => instance_name);
           })
@@ -355,7 +355,7 @@
       },
       getRemoteInstancesWithExternalDagAvailable() {
         kaapanaApiService
-          .federatedClientApiPost("/get-remote-kaapana-instances", {dag_id: this.external_dag_id})
+          .federatedClientApiPost("/get-kaapana-instances", {dag_id: this.external_dag_id})
           .then((response) => {
             this.remote_instances_w_external_dag_available = response.data.map(({ instance_name }) => instance_name)
           })

@@ -37,30 +37,10 @@
       </v-img>
       <v-card-text v-if="settings.datasets.cardText">
         <v-row no-gutters>
-          <v-col cols="11">
+          <v-col>
             <div class="text-truncate">
               {{ seriesDescription }}
             </div>
-          </v-col>
-          <v-col cols="1">
-            <v-tooltip bottom>
-              <template v-slot:activator="{ on, attrs }">
-                <v-icon small v-bind="attrs" v-on="on">
-                  mdi-information
-                </v-icon>
-              </template>
-              <v-data-table
-                :headers="[
-                  { text: 'Tag', value: 'name' },
-                  { text: 'Value', value: 'value' },
-                ]"
-                :items="tagsData"
-                fixed-header
-                :hide-default-footer="true"
-                :items-per-page="-1"
-                dense
-              />
-            </v-tooltip>
           </v-col>
         </v-row>
         <div v-for="prop in settings.datasets.props">
@@ -117,7 +97,6 @@ export default {
       modality: null,
       tags: [],
       settings: settings,
-      tagsData: [],
 
       img_loading_error: false,
 
@@ -149,10 +128,6 @@ export default {
             this.modality = data["metadata"]["Modality"] || "";
             this.seriesData = data["metadata"] || {};
             this.tags = data["metadata"]["tags"] || [];
-            this.tagsData = Object.entries(this.seriesData).map((i) => ({
-              name: i[0],
-              value: i[1],
-            }));
           }
         });
       }

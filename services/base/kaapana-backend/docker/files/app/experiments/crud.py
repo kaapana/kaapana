@@ -65,7 +65,6 @@ def get_kaapana_instance(db: Session, instance_name: str = None):
         .first()
     )
 
-
 def get_kaapana_instances(
     db: Session, filter_kaapana_instances: schemas.FilterKaapanaInstances = None
 ):
@@ -140,9 +139,9 @@ def create_and_update_client_kaapana_instance(
     )
     allowed_datasets = json.dumps(
         [
-            dataset
-            for dataset in client_kaapana_instance.allowed_datasets
-            if dataset in [ds.name for ds in get_datasets(db)]
+            schemas.AllowedDataset(**get_dataset(db, name=dataset_name).__dict__).dict()
+            for dataset_name in client_kaapana_instance.allowed_datasets
+            if dataset_name in [ds.name for ds in get_datasets(db)]
         ]
     )
     db_client_kaapana_instance = get_kaapana_instance(db)
@@ -578,8 +577,6 @@ def sync_client_remote(
     db_outgoing_jobs = get_jobs(
         db, instance_name=instance_name, status=status, remote=True
     )
-    print('joooo')
-    print(outgoing_jobs)
     # outgoing_jobs = [schemas.Job(**job.__dict__).dict() for job in db_outgoing_jobs]
 
 
@@ -1183,7 +1180,6 @@ def create_experiment(
         experiment_jobs=experiment.experiment_jobs,
         # list experiment_jobs already added to experiment in client.py's def create_experiment()
         involved_kaapana_instances=experiment.involved_kaapana_instances,
-        dataset_name=experiment.dataset_name,
         service_experiment=experiment.service_experiment,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
@@ -1212,8 +1208,8 @@ def queue_generate_jobs_and_add_to_exp(
     db_client_kaapana: models.KaapanaInstance,
     db_experiment: models.Experiment,
     json_schema_data: schemas.JsonSchemaData,
-    conf_data=None,
 ):
+    conf_data = json_schema_data.conf_data
     # get variables
     single_execution = False  # initialize with False
     if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
@@ -1230,35 +1226,7 @@ def queue_generate_jobs_and_add_to_exp(
         )
     username = conf_data["experiment_form"]["username"]
 
-    # compose queued_jobs according to 'single_execution'
-    queued_jobs = []
-    if single_execution is True:
-        for identifier in data_form["identifiers"][:dataset_limit]:
-            # Copying due to reference?!
-            single_conf_data = copy.deepcopy(conf_data)
-            single_conf_data["data_form"]["identifiers"] = [identifier]
-            queued_jobs.append(
-                {
-                    "conf_data": single_conf_data,
-                    "dag_id": json_schema_data.dag_id,
-                    "username": username,
-                }
-            )
-    else:
-        queued_jobs = [
-            {
-                "conf_data": conf_data,
-                "dag_id": json_schema_data.dag_id,
-                # 'dag_id': json_schema_data.dag_id if json_schema_data.federated == False else conf_data['external_schema_federated_form']['remote_dag_id'],
-                "username": username,
-            }
-        ]
-
-    # create jobs on conf_data["experiment_form"]["runner_instances"]
-    print(queued_jobs)
-    print(json_schema_data)
-    db_jobs = []
-    # db_kaapana_instances = []
+    
     db_kaapana_instances = get_kaapana_instances(
         db,
         filter_kaapana_instances=schemas.FilterKaapanaInstances(
@@ -1268,18 +1236,58 @@ def queue_generate_jobs_and_add_to_exp(
         ),
     )
     print(db_kaapana_instances)
-    for jobs_to_create in queued_jobs:
-        # add client instance to instance list only if it is marked as an involved_instance of current experiment
-        # if (
-        #     db_client_kaapana.instance_name
-        #     in conf_data["experiment_form"]["runner_instances"]
-        # ):
-        #     # add client instance to instance list only if it is marked as an involved_instance of current experiment
-        #     db_kaapana_instances.append(db_client_kaapana)
-        # db_kaapana_instances.extend(db_kaapana_instances)
-        # db_kaapana_instances_set = set(db_kaapana_instances)
-        # print('db_kaapana_instances!', db_kaapana_instances_set)
-        for db_kaapana_instance in db_kaapana_instances:
+    db_jobs = []
+    for db_kaapana_instance in db_kaapana_instances:
+        identifiers = []
+        if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
+            dataset_name = conf_data["data_form"]["dataset_name"]
+            if not db_kaapana_instance.remote:
+                db_dataset = get_dataset(db, dataset_name)
+                identifiers = json.loads(db_dataset.identifiers)
+            else:
+                allowed_datasets = json.loads(db_kaapana_instance.allowed_datasets)
+                for dataset_info in allowed_datasets:
+                    if dataset_info["name"] == dataset_name:
+                        identifiers = dataset_info["identifiers"] if "identifiers" in dataset_info else []
+                        break
+
+            conf_data["data_form"].update(
+                {
+                    "identifiers": identifiers
+                }
+            )
+
+        # compose queued_jobs according to 'single_execution'
+        queued_jobs = []
+        if single_execution is True:
+            for identifier in identifiers[:dataset_limit]:
+                # Copying due to reference?!
+                single_conf_data = copy.deepcopy(conf_data)
+                single_conf_data["data_form"]["identifiers"] = [identifier]
+                queued_jobs.append(
+                    {
+                        "conf_data": single_conf_data,
+                        "dag_id": json_schema_data.dag_id,
+                        "username": username,
+                    }
+                )
+        else:
+            if identifiers:
+                conf_data["data_form"].update(
+                    {
+                        "identifiers": identifiers
+                    }
+                )
+            queued_jobs = [
+                {
+                    "conf_data": conf_data,
+                    "dag_id": json_schema_data.dag_id,
+                    # 'dag_id': json_schema_data.dag_id if json_schema_data.federated == False else conf_data['external_schema_federated_form']['remote_dag_id'],
+                    "username": username,
+                }
+            ]
+
+        for jobs_to_create in queued_jobs:
             job = schemas.JobCreate(
                 **{
                     "status": "queued",

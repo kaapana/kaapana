@@ -170,6 +170,7 @@ def create_and_update_client_kaapana_instance(
             or False,
         )
     elif action == "update":
+        db_client_kaapana_instance.instance_name=settings.instance_name,
         db_client_kaapana_instance.time_updated = utc_timestamp
         if (
             db_client_kaapana_instance.fernet_key == "deactivated"

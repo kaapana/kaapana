@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from minio import Minio
 from .monitoring.services import MonitoringService
 from .users.services import UserService
-from .workflows.services import WorkflowService
+# from .workflows.services import WorkflowService
 from .workflows.models import KaapanaInstance
 from .config import settings
 from .database import SessionLocal
@@ -26,8 +26,8 @@ def get_user_service() -> UserService:
 def get_minio() -> Minio:
     yield  Minio(settings.minio_url, access_key=settings.minio_username, secret_key=settings.minio_password, secure=False)
 
-def get_workflow_service() -> WorkflowService:
-    yield WorkflowService(airflow_api=settings.airflow_url)
+# def get_workflow_service() -> WorkflowService:
+#     yield WorkflowService(airflow_api=settings.airflow_url)
 
 async def get_token_header(FederatedAuthorization: str = Header(...), db: Session = Depends(get_db)):
     if FederatedAuthorization:

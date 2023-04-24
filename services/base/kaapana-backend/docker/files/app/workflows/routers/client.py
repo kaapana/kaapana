@@ -113,14 +113,14 @@ def create_remote_kaapana_instance(
     )
 
 
-@router.post("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
-def create_client_kaapana_instance(
-    client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
-    db: Session = Depends(get_db),
-):
-    return crud.create_and_update_client_kaapana_instance(
-        db=db, client_kaapana_instance=client_kaapana_instance
-    )
+# @router.post("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
+# def create_client_kaapana_instance(
+#     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
+#     db: Session = Depends(get_db),
+# ):
+#     return crud.create_and_update_client_kaapana_instance(
+#         db=db, client_kaapana_instance=client_kaapana_instance
+#     )
 
 
 @router.put("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)

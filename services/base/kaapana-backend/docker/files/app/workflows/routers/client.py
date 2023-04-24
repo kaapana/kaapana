@@ -11,11 +11,11 @@ from pathlib import Path
 import jsonschema
 from app.datasets.utils import execute_opensearch_query
 from app.dependencies import get_db
-from app.experiments import crud
-from app.experiments import schemas
+from app.workflows import crud
+from app.workflows import schemas
 from app.config import settings
-from app.experiments.utils import HelperMinio
-from app.experiments.utils import get_dag_list
+from app.workflows.utils import HelperMinio
+from app.workflows.utils import get_dag_list
 from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
 from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
@@ -192,13 +192,13 @@ def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db
 # also okay: JobWithWorkflow; JobWithKaapanaInstance
 def get_jobs(
     instance_name: str = None,
-    experiment_name: str = None,
+    workflow_name: str = None,
     status: str = None,
     limit: int = None,
     db: Session = Depends(get_db),
 ):
     return crud.get_jobs(
-        db, instance_name, experiment_name, status, remote=False, limit=limit
+        db, instance_name, workflow_name, status, remote=False, limit=limit
     )
 
 
@@ -455,10 +455,10 @@ def delete_datasets(db: Session = Depends(get_db)):
     return crud.delete_datasets(db)
 
 
-# create_experiment ; should replace and be sth like "def submit_workflow_json_schema()"
-@router.post("/experiment", response_model=schemas.Workflow)
+# create_workflow ; should replace and be sth like "def submit_workflow_json_schema()"
+@router.post("/workflow", response_model=schemas.Workflow)
 # also okay: schemas.WorkflowWithKaapanaInstance
-def create_experiment(
+def create_workflow(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
@@ -485,93 +485,93 @@ def create_experiment(
         )
 
     db_client_kaapana = crud.get_kaapana_instance(db)
-    # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in experiment's runner instances ...
+    # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in workflow's runner instances ...
     #     json_schema_data.remote = False                                     # ... set json_schema_data.remote to False
 
     # conf_data = json_schema_data.conf_data
 
-    # generate random and unique experiment id
+    # generate random and unique workflow id
     characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
     exp_id = "".join(random.choices(characters, k=6))
-    # append exp_id to experiment_name
-    experiment_name = json_schema_data.experiment_name + "_exp" + exp_id
+    # append exp_id to workflow_name
+    workflow_name = json_schema_data.workflow_name + "_exp" + exp_id
 
     # TODO adapt involed instances per job?
     if json_schema_data.federated:  # == True ;-)
         involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
         involved_instance_names.extend(json_schema_data.conf_data["external_schema_instance_names"])
-    json_schema_data.conf_data["experiment_form"] = {
+    json_schema_data.conf_data["workflow_form"] = {
         "username": username,
         "exp_id": exp_id,
-        "experiment_name": experiment_name,
+        "workflow_name": workflow_name,
         "involved_instances": json_schema_data.instance_names
         if json_schema_data.federated == False
-        else involved_instance_names,  # instances on which experiment is created!
-        "runner_instances": json_schema_data.instance_names,  # instances on which jobs of experiment are created!
+        else involved_instance_names,  # instances on which workflow is created!
+        "runner_instances": json_schema_data.instance_names,  # instances on which jobs of workflow are created!
     }
 
-    # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
-    experiment = schemas.WorkflowCreate(
+    # create an workflow with involved_instances=conf_data["workflow_form"]["involved_instances"] and add jobs to it
+    workflow = schemas.WorkflowCreate(
         **{
             "exp_id": exp_id,
-            "experiment_name": experiment_name,
+            "workflow_name": workflow_name,
             "username": username,
             "kaapana_instance_id": db_client_kaapana.id,
-            # "experiment_jobs": db_jobs,
-            "involved_kaapana_instances": json_schema_data.conf_data["experiment_form"][
+            # "workflow_jobs": db_jobs,
+            "involved_kaapana_instances": json_schema_data.conf_data["workflow_form"][
                 "involved_instances"
             ]
         }
     )
-    db_experiment = crud.create_experiment(db=db, experiment=experiment)
+    db_workflow = crud.create_workflow(db=db, workflow=workflow)
 
-    # async function call to queue jobs and generate db_jobs + adding them to db_experiment
+    # async function call to queue jobs and generate db_jobs + adding them to db_workflow
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
-    # asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
+    # asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_workflow, json_schema_data, conf_data))
     crud.queue_generate_jobs_and_add_to_exp(
-        db, db_client_kaapana, db_experiment, json_schema_data
+        db, db_client_kaapana, db_workflow, json_schema_data
     )
 
-    # directly return created db_experiment for fast feedback
-    return db_experiment
+    # directly return created db_workflow for fast feedback
+    return db_workflow
 
 
-# get_experiment
-@router.get("/experiment", response_model=schemas.WorkflowWithKaapanaInstance)
-def get_experiment(
+# get_workflow
+@router.get("/workflow", response_model=schemas.WorkflowWithKaapanaInstance)
+def get_workflow(
     exp_id: str = None,
-    experiment_name: str = None,
+    workflow_name: str = None,
     dag_id: str = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_experiment(db, exp_id, experiment_name, dag_id)
+    return crud.get_workflow(db, exp_id, workflow_name, dag_id)
 
 
-# get_experiments
+# get_workflows
 @router.get(
-    "/experiments", response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
+    "/workflows", response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
 )
 # also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
-def get_experiments(
+def get_workflows(
     request: Request,
     instance_name: str = None,
     involved_instance_name: str = None,
-    experiment_job_id: int = None,
+    workflow_job_id: int = None,
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_experiments(
-        db, instance_name, involved_instance_name, experiment_job_id, limit=limit
+    return crud.get_workflows(
+        db, instance_name, involved_instance_name, workflow_job_id, limit=limit
     )  # , username=request.headers["x-forwarded-preferred-username"]
 
 
-# put/update_experiment
-@router.put("/experiment", response_model=schemas.Workflow)
-def put_experiment(experiment: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
-    if experiment.experiment_status == "abort":
-        # iterate over experiment's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_experiment()
-        db_experiment = crud.get_experiment(db, experiment.exp_id)
-        for db_job in db_experiment.experiment_jobs:
+# put/update_workflow
+@router.put("/workflow", response_model=schemas.Workflow)
+def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
+    if workflow.workflow_status == "abort":
+        # iterate over workflow's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_workflow()
+        db_workflow = crud.get_workflow(db, workflow.exp_id)
+        for db_job in db_workflow.workflow_jobs:
             # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
             job = schemas.JobUpdate(
                 **{
@@ -586,27 +586,27 @@ def put_experiment(experiment: schemas.WorkflowUpdate, db: Session = Depends(get
             job.status = "failed"
             crud.update_job(db, job, remote=False)  # update db_job to failed
 
-        # update aborted experiment
-        return crud.update_experiment(db, experiment)
+        # update aborted workflow
+        return crud.update_workflow(db, workflow)
     else:
-        return crud.update_experiment(db, experiment)
+        return crud.update_workflow(db, workflow)
 
 
-# endpoint to update an experiment with additional experiment_jobs
-@router.put("/experiment_jobs", response_model=schemas.Workflow)
-def put_experiment_jobs(
-    experiment: schemas.WorkflowUpdate, db: Session = Depends(get_db)
+# endpoint to update an workflow with additional workflow_jobs
+@router.put("/workflow_jobs", response_model=schemas.Workflow)
+def put_workflow_jobs(
+    workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
 ):
-    return crud.put_experiment_jobs(db, experiment)
+    return crud.put_workflow_jobs(db, workflow)
 
 
-# delete_experiment
-@router.delete("/experiment")
-def delete_experiment(exp_id: str, db: Session = Depends(get_db)):
-    return crud.delete_experiment(db, exp_id)
+# delete_workflow
+@router.delete("/workflow")
+def delete_workflow(exp_id: str, db: Session = Depends(get_db)):
+    return crud.delete_workflow(db, exp_id)
 
 
-# delete_experiments
-@router.delete("/experiments")
-def delete_experiments(db: Session = Depends(get_db)):
-    return crud.delete_experiments(db)
+# delete_workflows
+@router.delete("/workflows")
+def delete_workflows(db: Session = Depends(get_db)):
+    return crud.delete_workflows(db)

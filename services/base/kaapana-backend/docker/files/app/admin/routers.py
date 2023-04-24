@@ -7,8 +7,8 @@ from opensearchpy import OpenSearch
 from sqlalchemy.orm import Session
 
 import uuid
-from app.experiments import schemas
-from app.experiments.utils import HelperMinio
+from app.workflows import schemas
+from app.workflows.utils import HelperMinio
 from app.config import settings
 
 router = APIRouter()

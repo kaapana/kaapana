@@ -1,7 +1,7 @@
 <template lang="pug">
   .federated-panel
     v-container(text-left fluid)
-      experiment-table(:experiments="clientWorkflows" @refreshView="getClientWorkflows()")
+      workflow-table(:workflows="clientWorkflows" @refreshView="getClientWorkflows()")
 </template>
 
 <script>
@@ -30,7 +30,7 @@ export default Vue.extend({
   methods: {
     getClientWorkflows() {
       kaapanaApiService
-        .federatedClientApiGet("/experiments",{
+        .federatedClientApiGet("/workflows",{
         limit: 100,
         }).then((response) => {
           this.clientWorkflows = response.data;

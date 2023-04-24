@@ -27,7 +27,7 @@
     </v-card-title>
     <v-data-table
       :headers="experimentHeaders"
-      :items="filteredExperiments"
+      :items="filteredWorkflows"
       item-key="experiment_name"
       class="elevation-1"
       :search="search"
@@ -56,7 +56,7 @@
         <div v-else-if="!item.automatic_execution">
           <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-btn v-bind="attrs" v-on="on" @click='startExperimentManually(item)' small icon>
+              <v-btn v-bind="attrs" v-on="on" @click='startWorkflowManually(item)' small icon>
                 <v-icon color="red" dark>mdi-play-circle-outline</v-icon>
               </v-btn>
             </template>
@@ -67,7 +67,7 @@
           <v-col v-if="!item.kaapana_instance.remote" >
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
-                <v-btn v-bind="attrs" v-on="on" @click='abortExperiment(item)' small icon>
+                <v-btn v-bind="attrs" v-on="on" @click='abortWorkflow(item)' small icon>
                   <v-icon color="primary" dark>mdi-stop-circle-outline</v-icon>
                 </v-btn>
               </template>
@@ -75,7 +75,7 @@
             </v-tooltip>
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
-                <v-btn v-bind="attrs" v-on="on" @click='restartExperiment(item)' small icon>
+                <v-btn v-bind="attrs" v-on="on" @click='restartWorkflow(item)' small icon>
                   <v-icon color="primary" dark>mdi-rotate-left</v-icon>
                 </v-btn>
               </template>
@@ -83,7 +83,7 @@
             </v-tooltip>
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
-                <v-btn v-bind="attrs" v-on="on" @click='deleteExperiment(item)' small icon>
+                <v-btn v-bind="attrs" v-on="on" @click='deleteWorkflow(item)' small icon>
                   <v-icon color="primary" dark>mdi-trash-can-outline</v-icon>
                 </v-btn>
               </template>
@@ -104,7 +104,7 @@
       </template>
       <template #expanded-item="{headers,item}">
         <td :colspan="headers.length">
-          <job-table v-if="jobsofExpandedExperiment" :jobs="jobsofExpandedExperiment" @refreshView="refreshClient()"></job-table>
+          <job-table v-if="jobsofExpandedWorkflow" :jobs="jobsofExpandedWorkflow" @refreshView="refreshClient()"></job-table>
         </td>
       </template>
     </v-data-table>
@@ -118,7 +118,7 @@ import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
 import JobTable from "./JobTable.vue";
 
 export default {
-name: 'ExperimentTable',
+name: 'WorkflowTable',
 
 components: {
   SyncRemoteInstances,
@@ -145,10 +145,10 @@ data () {
       { text: 'Actions', value: 'actions', sortable: false, filterable: false, align: 'center'},
       // { text: 'Auto', value: 'automatic_execution', sortable: false, filterable: false, align: 'center'}
     ],
-    expandedExperiment: '',
-    jobsofExpandedExperiment: [],
-    jobsofExperiments: [],
-    states_jobsofExperiment: [],
+    expandedWorkflow: '',
+    jobsofExpandedWorkflow: [],
+    jobsofWorkflows: [],
+    states_jobsofWorkflow: [],
     manual_startID: '',
     abortID: '',
     restartID: '',
@@ -171,10 +171,10 @@ props: {
 },
 
 computed: {
-  filteredExperiments() {  
+  filteredWorkflows() {  
     if (this.experiments !== null) {
-      if (this.expandedExperiment) {
-        this.getJobsOfExperiment(this.expandedExperiment.experiment_name)
+      if (this.expandedWorkflow) {
+        this.getJobsOfWorkflow(this.expandedWorkflow.experiment_name)
       }
       return this.experiments
     }
@@ -191,12 +191,12 @@ methods: {
       if (item === this.expanded[0] ) {
         // Clicked row is already expanded, so collapse it
         this.expanded = []
-        this.expandedExperiment = ''
+        this.expandedWorkflow = ''
       } else {
         // Clicked row is not expanded, so expand it
         this.expanded = [item]
-        this.expandedExperiment = item
-        this.getJobsOfExperiment(this.expandedExperiment.experiment_name)
+        this.expandedWorkflow = item
+        this.getJobsOfWorkflow(this.expandedWorkflow.experiment_name)
       }
     } else {
       this.shouldExpand = true
@@ -217,49 +217,49 @@ methods: {
       count: states.filter(_state => _state === state).length
     }))
   },
-  startExperimentManually(item) {
+  startWorkflowManually(item) {
     this.shouldExpand = false
     this.manual_startID = item.exp_id,
     console.log("Manually start Workflow: ", this.manual_startID)
-    this.manuallyStartClientExperimentAPI(this.manual_startID, 'confirmed')
+    this.manuallyStartClientWorkflowAPI(this.manual_startID, 'confirmed')
   },
-  abortExperiment(item) {
+  abortWorkflow(item) {
       this.shouldExpand = false
       this.abortID = item.exp_id
       console.log("Abort Workflow: ", this.abortID)
-      this.abortClientExperimentAPI(this.abortID, 'abort')
+      this.abortClientWorkflowAPI(this.abortID, 'abort')
   },
-  restartExperiment(item) {
+  restartWorkflow(item) {
       this.shouldExpand = false
       this.restartID = item.exp_id
       console.log("Restart Workflow: ", this.restartID)
-      this.restartClientExperimentAPI(this.restartID, 'scheduled')
+      this.restartClientWorkflowAPI(this.restartID, 'scheduled')
   },
-  deleteExperiment(item) {
+  deleteWorkflow(item) {
       this.shouldExpand = false
       this.deleteID = item.exp_id
       console.log("Delete Workflow: ", this.deleteID, "Item:", item)
-      this.deleteClientExperimentAPI(this.deleteID)
+      this.deleteClientWorkflowAPI(this.deleteID)
   },
 
   // API Calls
-  getJobsOfExperiment(experiment_name) {
+  getJobsOfWorkflow(experiment_name) {
       kaapanaApiService
         .federatedClientApiGet("/jobs",{
           experiment_name: experiment_name,
           limit: 100,
         }).then((response) => {
           if (this.expanded.length > 0) {
-            this.jobsofExpandedExperiment = response.data;
+            this.jobsofExpandedWorkflow = response.data;
           } else {
-            this.jobsofExperiments = response.data;
+            this.jobsofWorkflows = response.data;
           }
         })
         .catch((err) => {
           console.log(err);
         })
   },
-  deleteClientExperimentAPI(exp_id) {
+  deleteClientWorkflowAPI(exp_id) {
       kaapanaApiService
       .federatedClientApiDelete("/experiment",{
           exp_id,
@@ -281,7 +281,7 @@ methods: {
         console.log(err);
       })
   },
-  restartClientExperimentAPI(exp_id, experiment_status) {
+  restartClientWorkflowAPI(exp_id, experiment_status) {
       kaapanaApiService
       .federatedClientApiPut("/experiment",{
           exp_id,
@@ -304,7 +304,7 @@ methods: {
           console.log(err);
       })
   },
-  abortClientExperimentAPI(exp_id, experiment_status) {
+  abortClientWorkflowAPI(exp_id, experiment_status) {
       kaapanaApiService
       .federatedClientApiPut("/experiment",{
           exp_id,
@@ -327,7 +327,7 @@ methods: {
         console.log(err);
       })
   },
-  manuallyStartClientExperimentAPI(exp_id, experiment_status) {
+  manuallyStartClientWorkflowAPI(exp_id, experiment_status) {
       kaapanaApiService
         .federatedClientApiPut("/experiment",{
             exp_id,

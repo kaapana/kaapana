@@ -1,7 +1,7 @@
 <template lang="pug">
   .federated-panel
     v-container(text-left fluid)
-      experiment-table(:experiments="clientExperiments" @refreshView="getClientExperiments()")
+      experiment-table(:experiments="clientWorkflows" @refreshView="getClientWorkflows()")
 </template>
 
 <script>
@@ -9,31 +9,31 @@ import Vue from "vue";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
-import ExperimentTable from "@/components/ExperimentTable.vue"
+import WorkflowTable from "@/components/WorkflowTable.vue"
 
 export default Vue.extend({
   components: {
-    ExperimentTable,
+    WorkflowTable,
   },
   data: () => ({
     polling: 0,
-    clientExperiments: []
+    clientWorkflows: []
   }),
   created() {},
   mounted () {
-    this.getClientExperiments();
+    this.getClientWorkflows();
     this.startExtensionsInterval()
   },
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated'])
   },
   methods: {
-    getClientExperiments() {
+    getClientWorkflows() {
       kaapanaApiService
         .federatedClientApiGet("/experiments",{
         limit: 100,
         }).then((response) => {
-          this.clientExperiments = response.data;
+          this.clientWorkflows = response.data;
         })
         .catch((err) => {
           console.log(err);
@@ -46,7 +46,7 @@ export default Vue.extend({
       this.polling = window.setInterval(() => {
         // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
         // if (!this.$refs.workflowexecution.dialogOpen) {
-        this.getClientExperiments();
+        this.getClientWorkflows();
         // }
       }, 15000);
     }

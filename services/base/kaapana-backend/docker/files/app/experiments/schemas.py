@@ -222,7 +222,7 @@ class AllowedDataset(DatasetBase):
         orm_mode = True
 
 
-class ExperimentBase(BaseModel):
+class WorkflowBase(BaseModel):
     exp_id: str = None
     experiment_name: str = None
     experiment_status: str = None
@@ -232,7 +232,7 @@ class ExperimentBase(BaseModel):
     service_experiment: Optional[bool] = False
 
 
-class Workflow(ExperimentBase):
+class Workflow(WorkflowBase):
     username: str = None
     status: str = None
     time_created: datetime.datetime = None
@@ -258,39 +258,39 @@ class Workflow(ExperimentBase):
         orm_mode = True
 
 
-class ExperimentCreate(ExperimentBase):
+class WorkflowCreate(WorkflowBase):
     username: str = None
     kaapana_instance_id: int
     experiment_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
 
 
-class ExperimentUpdate(ExperimentBase):
+class WorkflowUpdate(WorkflowBase):
     experiment_name: Optional[str] = None  # ... or experiment_name
     experiment_jobs: List = []
 
 
-class ExperimentWithKaapanaInstance(Workflow):
+class WorkflowWithKaapanaInstance(Workflow):
     kaapana_instance: KaapanaInstance = None
     # involved_kaapana_instances: list = []
 
 
-class KaapanaInstanceWithExperiments(KaapanaInstance):
+class KaapanaInstanceWithWorkflows(KaapanaInstance):
     experiments: List[Workflow] = []
 
 
-class JobWithExperiment(Job):
+class JobWithWorkflow(Job):
     experiment: Workflow = None
     # involved_kaapana_instances: Optional[list]  # idk y?
 
 
-class JobWithExperimentWithKaapanaInstance(JobWithKaapanaInstance):
+class JobWithWorkflowWithKaapanaInstance(JobWithKaapanaInstance):
     experiment: Workflow = None
 
 
-class ExperimentWithJobs(Workflow):
+class WorkflowWithJobs(Workflow):
     jobs: List[Job] = []
 
 
-class ExperimentWithKaapanaInstanceWithJobs(ExperimentWithKaapanaInstance):
+class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
     experiment_jobs: List[Job] = []

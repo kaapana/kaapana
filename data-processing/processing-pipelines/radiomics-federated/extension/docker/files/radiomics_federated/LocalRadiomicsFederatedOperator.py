@@ -227,7 +227,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
         self.client_url = 'http://federated-backend-service.base.svc:5000/client'
         with requests.Session() as s:
-            r = requests_retry_session(session=s).get(f'{self.client_url}/client-kaapana-instance')
+            r = requests_retry_session(session=s).get(f'{self.client_url}/kaapana-instance')
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.client_network = r.json()
 
@@ -243,7 +243,7 @@ class KaapanaFederatedTrainingBase(ABC):
             self.federated_round_start = 0
         print(instance_names)
         with requests.Session() as s:
-            r = requests_retry_session(session=s).post(f'{self.client_url}/get-remote-kaapana-instances', json={'instance_names': instance_names})
+            r = requests_retry_session(session=s).post(f'{self.client_url}/get-kaapana-instances', json={'instance_names': instance_names})
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.remote_sites = r.json()
 

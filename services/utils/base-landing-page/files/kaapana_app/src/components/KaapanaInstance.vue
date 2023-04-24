@@ -176,21 +176,12 @@
   
   
   export default {
-    name: 'RemoteKaapanaInstance',
+    name: 'KaapanaInstance',
     data: () => ({
       dialogOpen: false,
       dialogDelete: false,
-      // clientDialog: false,
       dags: [],
       datasets: [],
-      // instancePost: {
-      //   ssl_check: false,
-      //   automatic_update: false,
-      //   automatic_exp_execution: false,
-      //   fernet_encrypted: false,
-      //   allowed_dags: [],
-      //   allowed_datasets: []
-      // },
       edit_allowed_dags: false,
       edit_allowed_datasets: false,
       edit_automatic_update: false,
@@ -205,18 +196,7 @@
         type: Object,
         required: true
       },
-      // remote: { // false for client instance; true for remote instances
-      //   type: Boolean,
-      //   required: true
-      // },
-      // time_updated: { // needed to always re-render the remote instance whenever parent component gets remote instance from backend
-      //   type: String,
-      //   required: true
-      // },
     },
-    // mounted () {
-    //   this.lets_init()
-    // },
     watch: {
       dialogDelete (val) {
         val || this.closeDelete()
@@ -233,7 +213,6 @@
         return this.instance.remote
       },
       instancePost (){
-        console.log('instance', this.instance)
         if (this.instance.fernet_key != "deactivated") {
           this.instance.fernet_encrypted = true
         } else {

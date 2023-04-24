@@ -4,34 +4,6 @@
       <v-col cols="4">
         <p class="mx-4 my-2">Experiment List</p>
       </v-col>
-      <v-col cols="2">
-        <!-- LocalKaapanaInstance
-          v-if="clientInstance"
-          :instance="clientInstance"
-          :remote="false"
-          @refreshView="refreshClient()"
-          @ei="editClientInstance"
-        ></LocalKaapanaInstance -->
-        <!-- template>
-          <v-menu offset-y bottom transition="scale-transition" close-on-click>
-            <template v-slot:activator="{ on, attrs }">
-              <v-btn v-on="on" v-bind="attrs" color="primary" class="mx-2" dark rounded outlined> remote </v-btn>
-            </template>
-            <v-list dense>
-              <v-list-item>
-                <add-remote-instance :remote="true"></add-remote-instance>
-              </v-list-item>
-              <v-list-item>
-                <view-remote-instances :clientinstance="clientInstance" :remote="true"></view-remote-instances>
-              </v-list-item>
-              <v-list-item>
-                <sync-remote-instances :clientinstance="clientInstance" :remote="true"></sync-remote-instances>
-              </v-list-item >
-            </v-list>
-          </v-menu>
-        </template -->
-        <v-btn v-if="!clientInstance" color="primary" @click.stop="clientDialog=true" dark="dark">Add client instance </v-btn>
-      </v-col>
       <v-col align="right">
         <v-tooltip bottom>
           <template v-slot:activator="{ on, attrs }">
@@ -92,7 +64,7 @@
           </v-tooltip>
         </div>
         <div v-else>
-          <v-col v-if="item.kaapana_instance.instance_name == clientInstance.instance_name" >
+          <v-col v-if="!item.kaapana_instance.remote" >
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" @click='abortExperiment(item)' small icon>
@@ -132,7 +104,7 @@
       </template>
       <template #expanded-item="{headers,item}">
         <td :colspan="headers.length">
-          <job-table v-if="jobsofExpandedExperiment" :jobs="jobsofExpandedExperiment" :remote="clientInstance.remote" @refreshView="refreshClient()"></job-table>
+          <job-table v-if="jobsofExpandedExperiment" :jobs="jobsofExpandedExperiment" @refreshView="refreshClient()"></job-table>
         </td>
       </template>
     </v-data-table>
@@ -142,10 +114,6 @@
 <script>
 
 import kaapanaApiService from "@/common/kaapanaApi.service";
-
-// import LocalKaapanaInstance from "@/components/LocalKaapanaInstance.vue";
-import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
-import ViewRemoteInstances from "@/components/ViewRemoteInstances.vue";
 import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
 import JobTable from "./JobTable.vue";
 
@@ -153,9 +121,6 @@ export default {
 name: 'ExperimentTable',
 
 components: {
-  // LocalKaapanaInstance,
-  AddRemoteInstance,
-  ViewRemoteInstances,
   SyncRemoteInstances,
   JobTable,
 },
@@ -180,9 +145,6 @@ data () {
       { text: 'Actions', value: 'actions', sortable: false, filterable: false, align: 'center'},
       // { text: 'Auto', value: 'automatic_execution', sortable: false, filterable: false, align: 'center'}
     ],
-    clientInstance: {},
-    clientExperiments: {},
-    clientJobs: [],
     expandedExperiment: '',
     jobsofExpandedExperiment: [],
     jobsofExperiments: [],
@@ -202,21 +164,9 @@ mounted () {
 },
 
 props: {
-  instance: {
-    type: Object,
-    required: true
-  },
   experiments: {
     type: Array,
     required: true
-  },
-  remote: {
-    type: Boolean,
-    default: true
-  },
-  allInstances: {
-    type: Array,
-    required: true,
   }
 },
 
@@ -234,9 +184,7 @@ computed: {
 methods: {
   // General Methods
   refreshClient() {
-    this.getClientInstance()
-    this.getClientExperiments()
-    this.getClientJobs()
+    this.$emit('refreshView')
   },
   expandRow(item) {
     if ( this.shouldExpand == true) {
@@ -269,12 +217,6 @@ methods: {
       count: states.filter(_state => _state === state).length
     }))
   },
-  editClientInstance(instance) {
-    this.clientPost = instance
-    this.clientPost.fernet_encrypted = false
-    this.clientDialog = true
-    this.clientUpdate = true
-  },
   startExperimentManually(item) {
     this.shouldExpand = false
     this.manual_startID = item.exp_id,
@@ -301,39 +243,6 @@ methods: {
   },
 
   // API Calls
-  getClientInstance() {
-    kaapanaApiService
-      .federatedClientApiGet("/client-kaapana-instance")
-      .then((response) => {
-        this.clientInstance = response.data;
-      })
-      .catch((err) => {
-        this.clientInstance = {}
-      });
-  },
-  getClientExperiments() {
-    kaapanaApiService
-      .federatedClientApiGet("/experiments",{
-      limit: 100,
-      }).then((response) => {
-        this.clientExperiments = response.data;
-        console.log("clientExperiments: ", this.clientExperiments)
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-  },
-  getClientJobs() {
-    kaapanaApiService
-      .federatedClientApiGet("/jobs",{
-        limit: 100,
-      }).then((response) => {
-        this.clientJobs = response.data;
-      })
-      .catch((err) => {
-        console.log(err);       
-      });
-  },
   getJobsOfExperiment(experiment_name) {
       kaapanaApiService
         .federatedClientApiGet("/jobs",{

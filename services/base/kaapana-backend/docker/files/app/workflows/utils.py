@@ -254,9 +254,10 @@ def abort_job_airflow(dag_id, dag_run_id, status="failed"):
             timeout=TIMEOUT,
             json={
                 "dag_id": dag_id,
-                "state": {
-                    **status,
-                },
+                "state": status,
+                # "state": {
+                #     **status,
+                # },
             },
         )
     raise_kaapana_connection_error(resp)

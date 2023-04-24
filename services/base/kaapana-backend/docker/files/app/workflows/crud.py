@@ -363,7 +363,7 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
 
 def delete_job(db: Session, job_id: int, remote: bool = True):
     db_job = get_job(db, job_id)
-    if (db_job.experiment.kaapana_instance.remote != remote) and db_job.status not in [
+    if (db_job.workflow.kaapana_instance.remote != remote) and db_job.status not in [
         "queued",
         "finished",
         "failed",
@@ -396,7 +396,7 @@ def delete_job_force(db: Session, job_id: int):
 def get_jobs(
     db: Session,
     instance_name: str = None,
-    experiment_name: str = None,
+    workflow_name: str = None,
     status: str = None,
     remote: bool = True,
     limit=None,
@@ -411,12 +411,12 @@ def get_jobs(
             .limit(limit)
             .all()
         )  # same as org but w/o filtering by remote
-    elif experiment_name is not None and status is not None:
+    elif workflow_name is not None and status is not None:
         return (
             db.query(models.Job)
             .filter_by(status=status)
-            .join(models.Job.experiment, aliased=True)
-            .filter_by(experiment_name=experiment_name)
+            .join(models.Job.workflow, aliased=True)
+            .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
             .all()
@@ -430,11 +430,11 @@ def get_jobs(
             .limit(limit)
             .all()
         )  # same as org but w/o filtering by remote
-    elif experiment_name is not None:
+    elif workflow_name is not None:
         return (
             db.query(models.Job)
-            .join(models.Job.experiment, aliased=True)
-            .filter_by(experiment_name=experiment_name)
+            .join(models.Job.workflow, aliased=True)
+            .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
             .all()
@@ -451,7 +451,7 @@ def get_jobs(
     else:
         return (
             db.query(models.Job)
-            .join(models.Job.experiment, aliased=True)
+            .join(models.Job.workflow, aliased=True)
             .join(models.Workflow.kaapana_instance, aliased=True)
             .filter_by(remote=remote)
             .order_by(desc(models.Job.time_updated))
@@ -580,31 +580,31 @@ def sync_client_remote(
     # outgoing_jobs = [schemas.Job(**job.__dict__).dict() for job in db_outgoing_jobs]
 
 
-    # get experiments on client_kaapana_instance which contain outgoing_jobs
+    # get workflows on client_kaapana_instance which contain outgoing_jobs
     outgoing_jobs = []
-    outgoing_experiments = []
+    outgoing_workflows = []
     for db_outgoing_job in db_outgoing_jobs:
         if db_outgoing_job.kaapana_instance.id == db_client_kaapana.id:
             print("SYNC_CLIENT_REMOTE: outgoing_job is on client instance")
             continue
         outgoing_jobs.append(schemas.Job(**db_outgoing_job.__dict__).dict())
 
-        db_outgoing_experiment = get_experiments(
-            db, experiment_job_id=db_outgoing_job.id
+        db_outgoing_workflow = get_workflows(
+            db, workflow_job_id=db_outgoing_job.id
         )
-        outgoing_experiment = (
+        outgoing_workflow = (
             [
-                schemas.Workflow(**experiment.__dict__).dict()
-                for experiment in db_outgoing_experiment
+                schemas.Workflow(**workflow.__dict__).dict()
+                for workflow in db_outgoing_workflow
             ][0]
-            if len(db_outgoing_experiment) > 0
+            if len(db_outgoing_workflow) > 0
             else None
         )
-        if outgoing_experiment is not None:
-            outgoing_experiments.append(outgoing_experiment)
+        if outgoing_workflow is not None:
+            outgoing_workflows.append(outgoing_workflow)
 
     logging.info(f"SYNC_CLIENT_REMOTE outgoing_jobs: {outgoing_jobs}")
-    logging.info(f"SYNC_CLIENT_REMOTE outgoing_experiments: {outgoing_experiments}")
+    logging.info(f"SYNC_CLIENT_REMOTE outgoing_workflows: {outgoing_workflows}")
 
     update_remote_instance_payload = {
         "instance_name": db_client_kaapana.instance_name,
@@ -615,7 +615,7 @@ def sync_client_remote(
     }
     return {
         "incoming_jobs": outgoing_jobs,
-        "incoming_experiments": outgoing_experiments,
+        "incoming_workflows": outgoing_workflows,
         "update_remote_instance_payload": update_remote_instance_payload,
     }
 
@@ -727,7 +727,7 @@ def get_remote_updates(db: Session, periodically=False):
         incoming_data = r.json()
 
         incoming_jobs = incoming_data["incoming_jobs"]
-        incoming_experiments = incoming_data["incoming_experiments"]
+        incoming_workflows = incoming_data["incoming_workflows"]
         remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(
             **incoming_data["update_remote_instance_payload"]
         )
@@ -738,33 +738,33 @@ def get_remote_updates(db: Session, periodically=False):
             action="external_update",
         )
 
-        # create experiment for incoming experiment if does NOT exist yet
-        for incoming_experiment in incoming_experiments:
-            # check if incoming_experiment already exists
-            db_incoming_experiment = get_experiment(
-                db, exp_id=incoming_experiment["exp_id"]
+        # create workflow for incoming workflow if does NOT exist yet
+        for incoming_workflow in incoming_workflows:
+            # check if incoming_workflow already exists
+            db_incoming_workflow = get_workflow(
+                db, exp_id=incoming_workflow["exp_id"]
             )
-            # db_incoming_experiment = get_experiment(db, experiment_name=incoming_experiment['experiment_name']) # rather query via experiment_name than via exp_id
-            if db_incoming_experiment is None:
-                # if not: create incoming experiments
-                incoming_experiment[
+            # db_incoming_workflow = get_workflow(db, workflow_name=incoming_workflow['workflow_name']) # rather query via workflow_name than via exp_id
+            if db_incoming_workflow is None:
+                # if not: create incoming workflows
+                incoming_workflow[
                     "kaapana_instance_id"
                 ] = db_remote_kaapana_instance.id
-                # incoming_experiment['external_exp_id'] = incoming_experiment["id"]
+                # incoming_workflow['external_exp_id'] = incoming_workflow["id"]
                 # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
-                incoming_experiment["involved_kaapana_instances"] = incoming_experiment[
+                incoming_workflow["involved_kaapana_instances"] = incoming_workflow[
                     "involved_kaapana_instances"
                 ][1:-1].split(",")
-                # Todo why is incoming_experiment such a strange object?
-                # print('helllo', incoming_experiment[
+                # Todo why is incoming_workflow such a strange object?
+                # print('helllo', incoming_workflow[
                 #     "involved_kaapana_instances"
                 # ])
-                # incoming_experiment["involved_kaapana_instances"] = json.dumps(incoming_experiment[
+                # incoming_workflow["involved_kaapana_instances"] = json.dumps(incoming_workflow[
                 #     "involved_kaapana_instances"
                 # ])
-                experiment = schemas.WorkflowCreate(**incoming_experiment)
-                db_experiment = create_experiment(db, experiment)
-                logging.info(f"Created incoming remote experiment: {db_experiment}")
+                workflow = schemas.WorkflowCreate(**incoming_workflow)
+                db_workflow = create_workflow(db, workflow)
+                logging.info(f"Created incoming remote workflow: {db_workflow}")
 
         # create incoming jobs
         db_jobs = []
@@ -777,26 +777,26 @@ def get_remote_updates(db: Session, periodically=False):
             incoming_job["status"] = "pending"
             job = schemas.JobCreate(**incoming_job)
             job.automatic_execution = (
-                db_incoming_experiment.automatic_execution
-                if db_incoming_experiment is not None
-                else db_experiment.automatic_execution
+                db_incoming_workflow.automatic_execution
+                if db_incoming_workflow is not None
+                else db_workflow.automatic_execution
             )
             db_job = create_job(db, job)
             db_jobs.append(db_job)
 
-        # update incoming experiments
-        for incoming_experiment in incoming_experiments:
+        # update incoming workflows
+        for incoming_workflow in incoming_workflows:
             exp_update = schemas.WorkflowUpdate(
                 **{
-                    "exp_id": incoming_experiment["exp_id"],
-                    # incoming_experiment["experiment_name"] instead of db_incoming_experiment.experiment_name
-                    "experiment_name": incoming_experiment["experiment_name"],
+                    "exp_id": incoming_workflow["exp_id"],
+                    # incoming_workflow["workflow_name"] instead of db_incoming_workflow.workflow_name
+                    "workflow_name": incoming_workflow["workflow_name"],
                     # db_jobs instead of incoming_jobs
-                    "experiment_jobs": db_jobs,
+                    "workflow_jobs": db_jobs,
                 }
             )
-            db_experiment = put_experiment_jobs(db, exp_update)
-            logging.info(f"Updated remote experiment: {db_experiment}")
+            db_workflow = put_workflow_jobs(db, exp_update)
+            logging.info(f"Updated remote workflow: {db_workflow}")
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
@@ -835,7 +835,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 update_job(db, job_update, remote=False)
             else:
                 # should only go into this condition for service-job
-                create_and_update_service_experiments_and_jobs(
+                create_and_update_service_workflows_and_jobs(
                     db,
                     diff_job_dagid=diff_job_af["dag_id"],
                     diff_job_runid=diff_job_af["run_id"],
@@ -866,7 +866,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         logging.error("Error while syncing kaapana-backend with Airflow")
 
 
-def create_and_update_service_experiments_and_jobs(
+def create_and_update_service_workflows_and_jobs(
     db: Session,
     diff_job_dagid: str = None,
     diff_job_runid: str = None,
@@ -892,46 +892,46 @@ def create_and_update_service_experiments_and_jobs(
     # create service-job via crud.create_job() and JobCreate object
     db_job = create_job(db, job, service_job=True)
 
-    # check whether service-experiment for that kind of service-job already exists
-    db_service_experiment = get_experiment(db, dag_id=db_job.dag_id)
-    if db_service_experiment:
-        # if yes: compose WorkflowUpdate and append service-jobs to service-experiment via crud.put_experiment_jobs()
+    # check whether service-workflow for that kind of service-job already exists
+    db_service_workflow = get_workflow(db, dag_id=db_job.dag_id)
+    if db_service_workflow:
+        # if yes: compose WorkflowUpdate and append service-jobs to service-workflow via crud.put_workflow_jobs()
         exp_update = schemas.WorkflowUpdate(
             **{
-                "exp_id": db_service_experiment.exp_id,
-                "experiment_name": f"{db_job.dag_id}_service-exp",
-                "experiment_jobs": [db_job],
+                "exp_id": db_service_workflow.exp_id,
+                "workflow_name": f"{db_job.dag_id}_service-exp",
+                "workflow_jobs": [db_job],
             }
         )
-        db_service_experiment = put_experiment_jobs(db, exp_update)
-        logging.info(f"Updated service experiment: {db_service_experiment}")
+        db_service_workflow = put_workflow_jobs(db, exp_update)
+        logging.info(f"Updated service workflow: {db_service_workflow}")
     else:
-        # if no: compose WorkflowCreate to create service-experiment ...
+        # if no: compose WorkflowCreate to create service-workflow ...
         exp_create = schemas.WorkflowCreate(
             **{
                 "exp_id": f"ID-{''.join([substring[0] for substring in db_job.dag_id.split('-')])}",
-                "experiment_name": f"{db_job.dag_id}_service-exp",
+                "workflow_name": f"{db_job.dag_id}_service-exp",
                 "kaapana_instance_id": db_local_kaapana_instance.id,
                 "dag_id": db_job.dag_id,
-                "service_experiment": True,
+                "service_workflow": True,
                 "username": "system",
                 # "username": request.headers["x-forwarded-preferred-username"],
             }
         )
-        db_service_experiment = create_experiment(
-            db=db, experiment=exp_create, service_experiment=True
+        db_service_workflow = create_workflow(
+            db=db, workflow=exp_create, service_workflow=True
         )
-        logging.info(f"Created service experiment: {db_service_experiment}")
-        # ... and afterwards append service-jobs to service-experiment via crud.put_experiment_jobs()
+        logging.info(f"Created service workflow: {db_service_workflow}")
+        # ... and afterwards append service-jobs to service-workflow via crud.put_workflow_jobs()
         exp_update = schemas.WorkflowUpdate(
             **{
-                "exp_id": db_service_experiment.exp_id,
-                "experiment_name": db_service_experiment.experiment_name,
-                "experiment_jobs": [db_job],
+                "exp_id": db_service_workflow.exp_id,
+                "workflow_name": db_service_workflow.workflow_name,
+                "workflow_jobs": [db_job],
             }
         )
-        db_service_experiment = put_experiment_jobs(db, exp_update)
-        logging.info(f"Updated service experiment: {db_service_experiment}")
+        db_service_workflow = put_workflow_jobs(db, exp_update)
+        logging.info(f"Updated service workflow: {db_service_workflow}")
 
 
 # def sync_states_from_airflow(db: Session, status: str = None, periodically=False):
@@ -1139,11 +1139,11 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
     return db_dataset
 
 
-def create_experiment(
-    db: Session, experiment: schemas.WorkflowCreate, service_experiment: bool = False
+def create_workflow(
+    db: Session, workflow: schemas.WorkflowCreate, service_workflow: bool = False
 ):
-    # experiment has a kaapana_instance_id?
-    if experiment.kaapana_instance_id is None:
+    # workflow has a kaapana_instance_id?
+    if workflow.kaapana_instance_id is None:
         # no: take first element on non-remote Kaapana instances in db
         db_kaapana_instance = (
             db.query(models.KaapanaInstance).filter_by(remote=False).first()
@@ -1152,15 +1152,15 @@ def create_experiment(
         # yes: search Kaapana instance in db according to given kaapana_instance_id
         db_kaapana_instance = (
             db.query(models.KaapanaInstance)
-            .filter_by(id=experiment.kaapana_instance_id)
+            .filter_by(id=workflow.kaapana_instance_id)
             .first()
         )
 
     # get local kaapana instance
     db_local_kaapana_instance = get_kaapana_instance(db)
 
-    # experiment already exists?
-    if get_experiment(db, exp_id=experiment.exp_id) and service_experiment is False:
+    # workflow already exists?
+    if get_workflow(db, exp_id=workflow.exp_id) and service_workflow is False:
         raise HTTPException(
             status_code=409, detail="Workflow exists already!"
         )  # ... raise http exception!
@@ -1171,42 +1171,42 @@ def create_experiment(
 
     utc_timestamp = get_utc_timestamp()
 
-    db_experiment = models.Workflow(
-        exp_id=experiment.exp_id,
-        kaapana_id=experiment.kaapana_instance_id,
-        dag_id=experiment.dag_id,
-        username=experiment.username,
-        experiment_name=experiment.experiment_name,
-        experiment_jobs=experiment.experiment_jobs,
-        # list experiment_jobs already added to experiment in client.py's def create_experiment()
-        involved_kaapana_instances=experiment.involved_kaapana_instances,
-        service_experiment=experiment.service_experiment,
+    db_workflow = models.Workflow(
+        exp_id=workflow.exp_id,
+        kaapana_id=workflow.kaapana_instance_id,
+        dag_id=workflow.dag_id,
+        username=workflow.username,
+        workflow_name=workflow.workflow_name,
+        workflow_jobs=workflow.workflow_jobs,
+        # list workflow_jobs already added to workflow in client.py's def create_workflow()
+        involved_kaapana_instances=workflow.involved_kaapana_instances,
+        service_workflow=workflow.service_workflow,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
     )
     if db_kaapana_instance.remote is False:
         # db_kaapana_instance.remote is False aka. db_kaapana_instance == db_local_kaapana_instance
-        db_experiment.automatic_execution = True
+        db_workflow.automatic_execution = True
     if db_kaapana_instance.remote is True:
-        # give remote experiment always same automatic_execution permissions as local instance!
-        db_experiment.automatic_execution = (
+        # give remote workflow always same automatic_execution permissions as local instance!
+        db_workflow.automatic_execution = (
             db_local_kaapana_instance.automatic_exp_execution
         )
 
     # TODO: also update all involved_kaapana_instances with the exp_id in which they are involved
 
-    db_kaapana_instance.experiments.append(db_experiment)
+    db_kaapana_instance.workflows.append(db_workflow)
     db.add(db_kaapana_instance)
     db.commit()
-    db.refresh(db_experiment)
-    return db_experiment
+    db.refresh(db_workflow)
+    return db_workflow
 
 
 # TODO removed async because our current database is not able to execute async methods
 def queue_generate_jobs_and_add_to_exp(
     db: Session,
     db_client_kaapana: models.KaapanaInstance,
-    db_experiment: models.Workflow,
+    db_workflow: models.Workflow,
     json_schema_data: schemas.JsonSchemaData,
 ):
     conf_data = json_schema_data.conf_data
@@ -1224,14 +1224,14 @@ def queue_generate_jobs_and_add_to_exp(
             if ("dataset_limit" in data_form and data_form["dataset_limit"] is not None)
             else None
         )
-    username = conf_data["experiment_form"]["username"]
+    username = conf_data["workflow_form"]["username"]
 
     
     db_kaapana_instances = get_kaapana_instances(
         db,
         filter_kaapana_instances=schemas.FilterKaapanaInstances(
             **{
-                "instance_names": conf_data["experiment_form"]["runner_instances"],
+                "instance_names": conf_data["workflow_form"]["runner_instances"],
             }
         ),
     )
@@ -1293,7 +1293,7 @@ def queue_generate_jobs_and_add_to_exp(
                     "status": "queued",
                     "kaapana_instance_id": db_kaapana_instance.id,
                     "owner_kaapana_instance_name": db_client_kaapana.instance_name,
-                    "automatic_execution": db_experiment.automatic_execution,
+                    "automatic_execution": db_workflow.automatic_execution,
                     **jobs_to_create,
                 }
             )
@@ -1301,42 +1301,42 @@ def queue_generate_jobs_and_add_to_exp(
             db_job = create_job(db, job)
             db_jobs.append(db_job)
 
-    # update experiment w/ created db_jobs
-    experiment = schemas.WorkflowUpdate(
+    # update workflow w/ created db_jobs
+    workflow = schemas.WorkflowUpdate(
         **{
-            "exp_id": db_experiment.exp_id,
-            "experiment_name": db_experiment.experiment_name,
-            "experiment_jobs": db_jobs,
+            "exp_id": db_workflow.exp_id,
+            "workflow_name": db_workflow.workflow_name,
+            "workflow_jobs": db_jobs,
         }
     )
-    put_experiment_jobs(db, experiment)
+    put_workflow_jobs(db, workflow)
 
-    return db_experiment
+    return db_workflow
 
 
-def get_experiment(
-    db: Session, exp_id: str = None, experiment_name: str = None, dag_id: str = None
+def get_workflow(
+    db: Session, exp_id: str = None, workflow_name: str = None, dag_id: str = None
 ):
     if exp_id is not None:
         return db.query(models.Workflow).filter_by(exp_id=exp_id).first()
-    elif experiment_name is not None:
+    elif workflow_name is not None:
         return (
             db.query(models.Workflow)
-            .filter_by(experiment_name=experiment_name)
+            .filter_by(workflow_name=workflow_name)
             .first()
         )
     elif dag_id is not None:
         return db.query(models.Workflow).filter_by(dag_id=dag_id).first()
-    # if not db_experiment:
+    # if not db_workflow:
     #     raise HTTPException(status_code=404, detail="Workflow not found")
-    # return db_experiment
+    # return db_workflow
 
 
-def get_experiments(
+def get_workflows(
     db: Session,
     instance_name: str = None,
     involved_instance_name: str = None,
-    experiment_job_id: int = None,
+    workflow_job_id: int = None,
     limit=None,
 ):
     if instance_name is not None:
@@ -1358,11 +1358,11 @@ def get_experiments(
             )
             .all()
         )
-    elif experiment_job_id is not None:
+    elif workflow_job_id is not None:
         return (
             db.query(models.Workflow)
-            .join(models.Workflow.experiment_jobs, aliased=True)
-            .filter_by(id=experiment_job_id)
+            .join(models.Workflow.workflow_jobs, aliased=True)
+            .filter_by(id=workflow_job_id)
             .all()
         )
     else:
@@ -1375,33 +1375,33 @@ def get_experiments(
         )  # , aliased=True
 
 
-def update_experiment(db: Session, experiment=schemas.WorkflowUpdate):
+def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
 
-    db_experiment = get_experiment(db, experiment.exp_id)
+    db_workflow = get_workflow(db, workflow.exp_id)
 
-    if experiment.experiment_status == "confirmed":
-        experiment.experiment_status = "confirmed"
-        db_experiment.automatic_execution = True
+    if workflow.workflow_status == "confirmed":
+        workflow.workflow_status = "confirmed"
+        db_workflow.automatic_execution = True
 
-    if experiment.experiment_status != "abort":  # usually 'scheduled' then
-        # iterate over db_jobs in db_experiment ...
-        for db_experiment_current_job in db_experiment.experiment_jobs:
+    if workflow.workflow_status != "abort":  # usually 'scheduled' then
+        # iterate over db_jobs in db_workflow ...
+        for db_workflow_current_job in db_workflow.workflow_jobs:
             # either update db_jobs on own kaapana_instance
             if (
-                db_experiment.kaapana_instance.remote is False
+                db_workflow.kaapana_instance.remote is False
                 or (
-                    db_experiment.kaapana_instance.remote is True
-                    and db_experiment.kaapana_instance.automatic_exp_execution is True
+                    db_workflow.kaapana_instance.remote is True
+                    and db_workflow.kaapana_instance.automatic_exp_execution is True
                 )
                 or (
-                    db_experiment.kaapana_instance.remote is True
-                    and db_experiment.automatic_execution is True
+                    db_workflow.kaapana_instance.remote is True
+                    and db_workflow.automatic_execution is True
                 )
             ):
                 job = schemas.JobUpdate(
                     **{
-                        "job_id": db_experiment_current_job.id,
+                        "job_id": db_workflow_current_job.id,
                         "status": "scheduled",
                         "description": "The worklow was triggered!",
                     }
@@ -1410,72 +1410,72 @@ def update_experiment(db: Session, experiment=schemas.WorkflowUpdate):
                 update_job(db, job, remote=False)
             # or update db_jobs on remote kaapana_instance
             elif (
-                db_experiment.kaapana_instance.remote is True
-                and db_experiment.kaapana_instance.automatic_exp_execution is True
+                db_workflow.kaapana_instance.remote is True
+                and db_workflow.kaapana_instance.automatic_exp_execution is True
             ) or (
-                db_experiment.kaapana_instance.remote is True
-                and db_experiment.automatic_execution is True
+                db_workflow.kaapana_instance.remote is True
+                and db_workflow.automatic_execution is True
             ):
-                # def update_external_job expects db_experiment_current_job of class models.Job
-                update_external_job(db, db_experiment_current_job)
+                # def update_external_job expects db_workflow_current_job of class models.Job
+                update_external_job(db, db_workflow_current_job)
 
             else:
                 raise HTTPException(
                     status_code=404,
-                    detail="Job updating while updating the experiment failed!",
+                    detail="Job updating while updating the workflow failed!",
                 )
 
-    db_experiment.time_updated = utc_timestamp
+    db_workflow.time_updated = utc_timestamp
     db.commit()
-    db.refresh(db_experiment)
+    db.refresh(db_workflow)
 
-    return db_experiment
+    return db_workflow
 
 
-def put_experiment_jobs(db: Session, experiment=schemas.WorkflowUpdate):
+def put_workflow_jobs(db: Session, workflow=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
 
-    # db_experiment = get_experiment(db, experiment_name=experiment.experiment_name)
-    db_experiment = get_experiment(db, exp_id=experiment.exp_id)
+    # db_workflow = get_workflow(db, workflow_name=workflow.workflow_name)
+    db_workflow = get_workflow(db, exp_id=workflow.exp_id)
 
-    # get db_jobs via job_id which should be added to db_experiment
+    # get db_jobs via job_id which should be added to db_workflow
     db_jobs = []
-    for experiment_job in experiment.experiment_jobs:
-        if type(experiment_job) is dict:
-            # experiment_job is a dict when call of def put_experiment_jobs() comes from backend
-            db_job = get_job(db, experiment_job["id"])
+    for workflow_job in workflow.workflow_jobs:
+        if type(workflow_job) is dict:
+            # workflow_job is a dict when call of def put_workflow_jobs() comes from backend
+            db_job = get_job(db, workflow_job["id"])
         else:
-            # experiment_job is no dict when call of def put_experiment_jobs() comes from KaapanaFederatedTraining
-            db_job = get_job(db, experiment_job.id)
+            # workflow_job is no dict when call of def put_workflow_jobs() comes from KaapanaFederatedTraining
+            db_job = get_job(db, workflow_job.id)
         db_jobs.append(db_job)
 
-    # add dat shit to dat experiment
-    db_experiment.experiment_jobs.extend(db_jobs)
-    # TODO: create set of db_experiment.experiment_jobs to avoid double listed jobs
+    # add dat shit to dat workflow
+    db_workflow.workflow_jobs.extend(db_jobs)
+    # TODO: create set of db_workflow.workflow_jobs to avoid double listed jobs
 
-    db_experiment.time_updated = utc_timestamp
+    db_workflow.time_updated = utc_timestamp
     db.commit()
-    db.refresh(db_experiment)
+    db.refresh(db_workflow)
 
-    return db_experiment
+    return db_workflow
 
 
-def delete_experiment(db: Session, exp_id: str):
-    db_experiment = get_experiment(db, exp_id)  # get db's db_experiment object
+def delete_workflow(db: Session, exp_id: str):
+    db_workflow = get_workflow(db, exp_id)  # get db's db_workflow object
 
-    # iterate over jobs of to-be-deleted experiment
-    for db_experiment_current_job in db_experiment.experiment_jobs:
+    # iterate over jobs of to-be-deleted workflow
+    for db_workflow_current_job in db_workflow.workflow_jobs:
         delete_job(
-            db, job_id=db_experiment_current_job.id, remote=False
+            db, job_id=db_workflow_current_job.id, remote=False
         )  # deletes local and remote jobs
 
-    db.delete(db_experiment)
+    db.delete(db_workflow)
     db.commit()
     return {"ok": True}
 
 
-def delete_experiments(db: Session):
-    # TODO: add remote experiment deletion
+def delete_workflows(db: Session):
+    # TODO: add remote workflow deletion
     db.query(models.Workflow).delete()
     db.commit()
     return {"ok": True}

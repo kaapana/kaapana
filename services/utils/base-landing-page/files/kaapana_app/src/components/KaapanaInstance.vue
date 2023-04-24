@@ -118,7 +118,7 @@
         //- v-col(cols=1 align="center")
       //- Autmoatically execute pending jobs: display mode
       v-row(v-if="edit_automatic_exp_execution" align="center")
-        v-col(cols=4  align="left") Automatically start remote experiments:
+        v-col(cols=4  align="left") Automatically start remote workflows:
         v-col(align="left")
           v-checkbox(v-model="instancePost.automatic_exp_execution" label="Check automatically for remote updates")
         v-col(cols=1 align="center")
@@ -126,7 +126,7 @@
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
-        v-col(cols=4 align="left") Automatically start remote experiments:
+        v-col(cols=4 align="left") Automatically start remote workflows:
         v-col( align="left")
           v-icon(v-if="instancePost.automatic_exp_execution" small color="green") mdi-check-circle
           v-icon(v-if="!instancePost.automatic_exp_execution" small) mdi-close-circle

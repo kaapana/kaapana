@@ -5,7 +5,7 @@ from minio import Minio
 from .monitoring.services import MonitoringService
 from .users.services import UserService
 from .workflows.services import WorkflowService
-from .experiments.models import KaapanaInstance
+from .workflows.models import KaapanaInstance
 from .config import settings
 from .database import SessionLocal
 

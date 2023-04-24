@@ -48,7 +48,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     allowed_datasets: Optional[str]
     time_created: datetime.datetime
     time_updated: datetime.datetime
-    experiment_in_which_involved: Optional[str]
+    workflow_in_which_involved: Optional[str]
 
     @validator("allowed_dags")
     def convert_allowed_dags(cls, v):
@@ -136,7 +136,7 @@ class Job(JobBase):
 class JobCreate(JobBase):
     conf_data: dict = {}
     kaapana_instance_id: int
-    # experiment_id: int = None
+    # workflow_id: int = None
     username: str = None
     automatic_execution: Optional[bool] = False
 
@@ -160,7 +160,7 @@ class FilterKaapanaInstances(BaseModel):
     federated: bool = False
     dag_id: str = None
     instance_names: List = []
-    experiment_name: str = None
+    workflow_name: str = None
 
 
 class JsonSchemaData(FilterKaapanaInstances):
@@ -224,12 +224,12 @@ class AllowedDataset(DatasetBase):
 
 class WorkflowBase(BaseModel):
     exp_id: str = None
-    experiment_name: str = None
-    experiment_status: str = None
-    # external_experiment_id: int = None # experiment_id on another system
-    # dag_id of jobs which are summarized in that experiment (only makes sense for service experiments)
+    workflow_name: str = None
+    workflow_status: str = None
+    # external_workflow_id: int = None # workflow_id on another system
+    # dag_id of jobs which are summarized in that workflow (only makes sense for service workflows)
     dag_id: Optional[str] = None
-    service_experiment: Optional[bool] = False
+    service_workflow: Optional[bool] = False
 
 
 class Workflow(WorkflowBase):
@@ -261,13 +261,13 @@ class Workflow(WorkflowBase):
 class WorkflowCreate(WorkflowBase):
     username: str = None
     kaapana_instance_id: int
-    experiment_jobs: List = []  # List[Job] = []
+    workflow_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
 
 
 class WorkflowUpdate(WorkflowBase):
-    experiment_name: Optional[str] = None  # ... or experiment_name
-    experiment_jobs: List = []
+    workflow_name: Optional[str] = None  # ... or workflow_name
+    workflow_jobs: List = []
 
 
 class WorkflowWithKaapanaInstance(Workflow):
@@ -276,16 +276,16 @@ class WorkflowWithKaapanaInstance(Workflow):
 
 
 class KaapanaInstanceWithWorkflows(KaapanaInstance):
-    experiments: List[Workflow] = []
+    workflows: List[Workflow] = []
 
 
 class JobWithWorkflow(Job):
-    experiment: Workflow = None
+    workflow: Workflow = None
     # involved_kaapana_instances: Optional[list]  # idk y?
 
 
 class JobWithWorkflowWithKaapanaInstance(JobWithKaapanaInstance):
-    experiment: Workflow = None
+    workflow: Workflow = None
 
 
 class WorkflowWithJobs(Workflow):
@@ -293,4 +293,4 @@ class WorkflowWithJobs(Workflow):
 
 
 class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
-    experiment_jobs: List[Job] = []
+    workflow_jobs: List[Job] = []

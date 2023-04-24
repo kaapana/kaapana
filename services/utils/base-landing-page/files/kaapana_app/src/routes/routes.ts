@@ -36,8 +36,8 @@ const routes = [
         },
     },
     {
-        name: 'experiment-execution',
-        path: '/experiment-execution',
+        name: 'workflow-execution',
+        path: '/workflow-execution',
         component: () => import('@/views/WorkflowExecution.vue'),
         title: 'Workflow Execution',
         permissions: {
@@ -45,8 +45,8 @@ const routes = [
         },
     },
     {
-        name: 'experiments',
-        path: '/experiments',
+        name: 'workflows',
+        path: '/workflows',
         component: () => import('@/views/Workflows.vue'),
         title: 'Workflow',
         permissions: {

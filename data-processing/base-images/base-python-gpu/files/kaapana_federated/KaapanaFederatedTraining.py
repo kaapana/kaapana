@@ -253,7 +253,7 @@ class KaapanaFederatedTrainingBase(ABC):
                             "dag_id": self.remote_conf_data['federated_form']["remote_dag_id"],
                             "conf_data": self.remote_conf_data,
                             "status": "queued",
-                            "username": self.local_conf_data["experiment_form"]["username"],
+                            "username": self.local_conf_data["workflow_form"]["username"],
                             "owner_kaapana_instance_name": self.client_network['instance_name'],
                             "kaapana_instance_id": site_info['id']
                         }, 
@@ -270,20 +270,20 @@ class KaapanaFederatedTrainingBase(ABC):
             }
             distributed_jobs.append(job)
 
-        # update experiment.experiment_jobs with created job
+        # update workflow.workflow_jobs with created job
         with requests.Session() as s:
-            r = requests_retry_session(session=s).put(f'{self.client_url}/experiment_jobs',
+            r = requests_retry_session(session=s).put(f'{self.client_url}/workflow_jobs',
                     json={
-                        "exp_id": self.local_conf_data["experiment_form"]["exp_id"],
-                        "experiment_name": self.local_conf_data["experiment_form"]["experiment_name"],
-                        "experiment_jobs": distributed_jobs,
+                        "exp_id": self.local_conf_data["workflow_form"]["exp_id"],
+                        "workflow_name": self.local_conf_data["workflow_form"]["workflow_name"],
+                        "workflow_jobs": distributed_jobs,
                     },
                     verify=self.client_network['ssl_check']
                 )
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
-        experiment = r.json()
-        print(f'Updated Workflow {experiment["experiment_name"]} with created jobs!')
-        print(experiment)
+        workflow = r.json()
+        print(f'Updated Workflow {workflow["workflow_name"]} with created jobs!')
+        print(workflow)
         # add sth to self.tmp_federated_site_info[site_info['instance_name']] ?!
     
     @timeit

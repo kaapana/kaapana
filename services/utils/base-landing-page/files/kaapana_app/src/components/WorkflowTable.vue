@@ -11,7 +11,7 @@
               <v-icon color="primary" large class="mx-2" dark>mdi-refresh</v-icon> 
             </v-btn> 
           </template>
-          <span>refresh experiment list</span>
+          <span>refresh workflow list</span>
         </v-tooltip>
       </v-col>
       <v-col cols="4">
@@ -26,9 +26,9 @@
       </v-col>
     </v-card-title>
     <v-data-table
-      :headers="experimentHeaders"
+      :headers="workflowHeaders"
       :items="filteredWorkflows"
-      item-key="experiment_name"
+      item-key="workflow_name"
       class="elevation-1"
       :search="search"
       :expanded="expanded"
@@ -45,12 +45,12 @@
         </v-chip>
       </template>
       <template v-slot:item.actions="{ item }">
-        <div v-if="item.service_experiment">
+        <div v-if="item.service_workflow">
           <v-tooltip bottom>
             <template v-slot:activator="{ on }">
               <v-icon v-on="on" color="primary" dark>mdi-account-hard-hat-outline</v-icon>
             </template>
-            <span> No actions for service experiments! </span>
+            <span> No actions for service workflows! </span>
           </v-tooltip>
         </div>
         <div v-else-if="!item.automatic_execution">
@@ -60,7 +60,7 @@
                 <v-icon color="red" dark>mdi-play-circle-outline</v-icon>
               </v-btn>
             </template>
-            <span>start scheduled experiment manually</span>
+            <span>start scheduled workflow manually</span>
           </v-tooltip>
         </div>
         <div v-else>
@@ -71,7 +71,7 @@
                   <v-icon color="primary" dark>mdi-stop-circle-outline</v-icon>
                 </v-btn>
               </template>
-              <span>abort experiment including all its jobs</span>
+              <span>abort workflow including all its jobs</span>
             </v-tooltip>
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
@@ -79,7 +79,7 @@
                   <v-icon color="primary" dark>mdi-rotate-left</v-icon>
                 </v-btn>
               </template>
-              <span>restart experiment including all its jobs</span>
+              <span>restart workflow including all its jobs</span>
             </v-tooltip>
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
@@ -87,7 +87,7 @@
                   <v-icon color="primary" dark>mdi-trash-can-outline</v-icon>
                 </v-btn>
               </template>
-              <span>delete experiment including all its jobs</span>
+              <span>delete workflow including all its jobs</span>
             </v-tooltip>
           </v-col>
           <div v-else>
@@ -97,7 +97,7 @@
                   mdi-cloud-braces
                 </v-icon>
               </template>
-              <span>No actions for REMOTE experiments!</span>
+              <span>No actions for REMOTE workflows!</span>
             </v-tooltip>
           </div>
         </div>
@@ -129,13 +129,13 @@ data () {
   return {
     search: '',
     expanded: [],
-    experimentHeaders: [
+    workflowHeaders: [
       {
         text: 'Workflow ID',
         align: 'start',
         value: 'exp_id',
       },
-      { text: 'Workflow Name', value: 'experiment_name' },
+      { text: 'Workflow Name', value: 'workflow_name' },
       { text: 'Dataset Name', value: 'dataset_name' },
       { text: 'Created', value: 'time_created' },
       { text: 'Updated', value: 'time_updated' },
@@ -164,7 +164,7 @@ mounted () {
 },
 
 props: {
-  experiments: {
+  workflows: {
     type: Array,
     required: true
   }
@@ -172,11 +172,11 @@ props: {
 
 computed: {
   filteredWorkflows() {  
-    if (this.experiments !== null) {
+    if (this.workflows !== null) {
       if (this.expandedWorkflow) {
-        this.getJobsOfWorkflow(this.expandedWorkflow.experiment_name)
+        this.getJobsOfWorkflow(this.expandedWorkflow.workflow_name)
       }
-      return this.experiments
+      return this.workflows
     }
   },
 },
@@ -196,14 +196,14 @@ methods: {
         // Clicked row is not expanded, so expand it
         this.expanded = [item]
         this.expandedWorkflow = item
-        this.getJobsOfWorkflow(this.expandedWorkflow.experiment_name)
+        this.getJobsOfWorkflow(this.expandedWorkflow.workflow_name)
       }
     } else {
       this.shouldExpand = true
       }
   },
   getStatesColorMap(item) {
-    const states = item.experiment_jobs.map(job => job.status)
+    const states = item.workflow_jobs.map(job => job.status)
     const colorMap = {
       'queued': 'grey',
       'scheduled': 'blue',
@@ -243,10 +243,10 @@ methods: {
   },
 
   // API Calls
-  getJobsOfWorkflow(experiment_name) {
+  getJobsOfWorkflow(workflow_name) {
       kaapanaApiService
         .federatedClientApiGet("/jobs",{
-          experiment_name: experiment_name,
+          workflow_name: workflow_name,
           limit: 100,
         }).then((response) => {
           if (this.expanded.length > 0) {
@@ -261,11 +261,11 @@ methods: {
   },
   deleteClientWorkflowAPI(exp_id) {
       kaapanaApiService
-      .federatedClientApiDelete("/experiment",{
+      .federatedClientApiDelete("/workflow",{
           exp_id,
       }).then((response) => {
         // positive notification
-        const message = `Successfully deleted experiment ${exp_id}`
+        const message = `Successfully deleted workflow ${exp_id}`
         this.$notify({
           type: 'success',
           title: message,
@@ -273,7 +273,7 @@ methods: {
       })
       .catch((err) => {
         // negative notification
-        const message = `Error while deleting experiment ${exp_id}`
+        const message = `Error while deleting workflow ${exp_id}`
         this.$notify({
           type: "error",
           title: message,
@@ -281,14 +281,14 @@ methods: {
         console.log(err);
       })
   },
-  restartClientWorkflowAPI(exp_id, experiment_status) {
+  restartClientWorkflowAPI(exp_id, workflow_status) {
       kaapanaApiService
-      .federatedClientApiPut("/experiment",{
+      .federatedClientApiPut("/workflow",{
           exp_id,
-          experiment_status,
+          workflow_status,
       }).then((response) => {
         // positive notification
-        const message = `Successfully restarted experiment ${exp_id}`
+        const message = `Successfully restarted workflow ${exp_id}`
         this.$notify({
           type: "success",
           title: message,
@@ -296,7 +296,7 @@ methods: {
       })
       .catch((err) => {
         // negative notification
-        const message = `Error while restarting experiment ${exp_id}`
+        const message = `Error while restarting workflow ${exp_id}`
         this.$notify({
           type: "error",
           title: message,
@@ -304,14 +304,14 @@ methods: {
           console.log(err);
       })
   },
-  abortClientWorkflowAPI(exp_id, experiment_status) {
+  abortClientWorkflowAPI(exp_id, workflow_status) {
       kaapanaApiService
-      .federatedClientApiPut("/experiment",{
+      .federatedClientApiPut("/workflow",{
           exp_id,
-          experiment_status,
+          workflow_status,
       }).then((response) => {
         // positive notification
-        const message = `Successfully aborted experiment ${exp_id}`
+        const message = `Successfully aborted workflow ${exp_id}`
         this.$notify({
           type: "success",
           title: message,
@@ -319,7 +319,7 @@ methods: {
       })
       .catch((err) => {
         // negative notification
-        const message = `Error while aborting experiment ${exp_id}`
+        const message = `Error while aborting workflow ${exp_id}`
         this.$notify({
           type: "error",
           title: message,
@@ -327,14 +327,14 @@ methods: {
         console.log(err);
       })
   },
-  manuallyStartClientWorkflowAPI(exp_id, experiment_status) {
+  manuallyStartClientWorkflowAPI(exp_id, workflow_status) {
       kaapanaApiService
-        .federatedClientApiPut("/experiment",{
+        .federatedClientApiPut("/workflow",{
             exp_id,
-            experiment_status,
+            workflow_status,
         }).then((response) => {
           // positive notification
-          const message = `Successfully manually started experiment ${exp_id}`
+          const message = `Successfully manually started workflow ${exp_id}`
           this.$notify({
             type: "success",
             title: message,
@@ -342,7 +342,7 @@ methods: {
         })
         .catch((err) => {
           // negative notification
-          const message = `Error while manually starting experiment ${exp_id}`
+          const message = `Error while manually starting workflow ${exp_id}`
           this.$notify({
             type: "error",
             title: message,

@@ -7,17 +7,16 @@ from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
 from .datasets import routers
-from .experiments.routers import remote, client
+from .workflows.routers import remote, client
 from .monitoring import routers as monitoring
 from .storage import routers as storage
 from .users import routers as users
-from .workflows import routers as workflows
 
 from .dependencies import get_query_token, get_token_header
 from .database import SessionLocal, engine
 from .decorators import repeat_every
-from .experiments import models
-from .experiments.crud import (
+from .workflows import models
+from .workflows.crud import (
     get_remote_updates,
     sync_states_from_airflow,
     sync_n_clean_qsr_jobs_with_airflow,
@@ -89,18 +88,11 @@ app.include_router(
 
 app.include_router(routers.router, prefix="/dataset")
 
-# Not used yet
-app.include_router(monitoring.router, prefix="/monitoring")
+# # Not used yet
+# app.include_router(monitoring.router, prefix="/monitoring")
 
-# Not used yet
-app.include_router(users.router, prefix="/users")
+# # Not used yet
+# app.include_router(users.router, prefix="/users")
 
-# Not used yet
-app.include_router(storage.router, prefix="/storage")
-
-# Not used yet, probably overlap with client url
-app.include_router(
-    workflows.router,
-    prefix="/workflows",
-    responses={418: {"description": "workflows"}},
-)
+# # Not used yet
+# app.include_router(storage.router, prefix="/storage")

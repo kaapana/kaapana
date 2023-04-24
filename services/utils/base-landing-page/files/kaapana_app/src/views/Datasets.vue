@@ -80,39 +80,64 @@
                 <v-row class="pa-0">
                   <v-col class="pa-0" align="right">
                     {{ this.identifiersOfInterst.length }} selected
-                    <v-btn
-                      icon
-                      color="blue"
-                      @click="() => (this.saveAsDatasetDialog = true)"
-                    >
-                      <v-icon>mdi-plus</v-icon>
-                    </v-btn>
-                    <v-btn
-                      :disabled="!datasetNames || datasetNames.length === 0"
-                      small
-                      icon
-                      color="green"
-                      @click="() => (this.addToDatasetDialog = true)"
-                    >
-                      <v-icon>mdi-folder-plus-outline</v-icon>
-                    </v-btn>
-                    <v-btn
-                      :disabled="!datasetName"
-                      small
-                      icon
-                      color="red"
-                      @click="removeFromDatasetDialog = true"
-                    >
-                      <v-icon>mdi-folder-minus-outline</v-icon>
-                    </v-btn>
-                    <v-btn
-                      icon
-                      small
-                      color="primary"
-                      @click="() => (this.workflowDialog = true)"
-                    >
-                      <v-icon>mdi-play-box</v-icon>
-                    </v-btn>
+                    <v-tooltip bottom>
+                      <template v-slot:activator="{ on, attrs }">
+                        <v-icon
+                          v-bind="attrs"
+                          v-on="on"
+                          icon
+                          color="blue"
+                          @click="() => (this.saveAsDatasetDialog = true)"
+                        >
+                          mdi-plus
+                        </v-icon>
+                      </template>
+                      <span>Save as Dataset</span>
+                    </v-tooltip>
+                    <v-tooltip bottom>
+                      <template v-slot:activator="{ on, attrs }">
+                        <v-icon
+                          v-on="on"
+                          v-bind="attrs"
+                          :disabled="!datasetNames || datasetNames.length === 0"
+                          icon
+                          color="green"
+                          @click="() => (this.addToDatasetDialog = true)"
+                        >
+                          mdi-folder-plus-outline
+                        </v-icon>
+                      </template>
+                      <span>Add to Dataset</span>
+                    </v-tooltip>
+                    <v-tooltip bottom>
+                      <template v-slot:activator="{ on, attrs }">
+                        <v-icon
+                          v-on="on"
+                          v-bind="attrs"
+                          :disabled="!datasetName"
+                          icon
+                          color="red"
+                          @click="removeFromDatasetDialog = true"
+                        >
+                          mdi-folder-minus-outline
+                        </v-icon>
+                      </template>
+                      <span>Delete from Dataset</span>
+                    </v-tooltip>
+                    <v-tooltip bottom>
+                      <template v-slot:activator="{ on, attrs }">
+                        <v-icon
+                          v-on="on"
+                          v-bind="attrs"
+                          icon
+                          color="primary"
+                          @click="() => (this.workflowDialog = true)"
+                        >
+                          mdi-play-box
+                        </v-icon>
+                      </template>
+                      <span>Start Workflow</span>
+                    </v-tooltip>
                   </v-col>
                 </v-row>
               </v-card-title>
@@ -184,7 +209,8 @@
       >
         Are you sure you want to remove
         <b>{{ this.identifiersOfInterst.length }} items</b> from the dataset
-        <b>{{ this.datasetName }}</b>?
+        <b>{{ this.datasetName }}</b
+        >?
       </ConfirmationDialog>
       <SaveDatasetDialog
         v-model="saveAsDatasetDialog"
@@ -219,7 +245,7 @@
       <v-dialog v-model="workflowDialog" width="500">
         <WorkflowExecution
           :identifiers="identifiersOfInterst"
-          :onlyClient=true
+          :onlyClient="true"
           kind_of_dags="dataset"
           @successful="() => (this.workflowDialog = false)"
         />

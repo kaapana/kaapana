@@ -16,7 +16,7 @@
               <v-select 
                 v-model="selected_kaapana_instance_names" 
                 :items="available_kaapana_instance_names" 
-                label="Remote instances" 
+                label="Runner instances" 
                 multiple="" 
                 chips="" 
                 hint="On which instances do you want to execute the workflow"

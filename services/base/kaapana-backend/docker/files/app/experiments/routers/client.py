@@ -142,7 +142,7 @@ def put_client_kaapana_instance(
         db=db, client_kaapana_instance=client_kaapana_instance, action="update"
     )
 
-
+# Todo: The following two could be combined to one
 @router.get("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 def get_remote_kaapana_instance(instance_name: str, db: Session = Depends(get_db)):
     return crud.get_kaapana_instance(db, instance_name)
@@ -263,11 +263,14 @@ def get_dags(
         db_remote_kaapana_instance = crud.get_kaapana_instance(
             db, instance_name
         )
-        if db_remote_kaapana_instance:
+        if db_remote_kaapana_instance.remote:
             remote_allowed_dags = list(
                 json.loads(db_remote_kaapana_instance.allowed_dags).keys()
             )
             dags[db_remote_kaapana_instance.instance_name] = remote_allowed_dags
+        else:
+            dags[db_remote_kaapana_instance.instance_name] = get_dag_list(only_dag_names=True)
+
     if (
         len(dags) > 1
     ):  # if multiple instances are selected -> find intersection of their allowed dags
@@ -368,7 +371,7 @@ def ui_form_schemas(
                 ]
             else:
                 allowed_dataset = list(
-                    json.loads(db_kaapana_instance.allowed_datasets)
+                    ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)
                 )
             datasets[
                 db_kaapana_instance.instance_name
@@ -494,7 +497,7 @@ def create_experiment(
     # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in experiment's runner instances ...
     #     json_schema_data.remote = False                                     # ... set json_schema_data.remote to False
 
-    conf_data = json_schema_data.conf_data
+    # conf_data = json_schema_data.conf_data
 
     # generate random and unique experiment id
     characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -502,10 +505,11 @@ def create_experiment(
     # append exp_id to experiment_name
     experiment_name = json_schema_data.experiment_name + "_exp" + exp_id
 
+    # TODO adapt involed instances per job?
     if json_schema_data.federated:  # == True ;-)
         involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
-        involved_instance_names.extend(conf_data["external_schema_instance_names"])
-    conf_data["experiment_form"] = {
+        involved_instance_names.extend(json_schema_data.conf_data["external_schema_instance_names"])
+    json_schema_data.conf_data["experiment_form"] = {
         "username": username,
         "exp_id": exp_id,
         "experiment_name": experiment_name,
@@ -515,30 +519,6 @@ def create_experiment(
         "runner_instances": json_schema_data.instance_names,  # instances on which jobs of experiment are created!
     }
 
-    if conf_data.get("data_form") and conf_data["data_form"].get("dataset_name"):
-        db_dataset = crud.get_dataset(db, conf_data["data_form"]["dataset_name"])
-        conf_data["data_form"].update(
-            {
-                "identifiers": json.loads(db_dataset.identifiers),
-            }
-        )
-
-        data_form = conf_data["data_form"]
-        dataset_limit = (
-            int(data_form["dataset_limit"])
-            if ("dataset_limit" in data_form and data_form["dataset_limit"] is not None)
-            else None
-        )
-        single_execution = (
-            "workflow_form" in conf_data
-            and "single_execution" in conf_data["workflow_form"]
-            and conf_data["workflow_form"]["single_execution"] is True
-        )
-
-    else:
-        single_execution = False
-        db_dataset = None
-
     # create an experiment with involved_instances=conf_data["experiment_form"]["involved_instances"] and add jobs to it
     experiment = schemas.ExperimentCreate(
         **{
@@ -547,10 +527,9 @@ def create_experiment(
             "username": username,
             "kaapana_instance_id": db_client_kaapana.id,
             # "experiment_jobs": db_jobs,
-            "involved_kaapana_instances": conf_data["experiment_form"][
+            "involved_kaapana_instances": json_schema_data.conf_data["experiment_form"][
                 "involved_instances"
-            ],
-            "dataset_name": db_dataset.name if db_dataset is not None else None,
+            ]
         }
     )
     db_experiment = crud.create_experiment(db=db, experiment=experiment)
@@ -559,7 +538,7 @@ def create_experiment(
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
     # asyncio.create_task(crud.queue_generate_jobs_and_add_to_exp(db, db_client_kaapana, db_experiment, json_schema_data, conf_data))
     crud.queue_generate_jobs_and_add_to_exp(
-        db, db_client_kaapana, db_experiment, json_schema_data, conf_data
+        db, db_client_kaapana, db_experiment, json_schema_data
     )
 
     # directly return created db_experiment for fast feedback

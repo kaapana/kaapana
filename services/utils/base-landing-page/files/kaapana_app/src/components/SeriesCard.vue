@@ -36,13 +36,6 @@
         </v-app-bar>
       </v-img>
       <v-card-text v-if="settings.datasets.cardText">
-        <v-row no-gutters>
-          <v-col>
-            <div class="text-truncate">
-              {{ seriesDescription }}
-            </div>
-          </v-col>
-        </v-row>
         <div v-for="prop in settings.datasets.props">
           <div v-if="prop['display']">
             <v-row no-gutters style="font-size: x-small">
@@ -93,7 +86,6 @@ export default {
     return {
       src: "",
       seriesData: {},
-      seriesDescription: "",
       modality: null,
       tags: [],
       settings: settings,
@@ -123,8 +115,6 @@ export default {
         loadSeriesData(this.seriesInstanceUID).then((data) => {
           if (data !== undefined) {
             this.src = data["thumbnail_src"] || "";
-            this.seriesDescription =
-              data["metadata"]["Series Description"] || "";
             this.modality = data["metadata"]["Modality"] || "";
             this.seriesData = data["metadata"] || {};
             this.tags = data["metadata"]["tags"] || [];

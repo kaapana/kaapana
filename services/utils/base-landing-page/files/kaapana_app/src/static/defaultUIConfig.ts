@@ -12,6 +12,12 @@ const settings = {
         },
         props: [
             {
+                name: 'Series Description',
+                display: true,
+                truncate: true,
+                dashboard: false
+            },
+            {
                 name: 'Patient ID',
                 display: true,
                 truncate: true,

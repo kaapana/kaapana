@@ -347,7 +347,9 @@
         kaapanaApiService
           .federatedClientApiPost("/get-kaapana-instances")
           .then((response) => {
-            this.available_kaapana_instance_names = response.data.map(({ instance_name }) => instance_name);
+            this.available_kaapana_instance_names = response.data.filter(function (instance) {
+              return instance.allowed_dags.length  !== 0 || !instance.remote;
+            }).map(({ instance_name }) => instance_name);
           })
           .catch((err) => {
             console.log(err); 

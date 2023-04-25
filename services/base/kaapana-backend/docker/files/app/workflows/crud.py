@@ -131,19 +131,7 @@ def create_and_update_client_kaapana_instance(
             return "deactivated"
 
     utc_timestamp = get_utc_timestamp()
-    allowed_dags = json.dumps(
-        get_dag_list(
-            only_dag_names=False,
-            filter_allowed_dags=client_kaapana_instance.allowed_dags,
-        )
-    )
-    allowed_datasets = json.dumps(
-        [
-            schemas.AllowedDataset(**get_dataset(db, name=dataset_name).__dict__).dict()
-            for dataset_name in client_kaapana_instance.allowed_datasets
-            if dataset_name in [ds.name for ds in get_datasets(db)]
-        ]
-    )
+
     db_client_kaapana_instance = get_kaapana_instance(db)
     if action == "create":
         if db_client_kaapana_instance:
@@ -160,9 +148,8 @@ def create_and_update_client_kaapana_instance(
             port=int(os.getenv("HTTPS_PORT", 443)),
             ssl_check=client_kaapana_instance.ssl_check,
             fernet_key=_get_fernet_key(client_kaapana_instance.fernet_encrypted),
+            encryption_key=Fernet.generate_key().decode(), 
             remote=False,
-            allowed_dags=allowed_dags,
-            allowed_datasets=allowed_datasets,
             time_created=utc_timestamp,
             time_updated=utc_timestamp,
             automatic_update=client_kaapana_instance.automatic_update or False,
@@ -170,6 +157,27 @@ def create_and_update_client_kaapana_instance(
             or False,
         )
     elif action == "update":
+
+        allowed_dags = json.dumps(
+            get_dag_list(
+                only_dag_names=False,
+                filter_allowed_dags=client_kaapana_instance.allowed_dags,
+            )
+        )
+
+        fernet = Fernet(db_client_kaapana_instance.encryption_key)
+        allowed_datasets = []
+        for dataset_name in client_kaapana_instance.allowed_datasets:
+            db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
+            if db_dataset:
+                dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
+                if "identifiers" in dataset:
+                    dataset["identifiers"] = [
+                        fernet.encrypt(identifier.encode()).decode() for identifier in dataset["identifiers"]
+                    ]
+                allowed_datasets.append(dataset)
+        allowed_datasets = json.dumps(allowed_datasets)
+
         db_client_kaapana_instance.instance_name=settings.instance_name,
         db_client_kaapana_instance.time_updated = utc_timestamp
         if (
@@ -768,8 +776,15 @@ def get_remote_updates(db: Session, periodically=False):
                 logging.info(f"Created incoming remote workflow: {db_workflow}")
 
         # create incoming jobs
+        fernet = Fernet(db_client_kaapana.encryption_key)
         db_jobs = []
         for incoming_job in incoming_jobs:
+            # print('incoming-jobs', incoming_job)
+            if "conf_data" in incoming_job and "data_form" in incoming_job["conf_data"] and "identifiers" in incoming_job["conf_data"]["data_form"]:
+                incoming_job["conf_data"]["data_form"]["identifiers"] = [
+                    fernet.decrypt(identifier.encode()).decode() for identifier in incoming_job["conf_data"]["data_form"]["identifiers"]
+                ]
+                
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
             incoming_job[
                 "owner_kaapana_instance_name"
@@ -1206,7 +1221,6 @@ def create_workflow(
 # TODO removed async because our current database is not able to execute async methods
 def queue_generate_jobs_and_add_to_workflow(
     db: Session,
-    db_client_kaapana: models.KaapanaInstance,
     db_workflow: models.Workflow,
     json_schema_data: schemas.JsonSchemaData,
 ):
@@ -1293,7 +1307,7 @@ def queue_generate_jobs_and_add_to_workflow(
                 **{
                     "status": "queued",
                     "kaapana_instance_id": db_kaapana_instance.id,
-                    "owner_kaapana_instance_name": db_client_kaapana.instance_name,
+                    "owner_kaapana_instance_name": settings.instance_name,
                     "automatic_execution": db_workflow.automatic_execution,
                     **jobs_to_create,
                 }

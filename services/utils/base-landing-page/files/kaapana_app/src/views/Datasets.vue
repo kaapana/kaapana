@@ -400,7 +400,6 @@ export default {
         el.classList.remove("selected");
       });
       this.debouncedIdentifiers = e.selected.map((el) => el.id);
-      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
     },
     addFilterToSearch(selectedFilterItem) {
       this.$refs.search.addFilterItem(
@@ -552,6 +551,7 @@ export default {
   watch: {
     debouncedIdentifiers: debounce(function (val) {
       this.selectedSeriesInstanceUIDs = val;
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
     }, 200),
   },
   computed: {

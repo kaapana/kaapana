@@ -67,17 +67,6 @@
             </v-card-actions>
           </v-card>
         </v-dialog>
-        <v-dialog v-model="dialogDelete" max-width="500px">
-          <v-card>
-            <v-card-title class="text-h5">Are you sure you want to delete this item?</v-card-title>
-            <v-card-actions>
-              <v-spacer></v-spacer>
-              <v-btn color="blue darken-1" text @click="closeDelete">Cancel</v-btn>
-              <v-btn color="blue darken-1" text @click="deleteItemConfirm">OK</v-btn>
-              <v-spacer></v-spacer>
-            </v-card-actions>
-          </v-card>
-        </v-dialog>
       </v-toolbar>
     </template>
     <template v-slot:item.display="{ item }">
@@ -96,16 +85,8 @@
       ></v-simple-checkbox>
     </template>
     <template v-slot:item.actions="{ item }">
-      <!--        <v-icon-->
-      <!--            small-->
-      <!--            class="mr-2"-->
-      <!--            @click="editItem(item)"-->
-      <!--        >-->
-      <!--          mdi-pencil-->
-      <!--        </v-icon>-->
       <v-icon
-          small
-          @click="deleteItem(item)"
+          @click="deleteItemConfirm(item)"
       >
         mdi-delete
       </v-icon>
@@ -133,7 +114,6 @@ export default {
   },
   data: () => ({
     dialog: false,
-    dialogDelete: false,
     headers: [
       {
         text: 'Name',
@@ -174,9 +154,6 @@ export default {
     dialog(val) {
       val || this.close()
     },
-    dialogDelete(val) {
-      val || this.closeDelete()
-    },
   },
 
   created() {
@@ -189,27 +166,12 @@ export default {
       this.dialog = true
     },
 
-    deleteItem(item) {
-      this.editedIndex = this.items.indexOf(item)
-      this.editedItem = Object.assign({}, item)
-      this.dialogDelete = true
-    },
-
-    deleteItemConfirm() {
-      this.items.splice(this.editedIndex, 1)
-      this.closeDelete()
+    deleteItemConfirm(item) {
+      this.items.splice(this.items.indexOf(item), 1)
     },
 
     close() {
       this.dialog = false
-      this.$nextTick(() => {
-        this.editedItem = Object.assign({}, this.defaultItem)
-        this.editedIndex = -1
-      })
-    },
-
-    closeDelete() {
-      this.dialogDelete = false
       this.$nextTick(() => {
         this.editedItem = Object.assign({}, this.defaultItem)
         this.editedIndex = -1

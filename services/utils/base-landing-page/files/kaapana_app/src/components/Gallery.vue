@@ -88,11 +88,11 @@ export default {
         this.cols = _cols;
       } else {
         const containerWidth = this.$refs.container.offsetWidth;
-        if (containerWidth < 600) {
+        if (containerWidth < 500) {
           this.cols = 6;
-        } else if (containerWidth < 960) {
+        } else if (containerWidth < 650) {
           this.cols = 4;
-        } else if (containerWidth < 1280) {
+        } else if (containerWidth < 1080) {
           this.cols = 3;
         } else if (containerWidth < 1920) {
           this.cols = 2;

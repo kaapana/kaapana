@@ -1,7 +1,6 @@
 <template>
   <v-container class="pa-0" fluid style="height: 100%">
     <v-card @click="onClick" height="100%" :id="seriesInstanceUID">
-      <!--      padding: 5px; background: red-->
       <v-img
         :src="src"
         aspect-ratio="1"
@@ -217,5 +216,8 @@ export default {
   /*TODO: This should be aligned with theme*/
   color: #fff !important;
   background: #4af !important;
+}
+.v-card__text {
+  padding: 8px
 }
 </style>

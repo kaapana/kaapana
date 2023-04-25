@@ -146,11 +146,18 @@
         type: Array,
         default: () => [],
       },
+      onlyClient: {
+        type: Boolean,
+        default: false,
+      },
+      kind_of_dags: {
+        type: String,
+        default: "all",
+      }
     },
     created() {
     },
     mounted() {
-      // console.log("Hello, I am the WorkflowExecution!");
       this.refreshClient();
     },
     watch: {
@@ -220,7 +227,12 @@
           this.refreshClient();
       },
       refreshClient() {
-        this.getRemoteInstances()
+        console.log(this.onlyClient)
+        if (this.onlyClient) {
+          this.getKaapanaInstance()
+        } else {
+          this.getKaapanaInstances()
+        }
       },
       // methods for form rendering
       formatFormData (formData) {
@@ -249,8 +261,7 @@
         this.external_schemas = {}
         this.remote_instances_w_external_dag_available = []
         if (this.external_dag_id != null) {
-          console.log('getting')
-          this.getRemoteInstancesWithExternalDagAvailable()
+          this.getKaapanaInstancesWithExternalDagAvailable()
         } else {
         }
         Object.entries(this.formData).forEach(([key, value]) => {
@@ -343,7 +354,18 @@
       },
 
       // API Calls: Instances
-      getRemoteInstances() {
+      getKaapanaInstance() {
+        kaapanaApiService
+          .federatedClientApiGet("//kaapana-instance")
+          .then((response) => {
+            console.log('getKaapanaInstance', response.data)
+            this.available_kaapana_instance_names = [response.data.instance_name]
+          })
+          .catch((err) => {
+            console.log(err); 
+          });
+      },
+      getKaapanaInstances() {
         kaapanaApiService
           .federatedClientApiPost("/get-kaapana-instances")
           .then((response) => {
@@ -355,7 +377,7 @@
             console.log(err); 
           });
       },
-      getRemoteInstancesWithExternalDagAvailable() {
+      getKaapanaInstancesWithExternalDagAvailable() {
         kaapanaApiService
           .federatedClientApiPost("/get-kaapana-instances", {dag_id: this.external_dag_id})
           .then((response) => {
@@ -403,7 +425,7 @@
       getDags() { // might need a 2nd getDags() API call ?!
         if (this.selected_kaapana_instance_names !== 0) {
           kaapanaApiService
-            .federatedClientApiPost("/get-dags", {instance_names: this.selected_kaapana_instance_names})
+            .federatedClientApiPost("/get-dags", {instance_names: this.selected_kaapana_instance_names, kind_of_dags: this.kind_of_dags})
             .then((response) => {
               console.log('dags', response.data)
               this.available_dags = response.data;

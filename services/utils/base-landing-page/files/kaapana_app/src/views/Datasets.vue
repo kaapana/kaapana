@@ -111,7 +111,7 @@
                       color="primary"
                       @click="() => (this.workflowDialog = true)"
                     >
-                      <v-icon>mdi-send</v-icon>
+                      <v-icon>mdi-play-box</v-icon>
                     </v-btn>
                   </v-col>
                 </v-row>
@@ -209,6 +209,8 @@
       <v-dialog v-model="workflowDialog" width="500">
         <WorkflowExecution
           :identifiers="identifiersOfInterst"
+          :onlyClient=true
+          kind_of_dags="dataset"
           @successful="() => (this.workflowDialog = false)"
         />
       </v-dialog>

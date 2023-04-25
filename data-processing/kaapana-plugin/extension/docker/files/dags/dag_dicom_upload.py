@@ -52,7 +52,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='dicom-upload',
+    dag_id='import-dicoms-in-zip-to-internal-pacs',
     default_args=args,
     schedule_interval=None,
     concurrency=10,

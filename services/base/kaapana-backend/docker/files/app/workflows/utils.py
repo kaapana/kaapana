@@ -124,20 +124,34 @@ def get_utc_timestamp():
     return utc_time
 
 
-def get_dag_list(only_dag_names=True, filter_allowed_dags=None):
+def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="all"):
+    if kind_of_dags not in ["all", "minio", "dataset"]:
+        raise HTTPException(
+            "kind_of_dags must be one of [None, 'minio', 'dataset']"
+        )
+
     with requests.Session() as s:
         r = requests_retry_session(session=s).get(
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags",
             timeout=TIMEOUT,
         )
     raise_kaapana_connection_error(r)
-    dags = r.json()
-    dags = {
-        dag: dag_data
-        for dag, dag_data in dags.items()
-        if ("ui_federated" in dag_data and dag_data["ui_federated"] is True)
-        or ("ui_visible" in dag_data and dag_data["ui_visible"] is True)
-    }
+    raw_dags = r.json()
+    dags = {}
+    for dag, dag_data in raw_dags.items():
+        if "ui_visible" in dag_data and dag_data["ui_visible"] is True:
+            if kind_of_dags == "all":
+                dags[dag] = dag_data
+            elif ((kind_of_dags == "dataset") and ("ui_forms" in dag_data and
+                    "data_form" in dag_data["ui_forms"] and
+                    "properties" in dag_data["ui_forms"]["data_form"] and 
+                    "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                dags[dag] = dag_data
+            elif ((kind_of_dags == "minio") and ("ui_forms" in dag_data and
+                    "data_form" in dag_data["ui_forms"] and
+                    "properties" in dag_data["ui_forms"]["data_form"] and 
+                    "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                dags[dag] = dag_data
     if only_dag_names is True:
         return sorted(list(dags.keys()))
     else:

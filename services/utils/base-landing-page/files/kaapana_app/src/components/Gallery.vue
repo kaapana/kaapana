@@ -39,7 +39,6 @@
 import Chip from "./Chip.vue";
 import SeriesCard from "./SeriesCard";
 import {
-  deleteSeriesFromPlatform,
   loadDatasetNames,
   updateDataset,
 } from "../common/api.service";

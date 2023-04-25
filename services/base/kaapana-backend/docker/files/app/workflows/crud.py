@@ -1033,7 +1033,7 @@ def sync_n_clean_qsr_jobs_with_airflow(db: Session, periodically=False):
 
 
 def create_dataset(db: Session, dataset: schemas.DatasetCreate):
-    logging.info(f"Dataset: {dataset.identifiers}; type: {type(dataset.identifiers)}")
+    logging.info(f"Creating Dataset: {dataset.name}")
 
     if dataset.kaapana_instance_id is None:
         db_kaapana_instance = (
@@ -1047,7 +1047,7 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate):
         )
 
     if db.query(models.Dataset).filter_by(name=dataset.name).first():
-        raise HTTPException(status_code=409, detail="Dataset exists already!")
+        raise HTTPException(status_code=409, detail="Dataset already exists!")
 
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
@@ -1065,6 +1065,8 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate):
     db_kaapana_instance.datasets.append(db_dataset)
     db.add(db_kaapana_instance)
     db.commit()
+    logging.info(f"Successfully created dataset: {dataset.name}")
+
     db.refresh(db_dataset)
     return db_dataset
 
@@ -1130,7 +1132,6 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
         )
         logging.info(f"Dataset {dataset.name} created.")
 
-    logging.info(f"{dataset.action}: {db_dataset.identifiers} -> {dataset.identifiers}")
     if dataset.action == "ADD":
         db_dataset.identifiers = json.dumps(
             list(set(dataset.identifiers + json.loads(db_dataset.identifiers)))

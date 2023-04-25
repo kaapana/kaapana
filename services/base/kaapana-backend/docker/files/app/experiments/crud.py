@@ -1024,7 +1024,7 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate):
         )
 
     if db.query(models.Dataset).filter_by(name=dataset.name).first():
-        raise HTTPException(status_code=409, detail="Dataset exists already!")
+        raise HTTPException(status_code=409, detail="Dataset already exists!")
 
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")

@@ -34,6 +34,7 @@ export default Vue.extend({
         limit: 100,
         }).then((response) => {
           this.clientWorkflows = response.data;
+          console.log("this.clientWorkflows: ", this.clientWorkflows)
         })
         .catch((err) => {
           console.log(err);

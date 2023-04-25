@@ -1,7 +1,7 @@
 <template>
   <div>
-    <splitpanes>
-      <pane class="main" size="70" min-size="30">
+    <splitpanes :class="$vuetify.theme.dark ? 'dark-theme' : ''">
+      <pane ref='mainPane' class="main" size="70" min-size="30">
         <v-container class="pa-0" fluid>
           <v-card class="rounded-0">
             <div style="padding: 10px 10px 10px 10px">
@@ -559,6 +559,9 @@ export default {
         ? ["meta"]
         : ["ctrl"];
     },
+    mainPaneWidth() {
+      return this.$refs.mainPane.style.width
+    },
   },
 };
 </script>
@@ -583,11 +586,15 @@ export default {
   background: #4af !important;
 }
 </style>
+
 <style>
-/* starts here */
+/* global css props */
 .splitpanes--vertical > .splitpanes__splitter {
   min-width: 3px;
   cursor: col-resize;
-  background-color: rgb(235, 234, 234);
+  background-color: rgba(0,0,0,.12)
+}
+.splitpanes--vertical.dark-theme > .splitpanes__splitter {
+  background-color: hsla(0,0%,100%,.12);
 }
 </style>

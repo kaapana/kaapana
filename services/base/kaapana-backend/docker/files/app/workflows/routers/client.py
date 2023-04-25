@@ -230,7 +230,7 @@ def delete_jobs(db: Session = Depends(get_db)):
 def delete_job_force(job_id: int, db: Session = Depends(get_db)):
     return crud.delete_job_force(db, job_id)
 
-
+# needed?
 @router.get("/dags")
 async def dags(only_dag_names: bool = True):
     return get_dag_list(only_dag_names=only_dag_names)
@@ -251,16 +251,16 @@ def get_dags(
 
     dags = {}
     for instance_name in filter_kaapana_instances.instance_names:
-        db_remote_kaapana_instance = crud.get_kaapana_instance(
+        db_kaapana_instance = crud.get_kaapana_instance(
             db, instance_name
         )
-        if db_remote_kaapana_instance.remote:
+        if db_kaapana_instance.remote:
             remote_allowed_dags = list(
-                json.loads(db_remote_kaapana_instance.allowed_dags).keys()
+                json.loads(db_kaapana_instance.allowed_dags).keys()
             )
-            dags[db_remote_kaapana_instance.instance_name] = remote_allowed_dags
+            dags[db_kaapana_instance.instance_name] = remote_allowed_dags
         else:
-            dags[db_remote_kaapana_instance.instance_name] = get_dag_list(only_dag_names=True)
+            dags[db_kaapana_instance.instance_name] = get_dag_list(only_dag_names=filter_kaapana_instances.only_dag_names, kind_of_dags=filter_kaapana_instances.kind_of_dags)
 
     if (
         len(dags) > 1
@@ -529,7 +529,7 @@ def create_workflow(
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
     # asyncio.create_task(crud.queue_generate_jobs_and_add_to_workflow(db, db_client_kaapana, db_workflow, json_schema_data, conf_data))
     crud.queue_generate_jobs_and_add_to_workflow(
-        db, db_client_kaapana, db_workflow, json_schema_data
+        db, db_workflow, json_schema_data
     )
 
     # directly return created db_workflow for fast feedback

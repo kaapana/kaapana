@@ -78,7 +78,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='dag-convert-itk2dcm',
+    dag_id='convert-nifitis-to-dicoms-and-import-to-internal-pacs',
     default_args=args,
     schedule_interval=None
     )

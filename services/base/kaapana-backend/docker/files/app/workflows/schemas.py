@@ -43,6 +43,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     instance_name: str
     port: int
     fernet_key: str
+    encryption_key: str
     remote: bool
     allowed_dags: Optional[str]
     allowed_datasets: Optional[str]
@@ -161,7 +162,8 @@ class FilterKaapanaInstances(BaseModel):
     dag_id: str = None
     instance_names: List = []
     workflow_name: str = None
-
+    only_dag_names: bool = True
+    kind_of_dags: str = None
 
 class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
@@ -210,7 +212,7 @@ class Dataset(DatasetBase):
     class Config:
         orm_mode = True
 
-class AllowedDataset(DatasetBase):
+class AllowedDatasetCreate(DatasetBase):
     username: str = None
     identifiers: Optional[str]
 

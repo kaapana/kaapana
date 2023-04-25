@@ -176,7 +176,7 @@ class KaapanaFederatedTrainingBase(ABC):
         self.use_minio_mount = use_minio_mount
         self.run_in_parallel = False
         self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
-        self.workflow_dir = workflow_dir
+        self.workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR')
         print('working directory', self.workflow_dir)
 
         conf_data = self.get_conf(self.workflow_dir)

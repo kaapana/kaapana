@@ -6,8 +6,8 @@
           <v-card-title>
             <!-- v-col cols=2 align="left"> Remote Instances </v-col -->
             <p class="mx-4 my-2">Runner Instances</p>
-            <add-remote-instance class="mx-4" @refreshRemoteFromAdding="getRemoteInstances()"></add-remote-instance>
-            <sync-remote-instances class="mx-4" @refreshRemoteFromSyncing="getRemoteInstances()"></sync-remote-instances>
+            <add-remote-instance class="mx-4" @refreshRemoteFromAdding="getKaapanaInstances()"></add-remote-instance>
+            <sync-remote-instances class="mx-4" @refreshRemoteFromSyncing="getKaapanaInstances()"></sync-remote-instances>
           </v-card-title>
           <v-card-text>
             <v-container fluid="">
@@ -21,7 +21,7 @@
                   <!-- former old KaapanaInstance-->
                   <KaapanaInstance 
                     :instance="instance"
-                    @refreshView="getRemoteInstances()" 
+                    @refreshView="getKaapanaInstances()" 
                   ></KaapanaInstance>
                 </v-col>
               </v-row>
@@ -54,13 +54,13 @@
     }),
 
     mounted () {
-      this.getRemoteInstances();
+      this.getKaapanaInstances();
       this.startExtensionsInterval()
     },
 
     methods: {
       // API calls
-      getRemoteInstances() {
+      getKaapanaInstances() {
         kaapanaApiService
           .federatedClientApiPost("/get-kaapana-instances")
           .then((response) => {
@@ -77,7 +77,7 @@
         this.polling = window.setInterval(() => {
           // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
           // if (!this.$refs.workflowexecution.dialogOpen) {
-          this.getRemoteInstances();
+          this.getKaapanaInstances();
           // }
         }, 15000);
       }

@@ -3,7 +3,7 @@
   v-card
     v-card-title
      v-row(align="center")
-      v-col(align="left")
+      v-col(cols=9)
         p Instance name: {{ instance.instance_name }}
           v-tooltip(bottom v-if="remote")
             template(v-slot:activator="{ on, attrs }")
@@ -162,7 +162,7 @@
       v-row(v-else)
         v-col(cols=4 align="left") Allowed Datasets:
         v-col(align="left")
-          v-chip(v-for='dataset in instancePost.allowed_datasets' small) {{dataset.name}}
+          v-chip(v-for='dataset in instancePost.allowed_datasets' small) {{dataset}}
         v-col(v-if="!remote" cols=1 align="center")
           v-btn(@click="edit_allowed_datasets = !edit_allowed_datasets" small icon)
             v-icon mdi-pencil
@@ -218,7 +218,12 @@
         } else {
           this.instance.fernet_encrypted = false
         }
-        return this.instance
+        if (this.instance.allowed_datasets) {
+          this.instance.allowed_datasets = this.instance.allowed_datasets.map(({ name }) => name)
+        } else {
+          this.instance.allowed_datasets = []
+        }
+        return JSON.parse(JSON.stringify(this.instance))
       }, 
       instance_time_created() {
         return new Date(this.instance.time_created * 1000).toUTCString();
@@ -297,6 +302,7 @@
           .federatedClientApiPut(target_endpoint, this.instancePost)
           .then((response) => {
             console.log("Updated", response)
+            this.$emit('refreshView')
           })
           .catch((err) => {
             console.log(err);

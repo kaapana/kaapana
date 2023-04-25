@@ -230,7 +230,7 @@ def delete_jobs(db: Session = Depends(get_db)):
 def delete_job_force(job_id: int, db: Session = Depends(get_db)):
     return crud.delete_job_force(db, job_id)
 
-
+# needed?
 @router.get("/dags")
 async def dags(only_dag_names: bool = True):
     return get_dag_list(only_dag_names=only_dag_names)
@@ -529,7 +529,7 @@ def create_workflow(
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
     # asyncio.create_task(crud.queue_generate_jobs_and_add_to_workflow(db, db_client_kaapana, db_workflow, json_schema_data, conf_data))
     crud.queue_generate_jobs_and_add_to_workflow(
-        db, db_client_kaapana, db_workflow, json_schema_data
+        db, db_workflow, json_schema_data
     )
 
     # directly return created db_workflow for fast feedback

@@ -21,7 +21,7 @@ spec:
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
-            memory: "5Gi"
+            memory: "4Gi"
           limits:
             memory: "8Gi"
         env:

@@ -24,15 +24,17 @@
       <IFrameWindow
         v-if="modalitySupported"
         :iFrameUrl="iFrameURL"
-        height="400px"
         :fullSize="false"
+        style="aspect-ratio: 1 / 1; max-height: 80vh;"
       />
       <v-container
         v-else
         style="
-          height: 400px;
+          width: 100%;
+          max-height: 80vh;
           background-color: darkgray;
-          font-size: 1.3em
+          font-size: 1.3em;
+          aspect-ratio: 1 / 1
           "
         fill-height
         fluid

@@ -2,7 +2,7 @@
   <v-container ref="container" fluid style="height: 100%">
     <v-row>
       <v-col
-        v-for="(seriesInstanceUID, index) in inner_seriesInstanceUIDs"
+        v-for="(seriesInstanceUID, index) in seriesInstanceUIDs"
         :key="seriesInstanceUID"
         :cols="cols"
       >
@@ -43,6 +43,7 @@ import {
   updateDataset,
 } from "../common/api.service";
 import ResizeObserver from "resize-observer-polyfill";
+import {debounce} from "@/utils/utils.js";
 
 export default {
   name: "Gallery",
@@ -60,16 +61,14 @@ export default {
   data() {
     return {
       detailViewSeriesInstanceUID: null,
-      inner_seriesInstanceUIDs: [],
       ro: null,
       cols: 2,
       minHeight: 100,
     };
   },
   mounted() {
-    this.ro = new ResizeObserver(this.onResize);
+    this.ro = new ResizeObserver(debounce(this.onResize, 100));
     this.ro.observe(this.$refs.container);
-    this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs;
     this.$nextTick(() => {
       this.minHeight = this.$refs.seriesCard[0].$el.clientHeight * 0.85;
     });
@@ -101,11 +100,6 @@ export default {
       }
       // Setting the minHeight to allow smooth lazy loading
       this.minHeight = this.$refs.seriesCard[0].$el.clientHeight * 0.85;
-    },
-  },
-  watch: {
-    seriesInstanceUIDs() {
-      this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs;
     },
   },
 };

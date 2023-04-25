@@ -1,6 +1,6 @@
 
 const settings = {
-    darkMode: false,
+    darkMode: true,
     navigationMode: false,
     datasets: {
         structured: false,
@@ -11,6 +11,12 @@ const settings = {
             tags: []
         },
         props: [
+            {
+                name: 'Series Description',
+                display: true,
+                truncate: true,
+                dashboard: false
+            },
             {
                 name: 'Patient ID',
                 display: true,

@@ -1,7 +1,6 @@
 <template>
   <v-container class="pa-0" fluid style="height: 100%">
     <v-card @click="onClick" height="100%" :id="seriesInstanceUID">
-      <!--      padding: 5px; background: red-->
       <v-img
         :src="src"
         aspect-ratio="1"
@@ -36,33 +35,6 @@
         </v-app-bar>
       </v-img>
       <v-card-text v-if="settings.datasets.cardText">
-        <v-row no-gutters>
-          <v-col cols="11">
-            <div class="text-truncate">
-              {{ seriesDescription }}
-            </div>
-          </v-col>
-          <v-col cols="1">
-            <v-tooltip bottom>
-              <template v-slot:activator="{ on, attrs }">
-                <v-icon small v-bind="attrs" v-on="on">
-                  mdi-information
-                </v-icon>
-              </template>
-              <v-data-table
-                :headers="[
-                  { text: 'Tag', value: 'name' },
-                  { text: 'Value', value: 'value' },
-                ]"
-                :items="tagsData"
-                fixed-header
-                :hide-default-footer="true"
-                :items-per-page="-1"
-                dense
-              />
-            </v-tooltip>
-          </v-col>
-        </v-row>
         <div v-for="prop in settings.datasets.props">
           <div v-if="prop['display']">
             <v-row no-gutters style="font-size: x-small">
@@ -113,11 +85,9 @@ export default {
     return {
       src: "",
       seriesData: {},
-      seriesDescription: "",
       modality: null,
       tags: [],
       settings: settings,
-      tagsData: [],
 
       img_loading_error: false,
 
@@ -144,15 +114,9 @@ export default {
         loadSeriesData(this.seriesInstanceUID).then((data) => {
           if (data !== undefined) {
             this.src = data["thumbnail_src"] || "";
-            this.seriesDescription =
-              data["metadata"]["Series Description"] || "";
             this.modality = data["metadata"]["Modality"] || "";
             this.seriesData = data["metadata"] || {};
             this.tags = data["metadata"]["tags"] || [];
-            this.tagsData = Object.entries(this.seriesData).map((i) => ({
-              name: i[0],
-              value: i[1],
-            }));
           }
         });
       }
@@ -252,5 +216,8 @@ export default {
   /*TODO: This should be aligned with theme*/
   color: #fff !important;
   background: #4af !important;
+}
+.v-card__text {
+  padding: 8px
 }
 </style>

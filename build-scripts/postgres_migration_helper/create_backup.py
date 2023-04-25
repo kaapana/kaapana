@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from kubernetes import client, config
 import datetime
 import os

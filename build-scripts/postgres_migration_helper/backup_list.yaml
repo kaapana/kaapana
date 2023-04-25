@@ -3,28 +3,34 @@
   image: postgres-9.6-alpine
   username: root
   password: root
+  database: airflow
 - name: hello-postgres
   service: hello-postgres-service
   image: postgres-9.6-alpine
   username: someuser
   password: somepassword
+  database: someuser
 - name: kaapana-backend-postgres
   service: kaapana-backend-postgres-service 
   image: postgres-9.6-alpine
   username: kaapanauser
   password: kaapanapassword
+  database: kaapanauser
 - name: postgres-doccano
   service: postgres-doccano
   image: postgres-9.6-alpine
   username: doccano
   password: doccano
+  database: doccano
 - name: postgres-keycloak
   service: postgres-keycloak-service 
   image: postgres-9.5-alpine
   username: keycloak
   password: keycloak
+  database: keycloak
 - name: postgres-dcm4che
   service: postgres-dcm4che-service 
   image: postgres-9.6-alpine
   username: pacs
   password: pacs
+  database: pacsdb

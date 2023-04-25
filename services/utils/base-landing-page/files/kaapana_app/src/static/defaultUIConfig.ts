@@ -1,6 +1,6 @@
 
 const settings = {
-    darkMode: false,
+    darkMode: true,
     navigationMode: false,
     datasets: {
         structured: false,

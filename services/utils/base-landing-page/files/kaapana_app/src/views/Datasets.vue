@@ -578,11 +578,6 @@ export default {
   height: calc(100vh - 258px);
 }
 
-.selected {
-  /*TODO: This should be aligned with theme*/
-  color: #fff !important;
-  background: #4af !important;
-}
 </style>
 
 <style>

@@ -1,21 +1,35 @@
 <template>
-  <v-container fluid style="height: 100%">
-  <v-row>
-        <v-col v-for="seriesInstanceUID in inner_seriesInstanceUIDs" :key="seriesInstanceUID" :cols="cols">
-          <v-lazy 
-            :options="{
-              threshold: .5,
-              delay: 100
-            }" 
-            transition="fade-transition" class="fill-height" :min-height="400 / cols"
-          >
-            <SeriesCard 
-              :seriesInstanceUID="seriesInstanceUID"
-              @openInDetailView="openInDetailView(seriesInstanceUID)"
-            />
-          </v-lazy>
-        </v-col>
-      </v-row>
+  <v-container ref="container" fluid style="height: 100%">
+    <v-row>
+      <v-col
+        v-for="(seriesInstanceUID, index) in inner_seriesInstanceUIDs"
+        :key="seriesInstanceUID"
+        :cols="cols"
+      >
+        <v-lazy
+          v-if="index !== 0"
+          :options="{
+            threshold: 0.3,
+            delay: 100,
+          }"
+          transition="fade-transition"
+          class="fill-height"
+          :min-height="minHeight"
+        >
+          <SeriesCard
+            :seriesInstanceUID="seriesInstanceUID"
+            @openInDetailView="openInDetailView(seriesInstanceUID)"
+          />
+        </v-lazy>
+
+        <SeriesCard
+          v-else
+          ref="seriesCard"
+          :seriesInstanceUID="seriesInstanceUID"
+          @openInDetailView="openInDetailView(seriesInstanceUID)"
+        />
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -24,61 +38,75 @@
 
 import Chip from "./Chip.vue";
 import SeriesCard from "./SeriesCard";
-import { deleteSeriesFromPlatform, loadDatasetNames, updateDataset } from "../common/api.service";
-import { VueSelecto } from "vue-selecto";
+import {
+  deleteSeriesFromPlatform,
+  loadDatasetNames,
+  updateDataset,
+} from "../common/api.service";
+import ResizeObserver from "resize-observer-polyfill";
 
 export default {
-  name: 'Gallery',
-  emits: ['openInDetailView'],
+  name: "Gallery",
+  emits: ["openInDetailView"],
   props: {
     seriesInstanceUIDs: {
       type: Array,
-      default: () => []
+      default: () => [],
     },
   },
   components: {
     SeriesCard,
     Chip,
-    VueSelecto
   },
   data() {
     return {
       detailViewSeriesInstanceUID: null,
-      inner_seriesInstanceUIDs: []
+      inner_seriesInstanceUIDs: [],
+      ro: null,
+      cols: 2,
+      minHeight: 100,
     };
   },
   mounted() {
-    this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs
+    this.ro = new ResizeObserver(this.onResize);
+    this.ro.observe(this.$refs.container);
+    this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs;
+    this.$nextTick(() => {
+      this.minHeight = this.$refs.seriesCard[0].$el.clientHeight * 0.85;
+    });
   },
-  computed: {
-    cols() {
-      const _cols = JSON.parse(localStorage['settings']).datasets.cols
-      if (_cols !== 'auto') {
-        return _cols
-      } else {
-        switch (this.$vuetify.breakpoint.name) {
-          case 'xs':
-            return 6
-          case 'sm':
-            return 4
-          case 'md':
-            return 2
-          case 'lg':
-            return 2
-          case 'xl':
-            return 2
-        }
-      }
-    }
+  beforeDestroy() {
+    this.ro.unobserve(this.$refs.container);
   },
   methods: {
     openInDetailView(seriesInstanceUID) {
-      this.$emit('openInDetailView', seriesInstanceUID);
+      this.$emit("openInDetailView", seriesInstanceUID);
+    },
+    onResize() {
+      const _cols = JSON.parse(localStorage["settings"]).datasets.cols;
+      if (_cols !== "auto") {
+        this.cols = _cols;
+      } else {
+        const containerWidth = this.$refs.container.offsetWidth;
+        if (containerWidth < 600) {
+          this.cols = 6;
+        } else if (containerWidth < 960) {
+          this.cols = 4;
+        } else if (containerWidth < 1280) {
+          this.cols = 3;
+        } else if (containerWidth < 1920) {
+          this.cols = 2;
+        } else {
+          this.cols = 1;
+        }
+      }
+      // Setting the minHeight to allow smooth lazy loading
+      this.minHeight = this.$refs.seriesCard[0].$el.clientHeight * 0.85;
     },
   },
   watch: {
     seriesInstanceUIDs() {
-      this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs
+      this.inner_seriesInstanceUIDs = this.seriesInstanceUIDs;
     },
   },
 };
@@ -87,5 +115,4 @@ export default {
 .col {
   padding: 3px;
 }
-
 </style>

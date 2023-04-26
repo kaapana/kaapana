@@ -33,6 +33,7 @@ remote_dag_id = "nnunet-training"
 skip_operators = ["nnunet-training", "zip-unzip-training", "model2dicom", "dcmsend", "generate-nnunet-report-training", "upload-nnunet-data", "upload-staticwebsiteresults", "pdf2dcm-training", "dcmsend-pdf", "workflow-cleaner"]
 federated_operators = ["nnunet-preprocess", "nnunet-training"]
 ui_forms = {
+    "data_form": {},
     "external_schema_federated_form": {
         "type": "object",
         "properties": {

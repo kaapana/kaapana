@@ -16,6 +16,7 @@ log = LoggingMixin().log
 
 ui_forms = {
     **schema_minio_form(whitelist_object_endings = (".zip")),
+    "data_form": {},
     "workflow_form": {
         "type": "object",
         "properties": {

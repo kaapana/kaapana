@@ -204,7 +204,7 @@ export default Vue.extend({
       ['Workflow Execution', 'mdi-play-box', '/workflow-execution'],
       ['Workflow List', 'mdi-clipboard-text-outline', '/workflows'],
       ['Workflow Results', 'mdi-chart-bar-stacked', '/results-browser'],
-      ['Runner Instances', 'mdi-vector-triangle', '/runner-instances'],
+      ['Instance Overview', 'mdi-vector-triangle', '/runner-instances'],
       ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
     ]
   }),

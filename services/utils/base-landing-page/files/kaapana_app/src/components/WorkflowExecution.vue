@@ -52,7 +52,7 @@
           <!-- Data- and Workflow forms -->
           <v-row v-if="workflow_name">
             <v-col v-for="(schema, name) in schemas" cols="12">
-              <p>{{name}}</p>
+              <!-- <p>{{name}}</p> -->
               <v-jsf 
                 v-model="formData[name]" 
                 :schema="schema" 

@@ -21,6 +21,7 @@ level = "series"
 max_query_size = ""
 
 ui_forms = {
+    "data_form": {},
     "workflow_form": {
         "type": "object",
         "properties": {

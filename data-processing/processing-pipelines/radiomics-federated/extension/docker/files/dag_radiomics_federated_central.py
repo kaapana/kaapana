@@ -19,6 +19,7 @@ remote_dag_id = "radiomics-federated-node"
 skip_operators= ["workflow-cleaner"]
 federated_operators = ["radiomics-packaging-operator"]
 ui_forms = {
+    "data_form": {},
     "external_schema_federated_form": {
         "type": "object",
         "properties": {

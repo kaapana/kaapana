@@ -41,6 +41,11 @@ data:
             "label": "Doccano",
             "endpoint": "/doccano/",
             "linkTo": "/doccano/"
+          },
+          "persistence": {
+            "label": "Persistence Layer",
+            "endpoint": "/persistence/",
+            "linkTo": "/persistence/"
           }
         }
       },

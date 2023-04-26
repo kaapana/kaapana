@@ -1,21 +1,14 @@
-# -*- coding: utf-8 -*-
-
 import subprocess
 import os
-import fnmatch
 import json
+from typing import List
 import yaml
 from pathlib import Path
-import shutil
-import pathlib
 from datetime import datetime
 from dateutil import parser
 import pytz
 import traceback
 import logging
-import glob
-from shutil import copyfile, rmtree
-import errno
 import re
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -113,14 +106,16 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         print("Starting module dcm2json...")
         print(kwargs)
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
+        run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
+        batch_folder: List[Path] = list((run_dir / self.batch_name).glob("*"))
 
-        with open(self.dict_path, encoding='utf-8') as dict_data:
+        with open(self.dict_path, encoding="utf-8") as dict_data:
             self.dictionary = json.load(dict_data)
 
         for batch_element_dir in batch_folder:
-            dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"), recursive=True))
+            dcm_files: List[Path] = sorted(
+                list((batch_element_dir / self.operator_in_dir).rglob("*.dcm"))
+            )
 
             if len(dcm_files) == 0:
                 print("No dicom file found!")
@@ -128,14 +123,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
             print('length', len(dcm_files))
             for dcm_file_path in dcm_files:
+                print(f"Extracting metadata: {dcm_file_path}")
 
-                print(("Extracting metadata: %s" % dcm_file_path))
+                target_dir: Path = batch_element_dir / self.operator_out_dir
+                target_dir.mkdir(exist_ok=True)
 
-                target_dir = os.path.join(batch_element_dir, self.operator_out_dir)
-                if not os.path.exists(target_dir):
-                    os.makedirs(target_dir)
-
-                json_file_path = os.path.join(target_dir, "{}.json".format(os.path.basename(batch_element_dir)))
+                json_file_path = target_dir / f"{batch_element_dir.name}.json"
 
                 if self.delete_pixel_data:
                     # (0014,3080) Bad Pixel Image
@@ -173,27 +166,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         arguments -- the arguments for the service
         """
 
-        command = self.dcm2json_path + " " + \
-            self.withAppostroph(inputDcm) + " " + \
-            self.withAppostroph(outputJson)
+        command = f"{self.dcm2json_path} '{inputDcm}' '{outputJson}'"
         print(("Executing: " + command))
         ret = subprocess.call(command, shell=True)
         if ret != 0:
             print("Something went wrong with dcm2json...")
             raise ValueError('ERROR')
         return
-
-    def withAppostroph(self, content):
-        return "\"" + content + "\""
-
-    def get_new_key(self, key):
-        new_key = self.dictionary.get(key)
-
-        if new_key is None:
-            print("{}: Could not identify DICOM tag -> using plain tag instead...".format(key))
-            new_key = key
-
-        return new_key
 
     def check_type(self, obj, val_type):
         try:
@@ -298,7 +277,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     def replace_tags(self, dicom_meta):
         new_meta_data = {}
         for key, value in dicom_meta.items():
-            new_key = self.get_new_key(key)
+            new_key = self.dictionary.get(key, None)
+            if new_key is None:
+                print(f'Key {key} not found in dictionary. Skipping.')
+                continue
+
             if 'vr' in value and 'Value' in value:
                 value_str = value['Value']
                 vr = str(value['vr'])
@@ -435,8 +418,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         # elements. The string may be padded with trailing spaces. For human use, the five components in their order
                         # of occurrence are: family name complex, given name complex, middle name, name prefix, name suffix.
                         new_key += "_keyword"
-                        subcategories = ['Alphabetic',
-                                         'Ideographic', 'Phonetic']
+                        subcategories = ['Alphabetic', 'Ideographic', 'Phonetic']
                         for cat in subcategories:
                             if cat in value_str:
                                 new_meta_data[new_key+"_" +
@@ -553,13 +535,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             print(e)
             raise ValueError('ERROR')
 
-    def cleanJsonData(self, path):
+    def cleanJsonData(self, path: Path):
         """
         Removes unneccessary data from json objects like binary stuff
         """
         new_meta_data = {}
 
-        path_tmp = path.replace(".json", "_tmp.json")
+        path_tmp: Path = path.parent / path.name.replace(path.suffix, "_tmp.json")
         os.rename(path, path_tmp)
         with open(path_tmp, "rt", encoding="utf-8") as fin:
             with open(path, "wt", encoding="utf-8") as fout:

@@ -601,9 +601,7 @@ def put_workflow_jobs(
 ):
     db_workflow = crud.get_workflow(db, workflow_id=json_schema_data.workflow_id)
     r = crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
-    print(f"CLIENT def put_workflow_jobs() r = {r}, type = {type(r)}")
     resp = r["jobs"]
-    print(f"CLIENT def put_workflow_jobs() resp = {resp}")
     return resp
 
 # delete_workflow

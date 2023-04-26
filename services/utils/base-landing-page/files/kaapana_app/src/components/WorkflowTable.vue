@@ -4,7 +4,17 @@
       <v-col cols="4">
         <p class="mx-4 my-2">Workflow List</p>
       </v-col>
-      <v-col align="right">
+      <v-col cols="4" align="right">
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn class="pa-6" v-on="on" @click='checkForRemoteUpdates' small icon>
+              <v-icon color="primary" large dark>
+                mdi-sync
+              </v-icon> 
+            </v-btn> 
+          </template>
+          <span>sync manually with remote instances</span>
+        </v-tooltip>
         <v-tooltip bottom>
           <template v-slot:activator="{ on, attrs }">
             <v-btn class="pa-6" v-on="on" @click='redirectToAirflow()' small icon>
@@ -124,14 +134,12 @@
 <script>
 
 import kaapanaApiService from "@/common/kaapanaApi.service";
-import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
 import JobTable from "./JobTable.vue";
 
 export default {
 name: 'WorkflowTable',
 
 components: {
-  SyncRemoteInstances,
   JobTable,
 },
 
@@ -197,6 +205,11 @@ methods: {
   // General Methods
   refreshClient() {
     this.$emit('refreshView')
+  },
+  checkForRemoteUpdates() {
+    kaapanaApiService.syncRemoteInstances().then(successful => {
+      console.log(successful)
+    })
   },
   expandRow(item) {
     if ( this.shouldExpand == true) {

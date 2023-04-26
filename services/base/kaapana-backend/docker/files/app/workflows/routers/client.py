@@ -593,14 +593,18 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
 
 
 # endpoint to update an workflow with additional workflow_jobs
-@router.put("/workflow_jobs") # , response_model=schemas.WorkflowWithJobs) # , response_model=schemas.Workflow)
+@router.put("/workflow_jobs", response_model=List[schemas.Job]) # , response_model=schemas.WorkflowWithJobs) # , response_model=schemas.Workflow)
 def put_workflow_jobs(
     json_schema_data: schemas.JsonSchemaData,
     # workflow_id: str=None,
     db: Session = Depends(get_db)
 ):
     db_workflow = crud.get_workflow(db, workflow_id=json_schema_data.workflow_id)
-    return crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    r = crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    print(f"CLIENT def put_workflow_jobs() r = {r}, type = {type(r)}")
+    resp = r["jobs"]
+    print(f"CLIENT def put_workflow_jobs() resp = {resp}")
+    return resp
 
 # delete_workflow
 @router.delete("/workflow")

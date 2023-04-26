@@ -262,10 +262,10 @@ class KaapanaFederatedTrainingBase(ABC):
             KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
             print(f"Response r: {r}")
             response = r.json()
-            print('Created Job and added to Workflow')
+            print(f'Created Job and added to Workflow; Job: {response}')
             # print(f"Workflow: {response['workflow']}")
             self.tmp_federated_site_info[site_info['instance_name']] = {
-                "job_id": response["db_jobs"][0]["id"],
+                "job_id": response[0]["id"],
                 "fernet_key": site_info["fernet_key"]
             }
     

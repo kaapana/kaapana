@@ -1,18 +1,22 @@
 import os
 import math
-import time
+import json
+import yaml
+import uuid
+from pathlib import Path
 
-from typing import Dict, List, Set, Union, Tuple
-from fastapi import UploadFile, WebSocket, WebSocketDisconnect
+from typing import Tuple
+from fastapi import UploadFile, WebSocket, WebSocketDisconnect, Form, Request
 from fastapi.logger import logger
 import aiofiles
+import shutil
 
 from repeat_timer import RepeatedTimer
 from config import settings
 import schemas
 import helm_helper
+from utils import helm_get_values
 
-# TODO: add md5 logic
 
 chunks_fname: str = ""
 chunks_fsize: int = 0
@@ -60,6 +64,68 @@ class FileSession:
 
 
 sessions = dict()  # {md5, FileSession}
+global filepond_dict
+filepond_dict = dict()
+
+
+def filepond_init_upload(form: Form) -> str:
+    patch = str(uuid.uuid4())
+    filepond_dict.update({patch: json.loads(form["filepond"])["filepath"]})
+    return patch
+
+
+# TODO: after successful upload, check if it's tgz and update the cache accordingly
+async def filepond_upload_stream(request: Request, patch: str, ulength: str, uname: str) -> Tuple[str,bool]:
+    fpath = Path(settings.helm_extensions_cache) / f"{patch}.tmp" 
+    with open(fpath, "ab") as f:
+        async for chunk in request.stream():
+            f.write(chunk)
+    if ulength == str(fpath.stat().st_size):
+        # upload completed
+        try:
+            object_name = filepond_dict[patch]
+            target_path = Path(settings.helm_extensions_cache)  / object_name.strip("/")
+            target_path.parents[0].mkdir(parents=True, exist_ok=True)
+            logger.info(f'Moving file {fpath} to {target_path}')
+            shutil.move(fpath, target_path)
+            logger.info(f'Successfully saved file {uname} using filepond')
+            filename = filepond_dict.pop(patch, 'already deleted')
+
+            if filename[-3:] == "tgz":
+                logger.info("tgz file uploaded, checking namespaces")
+                # check if there is any kubernetes object specified under admin namespace
+                is_file_safe = check_file_namespace(filename)
+                if not is_file_safe:
+                    raise AttributeError(f"Chart files can not contain resources under admin_namespace")
+            return filename, True
+
+        except Exception as e:
+            logger.error(f"Failed to upload via filepond: {e}")
+            if fpath.is_file():
+                fpath.unlink()
+            filename = filepond_dict.pop(patch, 'already deleted')
+            return str(e), False
+    return "", True
+
+
+def filepond_get_offset(patch: str, ulength: str):
+    fpath = Path(settings.helm_extensions_cache) / f"{patch}.tmp" 
+    if fpath.is_file():
+        offset = int(ulength)-fpath.stat().st_size
+    else:
+        offset = 0
+
+    return offset
+
+
+def filepond_delete(patch):
+    fpath = Path(settings.helm_extensions_cache) / f"{patch}.tmp" 
+    if fpath.is_file():
+        fpath.unlink()
+        filename = filepond_dict.pop(patch, 'already deleted')
+        return filename
+    else:
+        return ""
 
 
 def make_fpath(fname: str, platforms=False):
@@ -91,22 +157,57 @@ def check_file_exists(filename, overwrite, platforms: bool = False):
     return fpath, msg
 
 
-def check_file_namespace(fpath):
+def check_file_namespace(filename: str) -> bool:
+    fpath = Path(settings.helm_extensions_cache) / f"{filename}"
+    logger.info(f"Checking namespaces of {filename=} in {fpath=}")
     
-    # TODO: if it doesnt' have any kube objects defined, still check or not?
-    if "templates" in os.listdir():
-        os.chdir("templates")
-        for f in os.listdir():
-            with open(f, "r") as stream:
-                if "admin_namespace" in f.read():
-                    raise AssertionError(
-                        f"Permission denied: admin_namespace present in file {f}")
-                if "kube-system" in f.read():
-                    raise AssertionError(
-                        f"Permission denied: kube-system present in file {f}")
+    # get chart's release name
+    chart = helm_helper.helm_show_chart(package=str(fpath))
 
-    # return multiinstallable
+    # get --set values from admin-chart
+    release_values = helm_get_values(settings.release_name,helm_namespace="default")
+    logger.debug(f"{release_values=}")
+    default_sets = {}
+    if 'global' in release_values:
+        for k, v in release_values['global'].items():
+            default_sets[f'global.{k}'] = v
+    default_sets.pop('global.preinstall_extensions', None)
+    default_sets.pop('global.kaapana_collections', None)
+    logger.debug(f"{default_sets=}")
 
+    helm_sets = ""
+    for key, value in default_sets.items():
+        if type(value) == str:
+            value = str(value).replace(",", "\,").replace("'", '\'"\'').replace(" ", "").replace(" ", "").replace("{", "\{").replace("}", "\}")
+            helm_sets = helm_sets + f" --set-string {key}='{value}'"
+        else:
+            helm_sets = helm_sets + f" --set {key}='{value}'"
+    logger.debug(f"{helm_sets=}")
+
+    cmd = f"{settings.helm_path} install {chart['name']} {helm_sets} {str(fpath)} -o json --dry-run "
+    success, stdout = helm_helper.execute_shell_command(cmd, shell=True, blocking=True, timeout=60)
+    if not success:
+        err = "Failed to check chart namespace"
+        logger.error(f"{err} {stdout=}")
+        raise RuntimeError(err)
+
+    res = json.loads(stdout)
+    manifest = list(yaml.load_all(res["manifest"], yaml.FullLoader))
+    logger.debug(f"{manifest=}")
+
+    if "global.admin_namespace" not in default_sets:
+        raise AssertionError("Failed to check chart namespace, admin_namespace is not present") 
+    
+    admin_namespace = default_sets["global.admin_namespace"]
+    
+    # if any kubernetes resource (except hooks) is running under admin namespace, check is failed
+    for resource in manifest:
+        if resource["metadata"]["namespace"] == admin_namespace:
+            logger.error(f"Uploaded chart {filename} has a Kubernetes resource {resource} which contains admin_namespace")
+            return False
+
+    logger.info(f"no resource running under admin_namespace in {filename}, returning")
+    return True
 
 def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms: bool = False) -> Tuple[bool, str]:
     """writes tgz file into fast_data_dir/extensions or fast_data_dir/platforms
@@ -137,7 +238,6 @@ def add_file(file: UploadFile, content: bytes, overwrite: bool = True, platforms
             raise Exception(stdout)
         if "kaapanamultiinstallable" in stdout:
             multiinstallable = True
-        # TODO: check_file_namespace(fpath)
     except Exception as e:
         logger.error(e)
         err = f"Failed to write chart file {file.filename}"
@@ -300,7 +400,7 @@ async def ws_add_file_chunks(ws: WebSocket, fname: str, fsize: int, chunk_size: 
     return fpath, "File successfully uploaded"
 
 
-def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, str]:
+async def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, str]:
     logger.debug(f"in function: run_containerd_import, {fname=}")
     fpath = make_fpath(fname, platforms=platforms)
     # check if file exists
@@ -310,19 +410,21 @@ def run_containerd_import(fname: str, platforms: bool = False) -> Tuple[bool, st
 
     cmd = f"ctr --namespace k8s.io -address='{settings.containerd_sock}' image import {fpath}"
     logger.debug(f"{cmd=}")
-    res, stdout = helm_helper.execute_shell_command(
-        cmd, shell=True, blocking=True, timeout=30)
+    res, stdout = await helm_helper.exec_shell_cmd_async(
+        cmd, shell=True, timeout=180)
 
     if not res:
         logger.error(f"microk8s import failed: {stdout}")
-        return res, f"Failed to import container {fname}"
+        return res, f"Failed to import container {fname}: {stdout}"
 
-    sess = sessions[list(sessions.keys())[0]]
+    # TODO: include below if not using filepond
+    # sess = sessions[list(sessions.keys())[0]]
     # sess.timer.stop()
     # del sess.timer
-    del sess
+    # TODO: include below if not using filepond
+    # del sess
 
-    logger.info("Successfully imported container")
+    logger.info(f"Successfully imported container {fname}")
 
     return res, f"Successfully imported container {fname}"
 

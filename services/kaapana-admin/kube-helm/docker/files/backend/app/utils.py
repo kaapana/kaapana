@@ -293,7 +293,7 @@ def helm_install(
                 for idx, sub_dict in enumerate(value):
                     for k, v in sub_dict.items():
                         default_sets[f'global.{key}[{idx}].{k}']  = v
-        
+
     if 'sets' not in payload:
         payload['sets'] = default_sets
     else:
@@ -351,9 +351,8 @@ def helm_install(
 
     # make the whole command
     helm_command = f'{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}'
-
     if not execute_cmd:
-        return False, "", keywords, release_name, helm_command
+        return True, "", keywords, release_name, helm_command
 
     skip_check = False
     if helm_command_suffix != "":
@@ -435,17 +434,24 @@ def helm_delete(
         cached_extension = [
             x for x in helm_helper.global_extensions_list if x["releaseName"] == release_name]
 
-    if len(cached_extension) == 1:
-        ext = cached_extension[0]
-        versions = ext.available_versions
-        dep = list(versions.items())[0][1]
-        if release_version is not None:
-            dep = versions[release_version]
+    if len(cached_extension) > 1:
+        logger.warning(f"Found more than one matching extensions for {release_name=}")
 
-        release_name = dep.deployments[0].helm_info.name
+    # if len(cached_extension) == 1:
+    #     ext = cached_extension[0]
+    #     versions = ext.available_versions
+    #     version_items = list(versions.items())
+    #     dep = None
+    #     if len(version_items) > 0:
+    #         dep = version_items[0][1]
+    #     if release_version is not None:
+    #         dep = versions[release_version]
+    #     if dep is not None:
+    #         if len(dep.deployments) > 0:
+    #             release_name = dep.deployments[0].helm_info.name
 
-        if ext.multiinstallable == "yes":
-            release_name = dep.deployments[0].helm_info.name
+            # if ext.multiinstallable == "yes":
+            #     release_name = dep.deployments[0].helm_info.name
 
     # delete version
     helm_command = f'{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}'

@@ -98,8 +98,9 @@ export default {
           this.cols = 1;
         }
       }
-      // Setting the minHeight to allow smooth lazy loading
-      this.minHeight = this.$refs.seriesCard[0].$el.clientHeight * 0.85;
+      debounce(() => {
+        this.minHeight = this.$refs.seriesCard[0].$el.clientHeight * 0.85;
+      }, 50);
     },
   },
 };

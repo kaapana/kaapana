@@ -4,10 +4,11 @@
       <v-col cols="12">
         <v-card>
           <v-card-title>
-            <!-- v-col cols=2 align="left"> Remote Instances </v-col -->
             <p class="mx-4 my-2">Runner Instances</p>
             <add-remote-instance class="mx-4" @refreshRemoteFromAdding="getKaapanaInstances()"></add-remote-instance>
-            <sync-remote-instances class="mx-4" @refreshRemoteFromSyncing="getKaapanaInstances()"></sync-remote-instances>
+            <v-btn @click="checkForRemoteUpdates" color="primary" small outlined rounded>
+              sync remotes
+            </v-btn>
           </v-card-title>
           <v-card-text>
             <v-container fluid="">
@@ -40,13 +41,11 @@
 
   import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
   import KaapanaInstance  from "@/components/KaapanaInstance.vue";
-  import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
 
   export default Vue.extend({
     components: {
       AddRemoteInstance,
       KaapanaInstance,
-      SyncRemoteInstances
     },
     data: () => ({
       polling: 0,
@@ -69,6 +68,12 @@
           .catch((err) => {
             console.log(err);
           });
+      },
+      checkForRemoteUpdates() {
+        kaapanaApiService.syncRemoteInstances().then(successful => {
+          console.log(successful)
+          this.getKaapanaInstances()
+        })
       },
       clearExtensionsInterval() {
         window.clearInterval(this.polling);

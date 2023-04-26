@@ -161,6 +161,7 @@ class FilterKaapanaInstances(BaseModel):
     federated: bool = False
     dag_id: str = None
     instance_names: List = []
+    workflow_id: str = None
     workflow_name: str = None
     only_dag_names: bool = True
     kind_of_dags: str = None

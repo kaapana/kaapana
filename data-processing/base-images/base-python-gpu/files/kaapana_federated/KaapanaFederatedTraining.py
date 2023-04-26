@@ -237,7 +237,6 @@ class KaapanaFederatedTrainingBase(ABC):
     def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data['federated_form']['federated_round'] = federated_round
-        distributed_jobs = []
         for site_info in self.remote_sites:
             if site_info['instance_name'] not in self.tmp_federated_site_info:
                 self.tmp_federated_site_info[site_info['instance_name']] = {}
@@ -246,45 +245,29 @@ class KaapanaFederatedTrainingBase(ABC):
             else:
                 self.remote_conf_data['federated_form']['before_previous_dag_run'] = self.tmp_federated_site_info[site_info['instance_name']]['before_previous_dag_run']
                 self.remote_conf_data['federated_form']['from_previous_dag_run'] = self.tmp_federated_site_info[site_info['instance_name']]['from_previous_dag_run']
-
+            
             with requests.Session() as s:
-                r = requests_retry_session(session=s).post(f'{self.client_url}/job',
+                r = requests_retry_session(session=s).put(f'{self.client_url}/workflow_jobs',
                         json={
-                            "dag_id": self.remote_conf_data['federated_form']["remote_dag_id"],
-                            "conf_data": self.remote_conf_data,
-                            "status": "queued",
-                            "username": self.local_conf_data["workflow_form"]["username"],
-                            "owner_kaapana_instance_name": self.client_network['instance_name'],
-                            "kaapana_instance_id": site_info['id']
-                        }, 
+                            'federated': True,
+                            'dag_id': self.remote_conf_data['federated_form']["remote_dag_id"],
+                            'conf_data': self.remote_conf_data,
+                            'username': self.local_conf_data["workflow_form"]["username"],
+                            'instance_names': [site_info['instance_name']],
+                            'workflow_id': self.local_conf_data["workflow_form"]["workflow_id"],
+                        },
                         verify=self.client_network['ssl_check']
                     )
 
             KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
-            job = r.json()
-            print('Created Job')
-            print(job)
+            print(f"Response r: {r}")
+            response = r.json()
+            print('Created Job and added to Workflow')
+            # print(f"Workflow: {response['workflow']}")
             self.tmp_federated_site_info[site_info['instance_name']] = {
-                'job_id': job['id'],
-                'fernet_key': site_info['fernet_key']
+                "job_id": response["db_jobs"][0]["id"],
+                "fernet_key": site_info["fernet_key"]
             }
-            distributed_jobs.append(job)
-
-        # update workflow.workflow_jobs with created job
-        with requests.Session() as s:
-            r = requests_retry_session(session=s).put(f'{self.client_url}/workflow_jobs',
-                    json={
-                        "workflow_id": self.local_conf_data["workflow_form"]["workflow_id"],
-                        "workflow_name": self.local_conf_data["workflow_form"]["workflow_name"],
-                        "workflow_jobs": distributed_jobs,
-                    },
-                    verify=self.client_network['ssl_check']
-                )
-        KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
-        workflow = r.json()
-        print(f'Updated Workflow {workflow["workflow_name"]} with created jobs!')
-        print(workflow)
-        # add sth to self.tmp_federated_site_info[site_info['instance_name']] ?!
     
     @timeit
     def wait_for_jobs(self, federated_round):

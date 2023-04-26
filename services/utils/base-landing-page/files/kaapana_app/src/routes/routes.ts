@@ -57,7 +57,7 @@ const routes = [
         name: 'runner-instances',
         path: '/runner-instances',
         component: () => import('@/views/RunnerInstances.vue'),
-        title: 'Runner Instances',
+        title: 'Instance Overview',
         permissions: {
             isPublic: false,
         },

@@ -1311,7 +1311,6 @@ def queue_generate_jobs_and_add_to_workflow(
                     "username": username,
                 }
             ]
-        print(f"CRUD def queue_generate_jobs_and_add_to_workflow() queued_jobs = {queued_jobs}")
         for jobs_to_create in queued_jobs:
             job = schemas.JobCreate(
                 **{
@@ -1324,7 +1323,6 @@ def queue_generate_jobs_and_add_to_workflow(
             )
             db_job = create_job(db, job)
             db_jobs.append(db_job)
-            print(f"CRUD def queue_generate_jobs_and_add_to_workflow() db_job.id = {db_job.id} ; db_job.id = {db_job.dag_id}")
 
     # update workflow w/ created db_jobs
     workflow = schemas.WorkflowUpdate(
@@ -1336,8 +1334,6 @@ def queue_generate_jobs_and_add_to_workflow(
     )
     db_workflow = put_workflow_jobs(db, workflow)
 
-    print(f"def queue_generate_jobs_and_add_to_workflow() db_workflow = {db_workflow}")
-    print(f"def queue_generate_jobs_and_add_to_workflow() db_jobs = {db_jobs}")
     return {
         "workflow": db_workflow, 
         "jobs": db_jobs,

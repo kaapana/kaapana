@@ -138,7 +138,6 @@ ui_forms = {
 
 args = {
     "ui_visible": True,
-    "ui_federated": True,
     "ui_forms": ui_forms,
     "owner": "kaapana",
     "start_date": days_ago(0),

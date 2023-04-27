@@ -373,8 +373,9 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
         logging.warning(
             f"No job found in db with job_id={job_id}, run_id={run_id} --> will return None"
         )
+        raise HTTPException(status_code=404, detail="Job not found")
         return None
-        # raise HTTPException(status_code=404, detail="Job not found")
+        
     return db_job
 
 
@@ -512,6 +513,16 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     if db_job.run_id is not None and db_job.kaapana_instance.remote == False:
         # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
         airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
+        if not airflow_details_resp.ok:
+            # request to airflow results in response != 200 ==> error!
+            # set db_job manually to deleted
+            logging.error(f"Couldn't find db_job {db_job.id} in airlfow ==> will set db_job to 'deleted'.")
+            db_job.status = "deleted"
+            db_job.time_updated = utc_timestamp
+            db.commit()
+            db.refresh(db_job)
+            raise_kaapana_connection_error(airflow_details_resp)
+            return db_job
         airflow_details_resp_text = json.loads(airflow_details_resp.text)
         # update db_job w/ job's real state and run_id fetched from Airflow
         db_job.status = (
@@ -870,7 +881,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 logging.info(
                     "Remote db_job --> created to be executed on remote instance!"
                 )
-                pass # sollte continue sein?
+                continue
             # get db_job from db via 'run_id'
             db_job = get_job(db, run_id=diff_db_job.run_id)
             # get runner kaapana instance of db_job

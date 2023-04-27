@@ -105,6 +105,7 @@ class Job(JobBase):
             "running",
             "finished",
             "failed",
+            "deleted",
         ]
         if v not in allowed_states:
             raise ValueError(

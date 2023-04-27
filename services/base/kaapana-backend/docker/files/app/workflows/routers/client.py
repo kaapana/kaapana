@@ -6,6 +6,7 @@ import string
 import uuid
 import shutil
 from typing import List, Union
+import asyncio
 
 from pathlib import Path
 import jsonschema
@@ -458,7 +459,7 @@ def delete_datasets(db: Session = Depends(get_db)):
 # create_workflow ; should replace and be sth like "def submit_workflow_json_schema()"
 @router.post("/workflow", response_model=schemas.Workflow)
 # also okay: schemas.WorkflowWithKaapanaInstance
-def create_workflow(
+async def create_workflow(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
@@ -527,10 +528,12 @@ def create_workflow(
 
     # async function call to queue jobs and generate db_jobs + adding them to db_workflow
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
-    # asyncio.create_task(crud.queue_generate_jobs_and_add_to_workflow(db, db_client_kaapana, db_workflow, json_schema_data, conf_data))
-    crud.queue_generate_jobs_and_add_to_workflow(
-        db, db_workflow, json_schema_data
-    )
+    asyncio.create_task(
+        crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+        )
+    # crud.queue_generate_jobs_and_add_to_workflow(
+    #     db, db_workflow, json_schema_data
+    # )
 
     # directly return created db_workflow for fast feedback
     return db_workflow

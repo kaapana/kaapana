@@ -1237,7 +1237,7 @@ def create_workflow(
 
 
 # TODO removed async because our current database is not able to execute async methods
-def queue_generate_jobs_and_add_to_workflow(
+async def queue_generate_jobs_and_add_to_workflow(
     db: Session,
     db_workflow: models.Workflow,
     json_schema_data: schemas.JsonSchemaData,
@@ -1344,6 +1344,9 @@ def queue_generate_jobs_and_add_to_workflow(
         }
     )
     db_workflow = put_workflow_jobs(db, workflow)
+
+    # would be better to solve this with a lamba function instead of putting it directly here
+    db.close()
 
     return {
         "workflow": db_workflow, 

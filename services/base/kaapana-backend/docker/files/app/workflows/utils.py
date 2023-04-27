@@ -254,9 +254,10 @@ def abort_job_airflow(dag_id, dag_run_id, status="failed"):
             timeout=TIMEOUT,
             json={
                 "dag_id": dag_id,
-                "state": {
-                    **status,
-                },
+                "state": status,
+                # "state": {
+                #     **status,
+                # },
             },
         )
     raise_kaapana_connection_error(resp)
@@ -282,7 +283,8 @@ def get_dagrun_details_airflow(dag_id, dag_run_id):
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/dagdetails/{dag_id}/{dag_run_id}",
             timeout=TIMEOUT,
         )
-    raise_kaapana_connection_error(resp)
+    # connection error handled in function call
+    # raise_kaapana_connection_error(resp)
     return resp
 
 

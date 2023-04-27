@@ -65,7 +65,7 @@
             </v-chip>
           </template>
           <template v-slot:item.airflow="{ item }">
-            <v-tooltip bottom>
+            <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" bottom>
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_graph(item)' small icon>
                   <v-icon color="secondary" dark>mdi-chart-timeline-variant</v-icon>
@@ -73,7 +73,7 @@
               </template>
               <span>job's airflow dag_run graph view</span>
             </v-tooltip>
-            <v-tooltip bottom>
+            <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" bottom>
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-if="item.status == 'failed'" v-bind="attrs" v-on="on" @click='direct_airflow_operator_logs(item)' small icon>
                   <v-icon color="secondary" dark>mdi-alert-decagram-outline</v-icon>
@@ -81,6 +81,14 @@
               </template>
               <span>airflow logs of failed operator</span>
             </v-tooltip>
+            <v-tooltip v-if="item.kaapana_instance.instance_name != item.owner_kaapana_instance_name" bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-icon color="secondary" dark v-bind="attrs" v-on="on">
+                    mdi-cloud-braces
+                  </v-icon>
+                </template>
+                <span>remote job's logs only accessible on runner instance</span>
+              </v-tooltip>
           </template>
           <template v-slot:item.actions="{ item }">
             <div v-if="item.service_job">
@@ -124,7 +132,7 @@
                     mdi-cloud-braces
                   </v-icon>
                 </template>
-                <span>No actions for REMOTE job!</span>
+                <span>no actions for remote job</span>
               </v-tooltip>
             </div>
           </template>
@@ -243,6 +251,8 @@
             return 'green'
           } else if (status == 'finished') {
             return 'black'
+          } else if (status == 'deleted') {
+            return 'brown'
           } else {
             return 'red'
           }

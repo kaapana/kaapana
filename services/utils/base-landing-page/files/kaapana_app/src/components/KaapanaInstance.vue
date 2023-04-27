@@ -5,6 +5,8 @@
      v-row(align="center")
       v-col(cols=9)
         p Instance name: {{ instance.instance_name }}
+      v-col(align="right")
+        p
           v-tooltip(bottom v-if="remote")
             template(v-slot:activator="{ on, attrs }")
               v-btn(v-bind="attrs" v-on="on" @click='deleteInstance()' small icon)
@@ -18,6 +20,18 @@
                 v-btn(color='primary' text='' @click='closeDelete') Cancel
                 v-btn(color='primary' text='' @click='deleteInstanceConfirm') OK
                 v-spacer    
+      v-col(align="right")
+        p
+          v-tooltip(v-if="!remote" bottom='')
+            template(v-slot:activator='{ on, attrs }')
+              v-icon(color="primary" dark='' v-bind='attrs' v-on='on')
+                | mdi-home
+            span your local instance: {{ instance.instance_name }}
+          v-tooltip(v-if="remote" bottom='')
+            template(v-slot:activator='{ on, attrs }')
+              v-icon(color="primary" dark='' v-bind='attrs' v-on='on')
+                | mdi-cloud-braces
+            span remote instance: {{ instance.instance_name }}
       v-col(align="right")
         p
           v-tooltip(v-if="remote" bottom='')
@@ -280,7 +294,7 @@
         kaapanaApiService
           .federatedClientApiPost("/get-dags", {
             instance_names: [this.instance.instance_name],
-            kind_of_dags: "dataset"
+            kind_of_dags: "all"
           })
           .then((response) => {
             this.dags = response.data;

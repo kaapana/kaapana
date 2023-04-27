@@ -111,7 +111,7 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
     def __init__(
         self,
         dag,
-        tag_field: str = "tags_keyword",
+        tag_field: str = "00000000 Tags_keyword",
         name: str = "tagging",
         add_tags_from_file: bool = False,
         tags_to_add_from_file: List[str] = ["00120020 ClinicalTrialProtocolID_keyword"],

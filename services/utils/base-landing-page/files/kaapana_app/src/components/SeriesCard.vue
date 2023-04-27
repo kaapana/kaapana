@@ -30,7 +30,7 @@
           <Chip :items="[modality]" />
           <v-spacer></v-spacer>
           <v-btn icon @click.stop="() => showDetails()" color="white">
-            <v-icon>mdi-eye-outline</v-icon>
+            <v-icon>mdi-eye</v-icon>
           </v-btn>
         </v-app-bar>
       </v-img>

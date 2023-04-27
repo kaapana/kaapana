@@ -348,6 +348,7 @@ def ui_form_schemas(
         and "dataset_name" in schemas["data_form"]["properties"]
     ):
         datasets = {}
+        dataset_size = {}
         for instance_name in filter_kaapana_instances.instance_names:
             # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
             db_kaapana_instance = crud.get_kaapana_instance(
@@ -360,6 +361,7 @@ def ui_form_schemas(
                 allowed_dataset = [
                     ds.name for ds in client_datasets
                 ]
+                dataset_size = {ds.name: len(json.loads(ds.identifiers)) for ds in client_datasets}
             else:
                 allowed_dataset = list(
                     ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)
@@ -388,7 +390,7 @@ def ui_form_schemas(
             len(datasets) == 1
         ):  # if just one instance is selected -> return (allowed) datasets of this instance
             schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = [
-                {"const": d, "title": d} for d in list(datasets.values())[0]
+                {"const": d, "title": d + f" ({dataset_size[d]})"} for d in list(datasets.values())[0]
             ]
 
     # logging.info(f"\n\nFinal Schema: \n{schemas}")

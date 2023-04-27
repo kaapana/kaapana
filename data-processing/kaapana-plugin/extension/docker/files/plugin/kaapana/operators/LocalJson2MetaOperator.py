@@ -19,8 +19,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     """
         This operater pushes JSON data to OpenSearch.
 
-    Pushes JSON data to the specified OpenSearch instance. If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
-    If the operator fails, some or no data is pushed to OpenSearch.
+        Pushes JSON data to the specified OpenSearch instance. 
+        If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
+        If the operator fails, some or no data is pushed to OpenSearch.
         Further information about OpenSearch can be found here: https://opensearch.org/docs/latest/
 
         **Inputs:**
@@ -68,10 +69,14 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             print(e)
             old_json = {}
 
-        bpr_key = "predicted_bodypart_string"
+        # special treatment for bodypart regression since keywords don't match
+        bpr_algorithm_name ="predicted_bodypart_string"
+        bpr_key = "00000000 PredictedBodypart_keyword"
+        if bpr_algorithm_name in new_json:
+            new_json[bpr_key] = new_json[bpr_algorithm_name]
+            del new_json[bpr_algorithm_name]
+
         for new_key in new_json:
-            if new_key == bpr_key and bpr_key in old_json and old_json[bpr_key].lower() != "n/a":
-                continue
             new_value = new_json[new_key]
             old_json[new_key] = new_value
 

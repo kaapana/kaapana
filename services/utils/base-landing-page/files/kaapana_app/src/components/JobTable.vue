@@ -251,6 +251,8 @@
             return 'green'
           } else if (status == 'finished') {
             return 'black'
+          } else if (status == 'deleted') {
+            return 'brown'
           } else {
             return 'red'
           }

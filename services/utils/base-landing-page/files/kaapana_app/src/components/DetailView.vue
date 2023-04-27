@@ -25,7 +25,7 @@
         v-if="modalitySupported"
         :iFrameUrl="iFrameURL"
         :fullSize="false"
-        style="aspect-ratio: 1 / 1; max-height: 80vh;"
+        customStyle="aspect-ratio: 1 / 1; max-height: 80vh;"
       />
       <v-container
         v-else

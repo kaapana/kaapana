@@ -12,6 +12,7 @@
             single-line
             clearable
             hide-details
+            @keydown.enter="search"
         />
       </v-col>
       <v-col cols="1" align="center">
@@ -42,7 +43,7 @@
         <v-btn
             color="primary"
             style="width: 100%;"
-            @click="() => search()"
+            @click="search"
         >
           Search
         </v-btn>

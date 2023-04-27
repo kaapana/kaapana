@@ -6,7 +6,7 @@
           <v-card-title>
             <p class="mx-4 my-2">Instance Overview</p>
             <add-remote-instance class="mx-4" @refreshRemoteFromAdding="getKaapanaInstances()"></add-remote-instance>
-            <v-btn @click="checkForRemoteUpdates" color="primary" small outlined rounded>
+            <v-btn class="mx-4" @click="checkForRemoteUpdates" color="primary" small outlined rounded>
               sync remotes
             </v-btn>
           </v-card-title>

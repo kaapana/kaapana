@@ -285,9 +285,17 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
 
+    # if (
+    #     db_kaapana_instance.remote is True
+    #     and "federated_form" in job.conf_data
+    #     and (
+    #         "federated_dir" in job.conf_data["federated_form"]
+    #         and "federated_bucket" in job.conf_data["federated_form"]
+    #         and "federated_operators" in job.conf_data["federated_form"]
+    #     )
+    # ):
     if (
-        db_kaapana_instance.remote is True
-        and "federated_form" in job.conf_data
+        "federated_form" in job.conf_data
         and (
             "federated_dir" in job.conf_data["federated_form"]
             and "federated_bucket" in job.conf_data["federated_form"]
@@ -365,8 +373,9 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
         logging.warning(
             f"No job found in db with job_id={job_id}, run_id={run_id} --> will return None"
         )
+        raise HTTPException(status_code=404, detail="Job not found")
         return None
-        # raise HTTPException(status_code=404, detail="Job not found")
+        
     return db_job
 
 
@@ -504,6 +513,16 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     if db_job.run_id is not None and db_job.kaapana_instance.remote == False:
         # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
         airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
+        if not airflow_details_resp.ok:
+            # request to airflow results in response != 200 ==> error!
+            # set db_job manually to deleted
+            logging.error(f"Couldn't find db_job {db_job.id} in airlfow ==> will set db_job to 'deleted'.")
+            db_job.status = "deleted"
+            db_job.time_updated = utc_timestamp
+            db.commit()
+            db.refresh(db_job)
+            raise_kaapana_connection_error(airflow_details_resp)
+            return db_job
         airflow_details_resp_text = json.loads(airflow_details_resp.text)
         # update db_job w/ job's real state and run_id fetched from Airflow
         db_job.status = (
@@ -544,7 +563,7 @@ def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     conf_data["client_job_id"] = db_job.id
 
     # repsonse.text of abort_job_airflow usused in backend but might be valuable for debugging
-    abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status, conf_data)
+    abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status)
 
 
 def get_job_taskinstances(db: Session, job_id: int = None):
@@ -594,7 +613,6 @@ def sync_client_remote(
     outgoing_workflows = []
     for db_outgoing_job in db_outgoing_jobs:
         if db_outgoing_job.kaapana_instance.id == db_client_kaapana.id:
-            print("SYNC_CLIENT_REMOTE: outgoing_job is on client instance")
             continue
         outgoing_jobs.append(schemas.Job(**db_outgoing_job.__dict__).dict())
 
@@ -779,7 +797,6 @@ def get_remote_updates(db: Session, periodically=False):
         fernet = Fernet(db_client_kaapana.encryption_key)
         db_jobs = []
         for incoming_job in incoming_jobs:
-            # print('incoming-jobs', incoming_job)
             if "conf_data" in incoming_job and "data_form" in incoming_job["conf_data"] and "identifiers" in incoming_job["conf_data"]["data_form"]:
                 incoming_job["conf_data"]["data_form"]["identifiers"] = [
                     fernet.decrypt(identifier.encode()).decode() for identifier in incoming_job["conf_data"]["data_form"]["identifiers"]
@@ -864,7 +881,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 logging.info(
                     "Remote db_job --> created to be executed on remote instance!"
                 )
-                pass # sollte continue sein?
+                continue
             # get db_job from db via 'run_id'
             db_job = get_job(db, run_id=diff_db_job.run_id)
             # get runner kaapana instance of db_job
@@ -1240,18 +1257,21 @@ def queue_generate_jobs_and_add_to_workflow(
             if ("dataset_limit" in data_form and data_form["dataset_limit"] is not None)
             else None
         )
-    username = conf_data["workflow_form"]["username"]
+    username = conf_data["workflow_form"]["username"] if "username" in conf_data["workflow_form"] else json_schema_data.username
 
-    
+    # if json_schema_data.federated:
+    #     db_kaapana_instances = get_kaapana_instance(db, instance_name=)
+    # else:
     db_kaapana_instances = get_kaapana_instances(
         db,
         filter_kaapana_instances=schemas.FilterKaapanaInstances(
             **{
-                "instance_names": conf_data["workflow_form"]["runner_instances"],
+                "instance_names": conf_data["workflow_form"]["runner_instances"] 
+                if not json_schema_data.federated 
+                else json_schema_data.instance_names,
             }
         ),
     )
-    print(db_kaapana_instances)
     db_jobs = []
     for db_kaapana_instance in db_kaapana_instances:
         identifiers = []
@@ -1302,7 +1322,6 @@ def queue_generate_jobs_and_add_to_workflow(
                     "username": username,
                 }
             ]
-
         for jobs_to_create in queued_jobs:
             job = schemas.JobCreate(
                 **{
@@ -1313,7 +1332,6 @@ def queue_generate_jobs_and_add_to_workflow(
                     **jobs_to_create,
                 }
             )
-            print('creating job!', job)
             db_job = create_job(db, job)
             db_jobs.append(db_job)
 
@@ -1325,9 +1343,12 @@ def queue_generate_jobs_and_add_to_workflow(
             "workflow_jobs": db_jobs,
         }
     )
-    put_workflow_jobs(db, workflow)
+    db_workflow = put_workflow_jobs(db, workflow)
 
-    return db_workflow
+    return {
+        "workflow": db_workflow, 
+        "jobs": db_jobs,
+        }
 
 
 def get_workflow(

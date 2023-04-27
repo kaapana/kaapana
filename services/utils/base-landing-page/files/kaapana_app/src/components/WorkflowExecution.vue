@@ -459,7 +459,9 @@
           })
           .then((response) => {
             console.log(response);
-            this.$router.push({ name: 'workflows' });
+            this.$router.push({
+              name: 'workflows',
+            });
             this.$notify({
               type: 'success',
               title: "Workflow successfully created!",

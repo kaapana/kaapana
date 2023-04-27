@@ -4,11 +4,31 @@
       <v-col cols="4">
         <p class="mx-4 my-2">Workflow List</p>
       </v-col>
-      <v-col align="right">
+      <v-col cols="4" align="right">
         <v-tooltip bottom>
           <template v-slot:activator="{ on, attrs }">
-            <v-btn v-on="on" @click='refreshClient()' small icon>
-              <v-icon color="primary" large class="mx-2" dark>mdi-refresh</v-icon> 
+            <v-btn class="pa-6" v-on="on" @click='checkForRemoteUpdates' small icon>
+              <v-icon color="primary" large dark>
+                mdi-sync
+              </v-icon> 
+            </v-btn> 
+          </template>
+          <span>sync manually with remote instances</span>
+        </v-tooltip>
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn class="pa-6" v-on="on" @click='redirectToAirflow()' small icon>
+              <v-icon color="primary" large dark>
+                mdi-chart-timeline-variant
+              </v-icon> 
+            </v-btn> 
+          </template>
+          <span>redirect to Airflow worklfow engine</span>
+        </v-tooltip>
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn class="pa-6" v-on="on" @click='refreshClient()' small icon>
+              <v-icon color="primary" large  dark>mdi-refresh</v-icon> 
             </v-btn> 
           </template>
           <span>refresh workflow list</span>
@@ -114,14 +134,12 @@
 <script>
 
 import kaapanaApiService from "@/common/kaapanaApi.service";
-import SyncRemoteInstances from "@/components/SyncRemoteInstances.vue";
 import JobTable from "./JobTable.vue";
 
 export default {
 name: 'WorkflowTable',
 
 components: {
-  SyncRemoteInstances,
   JobTable,
 },
 
@@ -156,11 +174,13 @@ data () {
     hover: false,
     activateAddRemote: false,
     shouldExpand: true,
+    localInstance: {},
   }
 },
 
 mounted () {
   this.refreshClient();
+  this.getLocalInstance();
 },
 
 props: {
@@ -185,6 +205,11 @@ methods: {
   // General Methods
   refreshClient() {
     this.$emit('refreshView')
+  },
+  checkForRemoteUpdates() {
+    kaapanaApiService.syncRemoteInstances().then(successful => {
+      console.log(successful)
+    })
   },
   expandRow(item) {
     if ( this.shouldExpand == true) {
@@ -217,6 +242,10 @@ methods: {
       count: states.filter(_state => _state === state).length
     }))
   },
+  redirectToAirflow() {
+    const airflow_url = this.localInstance.protocol + "://" + this.localInstance.host + "/flow/home"
+    window.open(airflow_url, "_blank", "noreferrer")
+  },
   startWorkflowManually(item) {
     this.shouldExpand = false
     this.manual_startID = item.workflow_id,
@@ -243,24 +272,35 @@ methods: {
   },
 
   // API Calls
+  getLocalInstance() {
+    kaapanaApiService
+      .federatedClientApiGet("/kaapana-instance")
+      .then((response) => {
+        this.localInstance = response.data;
+        console.log("this.localInstance: ", this.localInstance)
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  },
   getJobsOfWorkflow(workflow_name) {
-      kaapanaApiService
-        .federatedClientApiGet("/jobs",{
-          workflow_name: workflow_name,
-          limit: 100,
-        }).then((response) => {
-          if (this.expanded.length > 0) {
-            this.jobsofExpandedWorkflow = response.data;
-          } else {
-            this.jobsofWorkflows = response.data;
-          }
-        })
-        .catch((err) => {
-          console.log(err);
-        })
+    kaapanaApiService
+      .federatedClientApiGet("/jobs",{
+        workflow_name: workflow_name,
+        limit: 100,
+      }).then((response) => {
+        if (this.expanded.length > 0) {
+          this.jobsofExpandedWorkflow = response.data;
+        } else {
+          this.jobsofWorkflows = response.data;
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+      })
   },
   deleteClientWorkflowAPI(workflow_id) {
-      kaapanaApiService
+    kaapanaApiService
       .federatedClientApiDelete("/workflow",{
           workflow_id,
       }).then((response) => {

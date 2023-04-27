@@ -11,6 +11,7 @@ from federated_setup_node_test.LocalFederatedSetupFromPreviousTestOperator impor
 from federated_setup_node_test.LocalFederatedSetupSkipTestOperator import LocalFederatedSetupSkipTestOperator
 
 ui_forms = {
+    "data_form": {},
     "workflow_form": {
         "type": "object",
         "properties": {

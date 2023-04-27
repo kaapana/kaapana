@@ -45,12 +45,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         assert LocalDcm2JsonOperator.MODALITY_TAG in metadata_dict
         modality = metadata_dict[LocalDcm2JsonOperator.MODALITY_TAG]
 
-        metadata_dict.update({"curated_modality": modality})
+        metadata_dict.update({"00000000 CuratedModality_keyword": modality})
         if LocalDcm2JsonOperator.IMAGE_TYPE_TAG in metadata_dict:
             image_type = metadata_dict[LocalDcm2JsonOperator.IMAGE_TYPE_TAG]
             assert isinstance(image_type, list)
             if modality =="CT" and "LOCALIZER" in image_type and len(image_type)>=3:
-                metadata_dict.update({"curated_modality": "XR"})
+                metadata_dict.update({"00000000 CuratedModality_keyword": "XR"})
 
         return metadata_dict
         
@@ -627,14 +627,14 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         new_meta_data["timestamp"] = date_time_formatted
 
         timestamp_arrived = datetime.now()
-        new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(timestamp_arrived.strftime(self.format_date_time), self.format_date_time)
+        new_meta_data["00000000 TimestampArrived_datetime"] = self.convert_time_to_utc(timestamp_arrived.strftime(self.format_date_time), self.format_date_time)
 
-        new_meta_data["timestamp_arrived_date"] = new_meta_data["timestamp_arrived_datetime"][:10]
-        new_meta_data["timestamp_arrived_hour_integer"] = new_meta_data["timestamp_arrived_datetime"][11:13]
+        new_meta_data["00000000 TimestampArrived_date"] = new_meta_data["00000000 TimestampArrived_datetime"][:10]
+        new_meta_data["00000000 TimestampArrivedHour_integer"] = new_meta_data["00000000 TimestampArrived_datetime"][11:13]
 
-        new_meta_data["dayofweek_integer"] = datetime.strptime(
+        new_meta_data["00000000 DayOfWeek_integer"] = datetime.strptime(
             date_time_formatted, self.format_date_time).weekday()
-        new_meta_data["time_tag_used_keyword"] = time_tag_used
+        new_meta_data["00000000 TimeTagUsed_keyword"] = time_tag_used
         new_meta_data["predicted_bodypart_string"] = "N/A"
 
         if "00100030 PatientBirthDate_date" in new_meta_data:

@@ -694,10 +694,10 @@ class Dcm2MetaJsonConverter:
         date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
         new_meta_data["timestamp"] = date_time_formatted
 
-        new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(datetime.now().strftime(self.format_date_time), self.format_date_time)
-        new_meta_data["dayofweek_integer"] = datetime.strptime(
+        new_meta_data["00000000 TimestampArrived_datetime"] = self.convert_time_to_utc(datetime.now().strftime(self.format_date_time), self.format_date_time)
+        new_meta_data["00000000 DayOfWeek_integer"] = datetime.strptime(
             date_time_formatted, self.format_date_time).weekday()
-        new_meta_data["time_tag_used_keyword"] = time_tag_used
+        new_meta_data["00000000 TimeTagUsed_keyword"] = time_tag_used
 
         if "00100030 PatientBirthDate_date" in new_meta_data:
             birthdate = new_meta_data["00100030 PatientBirthDate_date"]

@@ -1,6 +1,6 @@
 
 <template lang="pug">
-  iframe(ref="iframe" :width="width" :height="height" :style="style" :class="fullSize ? 'iframe-window' : 'no-border'" :src="iFrameUrl" @load="setIframeUrl(this)")
+  iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="fullSize ? 'iframe-window' : 'no-border'" :src="iFrameUrl" @load="setIframeUrl(this)")
 </template>
 
 <script>
@@ -29,7 +29,7 @@ export default {
       type: String, 
       default: '100%',
     },
-    style: {
+    customStyle: {
       type: String,
       default: ''
     }

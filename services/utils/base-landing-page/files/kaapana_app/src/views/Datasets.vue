@@ -155,7 +155,7 @@
                                 color="primary"
                                 @click="workflowDialog = true"
                               >
-                                mdi-play-box
+                                mdi-play
                               </v-icon>
                             </v-btn>
                           </span>

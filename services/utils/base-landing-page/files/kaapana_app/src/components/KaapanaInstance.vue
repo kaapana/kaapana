@@ -294,7 +294,7 @@
         kaapanaApiService
           .federatedClientApiPost("/get-dags", {
             instance_names: [this.instance.instance_name],
-            kind_of_dags: "dataset"
+            kind_of_dags: "all"
           })
           .then((response) => {
             this.dags = response.data;

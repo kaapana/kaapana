@@ -13,9 +13,9 @@ spec:
       port: 80
       targetPort: 80
       name: pt-mitk-http
-      {{- if eq .Values.global.service_type "NodePort" }}
+{{- if eq .Values.global.service_type "NodePort" }}
       nodePort: {{ .Values.global.nodePortMITKWorkbench }}
-      {{- end }}
+{{- end }}
   selector:
     app-name: {{ .Release.Name }}
 ---

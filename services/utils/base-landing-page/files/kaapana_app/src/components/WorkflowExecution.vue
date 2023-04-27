@@ -478,7 +478,11 @@
               title: "Workflow successfully created!",
             })
             this.reset()
-            this.$emit('successful')
+            if (this.identifiers.length > 0) {
+              this.$emit('successful')
+            } else {
+              this.$router.push({ name: 'workflows' });
+            }
           })
           .catch((err) => {
             console.log(err);

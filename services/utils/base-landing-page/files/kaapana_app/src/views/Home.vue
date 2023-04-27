@@ -8,7 +8,7 @@
               KaapanaWelcome
             v-flex(sm12)
               v-layout(row='', wrap='')
-                v-flex.text-left(v-if='section.roles.indexOf(currentUser.role) > -1' v-for='(section, sectionKey) in this.externalWebpages', :key='section.id', d-flex, v-bind:class="{ sm8: sectionKey=='system', sm4: sectionKey!='system'}")
+                v-flex.text-left(v-if='section.roles.indexOf(currentUser.role) > -1' v-for='(section, sectionKey) in this.externalWebpages', :key='section.id', d-flex, class="sm4")
                   v-card.kaapana-opacity-card
                     v-card-title.kaapana-card-prop
                       span.kaapana-headline {{section.label}}

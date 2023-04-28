@@ -59,17 +59,17 @@ def delete_kaapana_instances(db: Session):
 
 
 def get_kaapana_instance(db: Session, instance_name: str = None):
-    db_kaapana_instance = (db.query(models.KaapanaInstance)
-        .filter_by(instance_name=instance_name or settings.instance_name)
-        .first())
-    # workaround that backend isn't crashing if remote kaapana instance is not reachable
-    db.close()
-    return db_kaapana_instance
-    # return (
-    #     db.query(models.KaapanaInstance)
+    # db_kaapana_instance = (db.query(models.KaapanaInstance)
     #     .filter_by(instance_name=instance_name or settings.instance_name)
-    #     .first()
-    # )
+    #     .first())
+    # # workaround that backend isn't crashing if remote kaapana instance is not reachable
+    # db.close()
+    # return db_kaapana_instance
+    return (
+        db.query(models.KaapanaInstance)
+        .filter_by(instance_name=instance_name or settings.instance_name)
+        .first()
+    )
 
 def get_kaapana_instances(
     db: Session, filter_kaapana_instances: schemas.FilterKaapanaInstances = None
@@ -78,80 +78,80 @@ def get_kaapana_instances(
         filter_kaapana_instances is not None
         and filter_kaapana_instances.instance_names
     ):
-        db_kaapana_instances = (db.query(models.KaapanaInstance)
-                                .filter(models.KaapanaInstance.instance_name.in_(
-                                    filter_kaapana_instances.instance_names),
-                                ).all()
-                                )
-        db.close()
-        return db_kaapana_instances
-        # return (
-        #     db.query(models.KaapanaInstance)
-        #     .filter(
-        #         models.KaapanaInstance.instance_name.in_(
-        #             filter_kaapana_instances.instance_names
-        #         ),
-        #     )
-        #     .all()
-        # )
+        # db_kaapana_instances = (db.query(models.KaapanaInstance)
+        #                         .filter(models.KaapanaInstance.instance_name.in_(
+        #                             filter_kaapana_instances.instance_names),
+        #                         ).all()
+        #                         )
+        # db.close()
+        # return db_kaapana_instances
+        return (
+            db.query(models.KaapanaInstance)
+            .filter(
+                models.KaapanaInstance.instance_name.in_(
+                    filter_kaapana_instances.instance_names
+                ),
+            )
+            .all()
+        )
     elif (
         filter_kaapana_instances is not None
         and filter_kaapana_instances.dag_id is not None
     ):
-        db_kaapana_instances = (db.query(models.KaapanaInstance)
-                                .filter(models.KaapanaInstance.allowed_dags.contains(
-                                    filter_kaapana_instances.dag_id),
-                                ).all()
-                                )
-        db.close()
-        return db_kaapana_instances
-        # return (
-        #     db.query(models.KaapanaInstance)
-        #     .filter(
-        #         models.KaapanaInstance.allowed_dags.contains(
-        #             filter_kaapana_instances.dag_id
-        #         ),
-        #     )
-        #     .all()
-        # )
+        # db_kaapana_instances = (db.query(models.KaapanaInstance)
+        #                         .filter(models.KaapanaInstance.allowed_dags.contains(
+        #                             filter_kaapana_instances.dag_id),
+        #                         ).all()
+        #                         )
+        # db.close()
+        # return db_kaapana_instances
+        return (
+            db.query(models.KaapanaInstance)
+            .filter(
+                models.KaapanaInstance.allowed_dags.contains(
+                    filter_kaapana_instances.dag_id
+                ),
+            )
+            .all()
+        )
     elif (
         filter_kaapana_instances is not None
         and filter_kaapana_instances.instance_names
         and filter_kaapana_instances.dag_id is not None
     ):
-        db_kaapana_instances = (db.query(models.KaapanaInstance)
-                                .filter(models.KaapanaInstance.allowed_dags.contains(
-                                        filter_kaapana_instances.dag_id),
-                                    models.KaapanaInstance.instance_name.in_(
-                                        filter_kaapana_instances.instance_names),
-                                ).all()
-                                )
-        db.close()
-        return db_kaapana_instances
-        # return (
-        #     db.query(models.KaapanaInstance)
-        #     .filter(
-        #         models.KaapanaInstance.allowed_dags.contains(
-        #             filter_kaapana_instances.dag_id
-        #         ),
-        #         models.KaapanaInstance.instance_name.in_(
-        #             filter_kaapana_instances.instance_names
-        #         ),
-        #     )
-        #     .all()
-        # )
-    else:
-        db_kaapana_instances = (db.query(models.KaapanaInstance)
-            .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name) 
+        # db_kaapana_instances = (db.query(models.KaapanaInstance)
+        #                         .filter(models.KaapanaInstance.allowed_dags.contains(
+        #                                 filter_kaapana_instances.dag_id),
+        #                             models.KaapanaInstance.instance_name.in_(
+        #                                 filter_kaapana_instances.instance_names),
+        #                         ).all()
+        #                         )
+        # db.close()
+        # return db_kaapana_instances
+        return (
+            db.query(models.KaapanaInstance)
+            .filter(
+                models.KaapanaInstance.allowed_dags.contains(
+                    filter_kaapana_instances.dag_id
+                ),
+                models.KaapanaInstance.instance_name.in_(
+                    filter_kaapana_instances.instance_names
+                ),
+            )
             .all()
         )
-        db.close()
-        return db_kaapana_instances
-        # return (
-        #     db.query(models.KaapanaInstance)
+    else:
+        # db_kaapana_instances = (db.query(models.KaapanaInstance)
         #     .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name) 
         #     .all()
         # )
+        # db.close()
+        # return db_kaapana_instances
+        return (
+            db.query(models.KaapanaInstance)
+            .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name) 
+            .all()
+        )
 
 
 def create_and_update_client_kaapana_instance(
@@ -380,6 +380,7 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
     update_external_job(db, db_job)
     db.refresh(db_job)
 
+    print(f"CRUD def create_job() {db_kaapana_instance.remote=} ; {service_job=} ; {db_job.automatic_execution=}")
     if (
         db_kaapana_instance.remote is False
         and service_job is False
@@ -521,8 +522,10 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     # update jobs of own db which are remotely executed (def update_job() is in this case called from remote.py's def put_job())
     if db_job.kaapana_instance.remote:
+        print(f"CRUD def update_job() updating status of remotely executed job --> {job.status=}")
         db_job.status = job.status
 
+    print(f"CRUD def update_job() {job.status=} ; {db_job.kaapana_instance.remote=}")
     if job.status == "scheduled" and db_job.kaapana_instance.remote == False:
         # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = json.loads(db_job.conf_data)
@@ -537,6 +540,7 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             job.status = "failed"
             job.description = dag_id_and_dataset
         else:
+            print(f"CRUD def update_job() right before executing job on airflow!")
             airflow_execute_resp = execute_job_airflow(conf_data, db_job)
             airflow_execute_resp_text = json.loads(airflow_execute_resp.text)
             dag_id = airflow_execute_resp_text["message"][1]["dag_id"]
@@ -559,24 +563,25 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             raise_kaapana_connection_error(airflow_details_resp)
             return db_job
         airflow_details_resp_text = json.loads(airflow_details_resp.text)
-        # update db_job w/ job's real state and run_id fetched from Airflow
-        db_job.status = (
-            "finished"
-            if airflow_details_resp_text["state"] == "success"
-            else airflow_details_resp_text["state"]
-        )  # special case for status = "success"
+        # update db_job w/ job's real state and run_id fetched from Airflow ; special case for status = "success"
+        db_job.status = ("finished" 
+                         if airflow_details_resp_text["state"] == "success" 
+                         else airflow_details_resp_text["state"]
+                        )
         db_job.run_id = airflow_details_resp_text["run_id"]
 
-    if (db_job.kaapana_instance.remote != remote) and db_job.status not in [
-        "queued",
-        "finished",
-        "failed",
-    ]:
-        raise HTTPException(
-            status_code=401,
-            detail="You are not allowed to update this job, since its on the client site",
-        )
+    # print(f"CRUD def update_jon() db_job.id = {db_job.id} ; db_job.kaapana_instance.remote = {db_job.kaapana_instance.remote} ; remote = {remote} ; db_job.status = {db_job.status}")
+    # if (db_job.kaapana_instance.remote != remote) and db_job.status not in [
+    #     "queued",
+    #     "finished",
+    #     "failed",
+    # ]:
+    #     raise HTTPException(
+    #         status_code=401,
+    #         detail="You are not allowed to update this job, since its on the client site",
+    #     )
 
+    print(f"CRUD def update_job() {db_job.external_job_id=}")
     if job.run_id is not None:
         db_job.run_id = job.run_id
     if job.description is not None:
@@ -683,10 +688,12 @@ def sync_client_remote(
 
 
 def delete_external_job(db: Session, db_job):
+    print(f"CRUD def delete_external_job() db_job.id = {db_job.id} ; db_job.external_job_id = {db_job.external_job_id}")
     if db_job.external_job_id is not None:
         db_remote_kaapana_instance = get_kaapana_instance(
             db, instance_name=db_job.owner_kaapana_instance_name
         )
+        print(f"CRUD def delete_external_job() db_remote_kaapana_instance.instance_name = {db_remote_kaapana_instance.instance_name}")
         params = {
             "job_id": db_job.external_job_id,
         }
@@ -717,33 +724,46 @@ def update_external_job(db: Session, db_job):
         db_remote_kaapana_instance = get_kaapana_instance(
             db, instance_name=db_job.owner_kaapana_instance_name
         )
-        payload = {
-            "job_id": db_job.external_job_id,
-            "run_id": db_job.run_id,
-            "status": db_job.status,
-            "description": db_job.description,
-        }
-        
-        # if db_remote_kaapana_instance.instance_name == settings.instance_name:
-        #     update_job(db, schemas.JobUpdate(**payload))
-        # else:
-        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote"
-        with requests.Session() as s:
-            r = requests_retry_session(session=s).put(
-                f"{remote_backend_url}/job",
-                verify=db_remote_kaapana_instance.ssl_check,
-                json=payload,
-                headers={
-                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
-                },
-                timeout=TIMEOUT,
-            )
-        if r.status_code == 404:
-            logging.warning(f"External job {db_job.external_job_id} does not exist")
-        else:
-            logging.error("Error in CRUD def update_external_job()")
+        if db_job.status != "queued":
+            # only update status to owner instance if not "queued" otherwise job will be again from owner_instance by this local instance
+            payload = {
+                "job_id": db_job.external_job_id,
+                "run_id": db_job.run_id,
+                "status": db_job.status,
+                "description": db_job.description,
+            }
+            print(f"CRUD def update_external_job() {payload=}")
+            
+            # if db_remote_kaapana_instance.instance_name == settings.instance_name:
+            #     update_job(db, schemas.JobUpdate(**payload))
+            # else:
+            remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote"
+            with requests.Session() as s:
+                r = requests_retry_session(session=s).put(
+                    f"{remote_backend_url}/job",
+                    verify=db_remote_kaapana_instance.ssl_check,
+                    json=payload,
+                    headers={
+                        "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                    },
+                    timeout=TIMEOUT,
+                )
+                print(f"CRUD def update_external_job() /put request response {r=}")
+            if r.status_code == 404:
+                print(f"CRUD def update_external_job() /put request response {r=}")
+                logging.warning(f"External job {db_job.external_job_id} does not exist")
+            elif r.status_code != 200:
+                print(f"CRUD def update_external_job() /put request response {r=}")
+                logging.error("Error in CRUD def update_external_job()")
+                raise_kaapana_connection_error(r)
+                logging.error(r.json())
             raise_kaapana_connection_error(r)
-            logging.error(r.json())
+            # else:
+            #     print(f"CRUD def update_external_job() /put request response {r=}")
+            #     logging.error("Error in CRUD def update_external_job()")
+            #     raise_kaapana_connection_error(r)
+            #     logging.error(r.json())
+            print(f"CRUD def update_external_job() /put request response {r=}")
 
 
 def get_remote_updates(db: Session, periodically=False):
@@ -1451,6 +1471,7 @@ def get_workflows(
 
 def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
+    db_local_kaapana_instance = get_kaapana_instance(db)
 
     db_workflow = get_workflow(db, workflow.workflow_id)
 
@@ -1462,6 +1483,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
         # iterate over db_jobs in db_workflow ...
         for db_workflow_current_job in db_workflow.workflow_jobs:
             # either update db_jobs on own kaapana_instance
+            print(f"CRUD def update_workflow() check if-cond: {db_workflow.kaapana_instance.remote=} ; {db_workflow.kaapana_instance.automatic_workflow_execution=} ; {db_workflow.automatic_execution=}")
             if (
                 db_workflow.kaapana_instance.remote is False
                 or (
@@ -1473,6 +1495,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                     and db_workflow.automatic_execution is True
                 )
             ):
+                print(f"CRUD def update_workflow() let's update on local kp_i!")
                 job = schemas.JobUpdate(
                     **{
                         "job_id": db_workflow_current_job.id,
@@ -1498,12 +1521,58 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                     status_code=404,
                     detail="Job updating while updating the workflow failed!",
                 )
+            
+        # do call to remote's experiment to start jobs there
+        print(f"CRUD def update_workflow() db_workflow.involved_kaapana_instances = {db_workflow.involved_kaapana_instances} ; type = {type(db_workflow.involved_kaapana_instances)}")
+        # extract all remote involved_instances of workflow
+        involved_instances = db_workflow.involved_kaapana_instances.strip('{}').split(',')
+
+        remote_involved_instances = [el for el in involved_instances if el != db_workflow.kaapana_instance.instance_name]
+        print(f"CRUD def update_workflow() remote_involved_instances = {remote_involved_instances}")
+        if remote_involved_instances and db_workflow.kaapana_instance.instance_name == db_local_kaapana_instance.instance_name :
+            update_remote_workflow(db, db_workflow, remote_involved_instances)
+        
 
     db_workflow.time_updated = utc_timestamp
     db.commit()
     db.refresh(db_workflow)
 
     return db_workflow
+
+def update_remote_workflow(
+        db: Session, 
+        db_workflow=models.Workflow,
+        remote_involved_instances: List=[]
+    ):
+    for remote_involved_instance in remote_involved_instances:
+        # get remote_involved_instance
+        db_remote_kaapana_instance = get_kaapana_instance(
+            db, instance_name=remote_involved_instance
+        )
+        print(f"CRUD def update_remote_workflow() db_remote_kaapana_instance.instance_name = {db_remote_kaapana_instance.instance_name}")
+        # compose payload
+        payload = {
+            "workflow_id": db_workflow.workflow_id,
+            "workflow_status": "scheduled",
+        }
+        # call rmeote's update_worklfow endpoint
+        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote"
+        with requests.Session() as s:
+            r = requests_retry_session(session=s).put(
+                f"{remote_backend_url}/workflow",
+                verify=db_remote_kaapana_instance.ssl_check,
+                json=payload,
+                headers={
+                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                },
+                timeout=TIMEOUT,
+            )
+        if r.status_code == 404:
+            logging.warning(f"Workflow {db_workflow.workflow_id} does not exist on remote instance")
+        elif r.status_code != 200:
+            logging.error("Error in CRUD def update_remote_workflow()")
+            raise_kaapana_connection_error(r)
+            logging.error(r.json())
 
 
 def put_workflow_jobs(db: Session, workflow=schemas.WorkflowUpdate):
@@ -1535,7 +1604,8 @@ def put_workflow_jobs(db: Session, workflow=schemas.WorkflowUpdate):
 
 
 def delete_workflow(db: Session, workflow_id: str):
-    db_workflow = get_workflow(db, workflow_id)  # get db's db_workflow object
+    # get db's db_workflow object
+    db_workflow = get_workflow(db, workflow_id)
 
     # iterate over jobs of to-be-deleted workflow
     for db_workflow_current_job in db_workflow.workflow_jobs:

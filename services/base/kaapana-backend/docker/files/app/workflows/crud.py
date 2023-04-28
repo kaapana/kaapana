@@ -59,11 +59,17 @@ def delete_kaapana_instances(db: Session):
 
 
 def get_kaapana_instance(db: Session, instance_name: str = None):
-    return (
-        db.query(models.KaapanaInstance)
+    db_kaapana_instance = (db.query(models.KaapanaInstance)
         .filter_by(instance_name=instance_name or settings.instance_name)
-        .first()
-    )
+        .first())
+    # workaround that backend isn't crashing if remote kaapana instance is not reachable
+    db.close()
+    return db_kaapana_instance
+    # return (
+    #     db.query(models.KaapanaInstance)
+    #     .filter_by(instance_name=instance_name or settings.instance_name)
+    #     .first()
+    # )
 
 def get_kaapana_instances(
     db: Session, filter_kaapana_instances: schemas.FilterKaapanaInstances = None
@@ -72,51 +78,80 @@ def get_kaapana_instances(
         filter_kaapana_instances is not None
         and filter_kaapana_instances.instance_names
     ):
-        return (
-            db.query(models.KaapanaInstance)
-            .filter(
-                models.KaapanaInstance.instance_name.in_(
-                    filter_kaapana_instances.instance_names
-                ),
-            )
-            .all()
-        )
+        db_kaapana_instances = (db.query(models.KaapanaInstance)
+                                .filter(models.KaapanaInstance.instance_name.in_(
+                                    filter_kaapana_instances.instance_names),
+                                ).all()
+                                )
+        db.close()
+        return db_kaapana_instances
+        # return (
+        #     db.query(models.KaapanaInstance)
+        #     .filter(
+        #         models.KaapanaInstance.instance_name.in_(
+        #             filter_kaapana_instances.instance_names
+        #         ),
+        #     )
+        #     .all()
+        # )
     elif (
         filter_kaapana_instances is not None
         and filter_kaapana_instances.dag_id is not None
     ):
-        return (
-            db.query(models.KaapanaInstance)
-            .filter(
-                models.KaapanaInstance.allowed_dags.contains(
-                    filter_kaapana_instances.dag_id
-                ),
-            )
-            .all()
-        )
+        db_kaapana_instances = (db.query(models.KaapanaInstance)
+                                .filter(models.KaapanaInstance.allowed_dags.contains(
+                                    filter_kaapana_instances.dag_id),
+                                ).all()
+                                )
+        db.close()
+        return db_kaapana_instances
+        # return (
+        #     db.query(models.KaapanaInstance)
+        #     .filter(
+        #         models.KaapanaInstance.allowed_dags.contains(
+        #             filter_kaapana_instances.dag_id
+        #         ),
+        #     )
+        #     .all()
+        # )
     elif (
         filter_kaapana_instances is not None
         and filter_kaapana_instances.instance_names
         and filter_kaapana_instances.dag_id is not None
     ):
-        return (
-            db.query(models.KaapanaInstance)
-            .filter(
-                models.KaapanaInstance.allowed_dags.contains(
-                    filter_kaapana_instances.dag_id
-                ),
-                models.KaapanaInstance.instance_name.in_(
-                    filter_kaapana_instances.instance_names
-                ),
-            )
-            .all()
-        )
+        db_kaapana_instances = (db.query(models.KaapanaInstance)
+                                .filter(models.KaapanaInstance.allowed_dags.contains(
+                                        filter_kaapana_instances.dag_id),
+                                    models.KaapanaInstance.instance_name.in_(
+                                        filter_kaapana_instances.instance_names),
+                                ).all()
+                                )
+        db.close()
+        return db_kaapana_instances
+        # return (
+        #     db.query(models.KaapanaInstance)
+        #     .filter(
+        #         models.KaapanaInstance.allowed_dags.contains(
+        #             filter_kaapana_instances.dag_id
+        #         ),
+        #         models.KaapanaInstance.instance_name.in_(
+        #             filter_kaapana_instances.instance_names
+        #         ),
+        #     )
+        #     .all()
+        # )
     else:
-        return (
-            db.query(models.KaapanaInstance)
+        db_kaapana_instances = (db.query(models.KaapanaInstance)
             .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name) 
             .all()
         )
+        db.close()
+        return db_kaapana_instances
+        # return (
+        #     db.query(models.KaapanaInstance)
+        #     .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name) 
+        #     .all()
+        # )
 
 
 def create_and_update_client_kaapana_instance(
@@ -716,7 +751,6 @@ def get_remote_updates(db: Session, periodically=False):
     if periodically is True and db_client_kaapana.automatic_update is False:
         return
     db_kaapana_instances = get_kaapana_instances(db)
-    # logging.info(f"GET REMOTE UPDATES FROM db_kaapana_instances: {db_kaapana_instances}")
     for db_remote_kaapana_instance in db_kaapana_instances:
         if not db_remote_kaapana_instance.remote:
             # Skipping locally running jobs
@@ -745,7 +779,7 @@ def get_remote_updates(db: Session, periodically=False):
                 },
                 timeout=TIMEOUT,
             )
-        if r.status_code == 405:
+        if r.status_code != 200:
             logging.warning(
                 f"Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}"
             )

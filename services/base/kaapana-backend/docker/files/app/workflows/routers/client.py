@@ -501,7 +501,7 @@ async def create_workflow(
     if json_schema_data.federated:  # == True ;-)
         involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
         involved_instance_names.extend(json_schema_data.conf_data["external_schema_instance_names"])
-    json_schema_data.conf_data["workflow_form"] = {
+    json_schema_data.conf_data["workflow_form"].update({
         "username": username,
         "workflow_id": workflow_id,
         "workflow_name": workflow_name,
@@ -509,7 +509,7 @@ async def create_workflow(
         if json_schema_data.federated == False
         else involved_instance_names,  # instances on which workflow is created!
         "runner_instances": json_schema_data.instance_names,  # instances on which jobs of workflow are created!
-    }
+    })
 
     # create an workflow with involved_instances=conf_data["workflow_form"]["involved_instances"] and add jobs to it
     workflow = schemas.WorkflowCreate(

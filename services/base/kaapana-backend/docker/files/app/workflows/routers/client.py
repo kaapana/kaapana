@@ -143,13 +143,13 @@ def put_client_kaapana_instance(
         db=db, client_kaapana_instance=client_kaapana_instance, action="update"
     )
 
+
 @router.get("/kaapana-instance", response_model=schemas.KaapanaInstance)
 def get_kaapana_instance(instance_name: str = None, db: Session = Depends(get_db)):
     return crud.get_kaapana_instance(db, instance_name)
 
-@router.post(
-    "/get-kaapana-instances", response_model=List[schemas.KaapanaInstance]
-)
+
+@router.post("/get-kaapana-instances", response_model=List[schemas.KaapanaInstance])
 def get_kaapana_instances(
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
@@ -157,6 +157,7 @@ def get_kaapana_instances(
     return crud.get_kaapana_instances(
         db, filter_kaapana_instances=filter_kaapana_instances
     )
+
 
 @router.delete("/kaapana-instance")
 def delete_kaapana_instance(kaapana_instance_id: int, db: Session = Depends(get_db)):
@@ -231,6 +232,7 @@ def delete_jobs(db: Session = Depends(get_db)):
 def delete_job_force(job_id: int, db: Session = Depends(get_db)):
     return crud.delete_job_force(db, job_id)
 
+
 # needed?
 @router.get("/dags")
 async def dags(only_dag_names: bool = True):
@@ -240,6 +242,7 @@ async def dags(only_dag_names: bool = True):
 @router.get("/get-job-taskinstances")
 def get_job_taskinstances(job_id: int, db: Session = Depends(get_db)):
     return crud.get_job_taskinstances(db, job_id)
+
 
 @router.post("/get-dags")
 def get_dags(
@@ -252,16 +255,17 @@ def get_dags(
 
     dags = {}
     for instance_name in filter_kaapana_instances.instance_names:
-        db_kaapana_instance = crud.get_kaapana_instance(
-            db, instance_name
-        )
+        db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if db_kaapana_instance.remote:
             remote_allowed_dags = list(
                 json.loads(db_kaapana_instance.allowed_dags).keys()
             )
             dags[db_kaapana_instance.instance_name] = remote_allowed_dags
         else:
-            dags[db_kaapana_instance.instance_name] = get_dag_list(only_dag_names=filter_kaapana_instances.only_dag_names, kind_of_dags=filter_kaapana_instances.kind_of_dags)
+            dags[db_kaapana_instance.instance_name] = get_dag_list(
+                only_dag_names=filter_kaapana_instances.only_dag_names,
+                kind_of_dags=filter_kaapana_instances.kind_of_dags,
+            )
 
     if (
         len(dags) > 1
@@ -297,9 +301,7 @@ def ui_form_schemas(
     dags = {}
     just_all_dags = {}
     for instance_name in filter_kaapana_instances.instance_names:
-        db_kaapana_instance = crud.get_kaapana_instance(
-            db, instance_name
-        )
+        db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if not db_kaapana_instance.remote:
             allowed_dags = get_dag_list(
                 only_dag_names=False
@@ -351,23 +353,18 @@ def ui_form_schemas(
         datasets = {}
         for instance_name in filter_kaapana_instances.instance_names:
             # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
-            db_kaapana_instance = crud.get_kaapana_instance(
-                db, instance_name
-            )
+            db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
             if not db_kaapana_instance.remote:
                 client_datasets = crud.get_datasets(
                     db, username=username
                 )  # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
-                allowed_dataset = [
-                    ds.name for ds in client_datasets
-                ]
+                allowed_dataset = [ds.name for ds in client_datasets]
             else:
                 allowed_dataset = list(
-                    ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)
+                    ds["name"]
+                    for ds in json.loads(db_kaapana_instance.allowed_datasets)
                 )
-            datasets[
-                db_kaapana_instance.instance_name
-            ] = allowed_dataset
+            datasets[db_kaapana_instance.instance_name] = allowed_dataset
         if (
             len(datasets) > 1
         ):  # if multiple instances are selected -> find intersection of their allowed datasets
@@ -459,7 +456,8 @@ def delete_datasets(db: Session = Depends(get_db)):
 # create_workflow ; should replace and be sth like "def submit_workflow_json_schema()"
 @router.post("/workflow", response_model=schemas.Workflow)
 # also okay: schemas.WorkflowWithKaapanaInstance
-async def create_workflow(
+# async def create_workflow(
+def create_workflow(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
@@ -500,18 +498,22 @@ async def create_workflow(
     # TODO adapt involed instances per job?
     if json_schema_data.federated:  # == True ;-)
         involved_instance_names = copy.deepcopy(json_schema_data.instance_names)
-        involved_instance_names.extend(json_schema_data.conf_data["external_schema_instance_names"])
+        involved_instance_names.extend(
+            json_schema_data.conf_data["external_schema_instance_names"]
+        )
     if not "workflow_form" in json_schema_data.conf_data:
         json_schema_data.conf_data["workflow_form"] = {}
-    json_schema_data.conf_data["workflow_form"].update({
-        "username": username,
-        "workflow_id": workflow_id,
-        "workflow_name": workflow_name,
-        "involved_instances": json_schema_data.instance_names
-        if json_schema_data.federated == False
-        else involved_instance_names,  # instances on which workflow is created!
-        "runner_instances": json_schema_data.instance_names,  # instances on which jobs of workflow are created!
-    })
+    json_schema_data.conf_data["workflow_form"].update(
+        {
+            "username": username,
+            "workflow_id": workflow_id,
+            "workflow_name": workflow_name,
+            "involved_instances": json_schema_data.instance_names
+            if json_schema_data.federated == False
+            else involved_instance_names,  # instances on which workflow is created!
+            "runner_instances": json_schema_data.instance_names,  # instances on which jobs of workflow are created!
+        }
+    )
 
     # create an workflow with involved_instances=conf_data["workflow_form"]["involved_instances"] and add jobs to it
     workflow = schemas.WorkflowCreate(
@@ -523,19 +525,18 @@ async def create_workflow(
             # "workflow_jobs": db_jobs,
             "involved_kaapana_instances": json_schema_data.conf_data["workflow_form"][
                 "involved_instances"
-            ]
+            ],
+            "federated": json_schema_data.federated,
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)
 
     # async function call to queue jobs and generate db_jobs + adding them to db_workflow
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
-    asyncio.create_task(
-        crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
-        )
-    # crud.queue_generate_jobs_and_add_to_workflow(
-    #     db, db_workflow, json_schema_data
-    # )
+    # asyncio.create_task(
+    #     crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    #     )
+    crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
 
     # directly return created db_workflow for fast feedback
     return db_workflow
@@ -593,21 +594,29 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
 
         # update aborted workflow
         return crud.update_workflow(db, workflow)
-    else:
+    elif workflow.workflow_status == "scheduled":
         return crud.update_workflow(db, workflow)
+    else:
+        raise HTTPException(
+            status_code=405,
+            detail=f"Updating worklfow with status '{workflow.workflow_status}' not supported!",
+        )
 
 
 # endpoint to update an workflow with additional workflow_jobs
-@router.put("/workflow_jobs", response_model=List[schemas.Job]) # , response_model=schemas.WorkflowWithJobs) # , response_model=schemas.Workflow)
+@router.put(
+    "/workflow_jobs", response_model=List[schemas.Job]
+)  # , response_model=schemas.WorkflowWithJobs) # , response_model=schemas.Workflow)
 def put_workflow_jobs(
     json_schema_data: schemas.JsonSchemaData,
     # workflow_id: str=None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     db_workflow = crud.get_workflow(db, workflow_id=json_schema_data.workflow_id)
     r = crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
     resp = r["jobs"]
     return resp
+
 
 # delete_workflow
 @router.delete("/workflow")

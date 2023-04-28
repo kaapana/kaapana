@@ -71,13 +71,11 @@ def get_kaapana_instance(db: Session, instance_name: str = None):
         .first()
     )
 
+
 def get_kaapana_instances(
     db: Session, filter_kaapana_instances: schemas.FilterKaapanaInstances = None
 ):
-    if (
-        filter_kaapana_instances is not None
-        and filter_kaapana_instances.instance_names
-    ):
+    if filter_kaapana_instances is not None and filter_kaapana_instances.instance_names:
         # db_kaapana_instances = (db.query(models.KaapanaInstance)
         #                         .filter(models.KaapanaInstance.instance_name.in_(
         #                             filter_kaapana_instances.instance_names),
@@ -142,14 +140,16 @@ def get_kaapana_instances(
         )
     else:
         # db_kaapana_instances = (db.query(models.KaapanaInstance)
-        #     .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name) 
+        #     .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name)
         #     .all()
         # )
         # db.close()
         # return db_kaapana_instances
         return (
             db.query(models.KaapanaInstance)
-            .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name) 
+            .order_by(
+                models.KaapanaInstance.remote, models.KaapanaInstance.instance_name
+            )
             .all()
         )
 
@@ -183,7 +183,7 @@ def create_and_update_client_kaapana_instance(
             port=int(os.getenv("HTTPS_PORT", 443)),
             ssl_check=client_kaapana_instance.ssl_check,
             fernet_key=_get_fernet_key(client_kaapana_instance.fernet_encrypted),
-            encryption_key=Fernet.generate_key().decode(), 
+            encryption_key=Fernet.generate_key().decode(),
             remote=False,
             time_created=utc_timestamp,
             time_updated=utc_timestamp,
@@ -192,7 +192,6 @@ def create_and_update_client_kaapana_instance(
             or False,
         )
     elif action == "update":
-
         allowed_dags = json.dumps(
             get_dag_list(
                 only_dag_names=False,
@@ -208,12 +207,13 @@ def create_and_update_client_kaapana_instance(
                 dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
                 if "identifiers" in dataset:
                     dataset["identifiers"] = [
-                        fernet.encrypt(identifier.encode()).decode() for identifier in dataset["identifiers"]
+                        fernet.encrypt(identifier.encode()).decode()
+                        for identifier in dataset["identifiers"]
                     ]
                 allowed_datasets.append(dataset)
         allowed_datasets = json.dumps(allowed_datasets)
 
-        db_client_kaapana_instance.instance_name=settings.instance_name,
+        db_client_kaapana_instance.instance_name = (settings.instance_name,)
         db_client_kaapana_instance.time_updated = utc_timestamp
         if (
             db_client_kaapana_instance.fernet_key == "deactivated"
@@ -329,13 +329,10 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
     #         and "federated_operators" in job.conf_data["federated_form"]
     #     )
     # ):
-    if (
-        "federated_form" in job.conf_data
-        and (
-            "federated_dir" in job.conf_data["federated_form"]
-            and "federated_bucket" in job.conf_data["federated_form"]
-            and "federated_operators" in job.conf_data["federated_form"]
-        )
+    if "federated_form" in job.conf_data and (
+        "federated_dir" in job.conf_data["federated_form"]
+        and "federated_bucket" in job.conf_data["federated_form"]
+        and "federated_operators" in job.conf_data["federated_form"]
     ):
         minio_urls = HelperMinio.add_minio_urls(
             job.conf_data["federated_form"], db_kaapana_instance.instance_name
@@ -380,7 +377,6 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
     update_external_job(db, db_job)
     db.refresh(db_job)
 
-    print(f"CRUD def create_job() {db_kaapana_instance.remote=} ; {service_job=} ; {db_job.automatic_execution=}")
     if (
         db_kaapana_instance.remote is False
         and service_job is False
@@ -411,7 +407,7 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
         )
         raise HTTPException(status_code=404, detail="Job not found")
         return None
-        
+
     return db_job
 
 
@@ -522,10 +518,8 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     # update jobs of own db which are remotely executed (def update_job() is in this case called from remote.py's def put_job())
     if db_job.kaapana_instance.remote:
-        print(f"CRUD def update_job() updating status of remotely executed job --> {job.status=}")
         db_job.status = job.status
 
-    print(f"CRUD def update_job() {job.status=} ; {db_job.kaapana_instance.remote=}")
     if job.status == "scheduled" and db_job.kaapana_instance.remote == False:
         # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = json.loads(db_job.conf_data)
@@ -540,7 +534,6 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             job.status = "failed"
             job.description = dag_id_and_dataset
         else:
-            print(f"CRUD def update_job() right before executing job on airflow!")
             airflow_execute_resp = execute_job_airflow(conf_data, db_job)
             airflow_execute_resp_text = json.loads(airflow_execute_resp.text)
             dag_id = airflow_execute_resp_text["message"][1]["dag_id"]
@@ -555,7 +548,9 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
         if not airflow_details_resp.ok:
             # request to airflow results in response != 200 ==> error!
             # set db_job manually to deleted
-            logging.error(f"Couldn't find db_job {db_job.id} in airlfow ==> will set db_job to 'deleted'.")
+            logging.error(
+                f"Couldn't find db_job {db_job.id} in airlfow ==> will set db_job to 'deleted'."
+            )
             db_job.status = "deleted"
             db_job.time_updated = utc_timestamp
             db.commit()
@@ -564,13 +559,13 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             return db_job
         airflow_details_resp_text = json.loads(airflow_details_resp.text)
         # update db_job w/ job's real state and run_id fetched from Airflow ; special case for status = "success"
-        db_job.status = ("finished" 
-                         if airflow_details_resp_text["state"] == "success" 
-                         else airflow_details_resp_text["state"]
-                        )
+        db_job.status = (
+            "finished"
+            if airflow_details_resp_text["state"] == "success"
+            else airflow_details_resp_text["state"]
+        )
         db_job.run_id = airflow_details_resp_text["run_id"]
 
-    # print(f"CRUD def update_jon() db_job.id = {db_job.id} ; db_job.kaapana_instance.remote = {db_job.kaapana_instance.remote} ; remote = {remote} ; db_job.status = {db_job.status}")
     # if (db_job.kaapana_instance.remote != remote) and db_job.status not in [
     #     "queued",
     #     "finished",
@@ -581,7 +576,6 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     #         detail="You are not allowed to update this job, since its on the client site",
     #     )
 
-    print(f"CRUD def update_job() {db_job.external_job_id=}")
     if job.run_id is not None:
         db_job.run_id = job.run_id
     if job.description is not None:
@@ -647,7 +641,6 @@ def sync_client_remote(
     )
     # outgoing_jobs = [schemas.Job(**job.__dict__).dict() for job in db_outgoing_jobs]
 
-
     # get workflows on client_kaapana_instance which contain outgoing_jobs
     outgoing_jobs = []
     outgoing_workflows = []
@@ -656,9 +649,7 @@ def sync_client_remote(
             continue
         outgoing_jobs.append(schemas.Job(**db_outgoing_job.__dict__).dict())
 
-        db_outgoing_workflow = get_workflows(
-            db, workflow_job_id=db_outgoing_job.id
-        )
+        db_outgoing_workflow = get_workflows(db, workflow_job_id=db_outgoing_job.id)
         outgoing_workflow = (
             [
                 schemas.Workflow(**workflow.__dict__).dict()
@@ -688,12 +679,10 @@ def sync_client_remote(
 
 
 def delete_external_job(db: Session, db_job):
-    print(f"CRUD def delete_external_job() db_job.id = {db_job.id} ; db_job.external_job_id = {db_job.external_job_id}")
     if db_job.external_job_id is not None:
         db_remote_kaapana_instance = get_kaapana_instance(
             db, instance_name=db_job.owner_kaapana_instance_name
         )
-        print(f"CRUD def delete_external_job() db_remote_kaapana_instance.instance_name = {db_remote_kaapana_instance.instance_name}")
         params = {
             "job_id": db_job.external_job_id,
         }
@@ -732,8 +721,7 @@ def update_external_job(db: Session, db_job):
                 "status": db_job.status,
                 "description": db_job.description,
             }
-            print(f"CRUD def update_external_job() {payload=}")
-            
+
             # if db_remote_kaapana_instance.instance_name == settings.instance_name:
             #     update_job(db, schemas.JobUpdate(**payload))
             # else:
@@ -748,22 +736,17 @@ def update_external_job(db: Session, db_job):
                     },
                     timeout=TIMEOUT,
                 )
-                print(f"CRUD def update_external_job() /put request response {r=}")
             if r.status_code == 404:
-                print(f"CRUD def update_external_job() /put request response {r=}")
                 logging.warning(f"External job {db_job.external_job_id} does not exist")
             elif r.status_code != 200:
-                print(f"CRUD def update_external_job() /put request response {r=}")
                 logging.error("Error in CRUD def update_external_job()")
                 raise_kaapana_connection_error(r)
                 logging.error(r.json())
             raise_kaapana_connection_error(r)
             # else:
-            #     print(f"CRUD def update_external_job() /put request response {r=}")
             #     logging.error("Error in CRUD def update_external_job()")
             #     raise_kaapana_connection_error(r)
             #     logging.error(r.json())
-            print(f"CRUD def update_external_job() /put request response {r=}")
 
 
 def get_remote_updates(db: Session, periodically=False):
@@ -828,9 +811,7 @@ def get_remote_updates(db: Session, periodically=False):
             # db_incoming_workflow = get_workflow(db, workflow_name=incoming_workflow['workflow_name']) # rather query via workflow_name than via workflow_id
             if db_incoming_workflow is None:
                 # if not: create incoming workflows
-                incoming_workflow[
-                    "kaapana_instance_id"
-                ] = db_remote_kaapana_instance.id
+                incoming_workflow["kaapana_instance_id"] = db_remote_kaapana_instance.id
                 # incoming_workflow['external_workflow_id'] = incoming_workflow["id"]
                 # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
                 incoming_workflow["involved_kaapana_instances"] = incoming_workflow[
@@ -851,11 +832,18 @@ def get_remote_updates(db: Session, periodically=False):
         fernet = Fernet(db_client_kaapana.encryption_key)
         db_jobs = []
         for incoming_job in incoming_jobs:
-            if "conf_data" in incoming_job and "data_form" in incoming_job["conf_data"] and "identifiers" in incoming_job["conf_data"]["data_form"]:
+            if (
+                "conf_data" in incoming_job
+                and "data_form" in incoming_job["conf_data"]
+                and "identifiers" in incoming_job["conf_data"]["data_form"]
+            ):
                 incoming_job["conf_data"]["data_form"]["identifiers"] = [
-                    fernet.decrypt(identifier.encode()).decode() for identifier in incoming_job["conf_data"]["data_form"]["identifiers"]
+                    fernet.decrypt(identifier.encode()).decode()
+                    for identifier in incoming_job["conf_data"]["data_form"][
+                        "identifiers"
+                    ]
                 ]
-                
+
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
             incoming_job[
                 "owner_kaapana_instance_name"
@@ -1271,6 +1259,7 @@ def create_workflow(
         service_workflow=workflow.service_workflow,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
+        federated=workflow.federated,
     )
     if db_kaapana_instance.remote is False:
         # db_kaapana_instance.remote is False aka. db_kaapana_instance == db_local_kaapana_instance
@@ -1291,7 +1280,8 @@ def create_workflow(
 
 
 # TODO removed async because our current database is not able to execute async methods
-async def queue_generate_jobs_and_add_to_workflow(
+# async def queue_generate_jobs_and_add_to_workflow(
+def queue_generate_jobs_and_add_to_workflow(
     db: Session,
     db_workflow: models.Workflow,
     json_schema_data: schemas.JsonSchemaData,
@@ -1311,7 +1301,11 @@ async def queue_generate_jobs_and_add_to_workflow(
             if ("dataset_limit" in data_form and data_form["dataset_limit"] is not None)
             else None
         )
-    username = conf_data["workflow_form"]["username"] if "username" in conf_data["workflow_form"] else json_schema_data.username
+    username = (
+        conf_data["workflow_form"]["username"]
+        if "username" in conf_data["workflow_form"]
+        else json_schema_data.username
+    )
 
     # if json_schema_data.federated:
     #     db_kaapana_instances = get_kaapana_instance(db, instance_name=)
@@ -1320,8 +1314,8 @@ async def queue_generate_jobs_and_add_to_workflow(
         db,
         filter_kaapana_instances=schemas.FilterKaapanaInstances(
             **{
-                "instance_names": conf_data["workflow_form"]["runner_instances"] 
-                if not json_schema_data.federated 
+                "instance_names": conf_data["workflow_form"]["runner_instances"]
+                if not json_schema_data.federated
                 else json_schema_data.instance_names,
             }
         ),
@@ -1338,14 +1332,14 @@ async def queue_generate_jobs_and_add_to_workflow(
                 allowed_datasets = json.loads(db_kaapana_instance.allowed_datasets)
                 for dataset_info in allowed_datasets:
                     if dataset_info["name"] == dataset_name:
-                        identifiers = dataset_info["identifiers"] if "identifiers" in dataset_info else []
+                        identifiers = (
+                            dataset_info["identifiers"]
+                            if "identifiers" in dataset_info
+                            else []
+                        )
                         break
 
-            conf_data["data_form"].update(
-                {
-                    "identifiers": identifiers
-                }
-            )
+            conf_data["data_form"].update({"identifiers": identifiers})
 
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []
@@ -1363,11 +1357,7 @@ async def queue_generate_jobs_and_add_to_workflow(
                 )
         else:
             if identifiers:
-                conf_data["data_form"].update(
-                    {
-                        "identifiers": identifiers
-                    }
-                )
+                conf_data["data_form"].update({"identifiers": identifiers})
             queued_jobs = [
                 {
                     "conf_data": conf_data,
@@ -1400,12 +1390,12 @@ async def queue_generate_jobs_and_add_to_workflow(
     db_workflow = put_workflow_jobs(db, workflow)
 
     # would be better to solve this with a lamba function instead of putting it directly here
-    db.close()
+    # db.close()
 
     return {
-        "workflow": db_workflow, 
+        "workflow": db_workflow,
         "jobs": db_jobs,
-        }
+    }
 
 
 def get_workflow(
@@ -1414,11 +1404,7 @@ def get_workflow(
     if workflow_id is not None:
         return db.query(models.Workflow).filter_by(workflow_id=workflow_id).first()
     elif workflow_name is not None:
-        return (
-            db.query(models.Workflow)
-            .filter_by(workflow_name=workflow_name)
-            .first()
-        )
+        return db.query(models.Workflow).filter_by(workflow_name=workflow_name).first()
     elif dag_id is not None:
         return db.query(models.Workflow).filter_by(dag_id=dag_id).first()
     # if not db_workflow:
@@ -1475,27 +1461,41 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
 
     db_workflow = get_workflow(db, workflow.workflow_id)
 
+    if db_workflow.federated:
+        # federated workflow --> only restart orchestration job and not all jobs of workflow
+        for workflow_job in db_workflow.workflow_jobs:
+            if "external_schema_federated_form" in workflow_job.conf_data:
+                restart_job_id = workflow_job.id
+                break
+        job = schemas.JobUpdate(
+            **{
+                "job_id": restart_job_id,
+                "status": "scheduled",
+            }
+        )
+        update_job(db, job, remote=False)
+        return db_workflow
+
     if workflow.workflow_status == "confirmed":
         workflow.workflow_status = "confirmed"
         db_workflow.automatic_execution = True
 
-    if workflow.workflow_status != "abort":  # usually 'scheduled' then
+    if workflow.workflow_status != "abort":  # usually 'scheduled' or 'confirmed'
         # iterate over db_jobs in db_workflow ...
         for db_workflow_current_job in db_workflow.workflow_jobs:
             # either update db_jobs on own kaapana_instance
-            print(f"CRUD def update_workflow() check if-cond: {db_workflow.kaapana_instance.remote=} ; {db_workflow.kaapana_instance.automatic_workflow_execution=} ; {db_workflow.automatic_execution=}")
             if (
                 db_workflow.kaapana_instance.remote is False
                 or (
                     db_workflow.kaapana_instance.remote is True
-                    and db_workflow.kaapana_instance.automatic_workflow_execution is True
+                    and db_workflow.kaapana_instance.automatic_workflow_execution
+                    is True
                 )
                 or (
                     db_workflow.kaapana_instance.remote is True
                     and db_workflow.automatic_execution is True
                 )
             ):
-                print(f"CRUD def update_workflow() let's update on local kp_i!")
                 job = schemas.JobUpdate(
                     **{
                         "job_id": db_workflow_current_job.id,
@@ -1521,17 +1521,23 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                     status_code=404,
                     detail="Job updating while updating the workflow failed!",
                 )
-            
-        # do call to remote's experiment to start jobs there
-        print(f"CRUD def update_workflow() db_workflow.involved_kaapana_instances = {db_workflow.involved_kaapana_instances} ; type = {type(db_workflow.involved_kaapana_instances)}")
-        # extract all remote involved_instances of workflow
-        involved_instances = db_workflow.involved_kaapana_instances.strip('{}').split(',')
 
-        remote_involved_instances = [el for el in involved_instances if el != db_workflow.kaapana_instance.instance_name]
-        print(f"CRUD def update_workflow() remote_involved_instances = {remote_involved_instances}")
-        if remote_involved_instances and db_workflow.kaapana_instance.instance_name == db_local_kaapana_instance.instance_name :
+        # do call to remote's experiment to start jobs there
+        # extract all remote involved_instances of workflow
+        involved_instances = db_workflow.involved_kaapana_instances.strip("{}").split(
+            ","
+        )
+        remote_involved_instances = [
+            el
+            for el in involved_instances
+            if el != db_workflow.kaapana_instance.instance_name
+        ]
+        if (
+            remote_involved_instances
+            and db_workflow.kaapana_instance.instance_name
+            == db_local_kaapana_instance.instance_name
+        ):
             update_remote_workflow(db, db_workflow, remote_involved_instances)
-        
 
     db_workflow.time_updated = utc_timestamp
     db.commit()
@@ -1539,17 +1545,15 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
 
     return db_workflow
 
+
 def update_remote_workflow(
-        db: Session, 
-        db_workflow=models.Workflow,
-        remote_involved_instances: List=[]
-    ):
+    db: Session, db_workflow=models.Workflow, remote_involved_instances: List = []
+):
     for remote_involved_instance in remote_involved_instances:
         # get remote_involved_instance
         db_remote_kaapana_instance = get_kaapana_instance(
             db, instance_name=remote_involved_instance
         )
-        print(f"CRUD def update_remote_workflow() db_remote_kaapana_instance.instance_name = {db_remote_kaapana_instance.instance_name}")
         # compose payload
         payload = {
             "workflow_id": db_workflow.workflow_id,
@@ -1568,7 +1572,9 @@ def update_remote_workflow(
                 timeout=TIMEOUT,
             )
         if r.status_code == 404:
-            logging.warning(f"Workflow {db_workflow.workflow_id} does not exist on remote instance")
+            logging.warning(
+                f"Workflow {db_workflow.workflow_id} does not exist on remote instance"
+            )
         elif r.status_code != 200:
             logging.error("Error in CRUD def update_remote_workflow()")
             raise_kaapana_connection_error(r)

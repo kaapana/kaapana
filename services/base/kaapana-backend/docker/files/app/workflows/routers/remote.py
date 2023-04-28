@@ -95,7 +95,7 @@ def put_remote_kaapana_instance(
         status=status,
     )
 
+
 @router.put("/workflow", response_model=schemas.Workflow)
 def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
-    print(f"REMOTE def put_workflow() to-be updated workflow = {workflow}")
     return crud.update_workflow(db, workflow)

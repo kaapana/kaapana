@@ -13,7 +13,7 @@
           </v-btn>
         </v-col>
         <v-col cols="1" align="center">
-          <v-btn icon @click="() => this.$emit('close')">
+          <v-btn icon @click="resetSelected">
             <v-icon> mdi-close </v-icon>
           </v-btn>
         </v-col>
@@ -85,6 +85,9 @@ export default {
           this.modality = data["metadata"]["Modality"] || "";
         });
       }
+    },
+    resetSelected() {
+      this.$store.dispatch("resetDetailViewItem")
     },
     openInOHIFViewer() {
       window.open(`/ohif/viewer/${this.studyInstanceUID}`);

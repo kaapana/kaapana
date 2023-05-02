@@ -18,7 +18,6 @@
         >
           <SeriesCard
             :seriesInstanceUID="seriesInstanceUID"
-            @openInDetailView="openInDetailView(seriesInstanceUID)"
           />
         </v-lazy>
 
@@ -26,7 +25,6 @@
           v-else
           ref="seriesCard"
           :seriesInstanceUID="seriesInstanceUID"
-          @openInDetailView="openInDetailView(seriesInstanceUID)"
         />
       </v-col>
     </v-row>
@@ -47,7 +45,6 @@ import {debounce} from "@/utils/utils.js";
 
 export default {
   name: "Gallery",
-  emits: ["openInDetailView"],
   props: {
     seriesInstanceUIDs: {
       type: Array,
@@ -77,9 +74,6 @@ export default {
     this.ro.unobserve(this.$refs.container);
   },
   methods: {
-    openInDetailView(seriesInstanceUID) {
-      this.$emit("openInDetailView", seriesInstanceUID);
-    },
     onResize() {
       const _cols = JSON.parse(localStorage["settings"]).datasets.cols;
       if (_cols !== "auto") {

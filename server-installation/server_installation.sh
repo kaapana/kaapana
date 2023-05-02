@@ -301,15 +301,15 @@ function dns_check {
 
         set +e
         echo "${GREEN}Get DNS settings nmcli ...${NC}"
-        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
+        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
         echo "${YELLOW}Identified DNS: $DNS ${NC}"
         if [ -z "$DNS" ]; then
             echo "${RED}FAILED -> Get DNS settings resolvectl status ...${NC}"
-            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
+            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
             echo "${YELLOW}Identified DNS: $DNS ${NC}"
             if [ -z "$DNS" ]; then
                 echo "${RED}FAILED -> Get DNS settings systemd-resolve ...${NC}"
-                DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
+                DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
                 echo "${YELLOW}Identified DNS: $DNS ${NC}"
                 if [[ -z $DNS ]]; then
                     if [ "$OFFLINE_SNAPS" = "true" ];then

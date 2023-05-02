@@ -38,6 +38,8 @@ spec:
               value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
             - name: KEYCLOAK_URI
               value: "https://{{ .Values.global.hostname }}"
+            - name: OIDC_CLIENT_SECRET
+              value: "{{ .Values.global.oidc_client_secret }}"
         restartPolicy: Never
         serviceAccountName: kaapana-kube-admin
         imagePullSecrets:

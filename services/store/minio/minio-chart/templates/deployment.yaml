@@ -22,7 +22,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_images }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443;keycloak,keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc,80,/auth/realms/kaapana/.well-known/openid-configuration"
             - name: DELAY
               value: "3"
             - name: TIMEOUT
@@ -32,10 +32,8 @@ spec:
         image: "{{ .Values.global.registry_url }}/minio:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         command: ["minio"]
-        args: ["server", "/kaapana/mounted/minio", "--address", "0.0.0.0:9000"]
+        args: ["server", "/kaapana/mounted/minio", "--address", "0.0.0.0:9000", "--console-address", ":9001"]
         env:
-        - name: MINIO_BROWSER
-          value: "off"
         - name: MINIO_ROOT_USER
           value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIO_ROOT_PASSWORD
@@ -45,15 +43,18 @@ spec:
         - name: MINIO_IDENTITY_OPENID_CLIENT_ID
           value: "kaapana"
         - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET
-          value: "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R"
+          value: "{{ .Values.global.oidc_client_secret }}"
         - name: MINIO_IDENTITY_OPENID_CLAIM_NAME
           value: "policy"
-        - name: MINIO_IDENTITY_OPENID_REDIRECT_URI
-          value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/oauth_callback/"
-        # - name: MINIO_SERVER_DEBUG
-        #   value: "on"
+        - name: MINIO_SERVER_URL
+          value: "http://minio-service.services.svc:9000"
+        - name: MINIO_BROWSER_REDIRECT_URL
+          value: "https://{{ .Values.global.hostname }}/minio-console"
         ports:
-        - containerPort: 9000
+        - name: minio-server
+          containerPort: 9000
+        - name: minio-console
+          containerPort: 9001
         resources:
           requests:
             memory: 200Mi

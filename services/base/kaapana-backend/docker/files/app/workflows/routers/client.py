@@ -527,6 +527,7 @@ def create_workflow(
                 "involved_instances"
             ],
             "federated": json_schema_data.federated,
+            "dataset_name": json_schema_data.conf_data["data_form"]["dataset_name"],
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)

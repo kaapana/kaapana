@@ -237,6 +237,7 @@ class WorkflowBase(BaseModel):
     dag_id: Optional[str] = None
     service_workflow: Optional[bool] = False
     federated: bool = False
+    dataset_name: str = None
 
 
 class Workflow(WorkflowBase):

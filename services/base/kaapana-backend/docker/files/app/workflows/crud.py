@@ -1260,6 +1260,7 @@ def create_workflow(
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         federated=workflow.federated,
+        dataset_name=workflow.dataset_name,
     )
     if db_kaapana_instance.remote is False:
         # db_kaapana_instance.remote is False aka. db_kaapana_instance == db_local_kaapana_instance

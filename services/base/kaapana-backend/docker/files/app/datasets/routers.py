@@ -35,7 +35,7 @@ async def tag_data(data: list = Body(...)):
         )
         doc = es.get(index="meta-index", id=series_instance_uid)
         print(doc)
-        index_tags = doc["_source"].get("00000000 Tags_keyword", [])
+        index_tags = doc["_source"].get("tags_keyword", [])
 
         final_tags = list(
             set(tags)
@@ -46,7 +46,7 @@ async def tag_data(data: list = Body(...)):
         print(f"Final tags: {final_tags}")
 
         # Write Tags back
-        body = {"doc": {"00000000 Tags_keyword": final_tags}}
+        body = {"doc": {"tags_keyword": final_tags}}
         es.update(index="meta-index", id=series_instance_uid, body=body)
 
     try:
@@ -247,7 +247,7 @@ async def get_all_values(item_name, query):
     ).search(
         body={
             "size": 0,
-            # {"query":"D","field":"00000000 Tags_keyword.keyword","boolFilter":[]}
+            # {"query":"D","field":"tags_keyword.keyword","boolFilter":[]}
             "query": query,  # {"query": {"ids": {"values": series_instance_uids}}}
             "aggs": {item_name: {"terms": {"field": item_key, "size": 10000}}},
         }

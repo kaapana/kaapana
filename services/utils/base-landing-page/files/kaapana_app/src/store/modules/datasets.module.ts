@@ -2,6 +2,7 @@ const defaults = {
   activeTags: [],
   multiSelectKeyPressed: false,
   selectedItems: [],
+  detailViewItem: null
 };
 
 const state = Object.assign({}, defaults);
@@ -10,6 +11,7 @@ const getters = {
   activeTags: (state: any) => state.activeTags,
   multiSelectKeyPressed: (state: any) => state.multiSelectKeyPressed,
   selectedItems: (state: any) => state.selectedItems,
+  detailViewItem: (state: any) => state.detailViewItem,
 };
 
 const mutations = {
@@ -22,17 +24,20 @@ const mutations = {
   setSelectedItems(state: any, selectedItems: any) {
     state.selectedItems = selectedItems;
   },
+  setDetailViewItem(state: any, detailViewItem: any) {
+    state.detailViewItem = detailViewItem;
+  },
 };
 
-// const actions = {
-//   setActiveTags(context: any, activeTags: any) {
-//     context.commit('setActiveTags', activeTags)
-//   }
-// }
+const actions = {
+  resetDetailViewItem(context: any) {
+    context.commit('setDetailViewItem', null)
+  }
+}
 
 export default {
   state,
-  //   actions,
+   actions,
   mutations,
   getters,
 };

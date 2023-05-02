@@ -180,10 +180,6 @@
                   settings.datasets.structured
                 "
                 :patients.sync="patients"
-                @openInDetailView="
-                  (seriesInstanceUID) =>
-                    (this.detailViewSeriesInstanceUID = seriesInstanceUID)
-                "
               />
               <!--        seriesInstanceUIDs is not bound due to issues with the Gallery embedded in StructuredGallery-->
               <Gallery
@@ -193,10 +189,6 @@
                   !settings.datasets.structured
                 "
                 :seriesInstanceUIDs="seriesInstanceUIDs"
-                @openInDetailView="
-                  (seriesInstanceUID) =>
-                    (this.detailViewSeriesInstanceUID = seriesInstanceUID)
-                "
               />
             </v-container>
           </v-container>
@@ -213,9 +205,8 @@
       </pane>
       <pane class="sidebar" size="30" min-size="20">
         <DetailView
-          v-if="this.detailViewSeriesInstanceUID"
-          :series-instance-u-i-d="this.detailViewSeriesInstanceUID"
-          @close="() => (this.detailViewSeriesInstanceUID = null)"
+          v-if="this.$store.getters.detailViewItem"
+          :series-instance-u-i-d="this.$store.getters.detailViewItem"
         />
         <Dashboard
           v-else
@@ -411,6 +402,7 @@ export default {
       this.isLoading = true;
       this.selectedSeriesInstanceUIDs = [];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
+      this.$store.dispatch("resetDetailViewItem")
 
       loadPatients({
         structured: this.settings.datasets.structured,

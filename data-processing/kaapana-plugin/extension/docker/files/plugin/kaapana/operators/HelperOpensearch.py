@@ -9,7 +9,7 @@ class HelperOpensearch:
     SOPInstanceUID_tag = "00080018 SOPInstanceUID_keyword"
     modality_tag = "00080060 Modality_keyword"
     protocol_name = "00181030 ProtocolName_keyword"
-    curated_modality_tag = "00000000 CuratedModality_keyword"
+    curated_modality_tag = "curated_modality"
 
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
     port = "9200"

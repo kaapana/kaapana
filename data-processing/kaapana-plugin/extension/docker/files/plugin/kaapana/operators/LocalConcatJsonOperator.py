@@ -8,7 +8,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
-        print("Starting module LocalConcatJsonOperator...")
+        print("Starting moule LocalConcatJsonOperator...")
         print(kwargs)
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)

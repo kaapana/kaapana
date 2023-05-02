@@ -239,7 +239,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         #                         "0020000E SeriesInstanceUID_keyword"
         #                     ],
         #                     "modality": hit["_source"]["00080060 Modality_keyword"],
-        #                     "curated_modality": hit["_source"]["00000000 CuratedModality_keyword"],
+        #                     "curated_modality": hit["_source"]["curated_modality"],
         #                 }
         #             }
         #         )

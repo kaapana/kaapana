@@ -11,7 +11,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
-        print("Starting module LocalDcmAnonymizerOperator...")
+        print("Starting moule LocalDcmAnonymizerOperator...")
         print(kwargs)
 
         if os.environ.get('DCMDICTPATH') is None:
@@ -71,7 +71,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
         self.single_slice = single_slice
 
         if 'DCMDICTPATH' in os.environ and 'DICT_PATH' in os.environ:
-            # DCMDICTPATH is used by dcmtk / dcmodify
+            self.dcmdictpath = os.getenv('DCMDICTPATH')
             self.dict_path = os.getenv('DICT_PATH')
         else:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")

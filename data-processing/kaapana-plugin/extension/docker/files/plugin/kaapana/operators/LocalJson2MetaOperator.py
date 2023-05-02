@@ -19,9 +19,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     """
         This operater pushes JSON data to OpenSearch.
 
-        Pushes JSON data to the specified OpenSearch instance. 
-        If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
-        If the operator fails, some or no data is pushed to OpenSearch.
+    Pushes JSON data to the specified OpenSearch instance. If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
+    If the operator fails, some or no data is pushed to OpenSearch.
         Further information about OpenSearch can be found here: https://opensearch.org/docs/latest/
 
         **Inputs:**
@@ -69,14 +68,10 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             print(e)
             old_json = {}
 
-        # special treatment for bodypart regression since keywords don't match
-        bpr_algorithm_name ="predicted_bodypart_string"
-        bpr_key = "00000000 PredictedBodypart_keyword"
-        if bpr_algorithm_name in new_json:
-            new_json[bpr_key] = new_json[bpr_algorithm_name]
-            del new_json[bpr_algorithm_name]
-
+        bpr_key = "predicted_bodypart_string"
         for new_key in new_json:
+            if new_key == bpr_key and bpr_key in old_json and old_json[bpr_key].lower() != "n/a":
+                continue
             new_value = new_json[new_key]
             old_json[new_key] = new_value
 
@@ -131,6 +126,15 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     with open(json_file, encoding="utf-8") as f:
                         new_json = json.load(f)
                     self.push_json(new_json)
+
+    def mkdir_p(self, path):
+        try:
+            os.makedirs(path)
+        except OSError as exc:  # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else:
+                raise
 
     def set_id(self, dcm_file=None):
         if dcm_file is not None:

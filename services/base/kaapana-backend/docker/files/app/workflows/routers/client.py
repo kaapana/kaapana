@@ -7,6 +7,7 @@ import uuid
 import shutil
 from typing import List, Union
 import asyncio
+from threading import Thread
 
 from pathlib import Path
 import jsonschema
@@ -493,7 +494,7 @@ def create_workflow(
     characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
     workflow_id = "".join(random.choices(characters, k=6))
     # append workflow_id to workflow_name
-    workflow_name = json_schema_data.workflow_name + "-workflow" + workflow_id
+    workflow_name = workflow_id + "-" + json_schema_data.workflow_name
 
     # TODO adapt involed instances per job?
     if json_schema_data.federated:  # == True ;-)
@@ -537,7 +538,9 @@ def create_workflow(
     # asyncio.create_task(
     #     crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
     #     )
-    crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+
+    # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    Thread(target=crud.queue_generate_jobs_and_add_to_workflow, args=(db, db_workflow, json_schema_data)).start()
 
     # directly return created db_workflow for fast feedback
     return db_workflow

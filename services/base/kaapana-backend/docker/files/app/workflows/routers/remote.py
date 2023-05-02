@@ -94,3 +94,8 @@ def put_remote_kaapana_instance(
         instance_name=instance_name,
         status=status,
     )
+
+
+@router.put("/workflow", response_model=schemas.Workflow)
+def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
+    return crud.update_workflow(db, workflow)

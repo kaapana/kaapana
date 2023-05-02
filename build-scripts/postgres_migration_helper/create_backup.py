@@ -31,19 +31,19 @@ timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S").replace("_", "
 # Replace this with the path to your desired hostPath
 host_path = f"/home/kaapana/backups/{timestamp}"
 
-def create_persistent_volume():
+def create_persistent_volume(namespace):
     exists = True
 
     # Check if PersistentVolume already exists
     try:
-        core_v1.read_persistent_volume(name=f"postgres-backup-pv-{timestamp}")
+        core_v1.read_persistent_volume(name=f"postgres-backup-pv-{timestamp}-{namespace}")
     except client.rest.ApiException as e:
         exists = False
 
     if not exists:
         # Create the PersistentVolume
         pv = client.V1PersistentVolume(
-            metadata=client.V1ObjectMeta(name=f"postgres-backup-pv-{timestamp}", labels={"type": "local"}),
+            metadata=client.V1ObjectMeta(name=f"postgres-backup-pv-{timestamp}-{namespace}", labels={"type": "local"}),
             spec=client.V1PersistentVolumeSpec(
                 capacity={"storage": "1Gi"},
                 access_modes=["ReadWriteOnce"],
@@ -55,12 +55,12 @@ def create_persistent_volume():
 
         core_v1.create_persistent_volume(body=pv)
 
-def create_persistent_volume_claim():
+def create_persistent_volume_claim(namespace):
     exists = True
     # Check if PersistentVolumeClaim already exists
     try:
         core_v1.read_namespaced_persistent_volume_claim(
-            name=f"postgres-backup-pvc-{timestamp}", namespace="services"
+            name=f"postgres-backup-pvc-{timestamp}-{namespace}", namespace=namespace
         )
     except client.rest.ApiException as e:
         exists = False
@@ -68,18 +68,18 @@ def create_persistent_volume_claim():
     if not exists:
         # Create the PersistentVolumeClaim
         pvc = client.V1PersistentVolumeClaim(
-            metadata=client.V1ObjectMeta(name=f"postgres-backup-pvc-{timestamp}"),
+            metadata=client.V1ObjectMeta(name=f"postgres-backup-pvc-{timestamp}-{namespace}"),
             spec=client.V1PersistentVolumeClaimSpec(
                 access_modes=["ReadWriteOnce"],
                 resources=client.V1ResourceRequirements(requests={"storage": "1Gi"}),
                 storage_class_name="host-dir",
-                volume_name=f"postgres-backup-pv-{timestamp}",
+                volume_name=f"postgres-backup-pv-{timestamp}-{namespace}",
             ),
         )
 
-        core_v1.create_namespaced_persistent_volume_claim(namespace="services", body=pvc)
+        core_v1.create_namespaced_persistent_volume_claim(namespace=namespace, body=pvc)
 
-def create_backup_pod(username, password, host):
+def create_backup_pod(username, password, host, namespace):
     # Create the backup Pod
     pod = client.V1Pod(
         metadata=client.V1ObjectMeta(name=f"{host}-backup-{timestamp}"),
@@ -111,7 +111,7 @@ def create_backup_pod(username, password, host):
                 client.V1Volume(
                     name="backup-volume",
                     persistent_volume_claim=client.V1PersistentVolumeClaimVolumeSource(
-                        claim_name=f"postgres-backup-pvc-{timestamp}",
+                        claim_name=f"postgres-backup-pvc-{timestamp}-{namespace}",
                     ),
                 ),
             ],
@@ -119,7 +119,7 @@ def create_backup_pod(username, password, host):
         ),
     )
 
-    core_v1.create_namespaced_pod(namespace="services", body=pod)
+    core_v1.create_namespaced_pod(namespace=namespace, body=pod)
 
 if __name__ == "__main__":
 
@@ -133,18 +133,26 @@ if __name__ == "__main__":
     with open(backup_list_path) as f:
         backup_list = yaml.load(f, Loader=yaml.FullLoader)
 
-    create_persistent_volume()
-    create_persistent_volume_claim()
+    unique_namespaces = set(item['namespace'] for item in backup_list)
+
+    for namespace in unique_namespaces:
+        create_persistent_volume(namespace)
+        create_persistent_volume_claim(namespace)
 
     for backup in backup_list:
 
         # check if service is up
         try:
-            core_v1.read_namespaced_service(name=backup["service"], namespace="services")
+            core_v1.read_namespaced_service(name=backup["service"], namespace=backup["namespace"])
         except client.rest.ApiException as e:
             logger.info(f"Service {backup['service']} not found. Skipping backup.")
             continue
 
         # create backup pod
-        create_backup_pod(backup["username"], backup["password"], backup["service"])
+        create_backup_pod(backup["username"], backup["password"], backup["service"], backup["namespace"])
+
+        logger.info(f"Backup for {backup['service']} in namespace {backup['namespace']} created.")
+        logger.info(f"Backup will be available at {host_path}/{backup['service']}-backup.sql")
+        logger.info(f"If successful, {backup['hostpath']} can be moved for a clean deployment")
+        logger.info(f"After a running deplyment the backup can be restored using the load_backup.py script")
     

@@ -16,11 +16,12 @@
               <v-select 
                 v-model="selected_kaapana_instance_names" 
                 :items="available_kaapana_instance_names" 
-                label="Runner instances" 
+                label="Runner instances"
                 multiple="" 
                 chips="" 
-                hint="On which instances do you want to execute the workflow"
-              ></v-select>
+                hint="On which instances do you want to execute the workflow?"
+              >
+              </v-select>
             </v-col>
           </v-row>
           <!-- DAG: select dag -->
@@ -146,7 +147,7 @@
         type: Array,
         default: () => [],
       },
-      onlyClient: {
+      onlyLocal: {
         type: Boolean,
         default: false,
       },
@@ -204,6 +205,7 @@
           // UI stuff
           valid: false,
           // instances
+          localKaapanaInstance: {},
           available_kaapana_instance_names: [],
           selected_kaapana_instance_names: [],
           selected_remote_instances_w_external_dag_available: [],
@@ -227,10 +229,11 @@
           this.refreshClient();
       },
       refreshClient() {
-        console.log(this.onlyClient)
-        if (this.onlyClient) {
+        console.log(this.onlyLocal)
+        if (this.onlyLocal) {
           this.getKaapanaInstance()
         } else {
+          this.getKaapanaInstance()
           this.getKaapanaInstances()
         }
       },
@@ -359,7 +362,11 @@
           .federatedClientApiGet("//kaapana-instance")
           .then((response) => {
             console.log('getKaapanaInstance', response.data)
-            this.available_kaapana_instance_names = [response.data.instance_name]
+            this.localKaapanaInstance = response.data.instance_name
+            if (this.onlyLocal) {
+              this.available_kaapana_instance_names = [response.data.instance_name]
+            }
+            this.selected_kaapana_instance_names.push(this.localKaapanaInstance)
           })
           .catch((err) => {
             console.log(err); 

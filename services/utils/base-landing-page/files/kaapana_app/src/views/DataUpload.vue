@@ -41,7 +41,7 @@
 
         <v-dialog v-model="workflowDialog" width="500">
         <WorkflowExecution
-          :onlyClient=true
+          :onlyLocal=true
           kind_of_dags="minio"
           @successful="() => (this.workflowDialog = false)"
         />

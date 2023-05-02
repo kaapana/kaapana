@@ -270,7 +270,7 @@
       <v-dialog v-model="workflowDialog" width="500">
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
-          :onlyClient="true"
+          :onlyLocal="true"
           kind_of_dags="dataset"
           @successful="() => (this.workflowDialog = false)"
         />

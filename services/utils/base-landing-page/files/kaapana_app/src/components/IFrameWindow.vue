@@ -1,6 +1,6 @@
 
 <template lang="pug">
-  iframe(ref="iframe" :width="width" :height="height" class="iframe-window" :src="iFrameUrl" @load="setIframeUrl(this)")
+  iframe(ref="iframe" :width="width" :height="height" :style="style" :class="fullSize ? 'iframe-window' : 'no-border'" :src="iFrameUrl" @load="setIframeUrl(this)")
 </template>
 
 <script>
@@ -17,6 +17,10 @@ export default {
       type: String,
       required: true
     },
+    fullSize: {
+      type: Boolean,
+      default: true
+    },
     width: {
       type: String, 
       default: '100%',
@@ -24,6 +28,10 @@ export default {
     height: {
       type: String, 
       default: '100%',
+    },
+    style: {
+      type: String,
+      default: ''
     }
   },
   methods:{
@@ -43,9 +51,12 @@ export default {
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
 
+.no-border {
+  border: none;
+}
 .iframe-window {
   border: none;
-  min-height: calc(100vh - 105px);
+  min-height: calc(100vh - 81px);
 }
 
 </style>

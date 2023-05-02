@@ -15,6 +15,7 @@ from socket import timeout
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.json_schema_templates import schema_dataset_form
 
+
 def generate_run_id(dag_id):
     run_id = datetime.now().strftime("%y%m%d%H%M%S%f")
     run_id = "{}-{}".format(dag_id, run_id)
@@ -199,6 +200,10 @@ def clean_previous_dag_run(airflow_workflow_dir, conf, run_identifier):
 
 def parse_ui_dict(dag_dict):
     if "ui_forms" in dag_dict and dag_dict["ui_forms"] is not None:
-        if "ui_visible" in dag_dict and dag_dict["ui_visible"] is True and "data_form" not in dag_dict["ui_forms"]:
+        if (
+            "ui_visible" in dag_dict
+            and dag_dict["ui_visible"] is True
+            and "data_form" not in dag_dict["ui_forms"]
+        ):
             dag_dict["ui_forms"].update(**schema_dataset_form())
     return dag_dict

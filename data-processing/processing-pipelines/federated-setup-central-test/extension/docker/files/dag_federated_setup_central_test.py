@@ -19,6 +19,7 @@ remote_dag_id = "federated-setup-node-test"
 skip_operators= ["federated-setup-skip-test", "workflow-cleaner"]
 federated_operators = ["federated-setup-federated-test"]
 ui_forms = {
+    "data_form": {},
     "external_schema_federated_form": {
         "type": "object",
         "properties": {
@@ -58,8 +59,7 @@ ui_forms = {
 }
 
 args = {
-    'ui_visible': False,
-    'ui_federated': True,
+    'ui_visible': True,
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),

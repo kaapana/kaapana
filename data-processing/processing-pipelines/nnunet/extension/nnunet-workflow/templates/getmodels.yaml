@@ -2,21 +2,25 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: get-nnunet-models
-  namespace: "{{ .Values.global.services_namespace }}"
+  name: nnunet-get-zenodo-models
+  namespace: "{{ .Values.global.jobs_namespace }}"
 spec:
   template:
     metadata:
-      name: get-nnunet-models
+      name: nnunet-get-zenodo-models
     spec:
-      hostNetwork: true
+      # hostNetwork: true
       containers:
-      - name: nnunet-models
-        image: "{{ .Values.global.registry_url }}/nnunet-get-models:{{ .Values.global.kaapana_build_version  }}"
+      - name: zenodo-models
+        image: "{{ .Values.global.registry_url }}/download-zenodo-models:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
         env:
-        - name: TASK
+        - name: TASK_IDS
           value: {{ .Values.global.task_ids | default "all" }}
+        - name: MODEL_DIR
+          value: "/models/nnUNet"
+        - name: LOG_LEVEL
+          value: "INFO"
 {{- if .Values.global.http_proxy }}
         - name: http_proxy
           value: {{ .Values.global.http_proxy }}
@@ -26,22 +30,17 @@ spec:
           value: {{ .Values.global.https_proxy }}
 {{- end }}
         volumeMounts:
-        - name: models-dir
+        - name: modeldata
           mountPath: /models
-        - name: cache-volume
-          mountPath: /tmp
         resources:
           requests:
-            memory: 500Mi
+            memory: 100Mi
           limits:
-            memory: 3000Mi
+            memory: 200Mi
       volumes:
-      - name: models-dir
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/workflows/models
-          type: DirectoryOrCreate
-      - name: cache-volume
-        emptyDir: {}
+      - name: modeldata
+        persistentVolumeClaim:
+          claimName: models-jobs-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

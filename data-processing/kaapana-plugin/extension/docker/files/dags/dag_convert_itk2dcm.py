@@ -40,6 +40,7 @@ ui_forms = {**schema_minio_form(
         select_options = "both",
         blacklist_directory_endings = ("imagesTr", "imagesTs", "labelsTr", "labelsTs", "cases", "segs"), whitelist_object_endings = (".zip")
     ),
+    "data_form": {},
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -78,7 +79,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='dag-convert-itk2dcm',
+    dag_id='convert-nifitis-to-dicoms-and-import-to-internal-pacs',
     default_args=args,
     schedule_interval=None
     )

@@ -47,7 +47,11 @@ class MonitoringService:
         try:
             prom_result = MonitoringService.prom.custom_query(query=query)
             if return_type == "int":
-                return int(prom_result[0]["value"][1])
+                if len(prom_result) > 0 and "value" in prom_result[0]:
+                    return int(prom_result[0]["value"][1])
+                else:
+                    return 0
+                
             elif return_type == "float":
                 return float(prom_result[0]["value"][1])
             elif return_type == "raw":

@@ -1,21 +1,14 @@
-# -*- coding: utf-8 -*-
-
 import subprocess
 import os
-import fnmatch
 import json
+from typing import List
 import yaml
 from pathlib import Path
-import shutil
-import pathlib
 from datetime import datetime
 from dateutil import parser
 import pytz
 import traceback
 import logging
-import glob
-from shutil import copyfile, rmtree
-import errno
 import re
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -52,12 +45,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         assert LocalDcm2JsonOperator.MODALITY_TAG in metadata_dict
         modality = metadata_dict[LocalDcm2JsonOperator.MODALITY_TAG]
 
-        metadata_dict.update({"curated_modality": modality})
+        metadata_dict.update({"00000000 CuratedModality_keyword": modality})
         if LocalDcm2JsonOperator.IMAGE_TYPE_TAG in metadata_dict:
             image_type = metadata_dict[LocalDcm2JsonOperator.IMAGE_TYPE_TAG]
             assert isinstance(image_type, list)
             if modality =="CT" and "LOCALIZER" in image_type and len(image_type)>=3:
-                metadata_dict.update({"curated_modality": "XR"})
+                metadata_dict.update({"00000000 CuratedModality_keyword": "XR"})
 
         return metadata_dict
         
@@ -110,17 +103,19 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        print("Starting moule dcm2json...")
+        print("Starting module dcm2json...")
         print(kwargs)
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
+        run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
+        batch_folder: List[Path] = list((run_dir / self.batch_name).glob("*"))
 
-        with open(self.dict_path, encoding='utf-8') as dict_data:
+        with open(self.dict_path, encoding="utf-8") as dict_data:
             self.dictionary = json.load(dict_data)
 
         for batch_element_dir in batch_folder:
-            dcm_files = sorted(glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"), recursive=True))
+            dcm_files: List[Path] = sorted(
+                list((batch_element_dir / self.operator_in_dir).rglob("*.dcm"))
+            )
 
             if len(dcm_files) == 0:
                 print("No dicom file found!")
@@ -128,14 +123,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
             print('length', len(dcm_files))
             for dcm_file_path in dcm_files:
+                print(f"Extracting metadata: {dcm_file_path}")
 
-                print(("Extracting metadata: %s" % dcm_file_path))
+                target_dir: Path = batch_element_dir / self.operator_out_dir
+                target_dir.mkdir(exist_ok=True)
 
-                target_dir = os.path.join(batch_element_dir, self.operator_out_dir)
-                if not os.path.exists(target_dir):
-                    os.makedirs(target_dir)
-
-                json_file_path = os.path.join(target_dir, "{}.json".format(os.path.basename(batch_element_dir)))
+                json_file_path = target_dir / f"{batch_element_dir.name}.json"
 
                 if self.delete_pixel_data:
                     # (0014,3080) Bad Pixel Image
@@ -165,15 +158,6 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 if self.bulk == False:
                     break
 
-    def mkdir_p(self, path):
-        try:
-            os.makedirs(path)
-        except OSError as exc:  # Python >2.5
-            if exc.errno == errno.EEXIST and os.path.isdir(path):
-                pass
-            else:
-                raise
-
     def executeDcm2Json(self, inputDcm, outputJson):
         """
         Executes a conversion service
@@ -182,29 +166,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         arguments -- the arguments for the service
         """
 
-        command = self.dcm2json_path + " " + \
-            self.withAppostroph(inputDcm) + " " + \
-            self.withAppostroph(outputJson)
+        command = f"{self.dcm2json_path} '{inputDcm}' '{outputJson}'"
         print(("Executing: " + command))
         ret = subprocess.call(command, shell=True)
         if ret != 0:
             print("Something went wrong with dcm2json...")
             raise ValueError('ERROR')
         return
-
-    def withAppostroph(self, content):
-        return "\"" + content + "\""
-
-    def get_new_key(self, key):
-        new_key = ""
-
-        if key in self.dictionary:
-            new_key = self.dictionary[key]
-        else:
-            print("{}: Could not identify DICOM tag -> using plain tag instead...".format(key))
-            new_key = key
-
-        return new_key
 
     def check_type(self, obj, val_type):
         try:
@@ -255,6 +223,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             if "." in time_str:
                 time_str = time_str.split(".")
                 if time_str[1] != "":
+                    # FIXME: unsafe with leading zeros (160504.0123, but ok if exactly 6 digits)
                     fsec = int(time_str[1])
                 time_str = time_str[0]
             if len(time_str) == 6:
@@ -307,14 +276,18 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     def replace_tags(self, dicom_meta):
         new_meta_data = {}
-        for key, value in list(dicom_meta.items()):
-            new_key = ""
-            new_key = self.get_new_key(key)
+        for key, value in dicom_meta.items():
+            new_key = self.dictionary.get(key, None)
+            if new_key is None:
+                print(f'Key {key} not found in dictionary. Skipping.')
+                continue
+
             if 'vr' in value and 'Value' in value:
-                value_str = dicom_meta[key]['Value']
-                vr = str(dicom_meta[key]['vr'])
+                value_str = value['Value']
+                vr = str(value['vr'])
 
                 if "nan" in value_str:
+                    # it would probably be cleaner to check for float VRs (note that value_str is still a list here)
                     print("Found NAN! -> skipping")
                     continue
 
@@ -324,46 +297,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
                 try:  # vr list: http://dicom.nema.org/dicom/2013/output/chtml/part05/sect_6.2.html
 
-                    if vr == "AE":
-                        # Application Entity
-                        # A string of characters that identifies an Application Entity with leading and trailing spaces (20H) being non-significant.
-                        # A value consisting solely of spaces shall not be used.
-                        new_key = new_key+"_keyword"
+                    if vr in ("AE", "AS", "AT", "CS", "LO", "LT", "OB", "OW", "SH", "ST", "UC", "UI", "UN", "UT"):
+                        new_key += "_keyword"
                         new_meta_data[new_key] = value_str
 
-                    elif vr == "AS":
-                        # Age String
-                        # A string of characters with one of the following formats -- nnnD, nnnW, nnnM, nnnY;
-                        # where nnn shall contain the number of days for D, weeks for W, months for M, or years for Y.
-
-                        # Example: "018M" would represent an age of 18 months.
-                        try:
-                            age_count = int(value_str[:3])
-                            identifier = value_str[3:]
-
-                            new_key = new_key+"_keyword"
-                            new_meta_data[new_key] = value_str
-                        except Exception as e:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            print("Could not extract age from: {}".format(value_str))
-                            print(e)
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
-
-                    elif vr == "AT":
-                        # Attribute Tag
-                        # Ordered pair of 16-bit unsigned integers that is the value of a Data Element Tag.
-                        # Example: A Data Element Tag of (0018,00FF) would be encoded as a series of 4 bytes in a Little-Endian Transfer Syntax as 18H,00H,FFH,00H
-                        #  and in a Big-Endian Transfer Syntax as 00H,18H,00H,FFH.
-
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = value_str
-
-                    elif vr == "CS":
-                        # Code String
-                        # A string of characters with leading or trailing spaces (20H) being non-significant.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = value_str
 
                     elif vr == "DA":
                         # date
@@ -385,33 +322,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             else:
                                 date_formatted = parser.parse(value_str).strftime(self.format_date)
 
-                            new_key = new_key+"_date"
+                            new_key += "_date"
                             new_meta_data[new_key] = date_formatted
                         except Exception as e:
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             print("Could not extract date from: {}".format(value_str))
                             print(e)
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
-
-                    elif vr == "DS":
-                        # Decimal String
-                        # A string of characters representing either a fixed point number or a floating point number.
-                        # A fixed point number shall contain only the characters 0-9 with an optional leading "+" or "-" and an optional "." to mark the decimal point.
-                        # A floating point number shall be conveyed as defined in ANSI X3.9, with an "E" or "e" to indicate the start of the exponent.
-                        # Decimal Strings may be padded with leading or trailing spaces. Embedded spaces are not allowed.
-
-                        #  Note
-                        #  Data Elements with multiple values using this VR may not be properly encoded if Explicit-VR transfer syntax is used
-                        #  and the VL of this attribute exceeds 65534 bytes.
-
-                        new_key = new_key+"_float"
-
-                        checked_val = self.check_type(value_str, float)
-                        if checked_val != "SKIPIT":
-                            new_meta_data[new_key] = checked_val
-                        else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
                                 raise ValueError('ERROR')
 
@@ -457,7 +373,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                                 date_time_formatted = parser.parse(date_time_string).strftime(self.format_date_time)
                                 date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
 
-                                new_key = new_key+"_datetime"
+                                new_key += "_datetime"
 
                                 print("Value: {}".format(value_str))
                                 print("DATETIME: {}".format(date_time_formatted))
@@ -470,25 +386,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             if self.exit_on_error:
                                 raise ValueError('ERROR')
 
-                    elif vr == "FL":
-                        # Floating Point Single
-                        # Single precision binary floating point number represented in IEEE 754:1985 32-bit Floating Point Number Format.
+                    elif vr in ("DS", "FL", "FD", "OD", "OF"):
+                        # Decimal String / Floating Point Single / Floating Point Double / Other Double String / Other Float String
 
-                        new_key = new_key+"_float"
-
-                        checked_val = self.check_type(value_str, float)
-                        if checked_val != "SKIPIT":
-                            new_meta_data[new_key] = checked_val
-                        else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
-
-                    elif vr == "FD":
-                        # Floating Point Double
-                        # Double precision binary floating point number represented in IEEE 754:1985 64-bit Floating Point Number Format.
-
-                        new_key = new_key+"_float"
+                        new_key += "_float"
 
                         checked_val = self.check_type(value_str, float)
                         if checked_val != "SKIPIT":
@@ -498,12 +399,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             if self.exit_on_error:
                                 raise ValueError('ERROR')
 
-                    elif vr == "IS":
-                        # Integer String
-                        # A string of characters representing an Integer in base-10 (decimal), shall contain only the characters 0 - 9, with an optional leading "+" or "-". It may be padded with leading and/or trailing spaces. Embedded spaces are not allowed.
-                        # The integer, n, represented shall be in the range:
-                        # -231<= n <= (231-1).
-                        new_key = new_key+"_integer"
+                    elif vr in ("IS", "SL", "SS", "UL", "US"):
+                        # Integer String / Signed Long / Signed Short / Unsigned Long / Unsigned Short
+                        new_key += "_integer"
 
                         checked_val = self.check_type(value_str, int)
                         if checked_val != "SKIPIT":
@@ -512,66 +410,6 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
                             if self.exit_on_error:
                                 raise ValueError('ERROR')
-
-                    elif vr == "LO":
-                        # Long String
-                        # A character string that may be padded with leading and/or trailing spaces.
-                        # The character code 5CH (the BACKSLASH "\" in ISO-IR 6) shall not be present, as it is used as the delimiter
-                        # between values in multiple valued data elements. The string shall not have Control Characters except for ESC.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = str(value_str)
-
-                    elif vr == "LT":
-                        # Long Text
-                        # A character string that may contain one or more paragraphs.
-                        #  It may contain the Graphic Character set and the Control Characters, CR, LF, FF, and ESC.
-                        #  It may be padded with trailing spaces, which may be ignored, but leading spaces are considered to be significant.
-                        #  Data Elements with this VR shall not be multi-valued and therefore character code 5CH
-                        #  (the BACKSLASH "\" in ISO-IR 6) may be used.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = value_str
-
-                    elif vr == "OB":
-                        # Other Byte String
-                        # A string of bytes where the encoding of the contents is specified by the negotiated Transfer Syntax.
-                        #  OB is a VR that is insensitive to Little/Big Endian byte ordering (see Section 7.3).
-                        #  The string of bytes shall be padded with a single trailing NULL byte value (00H) when necessary to achieve even length.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = value_str
-
-                    elif vr == "OD":
-                        # Other Double String
-                        # A string of 64-bit IEEE 754:1985 floating point words.
-                        # OD is a VR that requires byte swapping within each 64-bit word when changing between Little Endian and Big Endian byte ordering
-
-                        new_key = new_key+"_float"
-
-                        checked_val = self.check_type(value_str, float)
-                        if checked_val != "SKIPIT":
-                            new_meta_data[new_key] = checked_val
-                        else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
-
-                    elif vr == "OF":
-                        # Other Float String
-                        # A string of 32-bit IEEE 754:1985 floating point words.
-                        # OF is a VR that requires byte sw14,3080) Bad Pixel Image
-                    # (7FE0,0008) Float Pixel Data
-                    # (7FE0,0009) Double Float Pixel Data
-                    # (7Fpping within each 32-bit word when changing between Little Endian and Big Endian byte ordering
-
-                        new_key = new_key+"_float"
-
-                        new_meta_data[new_key] = value_str
-
-                    elif vr == "OW":
-                        # Other Word String
-                        # A string of 16-bit words where the encoding of the contents is specified by the negotiated Transfer Syntax.
-                        #  OW is a VR that requires byte swapping within each word when changing between Little Endian and Big Endian byte ordering
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = value_str
 
                     elif vr == "PN":
                         # Person Name
@@ -579,44 +417,16 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         # in ISO-IR 6) shall not be present, as it is used as the delimiter between values in multiple valued data
                         # elements. The string may be padded with trailing spaces. For human use, the five components in their order
                         # of occurrence are: family name complex, given name complex, middle name, name prefix, name suffix.
-                        new_key = new_key+"_keyword"
-                        subcategories = ['Alphabetic',
-                                         'Ideographic', 'Phonetic']
+                        new_key += "_keyword"
+                        subcategories = ['Alphabetic', 'Ideographic', 'Phonetic']
                         for cat in subcategories:
                             if cat in value_str:
                                 new_meta_data[new_key+"_" +
                                               cat.lower()] = value_str[cat]
 
-                    elif vr == "SH":
-                        # Short String
-                        # A character string that may be padded with leading and/or trailing spaces. The character code 05CH
-                        # (the BACKSLASH "\" in ISO-IR 6) shall not be present, as it is used as the delimiter between values
-                        # for multiple data elements. The string shall not have Control Characters except ESC.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = str(value_str)
-
-                    elif vr == "UC":
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = str(value_str)
-
-                    elif vr == "SL":
-                        # Signed Long
-                        # Signed binary integer 32 bits long in 2's complement form.
-                        # Represents an integer, n, in the range:
-                        # - 231<= n <= 231-1.
-                        new_key = new_key+"_integer"
-
-                        checked_val = self.check_type(value_str, int)
-                        if checked_val != "SKIPIT":
-                            new_meta_data[new_key] = checked_val
-                        else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
-
                     elif vr == "SQ":
                         result = []
-                        new_key = new_key+"_object"
+                        new_key += "_object"
                         if isinstance(value_str, list):
                             result = self.check_list(value_str)
                             if isinstance(result, dict):
@@ -639,32 +449,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                                     raise ValueError('ERROR')
 
                         elif isinstance(value_str, dict):
-                            new_key = new_key+"_object"
+                            new_key += "_object"
                             result = self.replace_tags(value_str)
                             new_meta_data[new_key] = result
-
-                    elif vr == "SS":
-                        # Signed Short
-                        # Signed binary integer 16 bits long in 2's complement form. Represents an integer n in the range:
-                        # -215<= n <= 215-1.
-                        new_key = new_key+"_integer"
-
-                        checked_val = self.check_type(value_str, int)
-                        if checked_val != "SKIPIT":
-                            new_meta_data[new_key] = checked_val
-                        else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
-
-                    elif vr == "ST":
-                        # Short Text
-                        # A character string that may contain one or more paragraphs.
-                        # It may contain the Graphic Character set and the Control Characters, CR, LF, FF, and ESC.
-                        #  It may be padded with trailing spaces, which may be ignored, but leading spaces are considered to be significant.
-                        #  Data Elements with this VR shall not be multi-valued and therefore character code 5CH (the BACKSLASH "\" in ISO-IR 6) may be used.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = value_str
 
                     elif vr == "TM":
                         # Time
@@ -693,66 +480,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         else:
                             time_formatted = self.get_time(value_str)
 
-                        new_key = new_key+"_time"
+                        new_key += "_time"
                         new_meta_data[new_key] = time_formatted
-
-                    elif vr == "UI":
-                        # Unique Identifier (UID)
-                        # A character string containing a UID that is used to uniquely identify a wide variety of items.
-                        # The UID is a series of numeric components separated by the period "." character.
-                        # If a Value Field containing one or more UIDs is an odd number of bytes in length,
-                        # the Value Field shall be padded with a single trailing NULL (00H) character to ensure
-                        # that the Value Field is an even number of bytes in length. See Section 9 and Annex B for a complete specification and examples.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = str(value_str)
-
-                    elif vr == "UL":
-                        # Unsigned Long
-                        # Unsigned binary integer 32 bits long. Represents an integer n in the range:
-                        # 0 <= n < 232.
-
-                        new_key = new_key+"_integer"
-
-                        checked_val = self.check_type(value_str, int)
-                        if checked_val != "SKIPIT":
-                            new_meta_data[new_key] = checked_val
-                        else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
-
-                    elif vr == "UN":
-                        # Unknown
-                        # A string of bytes where the encoding of the contents is unknown.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = value_str
-
-                    elif vr == "US":
-                        # Unsigned Short
-                        # Unsigned binary integer 16 bits long. Represents integer n in the range:
-                        # 0 <= n < 216.
-                        new_key = new_key+"_integer"
-
-                        checked_val = self.check_type(value_str, int)
-                        if checked_val != "SKIPIT":
-                            new_meta_data[new_key] = checked_val
-                        else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            if self.exit_on_error:
-                                raise ValueError('ERROR')
-
-                    elif vr == "UT":
-                        # Unlimited Text
-                        # A character string that may contain one or more paragraphs. It may contain the Graphic Character set and the Control Characters, CR, LF,
-                        # FF, and ESC. It may be padded with trailing spaces, which may be ignored, but leading spaces are considered to be significant.
-                        # Data Elements with this VR shall not be multi-valued and therefore character code 5CH (the BACKSLASH "\" in ISO-IR 6) may be used.
-                        new_key = new_key+"_keyword"
-                        new_meta_data[new_key] = (value_str)
 
                     else:
                         print(f"################ VR in ELSE!: {vr}")
-                        print(f"DICOM META: {dicom_meta[key]}")
-                        new_key = new_key+"_keyword"
+                        print(f"DICOM META: {value}")
+                        new_key += "_keyword"
                         new_meta_data[new_key] = (value_str)
 
                 except Exception as e:
@@ -761,7 +495,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     logging.error("#")
                     logging.error("################################### EXCEPTION #######################################")
                     logging.error("#")
-                    logging.error(f"DICOM META: {dicom_meta[key]}")
+                    logging.error(f"DICOM META: {value}")
                     logging.error(traceback.format_exc())
                     logging.error(value_str)
                     logging.error(e)
@@ -789,7 +523,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         return new_meta_data
 
-    def correct_json(self, file_path):
+    def tryConvertingYamlToJson(self, file_path):
         print("ERROR IN JSON FILE -> Try to correct")
         try:
             with open(file_path, "r", encoding='utf-8') as f:
@@ -801,21 +535,24 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             print(e)
             raise ValueError('ERROR')
 
-    def cleanJsonData(self, path):
+    def cleanJsonData(self, path: Path):
         """
         Removes unneccessary data from json objects like binary stuff
         """
         new_meta_data = {}
 
-        path_tmp = path.replace(".json", "_tmp.json")
+        path_tmp: Path = path.parent / path.name.replace(path.suffix, "_tmp.json")
         os.rename(path, path_tmp)
         with open(path_tmp, "rt", encoding="utf-8") as fin:
             with open(path, "wt", encoding="utf-8") as fout:
                 for line in fin:
                     line = line.replace(" .", " 0.")
+                    # FIXME: doesn't this match + before digits within the whole JSON document?
+                    # e.g. if a tag contains "10+15ml contrast agent"?
                     m = re.search(r"[\+][\d]", line)
                     if m is not None:
                         group = m.group()
+                        # FIXME: and this seems to disregard the match position and simply removes any + symbol:
                         fout.write(line.replace('+', ''))
                     else:
                         fout.write(line)
@@ -828,13 +565,14 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ERROR WHILE LOADING JSON!!")
             print(e)
             print("Try to correct...")
-            self.correct_json(path)
+            self.tryConvertingYamlToJson(path)
             print("Try again...")
             with open(path, encoding='utf-8') as dicom_meta:
                 dicom_metadata = json.load(dicom_meta)
 
         label_results = {}
-        if "00080060" in dicom_metadata and (dicom_metadata["00080060"]["Value"][0] == "RTSTRUCT" or dicom_metadata["00080060"]["Value"][0] == "SEG"):
+        modality_tag = dicom_metadata.get("00080060")
+        if modality_tag and modality_tag["Value"] in ("RTSTRUCT", "SEG"):
             label_results = LocalDcm2JsonOperator.get_label_tags(dicom_metadata)
         new_meta_data = self.replace_tags(dicom_metadata)
         new_meta_data.update(label_results)
@@ -889,14 +627,14 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         new_meta_data["timestamp"] = date_time_formatted
 
         timestamp_arrived = datetime.now()
-        new_meta_data["timestamp_arrived_datetime"] = self.convert_time_to_utc(timestamp_arrived.strftime(self.format_date_time), self.format_date_time)
+        new_meta_data["00000000 TimestampArrived_datetime"] = self.convert_time_to_utc(timestamp_arrived.strftime(self.format_date_time), self.format_date_time)
 
-        new_meta_data["timestamp_arrived_date"] = new_meta_data["timestamp_arrived_datetime"][:10]
-        new_meta_data["timestamp_arrived_hour_integer"] = new_meta_data["timestamp_arrived_datetime"][11:13]
+        new_meta_data["00000000 TimestampArrived_date"] = new_meta_data["00000000 TimestampArrived_datetime"][:10]
+        new_meta_data["00000000 TimestampArrivedHour_integer"] = new_meta_data["00000000 TimestampArrived_datetime"][11:13]
 
-        new_meta_data["dayofweek_integer"] = datetime.strptime(
+        new_meta_data["00000000 DayOfWeek_integer"] = datetime.strptime(
             date_time_formatted, self.format_date_time).weekday()
-        new_meta_data["time_tag_used_keyword"] = time_tag_used
+        new_meta_data["00000000 TimeTagUsed_keyword"] = time_tag_used
         new_meta_data["predicted_bodypart_string"] = "N/A"
 
         if "00100030 PatientBirthDate_date" in new_meta_data:
@@ -930,6 +668,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         return new_meta_data
 
+    # FIXME: hard-coded timezone used for DICOM tag values
     def convert_time_to_utc(self, time_berlin, date_format):
         local = pytz.timezone("Europe/Berlin")
         naive = datetime.strptime(time_berlin, date_format)
@@ -961,7 +700,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
         if 'DCMDICTPATH' in os.environ and 'DICT_PATH' in os.environ:
-            self.dcmdictpath = os.getenv('DCMDICTPATH')
+            # DCMDICTPATH is used by dcmtk / dcm2json
             self.dict_path = os.getenv('DICT_PATH')
         else:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")

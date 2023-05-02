@@ -43,54 +43,56 @@
               label="Search",
               hide-details=""
             )
-      div(v-if='uploadPerc != 100 && file && loadingFile')
-        div(:class="['dragdrop']")
-          .dragdrop-info()
-            span.fa.fa-cloud-upload.dragdrop-title
-            v-tooltip(bottom="")
-              template(v-slot:activator="{on}")
-                v-icon(
-                  @click="cancelUploadFile()",
-                  color="primary",
-                  dark="",
-                  v-on="on"
-                    )
-                      | mdi-close-circle
-              span Cancel the upload
-            span.dragdrop-title    Uploading file... {{uploadPerc}} % 
-            .dragdrop-upload-limit-info
-              div filename: {{file.name}} | file size: {{(file.size / 1000000).toFixed(2)}} MB
-      div(v-else-if='uploadPerc == 100 && !file && !loadingFile')
-        div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-          .dragdrop-uploaded-info(@drag='onChange')
-            span.dragdrop-title {{fileResponse}}
-            .dragdrop-upload-limit-info
-              div Upload completed. Select another chart(.tgz) or container(.tar) file
-          input(type='file' @change='onChange')
-      div(v-else-if='uploadPerc == 100 && file && !loadingFile')
-        div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-          .dragdrop-info(@drag='onChange')
-            span.fa.fa-cloud-upload.dragdrop-title
-            span.dragdrop-title {{fileResponse}}
-            .dragdrop-upload-limit-info
-              div filename: {{file.name}} | file size: {{(file.size / 1000000).toFixed(2)}} MB
-      div(v-else-if='file && !loadingFile')
-        div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-          .dragdrop-info(@drag='onChange')
-            span.fa.fa-cloud-upload.dragdrop-title
-            span.dragdrop-title {{fileResponse}}
-            .dragdrop-upload-limit-info
-              div Please try again
-          input(type='file' @change='onChange')
-      div(v-else='')
-        div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-          .dragdrop-info(@drag='onChange')
-            span.fa.fa-cloud-upload.dragdrop-title
-            span.dragdrop-title Drag/select chart(.tgz) or container(.tar) file for upload
-            .dragdrop-upload-limit-info
-              div file types: tgz,tar  |  max size: 20GB
-          input(type='file' @change='onChange')
+      //- div(v-if='uploadPerc != 100 && file && loadingFile')
+      //-   div(:class="['dragdrop']")
+      //-     .dragdrop-info()
+      //-       span.fa.fa-cloud-upload.dragdrop-title
+      //-       v-tooltip(bottom="")
+      //-         template(v-slot:activator="{on}")
+      //-           v-icon(
+      //-             @click="cancelUploadFile()",
+      //-             color="primary",
+      //-             dark="",
+      //-             v-on="on"
+      //-               )
+      //-                 | mdi-close-circle
+      //-         span Cancel the upload
+      //-       span.dragdrop-title    Uploading file... {{uploadPerc}} % 
+      //-       .dragdrop-upload-limit-info
+      //-         div filename: {{file.name}} | file size: {{(file.size / 1000000).toFixed(2)}} MB
+      //- div(v-else-if='uploadPerc == 100 && !file && !loadingFile')
+      //-   div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
+      //-     .dragdrop-uploaded-info(@drag='onChange')
+      //-       span.dragdrop-title {{fileResponse}}
+      //-       .dragdrop-upload-limit-info
+      //-         div Upload completed. Select another chart(.tgz) or container(.tar) file
+      //-     input(type='file' @change='onChange')
+      //- div(v-else-if='uploadPerc == 100 && file && !loadingFile')
+      //-   div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
+      //-     .dragdrop-info(@drag='onChange')
+      //-       span.fa.fa-cloud-upload.dragdrop-title
+      //-       span.dragdrop-title {{fileResponse}}
+      //-       .dragdrop-upload-limit-info
+      //-         div filename: {{file.name}} | file size: {{(file.size / 1000000).toFixed(2)}} MB
+      //- div(v-else-if='file && !loadingFile')
+      //-   div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
+      //-     .dragdrop-info(@drag='onChange')
+      //-       span.fa.fa-cloud-upload.dragdrop-title
+      //-       span.dragdrop-title {{fileResponse}}
+      //-       .dragdrop-upload-limit-info
+      //-         div Please try again
+      //-     input(type='file' @change='onChange')
+      //- div(v-else='')
+      //-   div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
+      //-     .dragdrop-info(@drag='onChange')
+      //-       span.fa.fa-cloud-upload.dragdrop-title
+      //-       span.dragdrop-title Drag/select chart(.tgz) or container(.tar) file for upload
+      //-       .dragdrop-upload-limit-info
+      //-         div file types: tgz,tar  |  max size: 20GB
+      //-     input(type='file' @change='onChange')
 
+      //- TODO: set max file size limit
+      upload(:labelIdle="labelIdle", url="/kube-helm-api/filepond-upload", :onProcessFileStart="fileStart", :onProcessFile="fileComplete", :acceptedFileTypes="allowedFileTypes")
 
       v-data-table.elevation-1(
         :headers="headers",
@@ -240,17 +242,20 @@
 
 <script lang="ts">
 import Vue from "vue";
-import request from "@/request";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
-import { CHECK_AUTH } from '@/store/actions.type';
+import Upload from "@/components/Upload.vue";
 
 export default Vue.extend({
+  components: {
+    Upload
+  },
   data: () => ({
     file: '' as any,
     fileResponse: '',
     dragging: false,
     loadingFile: false,
+    allowedFileTypes: ["application/x-compressed", "application/x-tar", "application/gzip", "application/x-compressed-tar"],
     conn: null as WebSocket | null,
     uploadChunksMethod: 'http' as string, // set 'ws' for websocket otherwise 'http'
     cancelUpload: false,
@@ -352,6 +357,10 @@ export default Vue.extend({
     fileExtension(): any {
       return (this.file) ? this.file.name.split('.').pop() : '';
     },
+    labelIdle(): any {
+      // return "Drop files - allowed types: " + this.allowedFileTypes.join(", ")
+      return "Upload chart (.tgz) or container (.tar) files"
+    },
 
     ...mapGetters([
       "currentUser",
@@ -362,6 +371,32 @@ export default Vue.extend({
     ]),
   },
   methods: {
+    fileStart(file: any) {
+      console.log("filestart", file)
+    },
+    fileComplete(error: any, file: any) {
+      console.log("file upload completed")
+      if (error !== null) {
+        console.log("filepond file upload error", error)
+        return
+      } else {
+        console.log("successfully uploaded file", file)
+        let fname = file.filename;
+        let fExt = file.fileExtension;
+        if (fExt == "tar") {
+          console.log("importing container...")
+          kaapanaApiService
+            .helmApiGet("/import-container", { filename: fname }, 120000)
+            .then((response: any) => {
+              console.log(response.data)
+            })
+            .catch((err: any) => {
+              console.log("import error", err.response.data);
+              console.log("Failed to import container " + fname, " see import error above")
+            });
+        }
+      }
+    },
     checkDeploymentReady(item: any) {
       if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
         return false
@@ -407,7 +442,7 @@ export default Vue.extend({
             let key = stat.charAt(0).toUpperCase() + stat.slice(1);
             s += key + ", "
           }
-          return s.slice(0, s.length-2);
+          return s.slice(0, s.length - 2);
         } else if (typeof (statArr) == "string" && statArr.length > 0) {
           let s = statArr
           return s.charAt(0).toUpperCase() + s.slice(1);
@@ -434,7 +469,7 @@ export default Vue.extend({
         return "no"
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        return "yes" 
+        return "yes"
       }
       return "no"
     },
@@ -461,7 +496,7 @@ export default Vue.extend({
       console.log("file.type", file.type)
 
       let allowedFileTypes: any = ['application/x-compressed', 'application/x-tar', 'application/gzip']
-      if (!allowedFileTypes.includes(file.type) ) {
+      if (!allowedFileTypes.includes(file.type)) {
         alert('please upload a tgz or tar file');
         this.dragging = false;
         return;
@@ -847,5 +882,11 @@ a {
   width: 100%;
   transform: translate(0, -50%);
   text-align: center;
+}
+
+.upload {
+  margin-top: 10px;
+  padding-top: 100px;
+  padding-bottom: 10px;
 }
 </style>

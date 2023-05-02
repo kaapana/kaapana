@@ -1,35 +1,51 @@
 <template>
   <div class="dropzone">
     <v-container grid-list-lg text-left >
-      <h1>Two steps data upload</h1> 
+      <h1>Data upload</h1> 
       <v-row dense>
         <v-col cols="12">
           <v-card>
             <v-card-title class="text-h5">
-              <v-icon large>mdi-numeric-1-circle</v-icon>&nbsp;Store data to file storage
+              Option 1 (preferred): Using the DICOM receiver port.
             </v-card-title>
             <v-card-text>
-              Upload DICOMS, niftis or any data you want to use in a workflow as a zip file via the dropzone
-              <upload labelIdle="Dicoms, ITK images or any other data"></upload>
+              If you have images locally you can use e.g. DCMTK. However, any tool that sends images to a DICOM receiver can be used. Here is an example of sending images with DCMTK:
+              <br>
+              <br>
+              <code>
+                dcmsend -v ip-address of server 11112  --scan-directories --call aetitle-of-images-used-for-filtering --scan-pattern '*'  --recurse data-dir-of-DICOM-images
+              </code>
             </v-card-text>
-            <v-card-actions>
-              <v-btn text target="_blank" href="/minio-console/buckets/uploads/browse" >View uploaded data</v-btn>
-            </v-card-actions>
           </v-card>
         </v-col>
         <v-col cols="12">
           <v-card>
             <v-card-title class="text-h5">
-              <v-icon large>mdi-numeric-2-circle</v-icon>&nbsp;Upload data to internal PACS using the data-upload workfow or use data in a different workflow.
+              Optioin 2: Store data to file storage
             </v-card-title>
             <v-card-text>
-              Trigger the dicom-upload or itk2dicom workflow to finalize the upload. Alternatively, use the uploaded data in a different workflow.
+              <v-icon large>mdi-numeric-1-circle</v-icon>&nbsp; Store DICOMS, niftis or any data you want to use in a workflow as a zip file via the dropzone
+              <upload labelIdle="Dicoms, ITK images or any other data"></upload>
+              <br>
+              <v-icon large>mdi-numeric-2-circle</v-icon>&nbsp;
+              <v-btn
+                color="primary"
+                @click="() => (this.workflowDialog = true)"
+              > 
+                Import the data to the platform 
+                <v-icon>mdi-play-box</v-icon>
+              </v-btn>
             </v-card-text>
-            <v-card-actions>
-              <v-btn text to="experiments">Execute upload workflow</v-btn>
-            </v-card-actions>
           </v-card>
         </v-col>
+
+        <v-dialog v-model="workflowDialog" width="500">
+        <WorkflowExecution
+          :onlyClient=true
+          kind_of_dags="minio"
+          @successful="() => (this.workflowDialog = false)"
+        />
+        </v-dialog>
       </v-row>
     </v-container>
   </div>
@@ -40,12 +56,15 @@
 import Vue from 'vue';
 import { mapGetters } from "vuex";
 import Upload from "@/components/Upload.vue";
+import WorkflowExecution from "@/components/WorkflowExecution.vue";
 
 export default Vue.extend({
   components: {
-    Upload
+    Upload,
+    WorkflowExecution
   },
   data: () => ({
+    workflowDialog: false,
     supported: true,
   }),
   mounted() {

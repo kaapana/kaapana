@@ -80,8 +80,8 @@ const settings = {
                 display: false,
                 truncate: false,
                 dashboard: true,
-                patientView: true,
-                studyView: true
+                patientView: false,
+                studyView: false
             },
             {
                 name: 'Manufacturer',

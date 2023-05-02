@@ -275,10 +275,8 @@ async def get_all_values(item_name, query):
         return {}
 
 
-@router.get("/query_values/{field_name}")
-async def get_query_values_item(field_name: str, query: Union[str, None] = None):
-    if query:
-        query: dict = json.loads(query)
+@router.post("/query_values/{field_name}")
+async def get_query_values_item(field_name: str, query: dict = Body(...)):
     if not query or query == {}:
         query = {"query_string": {"query": "*"}}
 

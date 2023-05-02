@@ -2,30 +2,53 @@
   <v-card>
     <v-card-title>
       <v-row no-gutters align="center" justify="center">
-        <v-col cols="11">
+        <v-col cols="10">
           <div class="text-truncate">
             {{ seriesDescription }}
           </div>
         </v-col>
         <v-col cols="1" align="center">
+          <v-btn icon @click="openInOHIFViewer">
+            <v-icon> mdi-open-in-new </v-icon>
+          </v-btn>
+        </v-col>
+        <v-col cols="1" align="center">
           <v-btn icon @click="() => this.$emit('close')">
-            <v-icon>
-              mdi-close
-            </v-icon>
+            <v-icon> mdi-close </v-icon>
           </v-btn>
         </v-col>
       </v-row>
     </v-card-title>
-    <v-divider/>
+    <v-divider />
     <v-card-text>
-      <CornerStone
-          v-if="studyInstanceUID !== '' && seriesInstanceUID !== ''"
-          :series-instance-u-i-d="seriesInstanceUID"
-          :study-instance-u-i-d="studyInstanceUID"
+      <IFrameWindow
+        v-if="modalitySupported"
+        :iFrameUrl="iFrameURL"
+        :fullSize="false"
+        style="aspect-ratio: 1 / 1; max-height: 80vh;"
       />
-      <TagsTable
-          :series-instance-u-i-d="seriesInstanceUID"
-      />
+      <v-container
+        v-else
+        style="
+          width: 100%;
+          max-height: 80vh;
+          background-color: darkgray;
+          font-size: 1.3em;
+          aspect-ratio: 1 / 1
+          "
+        fill-height
+        fluid
+      >
+        <v-col>
+          <v-row align="center" justify="center">
+            <v-icon large>mdi-alert-circle-outline</v-icon>
+          </v-row>
+          <v-row align="center" justify="center">
+            Modality not supported
+          </v-row>
+        </v-col>
+      </v-container>
+      <TagsTable :series-instance-u-i-d="seriesInstanceUID" />
     </v-card-text>
   </v-card>
 </template>
@@ -33,33 +56,38 @@
 <script>
 /* eslint-disable */
 
-import TagsTable from './TagsTable.vue';
-import CornerStone from "./CornerStone.vue";
-import {loadSeriesData} from "../common/api.service";
+import TagsTable from "./TagsTable.vue";
+import { loadSeriesData } from "../common/api.service";
+import IFrameWindow from "./IFrameWindow.vue";
 
 export default {
-  name: 'DetailView',
+  name: "DetailView",
   components: {
     TagsTable,
-    CornerStone
+    IFrameWindow,
   },
   props: {
-    seriesInstanceUID: String
+    seriesInstanceUID: String,
   },
   data() {
     return {
-      studyInstanceUID: '',
-      seriesDescription: ''
+      studyInstanceUID: "",
+      seriesDescription: "",
+      modality: "",
     };
   },
   methods: {
     async getDicomData() {
       if (this.seriesInstanceUID) {
-        loadSeriesData(this.seriesInstanceUID).then(data => {
-          this.studyInstanceUID = data['metadata']['Study Instance UID'] || ''
-          this.seriesDescription = data['metadata']['Series Description'] || ''
-        })
+        loadSeriesData(this.seriesInstanceUID).then((data) => {
+          this.studyInstanceUID = data["metadata"]["Study Instance UID"] || "";
+          this.seriesDescription = data["metadata"]["Series Description"] || "";
+          this.modality = data["metadata"]["Modality"] || "";
+        });
       }
+    },
+    openInOHIFViewer() {
+      window.open(`/ohif/viewer/${this.studyInstanceUID}`);
     },
   },
   watch: {
@@ -69,6 +97,19 @@ export default {
   },
   created() {
     this.getDicomData();
+  },
+  computed: {
+    iFrameURL() {
+      return (
+        "/ohif-v3/viewer?StudyInstanceUIDs=" +
+        this.studyInstanceUID +
+        "&initialSeriesInstanceUID=" +
+        this.seriesInstanceUID
+      );
+    },
+    modalitySupported() {
+      return !["RTSTRUCT", "SEG"].includes(this.modality);
+    },
   },
 };
 </script>

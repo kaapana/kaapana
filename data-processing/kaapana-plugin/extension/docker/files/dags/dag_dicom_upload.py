@@ -16,6 +16,7 @@ log = LoggingMixin().log
 
 ui_forms = {
     **schema_minio_form(whitelist_object_endings = (".zip")),
+    "data_form": {},
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -52,7 +53,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id='dicom-upload',
+    dag_id='import-dicoms-in-zip-to-internal-pacs',
     default_args=args,
     schedule_interval=None,
     concurrency=10,

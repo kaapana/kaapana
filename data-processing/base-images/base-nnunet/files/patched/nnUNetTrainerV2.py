@@ -52,19 +52,19 @@ class JsonWriter(object):
     def _load_json(filename):
         try:
             with open(filename) as json_file:
-                exp_data = json.load(json_file)
+                workflow_data = json.load(json_file)
         except FileNotFoundError:
-            exp_data = []
-        return exp_data
+            workflow_data = []
+        return workflow_data
 
     def __init__(self, log_dir) -> None:
         self.filename = os.path.join(log_dir, 'experiment_results.json')
         # not accumulating anything because this leads to a decrease in speed over many epochs!
 
     def append_data_dict(self, data_dict):
-        exp_data = JsonWriter._load_json(self.filename)
-        exp_data.append(data_dict)
-        JsonWriter._write_json(self.filename, exp_data)
+        workflow_data = JsonWriter._load_json(self.filename)
+        workflow_data.append(data_dict)
+        JsonWriter._write_json(self.filename, workflow_data)
 
 
 class nnUNetTrainerV2(nnUNetTrainer):

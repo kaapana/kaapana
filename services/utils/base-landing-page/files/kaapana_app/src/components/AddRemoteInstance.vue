@@ -57,7 +57,6 @@ export default {
     remoteUpdate: false,
     remoteDialog: false,
     remoteJobs: [],
-    remoteInstances: [],
     remotePost: {
       ssl_check: false,
       token: '',
@@ -68,75 +67,22 @@ export default {
     }
   }),
 
-  mounted () {
-    this.refreshRemote();
-  },
-
-  props: {
-  },
-
   methods: {
-    refreshRemote () {
-      this.getRemoteInstances()
-      this.getRemoteJobs()
-    },
     resetRemoteForm () {
       this.$refs.remoteForm.reset()
     },
     submitRemoteForm () {
-      if (this.remoteUpdate == false) {
-        kaapanaApiService
-          .federatedClientApiPost("/remote-kaapana-instance", this.remotePost)
-          .then((response) => {
-            console.log('getting remote')
-            this.remoteUpdate = false
-            this.remoteDialog = false
-            this.$emit('refreshRemoteFromAdding')
-            this.resetRemoteForm()
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      } else {
-        kaapanaApiService
-          .federatedClientApiPut("/remote-kaapana-instance", this.remotePost)
-          .then((response) => {
-            this.remoteUpdate = false
-            this.remoteDialog = false
-            this.$emit('refreshRemoteFromAdding')
-            this.resetRemoteForm()
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      }
-    },
-    editRemoteInstance(instance) {
-      this.remotePost = instance
-      this.remoteDialog = true
-      this.remoteUpdate = true
-    },
-    getRemoteInstances() {
       kaapanaApiService
-        .federatedClientApiPost("/get-remote-kaapana-instances")
+        .federatedClientApiPost("/remote-kaapana-instance", this.remotePost)
         .then((response) => {
-          this.remoteInstances = response.data;
+          this.remoteDialog = false
+          this.$emit('refreshRemoteFromAdding')
+          this.resetRemoteForm()
         })
         .catch((err) => {
           console.log(err);
         });
-    },
-    getRemoteJobs() {
-      kaapanaApiService
-        .federatedRemoteApiGet("/jobs", {
-        limit: 100,
-        }).then((response) => {
-          this.remoteJobs = response.data;
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    },
+    }
   }
 }
 

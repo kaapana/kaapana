@@ -49,10 +49,10 @@ class JsonWriter(object):
     def _load_json(filename):
         try:
             with open(filename) as json_file:
-                exp_data = json.load(json_file)
+                workflow_data = json.load(json_file)
         except FileNotFoundError:
-            exp_data = []
-        return exp_data
+            workflow_data = []
+        return workflow_data
 
     def __init__(self, log_dir) -> None:
         self.filename = os.path.join(log_dir, 'fl_stats.json')
@@ -60,9 +60,9 @@ class JsonWriter(object):
         # not accumulating anything because this leads to a decrease in speed over many epochs!
 
     def append_data_dict(self, data_dict):
-        exp_data = JsonWriter._load_json(self.filename)
-        exp_data.append(data_dict)
-        JsonWriter._write_json(self.filename, exp_data)
+        workflow_data = JsonWriter._load_json(self.filename)
+        workflow_data.append(data_dict)
+        JsonWriter._write_json(self.filename, workflow_data)
 
 # Todo move in Jonas library as normal function 
 def requests_retry_session(
@@ -176,7 +176,7 @@ class KaapanaFederatedTrainingBase(ABC):
         self.use_minio_mount = use_minio_mount
         self.run_in_parallel = False
         self.federated_dir = os.getenv('RUN_ID', str(uuid.uuid4()))
-        self.workflow_dir = workflow_dir
+        self.workflow_dir = workflow_dir or os.getenv('WORKFLOW_DIR')
         print('working directory', self.workflow_dir)
 
         conf_data = self.get_conf(self.workflow_dir)
@@ -207,7 +207,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
         self.client_url = f'http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client'
         with requests.Session() as s:
-            r = requests_retry_session(session=s).get(f'{self.client_url}/client-kaapana-instance')
+            r = requests_retry_session(session=s).get(f'{self.client_url}/kaapana-instance')
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.client_network = r.json()
 
@@ -223,7 +223,7 @@ class KaapanaFederatedTrainingBase(ABC):
             self.federated_round_start = 0
         print(instance_names)
         with requests.Session() as s:
-            r = requests_retry_session(session=s).post(f'{self.client_url}/get-remote-kaapana-instances', json={'instance_names': instance_names})
+            r = requests_retry_session(session=s).post(f'{self.client_url}/get-kaapana-instances', json={'instance_names': instance_names})
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.remote_sites = r.json()
 
@@ -237,7 +237,6 @@ class KaapanaFederatedTrainingBase(ABC):
     def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data['federated_form']['federated_round'] = federated_round
-        distributed_jobs = []
         for site_info in self.remote_sites:
             if site_info['instance_name'] not in self.tmp_federated_site_info:
                 self.tmp_federated_site_info[site_info['instance_name']] = {}
@@ -246,45 +245,29 @@ class KaapanaFederatedTrainingBase(ABC):
             else:
                 self.remote_conf_data['federated_form']['before_previous_dag_run'] = self.tmp_federated_site_info[site_info['instance_name']]['before_previous_dag_run']
                 self.remote_conf_data['federated_form']['from_previous_dag_run'] = self.tmp_federated_site_info[site_info['instance_name']]['from_previous_dag_run']
-
+            
             with requests.Session() as s:
-                r = requests_retry_session(session=s).post(f'{self.client_url}/job',
+                r = requests_retry_session(session=s).put(f'{self.client_url}/workflow_jobs',
                         json={
-                            "dag_id": self.remote_conf_data['federated_form']["remote_dag_id"],
-                            "conf_data": self.remote_conf_data,
-                            "status": "queued",
-                            "username": self.local_conf_data["experiment_form"]["username"],
-                            "owner_kaapana_instance_name": self.client_network['instance_name'],
-                            "kaapana_instance_id": site_info['id']
-                        }, 
+                            'federated': True,
+                            'dag_id': self.remote_conf_data['federated_form']["remote_dag_id"],
+                            'conf_data': self.remote_conf_data,
+                            'username': self.local_conf_data["workflow_form"]["username"],
+                            'instance_names': [site_info['instance_name']],
+                            'workflow_id': self.local_conf_data["workflow_form"]["workflow_id"],
+                        },
                         verify=self.client_network['ssl_check']
                     )
 
             KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
-            job = r.json()
-            print('Created Job')
-            print(job)
+            print(f"Response r: {r}")
+            response = r.json()
+            print(f'Created Job and added to Workflow; Job: {response}')
+            # print(f"Workflow: {response['workflow']}")
             self.tmp_federated_site_info[site_info['instance_name']] = {
-                'job_id': job['id'],
-                'fernet_key': site_info['fernet_key']
+                "job_id": response[0]["id"],
+                "fernet_key": site_info["fernet_key"]
             }
-            distributed_jobs.append(job)
-
-        # update experiment.experiment_jobs with created job
-        with requests.Session() as s:
-            r = requests_retry_session(session=s).put(f'{self.client_url}/experiment_jobs',
-                    json={
-                        "exp_id": self.local_conf_data["experiment_form"]["exp_id"],
-                        "experiment_name": self.local_conf_data["experiment_form"]["experiment_name"],
-                        "experiment_jobs": distributed_jobs,
-                    },
-                    verify=self.client_network['ssl_check']
-                )
-        KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
-        experiment = r.json()
-        print(f'Updated Experiment {experiment["experiment_name"]} with created jobs!')
-        print(experiment)
-        # add sth to self.tmp_federated_site_info[site_info['instance_name']] ?!
     
     @timeit
     def wait_for_jobs(self, federated_round):

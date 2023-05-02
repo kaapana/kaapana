@@ -14,7 +14,7 @@
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
           <div v-if="settings.navigationMode">
-          <v-list-item :to="'/experiments'" v-if="isAuthenticated">
+          <v-list-item :to="'/workflows'" v-if="isAuthenticated">
             <v-list-item-action>
               <v-icon>mdi-gamepad-variant</v-icon>
             </v-list-item-action>
@@ -140,7 +140,7 @@
                   </v-btn>
                 </v-bottom-navigation>
                 <v-bottom-navigation v-if="advancedNavigation  && drawer" color="primary" :elevation="0" inset mode="shift">
-                  <v-menu offset-y v-for="(section, sectionKey) in externalWebpages" :key="section.id" class="kaapana-menu">
+                  <v-menu offset-y v-for="(section, sectionKey) in externalWebpages" :key="section.id">
                     <template v-slot:activator="{ on, attrs }">
                       <v-btn
                         v-bind="attrs"
@@ -200,11 +200,11 @@ export default Vue.extend({
     settings: settings,
     workflowsList: [
       ['Data Upload', 'mdi-cloud-upload', '/data-upload'],
-      ['Data curation', 'mdi-view-gallery-outline', '/datasets'],
-      ['Experiment execution', 'mdi-play-box', '/experiment-execution'],
-      ['Experiment list', 'mdi-clipboard-text-outline', '/experiments'],
-      ['Experiment results', 'mdi-chart-bar-stacked', '/results-browser'],
-      ['Federated learning', 'mdi-vector-triangle', '/federated-learning'],
+      ['Data Curation', 'mdi-view-gallery-outline', '/datasets'],
+      ['Workflow Execution', 'mdi-play-box', '/workflow-execution'],
+      ['Workflow List', 'mdi-clipboard-text-outline', '/workflows'],
+      ['Workflow Results', 'mdi-chart-bar-stacked', '/results-browser'],
+      ['Instance Overview', 'mdi-vector-triangle', '/runner-instances'],
       ['Pending Applications', 'mdi-timer-sand', '/pending-applications']
     ]
   }),
@@ -306,10 +306,6 @@ $kaapana-green: #ff7a20;
 // Example of colors
 .kaapana-blue {
   color: $kaapana-blue
-}
-
-.kaapana-menu {
-  z-index: 11;
 }
 
 .kaapana-iframe-container {

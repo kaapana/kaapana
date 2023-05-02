@@ -80,8 +80,8 @@ ui_forms = {
                 "default": TASK_NAME,
                 "required": True
             },
-            "experiment_name": {
-                "title": "Experiment name",
+            "workflow_name": {
+                "title": "Workflow name",
                 "description": "Specify a name for the training task",
                 "type": "string",
                 "required": False
@@ -228,7 +228,6 @@ ui_forms = {
 }
 args = {
     'ui_visible': True,
-    'ui_federated': True,
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),

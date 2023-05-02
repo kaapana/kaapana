@@ -35,7 +35,7 @@ async def tag_data(data: list = Body(...)):
         )
         doc = es.get(index="meta-index", id=series_instance_uid)
         print(doc)
-        index_tags = doc["_source"].get("tags_keyword", [])
+        index_tags = doc["_source"].get("00000000 Tags_keyword", [])
 
         final_tags = list(
             set(tags)
@@ -46,7 +46,7 @@ async def tag_data(data: list = Body(...)):
         print(f"Final tags: {final_tags}")
 
         # Write Tags back
-        body = {"doc": {"tags_keyword": final_tags}}
+        body = {"doc": {"00000000 Tags_keyword": final_tags}}
         es.update(index="meta-index", id=series_instance_uid, body=body)
 
     try:
@@ -64,13 +64,14 @@ async def tag_data(data: list = Body(...)):
         raise HTTPException(500, e)
 
 
-@router.get("/series")
-async def get_series(body: str):
+# This should actually be a get request but since the body is too large for a get request
+# we use a post request
+@router.post("/series")
+async def get_series(data: dict = Body(...)):
     import pandas as pd
 
-    body: dict = json.loads(body)
-    structured: bool = body.get("structured", False)
-    query: dict = body.get("query", {"query_string": {"query": "*"}})
+    structured: bool = data.get("structured", False)
+    query: dict = data.get("query", {"query_string": {"query": "*"}})
 
     if structured:
         hits = execute_opensearch_query(
@@ -119,7 +120,7 @@ async def get_data(series_instance_uid):
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
         thumbnail_src = (
-            f"minio/service-segmentation-thumbnail/batch/{series_instance_uid}"
+            f"minio/thumbnails/batch/{series_instance_uid}"
             f"/generate-segmentation-thumbnail/{series_instance_uid}.png"
         )
     else:
@@ -153,18 +154,10 @@ async def get_field_values(query, field, size=10000):
         return []
 
 
-@router.get("/fields")
-async def get_fields(index: str = "meta-index", field: str = None):
-    mapping = await get_field_mapping(index)
-    if field:
-        return JSONResponse(mapping[field])
-    else:
-        return JSONResponse(mapping)
-
-
-@router.get("/dashboard")
-async def get_dashboard(config: str):
-    config: dict = json.loads(config)
+# This should actually be a get request but since the body is too large for a get request
+# we use a post request
+@router.post("/dashboard")
+async def get_dashboard(config: dict = Body(...)):
     series_instance_uids = config.get("series_instance_uids")
     names = config.get("names", [])
 
@@ -242,52 +235,65 @@ async def get_dashboard(config: str):
     return JSONResponse(dict(histograms=histograms, metrics=metrics))
 
 
-@router.get("/query_values")
-async def get_query_values(query: Union[str, None] = None):
+async def get_all_values(item_name, query):
+    name_field_map = await get_field_mapping()
+
+    item_key = name_field_map.get(item_name)
+    if not item_key:
+        return {}  # todo: maybe better default
+
+    item = OpenSearch(
+        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+    ).search(
+        body={
+            "size": 0,
+            # {"query":"D","field":"00000000 Tags_keyword.keyword","boolFilter":[]}
+            "query": query,  # {"query": {"ids": {"values": series_instance_uids}}}
+            "aggs": {item_name: {"terms": {"field": item_key, "size": 10000}}},
+        }
+    )[
+        "aggregations"
+    ][
+        item_name
+    ]
+
+    if "buckets" in item and len(item["buckets"]) > 0:
+        return {
+            "items": (
+                [
+                    dict(
+                        text=f"{bucket.get('key_as_string', bucket['key'])}  ({bucket['doc_count']})",
+                        value=bucket.get("key_as_string", bucket["key"]),
+                        count=bucket["doc_count"],
+                    )
+                    for bucket in item["buckets"]
+                ]
+            ),
+            "key": item_key,
+        }
+    else:
+        return {}
+
+
+@router.get("/query_values/{field_name}")
+async def get_query_values_item(field_name: str, query: Union[str, None] = None):
     if query:
         query: dict = json.loads(query)
     if not query or query == {}:
         query = {"query_string": {"query": "*"}}
 
-    try:
-        name_field_map = await get_field_mapping()
+    return JSONResponse(await get_all_values(field_name, query))
 
-        # TODO: This is from a performance perspective not ideal, sine we will have one request per item
-        # The problem is, that if we have 'too' diverse data, we reach the bucket limit and the query fails.
-        res = {}
-        for name, field in name_field_map.items():
-            temp_res = OpenSearch(
-                hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-            ).search(
-                body={
-                    "size": 0,
-                    "query": query,
-                    "aggs": {name: {"terms": {"field": field, "size": 10000}}},
-                }
-            )
 
-            res = {**res, **(temp_res["aggregations"])}
+@router.get("/field_names")
+async def get_field_names():
+    return JSONResponse(list((await get_field_mapping()).keys()))
 
-    except Exception as e:
-        print("ERROR in elasticsearch search!")
-        raise HTTPException(500, e)
 
-    result = {
-        k: {
-            "items": (
-                [
-                    dict(
-                        text=f"{i.get('key_as_string', i['key'])}  ({i['doc_count']})",
-                        value=i.get("key_as_string", i["key"]),
-                        count=i["doc_count"],
-                    )
-                    for i in item["buckets"]
-                ]
-            ),
-            "key": name_field_map[k],
-        }
-        for k, item in res.items()
-        if len(item["buckets"]) > 0
-    }
-
-    return JSONResponse(result)
+@router.get("/fields")
+async def get_fields(index: str = "meta-index", field: str = None):
+    mapping = await get_field_mapping(index)
+    if field:
+        return JSONResponse(mapping[field])
+    else:
+        return JSONResponse(mapping)

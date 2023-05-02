@@ -33,6 +33,7 @@ remote_dag_id = "nnunet-training"
 skip_operators = ["nnunet-training", "zip-unzip-training", "model2dicom", "dcmsend", "generate-nnunet-report-training", "upload-nnunet-data", "upload-staticwebsiteresults", "pdf2dcm-training", "dcmsend-pdf", "workflow-cleaner"]
 federated_operators = ["nnunet-preprocess", "nnunet-training"]
 ui_forms = {
+    "data_form": {},
     "external_schema_federated_form": {
         "type": "object",
         "properties": {
@@ -72,8 +73,7 @@ ui_forms = {
 }
 
 args = {
-    'ui_visible': False,
-    'ui_federated': True,
+    'ui_visible': True,
     'ui_forms': ui_forms,
     'owner': 'kaapana',
     'start_date': days_ago(0),

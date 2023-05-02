@@ -30,7 +30,7 @@ RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/d
 
 # Code server
 RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.2.0
+RUN /bin/bash install.sh --version 4.10.1
 RUN code-server --install-extension ms-python.python
 
 # Juyterlab

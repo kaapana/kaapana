@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-persistence-layer-operators"
+    action: "copy"

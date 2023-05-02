@@ -285,7 +285,15 @@ class PodLauncher(LoggingMixin):
                     message = state_terminated.message
                     reason = state_terminated.reason
                     signal = state_terminated.signal
-                    if exit_code != 0:
+                    if exit_code == 126:
+                        self.log.warn("")
+                        self.log.warn("######## Container Skip !!")
+                        self.log.warn("")
+
+                        af_status = State.SKIPPED
+                        kube_status = "SKIPPED"
+                        
+                    elif exit_code != 0:
                         self.log.warn("")
                         self.log.warn("######## Container Error !!")
                         self.log.warn("")

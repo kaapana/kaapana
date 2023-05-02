@@ -18,13 +18,9 @@
                 }"
           >
             <Gallery
+                :ref="studyInstanceUID"
                 :seriesInstanceUIDs="seriesInstanceUIDs"
-                :selectedTags="selectedTags"
-                :datasetName="datasetName"
-                :datasetNames="datasetNames"
                 @openInDetailView="(_seriesInstanceUID) => openInDetailView(_seriesInstanceUID)"
-                @emptyStudy="() => removeEmptyStudy(patient, studyInstanceUID)"
-                @selectedItems="_seriesInstanceUIDs => collectAndPropagateImageIds(studyInstanceUID, _seriesInstanceUIDs)"
             />
           </v-lazy>
         </v-list>
@@ -36,65 +32,34 @@
 <script>
 /* eslint-disable */
 import Chip from "./Chip";
-import CardSelect from "./CardSelect.vue";
+import SeriesCard from "./SeriesCard.vue";
 import Gallery from "./Gallery.vue";
 
 export default {
   emits: ['openInDetailView', 'update:patients', 'selectedItems'],
   props: {
-    datasetNames: {
-      type: Array,
-      default: () => []
-    },
-    datasetName: {
-      type: String,
-      default: null
-    },
     patients: {
       type: Object,
       default: () => {}
     },
-    selectedTags: {
-      type: Array
-    },
   },
   data() {
     return {
-      detailViewSeriesInstanceUID: null,
-      selectedItems: {},
+      detailViewSeriesInstanceUID: null
     };
   },
   components: {
-    CardSelect,
+    SeriesCard,
     Chip,
     Gallery
   },
   mounted() {
   },
-  watch: {
-    selectedTags() {
-      console.log(this.selectedTags)
-    },
-  },
   methods: {
     openInDetailView(seriesInstanceUID) {
       this.$emit('openInDetailView', seriesInstanceUID);
-    },
-    collectAndPropagateImageIds(study_id, _seriesInstanceUIDs) {
-      this.selectedItems[study_id] = _seriesInstanceUIDs
-      this.$emit('selectedItems', Object.values(this.selectedItems))
-    },
-    removeEmptyStudy(patient, study) {
-      const patients_copy = {...this.patients}
-      delete patients_copy[patient][study]
-
-      if (Object.values(patients_copy[patient]).length === 0) {
-        delete patients_copy[patient]
-      }
-
-      this.$emit('update:patients', patients_copy)
-    },
-  },
+    }
+  }
 };
 </script>
 <style>

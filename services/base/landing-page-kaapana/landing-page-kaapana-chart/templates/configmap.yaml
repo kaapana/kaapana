@@ -35,12 +35,17 @@ data:
           "minio": {
             "label": "Minio",
             "endpoint": "/minio-console",
-            "linkTo": "/minio-console"
+            "linkTo": "/minio-console/buckets"
           },
           "doccano": {
             "label": "Doccano",
             "endpoint": "/doccano/",
             "linkTo": "/doccano/"
+          },
+          "persistence": {
+            "label": "Persistence Layer",
+            "endpoint": "/persistence/",
+            "linkTo": "/persistence/"
           }
         }
       },

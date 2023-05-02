@@ -148,14 +148,14 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                 if kind_of_dags == "all":
                     dags[dag] = dag_data
                 elif ((kind_of_dags == "dataset") and ("ui_forms" in dag_data and
-                        "data_form" in dag_data["ui_forms"] and
-                        "properties" in dag_data["ui_forms"]["data_form"] and 
-                        "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                        "workflow_form" in dag_data["ui_forms"] and
+                        "properties" in dag_data["ui_forms"]["workflow_form"] and 
+                        "dataset_name" in dag_data["ui_forms"]["workflow_form"]["properties"])):
                     dags[dag] = dag_data
                 elif ((kind_of_dags == "minio") and ("ui_forms" in dag_data and
-                        "data_form" in dag_data["ui_forms"] and
-                        "properties" in dag_data["ui_forms"]["data_form"] and 
-                        "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                        "workflow_form" in dag_data["ui_forms"] and
+                        "properties" in dag_data["ui_forms"]["workflow_form"] and 
+                        "bucket_name" in dag_data["ui_forms"]["workflow_form"]["properties"])):
                     dags[dag] = dag_data
         if only_dag_names is True:
             cached_dag_name_list = sorted(list(dags.keys()))
@@ -184,14 +184,14 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                     if kind_of_dags == "all":
                         dags[dag] = dag_data
                     elif ((kind_of_dags == "dataset") and ("ui_forms" in dag_data and
-                            "data_form" in dag_data["ui_forms"] and
-                            "properties" in dag_data["ui_forms"]["data_form"] and 
-                            "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                            "workflow_form" in dag_data["ui_forms"] and
+                            "properties" in dag_data["ui_forms"]["workflow_form"] and 
+                            "dataset_name" in dag_data["ui_forms"]["workflow_form"]["properties"])):
                         dags[dag] = dag_data
                     elif ((kind_of_dags == "minio") and ("ui_forms" in dag_data and
-                            "data_form" in dag_data["ui_forms"] and
-                            "properties" in dag_data["ui_forms"]["data_form"] and 
-                            "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                            "workflow_form" in dag_data["ui_forms"] and
+                            "properties" in dag_data["ui_forms"]["workflow_form"] and 
+                            "bucket_name" in dag_data["ui_forms"]["workflow_form"]["properties"])):
                         dags[dag] = dag_data
             if only_dag_names is True:
                 cached_dag_name_list = sorted(list(dags.keys()))
@@ -221,7 +221,7 @@ def check_dag_id_and_dataset(
     ):
         if dag_id not in json.loads(db_client_kaapana.allowed_dags):
             return f"Dag {dag_id} is not allowed to be triggered from remote!"
-        if "data_form" in conf_data:
+        if "data_form" in conf_data: # TODO: not sure if this should be changed to workflow_form
             pass
             # ToDo adapt!
             # queried_data = crud.get_datasets(conf_data["opensearch_form"])

@@ -65,7 +65,7 @@
             </v-chip>
           </template>
           <template v-slot:item.airflow="{ item }">
-            <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" bottom>
+            <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_graph(item)' small icon>
                   <v-icon color="secondary" dark>mdi-chart-timeline-variant</v-icon>
@@ -73,7 +73,7 @@
               </template>
               <span>job's airflow dag_run graph view</span>
             </v-tooltip>
-            <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" bottom>
+            <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-if="item.status == 'failed'" v-bind="attrs" v-on="on" @click='direct_airflow_operator_logs(item)' small icon>
                   <v-icon color="secondary" dark>mdi-alert-decagram-outline</v-icon>
@@ -81,7 +81,7 @@
               </template>
               <span>airflow logs of failed operator</span>
             </v-tooltip>
-            <v-tooltip v-if="item.kaapana_instance.instance_name != item.owner_kaapana_instance_name" bottom>
+            <v-tooltip v-if="item.kaapana_instance.instance_name != item.owner_kaapana_instance_name && !item.external_job_id" bottom>
                 <template v-slot:activator="{ on, attrs }">
                   <v-icon color="secondary" dark v-bind="attrs" v-on="on">
                     mdi-cloud-braces
@@ -125,6 +125,16 @@
                 <span>delete single job</span>
               </v-tooltip>
             </v-col>
+            <div v-else-if="item.external_job_id">
+              <v-tooltip bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <v-btn v-bind="attrs" v-on="on" @click='abortJob(item)' small icon>
+                    <v-icon color="secondary" dark>mdi-stop-circle-outline</v-icon>
+                  </v-btn>
+                </template>
+                <span>abort single job</span>
+              </v-tooltip>
+            </div>
             <div v-else>
               <v-tooltip bottom>
                 <template v-slot:activator="{ on, attrs }">

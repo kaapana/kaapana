@@ -578,19 +578,20 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
         # iterate over workflow's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_workflow()
         db_workflow = crud.get_workflow(db, workflow.workflow_id)
         for db_job in db_workflow.workflow_jobs:
-            # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
-            job = schemas.JobUpdate(
-                **{
-                    "job_id": db_job.id,
-                    "status": "abort",
-                    "description": "The job was aborted by the user!",
-                }
-            )
-
-            # put_job(job, db)  # would be easier but doesn't work, so let's do it manually
-            crud.abort_job(db, job, remote=False)
-            job.status = "failed"
-            crud.update_job(db, job, remote=False)  # update db_job to failed
+            # if (not db_workflow.federated and not db_job.kaapana_instance.remote) or (db_workflow.federated and "external_schema_federated_form" in db_job.conf_data):
+            if not db_job.kaapana_instance.remote:
+                # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
+                job = schemas.JobUpdate(
+                    **{
+                        "job_id": db_job.id,
+                        "status": "abort",
+                        "description": "The job was aborted by the user!",
+                    }
+                )
+                # put_job(job, db)  # would be easier but doesn't work, so let's do it manually
+                crud.abort_job(db, job, remote=False)
+                job.status = "failed"
+                crud.update_job(db, job, remote=False)  # update db_job to failed
 
         # update aborted workflow
         return crud.update_workflow(db, workflow)

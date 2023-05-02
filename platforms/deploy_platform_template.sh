@@ -34,6 +34,8 @@ JOBS_NAMESPACE="{{ jobs_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 
+OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
+
 INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
@@ -393,6 +395,7 @@ function deploy_chart {
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
     --set global.enable_nfs=$ENABLE_NFS \
+    --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \

@@ -11,6 +11,10 @@
       </v-card-title>
       <v-card-text>
         <v-container>
+          <v-row>
+            <v-icon color="primary" class="mx-2" small>mdi-home</v-icon>
+            local instance: {{ localKaapanaInstance }}
+          </v-row>
           <v-row v-if="available_kaapana_instance_names.length > 1">
             <v-col cols="12">
               <v-select 
@@ -20,8 +24,7 @@
                 multiple="" 
                 chips="" 
                 hint="On which instances do you want to execute the workflow?"
-              >
-              </v-select>
+              ></v-select>
             </v-col>
           </v-row>
           <!-- DAG: select dag -->

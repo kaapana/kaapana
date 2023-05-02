@@ -1,6 +1,11 @@
 <template>
   <v-container class="pa-0" fluid style="height: 100%">
-    <v-card @click="onClick" height="100%" :id="seriesInstanceUID">
+    <v-card
+      @click="onClick"
+      height="100%"
+      :id="seriesInstanceUID"
+      class="seriesCard"
+    >
       <v-img
         :src="src"
         aspect-ratio="1"
@@ -75,7 +80,6 @@ import { settings as defaultSettings } from "@/static/defaultUIConfig";
 export default {
   name: "SeriesCard",
   components: { Chip, TagChip },
-  emits: ["openInDetailView"],
   props: {
     seriesInstanceUID: {
       type: String,
@@ -184,7 +188,7 @@ export default {
           this.clicks = 0;
           if (
             !(
-              !settings.datasets.cardText ||
+              !this.settings.datasets.cardText ||
               this.$store.getters.multiSelectKeyPressed ||
               this.$store.getters.selectedItems.length > 1
             )
@@ -205,7 +209,7 @@ export default {
       this.showDetails();
     },
     showDetails() {
-      this.$emit("openInDetailView", this.seriesInstanceUID);
+      this.$store.commit("setDetailViewItem", this.seriesInstanceUID);
     },
   },
 };

@@ -362,14 +362,15 @@
       // API Calls: Instances
       getKaapanaInstance() {
         kaapanaApiService
-          .federatedClientApiGet("//kaapana-instance")
+          .federatedClientApiGet("/kaapana-instance")
           .then((response) => {
             console.log('getKaapanaInstance', response.data)
             this.localKaapanaInstance = response.data.instance_name
             if (this.onlyLocal) {
               this.available_kaapana_instance_names = [response.data.instance_name]
             }
-            this.selected_kaapana_instance_names.push(this.localKaapanaInstance)
+            // this.selected_kaapana_instance_names.push(this.localKaapanaInstance)
+            this.selected_kaapana_instance_names = [this.localKaapanaInstance]
           })
           .catch((err) => {
             console.log(err); 

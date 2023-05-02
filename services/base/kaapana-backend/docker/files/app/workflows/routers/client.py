@@ -528,7 +528,9 @@ def create_workflow(
                 "involved_instances"
             ],
             "federated": json_schema_data.federated,
-            "dataset_name": json_schema_data.conf_data["data_form"]["dataset_name"],
+            "dataset_name": json_schema_data.conf_data["data_form"]["dataset_name"]
+            if "data_form" in json_schema_data.conf_data
+            else None,
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)
@@ -540,7 +542,10 @@ def create_workflow(
     #     )
 
     # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
-    Thread(target=crud.queue_generate_jobs_and_add_to_workflow, args=(db, db_workflow, json_schema_data)).start()
+    Thread(
+        target=crud.queue_generate_jobs_and_add_to_workflow,
+        args=(db, db_workflow, json_schema_data),
+    ).start()
 
     # directly return created db_workflow for fast feedback
     return db_workflow

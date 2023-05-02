@@ -590,14 +590,17 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
 def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     utc_timestamp = get_utc_timestamp()
-    db_job = get_job(
-        db, job.job_id
-    )  # should actually be job.job_id instead of just job but somehow (unfortunately) works ...
-    conf_data = json.loads(db_job.conf_data)
-    conf_data["client_job_id"] = db_job.id
+    db_job = get_job(db, job.job_id)
 
-    # repsonse.text of abort_job_airflow usused in backend but might be valuable for debugging
-    abort_job_airflow(db_job.dag_id, db_job.run_id, db_job.status)
+    airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
+    if airflow_details_resp.status_code == 200:
+        # repsonse.text of abort_job_airflow usused in backend but might be valuable for debugging
+        abort_job_airflow(db_job.dag_id, db_job.run_id, "failed")
+        # abort_job_airflow(airflow_details_resp.text["dag_id"], airflow_details_resp.text["run_id"], "failed") # db_job.status
+    else:
+        logging.error(
+            f"No dag_run in Airflow with dag_id '{db_job.dag_id}' and run_id '{db_job.run_id}'."
+        )
 
 
 def get_job_taskinstances(db: Session, job_id: int = None):

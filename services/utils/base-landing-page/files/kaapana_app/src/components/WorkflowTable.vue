@@ -351,7 +351,7 @@ methods: {
           workflow_status,
       }).then((response) => {
         // positive notification
-        const message = `Successfully aborted workflow ${workflow_id}`
+        const message = `Successfully aborted workflow ${workflow_id} and all its local jobs`
         this.$notify({
           type: "success",
           title: message,

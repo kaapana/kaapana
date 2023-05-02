@@ -167,6 +167,7 @@ class FilterKaapanaInstances(BaseModel):
     only_dag_names: bool = True
     kind_of_dags: str = None
 
+
 class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
     username: str = None
@@ -214,6 +215,7 @@ class Dataset(DatasetBase):
     class Config:
         orm_mode = True
 
+
 class AllowedDatasetCreate(DatasetBase):
     username: str = None
     identifiers: Optional[str]
@@ -221,7 +223,7 @@ class AllowedDatasetCreate(DatasetBase):
     @validator("identifiers")
     def convert_identifiers(cls, v):
         return json.loads(v)
-    
+
     class Config:
         orm_mode = True
 
@@ -234,6 +236,8 @@ class WorkflowBase(BaseModel):
     # dag_id of jobs which are summarized in that workflow (only makes sense for service workflows)
     dag_id: Optional[str] = None
     service_workflow: Optional[bool] = False
+    federated: bool = False
+    dataset_name: str = None
 
 
 class Workflow(WorkflowBase):

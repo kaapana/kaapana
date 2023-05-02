@@ -126,7 +126,7 @@ export default {
         filters[0].item_select.push(value);
         this.display_filters = true;
       } else if (filters.length === 0) {
-        loadValues(key, this.constructDatasetQuery()).then((res) => {
+        loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
           this.mapping[key] = res.data;
           this.filters.push({
             id: this.counter++,

@@ -23,7 +23,8 @@ const loadDatasetByName = async (datasetName) => {
   try {
     const dataset = (
       await httpClient.get(
-        KAAPANA_BACKEND_ENDPOINT + `client/dataset?name=${datasetName}`
+        KAAPANA_BACKEND_ENDPOINT +
+          `client/dataset?name=${encodeURIComponent(datasetName)}`
       )
     ).data;
     return dataset;
@@ -114,11 +115,11 @@ const loadFieldNames = async () => {
   }
 };
 
-const loadValues = async (query, key) => {
+const loadValues = async (key, query={}) => {
   try {
-    return await httpClient.get(
+    return await httpClient.post(
       KAAPANA_BACKEND_ENDPOINT +
-        `dataset/query_values/${key}?query=${JSON.stringify(query)}`
+        `dataset/query_values/${encodeURIComponent(key)}`, query
     );
   } catch (error) {
     Vue.notify({

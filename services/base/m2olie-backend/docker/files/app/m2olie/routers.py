@@ -84,20 +84,20 @@ async def start_workflow(
     }
     db_job = type("db_job", (object,), {"dag_id": dagId})
     response = execute_job_airflow(conf_data=conf_data, db_job=db_job)
-    trigger_info = response.json()
-    print(trigger_info)
-    run_id = trigger_info["message"][1]["run_id"]
-    workflow_running = True
-    while workflow_running:
-        # check_workflow_is_running(run_id)  # implement this function to check if the workflow is still running
-        resp_dagrun = get_dagrun_details_airflow(dagId, run_id)
-        if resp_dagrun.status_code == 200:
-            print(resp_dagrun.content)
-            content = resp_dagrun.json()
-            state = content["state"]
-            if state != "queued" and state != "running":
-                workflow_running = False
-        # response = get_dagrun_tasks_airflow() not used, since no task details are needed
-        time.sleep(15)
+    # trigger_info = response.json()
+    # print(trigger_info)
+    # run_id = trigger_info["message"][1]["run_id"]
+    # workflow_running = True
+    # while workflow_running:
+    #     # check_workflow_is_running(run_id)  # implement this function to check if the workflow is still running
+    #     resp_dagrun = get_dagrun_details_airflow(dagId, run_id)
+    #     if resp_dagrun.status_code == 200:
+    #         print(resp_dagrun.content)
+    #         content = resp_dagrun.json()
+    #         state = content["state"]
+    #         if state != "queued" and state != "running":
+    #             workflow_running = False
+    #     # response = get_dagrun_tasks_airflow() not used, since no task details are needed
+    #     time.sleep(15)
     return response.content
 

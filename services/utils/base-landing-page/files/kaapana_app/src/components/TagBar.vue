@@ -65,7 +65,12 @@
       </v-chip-group>
     </v-col>
     <v-col cols="1" align="center">
-      <v-btn @click="editMode = !editMode" small icon :disabled="disabledTagBar">
+      <v-btn
+        @click="editMode = !editMode"
+        small
+        icon
+        :disabled="disabledTagBar"
+      >
         <v-icon>mdi-application-edit-outline</v-icon>
       </v-btn>
     </v-col>
@@ -108,7 +113,7 @@ export default {
 
     if (this.settings.datasets.tagBar.tags.length > 0) this.editMode = false;
 
-    loadValues({}, "Tags").then(
+    loadValues("Tags").then(
       (res) =>
         (this.availableTags =
           "items" in res.data ? res.data["items"].map((i) => i["value"]) : [])
@@ -170,7 +175,7 @@ export default {
         !this.settings.datasets.cardText ||
         this.$store.getters.multiSelectKeyPressed ||
         this.$store.getters.selectedItems.length > 1
-      )
+      );
     },
   },
   watch: {

@@ -7,6 +7,7 @@ logger = get_logger(__name__, logging.DEBUG)
 
 if __name__=='__main__':
     keycloak = KeycloakHelper()
+    oidc_client_secret = os.environ["OIDC_CLIENT_SECRET"]
     
     ### Add realm
     file = "realm_objects/kaapana-realm.json"
@@ -30,6 +31,7 @@ if __name__=='__main__':
     ### Add client 
     file = "realm_objects/kaapana-client.json"
     payload = json.load(open(file,"r"))
+    payload["secret"] = oidc_client_secret
     KEYCLOAK_URI = os.environ["KEYCLOAK_URI"]
     
     redirect_uris = []

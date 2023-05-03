@@ -35,8 +35,16 @@ export default Vue.extend({
         }).then((response) => {
           this.clientWorkflows = response.data;
           console.log("this.clientWorkflows: ", this.clientWorkflows)
+          this.$notify({
+            title: "Sucessfully refreshed workflow list.",
+            type: "success"
+          })
         })
         .catch((err) => {
+          this.$notify({
+            title: "Error while refreshing workflow list.",
+            type: "error"
+          })
           console.log(err);
         });
     },

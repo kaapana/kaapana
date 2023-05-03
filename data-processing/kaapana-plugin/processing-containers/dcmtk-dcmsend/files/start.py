@@ -126,7 +126,7 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
 
 
 if LEVEL == 'element':
-    batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+    batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*')) if os.path.isdir(f)])
 
     for batch_element_dir in batch_folders:
         element_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])

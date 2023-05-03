@@ -32,6 +32,8 @@ dependencies:
     version: 0.0.0
   - name: minio-chart
     version: 0.0.0
+  - name: minio-console-chart
+    version: 0.0.0
   - name: minio-init-chart
     version: 0.0.0
     condition: Release.IsInstall

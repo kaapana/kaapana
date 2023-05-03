@@ -41,7 +41,7 @@ spec:
           - --upstream=https://traefik-{{  .Values.global.instance_uid  | default 0 }}.{{ .Values.global.helm_namespace }}.svc:{{ .Values.global.https_port }}
           - --provider=keycloak-oidc
           - --client-id=kaapana
-          - --client-secret={{ .Values.global.oidc_client_secret }}
+          - --client-secret=uQBJzc2YDzjRfj2OCT79JDShojeqAK2R
           - --cookie-secret=P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ=
           - --redeem-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/token
           - --oidc-jwks-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/certs

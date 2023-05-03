@@ -35,7 +35,7 @@ data:
           "minio": {
             "label": "Minio",
             "endpoint": "/minio-console",
-            "linkTo": "/minio-console/buckets"
+            "linkTo": "/minio-console"
           },
           "doccano": {
             "label": "Doccano",

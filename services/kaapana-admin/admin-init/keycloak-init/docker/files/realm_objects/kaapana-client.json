@@ -1,6 +1,6 @@
 {
   "clientId" : "kaapana",
-  "secret" : "REPLACE",
+  "secret" : "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R",
   "webOrigins" : [ "*" ],
   "implicitFlowEnabled" : true,
   "directAccessGrantsEnabled" : true,

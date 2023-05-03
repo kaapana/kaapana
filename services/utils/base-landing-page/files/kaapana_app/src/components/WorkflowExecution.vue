@@ -169,9 +169,10 @@
       available_kaapana_instance_names(value) {
         if (value.length == 1) {
           this.selected_kaapana_instance_names =  value
-        } else {
-          this.selected_kaapana_instance_names = []
         }
+        // } else {
+        //   this.selected_kaapana_instance_names = []
+        // }
       },
       selected_kaapana_instance_names(value) {
         // reset dag_id and external_dag_id if instance changes

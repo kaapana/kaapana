@@ -29,6 +29,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 download_successful = HelperDcmWeb.downloadSeries(
                     seriesUID=series["reference_series_uid"],
                     target_dir=series["target_dir"],
+                    expected_object_count=series["expected_object_count"],
                 )
                 if not download_successful:
                     raise ValueError("ERROR")
@@ -67,6 +68,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]
         download_series_list = []
+        object_count = None
 
         print("#")
         print(f"# Modality:       {self.modality}")
@@ -193,57 +195,32 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                     print("No search_policy -> only dicom_tags will be used...")
 
                 elif self.search_policy == "reference_uid":
-                    ref_series_items = None
-                    if (0x0008, 0x1115) in incoming_dcm:
-                        ref_series_items = incoming_dcm[0x0008, 0x1115].value
-                    if (
-                        (0x3006, 0x0010) in incoming_dcm
-                        and (0x3006, 0x0012) in incoming_dcm[0x3006, 0x0010].value[0]
-                        and (0x3006, 0x0014)
-                        in incoming_dcm[0x3006, 0x0010]
-                        .value[0][0x3006, 0x0012]
-                        .value[0]
-                    ):
-                        ref_series_items = (
+                    pacs_series = []
+                    if incoming_dcm.Modality == "RTSTRUCT":
+                        assert (0x3006, 0x0010) in incoming_dcm
+                        ref_object = (
                             incoming_dcm[0x3006, 0x0010]
                             .value[0][0x3006, 0x0012]
                             .value[0][0x3006, 0x0014]
-                            .value
+                            .value[0]
                         )
-                    if ref_series_items is not None:
-                        for ref_series in ref_series_items:
-                            if (0x0020, 0x000E) not in ref_series:
-                                print(
-                                    "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                                )
-                                print("# ")
-                                print(
-                                    "# Could not extract SeriesUID from referenced DICOM series."
-                                )
-                                print("# Abort.")
-                                print("# ")
-                                print(
-                                    "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                                )
-                                raise ValueError("ERROR")
-                            search_filters["SeriesInstanceUID"] = str(
-                                ref_series[0x0020, 0x000E].value
-                            )
-                            break
+                        search_filters[
+                            "SeriesInstanceUID"
+                        ] = ref_object.SeriesInstanceUID
+                        object_count = len(list(ref_object[0x3006, 0x0016].value))
+
+                    elif incoming_dcm.Modality == "SEG":
+                        assert (0x0008, 0x1115) in incoming_dcm
+                        ref_object = incoming_dcm[0x0008, 0x1115].value[0]
+                        search_filters[
+                            "SeriesInstanceUID"
+                        ] = ref_object.SeriesInstanceUID
+                        object_count = len(list(ref_object[0x0008, 0x114A].value))
                     else:
-                        print(
-                            "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+                        raise ValueError(
+                            f"Unsupported modality: {incoming_dcm.Modality}"
                         )
-                        print("# ")
-                        print(
-                            "# Could not find referenced dcm-series within the metadata!"
-                        )
-                        print("# Abort.")
-                        print("# ")
-                        print(
-                            "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                        )
-                        raise ValueError("ERROR")
+
                 elif self.search_policy == "study_uid":
                     search_filters["StudyInstanceUID"] = incoming_dcm.StudyInstanceUID
                     if self.modality:
@@ -307,6 +284,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                         "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
                     )
                     raise ValueError("ERROR")
+
                 for series in pacs_series:
                     series_uid = series["0020000E"]["Value"][0]
 
@@ -324,6 +302,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                         {
                             "reference_series_uid": series_uid,
                             "target_dir": target_dir,
+                            "expected_object_count": object_count,
                         }
                     )
         else:
@@ -379,7 +358,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         modality=None,
         target_level="batch_element",
         dicom_tags=[],
-        expected_file_count=1,  # int or 'all'
+        expected_file_count="all",  # int or 'all'
         limit_file_count=None,
         parallel_downloads=3,
         pacs_dcmweb_host=f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc",

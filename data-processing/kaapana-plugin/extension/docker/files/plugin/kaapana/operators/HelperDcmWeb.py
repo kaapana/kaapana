@@ -15,18 +15,19 @@ from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 class DcmWebException(Exception):
     pass
 
-class HelperDcmWeb():
-    pacs_dcmweb_endpoint = f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets/"
+
+class HelperDcmWeb:
+    pacs_dcmweb_endpoint = (
+        f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets/"
+    )
     pacs_dcmweb = pacs_dcmweb_endpoint + "KAAPANA"
     client = DICOMwebClient(url=f"{pacs_dcmweb}/rs")
-    wait_time=5
+    wait_time = 5
     log = logging.getLogger(__name__)
 
     @staticmethod
     def checkIfSeriesAvailable(seriesUID):
-        payload = {
-            'SeriesInstanceUID': seriesUID
-        }
+        payload = {"SeriesInstanceUID": seriesUID}
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
         try:
             httpResponse = requests.get(url, params=payload)
@@ -34,17 +35,17 @@ class HelperDcmWeb():
                 return True
             else:
                 return False
-        except Exception as e: 
+        except Exception as e:
             print("Something went wrong during the request.")
             print(e)
             print("Retry.")
             return False
-    
+
     @staticmethod
-    def downloadSeries(seriesUID, target_dir, include_series_dir=False):
-        payload = {
-            'SeriesInstanceUID': seriesUID
-        }
+    def downloadSeries(
+        seriesUID, target_dir, expected_object_count=None, include_series_dir=False
+    ):
+        payload = {"SeriesInstanceUID": seriesUID}
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
         httpResponse = requests.get(url, params=payload)
         # print(f"Requesting URL: {url}")
@@ -57,13 +58,18 @@ class HelperDcmWeb():
                 objectUIDList.append(
                     [
                         resultObject["0020000D"]["Value"][0],
-                        resultObject["00080018"]["Value"][0]
+                        resultObject["00080018"]["Value"][0],
                     ]
                 )  # objectUID
 
             if include_series_dir:
                 target_dir = join(target_dir, seriesUID)
             Path(target_dir).mkdir(parents=True, exist_ok=True)
+            if expected_object_count != None and expected_object_count != len(objectUIDList):
+                raise ValueError(f"expected_object_count {expected_object_count} != len(objectUIDList) {len(objectUIDList)} --> not all expected objects have been found -> abort")
+            elif expected_object_count != None:
+                print(f"expected_object_count {expected_object_count} == len(objectUIDList) {len(objectUIDList)} --> success!")
+            
             for objectUID in objectUIDList:
                 studyUID = objectUID[0]
                 objectUID = objectUID[1]
@@ -71,7 +77,7 @@ class HelperDcmWeb():
                     studyUID=studyUID,
                     seriesUID=seriesUID,
                     objectUID=objectUID,
-                    target_dir=target_dir
+                    target_dir=target_dir,
                 )
                 if not result:
                     return False
@@ -87,25 +93,25 @@ class HelperDcmWeb():
             print("################################")
             return False
 
-    @ staticmethod
+    @staticmethod
     def downloadObject(studyUID, seriesUID, objectUID, target_dir):
         payload = {
-            'requestType': 'WADO',
-            'studyUID': studyUID,
-            'seriesUID': seriesUID,
-            'objectUID': objectUID,
-            'contentType': 'application/dicom'
+            "requestType": "WADO",
+            "studyUID": studyUID,
+            "seriesUID": seriesUID,
+            "objectUID": objectUID,
+            "contentType": "application/dicom",
         }
         url = HelperDcmWeb.pacs_dcmweb + "/wado"
         response = requests.get(url, params=payload)
         if response.status_code == 200:
-            fileName = objectUID+".dcm"
+            fileName = objectUID + ".dcm"
             filePath = os.path.join(target_dir, fileName)
             with open(filePath, "wb") as f:
                 f.write(response.content)
-            
+
             return True
-        
+
         else:
             print("################################")
             print("#")
@@ -129,16 +135,20 @@ class HelperDcmWeb():
         """
         url = f"{HelperDcmWeb.pacs_dcmweb_endpoint}{aet}/rs{sub_url}"
 
-        response = requests.get(url,
-                            #params={'Accept': 'application/json'},
-                            verify=False)
+        response = requests.get(
+            url,
+            # params={'Accept': 'application/json'},
+            verify=False,
+        )
 
         if response.status_code == requests.codes.ok:
             return response.json()
         elif response.status_code == 204:
             return None
         else:
-            raise DcmWebException(f"Error accessing {url} errorcode {response.status_code}")
+            raise DcmWebException(
+                f"Error accessing {url} errorcode {response.status_code}"
+            )
 
     @staticmethod
     def getStudy(aet: str, study_uid: str):
@@ -146,7 +156,9 @@ class HelperDcmWeb():
 
     @staticmethod
     def getSeries(aet: str, study_uid: str, series_uid: str):
-        return HelperDcmWeb.quido_rs(aet, f"/studies/{study_uid}/series/{series_uid}/instances")
+        return HelperDcmWeb.quido_rs(
+            aet, f"/studies/{study_uid}/series/{series_uid}/instances"
+        )
 
     @staticmethod
     def getSeriesUidsForStudy(aet: str, study_uid: str) -> List[str]:
@@ -160,15 +172,25 @@ class HelperDcmWeb():
 
         for series_uid in series_uids:
             if series_uid not in series_uids_keep:
-                HelperDcmWeb.log.warn("Series %s does not exist for study %s on PACS", series_uid, study_uid)
+                HelperDcmWeb.log.warn(
+                    "Series %s does not exist for study %s on PACS",
+                    series_uid,
+                    study_uid,
+                )
                 continue
             series_uids_keep.remove(series_uid)
-        
+
         with tempfile.TemporaryDirectory() as tmp_dir:
-            HelperDcmWeb.log.info("1/4 Start Downloading all series to keep to %s", tmp_dir)
+            HelperDcmWeb.log.info(
+                "1/4 Start Downloading all series to keep to %s", tmp_dir
+            )
             for keep_series_uid in series_uids_keep:
-                HelperDcmWeb.log.info("Downloading Series %s to %s", keep_series_uid, tmp_dir)      
-                if not HelperDcmWeb.downloadSeries(keep_series_uid, tmp_dir, include_series_dir=True):
+                HelperDcmWeb.log.info(
+                    "Downloading Series %s to %s", keep_series_uid, tmp_dir
+                )
+                if not HelperDcmWeb.downloadSeries(
+                    keep_series_uid, tmp_dir, include_series_dir=True
+                ):
                     raise DcmWebException(f"Could not download {keep_series_uid}")
                 HelperDcmWeb.log.info("Done")
             HelperDcmWeb.log.info("Downloaded all series to keep to %s", tmp_dir)
@@ -180,7 +202,9 @@ class HelperDcmWeb():
             HelperDcmWeb.log.info("3/4 Upload series to keep again to PACS")
             for upload_series_uid in series_uids_keep:
                 HelperDcmWeb.log.info("Upload series %s", upload_series_uid)
-                HelperDcmWeb.upload_dcm_files(aet, os.path.join(tmp_dir, upload_series_uid))
+                HelperDcmWeb.upload_dcm_files(
+                    aet, os.path.join(tmp_dir, upload_series_uid)
+                )
 
             HelperDcmWeb.log.info("4/4 Delete temp files")
             # deletion of tmp_files should happen automaticaly if scope of tmp_dir is left
@@ -196,10 +220,11 @@ class HelperDcmWeb():
         uploaded_fiels = 0
         for file in files:
             uploaded_fiels += 1
-            HelperDcmWeb.log.info("Uploading %d / %d:  %s", uploaded_fiels, total_files, file)
+            HelperDcmWeb.log.info(
+                "Uploading %d / %d:  %s", uploaded_fiels, total_files, file
+            )
             dataset = pydicom.dcmread(file)
             HelperDcmWeb.client.store_instances(datasets=[dataset])
-
 
     @staticmethod
     def delete_study(aet: str, study_uid: str):
@@ -207,9 +232,11 @@ class HelperDcmWeb():
         if not HelperDcmWeb.getStudy(aet, study_uid):
             HelperDcmWeb.log.warn("Study does not exist on PACS")
             return
-        
+
         HelperDcmWeb.log.info("1/2: rejecting study")
-        rejectionURL = f"{HelperDcmWeb.pacs_dcmweb}/rs/studies/{study_uid}/reject/113001%5EDCM"
+        rejectionURL = (
+            f"{HelperDcmWeb.pacs_dcmweb}/rs/studies/{study_uid}/reject/113001%5EDCM"
+        )
         response = requests.post(rejectionURL, verify=False)
 
         if response.status_code != requests.codes.ok and response.status_code != 204:
@@ -225,15 +252,23 @@ class HelperDcmWeb():
 
         aet_rejection_stage = "IOCM_QUALITY"
         if not HelperDcmWeb.getStudy(aet_rejection_stage, study_uid):
-            raise DcmWebException(f"Could not find study {study_uid} in aet {aet_rejection_stage}")
+            raise DcmWebException(
+                f"Could not find study {study_uid} in aet {aet_rejection_stage}"
+            )
         HelperDcmWeb.log.info("Found study %s in aet %s", study_uid, study_uid)
-        
-        deletionURL = f"{HelperDcmWeb.pacs_dcmweb_endpoint}IOCM_QUALITY/rs/studies/{study_uid}"
+
+        deletionURL = (
+            f"{HelperDcmWeb.pacs_dcmweb_endpoint}IOCM_QUALITY/rs/studies/{study_uid}"
+        )
         HelperDcmWeb.log.info("Sending delete request %s", deletionURL)
         response = requests.delete(deletionURL, verify=False)
 
         if response.status_code != requests.codes.ok and response.status_code != 204:
-            raise DcmWebException("Error deleting study form iocm quality errorcode: %d content %s", response.status_code, response.content)
+            raise DcmWebException(
+                "Error deleting study form iocm quality errorcode: %d content %s",
+                response.status_code,
+                response.content,
+            )
 
         HelperDcmWeb.log.info("Request Successfull, awaiting deletion to complete")
         time.sleep(HelperDcmWeb.wait_time)
@@ -247,7 +282,6 @@ class HelperDcmWeb():
             raise DcmWebException(f"Deletion of study {study_uid} faild")
 
         HelperDcmWeb.log.info("Deletion of %s complete", study_uid)
-
 
     @staticmethod
     def reject_series(aet: str, study_uid: str, series_uid: str):

@@ -1,6 +1,11 @@
 <template>
   <v-container class="pa-0" fluid style="height: 100%">
-    <v-card @click="onClick" height="100%" :id="seriesInstanceUID">
+    <v-card
+      @click="onClick"
+      height="100%"
+      :id="seriesInstanceUID"
+      class="seriesCard"
+    >
       <v-img
         :src="src"
         aspect-ratio="1"
@@ -30,30 +35,30 @@
           <Chip :items="[modality]" />
           <v-spacer></v-spacer>
           <v-btn icon @click.stop="() => showDetails()" color="white">
-            <v-icon>mdi-eye-outline</v-icon>
+            <v-icon>mdi-eye</v-icon>
           </v-btn>
         </v-app-bar>
       </v-img>
       <v-card-text v-if="settings.datasets.cardText">
-        <div v-for="prop in settings.datasets.props">
-          <div v-if="prop['display']">
-            <v-row no-gutters style="font-size: x-small">
-              <v-col style="margin-bottom: -5px">
-                {{ prop["name"] }}
-              </v-col>
-            </v-row>
-            <v-row
-              no-gutters
-              style="font-size: small; padding-top: 0"
-              align="start"
-            >
-              <v-col>
-                <div :class="prop['truncate'] ? 'text-truncate' : ''">
-                  {{ seriesData[prop["name"]] || "N/A" }}
-                </div>
-              </v-col>
-            </v-row>
-          </div>
+        <div
+          v-for="prop in settings.datasets.props.filter((prop) => prop.display)"
+        >
+          <v-row no-gutters style="font-size: x-small">
+            <v-col style="margin-bottom: -5px">
+              {{ prop["name"] }}
+            </v-col>
+          </v-row>
+          <v-row
+            no-gutters
+            style="font-size: small; padding-top: 0"
+            align="start"
+          >
+            <v-col>
+              <div :class="prop['truncate'] ? 'text-truncate' : ''">
+                {{ seriesData[prop["name"]] || "N/A" }}
+              </div>
+            </v-col>
+          </v-row>
         </div>
         <v-row v-if="tags" no-gutters>
           <TagChip :items="tags" @deleteTag="(tag) => deleteTag(tag)" />
@@ -70,12 +75,11 @@ import Chip from "./Chip.vue";
 import TagChip from "./TagChip.vue";
 
 import { loadSeriesData, updateTags } from "@/common/api.service";
-import { settings } from "@/static/defaultUIConfig";
+import { settings as defaultSettings } from "@/static/defaultUIConfig";
 
 export default {
   name: "SeriesCard",
   components: { Chip, TagChip },
-  emits: ["openInDetailView"],
   props: {
     seriesInstanceUID: {
       type: String,
@@ -87,7 +91,7 @@ export default {
       seriesData: {},
       modality: null,
       tags: [],
-      settings: settings,
+      settings: defaultSettings,
 
       img_loading_error: false,
 
@@ -116,7 +120,7 @@ export default {
             this.src = data["thumbnail_src"] || "";
             this.modality = data["metadata"]["Modality"] || "";
             this.seriesData = data["metadata"] || {};
-            this.tags = data["metadata"]["tags"] || [];
+            this.tags = data["metadata"]["Tags"] || [];
           }
         });
       }
@@ -184,7 +188,7 @@ export default {
           this.clicks = 0;
           if (
             !(
-              !settings.datasets.cardText ||
+              !this.settings.datasets.cardText ||
               this.$store.getters.multiSelectKeyPressed ||
               this.$store.getters.selectedItems.length > 1
             )
@@ -205,7 +209,7 @@ export default {
       this.showDetails();
     },
     showDetails() {
-      this.$emit("openInDetailView", this.seriesInstanceUID);
+      this.$store.commit("setDetailViewItem", this.seriesInstanceUID);
     },
   },
 };
@@ -218,6 +222,6 @@ export default {
   background: #4af !important;
 }
 .v-card__text {
-  padding: 8px
+  padding: 8px;
 }
 </style>

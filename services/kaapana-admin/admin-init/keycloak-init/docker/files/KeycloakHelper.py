@@ -47,7 +47,7 @@ class KeycloakHelper():
         return access_token
 
 
-    def make_authorized_request(self, url: str, request = requests.post, payload = {}, update_url= "", **kwargs):
+    def make_authorized_request(self, url: str, request=requests.post, payload={}, update_url="", timeout=2, **kwargs):
         """
         Make an authorized request to the keycloak api using the access token stored in self.master_access_token
         """
@@ -58,13 +58,13 @@ class KeycloakHelper():
             verify = False,
             json = payload,
             headers = {"Authorization": f"Bearer {self.master_access_token}"},
-            timeout = 2)
+            timeout = timeout)
 
         if r.status_code in [409]:
             logger.warning("Ressource already exists.")
             if update_url:
                 logger.info(f"Ressource will be updated!")
-                r = self.make_authorized_request(update_url, requests.put, payload, **kwargs)
+                r = self.make_authorized_request(update_url, requests.put, payload, timeout=timeout, **kwargs)
                 logger.info(f"Ressource was updated!")
                 r.raise_for_status()
             else:
@@ -77,7 +77,7 @@ class KeycloakHelper():
         url = self.auth_url
         realm = payload["id"]
         update_url = url + realm if update else ""
-        r = self.make_authorized_request(url, requests.post, payload=payload, update_url=update_url, **kwargs)
+        r = self.make_authorized_request(url, requests.post, payload=payload, update_url=update_url, timeout=120, **kwargs)
         return r
 
     def get_all_groups(self):
@@ -93,7 +93,7 @@ class KeycloakHelper():
                 return group_id
         if not group_id:
             logger.debug(f"Group with name: {group} not found!")
-            logger.debug(f"Found the folling groups: {r.json()}")
+            logger.debug(f"Found the following groups: {r.json()}")
             return None
         
     def post_group(self, payload, update=True, **kwargs):

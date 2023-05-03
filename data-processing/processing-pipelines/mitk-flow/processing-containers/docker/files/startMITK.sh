@@ -3,7 +3,7 @@ echo 'Run an awesome MITK Application'
 echo '==============================='
 echo "mitk" | sudo -S chown mitk:mitk -R /$WORKFLOW_DIR/$BATCH_NAME
 
-/mitk/MitkFlowBench.sh /$WORKFLOW_DIR/$BATCH_NAME/tasklist.json
+/mitk/MitkFlowBench.sh /$WORKFLOW_DIR/$BATCH_NAME/tasklist.json &
 PID=$!
 # wait until Workbench is ready
 tail -f  /home/mitk/Desktop/logfile | while read LOGLINE

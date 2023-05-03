@@ -4,3 +4,6 @@ appVersion: 0.1.0
 description: Kaapana m2olie backend chart
 name: m2olie-backend-chart
 version: "0.0.0"
+keywords:
+- kaapanaapplication
+- kaapanaexperimental

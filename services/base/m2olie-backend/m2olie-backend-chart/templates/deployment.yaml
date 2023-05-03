@@ -43,6 +43,8 @@ spec:
           value: "{{  .Values.global.services_namespace  }}"
         - name: AIRFLOW_URL
           value: "http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
+        - name: DCM4CHEE_URL
+          value: "http://dcm4chee-service.{{  .Values.global.services_namespace  }}.svc:8080/dcm4chee-arc/aets/KAAPANA/rs/"
         - name: APPLICATION_ROOT
           value: "/m2olie"
         ports:

@@ -647,15 +647,15 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
     if success:
         manifest_dict = list(yaml.load_all(stdout, yaml.FullLoader))
         deployment_ready = True
-
         # convert configs inside chart's manifest to concatenated KubeInfo
         for config in manifest_dict:
+            logger.debug(config)
             if config is None:
                 continue
             if config['kind'] == 'Ingress':
                 path = config['spec']['rules'][0]['http']['paths'][0]['path']
                 paths.append(path)
-            elif config["kind"] == "Service" and config["spec"]["type"] == "NodePort":
+            elif config["kind"] == "Service" and "type" in config["spec"] and config["spec"]["type"] == "NodePort":
                 nodeport = config["spec"]["ports"][0]["nodePort"]
                 nodeport_path = ":" + str(nodeport)
                 paths.append(nodeport_path)

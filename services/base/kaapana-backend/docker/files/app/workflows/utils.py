@@ -23,6 +23,7 @@ TIMEOUT = Timeout(TIMEOUT_SEC)
 cached_dag_name_list = []
 cached_dag_list = {}
 
+
 class HelperMinio:
     _minio_host = f"minio-service.{settings.services_namespace}.svc"
     _minio_port = "9000"
@@ -131,9 +132,7 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
     global cached_dag_name_list
     global cached_dag_list
     if kind_of_dags not in ["all", "minio", "dataset"]:
-        raise HTTPException(
-            "kind_of_dags must be one of [None, 'minio', 'dataset']"
-        )
+        raise HTTPException("kind_of_dags must be one of [None, 'minio', 'dataset']")
     if len(cached_dag_name_list) == 0:
         with requests.Session() as s:
             r = requests_retry_session(session=s).get(
@@ -147,15 +146,20 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
             if "ui_visible" in dag_data and dag_data["ui_visible"] is True:
                 if kind_of_dags == "all":
                     dags[dag] = dag_data
-                elif ((kind_of_dags == "dataset") and ("ui_forms" in dag_data and
-                        "data_form" in dag_data["ui_forms"] and
-                        "properties" in dag_data["ui_forms"]["data_form"] and 
-                        "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                elif (kind_of_dags == "dataset") and (
+                    "ui_forms" in dag_data
+                    and "data_form" in dag_data["ui_forms"]
+                    and "properties" in dag_data["ui_forms"]["data_form"]
+                    and "dataset_name"
+                    in dag_data["ui_forms"]["data_form"]["properties"]
+                ):
                     dags[dag] = dag_data
-                elif ((kind_of_dags == "minio") and ("ui_forms" in dag_data and
-                        "data_form" in dag_data["ui_forms"] and
-                        "properties" in dag_data["ui_forms"]["data_form"] and 
-                        "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                elif (kind_of_dags == "minio") and (
+                    "ui_forms" in dag_data
+                    and "data_form" in dag_data["ui_forms"]
+                    and "properties" in dag_data["ui_forms"]["data_form"]
+                    and "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"]
+                ):
                     dags[dag] = dag_data
         if only_dag_names is True:
             cached_dag_name_list = sorted(list(dags.keys()))
@@ -165,14 +169,16 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                 cached_dag_list = dags
                 return cached_dag_list
             elif filter_allowed_dags:
-                cached_dag_list =  {dag: dags[dag] for dag in filter_allowed_dags if dag in dags}
+                cached_dag_list = {
+                    dag: dags[dag] for dag in filter_allowed_dags if dag in dags
+                }
                 return cached_dag_list
             else:
                 return {}
     else:
         try:
             with requests.Session() as s:
-                r = requests_retry_session(session=s,retries=1).get(
+                r = requests_retry_session(session=s, retries=1).get(
                     f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags",
                     timeout=Timeout(1),
                 )
@@ -183,15 +189,21 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                 if "ui_visible" in dag_data and dag_data["ui_visible"] is True:
                     if kind_of_dags == "all":
                         dags[dag] = dag_data
-                    elif ((kind_of_dags == "dataset") and ("ui_forms" in dag_data and
-                            "data_form" in dag_data["ui_forms"] and
-                            "properties" in dag_data["ui_forms"]["data_form"] and 
-                            "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                    elif (kind_of_dags == "dataset") and (
+                        "ui_forms" in dag_data
+                        and "data_form" in dag_data["ui_forms"]
+                        and "properties" in dag_data["ui_forms"]["data_form"]
+                        and "dataset_name"
+                        in dag_data["ui_forms"]["data_form"]["properties"]
+                    ):
                         dags[dag] = dag_data
-                    elif ((kind_of_dags == "minio") and ("ui_forms" in dag_data and
-                            "data_form" in dag_data["ui_forms"] and
-                            "properties" in dag_data["ui_forms"]["data_form"] and 
-                            "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"])):
+                    elif (kind_of_dags == "minio") and (
+                        "ui_forms" in dag_data
+                        and "data_form" in dag_data["ui_forms"]
+                        and "properties" in dag_data["ui_forms"]["data_form"]
+                        and "bucket_name"
+                        in dag_data["ui_forms"]["data_form"]["properties"]
+                    ):
                         dags[dag] = dag_data
             if only_dag_names is True:
                 cached_dag_name_list = sorted(list(dags.keys()))
@@ -201,7 +213,9 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                     cached_dag_list = dags
                     return cached_dag_list
                 elif filter_allowed_dags:
-                    cached_dag_list = {dag: dags[dag] for dag in filter_allowed_dags if dag in dags}
+                    cached_dag_list = {
+                        dag: dags[dag] for dag in filter_allowed_dags if dag in dags
+                    }
                     return cached_dag_list
                 else:
                     return {}
@@ -260,7 +274,7 @@ def abort_job_airflow(dag_id, dag_run_id, status="failed"):
                 # },
             },
         )
-    raise_kaapana_connection_error(resp)
+    # raise_kaapana_connection_error(resp)
     return resp
 
 

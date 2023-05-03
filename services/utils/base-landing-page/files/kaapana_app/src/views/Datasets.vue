@@ -155,7 +155,7 @@
                                 color="primary"
                                 @click="workflowDialog = true"
                               >
-                                mdi-play-box
+                                mdi-play
                               </v-icon>
                             </v-btn>
                           </span>
@@ -180,10 +180,6 @@
                   settings.datasets.structured
                 "
                 :patients.sync="patients"
-                @openInDetailView="
-                  (seriesInstanceUID) =>
-                    (this.detailViewSeriesInstanceUID = seriesInstanceUID)
-                "
               />
               <!--        seriesInstanceUIDs is not bound due to issues with the Gallery embedded in StructuredGallery-->
               <Gallery
@@ -193,10 +189,6 @@
                   !settings.datasets.structured
                 "
                 :seriesInstanceUIDs="seriesInstanceUIDs"
-                @openInDetailView="
-                  (seriesInstanceUID) =>
-                    (this.detailViewSeriesInstanceUID = seriesInstanceUID)
-                "
               />
             </v-container>
           </v-container>
@@ -213,9 +205,8 @@
       </pane>
       <pane class="sidebar" size="30" min-size="20">
         <DetailView
-          v-if="this.detailViewSeriesInstanceUID"
-          :series-instance-u-i-d="this.detailViewSeriesInstanceUID"
-          @close="() => (this.detailViewSeriesInstanceUID = null)"
+          v-if="this.$store.getters.detailViewItem"
+          :series-instance-u-i-d="this.$store.getters.detailViewItem"
         />
         <Dashboard
           v-else
@@ -270,7 +261,7 @@
       <v-dialog v-model="workflowDialog" width="500">
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
-          :onlyClient="true"
+          :onlyLocal="true"
           kind_of_dags="dataset"
           @successful="() => (this.workflowDialog = false)"
         />
@@ -411,6 +402,7 @@ export default {
       this.isLoading = true;
       this.selectedSeriesInstanceUIDs = [];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
+      this.$store.dispatch("resetDetailViewItem")
 
       loadPatients({
         structured: this.settings.datasets.structured,

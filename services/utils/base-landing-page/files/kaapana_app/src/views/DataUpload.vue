@@ -13,7 +13,7 @@
               <br>
               <br>
               <code>
-                dcmsend -v ip-address of server 11112  --scan-directories --call aetitle-of-images-used-for-filtering --scan-pattern '*'  --recurse data-dir-of-DICOM-images
+                dcmsend -v {{ '<' }}ip-address-of-server{{ '>' }} 11112  --scan-directories --call {{ '<' }}dataset-name{{ '>' }} --scan-pattern '*.dcm'  --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
               </code>
             </v-card-text>
           </v-card>
@@ -21,10 +21,10 @@
         <v-col cols="12">
           <v-card>
             <v-card-title class="text-h5">
-              Optioin 2: Store data to file storage
+              Option 2: Upload the data
             </v-card-title>
             <v-card-text>
-              <v-icon large>mdi-numeric-1-circle</v-icon>&nbsp; Store DICOMS, niftis or any data you want to use in a workflow as a zip file via the dropzone
+              <v-icon large>mdi-numeric-1-circle</v-icon>&nbsp; Upload DICOMS, niftis or any data you want to use in a workflow as a zip file via the dropzone.
               <upload labelIdle="Dicoms, ITK images or any other data"></upload>
               <br>
               <v-icon large>mdi-numeric-2-circle</v-icon>&nbsp;
@@ -32,8 +32,8 @@
                 color="primary"
                 @click="() => (this.workflowDialog = true)"
               > 
-                Import the data to the platform 
-                <v-icon>mdi-play-box</v-icon>
+                Import the data
+                <v-icon>mdi-play-outline</v-icon>
               </v-btn>
             </v-card-text>
           </v-card>
@@ -41,7 +41,7 @@
 
         <v-dialog v-model="workflowDialog" width="500">
         <WorkflowExecution
-          :onlyClient=true
+          :onlyLocal=true
           kind_of_dags="minio"
           @successful="() => (this.workflowDialog = false)"
         />

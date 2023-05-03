@@ -11,15 +11,19 @@
       </v-card-title>
       <v-card-text>
         <v-container>
+          <v-row>
+            <v-icon color="primary" class="mx-2" small>mdi-home</v-icon>
+            local instance: {{ localKaapanaInstance }}
+          </v-row>
           <v-row v-if="available_kaapana_instance_names.length > 1">
             <v-col cols="12">
               <v-select 
                 v-model="selected_kaapana_instance_names" 
                 :items="available_kaapana_instance_names" 
-                label="Runner instances" 
+                label="Runner instances"
                 multiple="" 
                 chips="" 
-                hint="On which instances do you want to execute the workflow"
+                hint="On which instances do you want to execute the workflow?"
               ></v-select>
             </v-col>
           </v-row>
@@ -146,7 +150,7 @@
         type: Array,
         default: () => [],
       },
-      onlyClient: {
+      onlyLocal: {
         type: Boolean,
         default: false,
       },
@@ -204,6 +208,7 @@
           // UI stuff
           valid: false,
           // instances
+          localKaapanaInstance: {},
           available_kaapana_instance_names: [],
           selected_kaapana_instance_names: [],
           selected_remote_instances_w_external_dag_available: [],
@@ -227,10 +232,11 @@
           this.refreshClient();
       },
       refreshClient() {
-        console.log(this.onlyClient)
-        if (this.onlyClient) {
+        console.log(this.onlyLocal)
+        if (this.onlyLocal) {
           this.getKaapanaInstance()
         } else {
+          this.getKaapanaInstance()
           this.getKaapanaInstances()
         }
       },
@@ -356,10 +362,15 @@
       // API Calls: Instances
       getKaapanaInstance() {
         kaapanaApiService
-          .federatedClientApiGet("//kaapana-instance")
+          .federatedClientApiGet("/kaapana-instance")
           .then((response) => {
             console.log('getKaapanaInstance', response.data)
-            this.available_kaapana_instance_names = [response.data.instance_name]
+            this.localKaapanaInstance = response.data.instance_name
+            if (this.onlyLocal) {
+              this.available_kaapana_instance_names = [response.data.instance_name]
+            }
+            // this.selected_kaapana_instance_names.push(this.localKaapanaInstance)
+            this.selected_kaapana_instance_names = [this.localKaapanaInstance]
           })
           .catch((err) => {
             console.log(err); 
@@ -467,7 +478,11 @@
               title: "Workflow successfully created!",
             })
             this.reset()
-            this.$emit('successful')
+            if (this.identifiers.length > 0) {
+              this.$emit('successful')
+            } else {
+              this.$router.push({ name: 'workflows' });
+            }
           })
           .catch((err) => {
             console.log(err);

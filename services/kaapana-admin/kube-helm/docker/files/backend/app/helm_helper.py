@@ -208,14 +208,14 @@ def add_extension_to_dict(
                 }
                 latest_helm_status = chart_deployment["status"]
                 if chart_info["helm_status"] == CHART_STATUS_DEPLOYED:
-                    success, deployment_ready, ingress_paths, concatenated_states = get_kube_objects(chart_deployment["name"], chart_deployment["namespace"])
+                    success, deployment_ready, paths, concatenated_states = get_kube_objects(chart_deployment["name"], chart_deployment["namespace"])
                     if success:
                         chart_info["kube_status"] = concatenated_states["status"]
                         chart_info["kube_info"] = concatenated_states
-                        chart_info['links'] = ingress_paths
+                        chart_info['links'] = paths
                         chart_info['ready'] = deployment_ready
                         latest_kube_status = concatenated_states["ready"]
-                        # all_links.extend(ingress_paths)
+                        # all_links.extend(paths)
                     else:
                         logger.error(f"Could not request kube-state of: {chart_deployment['name']}")
                 elif chart_info["helm_status"] == CHART_STATUS_UNINSTALLING:
@@ -599,7 +599,7 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
     Returns:
         success             (bool)             : whether the helm command ran successfully
         deployment_ready    (bool)             : whether all kube objects are in "Running" or "Completed" states
-        ingress_paths       (List[str])        : paths extracted from ingress objects
+        paths       (List[str])        : paths extracted from ingress and service objects
         concatenated_states (schemas.KubeInfo]): contains all information about related kube objects 
     """
     def get_kube_status(kind, name, namespace) -> Union[schemas.KubeInfo, None]:
@@ -636,7 +636,7 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
         f"get_kube_objects for ({release_name=}, {helm_namespace=})")
     success, stdout = execute_shell_command(
         f'{settings.helm_path} -n {helm_namespace} get manifest {release_name}')
-    ingress_paths = []
+    paths = []
     concatenated_states = schemas.KubeInfo(
         name=[],
         ready=[],
@@ -647,15 +647,18 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
     if success:
         manifest_dict = list(yaml.load_all(stdout, yaml.FullLoader))
         deployment_ready = True
-
         # convert configs inside chart's manifest to concatenated KubeInfo
         for config in manifest_dict:
+            logger.debug(config)
             if config is None:
                 continue
             if config['kind'] == 'Ingress':
-                ingress_path = config['spec']['rules'][0]['http']['paths'][0]['path']
-                ingress_paths.append(ingress_path)
-
+                path = config['spec']['rules'][0]['http']['paths'][0]['path']
+                paths.append(path)
+            elif config["kind"] == "Service" and "type" in config["spec"] and config["spec"]["type"] == "NodePort":
+                nodeport = config["spec"]["ports"][0]["nodePort"]
+                nodeport_path = ":" + str(nodeport)
+                paths.append(nodeport_path)
             elif config['kind'] == 'Deployment' or config['kind'] == 'Job':
                 obj_kube_status = None
                 if config['kind'] == 'Deployment':
@@ -676,7 +679,7 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
         logger.error(f"Error fetching kube-objects: {release_name=}")
         deployment_ready = False
 
-    return success, deployment_ready, ingress_paths, concatenated_states
+    return success, deployment_ready, paths, concatenated_states
 
 
 def helm_show_values(name, version, platforms=False) -> Dict:

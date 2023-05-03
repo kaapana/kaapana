@@ -492,30 +492,22 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
     max_pixel_count = 0
     slice_max_segs = 0
 
-    if len(seg_id_list) > 1:
-        logger.info("Multi-seg method ...")
-    else:
-        logger.info("Single-seg method ...")
-
     for index, base_slice in enumerate(base_series_uids):
         base_slice_element = base_series_uids[base_slice]
         if len(base_slice_element["seg_bmps"]) == 0:
             continue
-    
-        if len(seg_id_list) > 1:
-            if len(base_slice_element["seg_bmps"]) > slice_max_segs:
-                slice_max_id = base_slice
-                slice_max_segs = len(base_slice_element["seg_bmps"])
-        else:
-            base_slice_element = base_series_uids[base_slice]
-            assert len(base_slice_element["seg_bmps"]) == 1
-            seg_img_path = base_slice_element["seg_bmps"][0]["bmp_file"]
-            logger.info(f"Loading seg bmp: {basename(seg_img_path)}")
-            seg_img_np = load_img(img_path=seg_img_path, rgba=False)
+        
+        tmp_max_pixel_count = 0
+        for seg_thumb in base_slice_element["seg_bmps"]:
+            seg_thumb_bmp = seg_thumb["bmp_file"]
+            logger.info(f"Loading seg bmp: {basename(seg_thumb_bmp)}")
+            seg_img_np = load_img(img_path=seg_thumb_bmp, rgba=False)
             pixel_count = int(np.sum(seg_img_np))
-            if pixel_count > max_pixel_count:
-                max_pixel_count = pixel_count
-                slice_max_id = base_slice
+            tmp_max_pixel_count += pixel_count
+
+        if tmp_max_pixel_count > max_pixel_count:
+            max_pixel_count = tmp_max_pixel_count
+            slice_max_id = base_slice
 
     correct_slice = base_series_uids[slice_max_id]
     logger.info(f"Best slice: {correct_slice}")

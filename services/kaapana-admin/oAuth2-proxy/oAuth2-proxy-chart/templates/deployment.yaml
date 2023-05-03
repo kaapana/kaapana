@@ -42,7 +42,7 @@ spec:
           - --provider=keycloak-oidc
           - --client-id=kaapana
           - --client-secret={{ .Values.global.oidc_client_secret }}
-          - --cookie-secret=P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ=
+          - --cookie-secret={{ randAlphaNum 32 | b64enc }}
           - --redeem-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/token
           - --oidc-jwks-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/certs
           - --profile-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/userinfo

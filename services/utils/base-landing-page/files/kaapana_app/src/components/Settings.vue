@@ -9,19 +9,21 @@
 
       <v-card>
         <v-card-title>
-          Configure
+          Dataset Configuration
           <v-spacer></v-spacer>
           <v-btn text color="red" @click="restoreDefaultSettings">
             Restore default configuration
           </v-btn>
         </v-card-title>
         <v-card-text>
-          <SettingsTable
-            ref="settingsTable"
-            :items.sync="settings.datasets.props"
-          >
-          </SettingsTable>
           <v-row>
+            <v-col>
+              <v-checkbox
+                v-model="settings.datasets.cardText"
+                label="Show Metadata"
+              >
+              </v-checkbox>
+            </v-col>
             <v-col>
               <v-checkbox
                 v-model="settings.datasets.structured"
@@ -29,17 +31,6 @@
               >
               </v-checkbox>
             </v-col>
-          </v-row>
-          <v-row>
-            <v-col>
-              <v-checkbox
-                v-model="settings.datasets.cardText"
-                label="Show Metadata in Dataset view"
-              >
-              </v-checkbox>
-            </v-col>
-          </v-row>
-          <v-row>
             <v-col>
               <v-select
                 v-model="settings.datasets.cols"
@@ -47,6 +38,17 @@
                 label="Width of an item in the Dataset view"
               ></v-select>
             </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+            <SettingsTable
+              ref="settingsTable"
+              :items.sync="settings.datasets.props"
+              :structuredView="settings.datasets.structured"
+              :showMetaData="settings.datasets.cardText"
+            >
+            </SettingsTable>
+          </v-col>
           </v-row>
         </v-card-text>
         <v-card-actions class="justify-center">
@@ -77,7 +79,7 @@ export default {
   },
   methods: {
     restoreDefaultSettings() {
-      this.settings = defaultSettings
+      this.settings = defaultSettings;
     },
     onSave() {
       localStorage["settings"] = JSON.stringify(this.settings);

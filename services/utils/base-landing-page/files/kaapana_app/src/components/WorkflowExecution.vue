@@ -293,10 +293,14 @@
         for (const key in obj) {
           const value = obj[key];
           const fullKey = prefix ? `${prefix}.${key}` : key;
+          if (key === 'oneOf') {
+            continue;
+          }
           if (value && typeof value === 'object') {
             this.findRequiredFields(value, result, fullKey);
-          } else if (key === 'required' && !('default' in obj) && !('enum' in obj)) {
-            // only add a required_field if no default value is defined and it's no 'enum' data type (special case for nnunet-predict)
+          // } else if (key === 'required' && !('default' in obj) && !('enum' in obj)) {
+          } else if (key === 'required' && !('enum' in obj)) {
+            // only go here if it's no 'enum' data type (special case for nnunet-predict)
             result.push(fullKey);
           }
         }
@@ -418,6 +422,7 @@
               delete schemas['data_form']
             }
             this.form_requiredFields = this.findRequiredFields(schemas)
+            console.log("this.form_requiredFields: ", this.form_requiredFields)
             if ('external_schemas' in schemas) {
               this.external_dag_id = schemas["external_schemas"]
               delete schemas.external_schemas

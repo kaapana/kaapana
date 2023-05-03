@@ -41,7 +41,7 @@ def properties_dataset_form(filter_keys: list = None):
     return {
         "dataset_name": {
             "type": "string",
-            "title": "Dataset name",
+            "title": "Dataset name (size)",
             "oneOf": [],
             "required": True
         },

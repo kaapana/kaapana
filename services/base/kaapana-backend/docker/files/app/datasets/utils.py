@@ -74,21 +74,9 @@ def contains_numbers(s):
 
 
 def camel_case_to_space(s):
-    removed_tag = " ".join(s.split(" ")[-1::])
-    potential_type = removed_tag.split("_")[-1]
-    removed_type = removed_tag
-    for type in [
-        "keyword",
-        "keyword.keyword",
-        "float",
-        "date",
-        "integer",
-        "datetime",
-        "alphabetic",
-    ]:
-        if potential_type == type:
-            removed_type = " ".join(removed_tag.split("_")[:-1])
-            break
+    removed_tag = s.split(" ")[-1]
+    removed_type = removed_tag.split("_")[0]
+
     res = " ".join(
         re.sub(
             "([A-Z][a-z]+)",
@@ -109,14 +97,6 @@ def type_suffix(v):
         return "" if type_ != "text" and type_ != "keyword" else ".keyword"
     else:
         return ""
-
-
-def remove_type_suffix(v: str):
-    print(v)
-    potential_type = v.split("_")[-1]
-    for type in ["keyword", "text", "float"]:
-        if type == potential_type:
-            return v.replace(f"_{type}", "")
 
 
 async def get_metadata_opensearch(series_instance_uid: str) -> dict:

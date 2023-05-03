@@ -1,67 +1,42 @@
 <template>
   <div>
-    <v-list
-        v-for="([patient, studyInstanceUIDs]) in Object.entries(patients)"
-        :key="patient"
-    >
-      <h3> {{ patient }}</h3>
-      <v-container style="padding-top: 0">
-        <v-list
-            v-for="([studyInstanceUID, seriesInstanceUIDs]) in Object.entries(studyInstanceUIDs)"
-            :key="studyInstanceUID"
-        >
-          <h4>{{ studyInstanceUID }}</h4>
-          <v-lazy
-              :options="{
-                  threshold: .0,
-                  delay: 100
-                }"
-          >
-            <Gallery
-                :ref="studyInstanceUID"
-                :seriesInstanceUIDs="seriesInstanceUIDs"
-                @openInDetailView="(_seriesInstanceUID) => openInDetailView(_seriesInstanceUID)"
-            />
-          </v-lazy>
-        </v-list>
-      </v-container>
-    </v-list>
+    <div v-for="studies in patients" :key="JSON.stringify(studies)">
+      <v-lazy
+        :options="{
+          threshold: 0.3,
+          delay: 100,
+        }"
+        transition="fade-transition"
+        class="fill-height"
+        :min-height="100"
+      >
+        <PatientView :studies="studies" />
+      </v-lazy>
+    </div>
   </div>
 </template>
 
 <script>
 /* eslint-disable */
-import Chip from "./Chip";
-import SeriesCard from "./SeriesCard.vue";
-import Gallery from "./Gallery.vue";
+import PatientView from "./PatientView.vue";
 
 export default {
-  emits: ['openInDetailView', 'update:patients', 'selectedItems'],
   props: {
     patients: {
       type: Object,
-      default: () => {}
+      default: () => {},
     },
   },
   data() {
-    return {
-      detailViewSeriesInstanceUID: null
-    };
+    return {};
   },
   components: {
-    SeriesCard,
-    Chip,
-    Gallery
+    PatientView,
   },
-  mounted() {
-  },
-  methods: {
-    openInDetailView(seriesInstanceUID) {
-      this.$emit('openInDetailView', seriesInstanceUID);
-    }
-  }
+  created() {},
+  mounted() {},
+  methods: {},
+  watch: {},
 };
 </script>
-<style>
-
-</style>
+<style></style>

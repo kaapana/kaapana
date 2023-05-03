@@ -394,6 +394,13 @@
           .federatedClientApiPost("/get-kaapana-instances", {dag_id: this.external_dag_id})
           .then((response) => {
             this.remote_instances_w_external_dag_available = response.data.map(({ instance_name }) => instance_name)
+            console.log("this.remote_instances_w_external_dag_available: ", this.remote_instances_w_external_dag_available)
+            if (this.remote_instances_w_external_dag_available.length === 0) {
+              this.$notify({
+                title: `No registered remote instance with ${this.external_dag_id} as allowed DAG.`,
+                type: "error",
+              })
+            }
           })
           .catch((err) => {
             console.log(err);

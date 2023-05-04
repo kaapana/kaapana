@@ -1,0 +1,32 @@
+# Regexp for grep to only choose some file extensions for formatting
+exts="\.\(py\)$"
+
+# The formatter to use
+formatter=`which black`
+
+#!/bin/bash
+
+# Check availability of the formatter
+if [ -z "$formatter" ]
+then
+  1>&2 echo "$formatter not found."
+  1>&2 echo "Please install Black first (see https://black.readthedocs.io/en/stable/getting_started.html)."
+  exit 1
+fi
+
+# Format staged files
+ISSUE_FOUND=false
+for file in `git diff --cached --name-only --diff-filter=ACMR | grep $exts`
+do
+  if ! $formatter --check $file; then
+      1>&2 echo "Reformatting neeeded: $file"
+      ISSUE_FOUND=true
+  fi
+done
+
+if $ISSUE_FOUND; then
+    1>&2 echo "Please check formatting!"
+    1>&2 echo "-> commit canceled"
+    1>&2 echo ""
+    exit 1
+fi

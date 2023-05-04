@@ -64,7 +64,7 @@
           >
             <VueSelecto
               dragContainer=".elements"
-              :selectableTargets="['.selecto-area .v-card']"
+              :selectableTargets="['.selecto-area .seriesCard']"
               :hitRate="0"
               :selectByClick="true"
               :selectFromInside="true"

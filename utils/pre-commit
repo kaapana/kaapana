@@ -1,10 +1,10 @@
+#!/bin/bash
+
 # Regexp for grep to only choose some file extensions for formatting
 exts="\.\(py\)$"
 
 # The formatter to use
 formatter=`which black`
-
-#!/bin/bash
 
 # Check availability of the formatter
 if [ -z "$formatter" ]

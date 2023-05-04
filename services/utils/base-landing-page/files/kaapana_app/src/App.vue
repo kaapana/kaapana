@@ -91,7 +91,9 @@
           </v-list-group>
           <v-list-item :to="'/extensions'" v-if="isAuthenticated">
             <v-list-item-action>
-              <v-icon>mdi-apps</v-icon>
+              <!-- <v-icon>mdi-view-comfy</v-icon> -->
+              <!-- <v-icon>mdi-toy-brick-plus</v-icon> -->
+              <v-icon>mdi-puzzle</v-icon>
             </v-list-item-action>
             <v-list-item-content>
               <v-list-item-title>Extensions</v-list-item-title>

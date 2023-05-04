@@ -449,8 +449,12 @@
           this.popUpDialog[item.releaseName] = true;
           this.popUpItem = item;
           for (let key of Object.keys(item["extension_params"])) {
-            this.popUpExtension[key] = item["extension_params"][key]["default"]
-  
+            let defaultVal = item["extension_params"][key]["default"]
+            if (key.startsWith("credentials_") && !(key.startsWith("credentials_registry"))) {
+              let rand = (Math.random()).toString(36).substring(4);
+              defaultVal = key.split("_")[1] + "_" + rand;
+            }
+            this.popUpExtension[key] = defaultVal;
           }
         } else {
           this.installChart(item);

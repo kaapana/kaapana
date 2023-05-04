@@ -295,7 +295,9 @@ methods: {
         workflow_name: workflow_name,
         limit: 100,
       }).then((response) => {
-        this.loading = false
+        if (response.data.length !== 0) {
+          this.loading = false
+        }
         if (this.expanded.length > 0) {
           this.jobsofExpandedWorkflow = response.data;
         } else {

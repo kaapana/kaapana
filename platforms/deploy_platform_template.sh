@@ -235,6 +235,8 @@ function delete_deployment {
         done
     else
         echo -e "${YELLOW}QUIET-MODE active!${NC}"
+        echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
+        microk8s.kubectl delete pv --all
     fi
     
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then

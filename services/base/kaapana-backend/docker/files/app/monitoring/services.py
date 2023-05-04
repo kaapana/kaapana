@@ -2,10 +2,13 @@ from typing import List
 from .schemas import Measurement
 from datetime import datetime
 from opensearchpy import OpenSearch
+from opensearchpy import logger as os_logger
 from app.config import settings
 from prometheus_api_client import PrometheusConnect
 from prometheus_client import CollectorRegistry, Info, Gauge, generate_latest
+import logging
 
+os_logger.setLevel(logging.WARNING)
 
 class MonitoringService:
     prom = PrometheusConnect(url=settings.prometheus_url, disable_ssl=True)

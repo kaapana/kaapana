@@ -41,7 +41,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                     datasets = file_tags
                     for dataset in datasets:
                         try:
-                            requests.put(
+                            res = requests.put(
                                 f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/dataset",
                                 json=dict(
                                     action="ADD",
@@ -49,6 +49,8 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                                     identifiers=[series_uid],
                                 ),
                             )
+                            if res.status_code != 200:
+                                raise Exception()
                         except Exception as e:
                             print(f"Processing of {series_uid} threw an error.", e)
                             exit(1)

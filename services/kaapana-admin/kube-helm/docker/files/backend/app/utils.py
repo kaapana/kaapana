@@ -459,7 +459,11 @@ def helm_delete(
     if not execute_cmd:
         return False, helm_command
 
-    success, stdout = helm_helper.execute_shell_command(helm_command, shell=True, blocking=False)
+    # run blocking if deleting a platform
+    timeout = 5
+    if platforms:
+        timeout = 60
+    success, stdout = helm_helper.execute_shell_command(helm_command, shell=True, blocking=platforms, timeout=timeout)
     if success:
         if release_version is not None:
             for item in helm_helper.global_extensions_list:

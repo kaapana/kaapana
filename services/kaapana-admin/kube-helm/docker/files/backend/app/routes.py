@@ -210,6 +210,7 @@ async def helm_delete_chart(request: Request):
         helm_command_addons = ''
         helm_namespace = settings.helm_namespace
         multiinstallable = False
+        platforms = False
         if "release_version" in payload:
             release_version = payload["release_version"]
         if "helm_command_addons" in payload:
@@ -218,12 +219,15 @@ async def helm_delete_chart(request: Request):
             helm_namespace = payload["helm_namespace"]
         if ("multiinstallable" in payload) and payload["multiinstallable"].lower() in ["true", "yes"]:
             multiinstallable = True
+        if "platforms" in payload:
+            platforms = payload["platforms"]
         success, stdout = utils.helm_delete(
             release_name=payload["release_name"],
             release_version=release_version,
             helm_namespace=helm_namespace,
             helm_command_addons=helm_command_addons,
-            multiinstallable=multiinstallable
+            multiinstallable=multiinstallable,
+            platforms=platforms
         )
         if success:
             return Response(f"Started uninstalling {payload['release_name']}", 200)

@@ -212,7 +212,6 @@ methods: {
   },
   checkForRemoteUpdates() {
     kaapanaApiService.syncRemoteInstances().then(successful => {
-      console.log(successful)
     })
   },
   expandRow(item) {
@@ -283,7 +282,6 @@ methods: {
       .then((response) => {
         this.loading = false
         this.localInstance = response.data;
-        console.log("this.localInstance: ", this.localInstance)
       })
       .catch((err) => {
         this.loading = false

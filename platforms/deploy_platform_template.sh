@@ -224,10 +224,19 @@ function delete_deployment {
             echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
         fi
     done
+    if [ ! "$QUIET" = "true" ];then
+        while true; do
+            read -e -p "Do you also want to remove all Persistent Volumes in the cluster (kubectl delete pv --all)?" -i " yes" yn
+            case $yn in
+                [Yy]* ) echo -e "${GREEN}Removing all pvs from cluster ...${NC}" && microk8s.kubectl delete pv --all; break;;
+                [Nn]* ) echo -e "${YELLOW}Skipping pv removal ...{NC}"; break;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    else
+        echo -e "${YELLOW}QUIET-MODE active!${NC}"
+    fi
     
-    # echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
-    # microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
-
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"

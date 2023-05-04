@@ -9,3 +9,4 @@ imageio
 mypy_extensions
 pydicom==2.3.1
 plotly==5.11.0
+Flask<=2.2.3

@@ -31,7 +31,7 @@ def properties_workflow_execution(filter_keys: list = None):
             "description": "Whether your report is execute in single mode or not",
             "default": False,
             "readOnly": False,
-            "required": True
+            "required": True,
         }
     }
 
@@ -43,13 +43,13 @@ def properties_dataset_form(filter_keys: list = None):
             "type": "string",
             "title": "Dataset name (size)",
             "oneOf": [],
-            "required": True
+            "required": True,
         },
         "dataset_limit": {
             "type": "integer",
             "title": "Limit dataset size",
-            "description": "Limit dataset to this many cases."
-        }
+            "description": "Limit dataset to this many cases.",
+        },
     }
 
 
@@ -57,32 +57,36 @@ def schema_dataset_form(filter_keys: list = None):
     return {
         "data_form": {
             "type": "object",
-            "properties": {**properties_dataset_form(filter_keys)}
+            "properties": {**properties_dataset_form(filter_keys)},
         }
     }
 
 
-def schema_minio_form(select_options="files",
-                      blacklist_directory_endings: tuple = (),
-                      whitelist_object_endings: tuple = ()):
+def schema_minio_form(
+    select_options="files",
+    blacklist_directory_endings: tuple = (),
+    whitelist_object_endings: tuple = (),
+):
     if select_options not in ["both", "files", "folders"]:
-        raise Exception(
-            "select_options has to be either both, files or folders")
+        raise Exception("select_options has to be either both, files or folders")
     try:
-        objects = HelperMinio.list_objects(HelperMinio.minioClient,
-                                           "uploads", recursive=True,
-                                           )
+        objects = HelperMinio.list_objects(
+            HelperMinio.minioClient,
+            "uploads",
+            recursive=True,
+        )
         object_names = [obj.object_name for obj in objects]
-        filtered_minio_objects = [object_name for object_name in object_names if
-                                  object_name.endswith(
-                                      whitelist_object_endings)]
+        filtered_minio_objects = [
+            object_name
+            for object_name in object_names
+            if object_name.endswith(whitelist_object_endings)
+        ]
 
         filtered_minio_directories = []
         for object_name in object_names:
             object_directory = str(Path(object_name).parents[0])
             if not object_directory.endswith(blacklist_directory_endings):
-                filtered_minio_directories.append(
-                    str(Path(object_name).parents[0]))
+                filtered_minio_directories.append(str(Path(object_name).parents[0]))
     except Exception as e:
         filtered_minio_directories = ["Something does not work :/"]
         filtered_minio_objects = ["Something does not work :/"]
@@ -98,50 +102,43 @@ def schema_minio_form(select_options="files",
                         "description": "Bucket name from MinIO",
                         "type": "string",
                         "default": "uploads",
-                        "readOnly": True
+                        "readOnly": True,
                     }
                 },
                 "oneOf": [
                     {
                         "title": "Search for files",
                         "properties": {
-                            "identifier": {
-                                "type": "string",
-                                "const": "files"
-                            },
+                            "identifier": {"type": "string", "const": "files"},
                             "action_files": {
                                 "title": "Objects from bucket",
                                 "description": "Relative paths to object in Bucket",
                                 "type": "array",
                                 "items": {
                                     "type": "string",
-                                    "enum": filtered_minio_objects
+                                    "enum": filtered_minio_objects,
                                 },
-                                "readOnly": False
-                            }
-                        }
+                                "readOnly": False,
+                            },
+                        },
                     },
                     {
                         "title": "Search for folders",
                         "properties": {
-                            "identifier": {
-                                "type": "string",
-                                "const": "folders"
-                            },
+                            "identifier": {"type": "string", "const": "folders"},
                             "action_operator_dirs": {
                                 "title": "Directories",
                                 "description": "Directory from bucket",
                                 "type": "array",
                                 "items": {
                                     "type": "string",
-                                    "enum": list(
-                                        set(filtered_minio_directories))
+                                    "enum": list(set(filtered_minio_directories)),
                                 },
-                                "readOnly": False
-                            }
-                        }
-                    }
-                ]
+                                "readOnly": False,
+                            },
+                        },
+                    },
+                ],
             }
         }
     elif select_options == "files":
@@ -154,19 +151,16 @@ def schema_minio_form(select_options="files",
                         "description": "Bucket name from MinIO",
                         "type": "string",
                         "default": "uploads",
-                        "readOnly": True
+                        "readOnly": True,
                     },
                     "action_files": {
                         "title": "Objects from bucket",
                         "description": "Relative paths to object in Bucket",
                         "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": filtered_minio_objects
-                        },
-                        "readOnly": False
-                    }
-                }
+                        "items": {"type": "string", "enum": filtered_minio_objects},
+                        "readOnly": False,
+                    },
+                },
             }
         }
     elif select_options == "folders":
@@ -179,7 +173,7 @@ def schema_minio_form(select_options="files",
                         "description": "Bucket name from MinIO",
                         "type": "string",
                         "default": "uploads",
-                        "readOnly": True
+                        "readOnly": True,
                     },
                     "action_operator_dirs": {
                         "title": "Directories",
@@ -187,11 +181,11 @@ def schema_minio_form(select_options="files",
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": list(set(filtered_minio_directories))
+                            "enum": list(set(filtered_minio_directories)),
                         },
-                        "readOnly": False
-                    }
-                }
+                        "readOnly": False,
+                    },
+                },
             }
         }
 
@@ -203,37 +197,33 @@ def properties_external_federated_form(filter_keys: list = None):
             "type": "string",
             "title": "Federated bucket",
             "description": "Bucket to which the files should be saved to",
-            "readOnly": True
+            "readOnly": True,
         },
         "federated_dir": {
             "type": "string",
             "title": "Federated directory",
             "description": "Directory to which the files should be saved to",
-            "readOnly": True
+            "readOnly": True,
         },
         "federated_operators": {
             "type": "array",
             "title": "Operators for which the results should be saved",
-            "items": {
-                "type": "string"
-            },
-            "readOnly": True
+            "items": {"type": "string"},
+            "readOnly": True,
         },
         "skip_operators": {
             "type": "array",
             "title": "Operators that should not be executed",
-            "items": {
-                "type": "string"
-            },
-            "readOnly": True
+            "items": {"type": "string"},
+            "readOnly": True,
         },
         "federated_round": {
             "type": "integer",
             "title": "Federated round",
-            "readOnly": True
+            "readOnly": True,
         },
         "federated_total_rounds": {
             "type": "integer",
-            "title": "Federated total rounds"
-        }
+            "title": "Federated total rounds",
+        },
     }

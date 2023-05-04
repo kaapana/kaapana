@@ -10,13 +10,15 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from radiomics_federated.LocalRadiomicsFederatedOperator import LocalRadiomicsFederatedOperator
+from radiomics_federated.LocalRadiomicsFederatedOperator import (
+    LocalRadiomicsFederatedOperator,
+)
 from radiomics_federated.RadiomicsReportingOperator import RadiomicsReportingOperator
 
 log = LoggingMixin().log
 
 remote_dag_id = "radiomics-federated-node"
-skip_operators= ["workflow-cleaner"]
+skip_operators = ["workflow-cleaner"]
 federated_operators = ["radiomics-packaging-operator"]
 ui_forms = {
     "data_form": {},
@@ -25,7 +27,7 @@ ui_forms = {
         "properties": {
             "federated_total_rounds": {
                 "type": "integer",
-                #"title": "Rounds",
+                # "title": "Rounds",
                 "default": 1,
                 "readOnly": True,
                 "required": True,
@@ -41,49 +43,53 @@ ui_forms = {
                 "type": "array",
                 "title": "Federated operators",
                 "items": {
-                    "type": 'string',
+                    "type": "string",
                     "enum": federated_operators,
                 },
                 "default": federated_operators,
                 "required": True,
-                "readOnly": True
+                "readOnly": True,
             },
             "skip_operators": {
                 "type": "array",
                 "title": "Skip operators",
                 "items": {
-                    "type": 'string',
+                    "type": "string",
                     "enum": skip_operators,
                 },
                 "default": skip_operators,
                 "required": True,
-                "readOnly": True
-            }
+                "readOnly": True,
+            },
         },
     },
-    "external_schemas": remote_dag_id
+    "external_schemas": remote_dag_id,
 }
 
 args = {
-    'ui_visible': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
 }
 
 dag = DAG(
-    dag_id='radiomics-federated-central',
+    dag_id="radiomics-federated-central",
     default_args=args,
     concurrency=5,
     max_active_runs=1,
-    schedule_interval=None
+    schedule_interval=None,
 )
 
 radiomics_federated_central = LocalRadiomicsFederatedOperator(dag=dag)
-put_radiomics_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[radiomics_federated_central])
-radiomics_reporting = RadiomicsReportingOperator(dag=dag, input_operator=radiomics_federated_central)
+put_radiomics_to_minio = LocalMinioOperator(
+    dag=dag, action="put", action_operators=[radiomics_federated_central]
+)
+radiomics_reporting = RadiomicsReportingOperator(
+    dag=dag, input_operator=radiomics_federated_central
+)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 radiomics_federated_central >> put_radiomics_to_minio >> clean

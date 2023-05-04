@@ -31,6 +31,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     * json file: output json file. DICOM tags are converted to a json file.
     """
+
     MODALITY_TAG = "00080060 Modality_keyword"
     IMAGE_TYPE_TAG = "00080008 ImageType_keyword"
 
@@ -49,11 +50,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         if LocalDcm2JsonOperator.IMAGE_TYPE_TAG in metadata_dict:
             image_type = metadata_dict[LocalDcm2JsonOperator.IMAGE_TYPE_TAG]
             assert isinstance(image_type, list)
-            if modality =="CT" and "LOCALIZER" in image_type and len(image_type)>=3:
+            if modality == "CT" and "LOCALIZER" in image_type and len(image_type) >= 3:
                 metadata_dict.update({"00000000 CuratedModality_keyword": "XR"})
 
         return metadata_dict
-        
+
     @staticmethod
     def get_label_tags(metadata):
         result_dict = {}
@@ -65,7 +66,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         ref_list = None
         if "30060080" in metadata:
             try:
-                ref_list = [entry["300600A4"]["Value"][0] for entry in metadata["30060080"]["Value"]]
+                ref_list = [
+                    entry["300600A4"]["Value"][0]
+                    for entry in metadata["30060080"]["Value"]
+                ]
             except Exception as e:
                 ref_list = None
 
@@ -90,11 +94,27 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 if "00620005" in label_entry:
                     value = label_entry["00620005"]["Value"][0].replace(",", "-")
                     segmentation_label_list.append(value)
-        result_dict["segmentation_labels_list_keyword"] = ",".join(sorted(segmentation_label_list)) if len(segmentation_label_list) > 0 else None
+        result_dict["segmentation_labels_list_keyword"] = (
+            ",".join(sorted(segmentation_label_list))
+            if len(segmentation_label_list) > 0
+            else None
+        )
         result_dict["00620005 Segment Label_keyword"] = segmentation_label_list
-        result_dict["rtstruct_organ_list_keyword"] = ",".join(sorted(rtstruct_organ_list)) if len(rtstruct_organ_list) > 0 else None
-        result_dict["rtstruct_marker_list_keyword"] = ",".join(sorted(rtstruct_marker_list)) if len(rtstruct_marker_list) > 0 else None
-        result_dict["rtstruct_other_list_keyword"] = ",".join(sorted(rtstruct_other_list)) if len(rtstruct_other_list) > 0 else None
+        result_dict["rtstruct_organ_list_keyword"] = (
+            ",".join(sorted(rtstruct_organ_list))
+            if len(rtstruct_organ_list) > 0
+            else None
+        )
+        result_dict["rtstruct_marker_list_keyword"] = (
+            ",".join(sorted(rtstruct_marker_list))
+            if len(rtstruct_marker_list) > 0
+            else None
+        )
+        result_dict["rtstruct_other_list_keyword"] = (
+            ",".join(sorted(rtstruct_other_list))
+            if len(rtstruct_other_list) > 0
+            else None
+        )
         result_dict["rtstruct_organ_keyword"] = rtstruct_organ_list
         result_dict["rtstruct_marker_keyword"] = rtstruct_marker_list
         result_dict["rtstruct_other_keyword"] = rtstruct_other_list
@@ -119,9 +139,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
             if len(dcm_files) == 0:
                 print("No dicom file found!")
-                raise ValueError('ERROR')
+                raise ValueError("ERROR")
 
-            print('length', len(dcm_files))
+            print("length", len(dcm_files))
             for dcm_file_path in dcm_files:
                 print(f"Extracting metadata: {dcm_file_path}")
 
@@ -135,23 +155,26 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     # (7FE0,0008) Float Pixel Data
                     # (7FE0,0009) Double Float Pixel Data
                     # (7FE0,0010) Pixel Data
-                    command = f"{self.dcmodify_path} --no-backup --ignore-missing-tags --erase-all \"(0014,3080)\" --erase-all \"(7FE0,0008)\" --erase-all \"(7FE0,0009)\" --erase-all \"(7FE0,0010)\" {dcm_file_path};"
+                    command = f'{self.dcmodify_path} --no-backup --ignore-missing-tags --erase-all "(0014,3080)" --erase-all "(7FE0,0008)" --erase-all "(7FE0,0009)" --erase-all "(7FE0,0010)" {dcm_file_path};'
                     output = subprocess.run([command], shell=True)
-                
+
                     if output.returncode != 0:
                         print("Something went wrong with dcmodify...")
                         print(f"Message: {output.stdout}")
                         print(f"Error:   {output.stderr}")
-                        raise ValueError('ERROR')
-                        
+                        raise ValueError("ERROR")
+
                 self.executeDcm2Json(dcm_file_path, json_file_path)
                 json_dict = self.cleanJsonData(json_file_path)
-        
-                json_dict = LocalDcm2JsonOperator.predict_modality(metadata_dict = json_dict)
 
+                json_dict = LocalDcm2JsonOperator.predict_modality(
+                    metadata_dict=json_dict
+                )
 
-                with open(json_file_path, "w", encoding='utf-8') as jsonData:
-                    json.dump(json_dict, jsonData, indent=4, sort_keys=True, ensure_ascii=True)
+                with open(json_file_path, "w", encoding="utf-8") as jsonData:
+                    json.dump(
+                        json_dict, jsonData, indent=4, sort_keys=True, ensure_ascii=True
+                    )
 
                 # shutil.rmtree(self.temp_dir)
 
@@ -171,12 +194,14 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         ret = subprocess.call(command, shell=True)
         if ret != 0:
             print("Something went wrong with dcm2json...")
-            raise ValueError('ERROR')
+            raise ValueError("ERROR")
         return
 
     def check_type(self, obj, val_type):
         try:
-            if isinstance(obj, val_type) or (val_type is float and isinstance(obj, int)):
+            if isinstance(obj, val_type) or (
+                val_type is float and isinstance(obj, int)
+            ):
                 return obj
             elif val_type is float and not isinstance(obj, list):
                 obj = float(obj)
@@ -238,13 +263,15 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 sec = int(time_str)
 
             else:
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ could not convert time!")
+                print(
+                    "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ could not convert time!"
+                )
                 print("time_str: {}".format(time_str))
                 if self.exit_on_error:
-                    raise ValueError('ERROR')
+                    raise ValueError("ERROR")
 
             # HH:mm:ss.SSSSS
-            time_string = ("%02i:%02i:%02i.%06i" % (hour, minute, sec, fsec))
+            time_string = "%02i:%02i:%02i.%06i" % (hour, minute, sec, fsec)
             # date_output = ("\"%02i:%02i:%02i.%03i\""%(hour,minute,sec,fsec))
             time_formatted = parser.parse(time_string).strftime(self.format_time)
 
@@ -257,7 +284,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             print("Value: {}".format(time_str))
             print(e)
             if self.exit_on_error:
-                raise ValueError('ERROR')
+                raise ValueError("ERROR")
 
     def check_list(self, value_list):
         tmp_data = []
@@ -279,12 +306,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         for key, value in dicom_meta.items():
             new_key = self.dictionary.get(key, None)
             if new_key is None:
-                print(f'Key {key} not found in dictionary. Skipping.')
+                print(f"Key {key} not found in dictionary. Skipping.")
                 continue
 
-            if 'vr' in value and 'Value' in value:
-                value_str = value['Value']
-                vr = str(value['vr'])
+            if "vr" in value and "Value" in value:
+                value_str = value["Value"]
+                vr = str(value["vr"])
 
                 if "nan" in value_str:
                     # it would probably be cleaner to check for float VRs (note that value_str is still a list here)
@@ -296,11 +323,24 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         value_str = value_str[0]
 
                 try:  # vr list: http://dicom.nema.org/dicom/2013/output/chtml/part05/sect_6.2.html
-
-                    if vr in ("AE", "AS", "AT", "CS", "LO", "LT", "OB", "OW", "SH", "ST", "UC", "UI", "UN", "UT"):
+                    if vr in (
+                        "AE",
+                        "AS",
+                        "AT",
+                        "CS",
+                        "LO",
+                        "LT",
+                        "OB",
+                        "OW",
+                        "SH",
+                        "ST",
+                        "UC",
+                        "UI",
+                        "UN",
+                        "UT",
+                    ):
                         new_key += "_keyword"
                         new_meta_data[new_key] = value_str
-
 
                     elif vr == "DA":
                         # date
@@ -318,18 +358,26 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                                 for date_str in value_str:
                                     if date_str == "":
                                         continue
-                                    date_formatted.append(parser.parse(date_str).strftime(self.format_date))
+                                    date_formatted.append(
+                                        parser.parse(date_str).strftime(
+                                            self.format_date
+                                        )
+                                    )
                             else:
-                                date_formatted = parser.parse(value_str).strftime(self.format_date)
+                                date_formatted = parser.parse(value_str).strftime(
+                                    self.format_date
+                                )
 
                             new_key += "_date"
                             new_meta_data[new_key] = date_formatted
                         except Exception as e:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
+                            print(
+                                "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED"
+                            )
                             print("Could not extract date from: {}".format(value_str))
                             print(e)
                             if self.exit_on_error:
-                                raise ValueError('ERROR')
+                                raise ValueError("ERROR")
 
                     elif vr == "DT":
                         # Date Time
@@ -341,37 +389,56 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                             date_time_string = None
 
                             if len(value_str) == 21 and "." in value_str:
-                                date_time_string = parser.parse(value_str.split(".")[0]).strftime("%Y-%m-%d %H:%M:%S.%f")
+                                date_time_string = parser.parse(
+                                    value_str.split(".")[0]
+                                ).strftime("%Y-%m-%d %H:%M:%S.%f")
 
                             elif len(value_str) == 8:
                                 print("DATE ONLY FOUND")
-                                datestr_date = parser.parse(value_str).strftime("%Y%m%d")
-                                datestr_time = parser.parse("01:00:00").strftime("%H:%M:%S")
+                                datestr_date = parser.parse(value_str).strftime(
+                                    "%Y%m%d"
+                                )
+                                datestr_time = parser.parse("01:00:00").strftime(
+                                    "%H:%M:%S"
+                                )
                                 date_time_string = datestr_date + " " + datestr_time
 
                             elif len(value_str) == 16:
                                 print("DATETIME FOUND")
                                 datestr_date = str(value_str)[:8]
                                 datestr_time = str(value_str)[8:]
-                                datestr_date = parser.parse(datestr_date).strftime(self.format_date)
-                                datestr_time = parser.parse(datestr_time).strftime(self.format_time)
+                                datestr_date = parser.parse(datestr_date).strftime(
+                                    self.format_date
+                                )
+                                datestr_time = parser.parse(datestr_time).strftime(
+                                    self.format_time
+                                )
                                 date_time_string = datestr_date + " " + datestr_time
 
                             else:
-                                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                                print("++++++++++++++++++++++++++++ No Datetime ++++++++++++++++++++++++++++")
+                                print(
+                                    "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+                                )
+                                print(
+                                    "++++++++++++++++++++++++++++ No Datetime ++++++++++++++++++++++++++++"
+                                )
                                 print("KEY  : {}".format(new_key))
                                 print("Value: {}".format(value_str))
                                 print("LEN: {}".format(len(value_str)))
                                 print("Skipping...")
-                                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                                print(
+                                    "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+                                )
                                 if self.exit_on_error:
-                                    raise ValueError('ERROR')
+                                    raise ValueError("ERROR")
 
                             if date_time_string is not None:
-
-                                date_time_formatted = parser.parse(date_time_string).strftime(self.format_date_time)
-                                date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
+                                date_time_formatted = parser.parse(
+                                    date_time_string
+                                ).strftime(self.format_date_time)
+                                date_time_formatted = self.convert_time_to_utc(
+                                    date_time_formatted, self.format_date_time
+                                )
 
                                 new_key += "_datetime"
 
@@ -380,11 +447,15 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                                 new_meta_data[new_key] = date_time_formatted
 
                         except Exception as e:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
-                            print("Could not extract Date Time from: {}".format(value_str))
+                            print(
+                                "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED"
+                            )
+                            print(
+                                "Could not extract Date Time from: {}".format(value_str)
+                            )
                             print(e)
                             if self.exit_on_error:
-                                raise ValueError('ERROR')
+                                raise ValueError("ERROR")
 
                     elif vr in ("DS", "FL", "FD", "OD", "OF"):
                         # Decimal String / Floating Point Single / Floating Point Double / Other Double String / Other Float String
@@ -395,9 +466,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         if checked_val != "SKIPIT":
                             new_meta_data[new_key] = checked_val
                         else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
+                            print(
+                                "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED"
+                            )
                             if self.exit_on_error:
-                                raise ValueError('ERROR')
+                                raise ValueError("ERROR")
 
                     elif vr in ("IS", "SL", "SS", "UL", "US"):
                         # Integer String / Signed Long / Signed Short / Unsigned Long / Unsigned Short
@@ -407,9 +480,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         if checked_val != "SKIPIT":
                             new_meta_data[new_key] = checked_val
                         else:
-                            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED")
+                            print(
+                                "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ SKIPPED"
+                            )
                             if self.exit_on_error:
-                                raise ValueError('ERROR')
+                                raise ValueError("ERROR")
 
                     elif vr == "PN":
                         # Person Name
@@ -418,11 +493,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         # elements. The string may be padded with trailing spaces. For human use, the five components in their order
                         # of occurrence are: family name complex, given name complex, middle name, name prefix, name suffix.
                         new_key += "_keyword"
-                        subcategories = ['Alphabetic', 'Ideographic', 'Phonetic']
+                        subcategories = ["Alphabetic", "Ideographic", "Phonetic"]
                         for cat in subcategories:
                             if cat in value_str:
-                                new_meta_data[new_key+"_" +
-                                              cat.lower()] = value_str[cat]
+                                new_meta_data[new_key + "_" + cat.lower()] = value_str[
+                                    cat
+                                ]
 
                     elif vr == "SQ":
                         result = []
@@ -441,12 +517,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                                     else:
                                         print("Attention!")
                                         if self.exit_on_error:
-                                            raise ValueError('ERROR')
+                                            raise ValueError("ERROR")
 
                             else:
                                 print("ATTENTION!")
                                 if self.exit_on_error:
-                                    raise ValueError('ERROR')
+                                    raise ValueError("ERROR")
 
                         elif isinstance(value_str, dict):
                             new_key += "_object"
@@ -487,13 +563,15 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         print(f"################ VR in ELSE!: {vr}")
                         print(f"DICOM META: {value}")
                         new_key += "_keyword"
-                        new_meta_data[new_key] = (value_str)
+                        new_meta_data[new_key] = value_str
 
                 except Exception as e:
                     logging.error("#")
                     logging.error("#")
                     logging.error("#")
-                    logging.error("################################### EXCEPTION #######################################")
+                    logging.error(
+                        "################################### EXCEPTION #######################################"
+                    )
                     logging.error("#")
                     logging.error(f"DICOM META: {value}")
                     logging.error(traceback.format_exc())
@@ -502,21 +580,33 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     logging.error("#")
                     logging.error("#")
                     logging.error("#")
-                    raise ValueError('ERROR')
+                    raise ValueError("ERROR")
 
             else:
                 if "InlineBinary" in value:
-                    print("##########################################################################        SKIPPING BINARY!")
+                    print(
+                        "##########################################################################        SKIPPING BINARY!"
+                    )
                 elif "Value" not in value:
-                    print("No value found in entry: {}".format(str(value).strip('[]').encode('utf-8')))
+                    print(
+                        "No value found in entry: {}".format(
+                            str(value).strip("[]").encode("utf-8")
+                        )
+                    )
                 elif "vr" not in value:
-                    print("No vr found in entry: {}".format(str(value).strip('[]').encode('utf-8')))
+                    print(
+                        "No vr found in entry: {}".format(
+                            str(value).strip("[]").encode("utf-8")
+                        )
+                    )
                 else:
-                    print("##########################################################################        replace_tags ELSE!")
+                    print(
+                        "##########################################################################        replace_tags ELSE!"
+                    )
                     if "vr" in value:
-                        print("VR: {}".format(value["vr"].encode('utf-8')))
+                        print("VR: {}".format(value["vr"].encode("utf-8")))
                     if "Value" in value:
-                        entry_value = str(value["Value"]).strip('[]').encode('utf-8')
+                        entry_value = str(value["Value"]).strip("[]").encode("utf-8")
                         print("value: {}".format(entry_value))
 
                     print("new_key: {}".format(new_key))
@@ -526,14 +616,16 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     def tryConvertingYamlToJson(self, file_path):
         print("ERROR IN JSON FILE -> Try to correct")
         try:
-            with open(file_path, "r", encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 yaml_data = yaml.safe_load(f)
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(yaml_data, f, indent=4, sort_keys=True, ensure_ascii=False)
         except Exception as e:
-            print("##########################################################################        correction of json file  failed!")
+            print(
+                "##########################################################################        correction of json file  failed!"
+            )
             print(e)
-            raise ValueError('ERROR')
+            raise ValueError("ERROR")
 
     def cleanJsonData(self, path: Path):
         """
@@ -553,21 +645,23 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     if m is not None:
                         group = m.group()
                         # FIXME: and this seems to disregard the match position and simply removes any + symbol:
-                        fout.write(line.replace('+', ''))
+                        fout.write(line.replace("+", ""))
                     else:
                         fout.write(line)
         os.remove(path_tmp)
         try:
-            with open(path, encoding='utf-8') as dicom_meta:
+            with open(path, encoding="utf-8") as dicom_meta:
                 dicom_metadata = json.load(dicom_meta)
 
         except Exception as e:
-            print("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ERROR WHILE LOADING JSON!!")
+            print(
+                "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ ERROR WHILE LOADING JSON!!"
+            )
             print(e)
             print("Try to correct...")
             self.tryConvertingYamlToJson(path)
             print("Try again...")
-            with open(path, encoding='utf-8') as dicom_meta:
+            with open(path, encoding="utf-8") as dicom_meta:
                 dicom_metadata = json.load(dicom_meta)
 
         label_results = {}
@@ -611,29 +705,44 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 extracted_time = new_meta_data["00080030 StudyTime_time"]
 
             if extracted_date == None:
-                print("###########################        NO AcquisitionDate! -> set to today")
+                print(
+                    "###########################        NO AcquisitionDate! -> set to today"
+                )
                 time_tag_used += "date not found -> arriving date"
                 extracted_date = datetime.now().strftime(self.format_date)
 
             if extracted_time == None:
-                print("###########################        NO AcquisitionTime! -> set to now")
+                print(
+                    "###########################        NO AcquisitionTime! -> set to now"
+                )
                 time_tag_used += " + time not found -> arriving time"
                 extracted_time = datetime.now().strftime(self.format_time)
 
-            date_time_string = extracted_date+" "+extracted_time
-            date_time_formatted = parser.parse(date_time_string).strftime(self.format_date_time)
+            date_time_string = extracted_date + " " + extracted_time
+            date_time_formatted = parser.parse(date_time_string).strftime(
+                self.format_date_time
+            )
 
-        date_time_formatted = self.convert_time_to_utc(date_time_formatted, self.format_date_time)
+        date_time_formatted = self.convert_time_to_utc(
+            date_time_formatted, self.format_date_time
+        )
         new_meta_data["timestamp"] = date_time_formatted
 
         timestamp_arrived = datetime.now()
-        new_meta_data["00000000 TimestampArrived_datetime"] = self.convert_time_to_utc(timestamp_arrived.strftime(self.format_date_time), self.format_date_time)
+        new_meta_data["00000000 TimestampArrived_datetime"] = self.convert_time_to_utc(
+            timestamp_arrived.strftime(self.format_date_time), self.format_date_time
+        )
 
-        new_meta_data["00000000 TimestampArrived_date"] = new_meta_data["00000000 TimestampArrived_datetime"][:10]
-        new_meta_data["00000000 TimestampArrivedHour_integer"] = new_meta_data["00000000 TimestampArrived_datetime"][11:13]
+        new_meta_data["00000000 TimestampArrived_date"] = new_meta_data[
+            "00000000 TimestampArrived_datetime"
+        ][:10]
+        new_meta_data["00000000 TimestampArrivedHour_integer"] = new_meta_data[
+            "00000000 TimestampArrived_datetime"
+        ][11:13]
 
         new_meta_data["00000000 DayOfWeek_integer"] = datetime.strptime(
-            date_time_formatted, self.format_date_time).weekday()
+            date_time_formatted, self.format_date_time
+        ).weekday()
         new_meta_data["00000000 TimeTagUsed_keyword"] = time_tag_used
         new_meta_data["predicted_bodypart_string"] = "N/A"
 
@@ -643,15 +752,23 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             birthday_datetime = datetime.strptime(birthdate, "%Y-%m-%d")
 
             series_datetime = datetime.strptime(
-                date_time_formatted, self.format_date_time)
-            patient_age_scan = series_datetime.year - birthday_datetime.year - \
-                ((series_datetime.month, series_datetime.day) <
-                 (birthday_datetime.month, birthday_datetime.day))
+                date_time_formatted, self.format_date_time
+            )
+            patient_age_scan = (
+                series_datetime.year
+                - birthday_datetime.year
+                - (
+                    (series_datetime.month, series_datetime.day)
+                    < (birthday_datetime.month, birthday_datetime.day)
+                )
+            )
 
             if "00101010 PatientAge_keyword" in new_meta_data:
                 age_meta = int(new_meta_data["00101010 PatientAge_keyword"][:-1])
                 if patient_age_scan is not age_meta:
-                    print("########################################################################################### DIFF IN AGE!")
+                    print(
+                        "########################################################################################### DIFF IN AGE!"
+                    )
             new_meta_data["00101010 PatientAge_integer"] = patient_age_scan
 
         elif "00101010 PatientAge_keyword" in new_meta_data:
@@ -662,7 +779,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 print("######### Could not extract age-int from metadata...")
 
         if "00120020 ClinicalTrialProtocolID_keyword" in new_meta_data:
-            aetitles = new_meta_data["00120020 ClinicalTrialProtocolID_keyword"].split(";")
+            aetitles = new_meta_data["00120020 ClinicalTrialProtocolID_keyword"].split(
+                ";"
+            )
             print(f"ClinicalTrialProtocolIDs {aetitles}")
             new_meta_data["00120020 ClinicalTrialProtocolID_keyword"] = aetitles
 
@@ -677,20 +796,17 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         return utc_dt.strftime(date_format)
 
-    def __init__(self,
-                 dag,
-                 exit_on_error=False,
-                 delete_pixel_data=True,
-                 bulk=False,
-                 **kwargs):
+    def __init__(
+        self, dag, exit_on_error=False, delete_pixel_data=True, bulk=False, **kwargs
+    ):
         """
         :param exit_on_error: 'True' or 'False' (default). Exit with error, when some key/values are missing or mismatching.
         :param delete_pixel_data:'True' (default) or 'False'. removes pixel-data from DICOM
         :param bulk: 'True' or 'False' (default). Process all files of a series or only the first one.
         """
 
-        self.dcmodify_path = 'dcmodify'
-        self.dcm2json_path = 'dcm2json'
+        self.dcmodify_path = "dcmodify"
+        self.dcm2json_path = "dcm2json"
         self.format_time = "%H:%M:%S.%f"
         self.format_date = "%Y-%m-%d"
         self.format_date_time = "%Y-%m-%d %H:%M:%S.%f"
@@ -699,21 +815,21 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         self.delete_pixel_data = delete_pixel_data
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
-        if 'DCMDICTPATH' in os.environ and 'DICT_PATH' in os.environ:
+        if "DCMDICTPATH" in os.environ and "DICT_PATH" in os.environ:
             # DCMDICTPATH is used by dcmtk / dcm2json
-            self.dict_path = os.getenv('DICT_PATH')
+            self.dict_path = os.getenv("DICT_PATH")
         else:
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             print("DCMDICTPATH or DICT_PATH ENV NOT FOUND!")
-            print("dcmdictpath: {}".format(os.getenv('DCMDICTPATH')))
-            print("dict_path: {}".format(os.getenv('DICT_PATH')))
+            print("dcmdictpath: {}".format(os.getenv("DCMDICTPATH")))
+            print("dict_path: {}".format(os.getenv("DICT_PATH")))
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-            raise ValueError('ERROR')
+            raise ValueError("ERROR")
 
         super().__init__(
             dag=dag,
             name="dcm2json",
             python_callable=self.start,
             ram_mem_mb=10,
-            **kwargs
+            **kwargs,
         )

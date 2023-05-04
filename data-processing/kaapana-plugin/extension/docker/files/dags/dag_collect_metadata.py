@@ -1,5 +1,5 @@
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator 
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
 from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
@@ -23,32 +23,42 @@ ui_forms = {
                 "default": False,
                 "readOnly": False,
             }
-        }
+        },
     }
 }
 
 args = {
-    'ui_forms': ui_forms,
-    'ui_visible': True,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 2,
-    'retry_delay': timedelta(seconds=30),
+    "ui_forms": ui_forms,
+    "ui_visible": True,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 2,
+    "retry_delay": timedelta(seconds=30),
 }
 
 dag = DAG(
-    dag_id='collect-metadata',
+    dag_id="collect-metadata",
     default_args=args,
     concurrency=50,
     max_active_runs=50,
-    schedule_interval=None
-    )
+    schedule_interval=None,
+)
 
 get_input = LocalGetInputDataOperator(dag=dag)
-anonymizer = LocalDcmAnonymizerOperator(dag=dag, input_operator=get_input, single_slice=True)
+anonymizer = LocalDcmAnonymizerOperator(
+    dag=dag, input_operator=get_input, single_slice=True
+)
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer)
-concat_metadata = LocalConcatJsonOperator(dag=dag, name='concatenated-metadata', input_operator=extract_metadata)
-put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[concat_metadata], bucket_name="downloads", zip_files=True)
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+concat_metadata = LocalConcatJsonOperator(
+    dag=dag, name="concatenated-metadata", input_operator=extract_metadata
+)
+put_to_minio = LocalMinioOperator(
+    dag=dag,
+    action="put",
+    action_operators=[concat_metadata],
+    bucket_name="downloads",
+    zip_files=True,
+)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> anonymizer >> extract_metadata >> concat_metadata >> put_to_minio >> clean

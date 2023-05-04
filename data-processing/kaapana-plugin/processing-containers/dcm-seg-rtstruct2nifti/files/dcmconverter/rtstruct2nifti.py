@@ -11,7 +11,9 @@ mask_background_value = 0
 mask_foreground_value = 1
 
 
-def convert_rtstruct(element_mask_dicom, element_base_dicom_in_dir, output_path, seg_filter):
+def convert_rtstruct(
+    element_mask_dicom, element_base_dicom_in_dir, output_path, seg_filter
+):
     try:
         dcmrtstruct2nii_tmp_ouput_dir = join(output_path, "tmp")
         logger.info(f"# output_path: {output_path}")
@@ -50,7 +52,11 @@ def generate_meta_info(result_dir, seg_filter):
         target_dir = dirname(dirname(result))
         extracted_label = basename(result).replace("mask_", "").replace(".nii.gz", "")
         logger.info("#")
-        if seg_filter is not None and extracted_label.lower().replace(",", " ").replace(" ", "") not in seg_filter:
+        if (
+            seg_filter is not None
+            and extracted_label.lower().replace(",", " ").replace(" ", "")
+            not in seg_filter
+        ):
             logger.info(
                 f"# extracted_label {extracted_label.lower().replace(',',' ').replace(' ','')} not in filters {seg_filter} -> ignoring"
             )
@@ -85,6 +91,8 @@ def generate_meta_info(result_dir, seg_filter):
 
         meta_path = join(dirname(new_filename), f"{file_id}-meta.json")
         with open(meta_path, "w", encoding="utf-8") as jsonData:
-            json.dump(meta_temlate, jsonData, indent=4, sort_keys=True, ensure_ascii=True)
+            json.dump(
+                meta_temlate, jsonData, indent=4, sort_keys=True, ensure_ascii=True
+            )
 
     shutil.rmtree(result_dir)

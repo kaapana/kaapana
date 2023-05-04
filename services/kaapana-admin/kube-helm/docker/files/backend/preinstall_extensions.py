@@ -26,7 +26,9 @@ elif log_level == "ERROR":
 elif log_level == "CRITICAL":
     log_level = logging.CRITICAL
 else:
-    logging.error(f"Unknown log-level: {settings.log_level} -> Setting log-level to 'INFO'")
+    logging.error(
+        f"Unknown log-level: {settings.log_level} -> Setting log-level to 'INFO'"
+    )
     log_level = logging.INFO
 
 logger.setLevel(log_level)
@@ -76,17 +78,21 @@ for extension in preinstall_extensions:
         if "keywords" in chart and "kaapanaplatform" in chart["keywords"]:
             is_platform = True
         success, _, _, release_name, _ = helm_install(
-            extension, shell=True, update_state=False, blocking=True, platforms=is_platform
+            extension,
+            shell=True,
+            update_state=False,
+            blocking=True,
+            platforms=is_platform,
         )
         releases_installed[release_name] = {
             "version": extension["version"],
             "installed": False,
-            "is_platform": is_platform
+            "is_platform": is_platform,
         }
         if success:
             logger.info(f"Chart {release_name} successfully installed")
         else:
-            error_message=f"Failed to install chart {release_name}, see error logs"
+            error_message = f"Failed to install chart {release_name}, see error logs"
             logger.error(error_message)
             raise Exception(error_message)
 
@@ -113,27 +119,34 @@ for _ in range(1800):
         if is_platform:
             helm_namespace = "default"
         status = helm_status(release_name, helm_namespace=helm_namespace)
-        success, _, _, kube_status = get_kube_objects(release_name, helm_namespace=helm_namespace)
+        success, _, _, kube_status = get_kube_objects(
+            release_name, helm_namespace=helm_namespace
+        )
 
         if not success:
-            logger.warning(f"Some Kubernetes objects for release {release_name} are not successful yet")
+            logger.warning(
+                f"Some Kubernetes objects for release {release_name} are not successful yet"
+            )
             continue
 
         installed = (
             True
-            if all_successful(set(kube_status["status"] + [status["STATUS"]]))
-            == "yes"
+            if all_successful(set(kube_status["status"] + [status["STATUS"]])) == "yes"
             else False
         )
 
         if installed:
-            logger.info(f"All Kubernetes objects for release {release_name} are successful")
+            logger.info(
+                f"All Kubernetes objects for release {release_name} are successful"
+            )
         else:
-            logger.warning(f"Some Kubernetes objects for release {release_name} are not successful yet")
+            logger.warning(
+                f"Some Kubernetes objects for release {release_name} are not successful yet"
+            )
         releases_installed[release_name] = {
             "version": extension["version"],
             "installed": installed,
-            "is_platform": is_platform
+            "is_platform": is_platform,
         }
 
     s = sum([i["installed"] for i in list(releases_installed.values())])

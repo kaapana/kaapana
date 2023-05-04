@@ -20,31 +20,29 @@ ui_forms = {
                 "default": False,
                 "readOnly": False,
             }
-        }
+        },
     }
 }
 
 log = LoggingMixin().log
 
 args = {
-    'ui_forms': ui_forms,
-    'ui_visible': True,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_forms": ui_forms,
+    "ui_visible": True,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
 }
 
 dag = DAG(
-    dag_id='example-dcm-extract-study-id',
-    default_args=args,
-    schedule_interval=None
-    )
+    dag_id="example-dcm-extract-study-id", default_args=args, schedule_interval=None
+)
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
 extract = ExtractStudyIdOperator(dag=dag, input_operator=get_input)
-put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[extract])
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+put_to_minio = LocalMinioOperator(dag=dag, action="put", action_operators=[extract])
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> extract >>  put_to_minio >> clean
+get_input >> extract >> put_to_minio >> clean

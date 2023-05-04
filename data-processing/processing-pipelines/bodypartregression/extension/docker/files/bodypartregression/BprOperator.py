@@ -1,7 +1,10 @@
 from datetime import timedelta
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
 
 
 class BprOperator(KaapanaBaseOperator):
@@ -29,14 +32,15 @@ class BprOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(minutes=10)
     task_dict = {}
 
-    def __init__(self,
-                 dag,
-                 stringify_json=False,
-                 env_vars={},
-                 parallel_id=None,
-                 execution_timeout=execution_timeout,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        dag,
+        stringify_json=False,
+        env_vars={},
+        parallel_id=None,
+        execution_timeout=execution_timeout,
+        **kwargs,
+    ):
         envs = {"STRINGIFY_JSON": str(stringify_json)}
         env_vars.update(envs)
 
@@ -51,5 +55,5 @@ class BprOperator(KaapanaBaseOperator):
             ram_mem_mb_lmt=6000,
             gpu_mem_mb=5000,
             env_vars=env_vars,
-            **kwargs
+            **kwargs,
         )

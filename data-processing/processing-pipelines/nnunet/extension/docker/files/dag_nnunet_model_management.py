@@ -19,39 +19,34 @@ ui_forms = {
                 "type": "string",
                 "default": "",
                 "enum": sorted(list(installed_tasks.keys())),
-                "required": False
+                "required": False,
             }
-        }
+        },
     }
 }
 args = {
-    'ui_visible': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=60)
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=60),
 }
 
 dag = DAG(
-    dag_id='nnunet-model-uninstall',
+    dag_id="nnunet-model-uninstall",
     default_args=args,
     concurrency=1,
     max_active_runs=1,
-    schedule_interval=None
+    schedule_interval=None,
 )
 
 get_input = LocalGetInputDataOperator(
-    dag=dag,
-    check_modality=True,
-    parallel_downloads=5
+    dag=dag, check_modality=True, parallel_downloads=5
 )
 
 dcm2bin = Bin2DcmOperator(
-    dag=dag,
-    input_operator=get_input,
-    name="extract-binary",
-    file_extensions="*.dcm"
+    dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm"
 )
 
 model_management = NnUnetModelOperator(

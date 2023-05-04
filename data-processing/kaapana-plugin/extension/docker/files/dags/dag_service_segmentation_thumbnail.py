@@ -73,4 +73,10 @@ put_to_minio = LocalMinioOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-get_input >> get_ref_ct_series_from_seg >> generate_segmentation_thumbnail >> put_to_minio >> clean
+(
+    get_input
+    >> get_ref_ct_series_from_seg
+    >> generate_segmentation_thumbnail
+    >> put_to_minio
+    >> clean
+)

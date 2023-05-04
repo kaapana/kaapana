@@ -1,7 +1,12 @@
 from datetime import timedelta, datetime
 
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE, DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
+from kaapana.blueprints.kaapana_global_variables import (
+    SERVICES_NAMESPACE,
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
+
 
 class DcmSendOperator(KaapanaBaseOperator):
     """
@@ -11,19 +16,19 @@ class DcmSendOperator(KaapanaBaseOperator):
     For dcmsend documentation please have a look at https://support.dcmtk.org/docs/dcmsend.html.
     """
 
-    def __init__(self,
-                 dag,
-                 name: str = "dcmsend",
-                 ae_title: str = "NONE",
-                 pacs_host: str = f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc",
-                 pacs_port: str = "11112",
-                 env_vars=None,
-                 level: str = "element",
-                 check_arrival: bool = False,
-                 execution_timeout: datetime = timedelta(minutes=60),
-                 **kwargs
-                 ):
-
+    def __init__(
+        self,
+        dag,
+        name: str = "dcmsend",
+        ae_title: str = "NONE",
+        pacs_host: str = f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc",
+        pacs_port: str = "11112",
+        env_vars=None,
+        level: str = "element",
+        check_arrival: bool = False,
+        execution_timeout: datetime = timedelta(minutes=60),
+        **kwargs,
+    ):
         """
         :param ae_title: calling Application Entity (AE) title
         :param pacs_host: Host of PACS
@@ -37,7 +42,9 @@ class DcmSendOperator(KaapanaBaseOperator):
         """
 
         if level not in ["element", "batch"]:
-            raise NameError("level must be either 'element' or 'batch'. If batch, an operator folder next to the batch folder with .dcm files is expected. If element, *.dcm are expected in the corresponding operator with .dcm files is expected.")
+            raise NameError(
+                "level must be either 'element' or 'batch'. If batch, an operator folder next to the batch folder with .dcm files is expected. If element, *.dcm are expected in the corresponding operator with .dcm files is expected."
+            )
 
         if env_vars is None:
             env_vars = {}
@@ -47,7 +54,7 @@ class DcmSendOperator(KaapanaBaseOperator):
             "PORT": str(pacs_port),
             "AETITLE": str(ae_title),
             "CHECK_ARRIVAL": str(check_arrival),
-            "LEVEL": str(level)
+            "LEVEL": str(level),
         }
 
         env_vars.update(envs)
@@ -59,5 +66,5 @@ class DcmSendOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,
-            **kwargs
+            **kwargs,
         )

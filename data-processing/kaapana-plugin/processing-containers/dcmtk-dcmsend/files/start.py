@@ -79,13 +79,17 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
 
         print(f'Found {len(dicom_list)} file(s) in {dicom_dir}. Will use series_uuid {series_uid}')
         if aetitle is None:
-            try:
-                aetitle = str(dcm_file[0x012, 0x020].value)
-                print(f'Found aetitle    {aetitle}')
-            except Exception as e:
-                print(f'Could not load aetitle: {e}')
-                aetitle = "KAAPANA export"
-                print(f'Using default aetitle {aetitle}')
+            if "WORKFLOW_NAME" in os.environ:
+                aetitle =  os.environ["WORKFLOW_NAME"]
+                print(f'Using workflow_name as aetitle:    {aetitle}')
+            else:
+                try:
+                    aetitle = str(dcm_file[0x012, 0x020].value)
+                    print(f'Found aetitle    {aetitle}')
+                except Exception as e:
+                    print(f'Could not load aetitle: {e}')
+                    aetitle = "KAAPANA export"
+                    print(f'Using default aetitle {aetitle}')
 
         print(f'Sending {dicom_dir} to {HOST} {PORT} with aetitle {aetitle}')
         # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)

@@ -53,6 +53,8 @@
       :search="search"
       :expanded="expanded"
       @click:row="expandRow"
+      :loading="loading"
+      loading-text="Request is processed - wait a few seconds."
     >
       <template v-slot:item.status="{ item }">
         <v-chip
@@ -175,10 +177,12 @@ data () {
     activateAddRemote: false,
     shouldExpand: true,
     localInstance: {},
+    loading: false,
   }
 },
 
 mounted () {
+  this.loading = true
   this.refreshClient();
   this.getLocalInstance();
 },
@@ -273,22 +277,27 @@ methods: {
 
   // API Calls
   getLocalInstance() {
+    this.loading = true
     kaapanaApiService
       .federatedClientApiGet("/kaapana-instance")
       .then((response) => {
+        this.loading = false
         this.localInstance = response.data;
         console.log("this.localInstance: ", this.localInstance)
       })
       .catch((err) => {
+        this.loading = false
         console.log(err);
       });
   },
   getJobsOfWorkflow(workflow_name) {
+    this.loading = true
     kaapanaApiService
       .federatedClientApiGet("/jobs",{
         workflow_name: workflow_name,
         limit: 100,
       }).then((response) => {
+        this.loading = false
         if (this.expanded.length > 0) {
           this.jobsofExpandedWorkflow = response.data;
         } else {
@@ -296,14 +305,17 @@ methods: {
         }
       })
       .catch((err) => {
+        this.loading = false
         console.log(err);
       })
   },
   deleteClientWorkflowAPI(workflow_id) {
+    this.loading = true
     kaapanaApiService
       .federatedClientApiDelete("/workflow",{
           workflow_id,
       }).then((response) => {
+        this.loading = false
         // positive notification
         const message = `Successfully deleted workflow ${workflow_id}`
         this.$notify({
@@ -312,6 +324,7 @@ methods: {
         })
       })
       .catch((err) => {
+        this.loading = false
         // negative notification
         const message = `Error while deleting workflow ${workflow_id}`
         this.$notify({
@@ -322,11 +335,13 @@ methods: {
       })
   },
   restartClientWorkflowAPI(workflow_id, workflow_status) {
-      kaapanaApiService
+    this.loading = true
+    kaapanaApiService
       .federatedClientApiPut("/workflow",{
           workflow_id,
           workflow_status,
       }).then((response) => {
+        this.loading = false
         // positive notification
         const message = `Successfully restarted workflow ${workflow_id}`
         this.$notify({
@@ -335,6 +350,7 @@ methods: {
         })
       })
       .catch((err) => {
+        this.loading = false
         // negative notification
         const message = `Error while restarting workflow ${workflow_id}`
         this.$notify({
@@ -345,11 +361,13 @@ methods: {
       })
   },
   abortClientWorkflowAPI(workflow_id, workflow_status) {
-      kaapanaApiService
+    this.loading = true
+    kaapanaApiService
       .federatedClientApiPut("/workflow",{
           workflow_id,
           workflow_status,
       }).then((response) => {
+        this.loading = false
         // positive notification
         const message = `Successfully aborted workflow ${workflow_id} and all its local jobs`
         this.$notify({
@@ -358,6 +376,7 @@ methods: {
         })
       })
       .catch((err) => {
+        this.loading = false
         // negative notification
         const message = `Error while aborting workflow ${workflow_id}`
         this.$notify({
@@ -368,27 +387,30 @@ methods: {
       })
   },
   manuallyStartClientWorkflowAPI(workflow_id, workflow_status) {
-      kaapanaApiService
-        .federatedClientApiPut("/workflow",{
-            workflow_id,
-            workflow_status,
-        }).then((response) => {
-          // positive notification
-          const message = `Successfully manually started workflow ${workflow_id}`
-          this.$notify({
-            type: "success",
-            title: message,
-          })
+    this.loading = true
+    kaapanaApiService
+      .federatedClientApiPut("/workflow",{
+          workflow_id,
+          workflow_status,
+      }).then((response) => {
+        this.loading = false
+        // positive notification
+        const message = `Successfully manually started workflow ${workflow_id}`
+        this.$notify({
+          type: "success",
+          title: message,
         })
-        .catch((err) => {
-          // negative notification
-          const message = `Error while manually starting workflow ${workflow_id}`
-          this.$notify({
-            type: "error",
-            title: message,
-          })
-          console.log(err);
+      })
+      .catch((err) => {
+        this.loading = false
+        // negative notification
+        const message = `Error while manually starting workflow ${workflow_id}`
+        this.$notify({
+          type: "error",
+          title: message,
         })
+        console.log(err);
+      })
     }
   }
 }

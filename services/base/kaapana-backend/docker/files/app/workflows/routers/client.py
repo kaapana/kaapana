@@ -543,11 +543,19 @@ def create_workflow(
     #     crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
     #     )
 
-    # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
-    Thread(
-        target=crud.queue_generate_jobs_and_add_to_workflow,
-        args=(db, db_workflow, json_schema_data),
-    ).start()
+    if (
+        db_client_kaapana.instance_name
+        not in json_schema_data.conf_data["workflow_form"]["involved_instances"]
+        or len(json_schema_data.conf_data["workflow_form"]["involved_instances"]) > 1
+    ):
+        # sync solution for remote or any federated workflows
+        crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    else:
+        # solution in additional thread for purely local workflows (these are probably also the only one which are conducted at large scale)
+        Thread(
+            target=crud.queue_generate_jobs_and_add_to_workflow,
+            args=(db, db_workflow, json_schema_data),
+        ).start()
 
     # directly return created db_workflow for fast feedback
     return db_workflow

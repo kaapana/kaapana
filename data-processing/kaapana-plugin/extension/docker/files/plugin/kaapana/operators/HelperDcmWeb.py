@@ -65,10 +65,10 @@ class HelperDcmWeb:
             if include_series_dir:
                 target_dir = join(target_dir, seriesUID)
             Path(target_dir).mkdir(parents=True, exist_ok=True)
-            if expected_object_count != None and expected_object_count != len(objectUIDList):
-                raise ValueError(f"expected_object_count {expected_object_count} != len(objectUIDList) {len(objectUIDList)} --> not all expected objects have been found -> abort")
+            if expected_object_count != None and expected_object_count > len(objectUIDList):
+                raise ValueError(f"expected_object_count {expected_object_count} > len(objectUIDList) {len(objectUIDList)} --> not all expected objects have been found -> abort")
             elif expected_object_count != None:
-                print(f"expected_object_count {expected_object_count} == len(objectUIDList) {len(objectUIDList)} --> success!")
+                print(f"expected_object_count {expected_object_count} <= len(objectUIDList) {len(objectUIDList)} --> success!")
             
             for objectUID in objectUIDList:
                 studyUID = objectUID[0]

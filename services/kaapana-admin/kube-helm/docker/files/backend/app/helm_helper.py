@@ -656,6 +656,8 @@ def get_kube_objects(release_name: str, helm_namespace: str = settings.helm_name
                 path = config['spec']['rules'][0]['http']['paths'][0]['path']
                 paths.append(path)
             elif config["kind"] == "Service" and "type" in config["spec"] and config["spec"]["type"] == "NodePort":
+                if "nodePort" not in config["spec"]["ports"][0]:
+                    continue
                 nodeport = config["spec"]["ports"][0]["nodePort"]
                 nodeport_path = ":" + str(nodeport)
                 paths.append(nodeport_path)

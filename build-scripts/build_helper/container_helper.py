@@ -92,7 +92,7 @@ def get_image_stats(version):
             }
 
     command = [f"{Container.container_engine} system df -v | grep {version}"]
-    output = run(command, shell=True, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    output = run(command, shell=True, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
     if output.returncode == 0:
         system_df_output = output.stdout.split("\n")
         for image_stats in system_df_output:

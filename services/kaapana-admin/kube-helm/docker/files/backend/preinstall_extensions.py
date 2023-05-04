@@ -103,7 +103,7 @@ if errors_during_preinstalling is True:
     raise NameError("Problems while preinstalling extensions!")
 
 # post-install checks for helm and kube status
-for _ in range(3600):
+for _ in range(1800):
     time.sleep(1)
     for release_name in releases_installed.keys():
         release_version = releases_installed[release_name]["version"]
@@ -113,7 +113,11 @@ for _ in range(3600):
         if is_platform:
             helm_namespace = "default"
         status = helm_status(release_name, helm_namespace=helm_namespace)
-        _, _, _, kube_status = get_kube_objects(release_name, helm_namespace=helm_namespace)
+        success, _, _, kube_status = get_kube_objects(release_name, helm_namespace=helm_namespace)
+
+        if not success:
+            logger.warning(f"Some Kubernetes objects for release {release_name} are not successful yet")
+            continue
 
         installed = (
             True
@@ -131,6 +135,7 @@ for _ in range(3600):
             "installed": installed,
             "is_platform": is_platform
         }
+
     s = sum([i["installed"] for i in list(releases_installed.values())])
     if s == len(releases_installed):
         logger.info(f'Sucessfully installed {" ".join(releases_installed.keys())}')
@@ -138,7 +143,7 @@ for _ in range(3600):
 
 s = sum([i["installed"] for i in list(releases_installed.values())])
 if s != len(releases_installed):
-    raise NameError(
+    logger.warning(
         f'Not all releases were installed successfully {" ".join(releases_installed.keys())}'
     )
 

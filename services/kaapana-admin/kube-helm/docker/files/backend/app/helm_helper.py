@@ -69,7 +69,7 @@ async def exec_shell_cmd_async(command, shell=False, timeout: float=5) -> Tuple[
 
         stdout, stderr = await asyncio.wait_for(command_result.communicate(), timeout=timeout)
         if command_result.returncode == 0:
-            logger.info(f"Command successful executed: {command}")
+            logger.debug(f"Command successfully executed {command}")
             out = stdout.decode()
             return True, out
         else:
@@ -100,7 +100,7 @@ def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_c
         stdout  (str)   : output of the command. If success=False it is the same as stderr
     """
     if blocking is False:
-        logger.info(f"running non-blocking {command=} via Popen, shell=True, timeout ignored")
+        logger.debug(f"running non-blocking {command=} via Popen, shell=True, timeout ignored")
         p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         logger.debug(f"{p.pid=}")
         # TODO: add to a process queue, run p.communicate() & fetch returncode
@@ -126,7 +126,7 @@ def execute_shell_command(command, shell=False, blocking=True, timeout=5, skip_c
     success = True if return_code == 0 and stderr == "" else False
 
     if success:
-        logger.debug("Command successful executed.")
+        logger.debug(f"Command successfully executed {command}")
         logger.debug(f"{return_code=}")
         logger.debug(f"{stdout=}")
         logger.debug(f"{stderr=}")
@@ -196,40 +196,44 @@ def add_extension_to_dict(
         deployments = []
         if extension_id in deployed_extensions_dict:
             for chart_deployment in deployed_extensions_dict[extension_id]:
-                extension_installed = True
-                chart_info = {
-                    "deployment_id": chart_deployment["name"],
-                    "helm_status": chart_deployment["status"],
-                    "helm_info": chart_deployment,
-                    "kube_status": KUBE_STATUS_UNKNOWN,
-                    "kube_info": None,
-                    "ready": False,
-                    "links": []
-                }
-                latest_helm_status = chart_deployment["status"]
-                if chart_info["helm_status"] == CHART_STATUS_DEPLOYED:
-                    success, deployment_ready, paths, concatenated_states = get_kube_objects(chart_deployment["name"], chart_deployment["namespace"])
-                    if success:
-                        chart_info["kube_status"] = concatenated_states["status"]
-                        chart_info["kube_info"] = concatenated_states
-                        chart_info['links'] = paths
-                        chart_info['ready'] = deployment_ready
-                        latest_kube_status = concatenated_states["ready"]
-                        # all_links.extend(paths)
+                try:
+                    extension_installed = True
+                    chart_info = {
+                        "deployment_id": chart_deployment["name"],
+                        "helm_status": chart_deployment["status"],
+                        "helm_info": chart_deployment,
+                        "kube_status": KUBE_STATUS_UNKNOWN,
+                        "kube_info": None,
+                        "ready": False,
+                        "links": []
+                    }
+                    latest_helm_status = chart_deployment["status"]
+                    if chart_info["helm_status"] == CHART_STATUS_DEPLOYED:
+                        success, deployment_ready, paths, concatenated_states = get_kube_objects(chart_deployment["name"], chart_deployment["namespace"])
+                        if success:
+                            chart_info["kube_status"] = concatenated_states["status"]
+                            chart_info["kube_info"] = concatenated_states
+                            chart_info['links'] = paths
+                            chart_info['ready'] = deployment_ready
+                            latest_kube_status = concatenated_states["ready"]
+                            # all_links.extend(paths)
+                        else:
+                            logger.error(f"Could not request kube-state of: {chart_deployment['name']}")
+                    elif chart_info["helm_status"] == CHART_STATUS_UNINSTALLING:
+                        chart_info["kube_status"] = KUBE_STATUS_UNKNOWN
+                        chart_info["links"] = []
+                        chart_info["ready"] = False
+                    elif chart_info["helm_status"] == "failed":
+                        chart_info["kube_status"] = ""
+                        chart_info["links"] = []
+                        chart_info["ready"] = False
                     else:
-                        logger.error(f"Could not request kube-state of: {chart_deployment['name']}")
-                elif chart_info["helm_status"] == CHART_STATUS_UNINSTALLING:
-                    chart_info["kube_status"] = KUBE_STATUS_UNKNOWN
-                    chart_info["links"] = []
-                    chart_info["ready"] = False
-                elif chart_info["helm_status"] == "failed":
-                    chart_info["kube_status"] = ""
-                    chart_info["links"] = []
-                    chart_info["ready"] = False
-                else:
-                    logger.error(f"Unknown helm_status: {chart_info['helm_status']}")
+                        logger.error(f"Unknown helm_status: {chart_info['helm_status']}")
 
-                deployments.append(chart_info)
+                    deployments.append(chart_info)
+                
+                except Exception as e:
+                    logger.error(f"Skipping chart {chart_deployment['name']}-{chart_deployment['version']} , error: {str(e)}")
 
         available_versions = schemas.KaapanaAvailableVersions(
             deployments=deployments
@@ -853,6 +857,7 @@ def add_extension_params(chart, platforms=False):
     vals = helm_show_values(chart["name"], chart["version"], platforms=platforms)
     if (vals is not None) and "extension_params" in vals:
         # TODO: validate the parameter fields
-        if ";" not in vals["extension_params"]:
-            chart["extension_params"] = vals["extension_params"]
+        params_dict = vals["extension_params"]
+        logger.debug(f"extension_params {params_dict}")
+        chart["extension_params"] = params_dict
     return chart

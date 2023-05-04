@@ -316,7 +316,6 @@
         kaapanaApiService
           .federatedClientApiPut(target_endpoint, this.instancePost)
           .then((response) => {
-            console.log("Updated", response)
             this.$emit('refreshView')
           })
           .catch((err) => {

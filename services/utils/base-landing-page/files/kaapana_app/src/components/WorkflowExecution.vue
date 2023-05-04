@@ -233,7 +233,6 @@
           this.refreshClient();
       },
       refreshClient() {
-        console.log(this.onlyLocal)
         if (this.onlyLocal) {
           this.getKaapanaInstance()
         } else {
@@ -369,7 +368,6 @@
         kaapanaApiService
           .federatedClientApiGet("/kaapana-instance")
           .then((response) => {
-            console.log('getKaapanaInstance', response.data)
             this.localKaapanaInstance = response.data.instance_name
             if (this.onlyLocal) {
               this.available_kaapana_instance_names = [response.data.instance_name]
@@ -398,7 +396,6 @@
           .federatedClientApiPost("/get-kaapana-instances", {dag_id: this.external_dag_id})
           .then((response) => {
             this.remote_instances_w_external_dag_available = response.data.map(({ instance_name }) => instance_name)
-            console.log("this.remote_instances_w_external_dag_available: ", this.remote_instances_w_external_dag_available)
             if (this.remote_instances_w_external_dag_available.length === 0) {
               this.$notify({
                 title: `No registered remote instance with ${this.external_dag_id} as allowed DAG.`,
@@ -422,7 +419,6 @@
               delete schemas['data_form']
             }
             this.form_requiredFields = this.findRequiredFields(schemas)
-            console.log("this.form_requiredFields: ", this.form_requiredFields)
             if ('external_schemas' in schemas) {
               this.external_dag_id = schemas["external_schemas"]
               delete schemas.external_schemas
@@ -451,7 +447,6 @@
           kaapanaApiService
             .federatedClientApiPost("/get-dags", {instance_names: this.selected_kaapana_instance_names, kind_of_dags: this.kind_of_dags})
             .then((response) => {
-              console.log('dags', response.data)
               this.available_dags = response.data;
             })
             .catch((err) => {

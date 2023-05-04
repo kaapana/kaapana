@@ -472,10 +472,6 @@ export default {
       if (!successful) {
         return;
       }
-
-      this.seriesInstanceUIDs = this.seriesInstanceUIDs.filter(
-        (series) => !this.identifiersOfInterest.includes(series)
-      );
       if (this.patients) {
         Object.keys(this.patients).forEach((patient) => {
           Object.keys(this.patients[patient]).forEach((study) => {
@@ -496,6 +492,9 @@ export default {
           }
         });
       }
+      this.seriesInstanceUIDs = this.seriesInstanceUIDs.filter(
+        (series) => !this.identifiersOfInterest.includes(series)
+      );
 
       this.selectedSeriesInstanceUIDs = [];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);

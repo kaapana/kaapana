@@ -2,7 +2,7 @@ from asyncio import streams
 from typing import Optional, List
 import json
 import datetime
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, root_validator
 
 
 class KaapanaInstanceBase(BaseModel):
@@ -237,7 +237,6 @@ class WorkflowBase(BaseModel):
     dag_id: Optional[str] = None
     service_workflow: Optional[bool] = False
     federated: bool = False
-    dataset_name: str = None
 
 
 class Workflow(WorkflowBase):
@@ -302,3 +301,13 @@ class WorkflowWithJobs(Workflow):
 
 class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
     workflow_jobs: List[Job] = []
+    dataset_name: Optional[str]
+
+    @root_validator
+    def get_dataset(cls, values) -> str:
+        workflow_jobs = values.get("workflow_jobs", [])
+        if len(workflow_jobs) > 0:
+            job = workflow_jobs[0]
+            if "data_form" in job.conf_data:
+                values["dataset_name"] = job.conf_data["data_form"].get("dataset_name")
+        return values

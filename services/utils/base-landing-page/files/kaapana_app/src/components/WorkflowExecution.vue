@@ -11,9 +11,9 @@
       </v-card-title>
       <v-card-text>
         <v-container>
-          <v-row>
+          <v-row v-if="available_kaapana_instance_names.length > 1">
             <v-icon color="primary" class="mx-2" small>mdi-home</v-icon>
-            local instance: {{ localKaapanaInstance }}
+            Local instance: {{ localKaapanaInstance }}
           </v-row>
           <v-row v-if="available_kaapana_instance_names.length > 1">
             <v-col cols="12">
@@ -29,8 +29,9 @@
           </v-row>
           <!-- DAG: select dag -->
           <v-row>
-            <v-col v-if="selected_kaapana_instance_names.length" cols="12">
-              <v-select 
+            <v-col cols="12" v-if="available_dags.length">
+              <v-select
+                v-if="selected_kaapana_instance_names.length" 
                 v-model="dag_id" 
                 :items="available_dags" 
                 label="DAGs" 
@@ -39,6 +40,12 @@
                 :rules="dagRules()"
                 required
               ></v-select>
+            </v-col>
+            <v-col cols="12" align="center" justify="center" v-else>
+              <v-progress-circular
+                indeterminate
+                color="primary"
+              ></v-progress-circular>
             </v-col>
           </v-row>
           <!-- Workflow name -->
@@ -54,7 +61,7 @@
             <!-- don't do workflow_id rn-->
           </v-row>
           <!-- Data- and Workflow forms -->
-          <v-row v-if="workflow_name">
+          <v-row :key="dag_id">
             <v-col v-for="(schema, name) in schemas" cols="12">
               <!-- <p>{{name}}</p> -->
               <v-jsf 
@@ -65,7 +72,7 @@
             </v-col>
           </v-row>
           <!-- Select remote instance for remote workflow -->
-          <v-row v-if="remote_instances_w_external_dag_available.length">
+          <v-row v-show="remote_instances_w_external_dag_available.length">
             <v-col cols="12">
               <h3>Remote Workflow</h3>
             </v-col>
@@ -110,7 +117,7 @@
           </v-row>
         </v-container>
       </v-card-text>
-      <v-card-actions>
+      <v-card-actions v-if="available_dags.length">
         <v-btn 
           color="primary" 
           @click="submissionValidator()" 
@@ -175,26 +182,57 @@
         // }
       },
       selected_kaapana_instance_names(value) {
+        if (this.selected_kaapana_instance_names !== 0) {
+          this.getUiFormSchemas()
+        }
         // reset dag_id and external_dag_id if instance changes
         this.dag_id = null
         this.external_dag_id = null
-        if (value.length) {
-          this.getDags()
-        }
       },
       selected_remote_instances_w_external_dag_available() {
-        this.resetExternalFormData()
+        // this.resetExternalFormData()
         if (this.selected_remote_instances_w_external_dag_available.length) {
           this.getExternalUiFormSchemas()
         }
       },
       // watchers for dags
       dag_id(value) {
-        this.resetFormData()
+        this.formData = {}
+        if (value !== null) {
+          // not directly set to this.schemas to avoid rerendering of components
+          // copied to avoid changing the original schemas
+          let schemas = JSON.parse(JSON.stringify(this.schemas_dict[value]));
+          if (this.identifiers.length > 0) {
+            delete schemas['data_form']
+          }
+          this.form_requiredFields = this.findRequiredFields(schemas)
+          if ('external_schemas' in schemas) {
+            this.external_dag_id = schemas["external_schemas"]
+            delete schemas.external_schemas
+          } else {
+            this.external_dag_id = null
+          }
+          this.schemas = JSON.parse(JSON.stringify(schemas));
+        } else {
+          this.schemas = {}
+          this.external_dag_id = null
+        }
         this.workflow_name = value;
+        // functions have to be called after the schemas are set
       },
       external_dag_id() {
-        this.resetExternalFormData()
+        this.external_schemas = {}
+        if (this.external_dag_id != null) {
+          this.getKaapanaInstancesWithExternalDagAvailable()
+        } else {
+          this.remote_instances_w_external_dag_available = []
+        }
+        Object.entries(this.formData).forEach(([key, value]) => {
+          if (key.startsWith('external_schema_') && (key != ('external_schema_federated_form'))) {
+            console.log(`Deleting ${key}: ${value}`)
+            delete this.formData[key]
+          }
+        });
       },
     },
     computed: {
@@ -221,6 +259,7 @@
           // form stuff
           formData: {},
           schemas: {},
+          schemas_dict: {},
           external_schemas: {},
           // validation stuff
           // other stuff
@@ -233,12 +272,7 @@
           this.refreshClient();
       },
       refreshClient() {
-        if (this.onlyLocal) {
-          this.getKaapanaInstance()
-        } else {
-          this.getKaapanaInstance()
-          this.getKaapanaInstances()
-        }
+        this.getKaapanaInstances()
       },
       // methods for form rendering
       formatFormData (formData) {
@@ -255,27 +289,6 @@
           }
         });
         return formDataFormatted
-      },
-      resetFormData() {
-        this.schemas = {}
-        this.formData = {}
-        this.resetExternalFormData()
-        this.getUiFormSchemas()
-        this.selected_remote_instances_w_external_dag_available = []
-      },
-      resetExternalFormData() {
-        this.external_schemas = {}
-        this.remote_instances_w_external_dag_available = []
-        if (this.external_dag_id != null) {
-          this.getKaapanaInstancesWithExternalDagAvailable()
-        } else {
-        }
-        Object.entries(this.formData).forEach(([key, value]) => {
-          if (key.startsWith('external_schema_') && (key != ('external_schema_federated_form'))) {
-            console.log(`Deleting ${key}: ${value}`)
-            delete this.formData[key]
-          }
-        });
       },
       // other methods
       dagRules() {
@@ -362,30 +375,20 @@
           return false
         }
       },
-
-      // API Calls: Instances
-      getKaapanaInstance() {
-        kaapanaApiService
-          .federatedClientApiGet("/kaapana-instance")
-          .then((response) => {
-            this.localKaapanaInstance = response.data.instance_name
-            if (this.onlyLocal) {
-              this.available_kaapana_instance_names = [response.data.instance_name]
-            }
-            // this.selected_kaapana_instance_names.push(this.localKaapanaInstance)
-            this.selected_kaapana_instance_names = [this.localKaapanaInstance]
-          })
-          .catch((err) => {
-            console.log(err); 
-          });
-      },
       getKaapanaInstances() {
         kaapanaApiService
           .federatedClientApiPost("/get-kaapana-instances")
           .then((response) => {
-            this.available_kaapana_instance_names = response.data.filter(function (instance) {
+            this.available_kaapana_instance_names = response.data.filter( (instance) => {
+              if (this.onlyLocal) {
+                return !instance.remote
+              }
               return instance.allowed_dags.length  !== 0 || !instance.remote;
             }).map(({ instance_name }) => instance_name);
+
+            this.localKaapanaInstance = response.data.filter( (instance) => {
+              return !instance.remote
+            }).map(({ instance_name }) => instance_name)[0];
           })
           .catch((err) => {
             console.log(err); 
@@ -411,21 +414,10 @@
       getUiFormSchemas() {
         // remove 'undefined' from instance_names list
         kaapanaApiService
-          .federatedClientApiPost("/get-ui-form-schemas", {workflow_name: this.workflow_name, dag_id: this.dag_id, instance_names: this.selected_kaapana_instance_names})
+          .federatedClientApiPost("/get-ui-form-schemas", {workflow_name: this.workflow_name, instance_names: this.selected_kaapana_instance_names})
           .then((response) => {
-            let schemas = response.data
-            if (this.identifiers.length > 0) {
-              // Data is provided via props
-              delete schemas['data_form']
-            }
-            this.form_requiredFields = this.findRequiredFields(schemas)
-            if ('external_schemas' in schemas) {
-              this.external_dag_id = schemas["external_schemas"]
-              delete schemas.external_schemas
-            } else {
-              this.external_dag_id = null
-            }
-            this.schemas = schemas
+            this.schemas_dict =  response.data;
+            this.available_dags = Object.keys(this.schemas_dict).sort()
           })
           .catch((err) => {
             console.log(err);
@@ -435,24 +427,11 @@
         kaapanaApiService
           .federatedClientApiPost("/get-ui-form-schemas",  { workflow_name: this.workflow_name, dag_id: this.external_dag_id, instance_names: this.selected_remote_instances_w_external_dag_available})
           .then((response) => {
-            this.external_schemas = response.data
+            this.external_schemas = response.data[this.external_dag_id]
           })
           .catch((err) => {
             console.log(err);
           });
-      },
-      // other API Calls
-      getDags() { // might need a 2nd getDags() API call ?!
-        if (this.selected_kaapana_instance_names !== 0) {
-          kaapanaApiService
-            .federatedClientApiPost("/get-dags", {instance_names: this.selected_kaapana_instance_names, kind_of_dags: this.kind_of_dags})
-            .then((response) => {
-              this.available_dags = response.data;
-            })
-            .catch((err) => {
-              console.log(err);
-            });
-        }
       },
       submitWorkflow() {
         // modify attributes remote_data and federated_data depending on instances
@@ -478,9 +457,6 @@
           })
           .then((response) => {
             console.log(response);
-            this.$router.push({
-              name: 'workflows',
-            });
             this.$notify({
               type: 'success',
               title: "Workflow successfully created!",

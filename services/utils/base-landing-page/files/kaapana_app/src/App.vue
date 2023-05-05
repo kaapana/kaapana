@@ -278,7 +278,6 @@ export default Vue.extend({
       for (const workflow of this.workflowsList) {
         routerPath.push(workflow[2]);
       }
-      console.log(routerPath.includes(this.$route.path));
       return routerPath.includes(this.$route.path);
     },
     advancedNavigation() {
@@ -286,7 +285,6 @@ export default Vue.extend({
       for (const workflow of this.workflowsList) {
         routerPath.push(workflow[2]);
       }
-      console.log(routerPath.includes(this.$route.path));
       return !routerPath.includes(this.$route.path);
     },
   },

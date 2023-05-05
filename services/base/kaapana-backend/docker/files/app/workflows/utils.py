@@ -5,6 +5,7 @@ import logging
 import functools
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from requests_cache import CachedSession
 from datetime import timezone, timedelta
 import datetime
 from fastapi import HTTPException
@@ -18,10 +19,6 @@ logging.getLogger().setLevel(logging.INFO)
 
 TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
-
-
-cached_dag_name_list = []
-cached_dag_list = {}
 
 
 class HelperMinio:
@@ -93,7 +90,7 @@ class HelperMinio:
 # https://www.peterbe.com/plog/best-practice-with-retries-with-requests
 # https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 def requests_retry_session(
-    retries=16,
+    retries=3,
     backoff_factor=1,
     status_forcelist=[404, 429, 500, 502, 503, 504],
     session=None,
@@ -129,101 +126,46 @@ def get_utc_timestamp():
 
 
 def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="all"):
-    global cached_dag_name_list
-    global cached_dag_list
     if kind_of_dags not in ["all", "minio", "dataset"]:
         raise HTTPException("kind_of_dags must be one of [None, 'minio', 'dataset']")
-    if len(cached_dag_name_list) == 0:
-        with requests.Session() as s:
-            r = requests_retry_session(session=s).get(
-                f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags",
-                timeout=TIMEOUT,
-            )
-        raise_kaapana_connection_error(r)
-        raw_dags = r.json()
-        dags = {}
-        for dag, dag_data in raw_dags.items():
-            if "ui_visible" in dag_data and dag_data["ui_visible"] is True:
-                if kind_of_dags == "all":
-                    dags[dag] = dag_data
-                elif (kind_of_dags == "dataset") and (
-                    "ui_forms" in dag_data
-                    and "data_form" in dag_data["ui_forms"]
-                    and "properties" in dag_data["ui_forms"]["data_form"]
-                    and "dataset_name"
-                    in dag_data["ui_forms"]["data_form"]["properties"]
-                ):
-                    dags[dag] = dag_data
-                elif (kind_of_dags == "minio") and (
-                    "ui_forms" in dag_data
-                    and "data_form" in dag_data["ui_forms"]
-                    and "properties" in dag_data["ui_forms"]["data_form"]
-                    and "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"]
-                ):
-                    dags[dag] = dag_data
-        if only_dag_names is True:
-            cached_dag_name_list = sorted(list(dags.keys()))
-            return cached_dag_name_list
-        else:
-            if filter_allowed_dags is None:
-                cached_dag_list = dags
-                return cached_dag_list
-            elif filter_allowed_dags:
-                cached_dag_list = {
-                    dag: dags[dag] for dag in filter_allowed_dags if dag in dags
-                }
-                return cached_dag_list
-            else:
-                return {}
+
+    with CachedSession("kaapana_cache", expire_after=5, stale_if_error=True) as s:
+        r = requests_retry_session(session=s, retries=1).get(
+            f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags",
+            timeout=TIMEOUT,
+        )
+    raise_kaapana_connection_error(r)
+    raw_dags = r.json()
+
+    dags = {}
+    for dag, dag_data in raw_dags.items():
+        if "ui_visible" in dag_data and dag_data["ui_visible"] is True:
+            if kind_of_dags == "all":
+                dags[dag] = dag_data
+            elif (kind_of_dags == "dataset") and (
+                "ui_forms" in dag_data
+                and "data_form" in dag_data["ui_forms"]
+                and "properties" in dag_data["ui_forms"]["data_form"]
+                and "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"]
+            ):
+                dags[dag] = dag_data
+            elif (kind_of_dags == "minio") and (
+                "ui_forms" in dag_data
+                and "data_form" in dag_data["ui_forms"]
+                and "properties" in dag_data["ui_forms"]["data_form"]
+                and "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"]
+            ):
+                dags[dag] = dag_data
+
+    if only_dag_names is True:
+        return sorted(list(dags.keys()))
     else:
-        try:
-            with requests.Session() as s:
-                r = requests_retry_session(session=s, retries=1).get(
-                    f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags",
-                    timeout=Timeout(1),
-                )
-            raise_kaapana_connection_error(r)
-            raw_dags = r.json()
-            dags = {}
-            for dag, dag_data in raw_dags.items():
-                if "ui_visible" in dag_data and dag_data["ui_visible"] is True:
-                    if kind_of_dags == "all":
-                        dags[dag] = dag_data
-                    elif (kind_of_dags == "dataset") and (
-                        "ui_forms" in dag_data
-                        and "data_form" in dag_data["ui_forms"]
-                        and "properties" in dag_data["ui_forms"]["data_form"]
-                        and "dataset_name"
-                        in dag_data["ui_forms"]["data_form"]["properties"]
-                    ):
-                        dags[dag] = dag_data
-                    elif (kind_of_dags == "minio") and (
-                        "ui_forms" in dag_data
-                        and "data_form" in dag_data["ui_forms"]
-                        and "properties" in dag_data["ui_forms"]["data_form"]
-                        and "bucket_name"
-                        in dag_data["ui_forms"]["data_form"]["properties"]
-                    ):
-                        dags[dag] = dag_data
-            if only_dag_names is True:
-                cached_dag_name_list = sorted(list(dags.keys()))
-                return cached_dag_name_list
-            else:
-                if filter_allowed_dags is None:
-                    cached_dag_list = dags
-                    return cached_dag_list
-                elif filter_allowed_dags:
-                    cached_dag_list = {
-                        dag: dags[dag] for dag in filter_allowed_dags if dag in dags
-                    }
-                    return cached_dag_list
-                else:
-                    return {}
-        except Exception as e:
-            if only_dag_names is True:
-                return cached_dag_name_list
-            else:
-                return cached_dag_list
+        if filter_allowed_dags is None:
+            return dags
+        elif filter_allowed_dags:
+            return {dag: dags[dag] for dag in filter_allowed_dags if dag in dags}
+        else:
+            return {}
 
 
 def check_dag_id_and_dataset(

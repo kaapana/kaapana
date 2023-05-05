@@ -80,15 +80,15 @@
         //- v-col(cols=1)
       //- SSL: edit mode
       v-row(v-if="edit_ssl_check" align="center")
-        v-col(cols=4 align="left") SSL:
+        v-col(cols=4 align="left") Verify SSL:
         v-col( align="left")
-          v-checkbox(v-model="instancePost.ssl_check" label="SSL"  required='')
+          v-checkbox(v-model="instancePost.ssl_check" label="Verify SSL"  required='')
         v-col(cols=1 align="center")
           v-btn(@click="edit_ssl_check = !edit_ssl_check; updateInstanceForm();" small icon)
             v-icon mdi-content-save
       //- display mode
       v-row(v-else)
-        v-col(cols=4 align="left") SSL:
+        v-col(cols=4 align="left") Verify SSL:
         v-col( align="left")
           v-icon(v-if="instancePost.ssl_check" small color="green") mdi-check-circle
           v-icon(v-if="!instancePost.ssl_check" small) mdi-close-circle

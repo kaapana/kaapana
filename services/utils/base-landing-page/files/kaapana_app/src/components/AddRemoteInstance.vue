@@ -31,7 +31,7 @@
                 <v-text-field v-model="remotePost.fernet_key" label="Fernet Key" required=""></v-text-field>
               </v-col>
               <v-col cols="2">
-                <v-checkbox v-model="remotePost.ssl_check" label="SSL" required=""></v-checkbox>
+                <v-checkbox v-model="remotePost.ssl_check" label="Verify SSL" required=""></v-checkbox>
               </v-col>
             </v-row>
           </v-container>

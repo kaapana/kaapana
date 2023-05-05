@@ -300,14 +300,26 @@ class WorkflowWithJobs(Workflow):
 
 
 class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
-    workflow_jobs: List[Job] = []
+    # workflow_jobs: List[Job] = []
+    workflow_jobs: Optional[List]
     dataset_name: Optional[str]
 
     @root_validator
     def get_dataset(cls, values) -> str:
-        workflow_jobs = values.get("workflow_jobs", [])
-        if len(workflow_jobs) > 0:
-            job = workflow_jobs[0]
+        db_workflow_jobs = values.get("workflow_jobs", [])
+        if len(db_workflow_jobs) > 0:
+            job = db_workflow_jobs[0]
             if "data_form" in job.conf_data:
                 values["dataset_name"] = job.conf_data["data_form"].get("dataset_name")
+        return values
+
+    @root_validator
+    def get_workflow_jobs(cls, values) -> List:
+        # method to only list workflow_jobs' states in workflow_jobs and not whole Job object
+        workflow_job_states = []
+        db_workflow_jobs = values.get("workflow_jobs", [])
+        for db_job in db_workflow_jobs:
+            if type(db_job) is not str:
+                workflow_job_states.append(db_job.status)
+        values["workflow_jobs"] = workflow_job_states
         return values

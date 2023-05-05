@@ -306,11 +306,14 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
 
     @root_validator
     def get_dataset(cls, values) -> str:
+        # method to conclude from dataset of workflow_jobs the dataset of the workflow
         db_workflow_jobs = values.get("workflow_jobs", [])
         if len(db_workflow_jobs) > 0:
             job = db_workflow_jobs[0]
             if "data_form" in job.conf_data:
-                values["dataset_name"] = job.conf_data["data_form"].get("dataset_name")
+                values["dataset_name"] = json.loads(job.conf_data)["data_form"][
+                    "dataset_name"
+                ]
         return values
 
     @root_validator

@@ -10,19 +10,21 @@ buckets = HelperMinio.minioClient.list_buckets()
 bucket_names = [bucket.name for bucket in buckets]
 
 ui_forms = {
-    "workflow_form": {
+    "data_form": {
         "type": "object",
         "properties": {
             "bucket_name": {
                 "title": "Select Data to process",
                 "description": "It should be the name of a Bucket from MinIO store",
-                "type": "array",
-                "items": {
-                    "type": "string",
-                    "enum": list(set(bucket_names))
-                },
+                "type": "string",
+                "enum": list(set(bucket_names)),
                 "readOnly": False
-            },
+            }
+        },
+    },
+    "workflow_form": {
+        "type": "object",
+        "properties": {
             "container_name_version":{
                 "title": "Enter container name:version",
                 "type": "string",
@@ -62,7 +64,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="dag-tfda-testing-workflow",
+    dag_id="dag-isolated-container-workflow",
     default_args=args,
     # schedule_interval="@daily",
     schedule_interval=None,

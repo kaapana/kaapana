@@ -21,7 +21,6 @@ export default Vue.extend({
   }),
   created() {},
   mounted () {
-    this.getClientWorkflows();
     this.startExtensionsInterval()
   },
   computed: {

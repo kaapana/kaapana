@@ -1290,19 +1290,22 @@ def queue_generate_jobs_and_add_to_workflow(
 ):
     conf_data = json_schema_data.conf_data
     # get variables
-    single_execution = False  # initialize with False
-    if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
-        data_form = conf_data["data_form"]
-        single_execution = (
-            "workflow_form" in conf_data
-            and "single_execution" in conf_data["workflow_form"]
-            and conf_data["workflow_form"]["single_execution"] is True
+    single_execution = (
+        "workflow_form" in conf_data
+        and "single_execution" in conf_data["workflow_form"]
+        and conf_data["workflow_form"]["single_execution"] is True
+    )
+
+    dataset_limit = (
+        int(conf_data["data_form"]["dataset_limit"])
+        if (
+            "data_form" in conf_data
+            and "dataset_limit" in conf_data["data_form"]
+            and conf_data["data_form"]["dataset_limit"] is not None
         )
-        dataset_limit = (
-            int(data_form["dataset_limit"])
-            if ("dataset_limit" in data_form and data_form["dataset_limit"] is not None)
-            else None
-        )
+        else None
+    )
+
     username = (
         conf_data["workflow_form"]["username"]
         if "username" in conf_data["workflow_form"]
@@ -1346,7 +1349,7 @@ def queue_generate_jobs_and_add_to_workflow(
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []
         if single_execution is True:
-            for identifier in identifiers[:dataset_limit]:
+            for identifier in conf_data["data_form"]["identifiers"][:dataset_limit]:
                 # Copying due to reference?!
                 single_conf_data = copy.deepcopy(conf_data)
                 single_conf_data["data_form"]["identifiers"] = [identifier]
@@ -1358,8 +1361,8 @@ def queue_generate_jobs_and_add_to_workflow(
                     }
                 )
         else:
-            if identifiers:
-                conf_data["data_form"].update({"identifiers": identifiers})
+            # if identifiers:
+            #     conf_data["data_form"].update({"identifiers": identifiers})
             queued_jobs = [
                 {
                     "conf_data": conf_data,

@@ -21,7 +21,7 @@ spec:
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           env:
             - name: WAIT
-              value: "kaapana-persistence-mongodb-service,kaapana-persistence-mongodb-service.{{  .Values.global.services_namespace  }}.svc,277"
+              value: "kaapana-persistence-mongodb-service,kaapana-persistence-mongodb-service.{{  .Values.global.services_namespace  }}.svc,27017"
             - name: DELAY
               value: "2"
             - name: TIMEOUT

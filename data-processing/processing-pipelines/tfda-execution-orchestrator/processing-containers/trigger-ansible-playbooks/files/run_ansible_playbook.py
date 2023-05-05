@@ -1,7 +1,7 @@
 import os
 import logging
 import re
-import ast
+import json
 import subprocess
 from subprocess import PIPE
 from os import getenv
@@ -11,27 +11,35 @@ workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
 assert workflow_dir is not None
 dag_run_id = getenv("RUN_ID")
 
-# operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
-# operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
-# assert operator_in_dir is not None
+def load_config(config_filepath):
+    with open(config_filepath, "r") as stream:
+        try:
+            config_dict = json.load(stream)
+            return config_dict
+        except Exception as exc:
+            raise Exception(f"Could not extract configuration due to error: {exc}!!")
 
-def manage_iso_inst(iso_env_ip_path):
+platform_config_path = os.path.join(workflow_dir, "platform_config.json")
+platform_config = load_config(platform_config_path)
+## Currently, hard coded to only container based workflows
+workflow_type = "container_workflow"
+platform_name = platform_config["default_platform"][workflow_type]
+flavor_name = platform_config["platforms"][platform_name]["default_flavor"][workflow_type]
+home_dir = os.path.dirname(os.path.abspath(__file__))
+playbooks_dir = os.path.join(home_dir, "ansible-playbooks")
+iso_env_ip_path = os.path.join(workflow_dir, "iso_env_ip.txt")
+ssh_key_name = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["ssh_key_name"]
+remote_username = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["remote_username"]
+container_name_version = getenv('CONTAINER_NAME_VERSION', "None")
+container_name = container_name_version.split(":")[0]
+
+def manage_iso_inst():
     instance_state = getenv("INSTANCE_STATE", "None")
     if instance_state == "present":
         logging.info("Starting an isolated environment...")
     elif instance_state == "absent":
         logging.info("Deleting isolated environment...")
 
-    platform_config = getenv("PLATFORM_CONFIG", "None")
-    platform_config = platform_config if platform_config.lower() != "none" else None
-    assert platform_config is not None
-    platform_config = ast.literal_eval(platform_config)
-    ## Currently, hard coded to only container based workflows
-    workflow_type = "container_workflow"
-    platform_name = platform_config["default_platform"][workflow_type]
-    flavor_name = platform_config["platforms"][platform_name]["default_flavor"][workflow_type]
-    home_dir = os.path.dirname(os.path.abspath(__file__))
-    playbooks_dir = os.path.join(home_dir, "ansible-playbooks")
     playbook_path = os.path.join(playbooks_dir, "manage_"+platform_name+"_instance.yaml")
     if not os.path.isfile(playbook_path):
         raise Exception(f"Playbook '{playbook_path}' file not found!")
@@ -78,6 +86,43 @@ def manage_iso_inst(iso_env_ip_path):
         logging.info(f'Iso instance managed successfully!')
     else:
         raise Exception("Failed to manage isolated environment!")
+    
+def copy_data_algo():
+    operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
+    operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
+    assert operator_in_dir is not None
+    logging.info("Copy data and algorithm to isolated environment...")
+    # base_dir = os.path.dirname(workflow_dir)
+    # minio_path = os.path.join(base_dir, "minio")
+    # operator_dir = os.path.dirname(os.path.abspath(__file__))
+    playbook_path = os.path.join(playbooks_dir, "copy_data_and_algo_to_iso_env.yaml")
+    if not os.path.isfile(playbook_path):
+        raise Exception(f"Playbook '{playbook_path}' file not found!")
+    container_name_version = getenv('CONTAINER_NAME_VERSION', "None")
+    container_name = container_name_version.split(":")[0]
+    user_container_path = os.path.join(workflow_dir, "algorithm_files", container_name)
+    src_data_path = os.path.join(workflow_dir, operator_in_dir)
+
+    with open(iso_env_ip_path, 'r') as file:
+        iso_env_ip = file.read().rstrip()
+
+    playbook_args = f"target_host={iso_env_ip} ssh_key_name={ssh_key_name} remote_username={remote_username} \
+                        workflow_type={workflow_type} src_algorithm_files_path={user_container_path} \
+                        user_experiment_name={container_name} src_data_path={src_data_path} \
+                        user_selected_data={operator_in_dir}"        
+    command = ["ansible-playbook", playbook_path, "--extra-vars", playbook_args]
+    process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE, encoding="Utf-8")
+    while True:
+        output = process.stdout.readline()
+        if process.poll() is not None:
+            break
+        if output:
+            print(output.strip())
+    rc = process.poll()
+    if rc == 0:
+        logging.info(f"Files copied successfully!!")
+    else:
+        raise Exception("Playbook FAILED! Cannot proceed further...")
 
 logging.info("##################################################")
 logging.info("#")
@@ -87,6 +132,10 @@ logging.info(f"# workflow_dir:     {workflow_dir}")
 logging.info("#")
 logging.info(f"# dag_run_id:     {dag_run_id}")
 logging.info("#")
-# logging.info(f"# operator_in_dir:  {operator_in_dir}")
-iso_env_ip_path = os.path.join(workflow_dir, "iso_env_ip.txt")
-manage_iso_inst(iso_env_ip_path)
+task_type = getenv("TASK_TYPE", "None")
+task_type = task_type if task_type.lower() != "none" else None
+assert task_type is not None
+if task_type in ["create-iso-inst", "delete-iso-inst"]:
+    manage_iso_inst()
+elif task_type == "copy-data-algo":
+    copy_data_algo()

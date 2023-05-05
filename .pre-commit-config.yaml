@@ -1,0 +1,8 @@
+repos:
+- repo: local
+  hooks:
+  - id: kaapana-pre-commit
+    name: Kaapana Pre Commmit
+    entry: utils/pre-commit
+    language: system
+    types: [file, python]

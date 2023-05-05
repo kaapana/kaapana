@@ -8,8 +8,6 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
-# from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
-
 log = LoggingMixin().log
 
 args = {
@@ -35,10 +33,6 @@ add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metad
 push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=get_input, json_operator=extract_metadata
 )
-# tagging = LocalTaggingOperator(
-#     dag=dag, input_operator=extract_metadata, add_tags_from_file=True
-# )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-# get_input >> extract_metadata >> push_to_backend >> push_json >> tagging >> clean
 get_input >> extract_metadata >> add_to_dataset >> push_json >> clean

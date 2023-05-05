@@ -96,10 +96,25 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         rtstruct_other_list.append(value)
 
         if "00620002" in metadata:
+            if "00620002 SegmentSequence_object_object" not in result_dict:
+                result_dict["00620002 SegmentSequence_object_object"] = {}
             for label_entry in metadata["00620002"]["Value"]:
+                if "00620009" in label_entry:
+                    alg_name = label_entry["00620009"]["Value"][0]
+                    result_dict["00620002 SegmentSequence_object_object"][
+                        "00620009 SegmentAlgorithmName_keyword"
+                    ] = alg_name
+                if "00620008" in label_entry:
+                    alg_type = label_entry["00620008"]["Value"][0]
+                    result_dict["00620002 SegmentSequence_object_object"][
+                        "00620008 SegmentAlgorithmType_keyword"
+                    ] = alg_type
+
                 if "00620005" in label_entry:
                     value = label_entry["00620005"]["Value"][0].replace(",", "-")
                     segmentation_label_list.append(value)
+                else:
+                    pass
         result_dict["segmentation_labels_list_keyword"] = (
             ",".join(sorted(segmentation_label_list))
             if len(segmentation_label_list) > 0

@@ -1,7 +1,7 @@
 <template lang="pug">
   .federated-panel
     v-container(text-left fluid)
-      workflow-table(:workflows="clientWorkflows" @refreshView="getClientWorkflows()")
+      workflow-table(:workflows="clientWorkflows" :extLoading="workflowTableLoading" @refreshView="getClientWorkflows()")
 </template>
 
 <script>
@@ -17,10 +17,12 @@ export default Vue.extend({
   },
   data: () => ({
     polling: 0,
-    clientWorkflows: []
+    clientWorkflows: [],
+    workflowTableLoading: false,
   }),
   created() {},
   mounted () {
+    this.workflowTableLoading = true
     this.startExtensionsInterval()
   },
   computed: {
@@ -28,10 +30,12 @@ export default Vue.extend({
   },
   methods: {
     getClientWorkflows() {
+      this.workflowTableLoading = true
       kaapanaApiService
         .federatedClientApiGet("/workflows",{
         limit: 100,
         }).then((response) => {
+          this.workflowTableLoading = false
           this.clientWorkflows = response.data;
           this.$notify({
             title: "Sucessfully refreshed workflow list.",
@@ -39,6 +43,7 @@ export default Vue.extend({
           })
         })
         .catch((err) => {
+          this.workflowTableLoading = false
           this.$notify({
             title: "Error while refreshing workflow list.",
             type: "error"

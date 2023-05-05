@@ -2,19 +2,16 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 from datetime import timedelta
 
-class ManageIsoInstanceOperator(KaapanaBaseOperator):        
+class CopyDataAndAlgoOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(hours=10)
-    
+
     def __init__(self,
                  dag,
-                 instanceState = "present",
-                 taskName = "create-iso-inst",
+                 name = "copy-data-algo",
                  env_vars={},
                  execution_timeout=execution_timeout,
                  **kwargs):
-        name = taskName
         envs = {
-            "INSTANCE_STATE": str(instanceState),
             "TASK_TYPE": name
         }
         env_vars.update(envs)
@@ -28,4 +25,3 @@ class ManageIsoInstanceOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             **kwargs
         )
-

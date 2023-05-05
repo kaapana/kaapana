@@ -4,7 +4,7 @@ from glob import glob
 from os.path import join, basename, dirname, normpath, exists
 
 
-def get_dataset_json(model_path, installed_task):
+def _get_dataset_json(model_path, installed_task):
     dataset_json_path = join(model_path, installed_task, "**", "dataset.json")
     dataset_json_path = glob(dataset_json_path, recursive=True)
     if len(dataset_json_path) > 0 and exists(dataset_json_path[-1]):
@@ -47,7 +47,7 @@ def get_dataset_json(model_path, installed_task):
     return dataset_json
 
 
-def get_available_pretrained_tasks(af_home_path):
+def _get_available_pretrained_tasks(af_home_path):
     tasks_json_path = join(af_home_path, "dags", "nnunet", "nnunet_tasks.json")
     with open(tasks_json_path) as f:
         tasks = json.load(f)
@@ -61,9 +61,9 @@ def get_available_pretrained_tasks(af_home_path):
     return tasks, available_pretrained_task_names
 
 
-def get_installed_tasks(af_home_path):
+def _get_installed_tasks(af_home_path):
     installed_tasks = {}
-    installed_models_path = join("/models", "nnUNet")
+    installed_models_path = join("/kaapana/mounted/workflows/models", "nnUNet")
     if not exists(installed_models_path):
         return installed_tasks
     installed_models = [
@@ -78,7 +78,7 @@ def get_installed_tasks(af_home_path):
         ]
         for installed_task in installed_tasks_dirs:
             if installed_task not in installed_tasks:
-                dataset_json = get_dataset_json(
+                dataset_json = _get_dataset_json(
                     model_path=model_path, installed_task=installed_task
                 )
                 installed_tasks[installed_task] = {
@@ -108,12 +108,16 @@ def get_installed_tasks(af_home_path):
 
 
 def get_tasks():
-    af_home_path = "/kaapana/mounted/workflows"
-    tasks, available_pretrained_task_names = get_available_pretrained_tasks(
-        af_home_path=af_home_path
-    )
-    installed_tasks = get_installed_tasks(af_home_path=af_home_path)
-    all_selectable_tasks = installed_tasks.copy()
-    all_selectable_tasks.update(tasks)
+    try:
+        af_home_path = "/kaapana/mounted/workflows"
+        tasks, available_pretrained_task_names = _get_available_pretrained_tasks(
+            af_home_path=af_home_path
+        )
+        installed_tasks = _get_installed_tasks(af_home_path=af_home_path)
+        all_selectable_tasks = installed_tasks.copy()
+        all_selectable_tasks.update(tasks)
 
-    return available_pretrained_task_names, installed_tasks, all_selectable_tasks
+        return available_pretrained_task_names, installed_tasks, all_selectable_tasks
+    except Exception as e:
+        print("Error in getTasks.py: ", e)
+        return [], {}, {}

@@ -4,7 +4,6 @@ opensearch_form:
   input_modality: "SEG"
 workflow_form:
   body_part: "N/A"
-  workflow_name: "Test-nnunet-training"
   fp32: false
   input: "SEG"
   instance_names: "central"

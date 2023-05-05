@@ -231,7 +231,7 @@ methods: {
       }
   },
   getStatesColorMap(item) {
-    const states = item.workflow_jobs.map(job => job.status)
+    const states = item.workflow_jobs // .map(job => job.status)
     const colorMap = {
       'queued': 'grey',
       'scheduled': 'blue',

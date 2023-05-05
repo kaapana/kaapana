@@ -53,7 +53,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             return True
 
     def send_dicom_data(self, send_dir, series_uid):
-        if not list(Path(send_dir).rglob("*.dcm")):
+        if len(list(Path(send_dir).rglob("*.dcm"))) == 0:
             print(send_dir)
             print("############### no dicoms found...!")
             raise FileNotFoundError
@@ -70,6 +70,8 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             "-aec",
             f"{self.aetitle}",
             "--scan-directories",
+            "--scan-pattern",
+            "*.dcm",
             "--recurse",
             f"{send_dir}",
         ]

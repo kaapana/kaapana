@@ -53,7 +53,6 @@ ui_forms = {
                 "default": False,
                 "description": "I will cite the publication if applicable.",
                 "type": "boolean",
-                "readOnly": True,
                 "required": True,
             },
         },

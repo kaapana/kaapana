@@ -49,14 +49,20 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         metadata_dict.update({"00000000 CuratedModality_keyword": modality})
         if LocalDcm2JsonOperator.IMAGE_TYPE_TAG in metadata_dict:
             image_type = metadata_dict[LocalDcm2JsonOperator.IMAGE_TYPE_TAG]
-            assert isinstance(image_type, list)
-            if modality == "CT" and "LOCALIZER" in image_type and len(image_type) >= 3:
-                metadata_dict.update({"00000000 CuratedModality_keyword": "XR"})
+            if isinstance(image_type, list):
+                if (
+                    modality == "CT"
+                    and "LOCALIZER" in image_type
+                    and len(image_type) >= 3
+                ):
+                    metadata_dict.update({"00000000 CuratedModality_keyword": "XR"})
 
         return metadata_dict
 
     @staticmethod
     def get_label_tags(metadata):
+        print("++++++++++++++++++++++++++++++++++++++++++++++++++ get_label_tags  ")
+        print(json.dumps(metadata, indent=4))
         result_dict = {}
         segmentation_label_list = []
         rtstruct_organ_list = []
@@ -666,7 +672,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         label_results = {}
         modality_tag = dicom_metadata.get("00080060")
-        if modality_tag and modality_tag["Value"] in ("RTSTRUCT", "SEG"):
+        if modality_tag and modality_tag["Value"][0] in ("RTSTRUCT", "SEG"):
             label_results = LocalDcm2JsonOperator.get_label_tags(dicom_metadata)
         new_meta_data = self.replace_tags(dicom_metadata)
         new_meta_data.update(label_results)

@@ -109,7 +109,7 @@ def get_image_stats(version):
         stdout=PIPE,
         stderr=PIPE,
         universal_newlines=True,
-        timeout=10,
+        timeout=20,
     )
     if output.returncode == 0:
         system_df_output = output.stdout.split("\n")

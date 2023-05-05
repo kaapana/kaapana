@@ -12,6 +12,7 @@ import shutil
 import glob
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
+from pathlib import Path
 
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
@@ -120,28 +121,16 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         return download_successful, seriesUID
 
-    def move_series(self, dag_run_id: str, series_uid: str, dcm_path: str):
+    def move_series(self, src_dcm_path: str, target: str):
         print("#")
         print(
             "############################ Get input data ############################"
         )
         print("#")
-        print(f"# SeriesUID:  {series_uid}")
-        print(f"# RUN_id:     {dag_run_id}")
+        print(f"# Moving data from {src_dcm_path} -> {target}")
         print("#")
-        target = join(
-            self.airflow_workflow_dir,
-            dag_run_id,
-            "batch",
-            series_uid,
-            self.operator_out_dir,
-        )
-
-        print("#")
-        print(f"# Moving data from {dcm_path} -> {target}")
-        print("#")
-        shutil.move(src=dcm_path, dst=target)
-        print(f"# Series CTP import -> OK: {series_uid}")
+        shutil.move(src=src_dcm_path, dst=target)
+        print(f"# Series CTP import -> OK: {target}")
 
     @cache_operator_output
     def start(self, ds, **kwargs):
@@ -157,12 +146,25 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             )
             print("#")
             print(f"# Dicom-path: {dcm_path}")
+            target = join(
+                self.airflow_workflow_dir,
+                dag_run_id,
+                "batch",
+                series_uid,
+                self.operator_out_dir,
+            )
 
-            if not os.path.isdir(dcm_path):
-                print(f"Could not find dicom dir: {dcm_path}")
-                print("Abort!")
-                raise ValueError("ERROR")
-            self.move_series(dag_run_id, series_uid, dcm_path)
+            if not exists(target) or not any(
+                fname.endswith(".dcm") for fname in os.listdir(target)
+            ):
+                if not os.path.isdir(dcm_path):
+                    print(f"Could not find dicom dir: {dcm_path}")
+                    print("Abort!")
+                    raise ValueError("ERROR")
+                else:
+                    self.move_series(src_dcm_path=dcm_path, target=target)
+            else:
+                print("Files have already been moved -> skipping")
             return
         if self.conf and "ctpBatch" in self.conf:
             batch_folder = join(
@@ -175,9 +177,21 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 if dcm_file_list:
                     dcm_file = pydicom.dcmread(dcm_file_list[0], force=True)
                     series_uid = dcm_file[0x0020, 0x000E].value
-                    self.move_series(dag_run_id, series_uid, dcm_series_path)
+                    target = join(
+                        self.airflow_workflow_dir,
+                        dag_run_id,
+                        "batch",
+                        series_uid,
+                        self.operator_out_dir,
+                    )
+                    if exists(target) and any(
+                        fname.endswith(".dcm") for fname in os.listdir(target)
+                    ):
+                        print("Files have already been moved -> skipping")
+                    else:
+                        self.move_series(src_dcm_path=dcm_series_path, target=target)
             # remove parent batch folder
-            if not os.listdir(batch_folder):
+            if exists(batch_folder) and not os.listdir(batch_folder):
                 shutil.rmtree(batch_folder)
             return
 
@@ -218,32 +232,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         dataset_limit = int(self.data_form.get("dataset_limit", 0))
         self.dataset_limit = dataset_limit if dataset_limit > 0 else None
 
-        # if (
-        #     len(self.data_form["identifiers"]) == 0
-        #     and len(self.data_form["dataset_query"].keys()) > 1
-        # ):
-        #     assert "index" in self.data_form["dataset_query"]
-        #     assert "query" in self.data_form["dataset_query"]
-        #     index = self.data_form["dataset_query"]["index"]
-        #     query = self.data_form["dataset_query"]["query"]
-        #     hits = HelperOpensearch.get_query_dataset(index=index, query=query)
-        #     self.dicom_data_infos = []
-        #     for hit in hits:
-        #         self.dicom_data_infos.append(
-        #             {
-        #                 "dcm-uid": {
-        #                     "study-uid": hit["_source"][
-        #                         "0020000D StudyInstanceUID_keyword"
-        #                     ],
-        #                     "series-uid": hit["_source"][
-        #                         "0020000E SeriesInstanceUID_keyword"
-        #                     ],
-        #                     "modality": hit["_source"]["00080060 Modality_keyword"],
-        #                     "curated_modality": hit["_source"]["00000000 CuratedModality_keyword"],
-        #                 }
-        #             }
-        #         )
-        # el
         if len(self.data_form["identifiers"]) > 0:
             self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(
                 self.data_form["identifiers"]

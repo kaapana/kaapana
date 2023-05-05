@@ -110,7 +110,6 @@ for batch_element_dir in batch_folders:
     logger.info(f"# Processing batch-element {batch_element_dir}")
     logger.info("#")
     element_mask_dicom_dir = join(batch_element_dir, operator_in_dir)
-    element_base_dicom_in_dir = join(batch_element_dir, base_dicom_in_dir)
     element_output_dir = join(batch_element_dir, operator_out_dir)
 
     if not exists(element_mask_dicom_dir):
@@ -121,13 +120,17 @@ for batch_element_dir in batch_folders:
         logger.error("#")
         exit(1)
 
-    if not exists(element_base_dicom_in_dir):
-        logger.error("#")
-        logger.error(
-            f"# element_base_dicom_in_dir: {element_base_dicom_in_dir} does not exists!"
-        )
-        logger.error("#")
-        exit(1)
+    if base_dicom_in_dir is not None:
+        element_base_dicom_in_dir = join(batch_element_dir, base_dicom_in_dir)
+        if not exists(element_base_dicom_in_dir):
+            logger.error("#")
+            logger.error(
+                f"# element_base_dicom_in_dir: {element_base_dicom_in_dir} does not exists!"
+            )
+            logger.error("#")
+            exit(1)
+    else:
+        element_base_dicom_in_dir = None
 
     # creating output dir
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)

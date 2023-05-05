@@ -183,6 +183,7 @@
       },
       selected_kaapana_instance_names(value) {
         if (this.selected_kaapana_instance_names !== 0) {
+          this.getDags()
           this.getUiFormSchemas()
         }
         // reset dag_id and external_dag_id if instance changes
@@ -410,6 +411,16 @@
             console.log(err);
           });
       },
+      getDags() {
+        kaapanaApiService
+          .federatedClientApiPost("/get-dags", {instance_names: this.selected_kaapana_instance_names, kind_of_dags: this.kind_of_dags})
+          .then((response) => {
+            this.available_dags = response.data;
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+      },
       // API Calls: Schemas
       getUiFormSchemas() {
         // remove 'undefined' from instance_names list
@@ -417,7 +428,6 @@
           .federatedClientApiPost("/get-ui-form-schemas", {workflow_name: this.workflow_name, instance_names: this.selected_kaapana_instance_names})
           .then((response) => {
             this.schemas_dict =  response.data;
-            this.available_dags = Object.keys(this.schemas_dict).sort()
           })
           .catch((err) => {
             console.log(err);

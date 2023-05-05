@@ -1,7 +1,6 @@
 import os
 import logging
 import subprocess
-import ast
 from subprocess import PIPE
 from pathlib import Path
 from os import getenv
@@ -33,8 +32,8 @@ def algo_pre_etl():
     container_registry_pwd = getenv('CONTAINER_REGISTRY_PWD', "None")
     container_name_version = getenv('CONTAINER_NAME_VERSION', "None")
     container_name = container_name_version.split(":")[0]
-    user_experiment_path = os.path.join(workflow_dir, "algorithm_files", container_name)
-    Path(user_experiment_path).mkdir(parents=True, exist_ok=True)
+    user_container_path = os.path.join(workflow_dir, "algorithm_files", container_name)
+    Path(user_container_path).mkdir(parents=True, exist_ok=True)
     logging.info("Logging into container registry...")
     command = ["skopeo", "login", "--username", f"{container_registry_user}", "--password", f"{container_registry_pwd}", f"{container_registry_url}"]
     return_code = run_command(command=command)
@@ -44,7 +43,7 @@ def algo_pre_etl():
         raise Exception("Login to the registry FAILED! Cannot proceed further...")
 
     logging.debug(f"Pulling container: {container_name_version}...")
-    tarball_file = os.path.join(user_experiment_path, f"{container_name}.tar")
+    tarball_file = os.path.join(user_container_path, f"{container_name}.tar")
     if os.path.exists(tarball_file):
         logging.debug(f"Submission tarball already exists locally... deleting it now to pull latest!!")
         os.remove(tarball_file)

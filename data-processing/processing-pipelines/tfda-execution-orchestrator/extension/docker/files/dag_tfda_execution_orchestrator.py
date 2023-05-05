@@ -2,14 +2,16 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from tfda_execution_orchestrator.LocalManageIsoInstanceOperator import LocalManageIsoInstanceOperator
-from tfda_execution_orchestrator.LocalTrustedPreETLOperator import LocalTrustedPreETLOperator
-from tfda_execution_orchestrator.LocalCopyDataAndAlgoOperator import LocalCopyDataAndAlgoOperator
+from tfda_execution_orchestrator.LocalLoadPlatformConfigOperator import LocalLoadPlatformConfigOperator
+from tfda_execution_orchestrator.ManageIsoInstanceOperator import ManageIsoInstanceOperator
+from tfda_execution_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
+from tfda_execution_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
 from tfda_execution_orchestrator.LocalRunAlgoOperator import LocalRunAlgoOperator
-from tfda_execution_orchestrator.LocalTFDAPrepareEnvOperator import LocalTFDAPrepareEnvOperator
+# from tfda_execution_orchestrator.LocalTFDAPrepareEnvOperator import LocalTFDAPrepareEnvOperator
 from tfda_execution_orchestrator.LocalFetchResultsOperator import LocalFetchResultsOperator
-from tfda_execution_orchestrator.LocalTrustedPostETLOperator import LocalTrustedPostETLOperator
+from tfda_execution_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from airflow.operators.python_operator import PythonOperator
 
 log = LoggingMixin().log
@@ -34,14 +36,16 @@ dag = DAG(
     schedule_interval=None,
 )
 
-create_iso_env = LocalManageIsoInstanceOperator(dag=dag, instanceState="present", taskName="create-iso-inst")
-prepare_env = LocalTFDAPrepareEnvOperator(dag=dag)
-trusted_pre_etl = LocalTrustedPreETLOperator(dag=dag)
-copy_data_algo = LocalCopyDataAndAlgoOperator(dag=dag)
+load_platform_config = LocalLoadPlatformConfigOperator(dag=dag, platform_config_file="platform_config.json")
+create_iso_env = ManageIsoInstanceOperator(dag=dag, instanceState="present", taskName="create-iso-inst")
+# prepare_env = LocalTFDAPrepareEnvOperator(dag=dag)
+trusted_pre_etl = TrustedPreETLOperator(dag=dag)
+get_minio_bucket = LocalMinioOperator(action='get', dag=dag, local_root_dir="{run_dir}/user-selected-data", operator_out_dir="user-selected-data")
+copy_data_algo = CopyDataAndAlgoOperator(dag=dag, input_operator=get_minio_bucket)
 run_isolated_workflow = LocalRunAlgoOperator(dag=dag)
 fetch_results = LocalFetchResultsOperator(dag=dag)
-trusted_post_etl = LocalTrustedPostETLOperator(dag=dag)
-delete_iso_inst = LocalManageIsoInstanceOperator(dag=dag, trigger_rule="all_done", instanceState="absent", taskName="delete-iso-inst")
+trusted_post_etl = TrustedPostETLOperator(dag=dag)
+delete_iso_inst = ManageIsoInstanceOperator(dag=dag, trigger_rule="all_done", instanceState="absent", taskName="delete-iso-inst")
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
 
 def final_status(**kwargs):
@@ -57,5 +61,4 @@ final_status = PythonOperator(
     trigger_rule="all_done", # Ensures this task runs even if upstream fails
     dag=dag,
 )
-
-create_iso_env >> prepare_env >> trusted_pre_etl >> copy_data_algo >> run_isolated_workflow >> fetch_results >> trusted_post_etl >> delete_iso_inst >> clean >> final_status
+load_platform_config >> create_iso_env >> trusted_pre_etl >> get_minio_bucket >> copy_data_algo >> run_isolated_workflow >> fetch_results >> trusted_post_etl >> delete_iso_inst >> clean >> final_status

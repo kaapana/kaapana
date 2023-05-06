@@ -26,7 +26,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 
 study_id = "Kaapana"
-TASK_NAME = f"Task{random.randint(100,999):03}_RACOON_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
+TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
 prep_modalities = "CT"
 default_model = "3d_lowres"

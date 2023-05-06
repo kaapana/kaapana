@@ -242,7 +242,9 @@ if __name__ == "__main__":
         success_count = 0
         for task_id in task_ids:
             tmp_success = False
-            assert task_id in model_lookup_dict
+            if task_id not in model_lookup_dict:
+                success_count += 1
+                continue
             task_url = model_lookup_dict[task_id]["download_link"]
             task_models = model_lookup_dict[task_id]["models"]
             check_file = model_lookup_dict[task_id]["check_file"]

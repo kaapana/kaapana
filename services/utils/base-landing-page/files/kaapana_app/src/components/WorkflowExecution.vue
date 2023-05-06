@@ -174,18 +174,14 @@
     watch: {
       // watcher for instances
       available_kaapana_instance_names(value) {
-        if (value.length == 1) {
-          this.selected_kaapana_instance_names =  value
-        }
-        // } else {
-        //   this.selected_kaapana_instance_names = []
-        // }
+        this.selected_kaapana_instance_names = [value[0]]
       },
       selected_kaapana_instance_names(value) {
-        if (this.selected_kaapana_instance_names !== 0) {
-          this.getDags()
-          this.getUiFormSchemas()
-        }
+        if (value.length === 0) {
+          this.selected_kaapana_instance_names = [this.available_kaapana_instance_names[0]]
+        } 
+        this.getDags()
+        this.getUiFormSchemas()
         // reset dag_id and external_dag_id if instance changes
         this.dag_id = null
         this.external_dag_id = null

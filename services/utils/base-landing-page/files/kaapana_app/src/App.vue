@@ -372,8 +372,20 @@ $kaapana-green: #ff7a20;
   color: $kaapana-blue;
 }
 
-.kaapana-iframe-container {
-  height: calc(100vh - 105px);
+.kaapana-iframe-container-side-navigation {
+  height: calc(100vh - 105px); // 105px: Calculated by substracting the height of the whole screen by the hight of the embedded iframe.
+}
+
+.kaapana-iframe-container-top-navigation {
+  height: calc(100vh - 105px - 56px);
+}
+
+.kapaana-side-navigation {
+  min-height: calc(100vh - 81px);
+}
+
+.kapaana-top-navigation {
+  min-height: calc(100vh - 81px - 56px);
 }
 
 .kaapana-headline {
@@ -394,15 +406,17 @@ $kaapana-green: #ff7a20;
   position: relative;
 }
 
-.kaapana-intro-header .kaapana-intro-image {
-  padding-top: 10px;
-  padding-bottom: 10px;
-  //color: white;
-  text-align: center;
-  min-height: calc(100vh - 105px);
-  //background: DeepSkyBlue;
-  background-size: cover;
-}
+// .kaapana-intro-header {
+//   min-height: calc(100vh - 105px);
+// }
+// .kaapana-intro-header .kaapana-intro-image {
+//   padding-top: 10px;
+//   padding-bottom: 10px;
+//   //color: white;
+//   text-align: center;
+//   //background: DeepSkyBlue;
+//   background-size: cover;
+// }
 
 .kaapana-opacity-card {
   //background: rgba(255, 255, 255, 0.87) !important

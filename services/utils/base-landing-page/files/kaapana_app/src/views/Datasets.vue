@@ -564,17 +564,17 @@ export default {
 </script>
 <style scoped>
 .sidebar {
-  height: calc(100vh - 81px);
+  /* height: calc(100vh - 81px); */
   overflow-y: auto;
 }
 
 .main {
-  height: calc(100vh - 81px);
+  /* height: calc(100vh - 81px); */
   position: relative;
 }
 
 .gallery {
-  height: calc(100vh - 258px);
+  /* height: calc(100vh - 258px); */
 }
 </style>
 

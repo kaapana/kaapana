@@ -1,7 +1,7 @@
 <template>
   <div>
     <splitpanes :class="$vuetify.theme.dark ? 'dark-theme' : ''">
-      <pane ref="mainPane" class="main" size="70" min-size="30">
+      <pane ref="mainPane" class="main" :class="navigationMode ? 'side-navigation' : 'top-navigation'" size="70" min-size="30">
         <v-container class="pa-0" fluid>
           <v-card class="rounded-0">
             <div style="padding: 10px 10px 10px 10px">
@@ -171,7 +171,8 @@
             <!--        property patients in two-ways bound -->
             <v-container
               fluid
-              class="gallery overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area"
+              class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area"
+              :class="navigationMode ? 'gallery-side-navigation' : 'gallery-top-navigation'" 
             >
               <StructuredGallery
                 v-if="
@@ -203,7 +204,7 @@
           </v-container>
         </v-container>
       </pane>
-      <pane class="sidebar" size="30" min-size="20">
+      <pane class="sidebar" :class="navigationMode ? 'side-navigation' : 'top-navigation'" size="30" min-size="20">
         <DetailView
           v-if="this.$store.getters.detailViewItem"
           :series-instance-u-i-d="this.$store.getters.detailViewItem"
@@ -314,6 +315,7 @@ export default {
       removeFromDatasetDialog: false,
       datasetToAddTo: null,
       debouncedIdentifiers: [],
+      navigationMode: false
     };
   },
   components: {
@@ -342,6 +344,8 @@ export default {
       this.keyDownEventListener(event)
     );
     window.addEventListener("keyup", (event) => this.keyUpEventListener(event));
+
+    this.navigationMode = !document.getElementsByClassName("v-bottom-navigation").length > 0
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) =>
@@ -573,8 +577,20 @@ export default {
   position: relative;
 }
 
-.gallery {
-  /* height: calc(100vh - 258px); */
+.side-navigation {
+  height: calc(100vh - 81px);
+}
+
+.top-navigation {
+  height: calc(100vh - 81px - 56px);
+}
+
+.gallery-side-navigation {
+  height: calc(100vh - 258px);
+}
+
+.gallery-top-navigation {
+  height: calc(100vh - 258px - 56px);
 }
 </style>
 

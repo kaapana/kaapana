@@ -79,7 +79,12 @@ export default {
       if (_cols !== "auto") {
         this.cols = _cols;
       } else {
-        const containerWidth = this.$refs.container.offsetWidth;
+        let containerWidth
+        if (!this.$refs.container) {
+          containerWidth = window.innerWidth;
+        } else {
+          containerWidth = this.$refs.container.offsetWidth;
+        }
         if (containerWidth < 500) {
           this.cols = 6;
         } else if (containerWidth < 650) {

@@ -61,6 +61,8 @@ VERSION_IMAGE_COUNT="20"
 DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 
+INSTANCE_NAME="{{ instance_name|default('') }}"
+
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
 {%- endfor %}
@@ -293,6 +295,11 @@ function deploy_chart {
 
     get_domain
     
+    if [ -z "$INSTANCE_NAME"]; then
+        INSTANCE_NAME=$DOMAIN
+        echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
+    fi
+
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -425,6 +432,7 @@ function deploy_chart {
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
+    --set-string global.instance_name="$INSTANCE_NAME" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

@@ -1,7 +1,7 @@
 
 <template lang="pug"> 
-div(:class="navigationMode ? 'kaapana-iframe-container-side-navigation' : 'kaapana-iframe-container-top-navigation'" )
-  iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="navigationMode ? 'kapaana-side-navigation' : 'kapaana-top-navigation'" class="no-border" :src="iFrameUrl" @load="setIframeUrl(this)")
+div(:class="fullSize ? (navigationMode ? 'kaapana-iframe-container-side-navigation' : 'kaapana-iframe-container-top-navigation') : ''")
+  iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="fullSize ? (navigationMode ? 'kapaana-side-navigation' : 'kapaana-top-navigation') : ''" class="no-border" :src="iFrameUrl" @load="setIframeUrl(this)")
 </template>
 
 <script>

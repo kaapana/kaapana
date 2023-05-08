@@ -31,14 +31,10 @@ with SessionLocal() as db:
         for db_kaapana_instance in db_kaapana_instances:
             if not db_kaapana_instance.remote:
                 if db_kaapana_instance.instance_name != settings.instance_name:
-                    client_kaapana_instance = ClientKaapanaInstanceCreate(
-                        **db_kaapana_instance.__dict__
-                    ).dict()
-                    create_and_update_client_kaapana_instance(
-                        db,
-                        client_kaapana_instance=client_kaapana_instance,
-                        action="update",
-                    )
+                    db_kaapana_instance.instance_name = settings.instance_name
+                    db.add(db_kaapana_instance)
+                    db.commit()
+                    db.refresh(db_kaapana_instance)
                     logging.info("Client instance updated!")
                 else:
                     logging.info("Client instance needs no update!")

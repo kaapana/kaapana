@@ -182,7 +182,6 @@ data () {
 },
 
 mounted () {
-  this.loading = true
   this.refreshClient();
   this.getLocalInstance();
 },
@@ -191,6 +190,10 @@ props: {
   workflows: {
     type: Array,
     required: true
+  },
+  extLoading: {
+    type: Boolean,
+    required: true,
   }
 },
 
@@ -203,6 +206,12 @@ computed: {
       return this.workflows
     }
   },
+},
+
+watch: {
+  extLoading() {
+    this.loading = this.extLoading
+  }
 },
 
 methods: {
@@ -231,7 +240,7 @@ methods: {
       }
   },
   getStatesColorMap(item) {
-    const states = item.workflow_jobs.map(job => job.status)
+    const states = item.workflow_jobs // .map(job => job.status)
     const colorMap = {
       'queued': 'grey',
       'scheduled': 'blue',
@@ -276,15 +285,12 @@ methods: {
 
   // API Calls
   getLocalInstance() {
-    this.loading = true
     kaapanaApiService
       .federatedClientApiGet("/kaapana-instance")
       .then((response) => {
-        this.loading = false
         this.localInstance = response.data;
       })
       .catch((err) => {
-        this.loading = false
         console.log(err);
       });
   },

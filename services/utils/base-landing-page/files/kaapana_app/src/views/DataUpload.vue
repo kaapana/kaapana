@@ -91,7 +91,7 @@
                     <v-btn
                       color="primary"
                       dark
-                      @click="() => (this.infoDialog = true)"
+                      @click="() => (this.infoDialog = false)"
                     >
                       Got it!
                     </v-btn>

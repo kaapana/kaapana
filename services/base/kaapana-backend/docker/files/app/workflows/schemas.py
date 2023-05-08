@@ -310,10 +310,13 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
         db_workflow_jobs = values.get("workflow_jobs", [])
         if len(db_workflow_jobs) > 0:
             job = db_workflow_jobs[0]
-            if "data_form" in job.conf_data:
-                values["dataset_name"] = json.loads(job.conf_data)["data_form"][
-                    "dataset_name"
-                ]
+            if "data_form" in job.conf_data and job.service_job == False:
+                dataset_name = (
+                    json.loads(job.conf_data)["data_form"]["dataset_name"]
+                    if "dataset_name" in json.loads(job.conf_data)["data_form"]
+                    else None
+                )
+                values["dataset_name"] = dataset_name
         return values
 
     @root_validator

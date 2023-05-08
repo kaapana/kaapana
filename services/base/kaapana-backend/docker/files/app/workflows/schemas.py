@@ -308,8 +308,10 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
     def get_dataset(cls, values) -> str:
         # method to conclude from dataset of workflow_jobs the dataset of the workflow
         db_workflow_jobs = values.get("workflow_jobs", [])
-        if len(db_workflow_jobs) > 0:
-            job = db_workflow_jobs[0]
+        for job in db_workflow_jobs:
+            if "external_schema_federated_form" in job.conf_data:
+                # if workflow is a federated workflow, retrieve dataset_name from next job of workflow_jobs
+                continue
             if "data_form" in job.conf_data and job.service_job == False:
                 dataset_name = (
                     json.loads(job.conf_data)["data_form"]["dataset_name"]
@@ -317,6 +319,8 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                     else None
                 )
                 values["dataset_name"] = dataset_name
+                # after getting the dataset_name from a workflow_job, break the for loop
+                break
         return values
 
     @root_validator

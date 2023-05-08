@@ -302,24 +302,24 @@ function dns_check {
         set +e
         echo "${GREEN}Get DNS settings nmcli ...${NC}"
         DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
-        echo "${YELLOW}Identified DNS: $DNS ${NC}"
         if [ -z "$DNS" ]; then
             echo "${RED}FAILED -> Get DNS settings resolvectl status ...${NC}"
             DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
-            echo "${YELLOW}Identified DNS: $DNS ${NC}"
             if [ -z "$DNS" ]; then
                 echo "${RED}FAILED -> Get DNS settings systemd-resolve ...${NC}"
                 DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
-                echo "${YELLOW}Identified DNS: $DNS ${NC}"
-                if [[ -z $DNS ]]; then
-                    if [ "$OFFLINE_SNAPS" = "true" ];then
-                        DNS="8.8.8.8,8.8.4.4"
-                    else
-                        echo "${RED}DNS lookup failed.${NC}"
-                        exit 1
-                    fi
+                if [[ -z $DNS ]] && [ "$OFFLINE_SNAPS" = "true" ]; then
+                    DNS="8.8.8.8,8.8.4.4"
                 fi
             fi
+        fi
+        if [ -z "${DNS}" ]; then
+            echo "${RED}DNS lookup failed.${NC}"
+            exit 1
+        else
+            ## Format DNS to be a comma separated list of IP addresses without spaces and newlines
+            DNS=$(echo -e $DNS | tr -s ' \n,' ',' | sed 's/,$/\n/')
+            echo "${YELLOW}Identified DNS: $DNS ${NC}"
         fi
         set -e
     fi

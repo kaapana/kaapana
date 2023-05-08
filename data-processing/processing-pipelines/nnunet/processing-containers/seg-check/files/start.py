@@ -39,6 +39,7 @@ def get_seg_info(input_nifti):
     existing_configuration = None
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
+    print(f"{model_id=}")
     json_files_found = [
         meta_json_path
         for meta_json_path in json_files_found
@@ -51,6 +52,14 @@ def get_seg_info(input_nifti):
             for list_json in json_files_found
             if seg_nifti_id.split("--")[0] in list_json
         ]
+        if len(json_files_found) > 1:
+            print(f"Still more than one file found: {json_files_found=}")
+            json_file_found = [
+                list_json
+                for list_json in json_files_found
+                if model_id.lower() in list_json.lower()
+            ]
+        print(json_file_found)
         assert len(json_file_found) == 1
 
         meta_info_json_path = json_file_found[0]

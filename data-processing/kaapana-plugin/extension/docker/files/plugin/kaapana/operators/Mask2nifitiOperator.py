@@ -26,7 +26,7 @@ class Mask2nifitiOperator(KaapanaBaseOperator):
         output_type="nii.gz",
         seg_filter=None,
         env_vars=None,
-        execution_timeout=timedelta(minutes=90),
+        execution_timeout=timedelta(days=5),
         **kwargs,
     ):
         """

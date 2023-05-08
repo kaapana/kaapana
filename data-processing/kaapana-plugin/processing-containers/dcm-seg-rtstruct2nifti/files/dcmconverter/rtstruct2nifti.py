@@ -89,7 +89,7 @@ def generate_meta_info(result_dir, seg_filter):
             ]
         }
 
-        meta_path = join(dirname(new_filename), f"{file_id}-meta.json")
+        meta_path = new_filename.replace(".nii.gz", "-meta.json")
         with open(meta_path, "w", encoding="utf-8") as jsonData:
             json.dump(
                 meta_temlate, jsonData, indent=4, sort_keys=True, ensure_ascii=True

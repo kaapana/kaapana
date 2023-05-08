@@ -409,14 +409,14 @@ $kaapana-green: #ff7a20;
 // .kaapana-intro-header {
 //   min-height: calc(100vh - 105px);
 // }
-// .kaapana-intro-header .kaapana-intro-image {
-//   padding-top: 10px;
-//   padding-bottom: 10px;
-//   //color: white;
-//   text-align: center;
-//   //background: DeepSkyBlue;
-//   background-size: cover;
-// }
+.kaapana-intro-header {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  //color: white;
+  text-align: center;
+  //background: DeepSkyBlue;
+  background-size: cover;
+}
 
 .kaapana-opacity-card {
   //background: rgba(255, 255, 255, 0.87) !important

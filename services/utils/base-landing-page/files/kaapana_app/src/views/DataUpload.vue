@@ -21,10 +21,10 @@
         <v-col cols="12">
           <v-card>
             <v-card-title class="text-h5">
-              Option 2: Upload the data (experimental)
+              Option 2: Upload the data via the browser(experimental).
             </v-card-title>
             <v-card-text>
-              <v-icon large>mdi-numeric-1-circle</v-icon>&nbsp; Make sure your data are correctly formatted for the upload.
+              <v-icon class="my-2" large>mdi-numeric-1-circle</v-icon>&nbsp; Make sure your data are correctly formatted for the upload.
               <v-btn
                 color="primary"
                 dark
@@ -99,7 +99,7 @@
                 </v-card>
               </v-dialog>
 
-              <v-icon large>mdi-numeric-2-circle</v-icon>&nbsp; Upload DICOMS, NIfTIs or any data you want to use in a workflow as a zip file via the dropzone.
+              <v-icon class="my-2" large>mdi-numeric-2-circle</v-icon>&nbsp; Upload DICOMS, NIfTIs or any data you want to use in a workflow as a zip file via the dropzone.
               <upload labelIdle="Dicoms, ITK images or any other data" :onProcessFile="fileComplete"></upload>
               <br>
               <v-icon large>mdi-numeric-3-circle</v-icon>&nbsp;

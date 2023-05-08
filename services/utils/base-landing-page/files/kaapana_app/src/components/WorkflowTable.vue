@@ -56,6 +56,12 @@
       :loading="loading"
       loading-text="Request is processed - wait a few seconds."
     >
+      <template v-slot:item.time_created="{ item }">
+        {{ new Date(item.time_created).toLocaleString() }}
+      </template>
+      <template v-slot:item.time_updated="{ item }">
+        {{ new Date(item.time_updated).toLocaleString() }}
+      </template>
       <template v-slot:item.status="{ item }">
         <v-chip
           v-for="state in getStatesColorMap(item)"

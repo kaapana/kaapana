@@ -14,7 +14,7 @@ ui_forms = {
         "type": "object",
         "properties": {
             "uninstall_task": {
-                "title": "Unisntall nnUnet Model",
+                "title": "Select task to uninstall mode (otherwise leave empty)",
                 "description": "Select one of the installed models to uninstall.",
                 "type": "string",
                 "default": "",
@@ -34,7 +34,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="nnunet-model-uninstall",
+    dag_id="nnunet-model-management",
     default_args=args,
     concurrency=1,
     max_active_runs=1,

@@ -115,30 +115,30 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     segmentation_label_list.append(value)
                 else:
                     pass
-        result_dict["segmentation_labels_list_keyword"] = (
+        result_dict["00000000 SegmentationLabelsList_keyword"] = (
             ",".join(sorted(segmentation_label_list))
             if len(segmentation_label_list) > 0
             else None
         )
-        result_dict["00620005 Segment Label_keyword"] = segmentation_label_list
-        result_dict["rtstruct_organ_list_keyword"] = (
+        result_dict["00620005 SegmentLabel_keyword"] = segmentation_label_list
+        result_dict["00000000 RtstructOrganList_keyword"] = (
             ",".join(sorted(rtstruct_organ_list))
             if len(rtstruct_organ_list) > 0
             else None
         )
-        result_dict["rtstruct_marker_list_keyword"] = (
+        result_dict["00000000 RtstructMarkerList_keyword"] = (
             ",".join(sorted(rtstruct_marker_list))
             if len(rtstruct_marker_list) > 0
             else None
         )
-        result_dict["rtstruct_other_list_keyword"] = (
+        result_dict["00000000 RtstructOtherList_keyword"] = (
             ",".join(sorted(rtstruct_other_list))
             if len(rtstruct_other_list) > 0
             else None
         )
-        result_dict["rtstruct_organ_keyword"] = rtstruct_organ_list
-        result_dict["rtstruct_marker_keyword"] = rtstruct_marker_list
-        result_dict["rtstruct_other_keyword"] = rtstruct_other_list
+        result_dict["00000000 RtstructOrgan_keyword"] = rtstruct_organ_list
+        result_dict["00000000 RtstructMarker_keyword"] = rtstruct_marker_list
+        result_dict["00000000 RtstructOther_keyword"] = rtstruct_other_list
 
         return result_dict
 
@@ -747,7 +747,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         date_time_formatted = self.convert_time_to_utc(
             date_time_formatted, self.format_date_time
         )
-        new_meta_data["timestamp"] = date_time_formatted
+        new_meta_data["00000000 Timestamp_datetime"] = date_time_formatted
 
         timestamp_arrived = datetime.now()
         new_meta_data["00000000 TimestampArrived_datetime"] = self.convert_time_to_utc(

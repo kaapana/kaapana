@@ -32,8 +32,8 @@ skipped_dict = {"segmentation_files": [], "base_images": []}
 def get_seg_info(input_nifti):
     print(f"# Get seg configuration for: {basename(input_nifti)}")
     model_id = (
-        f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}"
-        if "-" in basename(input_nifti)
+        f"{basename(input_nifti).replace('.nii.gz','').split('--')[-1]}"
+        if "--" in basename(input_nifti)
         else ""
     )
     existing_configuration = None
@@ -57,7 +57,7 @@ def get_seg_info(input_nifti):
             json_file_found = [
                 list_json
                 for list_json in json_files_found
-                if model_id.lower() in list_json.lower()
+                if f"--{model_id.lower()}-meta.json" in list_json.lower()
             ]
         print(json_file_found)
         assert len(json_file_found) == 1
@@ -92,7 +92,7 @@ def get_seg_info(input_nifti):
         json_files_found = [
             meta_json_path
             for meta_json_path in json_files_found
-            if f"seg_info{model_id}.json" in meta_json_path
+            if f"seg_info-{model_id}.json" in meta_json_path
         ]
         assert len(json_files_found) == 1
         meta_info_json_path = json_files_found[0]

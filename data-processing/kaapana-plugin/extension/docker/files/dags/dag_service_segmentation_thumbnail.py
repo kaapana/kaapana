@@ -29,7 +29,7 @@ args = {
     "ui_forms": ui_forms,
     "owner": "kaapana",
     "start_date": days_ago(0),
-    "retries": 3,
+    "retries": 2,
     "retry_delay": timedelta(minutes=10),
 }
 

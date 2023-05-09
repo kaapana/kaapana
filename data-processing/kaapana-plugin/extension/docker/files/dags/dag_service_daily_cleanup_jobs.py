@@ -48,15 +48,15 @@ dag = DAG(
 )
 
 remove_delete_dags = LocalServiceSyncDagsDbOperator(
-    dag=dag, retries=3, retry_delay=timedelta(minutes=2)
+    dag=dag, retries=1, retry_delay=timedelta(minutes=2)
 )
 remove_delete_dags
 
 clean_up = LocalCleanUpExpiredWorkflowDataOperator(
-    dag=dag, retries=3, expired_period=timedelta(days=14)
+    dag=dag, retries=1, expired_period=timedelta(days=14)
 )
 clean_up
-check_ctp_quarantine = LocalCtpQuarantineCheckOperator(dag=dag, retries=3)
+check_ctp_quarantine = LocalCtpQuarantineCheckOperator(dag=dag, retries=1)
 check_ctp_quarantine
 
 # airflow-log-cleanup
@@ -298,7 +298,7 @@ for log_cleanup_id in range(1, NUMBER_OF_WORKERS + 1):
                 "gpu_mem_mb": None,
             },
             dag=dag,
-            retries=3,
+            retries=1,
         )
 
         log_cleanup_op.set_upstream(start)

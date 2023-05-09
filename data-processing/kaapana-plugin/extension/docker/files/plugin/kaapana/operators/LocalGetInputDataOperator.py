@@ -12,8 +12,6 @@ import shutil
 import glob
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
-from pathlib import Path
-
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     """

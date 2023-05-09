@@ -14,7 +14,7 @@ args = {
     "ui_visible": False,
     "owner": "kaapana",
     "start_date": days_ago(0),
-    "retries": 2,
+    "retries": 1,
     "retry_delay": timedelta(seconds=30),
 }
 

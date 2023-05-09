@@ -17,6 +17,10 @@ PLATFORM_VERSION = os.getenv("PLATFORM_VERSION", None)
 GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
 ENABLE_NFS = os.getenv("ENABLE_NFS", None)
 
+# Deprecated kept for backwards compatibility
+WORKFLOW_DIR = AIRFLOW_WORKFLOW_DIR
+BUILD_VERSION = KAAPANA_BUILD_VERSION
+
 try:
     GPU_COUNT = int(get_pool(name="NODE_GPU_COUNT").slots)
 except Exception as e:

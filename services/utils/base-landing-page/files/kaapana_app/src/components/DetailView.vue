@@ -34,8 +34,8 @@
           max-height: 80vh;
           background-color: darkgray;
           font-size: 1.3em;
-          aspect-ratio: 1 / 1
-          "
+          aspect-ratio: 1 / 1;
+        "
         fill-height
         fluid
       >
@@ -54,8 +54,6 @@
 </template>
 
 <script>
-/* eslint-disable */
-
 import TagsTable from "./TagsTable.vue";
 import { loadSeriesData } from "../common/api.service";
 import IFrameWindow from "./IFrameWindow.vue";
@@ -87,7 +85,7 @@ export default {
       }
     },
     resetSelected() {
-      this.$store.dispatch("resetDetailViewItem")
+      this.$store.dispatch("resetDetailViewItem");
     },
     openInOHIFViewer() {
       window.open(`/ohif/viewer/${this.studyInstanceUID}`);

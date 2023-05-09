@@ -1,5 +1,3 @@
-/* eslint-disable */
-
 import Vue from "vue";
 import httpClient from "./httpClient";
 
@@ -21,11 +19,11 @@ const createDataset = async (body) => {
 
 const deleteDataset = async (datasetName) => {
   try {
-    const res =  await httpClient.delete(
+    const res = await httpClient.delete(
       KAAPANA_BACKEND_ENDPOINT +
         `client/dataset?name=${encodeURIComponent(datasetName)}`
     );
-    return res.data['ok']
+    return res.data["ok"];
   } catch (error) {
     Vue.notify({
       title: "Error",

@@ -234,7 +234,6 @@
 </template>
 
 <script lang="ts">
-/* eslint-disable */
 
 import Vue from "vue";
 import request from "@/request";

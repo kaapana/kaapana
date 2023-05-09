@@ -285,8 +285,10 @@
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
           :onlyLocal="true"
+          :isDialog=true
           kind_of_dags="dataset"
           @successful="() => (this.workflowDialog = false)"
+          @cancel="() => (this.workflowDialog = false)"
         />
       </v-dialog>
       <EditDatasetsDialog

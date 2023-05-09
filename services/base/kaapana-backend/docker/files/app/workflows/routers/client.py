@@ -624,7 +624,10 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
 
         # update aborted workflow
         return crud.update_workflow(db, workflow)
-    elif workflow.workflow_status == "scheduled":
+    elif (
+        workflow.workflow_status == "scheduled"
+        or workflow.workflow_status == "confirmed"
+    ):
         return crud.update_workflow(db, workflow)
     else:
         raise HTTPException(

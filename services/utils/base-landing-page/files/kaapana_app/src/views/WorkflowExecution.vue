@@ -1,7 +1,7 @@
 <template>
   <v-container w-50 text-left fluid>
     <v-row justify="center">
-      <v-col sm="12" md="6" xl="4" >
+      <v-col sm="12" md="6" xl="4">
         <workflow-execution></workflow-execution>
       </v-col>
     </v-row>
@@ -9,32 +9,19 @@
 </template>
 
 <script>
-import Vue from "vue";
-import { mapGetters } from "vuex";
-import kaapanaApiService from "@/common/kaapanaApi.service";
+import WorkflowExecution from "@/components/WorkflowExecution.vue";
 
-import WorkflowExecution  from "@/components/WorkflowExecution.vue";
-
-
-export default Vue.extend({
+export default {
   components: {
     WorkflowExecution,
   },
-  data: () => ({
-  }),
-  created() {
-  },
-  mounted () {console.log("Hello, I am the Workflow Execution View!")
-  },
-  watch: {
-  },
-  computed: {
-  },
-  methods: {
-  },
-});
+  data: () => ({}),
+  created() {},
+  mounted() {},
+  watch: {},
+  computed: {},
+  methods: {},
+};
 </script>
 
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>

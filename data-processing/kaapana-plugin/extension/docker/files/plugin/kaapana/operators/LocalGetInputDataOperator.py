@@ -222,6 +222,20 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             )
             print("Skipping...")
             return
+        if "query" in self.data_form and "identifiers" in self.data_form:
+            print(
+                "You defined 'identifiers' and a 'query', only one definition is supported!"
+            )
+            exit(1)
+        if "query" in self.data_form:
+            print(
+                HelperOpensearch.get_query_dataset(
+                    self.data_form["query"], only_uids=True
+                )
+            )
+            self.data_form["identifiers"] = HelperOpensearch.get_query_dataset(
+                self.data_form["query"], only_uids=True
+            )
 
         print("# data_form:")
         print("#")

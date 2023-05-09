@@ -25,7 +25,6 @@
         sort-by="time_updated"
         sort-desc="sort-desc"
         :items-per-page="itemsPerPage"
-        
         @update:options="options = $event"
       >
       <template v-slot:item.time_updated="{ item }">
@@ -58,7 +57,7 @@
         </template>
         <template v-slot:item.status="{ item }">
           <v-chip
-            :color="getStatusColor(item.status)"
+            :color="getStatusColor(item.status, $vuetify.theme.dark)"
             class="my-chip"
             dark=""
             dense
@@ -261,7 +260,7 @@
       closeConfData () {
         this.dialogConfData = false
       },
-      getStatusColor(status) {
+      getStatusColor(status, darkTheme) {
         if (status == 'queued') {
           return 'grey'
         } else if (status == 'pending') {
@@ -271,7 +270,7 @@
         } else if (status == 'running') {
           return 'green'
         } else if (status == 'finished') {
-          return 'black'
+          return darkTheme ? 'blue-grey': 'black'
         } else if (status == 'deleted') {
           return 'brown'
         } else {

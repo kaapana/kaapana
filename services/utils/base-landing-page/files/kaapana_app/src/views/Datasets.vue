@@ -298,7 +298,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import DetailView from "@/components/DetailView.vue";
 import StructuredGallery from "@/components/StructuredGallery.vue";
 import Gallery from "@/components/Gallery.vue";

@@ -90,8 +90,6 @@
 </template>
 
 <script>
-/* eslint-disable */
-
 import { loadValues } from "@/common/api.service";
 import { settings } from "@/static/defaultUIConfig";
 

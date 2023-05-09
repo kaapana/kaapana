@@ -17,7 +17,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import PatientView from "./PatientView.vue";
 
 export default {

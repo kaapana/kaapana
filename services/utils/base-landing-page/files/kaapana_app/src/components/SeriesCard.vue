@@ -69,8 +69,6 @@
 </template>
 
 <script>
-/* eslint-disable */
-
 import Chip from "./Chip.vue";
 import TagChip from "./TagChip.vue";
 

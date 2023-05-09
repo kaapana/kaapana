@@ -12,7 +12,7 @@ args = {
     "ui_visible": False,
     "owner": "system",
     "start_date": days_ago(0),
-    "retries": 1,
+    "retries": 2,
     "retry_delay": timedelta(seconds=60),
 }
 

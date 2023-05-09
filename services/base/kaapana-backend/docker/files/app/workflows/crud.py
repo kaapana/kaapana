@@ -1616,9 +1616,8 @@ def delete_workflow(db: Session, workflow_id: str):
 
     # iterate over jobs of to-be-deleted workflow
     for db_workflow_current_job in db_workflow.workflow_jobs:
-        delete_job(
-            db, job_id=db_workflow_current_job.id, remote=False
-        )  # deletes local and remote jobs
+        # deletes local and remote jobs
+        delete_job(db, job_id=db_workflow_current_job.id, remote=False)
 
     db.delete(db_workflow)
     db.commit()

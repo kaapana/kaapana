@@ -134,7 +134,7 @@
       v-row(v-if="edit_automatic_workflow_execution" align="center")
         v-col(cols=4  align="left") Automatically start remote workflows:
         v-col(align="left")
-          v-checkbox(v-model="instancePost.automatic_workflow_execution" label="Check automatically for remote updates")
+          v-checkbox(v-model="instancePost.automatic_workflow_execution" label="Start remote workflows automatically")
         v-col(cols=1 align="center")
           v-btn(@click="edit_automatic_workflow_execution = !edit_automatic_workflow_execution; updateInstanceForm();" small icon)
             v-icon mdi-content-save

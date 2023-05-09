@@ -38,6 +38,7 @@ export default {
   methods: {
     save() {
       this.$emit('save', this.name)
+      this.name = ""
     }
   },
   computed: {
@@ -46,6 +47,7 @@ export default {
         return this.value
       },
       set(value) {
+        this.name = ""
         this.$emit('cancel', value)
       }
     }

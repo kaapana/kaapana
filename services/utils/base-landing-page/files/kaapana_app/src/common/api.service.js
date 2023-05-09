@@ -19,6 +19,25 @@ const createDataset = async (body) => {
   );
 };
 
+const deleteDataset = async (datasetName) => {
+  try {
+    const res =  await httpClient.delete(
+      KAAPANA_BACKEND_ENDPOINT +
+        `client/dataset?name=${encodeURIComponent(datasetName)}`
+    );
+    return res.data['ok']
+  } catch (error) {
+    Vue.notify({
+      title: "Error",
+      text:
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : error,
+      type: "error",
+    });
+  }
+};
+
 const loadDatasetByName = async (datasetName) => {
   try {
     const dataset = (
@@ -40,12 +59,16 @@ const loadDatasetByName = async (datasetName) => {
   }
 };
 
-const loadDatasetNames = async () => {
+const loadDatasets = async (namesOnly = true) => {
   try {
     const datasets = await httpClient.get(
       KAAPANA_BACKEND_ENDPOINT + "client/datasets"
     );
-    return datasets.data.map((dataset) => dataset.name);
+    if (namesOnly) {
+      return datasets.data.map((dataset) => dataset.name);
+    } else {
+      return datasets.data;
+    }
   } catch (error) {
     Vue.notify({
       title: "Error",
@@ -115,11 +138,12 @@ const loadFieldNames = async () => {
   }
 };
 
-const loadValues = async (key, query={}) => {
+const loadValues = async (key, query = {}) => {
   try {
     return await httpClient.post(
       KAAPANA_BACKEND_ENDPOINT +
-        `dataset/query_values/${encodeURIComponent(key)}`, query
+        `dataset/query_values/${encodeURIComponent(key)}`,
+      query
     );
   } catch (error) {
     Vue.notify({
@@ -161,7 +185,8 @@ export {
   loadSeriesData,
   createDataset,
   updateDataset,
-  loadDatasetNames,
+  deleteDataset,
+  loadDatasets,
   loadDatasetByName,
   loadDashboard,
   loadDicomTagMapping,

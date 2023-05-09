@@ -13,6 +13,7 @@ import glob
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
 
+
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     """
     Operator to get input data for a workflow/dag.

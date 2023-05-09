@@ -37,7 +37,7 @@
 import Chip from "./Chip.vue";
 import SeriesCard from "./SeriesCard";
 import {
-  loadDatasetNames,
+  loadDatasets,
   updateDataset,
 } from "../common/api.service";
 import ResizeObserver from "resize-observer-polyfill";

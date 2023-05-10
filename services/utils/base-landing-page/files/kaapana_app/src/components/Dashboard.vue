@@ -153,7 +153,7 @@ export default {
         dataLabels: {
           enabled: true,
           style: {
-            colors: [this.$vuetify.theme.dark ? "#fff" : "#00000099"],
+            colors: ["#fff"],
           },
         },
         grid: {
@@ -173,6 +173,11 @@ export default {
           categories: Object.keys(values["items"]),
           tickPlacement: "on",
         },
+        colors: [
+          this.$vuetify.theme.dark
+            ? this.$vuetify.theme.themes.dark.primary
+            : this.$vuetify.theme.themes.light.primary,
+        ],
       };
     },
     updateDashboard() {

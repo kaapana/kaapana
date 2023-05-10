@@ -212,15 +212,16 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print("# Dag input dir correctly adjusted.")
             return
 
-        if self.conf is not None and "data_form" in self.conf:
-            self.data_form = self.conf["data_form"]
-
         if self.data_form is None:
-            print(
-                "No data_form in config or object found! Data seems to be present already..."
-            )
-            print("Skipping...")
-            return
+            if self.conf is not None and "data_form" in self.conf:
+                print("Setting data_from from conf object")
+                self.data_form = self.conf["data_form"]
+            else:
+                print(
+                    "No data_form in config or object found! Data seems to be present already..."
+                )
+                print("Skipping...")
+                return
         if "query" in self.data_form and "identifiers" in self.data_form:
             print(
                 "You defined 'identifiers' and a 'query', only one definition is supported!"

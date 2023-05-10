@@ -316,7 +316,7 @@ export default {
         if (value && typeof value === "object") {
           this.findRequiredFields(value, result, fullKey);
           // } else if (key === 'required' && !('default' in obj) && !('enum' in obj)) {
-        } else if (key === "required" && !("enum" in obj)) {
+        } else if (key !== "readOnly" && key === "required" && !("enum" in obj) && !("readOnly" in obj)) {
           // only go here if it's no 'enum' data type (special case for nnunet-predict)
           result.push(fullKey);
         }

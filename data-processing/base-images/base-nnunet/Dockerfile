@@ -27,4 +27,4 @@ RUN cd /nnunet-pip-package && pip3 install ./
 
 RUN pip install tensorboard==2.8.0
 
-WORKDIR /kaapana/app/
+WORKDIR /kaapana/app

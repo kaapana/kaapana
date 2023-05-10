@@ -1,7 +1,13 @@
 <template>
   <div>
     <splitpanes :class="$vuetify.theme.dark ? 'dark-theme' : ''">
-      <pane ref="mainPane" class="main" :class="navigationMode ? 'side-navigation' : 'top-navigation'" size="70" min-size="30">
+      <pane
+        ref="mainPane"
+        class="main"
+        :class="navigationMode ? 'side-navigation' : 'top-navigation'"
+        size="70"
+        min-size="30"
+      >
         <v-container class="pa-0" fluid>
           <v-card class="rounded-0">
             <div style="padding: 10px 10px 10px 10px">
@@ -9,7 +15,7 @@
                 <v-col cols="1" align="center">
                   <v-icon>mdi-folder</v-icon>
                 </v-col>
-                <v-col>
+                <v-col cols="10">
                   <v-autocomplete
                     v-model="datasetName"
                     :items="datasetNames"
@@ -22,6 +28,13 @@
                     @click:clear="datasetName = null"
                   >
                   </v-autocomplete>
+                </v-col>
+                <v-col
+                  cols="1"
+                  align="center"
+                  @click="editDatasetsDialog = true"
+                >
+                  <v-icon>mdi-folder-edit-outline</v-icon>
                 </v-col>
               </v-row>
               <Search
@@ -172,7 +185,11 @@
             <v-container
               fluid
               class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area"
-              :class="navigationMode ? 'gallery-side-navigation' : 'gallery-top-navigation'" 
+              :class="
+                navigationMode
+                  ? 'gallery-side-navigation'
+                  : 'gallery-top-navigation'
+              "
             >
               <StructuredGallery
                 v-if="
@@ -204,7 +221,12 @@
           </v-container>
         </v-container>
       </pane>
-      <pane class="sidebar" :class="navigationMode ? 'side-navigation' : 'top-navigation'" size="30" min-size="20">
+      <pane
+        class="sidebar"
+        :class="navigationMode ? 'side-navigation' : 'top-navigation'"
+        size="30"
+        min-size="20"
+      >
         <DetailView
           v-if="this.$store.getters.detailViewItem"
           :series-instance-u-i-d="this.$store.getters.detailViewItem"
@@ -263,16 +285,21 @@
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
           :onlyLocal="true"
+          :isDialog=true
           kind_of_dags="dataset"
           @successful="() => (this.workflowDialog = false)"
+          @cancel="() => (this.workflowDialog = false)"
         />
       </v-dialog>
+      <EditDatasetsDialog
+        v-model="editDatasetsDialog"
+        @close="(reloadDatasets) => editedDatasets(reloadDatasets)"
+      />
     </div>
   </div>
 </template>
 
 <script>
-/* eslint-disable */
 import DetailView from "@/components/DetailView.vue";
 import StructuredGallery from "@/components/StructuredGallery.vue";
 import Gallery from "@/components/Gallery.vue";
@@ -281,7 +308,7 @@ import TagBar from "@/components/TagBar.vue";
 import {
   createDataset,
   updateDataset,
-  loadDatasetNames,
+  loadDatasets,
   loadPatients,
 } from "../common/api.service";
 import Dashboard from "@/components/Dashboard.vue";
@@ -290,6 +317,7 @@ import { VueSelecto } from "vue-selecto";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
+import EditDatasetsDialog from "@/components/EditDatasetsDialog.vue";
 import KeyController from "keycon";
 import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
@@ -313,9 +341,10 @@ export default {
       addToDatasetDialog: false,
       workflowDialog: false,
       removeFromDatasetDialog: false,
+      editDatasetsDialog: false,
       datasetToAddTo: null,
       debouncedIdentifiers: [],
-      navigationMode: false
+      navigationMode: false,
     };
   },
   components: {
@@ -327,6 +356,7 @@ export default {
     Dashboard,
     SaveDatasetDialog,
     ConfirmationDialog,
+    EditDatasetsDialog,
     WorkflowExecution,
     VueSelecto,
     Splitpanes,
@@ -335,9 +365,7 @@ export default {
   async created() {
     this.settings = JSON.parse(localStorage["settings"]);
     // this.datasetName = JSON.parse(localStorage['Dataset.search.datasetName'] || '')
-    loadDatasetNames().then(
-      (_datasetNames) => (this.datasetNames = _datasetNames)
-    );
+    loadDatasets().then((_datasetNames) => (this.datasetNames = _datasetNames));
   },
   mounted() {
     window.addEventListener("keydown", (event) =>
@@ -345,7 +373,8 @@ export default {
     );
     window.addEventListener("keyup", (event) => this.keyUpEventListener(event));
 
-    this.navigationMode = !document.getElementsByClassName("v-bottom-navigation").length > 0
+    this.navigationMode =
+      !document.getElementsByClassName("v-bottom-navigation").length > 0;
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) =>
@@ -406,7 +435,7 @@ export default {
       this.isLoading = true;
       this.selectedSeriesInstanceUIDs = [];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
-      this.$store.dispatch("resetDetailViewItem")
+      this.$store.dispatch("resetDetailViewItem");
 
       loadPatients({
         structured: this.settings.datasets.structured,
@@ -526,7 +555,7 @@ export default {
           text: `Successfully new dataset ${name}.`,
           type: "success",
         });
-        loadDatasetNames().then(
+        loadDatasets().then(
           (_datasetNames) => (this.datasetNames = _datasetNames)
         );
         return true;
@@ -541,6 +570,17 @@ export default {
         });
         return false;
       }
+    },
+    editedDatasets(reloadDatasets) {
+      if (reloadDatasets) {
+        loadDatasets().then((_datasetNames) => {
+          this.datasetNames = _datasetNames;
+          if (!this.datasetNames.includes(this.datasetName)) {
+            this.datasetName = null;
+          }
+        });
+      }
+      this.editDatasetsDialog = false;
     },
   },
   watch: {

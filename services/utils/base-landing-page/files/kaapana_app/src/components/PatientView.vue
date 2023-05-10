@@ -34,7 +34,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import StudyView from "./StudyView.vue";
 import { loadDashboard } from "../common/api.service";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";

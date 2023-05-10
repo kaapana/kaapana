@@ -41,14 +41,14 @@
           </v-row>
           <v-row>
             <v-col>
-            <SettingsTable
-              ref="settingsTable"
-              :items.sync="settings.datasets.props"
-              :structuredView="settings.datasets.structured"
-              :showMetaData="settings.datasets.cardText"
-            >
-            </SettingsTable>
-          </v-col>
+              <SettingsTable
+                ref="settingsTable"
+                :items.sync="settings.datasets.props"
+                :structuredView="settings.datasets.structured"
+                :showMetaData="settings.datasets.cardText"
+              >
+              </SettingsTable>
+            </v-col>
           </v-row>
         </v-card-text>
         <v-card-actions class="justify-center">
@@ -60,8 +60,6 @@
 </template>
 
 <script>
-/* eslint-disable */
-
 import SettingsTable from "@/components/SettingsTable.vue";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
 

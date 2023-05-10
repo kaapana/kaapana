@@ -91,7 +91,7 @@
                     <v-btn
                       color="primary"
                       dark
-                      @click="() => (this.infoDialog = false)"
+                      @click="() => (infoDialog = false)"
                     >
                       Got it!
                     </v-btn>
@@ -105,7 +105,7 @@
               <v-icon large>mdi-numeric-3-circle</v-icon>&nbsp;
               <v-btn
                 color="primary"
-                @click="() => (this.workflowDialog = true)"
+                @click="() => (workflowDialog = true)"
               > 
                 Import the data
                 <v-icon>mdi-play-outline</v-icon>
@@ -119,7 +119,9 @@
           :key="componentKey"
           :onlyLocal=true
           kind_of_dags="minio"
-          @successful="() => (this.workflowDialog = false)"
+          :isDialog=true
+          @successful="() => (workflowDialog = false)"
+          @cancel="() => (workflowDialog = false)"
         />
         </v-dialog>
       </v-row>

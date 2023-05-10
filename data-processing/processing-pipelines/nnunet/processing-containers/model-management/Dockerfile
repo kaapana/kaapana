@@ -6,6 +6,6 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-COPY files/start.py /
+COPY files/start.py /kaapana/app
 
 CMD ["python3","-u","/kaapana/app/start.py"]

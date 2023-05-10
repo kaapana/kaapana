@@ -9,6 +9,7 @@ import os
 import csv
 import time
 import json
+
 # import pydicom
 
 send_delay = 0
@@ -30,14 +31,14 @@ def search_metadata_csv(target_dir):
                 data_read = [row for row in reader]
             # next(reader, None)  # skip the headers
             if len(data_read) >= 2:
-                index_collection = data_read[0].index('Collection')
+                index_collection = data_read[0].index("Collection")
                 collection_extracted = data_read[1][index_collection]
                 break
-        else:   
+        else:
             metadata_file = glob(join(target_dir, "info.txt"), recursive=True)
             if len(metadata_file) == 1:
                 print(f"# found: {metadata_file[0]}")
-                with open(metadata_file[0], 'r') as f:
+                with open(metadata_file[0], "r") as f:
                     metadata = json.load(f)
                 if "collection" in metadata:
                     collection_extracted = metadata["collection"]
@@ -54,7 +55,7 @@ def search_metadata_csv(target_dir):
 
 
 def send_dcm_dir(input_dir):
-    global processed_count, execution_timeout, server, port, dataset, scan_pattern,init_send_delay, send_delay
+    global processed_count, execution_timeout, server, port, dataset, scan_pattern, init_send_delay, send_delay
 
     if dataset == None:
         extracted_dataset = search_metadata_csv(input_dir)
@@ -65,9 +66,29 @@ def send_dcm_dir(input_dir):
     print(f"# Sending dir: {dirname(input_dir)}")
     print(f"# dataset:     {local_dataset}")
     print(f"#")
-        
-    command = ["dcmsend", "-v", f"{server}", f"{port}", "-aet", f"push_tool", "-aec", f"{local_dataset}", "--scan-directories", "--scan-pattern", f"{scan_pattern}", "--recurse", f"{input_dir}"]
-    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
+
+    command = [
+        "dcmsend",
+        "-v",
+        f"{server}",
+        f"{port}",
+        "-aet",
+        f"push_tool",
+        "-aec",
+        f"{local_dataset}",
+        "--scan-directories",
+        "--scan-pattern",
+        f"{scan_pattern}",
+        "--recurse",
+        f"{input_dir}",
+    ]
+    output = run(
+        command,
+        stdout=PIPE,
+        stderr=PIPE,
+        universal_newlines=True,
+        timeout=execution_timeout,
+    )
     if output.returncode != 0:
         print("Something went wrong -> sending failed!")
         print(f"Message: {output.stdout}")
@@ -95,17 +116,68 @@ def send_dcm_dir(input_dir):
     return True, dirname(input_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cwd = os.getcwd()
     parser = ArgumentParser()
-    parser.add_argument("-i", "--input", dest="input_dir", default=cwd, help="Path with DICOM files")
-    parser.add_argument("-s", "--server", dest="server", default=None, required=True, help="Server address")
-    parser.add_argument("-p", "--port", dest="port", default="11112", required=False, help="DICOM port server")
-    parser.add_argument("-d", "--dataset", dest="dataset", default=None, required=False, help="Dataset name")
-    parser.add_argument("-t", "--threads", dest="threads", default="3", required=False, help="Parallel threads to send the data.")
-    parser.add_argument("-sp", "--scan-pattern", dest="scan_pattern", default="*.dcm", required=False, help="Scan pattern.")
-    parser.add_argument("-max", "--max-series", dest="max_series", default="0", required=False, help="Max series count")
-    parser.add_argument("-dl", "--delay", dest="init_delay", default="0", required=False, help="Delay between series")
+    parser.add_argument(
+        "-i", "--input", dest="input_dir", default=cwd, help="Path with DICOM files"
+    )
+    parser.add_argument(
+        "-s",
+        "--server",
+        dest="server",
+        default=None,
+        required=True,
+        help="Server address",
+    )
+    parser.add_argument(
+        "-p",
+        "--port",
+        dest="port",
+        default="11112",
+        required=False,
+        help="DICOM port server",
+    )
+    parser.add_argument(
+        "-d",
+        "--dataset",
+        dest="dataset",
+        default=None,
+        required=False,
+        help="Dataset name",
+    )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        dest="threads",
+        default="3",
+        required=False,
+        help="Parallel threads to send the data.",
+    )
+    parser.add_argument(
+        "-sp",
+        "--scan-pattern",
+        dest="scan_pattern",
+        default="*.dcm",
+        required=False,
+        help="Scan pattern.",
+    )
+    parser.add_argument(
+        "-max",
+        "--max-series",
+        dest="max_series",
+        default="0",
+        required=False,
+        help="Max series count",
+    )
+    parser.add_argument(
+        "-dl",
+        "--delay",
+        dest="init_delay",
+        default="0",
+        required=False,
+        help="Delay between series",
+    )
 
     args = parser.parse_args()
     input_dir = args.input_dir

@@ -200,7 +200,13 @@ def clean_previous_dag_run(airflow_workflow_dir, conf, run_identifier):
 
 def parse_ui_dict(dag_dict):
     if "ui_forms" in dag_dict and dag_dict["ui_forms"] is not None:
+        # First if condition only as a work around for dags with empty data_forms
         if (
+            "data_form" in dag_dict["ui_forms"]
+            and not dag_dict["ui_forms"]["data_form"]
+        ):
+            dag_dict["ui_forms"].pop("data_form")
+        elif (
             "ui_visible" in dag_dict
             and dag_dict["ui_visible"] is True
             and "data_form" not in dag_dict["ui_forms"]

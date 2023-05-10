@@ -61,6 +61,8 @@ VERSION_IMAGE_COUNT="20"
 DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 
+INSTANCE_NAME="{{ instance_name|default('') }}"
+
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
 {%- endfor %}
@@ -224,10 +226,21 @@ function delete_deployment {
             echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
         fi
     done
+    if [ ! "$QUIET" = "true" ];then
+        while true; do
+            read -e -p "Do you also want to remove all Persistent Volumes in the cluster (kubectl delete pv --all)?" -i " yes" yn
+            case $yn in
+                [Yy]* ) echo -e "${GREEN}Removing all pvs from cluster ...${NC}" && microk8s.kubectl delete pv --all; break;;
+                [Nn]* ) echo -e "${YELLOW}Skipping pv removal ...{NC}"; break;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    else
+        echo -e "${YELLOW}QUIET-MODE active!${NC}"
+        echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
+        microk8s.kubectl delete pv --all
+    fi
     
-    # echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
-    # microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
-
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
@@ -282,6 +295,11 @@ function deploy_chart {
 
     get_domain
     
+    if [ -z "$INSTANCE_NAME"]; then
+        INSTANCE_NAME=$DOMAIN
+        echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
+    fi
+
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -414,6 +432,7 @@ function deploy_chart {
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
+    --set-string global.instance_name="$INSTANCE_NAME" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

@@ -60,7 +60,9 @@ def process_input_file(input_path, output_path):
             if new_file_count != len(seg_info_dict["seg_info"]):
                 logger.info(f"")
                 logger.info(f"")
-                logger.warning(f"new_file_count {new_file_count} != len(seg_info_dict['seg_info']) {len(seg_info_dict['seg_info'])} ")
+                logger.warning(
+                    f"new_file_count {new_file_count} != len(seg_info_dict['seg_info']) {len(seg_info_dict['seg_info'])} "
+                )
                 logger.info(f"")
                 logger.info(f"")
 
@@ -321,9 +323,7 @@ if __name__ == "__main__":
         input_files = glob(
             join(element_input_dir, input_file_extension), recursive=True
         )
-        logger.info(
-            f"# Found {len(input_files)} input-files -> start processing ..."
-        )
+        logger.info(f"# Found {len(input_files)} input-files -> start processing ...")
 
         for input_file in input_files:
             success, input_file = process_input_file(

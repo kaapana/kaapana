@@ -51,13 +51,21 @@ args = {
     "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(dag_id="radiomics-dcmseg", default_args=args, schedule_interval=None, concurrency=30, max_active_runs=15)
+dag = DAG(
+    dag_id="radiomics-dcmseg",
+    default_args=args,
+    schedule_interval=None,
+    concurrency=30,
+    max_active_runs=15,
+)
 
 get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
 dcmseg2nrrd = Mask2nifitiOperator(dag=dag, input_operator=get_input, output_type="nrrd")
 get_dicom = LocalGetRefSeriesOperator(dag=dag, input_operator=get_input)
 dcm2nrrd = DcmConverterOperator(dag=dag, input_operator=get_dicom, output_format="nrrd")
-radiomics = RadiomicsOperator(dag=dag, mask_operator=dcmseg2nrrd, input_operator=dcm2nrrd)
+radiomics = RadiomicsOperator(
+    dag=dag, mask_operator=dcmseg2nrrd, input_operator=dcm2nrrd
+)
 
 put_radiomics_to_minio = LocalMinioOperator(
     dag=dag, action="put", action_operators=[radiomics], file_white_tuples=(".xml")

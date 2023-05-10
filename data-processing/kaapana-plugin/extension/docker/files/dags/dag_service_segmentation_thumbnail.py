@@ -29,7 +29,7 @@ args = {
     "ui_forms": ui_forms,
     "owner": "kaapana",
     "start_date": days_ago(0),
-    "retries": 3,
+    "retries": 2,
     "retry_delay": timedelta(minutes=10),
 }
 
@@ -73,4 +73,10 @@ put_to_minio = LocalMinioOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-get_input >> get_ref_ct_series_from_seg >> generate_segmentation_thumbnail >> put_to_minio >> clean
+(
+    get_input
+    >> get_ref_ct_series_from_seg
+    >> generate_segmentation_thumbnail
+    >> put_to_minio
+    >> clean
+)

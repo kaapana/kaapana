@@ -9,6 +9,7 @@ slow_data_dir: "/home/kaapana"
 http_port: 80
 https_port: 443
 dicom_port: 11112
+instance_name: ""
 admin_namespace: "admin"
 helm_namespace: "default"
 services_namespace: "services"
@@ -16,7 +17,4 @@ jobs_namespace: "jobs"
 extensions_namespace: "extensions"
 kaapana_collections:
 - name: kaapana-extension-collection
-additional_env:
-- name: INSTANCE_NAME
-  default_value: "central"
-  helm_path: global.instance_name
+# additional_env:

@@ -21,31 +21,27 @@ ui_forms = {
                 "default": False,
                 "readOnly": False,
             }
-        }
+        },
     }
 }
 
 args = {
-    'ui_forms': ui_forms,
-    'ui_visible': True,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_forms": ui_forms,
+    "ui_visible": True,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(
-    dag_id='example-dcm2nrrd',
-    default_args=args,
-    schedule_interval=None
-    )
+dag = DAG(dag_id="example-dcm2nrrd", default_args=args, schedule_interval=None)
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
-convert = DcmConverterOperator(dag=dag, input_operator=get_input, output_format='nrrd')
-put_to_minio = LocalMinioOperator(dag=dag, action='put', action_operators=[convert], file_white_tuples=('.nrrd'))
-clean = LocalWorkflowCleanerOperator(dag=dag,clean_workflow_dir=True)
+convert = DcmConverterOperator(dag=dag, input_operator=get_input, output_format="nrrd")
+put_to_minio = LocalMinioOperator(
+    dag=dag, action="put", action_operators=[convert], file_white_tuples=(".nrrd")
+)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> convert >> put_to_minio >> clean
-
-

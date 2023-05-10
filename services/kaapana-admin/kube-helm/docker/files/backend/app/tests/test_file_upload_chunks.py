@@ -9,7 +9,7 @@ def test_file_upload():
     url = "http://localhost:5000/file_chunks"
     # TODO: change file path if necessary
     print("opening file...")
-    file = {'file': open("tests/"+fname, 'rb')}
+    file = {"file": open("tests/" + fname, "rb")}
     print("file opened")
     try:
         r = requests.post(url, files=file)

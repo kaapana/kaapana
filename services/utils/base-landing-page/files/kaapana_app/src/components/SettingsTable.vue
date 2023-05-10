@@ -43,6 +43,7 @@
       :items="items"
       sort-by="name"
       :hide-default-footer="true"
+      :items-per-page="-1"
     >
       <template v-slot:item.display="{ item }">
         <v-simple-checkbox

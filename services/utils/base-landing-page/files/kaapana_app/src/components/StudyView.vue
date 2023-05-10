@@ -29,7 +29,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import Gallery from "./Gallery.vue";
 import { loadDashboard } from "../common/api.service";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";

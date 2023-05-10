@@ -17,6 +17,7 @@ processed_count = 0
 issue_occurred = False
 logger = None
 
+
 def combine_mask_nifits(nifti_dir, target_dir):
     global processed_count, input_file_extension
 
@@ -64,7 +65,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
     if len(seg_info_dict) == 1:
         logger.info("Only one label present -> no merging required.")
         assert len(input_files) == 1
-        label_nifti_path=input_files[0]
+        label_nifti_path = input_files[0]
         nifti_loaded = nib.load(label_nifti_path)
         nifti_numpy = nifti_loaded.get_fdata().astype(int)
         nifti_labels_found = list(np.unique(nifti_numpy))
@@ -166,7 +167,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
 
     if len(input_files) > 0:
         left_over_path = join(target_dir, "left_over_niftis.txt")
-        with open(left_over_path, 'w') as f:
+        with open(left_over_path, "w") as f:
             for left_file in input_files:
                 logger.warning("")
                 logger.warning("#####################################################")

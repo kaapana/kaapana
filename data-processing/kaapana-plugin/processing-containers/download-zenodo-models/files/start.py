@@ -37,9 +37,7 @@ enable_hip_implant = getenv("HIP_IMPLANT", "False")
 enable_hip_implant = True if enable_hip_implant.lower() == "true" else False
 
 enable_coronary_arteries = getenv("CORONARY_ARTERIES", "False")
-enable_coronary_arteries = (
-    True if enable_coronary_arteries.lower() == "true" else False
-)
+enable_coronary_arteries = True if enable_coronary_arteries.lower() == "true" else False
 
 enable_body = getenv("BODY", "False")
 enable_body = True if enable_body.lower() == "true" else False
@@ -47,7 +45,7 @@ enable_body = True if enable_body.lower() == "true" else False
 enable_pleural_pericard_effusion = getenv("PLEURAL_PERICARD_EFFUSION", "False")
 enable_pleural_pericard_effusion = (
     True if enable_pleural_pericard_effusion.lower() == "true" else False
-    )
+)
 
 log_level = getenv("LOG_LEVEL", "info").lower()
 log_level_int = None
@@ -66,30 +64,54 @@ logger = get_logger(__name__, log_level_int)
 pbar = None
 pbar_count = 0
 
-if len(task_ids) == 1 and not enable_lung_vessels and "Task258_lung_vessels_248subj" in task_ids:
+if (
+    len(task_ids) == 1
+    and not enable_lung_vessels
+    and "Task258_lung_vessels_248subj" in task_ids
+):
     logger.warning("enable_lung_vessels == False -> skipping")
     exit(126)
-    
+
 if len(task_ids) == 1 and not enable_cerebral_bleed and "Task150_icb_v0" in task_ids:
     logger.warning("enable_cerebral_bleed == False -> skipping")
     exit(126)
-    
-if len(task_ids) == 1 and not enable_hip_implant and "Task260_hip_implant_71subj" in task_ids:
+
+if (
+    len(task_ids) == 1
+    and not enable_hip_implant
+    and "Task260_hip_implant_71subj" in task_ids
+):
     logger.warning("enable_hip_implant == False -> skipping")
     exit(126)
-    
-if len(task_ids) == 1 and not enable_coronary_arteries and "Task503_cardiac_motion" in task_ids:
+
+if (
+    len(task_ids) == 1
+    and not enable_coronary_arteries
+    and "Task503_cardiac_motion" in task_ids
+):
     logger.warning("enable_coronary_arteries == False -> skipping")
     exit(126)
-    
-if len(task_ids) == 2 and not enable_body and ("Task269_Body_extrem_6mm_1200subj" in task_ids or "Task273_Body_extrem_1259subj" in task_ids):
+
+if (
+    len(task_ids) == 2
+    and not enable_body
+    and (
+        "Task269_Body_extrem_6mm_1200subj" in task_ids
+        or "Task273_Body_extrem_1259subj" in task_ids
+    )
+):
     logger.warning("enable_body == False -> skipping")
     exit(126)
-    
-if len(task_ids) == 1 and not enable_pleural_pericard_effusion and "Task315_thoraxCT" in task_ids:
+
+if (
+    len(task_ids) == 1
+    and not enable_pleural_pericard_effusion
+    and "Task315_thoraxCT" in task_ids
+):
     logger.warning("enable_pleural_pericard_effusion == False -> skipping")
     exit(126)
-    
+
+
 def bar_update(block_num, block_size, total_size):
     global pbar, pbar_count
 
@@ -220,7 +242,9 @@ if __name__ == "__main__":
         success_count = 0
         for task_id in task_ids:
             tmp_success = False
-            assert task_id in model_lookup_dict
+            if task_id not in model_lookup_dict:
+                success_count += 1
+                continue
             task_url = model_lookup_dict[task_id]["download_link"]
             task_models = model_lookup_dict[task_id]["models"]
             check_file = model_lookup_dict[task_id]["check_file"]
@@ -228,13 +252,19 @@ if __name__ == "__main__":
                 model_target_dir = join(model_dir, task_model, task_id)
 
                 if check_file == "default":
-                    check_file_path=join(model_target_dir,"nnUNetTrainerV2__nnUNetPlansv2.1","plans.pkl")
+                    check_file_path = join(
+                        model_target_dir,
+                        "nnUNetTrainerV2__nnUNetPlansv2.1",
+                        "plans.pkl",
+                    )
                 else:
-                    check_file_path=join(model_target_dir,check_file)
+                    check_file_path = join(model_target_dir, check_file)
 
                 logger.info(f"Check if model already present: {check_file_path}")
                 if exists(check_file_path):
-                    logger.info(f"{task_id} already exisis @{check_file_path} -> skipping")
+                    logger.info(
+                        f"{task_id} already exisis @{check_file_path} -> skipping"
+                    )
                     success_count += 1
                     continue
 

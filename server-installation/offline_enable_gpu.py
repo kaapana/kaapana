@@ -4,9 +4,9 @@ import json
 import pathlib
 import subprocess
 
-chart_name="gpu-operator"
-chart_version="v22.9.2"
-chart_path="/home/kaapana/installation-scipts/gpu-operator.tgz"
+chart_name = "gpu-operator"
+chart_version = "v22.9.2"
+chart_path = "/home/kaapana/installation-scipts/gpu-operator.tgz"
 
 try:
     subprocess.check_call(["nvidia-smi", "-L"])
@@ -15,7 +15,9 @@ except OSError:
     driver = "operator"
 
 CONTAINERD_SOCKET = pathlib.Path("/var/snap/microk8s/common/run/containerd.sock")
-CONTAINERD_TOML = pathlib.Path("/var/snap/microk8s/current/args/containerd-template.toml")
+CONTAINERD_TOML = pathlib.Path(
+    "/var/snap/microk8s/current/args/containerd-template.toml"
+)
 
 helm_args = [
     "install",
@@ -49,7 +51,5 @@ helm_config = {
 }
 
 
-
 HELM = "/snap/bin/helm"
 subprocess.run([HELM, *helm_args], input=json.dumps(helm_config).encode())
-

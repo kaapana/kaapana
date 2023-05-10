@@ -496,7 +496,7 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
         base_slice_element = base_series_uids[base_slice]
         if len(base_slice_element["seg_bmps"]) == 0:
             continue
-        
+
         tmp_max_pixel_count = 0
         for seg_thumb in base_slice_element["seg_bmps"]:
             seg_thumb_bmp = seg_thumb["bmp_file"]
@@ -524,7 +524,7 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
     logger.info("Generating overlay ...")
     print_mem_usage()
     base_img_np = load_img(img_path=base_bmps[0])
-    
+
     seg_overlay = np.zeros_like(base_img_np)
     for index, seg_bmp in enumerate(correct_slice["seg_bmps"]):
         seg_img_np = load_img(img_path=seg_bmp["bmp_file"], rgba=False)

@@ -16,9 +16,7 @@
           class="fill-height"
           :min-height="minHeight"
         >
-          <SeriesCard
-            :seriesInstanceUID="seriesInstanceUID"
-          />
+          <SeriesCard :seriesInstanceUID="seriesInstanceUID" />
         </v-lazy>
 
         <SeriesCard
@@ -32,16 +30,11 @@
 </template>
 
 <script>
-/* eslint-disable */
-
 import Chip from "./Chip.vue";
 import SeriesCard from "./SeriesCard";
-import {
-  loadDatasetNames,
-  updateDataset,
-} from "../common/api.service";
+import { loadDatasets, updateDataset } from "../common/api.service";
 import ResizeObserver from "resize-observer-polyfill";
-import {debounce} from "@/utils/utils.js";
+import { debounce } from "@/utils/utils.js";
 
 export default {
   name: "Gallery",
@@ -79,7 +72,12 @@ export default {
       if (_cols !== "auto") {
         this.cols = _cols;
       } else {
-        const containerWidth = this.$refs.container.offsetWidth;
+        let containerWidth;
+        if (!this.$refs.container) {
+          containerWidth = window.innerWidth;
+        } else {
+          containerWidth = this.$refs.container.offsetWidth;
+        }
         if (containerWidth < 500) {
           this.cols = 6;
         } else if (containerWidth < 650) {

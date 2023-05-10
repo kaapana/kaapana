@@ -10,8 +10,9 @@ from shutil import rmtree
 from os.path import join, basename, normpath
 
 processed_count = 0
-workflow_dir = os.getenv('WORKFLOW_DIR', "data")
-output_dir = os.getenv('OPERATOR_OUT_DIR', "/models")
+workflow_dir = os.getenv("WORKFLOW_DIR", "data")
+output_dir = os.getenv("OPERATOR_OUT_DIR", "/models")
+
 
 def delete_file(target_file):
     try:
@@ -19,6 +20,7 @@ def delete_file(target_file):
     except Exception as e:
         print(e)
         pass
+
 
 print("------------------------------------")
 print(f"--  Starting extract ensemble ")
@@ -29,9 +31,16 @@ if len(ensemble_zip_models) == 0:
     print("# No zip-file models could be found!")
     exit(1)
 
-batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+batch_folders = sorted(
+    [
+        f
+        for f in glob.glob(
+            os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
+        )
+    ]
+)
 for batch_element_dir in batch_folders:
-    zip_dir_path = join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
+    zip_dir_path = join(batch_element_dir, os.environ["OPERATOR_IN_DIR"])
     zip_files = glob(join(zip_dir_path, "*.zip"), recursive=True)
 
     if len(zip_files) == 0:
@@ -68,12 +77,14 @@ for batch_element_dir in batch_folders:
         print("Could not extract model: {}".format(target_file))
         print("Target dir: {}".format(models_dir))
         print("Abort.")
-        print('MSG: ' + str(e))
+        print("MSG: " + str(e))
         exit(1)
 
 if processed_count == 0:
     print("# Searching for zip-files on batch-level...")
-    batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
+    batch_input_dir = os.path.join(
+        "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
+    )
     zip_files = glob.glob(os.path.join(batch_input_dir, "*.zip"), recursive=True)
 
     if len(zip_files) == 0:
@@ -92,7 +103,7 @@ if processed_count == 0:
         print("Could not extract model: {}".format(target_file))
         print("Target dir: {}".format(models_dir))
         print("Abort.")
-        print('MSG: ' + str(e))
+        print("MSG: " + str(e))
         exit(1)
 
 print("# ✓ successfully extracted model into model-dir.")

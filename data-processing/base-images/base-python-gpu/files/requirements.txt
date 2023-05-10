@@ -5,6 +5,7 @@ jupyterlab==3.3.2
 kaleido==0.2.1
 kubernetes==25.3.0
 minio==7.1.5
+pandas==1.3.5
 plotly==5.7.0
 seaborn==0.11.2
 # Security fix for CVE-2022-1941

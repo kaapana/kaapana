@@ -43,7 +43,7 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
         force_split=False,
         quiet=False,
         verbose=False,
-        roi_subset = None,
+        roi_subset=None,
         nr_thr_resamp=1,
         nr_thr_saving=6,
         env_vars=None,
@@ -84,16 +84,16 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
             "FORCESPLIT": str(force_split),
             "QUIET": str(quiet),
             "VERBOSE": str(verbose),
-            "ROI_SUBSET": "None" if not roi_subset else" ".join(roi_subset),
+            "ROI_SUBSET": "None" if not roi_subset else " ".join(roi_subset),
             "NR_THR_RESAMP": str(nr_thr_resamp),
             "NR_THR_SAVING": str(nr_thr_saving),
         }
         if task == "combine-masks":
-            ram_mem_mb=5000
-            gpu_mem_mb=None
+            ram_mem_mb = 5000
+            gpu_mem_mb = None
         else:
-            ram_mem_mb=13000
-            gpu_mem_mb=11900
+            ram_mem_mb = 13000
+            gpu_mem_mb = 11900
 
         env_vars.update(envs)
         super().__init__(

@@ -16,10 +16,10 @@ converter_count = 0
 def combine_split_files(split_files_dir, delete_parts=True):
     input_files = sorted(glob.glob(join(split_files_dir, "*.part*")))
     input_files = [i for i in input_files if "part" in i.split(".")[-1]]
-    suffixes = ''.join(pathlib.Path(input_files[0].split(".part")[0]).suffixes)
+    suffixes = "".join(pathlib.Path(input_files[0].split(".part")[0]).suffixes)
     final_filename = f"{input_files[0].split('---')[0]}{suffixes}"
 
-    my_cmd = ['cat'] + input_files
+    my_cmd = ["cat"] + input_files
     with open(final_filename, "w") as outfile:
         output = run(my_cmd, stdout=outfile)
 
@@ -62,7 +62,9 @@ def xml_to_dicom(target_dir, delete_xml=True):
         print("#")
         print(f"# convert XML to DICOM: {xml_path} -> {dcm_path}")
         command = ["xml2dcm", xml_path, dcm_path]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320)
+        output = run(
+            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320
+        )
 
         if output.returncode != 0:
             print("# Could not convert XML to DICOM!")
@@ -79,7 +81,6 @@ def xml_to_dicom(target_dir, delete_xml=True):
 
 
 def dicom_to_xml(dicom_dir, target_dir):
-
     dcm_files = sorted(glob.glob(join(dicom_dir, "*.dcm")))
     if len(dcm_files) == 0:
         print("#")
@@ -99,7 +100,9 @@ def dicom_to_xml(dicom_dir, target_dir):
         print("#")
         print(f"# command: {command}")
         print("#")
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320)
+        output = run(
+            command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=320
+        )
 
         if output.returncode != 0:
             print("# Could not convert dicom to xml!")
@@ -130,25 +133,38 @@ def xml_to_binary(target_dir, delete_xml=True):
         hex_data = None
         expected_file_count = None
         for ev, el in context:
-            if ev == 'start' and el.tag == 'element' and el.attrib['name'] == "ImageComments":
+            if (
+                ev == "start"
+                and el.tag == "element"
+                and el.attrib["name"] == "ImageComments"
+            ):
                 filename = el.text
                 print(f"# Found filename: {filename}")
                 expected_file_count = int(filename.split(".")[0].split("---")[1])
                 if len(xml_files) != expected_file_count:
                     print("# ERROR!!")
                     print("#")
-                    print(f"# Expected {expected_file_count} files -> found {len(xml_files)}")
+                    print(
+                        f"# Expected {expected_file_count} files -> found {len(xml_files)}"
+                    )
                     print("# Abort")
                     print("#")
                     exit(1)
 
                 filename = filename.replace("---1", "")
                 root.clear()
-            elif ev == 'end' and el.tag == 'element' and el.attrib['tag'] == "7fe0,0010" and el.attrib['name'] == "PixelData":
+            elif (
+                ev == "end"
+                and el.tag == "element"
+                and el.attrib["tag"] == "7fe0,0010"
+                and el.attrib["name"] == "PixelData"
+            ):
                 hex_data = el.text.strip().replace("\\", "")
                 print("# Found Hex-Data!")
                 root.clear()
-            elif ev == 'end' and el.tag == 'pixel-item' and el.attrib['binary'] == "yes":
+            elif (
+                ev == "end" and el.tag == "pixel-item" and el.attrib["binary"] == "yes"
+            ):
                 hex_data = el.text.strip().replace("\\", "")
                 print("# Found Hex-Data!")
                 root.clear()
@@ -163,7 +179,7 @@ def xml_to_binary(target_dir, delete_xml=True):
 
         switched_hex = ""
         for x in range(0, len(hex_data), 4):
-            switched_hex += hex_data[x+2:x+4]+hex_data[x:x+2]
+            switched_hex += hex_data[x + 2 : x + 4] + hex_data[x : x + 2]
 
         binary_path = join(dirname(xml_file), filename)
         binstr = binascii.unhexlify(switched_hex)
@@ -184,7 +200,12 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
     if not exists(target_dir):
         os.makedirs(target_dir)
 
-    dataset_info = join('/', os.getenv("WORKFLOW_DIR", ""), os.getenv("DATASET_INFO_OPERATOR_DIR", ""), 'dataset.json') # TODO has do be changed with Jonas new version!!!
+    dataset_info = join(
+        "/",
+        os.getenv("WORKFLOW_DIR", ""),
+        os.getenv("DATASET_INFO_OPERATOR_DIR", ""),
+        "dataset.json",
+    )  # TODO has do be changed with Jonas new version!!!
     print(dataset_info)
     if exists(dataset_info):
         print(f"# dataset_info found!")
@@ -196,7 +217,7 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
     content_date = datetime.now().strftime("%Y%m%d")
     content_time = datetime.now().strftime("%H%M%S")
     content_datetime = datetime.now().strftime("%Y%m%d%H%M%S")  # YYYYMMDDHHMMSS
-    pretty_datetime_now = datetime.now().strftime('%d.%m.%Y %H:%M')
+    pretty_datetime_now = datetime.now().strftime("%d.%m.%Y %H:%M")
 
     study_id = os.getenv("STUDY_ID", "")
     study_uid = os.getenv("STUDY_UID", "None")
@@ -205,12 +226,18 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
     study_datetime = study_date + study_time
     study_uid = study_uid if study_uid.lower() != "none" else pydicom.uid.generate_uid()
     study_description = os.getenv("STUDY_DESCRIPTION", "None")
-    study_description = study_description if study_description.lower() != "none" else None
+    study_description = (
+        study_description if study_description.lower() != "none" else None
+    )
 
     if study_description == None and dataset_info != None and "labels" in dataset_info:
         labels = dataset_info["labels"]
-        labels.pop('0', None)
-        study_description = ",".join(list({v: v for k, v in sorted(labels.items(), key=lambda item: int(item[0]))}))
+        labels.pop("0", None)
+        study_description = ",".join(
+            list(
+                {v: v for k, v in sorted(labels.items(), key=lambda item: int(item[0]))}
+            )
+        )
 
     print(f"# study_date:     {study_date}")
     print(f"# study_time:     {study_time}")
@@ -218,13 +245,17 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
 
     series_uid = pydicom.uid.generate_uid()
     series_description = os.getenv("SERIES_DESCRIPTION", "None")
-    series_description = series_description if series_description.lower() != "none" else f"bin2dcm {pretty_datetime_now}"
+    series_description = (
+        series_description
+        if series_description.lower() != "none"
+        else f"bin2dcm {pretty_datetime_now}"
+    )
 
     patient_name = os.getenv("PATIENT_NAME", "")
     patient_id = os.getenv("PATIENT_ID", "")
     instance_name = os.getenv("INSTANCE_NAME", "N/A")
     patient_id = instance_name if instance_name.lower() != "n/a" else patient_id
-    
+
     manufacturer = os.getenv("MANUFACTURER", "KAAPANA")
     manufacturer_model_name = os.getenv("MANUFACTURER_MODEL", "bin2dcm")
     version = os.getenv("VERSION", "0.0.0")
@@ -254,7 +285,10 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
         # version_uid = pydicom.uid.generate_uid()
 
         filename = basename(binary_path)
-        new_filename = filename.split('.')[0]+f"---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}"
+        new_filename = (
+            filename.split(".")[0]
+            + f"---{split_part_count}{''.join(pathlib.Path(filename).suffixes)}"
+        )
         xml_output_path = join(target_dir, f"{new_filename}.xml")
 
         xml_template = minidom.parse(template_path)
@@ -263,11 +297,15 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
         #     hex_data = f.read().hex("\\")
         # xml_template.getElementsByTagName('pixel-item')[0].firstChild.data = hex_data
 
-        elements = xml_template.getElementsByTagName('element')
+        elements = xml_template.getElementsByTagName("element")
         for element in elements:
-            el_name = element.attributes['name'].value
+            el_name = element.attributes["name"].value
 
-            if el_name == "InstanceCreationDate" or el_name == "StudyDate" or el_name == "ContentDate":
+            if (
+                el_name == "InstanceCreationDate"
+                or el_name == "StudyDate"
+                or el_name == "ContentDate"
+            ):
                 element.firstChild.data = study_date
 
             elif el_name == "InstanceCreationTime" or el_name == "StudyTime":
@@ -310,7 +348,7 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
                 element.firstChild.data = protocol_name
 
             elif el_name == "InstanceNumber" or el_name == "ReferencedFrameNumber":
-                element.firstChild.data = str(i+1)
+                element.firstChild.data = str(i + 1)
 
             elif el_name == "CreatorVersionUID":
                 element.firstChild.data = version
@@ -330,10 +368,17 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
             elif el_name == "file":
                 element.firstChild.data = binary_path
 
-            if el_name != "file" and 'len' in element.attributes and len(element.childNodes) > 0 and element.firstChild.data != None:
-                element.attributes['len'].value = str(len(element.firstChild.data))
-                element.attributes['vm'].value = "1"
-                print(f"# {el_name}: {element.firstChild.data} : {element.attributes['len'].value}")
+            if (
+                el_name != "file"
+                and "len" in element.attributes
+                and len(element.childNodes) > 0
+                and element.firstChild.data != None
+            ):
+                element.attributes["len"].value = str(len(element.firstChild.data))
+                element.attributes["vm"].value = "1"
+                print(
+                    f"# {el_name}: {element.firstChild.data} : {element.attributes['len'].value}"
+                )
 
         print("# Generated XML from template -> export file...")
         with open(xml_output_path, "w") as xml_file:
@@ -346,7 +391,14 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
 
 # START
 binary_file_extensions = os.getenv("EXTENSIONS", "*.zip").split(",")
-batch_folders = sorted([f for f in glob.glob(join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+batch_folders = sorted(
+    [
+        f
+        for f in glob.glob(
+            join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
+        )
+    ]
+)
 
 for batch_element_dir in batch_folders:
     element_input_dir = join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
@@ -367,7 +419,9 @@ for batch_element_dir in batch_folders:
         print("# --> identified DICOM --> execute dcm2binary")
         print("#")
         print("# --> extract xml")
-        extracted_xml = dicom_to_xml(dicom_dir=element_input_dir, target_dir=element_output_dir)
+        extracted_xml = dicom_to_xml(
+            dicom_dir=element_input_dir, target_dir=element_output_dir
+        )
         print("#")
         print("# --> get_binary_from_xml")
         xml_to_binary(target_dir=element_output_dir)
@@ -379,7 +433,9 @@ for batch_element_dir in batch_folders:
             print("# Found file: {}".format(binary))
             print("#")
             print(f"# --> generate_xml -> {element_output_dir}")
-            generated_xml_list = generate_xml(binary_path=binary, target_dir=element_output_dir)
+            generated_xml_list = generate_xml(
+                binary_path=binary, target_dir=element_output_dir
+            )
             print("#")
             print("# --> xml_to_dicom")
             dcm_path_list = xml_to_dicom(target_dir=element_output_dir)
@@ -393,8 +449,8 @@ print("#")
 print("##################################################")
 print("#")
 
-batch_input_dir = join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
-batch_output_dir = join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_OUT_DIR'])
+batch_input_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"])
+batch_output_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
 
 print(f"# batch_input_dir:  {batch_input_dir}")
 print(f"# batch_output_dir: {batch_output_dir}")
@@ -429,7 +485,9 @@ else:
         print("# Found file: {}".format(binary))
         print("#")
         print(f"# --> generate_xml -> {batch_output_dir}")
-        generated_xml_list = generate_xml(binary_path=binary, target_dir=batch_output_dir)
+        generated_xml_list = generate_xml(
+            binary_path=binary, target_dir=batch_output_dir
+        )
         print("#")
         print("# --> xml_to_dicom")
         dcm_path_list = xml_to_dicom(target_dir=batch_output_dir)

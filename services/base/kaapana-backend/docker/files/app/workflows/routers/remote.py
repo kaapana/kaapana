@@ -30,7 +30,7 @@ router = APIRouter(tags=["remote"])
 
 @router.get("/minio-presigned-url")
 async def get_minio_presigned_url(presigned_url: str = Header(...)):
-    logging.info(
+    logging.debug(
         f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}"
     )
     # # Todo add file streaming!

@@ -14,6 +14,7 @@ WORKDIR /kaapana/app
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     python3-opencv \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get purge -y libhwloc-dev libhwloc-plugins

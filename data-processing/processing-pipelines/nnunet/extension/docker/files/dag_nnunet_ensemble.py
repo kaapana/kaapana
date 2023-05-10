@@ -13,10 +13,10 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
+from nnunet.getTasks import get_available_protocol_names
 
 # from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 from nnunet.SegCheckOperator import SegCheckOperator
 from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 
@@ -25,35 +25,6 @@ default_prep_thread_count = 1
 default_nifti_thread_count = 1
 test_dataset_limit = None
 organ_filter = None
-
-hits = HelperOpensearch.get_query_dataset(
-    query={
-        "bool": {
-            "must": [
-                {"match_all": {}},
-                {
-                    "match_phrase": {
-                        "00080060 Modality_keyword.keyword": {"query": "OT"}
-                    }
-                },
-            ],
-        }
-    },
-    index="meta-index",
-)
-
-available_protocol_names = []
-if hits is not None:
-    for hit in hits:
-        if "00181030 ProtocolName_keyword" in hit["_source"]:
-            available_protocol_name_hits = hit["_source"][
-                "00181030 ProtocolName_keyword"
-            ]
-            if isinstance(available_protocol_name_hits, str):
-                available_protocol_name_hits = [available_protocol_name_hits]
-            available_protocol_names = (
-                available_protocol_names + available_protocol_name_hits
-            )
 
 parallel_processes = 3
 ui_forms = {
@@ -71,7 +42,7 @@ ui_forms = {
                 "title": "Tasks available",
                 "description": "Select available tasks",
                 "type": "array",
-                "items": {"type": "string", "enum": available_protocol_names},
+                "items": {"type": "string", "enum": get_available_protocol_names()},
             },
             "model": {
                 "title": "Pre-trained models",

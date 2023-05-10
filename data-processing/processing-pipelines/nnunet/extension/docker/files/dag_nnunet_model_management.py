@@ -2,24 +2,34 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
+# from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from nnunet.getTasks import get_tasks
+from nnunet.getTasks import get_tasks, get_available_protocol_names
 
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 
+available_protocol_names  = get_available_protocol_names()
+installed_protocol_names = list(installed_tasks.keys())
 ui_forms = {
+    "data_form": {
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
-            "uninstall_task": {
-                "title": "Select task to uninstall mode (otherwise leave empty)",
+            # tasks is used in multiple operator, do not change it to install_tasks...
+            "tasks": {
+                "title": "Install tasks",
+                "description": "Select available tasks",
+                "type": "array",
+                "items": {"type": "string", "enum": sorted([t for t in available_protocol_names if t not in installed_protocol_names])}
+            },
+            "uninstall_tasks": {
+                "title": "Uninstall tasks",
                 "description": "Select one of the installed models to uninstall.",
-                "type": "string",
-                "default": "",
-                "enum": sorted(list(installed_tasks.keys())),
-                "required": False,
+                "type": "array",
+                "items": {"type": "string", "enum": sorted(installed_protocol_names)},
             }
         },
     }
@@ -41,8 +51,8 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(
-    dag=dag, check_modality=True, parallel_downloads=5
+get_input = LocalModelGetInputDataOperator(
+    dag=dag, name="get-models", check_modality=True, parallel_downloads=5
 )
 
 dcm2bin = Bin2DcmOperator(

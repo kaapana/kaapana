@@ -2,7 +2,7 @@ import json
 import os
 from glob import glob
 from os.path import join, basename, dirname, normpath, exists
-
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 def _get_dataset_json(model_path, installed_task):
     dataset_json_path = join(model_path, installed_task, "**", "dataset.json")
@@ -121,3 +121,39 @@ def get_tasks():
     except Exception as e:
         print("Error in getTasks.py: ", e)
         return [], {}, {}
+
+def get_available_protocol_names():
+    try:
+        hits = HelperOpensearch.get_query_dataset(
+            query={
+                "bool": {
+                    "must": [
+                        {"match_all": {}},
+                        {
+                            "match_phrase": {
+                                "00080060 Modality_keyword.keyword": {"query": "OT"}
+                            }
+                        },
+                    ],
+                }
+            },
+            index="meta-index",
+        )
+
+        available_protocol_names = []
+        if hits is not None:
+            for hit in hits:
+                if "00181030 ProtocolName_keyword" in hit["_source"]:
+                    available_protocol_name_hits = hit["_source"][
+                        "00181030 ProtocolName_keyword"
+                    ]
+                    if isinstance(available_protocol_name_hits, str):
+                        available_protocol_name_hits = [available_protocol_name_hits]
+                    available_protocol_names = (
+                        available_protocol_names + available_protocol_name_hits
+                    )
+        return available_protocol_names
+
+    except Exception as e:
+        print("Error in get_available_protocol_names: ", e)
+        return []

@@ -2,7 +2,7 @@
   <div>
     <v-card class="rounded-0">
       <v-card-title>
-        DICOM Tags
+        Metadata
         <v-spacer></v-spacer>
         <v-text-field
           v-model="search"

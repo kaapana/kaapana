@@ -1,14 +1,23 @@
 <template>
   <v-dialog v-model="show" max-width="70vw">
     <v-card>
-      <v-card-title class="headline">Datasets</v-card-title>
+      <v-card-title class="headline">
+        Datasets
+        <v-spacer></v-spacer>
+        <v-text-field
+          v-model="search"
+          append-icon="mdi-magnify"
+          label="Search"
+          single-line
+          hide-details
+        ></v-text-field>
+      </v-card-title>
       <v-card-text>
         <v-data-table
           :headers="headers"
           :items="datasets"
           sort-by="name"
-          :hide-default-footer="true"
-          :items-per-page="-1"
+          :search="search"
         >
           <template v-slot:item.name="{ item }">
             {{ item.name }}
@@ -62,6 +71,7 @@ export default {
   data() {
     return {
       datasets: [],
+      search: null,
       dialogDelete: false,
       headers: [
         {

@@ -3,6 +3,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
+
 # from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
@@ -10,11 +11,10 @@ from nnunet.getTasks import get_tasks, get_available_protocol_names
 
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 
-available_protocol_names  = get_available_protocol_names()
+available_protocol_names = get_available_protocol_names()
 installed_protocol_names = list(installed_tasks.keys())
 ui_forms = {
-    "data_form": {
-    },
+    "data_form": {},
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -23,16 +23,25 @@ ui_forms = {
                 "title": "Install tasks",
                 "description": "Select available tasks",
                 "type": "array",
-                "items": {"type": "string", "enum": sorted([t for t in available_protocol_names if t not in installed_protocol_names])}
+                "items": {
+                    "type": "string",
+                    "enum": sorted(
+                        [
+                            t
+                            for t in available_protocol_names
+                            if t not in installed_protocol_names
+                        ]
+                    ),
+                },
             },
             "uninstall_tasks": {
                 "title": "Uninstall tasks",
                 "description": "Select one of the installed models to uninstall.",
                 "type": "array",
                 "items": {"type": "string", "enum": sorted(installed_protocol_names)},
-            }
+            },
         },
-    }
+    },
 }
 args = {
     "ui_visible": True,

@@ -4,6 +4,7 @@ from glob import glob
 from os.path import join, basename, dirname, normpath, exists
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 
+
 def _get_dataset_json(model_path, installed_task):
     dataset_json_path = join(model_path, installed_task, "**", "dataset.json")
     dataset_json_path = glob(dataset_json_path, recursive=True)
@@ -121,6 +122,7 @@ def get_tasks():
     except Exception as e:
         print("Error in getTasks.py: ", e)
         return [], {}, {}
+
 
 def get_available_protocol_names():
     try:

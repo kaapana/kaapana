@@ -43,7 +43,7 @@ class LocalModelGetInputDataOperator(LocalGetInputDataOperator):
         query["bool"]["must"].append(
             {"match_phrase": {"00080060 Modality_keyword.keyword": {"query": "OT"}}}
         )
-        
+
         self.data_form = {
             "identifiers": HelperOpensearch.get_query_dataset(
                 query=query, only_uids=True

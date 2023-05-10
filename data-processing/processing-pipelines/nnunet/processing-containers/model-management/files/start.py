@@ -59,10 +59,10 @@ if __name__ == "__main__":
     assert operator_out_dir is not None
 
     uninstall_tasks = getenv("UNINSTALL_TASKS", "[]")
-    uninstall_tasks = json.loads(uninstall_tasks.replace('\'', '\"'))
-    
+    uninstall_tasks = json.loads(uninstall_tasks.replace("'", '"'))
+
     install_tasks = getenv("TASKS", "[]")
-    install_tasks = json.loads(install_tasks.replace('\'', '\"'))
+    install_tasks = json.loads(install_tasks.replace("'", '"'))
 
     target_level = getenv("TARGET_LEVEL", "None")
     target_level = target_level if target_level.lower() != "none" else None
@@ -102,7 +102,9 @@ if __name__ == "__main__":
             for installed_model in installed_models:
                 model_path = join(models_dir, installed_model)
                 installed_tasks_dirs = [
-                    basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()
+                    basename(normpath(f.path))
+                    for f in os.scandir(model_path)
+                    if f.is_dir()
                 ]
                 for installed_task in installed_tasks_dirs:
                     if installed_task.lower() == uninstall_task.lower():
@@ -114,11 +116,11 @@ if __name__ == "__main__":
             print("#")
             print("# DONE")
 
-
-
     if install_tasks:
         # Loop for every batch-element (usually series)
-        batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
+        batch_folders = sorted(
+            [f for f in glob(join("/", workflow_dir, batch_name, "*"))]
+        )
         for batch_element_dir in batch_folders:
             print("#")
             print(f"# Processing batch-element {batch_element_dir}")

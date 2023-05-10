@@ -5,18 +5,18 @@ import logging
 
 logger = get_logger(__name__, logging.DEBUG)
 
-if __name__=='__main__':
+if __name__ == "__main__":
     keycloak = KeycloakHelper()
     oidc_client_secret = os.environ["OIDC_CLIENT_SECRET"]
-    
+
     ### Add realm
     file = "realm_objects/kaapana-realm.json"
-    payload = json.load(open(file,"r"))
+    payload = json.load(open(file, "r"))
     keycloak.post_realm(payload)
 
     ### Add group
     file = "realm_objects/group-all_data.json"
-    payload = json.load(open(file,"r"))
+    payload = json.load(open(file, "r"))
     keycloak.post_group(payload)
 
     ### Add role mappings to group
@@ -25,18 +25,16 @@ if __name__=='__main__':
 
     ### Add user
     file = "realm_objects/kaapana-user.json"
-    payload = json.load(open(file,"r"))
+    payload = json.load(open(file, "r"))
     keycloak.post_user(payload)
 
-    ### Add client 
+    ### Add client
     file = "realm_objects/kaapana-client.json"
-    payload = json.load(open(file,"r"))
+    payload = json.load(open(file, "r"))
     payload["secret"] = oidc_client_secret
     KEYCLOAK_URI = os.environ["KEYCLOAK_URI"]
-    
+
     redirect_uris = []
     redirect_uris.append(f"/oauth2/callback")
     redirect_uris.append(f"{KEYCLOAK_URI}/minio-console/oauth_callback/")
     keycloak.post_client(payload, redirectUris=redirect_uris)
-
-

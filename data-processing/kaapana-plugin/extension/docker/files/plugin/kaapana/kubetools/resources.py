@@ -17,14 +17,16 @@
 
 import kubernetes
 
+
 class Resources:
     def __init__(
-            self,
-            request_memory=None,
-            request_cpu=None,
-            limit_memory=None,
-            limit_cpu=None,
-            limit_gpu=None):
+        self,
+        request_memory=None,
+        request_cpu=None,
+        limit_memory=None,
+        limit_cpu=None,
+        limit_gpu=None,
+    ):
         self.request_memory = request_memory
         self.request_cpu = request_cpu
         self.limit_memory = limit_memory
@@ -35,7 +37,11 @@ class Resources:
         return not self.has_limits() and not self.has_requests()
 
     def has_limits(self):
-        return self.limit_cpu is not None or self.limit_memory is not None or self.limit_gpu is not None
+        return (
+            self.limit_cpu is not None
+            or self.limit_memory is not None
+            or self.limit_gpu is not None
+        )
 
     def has_requests(self):
         return self.request_cpu is not None or self.request_memory is not None
@@ -46,20 +52,20 @@ class Resources:
             requests = {}
 
             if self.request_cpu is not None:
-                requests['cpu'] = self.request_cpu
+                requests["cpu"] = self.request_cpu
             if self.request_memory is not None:
-                requests['memory'] = self.request_memory
+                requests["memory"] = self.request_memory
             kube_resources.requests = requests
 
         if self.has_limits():
             limits = {}
 
             if self.limit_cpu is not None:
-                limits['cpu'] = self.limit_cpu
+                limits["cpu"] = self.limit_cpu
             if self.limit_memory is not None:
-                limits['memory'] = self.limit_memory
+                limits["memory"] = self.limit_memory
             if self.limit_gpu is not None:
-                limits['nvidia.com/gpu'] = self.limit_gpu
+                limits["nvidia.com/gpu"] = self.limit_gpu
             kube_resources.limits = limits
 
         return kube_resources

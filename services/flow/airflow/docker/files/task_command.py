@@ -96,7 +96,9 @@ def _get_dag_run(
        to the current time.
     """
     if not exec_date_or_run_id and not create_if_necessary:
-        raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
+        raise ValueError(
+            "Must provide `exec_date_or_run_id` if not `create_if_necessary`."
+        )
     execution_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
         dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
@@ -107,7 +109,9 @@ def _get_dag_run(
         try:
             dag_run = (
                 session.query(DagRun)
-                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
+                .filter(
+                    DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date
+                )
                 .one()
             )
         except NoResultFound:
@@ -125,14 +129,20 @@ def _get_dag_run(
         dag_run_execution_date = pendulum.instance(timezone.utcnow())
 
     if create_if_necessary == "memory":
-        dag_run = DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=dag_run_execution_date)
+        dag_run = DagRun(
+            dag.dag_id,
+            run_id=exec_date_or_run_id,
+            execution_date=dag_run_execution_date,
+        )
         return dag_run, True
     elif create_if_necessary == "db":
         dag_run = dag.create_dagrun(
             state=DagRunState.QUEUED,
             execution_date=dag_run_execution_date,
             run_id=_generate_temporary_run_id(),
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
+            data_interval=dag.timetable.infer_manual_data_interval(
+                run_after=dag_run_execution_date
+            ),
             session=session,
         )
         return dag_run, True
@@ -151,7 +161,9 @@ def _get_ti(
 ) -> tuple[TaskInstance, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way."""
     if not exec_date_or_run_id and not create_if_necessary:
-        raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
+        raise ValueError(
+            "Must provide `exec_date_or_run_id` if not `create_if_necessary`."
+        )
     if needs_expansion(task):
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
@@ -164,7 +176,9 @@ def _get_ti(
         session=session,
     )
 
-    ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
+    ti_or_none = dag_run.get_task_instance(
+        task.task_id, map_index=map_index, session=session
+    )
 
     override_pool = None
     override_pool_slots = None
@@ -187,10 +201,10 @@ def _get_ti(
 
     log.info("refresh_from_task commands")
     ti.refresh_from_task(task, pool_override=override_pool)
-    
+
     if override_pool_slots != None:
         ti.pool_slots = override_pool_slots
-    
+
     return ti, dr_created
 
 
@@ -308,7 +322,9 @@ def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
     """
     modify = not settings.DONOT_MODIFY_HANDLERS
     if modify:
-        root_logger, task_logger = logging.getLogger(), logging.getLogger("airflow.task")
+        root_logger, task_logger = logging.getLogger(), logging.getLogger(
+            "airflow.task"
+        )
 
         orig_level = root_logger.level
         root_logger.setLevel(task_logger.level)
@@ -352,10 +368,14 @@ def task_run(args, dag=None):
         )
 
     if args.raw:
-        unsupported_options = [o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)]
+        unsupported_options = [
+            o for o in RAW_TASK_UNSUPPORTED_OPTION if getattr(args, o)
+        ]
 
         if unsupported_options:
-            unsupported_raw_task_flags = ", ".join(f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION)
+            unsupported_raw_task_flags = ", ".join(
+                f"--{o}" for o in RAW_TASK_UNSUPPORTED_OPTION
+            )
             unsupported_flags = ", ".join(f"--{o}" for o in unsupported_options)
             raise AirflowException(
                 "Option --raw does not work with some of the other options on this command. "
@@ -365,7 +385,9 @@ def task_run(args, dag=None):
                 "Delete it to execute the command."
             )
     if dag and args.pickle:
-        raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
+        raise AirflowException(
+            "You cannot use the --pickle option when using DAG.cli() method."
+        )
     if args.cfg_path:
         with open(args.cfg_path) as conf_file:
             conf_dict = json.load(conf_file)
@@ -395,7 +417,12 @@ def task_run(args, dag=None):
         # Use DAG from parameter
         pass
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, pool=args.pool)
+    ti, _ = _get_ti(
+        task,
+        args.map_index,
+        exec_date_or_run_id=args.execution_date_or_run_id,
+        pool=args.pool,
+    )
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -431,7 +458,9 @@ def task_failed_deps(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
+    ti, _ = _get_ti(
+        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id
+    )
 
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -454,7 +483,9 @@ def task_state(args):
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
+    ti, _ = _get_ti(
+        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id
+    )
     print(ti.current_state())
 
 
@@ -506,7 +537,9 @@ def task_states_for_dag_run(args, session=None):
     """Get the status of all task instances in a DagRun."""
     dag_run = (
         session.query(DagRun)
-        .filter(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
+        .filter(
+            DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id
+        )
         .one_or_none()
     )
     if not dag_run:
@@ -514,11 +547,16 @@ def task_states_for_dag_run(args, session=None):
             execution_date = timezone.parse(args.execution_date_or_run_id)
             dag_run = (
                 session.query(DagRun)
-                .filter(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
+                .filter(
+                    DagRun.execution_date == execution_date,
+                    DagRun.dag_id == args.dag_id,
+                )
                 .one_or_none()
             )
         except (ParserError, TypeError) as err:
-            raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
+            raise AirflowException(
+                f"Error parsing the supplied execution_date. Error: {str(err)}"
+            )
 
     if dag_run is None:
         raise DagRunNotFound(
@@ -541,7 +579,9 @@ def task_states_for_dag_run(args, session=None):
             data["map_index"] = str(ti.map_index) if ti.map_index >= 0 else ""
         return data
 
-    AirflowConsole().print_as(data=dag_run.task_instances, output=args.output, mapper=format_task_instance)
+    AirflowConsole().print_as(
+        data=dag_run.task_instances, output=args.output, mapper=format_task_instance
+    )
 
 
 @cli_utils.action_cli(check_db=False)
@@ -579,7 +619,10 @@ def task_test(args, dag=None):
         task.params.validate()
 
     ti, dr_created = _get_ti(
-        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
+        task,
+        args.map_index,
+        exec_date_or_run_id=args.execution_date_or_run_id,
+        create_if_necessary="db",
     )
 
     try:
@@ -612,7 +655,10 @@ def task_render(args, dag=None):
         dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
-        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
+        task,
+        args.map_index,
+        exec_date_or_run_id=args.execution_date_or_run_id,
+        create_if_necessary="memory",
     )
     ti.render_templates()
     for attr in task.template_fields:

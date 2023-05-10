@@ -30,35 +30,41 @@ ui_forms = {
                 "default": False,
                 "readOnly": False,
             }
-        }
+        },
     }
 }
 
 args = {
-    'ui_visible': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 1,
-    'retry_delay': timedelta(seconds=30)
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 1,
+    "retry_delay": timedelta(seconds=30),
 }
 
 dag = DAG(
-    dag_id='mitk-flow',
+    dag_id="mitk-flow",
     default_args=args,
     concurrency=10,
     max_active_runs=5,
-    schedule_interval=None
+    schedule_interval=None,
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
-mitk_input = LocalMiktInputOperator(dag=dag, input_operator=get_input, operator_out_dir="mitk-results")
-launch_app = KaapanaApplicationOperator(dag=dag,
-                                        name="application-mitk-flow",
-                                        input_operator=get_input,
-                                        chart_name='mitk-flow-chart',
-                                        version=KAAPANA_BUILD_VERSION)
-send_dicom = DcmSendOperator(dag=dag, operator_in_dir="mitk-results", ae_title="MITK-flow")
+mitk_input = LocalMiktInputOperator(
+    dag=dag, input_operator=get_input, operator_out_dir="mitk-results"
+)
+launch_app = KaapanaApplicationOperator(
+    dag=dag,
+    name="application-mitk-flow",
+    input_operator=get_input,
+    chart_name="mitk-flow-chart",
+    version=KAAPANA_BUILD_VERSION,
+)
+send_dicom = DcmSendOperator(
+    dag=dag, operator_in_dir="mitk-results", ae_title="MITK-flow"
+)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 

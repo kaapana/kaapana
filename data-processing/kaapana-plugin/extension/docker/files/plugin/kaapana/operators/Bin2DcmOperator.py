@@ -4,7 +4,11 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
+
 
 class Bin2DcmOperator(KaapanaBaseOperator):
     """
@@ -28,28 +32,29 @@ class Bin2DcmOperator(KaapanaBaseOperator):
 
     execution_timeout = timedelta(minutes=10)
 
-    def __init__(self,
-                 dag,
-                 dataset_info_operator=None,
-                 dataset_info_operator_in_dir=None,
-                 file_extensions="*.zip",
-                 size_limit=100,
-                 patient_id="",
-                 patient_name="",
-                 protocol_name="",
-                 instance_name="N/A",
-                 version="0.0.0",
-                 manufacturer="KAAPANA",
-                 manufacturer_model="bin2dcm",
-                 study_description=None,
-                 series_description=None,
-                 study_id="bin2dcm",
-                 study_uid=None,
-                 name="bin2dcm",
-                 env_vars={},
-                 execution_timeout=execution_timeout,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        dag,
+        dataset_info_operator=None,
+        dataset_info_operator_in_dir=None,
+        file_extensions="*.zip",
+        size_limit=100,
+        patient_id="",
+        patient_name="",
+        protocol_name="",
+        instance_name="N/A",
+        version="0.0.0",
+        manufacturer="KAAPANA",
+        manufacturer_model="bin2dcm",
+        study_description=None,
+        series_description=None,
+        study_id="bin2dcm",
+        study_uid=None,
+        name="bin2dcm",
+        env_vars={},
+        execution_timeout=execution_timeout,
+        **kwargs,
+    ):
         """
         :param dataset_info_operator: Only encoding. Input operator producing dataset.json as output.
         :param dataset_info_operator_in_dir: Only encoding. Directory with a dataset.json file used in study_description.
@@ -68,10 +73,13 @@ class Bin2DcmOperator(KaapanaBaseOperator):
         :param study_uid: Only for decoding. Name written in DICOM tag.
         """
 
-
         if dataset_info_operator_in_dir is None:
-            dataset_info_operator_in_dir = dataset_info_operator.operator_out_dir if dataset_info_operator is not None else ''
-        
+            dataset_info_operator_in_dir = (
+                dataset_info_operator.operator_out_dir
+                if dataset_info_operator is not None
+                else ""
+            )
+
         envs = {
             "DATASET_INFO_OPERATOR_DIR": dataset_info_operator_in_dir,
             "STUDY_ID": str(study_id),
@@ -99,5 +107,5 @@ class Bin2DcmOperator(KaapanaBaseOperator):
             keep_parallel_id=False,
             env_vars=env_vars,
             ram_mem_mb=5000,
-            **kwargs
+            **kwargs,
         )

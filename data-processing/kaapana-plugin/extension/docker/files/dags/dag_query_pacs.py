@@ -30,56 +30,56 @@ ui_forms = {
                 "description": "Specify the url/IP of the PACS to query.",
                 "type": "string",
                 "default": pacs_host,
-                "required": True
+                "required": True,
             },
             "pacs_port": {
                 "title": "Remote port",
                 "description": "Specify the port of the PACS to query.",
                 "type": "integer",
                 "default": pacs_port,
-                "required": True
+                "required": True,
             },
             "ae_title": {
                 "title": "Remote AE-title",
                 "description": "Specify the AE-title of the PACS to query.",
                 "type": "string",
                 "default": ae_title,
-                "required": True
+                "required": True,
             },
             "local_ae_title": {
                 "title": "Local AE-title",
                 "description": "Specify the local AE-title used.",
                 "type": "string",
                 "default": local_ae_title,
-                "required": True
+                "required": True,
             },
             "start_date": {
                 "title": "Start Date",
                 "description": "The first date in query (empty if open begin)",
                 "type": "string",
                 "default": start_date,
-                "required": False
+                "required": False,
             },
             "end_date": {
                 "title": "End Date",
                 "description": "The latest date in query (empty if open end)",
                 "type": "string",
                 "default": end_date,
-                "required": False
+                "required": False,
             },
             "level": {
                 "title": "Level",
                 "description": "Specify the Level of the quer (e.g. series, study)",
                 "type": "string",
                 "default": level,
-                "required": True
+                "required": True,
             },
             "max_query_size": {
                 "title": "Max Query Size",
                 "description": "The wanted maximum size of a individual query.",
                 "type": "string",
                 "default": max_query_size,
-                "required": False
+                "required": False,
             },
             "single_execution": {
                 "title": "single execution",
@@ -87,19 +87,19 @@ ui_forms = {
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,
-            }
-        }
-    }
+            },
+        },
+    },
 }
 
 
 args = {
-    'ui_visible': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
 }
 
 
@@ -110,24 +110,43 @@ class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
         import glob
         from kaapana.operators.Dcm2MetaJsonConverter import Dcm2MetaJsonConverter
 
-        for prerequisit in ["ae_title", "pacs_host", "pacs_port", "local_ae_title", "ti", "dag_run", "input_operator"]:
+        for prerequisit in [
+            "ae_title",
+            "pacs_host",
+            "pacs_port",
+            "local_ae_title",
+            "ti",
+            "dag_run",
+            "input_operator",
+        ]:
             if prerequisit not in kwargs:
-                raise Exception(f"Prerequisite {prerequisit} is not in environment. (kwargs: {kwargs})")
+                raise Exception(
+                    f"Prerequisite {prerequisit} is not in environment. (kwargs: {kwargs})"
+                )
 
         converter = Dcm2MetaJsonConverter()
-        #operator_in = "dcmqr"
+        # operator_in = "dcmqr"
         # use task id as output
-        operator_out = kwargs['ti'].task_id 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs['dag_run'].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, '*'))]
+        operator_out = kwargs["ti"].task_id
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
+        batch_folder = [
+            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
+        ]
         for batch_element_dir in batch_folder:
-            jsonl_files = sorted(glob.glob(os.path.join(batch_element_dir, self.operator_in_dir, "*.jsonl"), recursive=True))
-            print(f"Processing batch {batch_element_dir} - found {len(jsonl_files)} inputs")
+            jsonl_files = sorted(
+                glob.glob(
+                    os.path.join(batch_element_dir, self.operator_in_dir, "*.jsonl"),
+                    recursive=True,
+                )
+            )
+            print(
+                f"Processing batch {batch_element_dir} - found {len(jsonl_files)} inputs"
+            )
             for jsonl_file in jsonl_files:
                 out_path = jsonl_file.replace(self.operator_in_dir, operator_out)
                 os.makedirs(os.path.dirname(out_path), exist_ok=True)
                 with open(out_path, "w") as outfile:
-                    with open(jsonl_file, 'r') as infile:
+                    with open(jsonl_file, "r") as infile:
                         for line in infile:
                             dcm_json_data = json.loads(line)
                             meta_json_data = converter.dcmJson2metaJson(dcm_json_data)
@@ -138,30 +157,21 @@ class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
                             json.dump(meta_json_data, outfile)
                             outfile.write("\n")
 
-    def __init__(self,
-                 dag,
-                 ae_title,
-                 local_ae_title,
-                 pacs_host,
-                 pacs_port,
-                 **kwargs):
-        
+    def __init__(self, dag, ae_title, local_ae_title, pacs_host, pacs_port, **kwargs):
         super().__init__(
             dag=dag,
             name="dcm_json2meta_json",
             python_callable=self.dcm2meta_json_func,
-            **kwargs
+            **kwargs,
         )
 
 
-
-
 dag = DAG(
-    dag_id='query-pacs',
+    dag_id="query-pacs",
     default_args=args,
     concurrency=1,
     max_active_runs=10,
-    schedule_interval=None
+    schedule_interval=None,
 )
 
 
@@ -174,7 +184,7 @@ dcm_query = DcmQueryOperator(
     start_date=start_date,
     end_date=end_date,
     level=level,
-    max_query_size= max_query_size
+    max_query_size=max_query_size,
 )
 
 dcm2meta_json = Dcm2MetaJsonLinesOperator(
@@ -183,15 +193,15 @@ dcm2meta_json = Dcm2MetaJsonLinesOperator(
     ae_title=ae_title,
     local_ae_title=local_ae_title,
     pacs_host=pacs_host,
-    pacs_port=pacs_port
+    pacs_port=pacs_port,
 )
 
 push_jsonl = LocalJson2MetaOperator(
-     dag=dag,
-     input_operator=dcm2meta_json,
-     jsonl_operator=dcm2meta_json,
-     check_in_pacs=False,
-     #opensearch_index="query-metaindex"
+    dag=dag,
+    input_operator=dcm2meta_json,
+    jsonl_operator=dcm2meta_json,
+    check_in_pacs=False,
+    # opensearch_index="query-metaindex"
 )
 
 

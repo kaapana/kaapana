@@ -26,12 +26,14 @@ class DataReader:
         :return: list with absolute file_names
         """
         if not os.path.isdir(self.base_dir):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), self.base_dir)
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), self.base_dir
+            )
 
         file_list = []
         for type_name in self.data_types:
             file_list += list(Path(self.base_dir).glob(type_name))
-        
+
         print("##########Selected files##########################")
         print(file_list)
 
@@ -48,12 +50,17 @@ class DataReader:
         else:
             self.current_img = imageio.imread(file_name)
 
-    def show_image(self, color_map='gray', norm_range=None):
+    def show_image(self, color_map="gray", norm_range=None):
         if norm_range is not None:
             data_np = self._range_norm(self.current_img.copy(), norm_range=norm_range)
         else:
             data_np = self.current_img
-        fig = px.imshow(data_np, color_continuous_scale=color_map, zmin=data_np.min(), zmax=data_np.max())
+        fig = px.imshow(
+            data_np,
+            color_continuous_scale=color_map,
+            zmin=data_np.min(),
+            zmax=data_np.max(),
+        )
         fig.update_xaxes(showticklabels=False)
         fig.update_yaxes(showticklabels=False)
         fig.update_layout(coloraxis_showscale=False)
@@ -64,10 +71,12 @@ class DataReader:
         a1 = data_np.min()
         b1 = data_np.max()
         r1 = b1 - a1
-        b2 = a1 + norm_range[1]*r1
-        a2 = a1 + norm_range[0]*r1
-        data_np[(data_np < a2) | (data_np > b2)] = 0  #crop range
-        data_np = (data_np - data_np.min()) / (data_np.max() - data_np.min()) * (r1) + a1   #rescale to original scale
+        b2 = a1 + norm_range[1] * r1
+        a2 = a1 + norm_range[0] * r1
+        data_np[(data_np < a2) | (data_np > b2)] = 0  # crop range
+        data_np = (data_np - data_np.min()) / (data_np.max() - data_np.min()) * (
+            r1
+        ) + a1  # rescale to original scale
         return data_np
 
     def get_filename(self, selected_id):

@@ -21,16 +21,91 @@
         <v-col cols="12">
           <v-card>
             <v-card-title class="text-h5">
-              Option 2: Upload the data
+              Option 2: Upload the data via the browser(experimental).
             </v-card-title>
             <v-card-text>
-              <v-icon large>mdi-numeric-1-circle</v-icon>&nbsp; Upload DICOMS, niftis or any data you want to use in a workflow as a zip file via the dropzone.
-              <upload labelIdle="Dicoms, ITK images or any other data"></upload>
-              <br>
-              <v-icon large>mdi-numeric-2-circle</v-icon>&nbsp;
+              <v-icon class="my-2" large>mdi-numeric-1-circle</v-icon>&nbsp; Make sure your data are correctly formatted for the upload.
               <v-btn
                 color="primary"
-                @click="() => (this.workflowDialog = true)"
+                dark
+                icon
+                @click.stop="infoDialog = true"
+              >
+                <v-icon color="primary" dark>
+                  mdi-information
+                </v-icon> 
+              </v-btn>
+              <br>
+
+              <v-dialog
+                v-model="infoDialog"
+                width="60vw"
+              >
+                <v-card>
+                  <v-card-title class="text-h5">
+                    How should the uploaded data look like?
+                  </v-card-title>
+                  <v-card-text>
+                    <h3>Upload of DICOM data</h3>
+                    <p>DICOM data should be uploaded in a single compressed zip-file containing folder(s) with DICOM files. The default expected file ending for DICOMs is `.dcm`, but can be configured when triggering the ´import-dicoms-in-zip-to-internal-pacs´ workflow.</p>
+                    <h3>Upload NIfTI data</h3>
+                    <p>Since the platform works with the DICOM standard, NIfTI data are converted to DICOMs by triggering the workflow `convert-nifitis-to-dicoms-and-import-to-internal-pacs`. If you have only NIfTI data without segmentations, the files with file endings `.nii.gz` or `.nii` can be uploaded either in a compressed zip-file or directly in a folder.
+                    </p>
+                    <p>
+                      For NIfTI data with segmentation the multiple folder structures are supported, which are outline in the <a href="https://kaapana.readthedocs.io/en/latest/" target="_blank">readthedocs of Kaapana</a>.
+                      <!-- structure of the <a href="https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/dataset_format_inference.md">nnunet dataset format</a> is expected. An example is given below:
+                      <pre>
+                      Dataset001_BrainTumour
+                          ├── dataset.json
+                          ├── imagesTr
+                          |   ├── BRATS_001_0000.nii.gz
+                          │   ├── BRATS_001_0001.nii.gz
+                          │   ├── BRATS_001_0002.nii.gz
+                          │   ├── BRATS_001_0003.nii.gz
+                          │   ├── BRATS_002_0000.nii.gz
+                          │   ├── BRATS_002_0001.nii.gz
+                          │   ├── BRATS_002_0002.nii.gz
+                          │   ├── BRATS_002_0003.nii.gz
+                          │   ├── ...
+                          ├── imagesTs  # optional
+                          │   ├── BRATS_485_0000.nii.gz
+                          │   ├── BRATS_485_0001.nii.gz
+                          │   ├── BRATS_485_0002.nii.gz
+                          │   ├── BRATS_485_0003.nii.gz
+                          │   ├── BRATS_486_0000.nii.gz
+                          │   ├── BRATS_486_0001.nii.gz
+                          │   ├── BRATS_486_0002.nii.gz
+                          │   ├── BRATS_486_0003.nii.gz
+                          │   ├── ...
+                          └── labelsTr
+                              ├── BRATS_001.nii.gz
+                              ├── BRATS_002.nii.gz
+                              ├── ...
+                      </pre>
+                      <br> -->
+                    </p>
+                  </v-card-text>
+
+                  <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn
+                      color="primary"
+                      dark
+                      @click="() => (infoDialog = false)"
+                    >
+                      Got it!
+                    </v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
+
+              <v-icon class="my-2" large>mdi-numeric-2-circle</v-icon>&nbsp; Upload DICOMS, NIfTIs or any data you want to use in a workflow as a zip file via the dropzone.
+              <upload labelIdle="Dicoms, ITK images or any other data" :onProcessFile="fileComplete"></upload>
+              <br>
+              <v-icon large>mdi-numeric-3-circle</v-icon>&nbsp;
+              <v-btn
+                color="primary"
+                @click="() => (workflowDialog = true)"
               > 
                 Import the data
                 <v-icon>mdi-play-outline</v-icon>
@@ -41,9 +116,12 @@
 
         <v-dialog v-model="workflowDialog" width="500">
         <WorkflowExecution
+          :key="componentKey"
           :onlyLocal=true
           kind_of_dags="minio"
-          @successful="() => (this.workflowDialog = false)"
+          :isDialog=true
+          @successful="() => (workflowDialog = false)"
+          @cancel="() => (workflowDialog = false)"
         />
         </v-dialog>
       </v-row>
@@ -65,7 +143,9 @@ export default Vue.extend({
   },
   data: () => ({
     workflowDialog: false,
+    infoDialog: false,
     supported: true,
+    componentKey: 0,
   }),
   mounted() {
     const { userAgent } = navigator
@@ -79,6 +159,10 @@ export default Vue.extend({
     ...mapGetters(['currentUser', 'isAuthenticated'])
   },
   methods: {
+    fileComplete(error: any, file: any) {
+      // From: https://blog.logrocket.com/force-vue-component-re-render/
+      this.componentKey += 1;
+    },
   }
 })
 </script>

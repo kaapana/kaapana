@@ -6,7 +6,7 @@ from tests.util import get_extensions
 def test_file_upload():
     ext_name = "test-workflow"
     ext_fname = "test-workflow-0.0.1.tgz"
-    # TODO: delete tgz file from extensions folder initially 
+    # TODO: delete tgz file from extensions folder initially
     ext_list = get_extensions()
     found = False
     for ext in ext_list:
@@ -17,7 +17,7 @@ def test_file_upload():
 
     url = "http://localhost:5000/file"
     # TODO: change file path if necessary
-    file = {'file': open(ext_fname, 'rb')}
+    file = {"file": open(ext_fname, "rb")}
     r = requests.post(url, files=file)
     assert r.status_code == 200
     print("request returned", r.text)

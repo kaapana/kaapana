@@ -17,20 +17,20 @@ from opensearchpy import OpenSearch
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     """
-        This operater pushes JSON data to OpenSearch.
+    This operater pushes JSON data to OpenSearch.
 
-        Pushes JSON data to the specified OpenSearch instance. 
-        If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
-        If the operator fails, some or no data is pushed to OpenSearch.
-        Further information about OpenSearch can be found here: https://opensearch.org/docs/latest/
+    Pushes JSON data to the specified OpenSearch instance.
+    If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
+    If the operator fails, some or no data is pushed to OpenSearch.
+    Further information about OpenSearch can be found here: https://opensearch.org/docs/latest/
 
-        **Inputs:**
+    **Inputs:**
 
-        * JSON data that should be pushed to OpenSearch
+    * JSON data that should be pushed to OpenSearch
 
-        **Outputs:**
+    **Outputs:**
 
-        * If successful, the given JSON data is included in OpenSearch
+    * If successful, the given JSON data is included in OpenSearch
 
     """
 
@@ -45,7 +45,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             exit(1)
         try:
             json_dict = self.produce_inserts(json_dict)
-            response = self.os_client.index(index=self.opensearch_index, body=json_dict, id=id, refresh=True)
+            response = self.os_client.index(
+                index=self.opensearch_index, body=json_dict, id=id, refresh=True
+            )
         except Exception as e:
             print("#")
             print("# Error while pushing JSON ...")
@@ -60,7 +62,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     def produce_inserts(self, new_json):
         print("INFO: get old json from index.")
         try:
-            old_json = self.os_client.get(index=self.opensearch_index, id=self.instanceUID)["_source"]
+            old_json = self.os_client.get(
+                index=self.opensearch_index, id=self.instanceUID
+            )["_source"]
             print("Series already found in OS")
             if self.no_update:
                 raise ValueError("ERROR")
@@ -70,7 +74,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             old_json = {}
 
         # special treatment for bodypart regression since keywords don't match
-        bpr_algorithm_name ="predicted_bodypart_string"
+        bpr_algorithm_name = "predicted_bodypart_string"
         bpr_key = "00000000 PredictedBodypart_keyword"
         if bpr_algorithm_name in new_json:
             new_json[bpr_key] = new_json[bpr_algorithm_name]
@@ -89,7 +93,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         print("# Starting module json2meta")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
+        batch_folder = [
+            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
+        ]
 
         if self.dicom_operator is not None:
             self.rel_dicom_dir = self.dicom_operator.operator_out_dir
@@ -101,7 +107,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
         for batch_element_dir in batch_folder:
             if self.jsonl_operator:
-                json_dir = os.path.join(batch_element_dir, self.jsonl_operator.operator_out_dir)
+                json_dir = os.path.join(
+                    batch_element_dir, self.jsonl_operator.operator_out_dir
+                )
                 json_list = glob.glob(json_dir + "/**/*.jsonl", recursive=True)
                 for json_file in json_list:
                     print(f"Pushing file: {json_file} to META!")
@@ -112,11 +120,16 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             else:
                 # TODO: is this dcm check necessary? InstanceID is set in upload
                 dcm_files = sorted(
-                    glob.glob(os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"), recursive=True)
+                    glob.glob(
+                        os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"),
+                        recursive=True,
+                    )
                 )
                 self.set_id(dcm_files[0])
 
-                json_dir = os.path.join(batch_element_dir, self.json_operator.operator_out_dir)
+                json_dir = os.path.join(
+                    batch_element_dir, self.json_operator.operator_out_dir
+                )
                 print(("Pushing json files from: %s" % json_dir))
                 json_list = glob.glob(json_dir + "/**/*.json", recursive=True)
                 print("#")
@@ -151,7 +164,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             print("#")
             print(f"# Series {instanceUID} not found in PACS-> try: {check_count}")
             if check_count >= self.avalability_check_max_tries:
-                print(f"# check_count >= avalability_check_max_tries {self.avalability_check_max_tries}")
+                print(
+                    f"# check_count >= avalability_check_max_tries {self.avalability_check_max_tries}"
+                )
                 print("# Error! ")
                 print("#")
                 raise ValueError("ERROR")
@@ -215,4 +230,10 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             timeout=2,
         )
 
-        super().__init__(dag=dag, name="json2meta", python_callable=self.start, ram_mem_mb=10, **kwargs)
+        super().__init__(
+            dag=dag,
+            name="json2meta",
+            python_callable=self.start,
+            ram_mem_mb=10,
+            **kwargs,
+        )

@@ -24,7 +24,9 @@ threads_nifiti = getenv("INF_THREADS_NIFTI", "None")
 threads_nifiti = int(threads_nifiti) if threads_nifiti.lower() != "none" else 2
 
 pred_min_combination = getenv("PRED_MIN_COMBINATION", "None")
-pred_min_combination = int(pred_min_combination) if pred_min_combination.lower() != "none" else None
+pred_min_combination = (
+    int(pred_min_combination) if pred_min_combination.lower() != "none" else None
+)
 
 override = True
 store_npz = True
@@ -51,11 +53,13 @@ def check_seg_info(inference_dir):
 
     if len(global_seg_info) == 0:
         print("# Creating first inference_dir configuration...")
-        global_seg_info.append({
-            "seg_file_path":seg_info_file,
-            "inference_dirs": [inference_dir],
-            "seg_info": new_dict
-        })
+        global_seg_info.append(
+            {
+                "seg_file_path": seg_info_file,
+                "inference_dirs": [inference_dir],
+                "seg_info": new_dict,
+            }
+        )
     else:
         found = False
         for existing_entry in global_seg_info:
@@ -66,11 +70,13 @@ def check_seg_info(inference_dir):
 
         if not found:
             print("# Adding new inference_dir configuration...")
-            global_seg_info.append({
-                "seg_file_path":seg_info_file,
-                "inference_dirs": [inference_dir],
-                "seg_info": new_dict
-            })
+            global_seg_info.append(
+                {
+                    "seg_file_path": seg_info_file,
+                    "inference_dirs": [inference_dir],
+                    "seg_info": new_dict,
+                }
+            )
 
     print("#")
 
@@ -91,7 +97,7 @@ print("##################################################")
 print("#")
 
 processed_count = 0
-batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
+batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
 for batch_element_dir in batch_folders:
     element_input_dir = os.path.join(batch_element_dir, operator_in_dir)
     if exists(element_input_dir):
@@ -109,8 +115,10 @@ for batch_element_dir in batch_folders:
 assert len(global_seg_info) > 0
 
 if len(global_seg_info) > 1:
-    global_seg_info = sorted(global_seg_info, key=lambda k: len(k['inference_dirs']),reverse=True)
-    
+    global_seg_info = sorted(
+        global_seg_info, key=lambda k: len(k["inference_dirs"]), reverse=True
+    )
+
     for skipped_models in global_seg_info[1:]:
         print("#")
         print("##################################################")
@@ -126,9 +134,9 @@ if len(global_seg_info) > 1:
 
 print("#")
 
-ensemble_dirs=global_seg_info[0]['inference_dirs']
+ensemble_dirs = global_seg_info[0]["inference_dirs"]
 print(f"# ensemble_dirs: {ensemble_dirs}")
-seg_file_path=global_seg_info[0]['seg_file_path']
+seg_file_path = global_seg_info[0]["seg_file_path"]
 print(f"# seg_file_path: {seg_file_path}")
 
 if len(ensemble_dirs) < 2:
@@ -145,11 +153,13 @@ if len(ensemble_dirs) < 2:
     print("#")
     exit(0)
 
-pred_min_combination = pred_min_combination if pred_min_combination is not None else len(ensemble_dirs)
+pred_min_combination = (
+    pred_min_combination if pred_min_combination is not None else len(ensemble_dirs)
+)
 pred_min_combination = 2 if pred_min_combination < 2 else pred_min_combination
 
 model_combinations = []
-for L in range(0, len(ensemble_dirs)+1):
+for L in range(0, len(ensemble_dirs) + 1):
     for subset in itertools.combinations(ensemble_dirs, L):
         subset = list(subset)
         if len(subset) >= pred_min_combination:
@@ -157,7 +167,9 @@ for L in range(0, len(ensemble_dirs)+1):
 
 for combination_index in range(0, len(model_combinations)):
     model_combination = model_combinations[combination_index]
-    combination_output_dir = os.path.join('/', workflow_dir, operator_out_dir, f"combination_{combination_index}")
+    combination_output_dir = os.path.join(
+        "/", workflow_dir, operator_out_dir, f"combination_{combination_index}"
+    )
     Path(combination_output_dir).mkdir(parents=True, exist_ok=True)
     print(f"#")
     print(f"# Evaluating combination: {combination_index}: {model_combination}")
@@ -185,10 +197,14 @@ print("#")
 print("# -> collecting ensemble files ...")
 print("#")
 
-final_target = join('/', workflow_dir, operator_out_dir)
-combination_output_dirs = sorted([f for f in glob(join('/', workflow_dir, operator_out_dir, '*'))])
+final_target = join("/", workflow_dir, operator_out_dir)
+combination_output_dirs = sorted(
+    [f for f in glob(join("/", workflow_dir, operator_out_dir, "*"))]
+)
 for combination_output_dir in combination_output_dirs:
-    print(f"# -> moving files from {basename(combination_output_dir)} to operator_out_dir")
+    print(
+        f"# -> moving files from {basename(combination_output_dir)} to operator_out_dir"
+    )
 
     assert "combination_" in combination_output_dir
     combination_id = int(combination_output_dir.split("_")[-1])
@@ -198,7 +214,12 @@ for combination_output_dir in combination_output_dirs:
             extension = "nii.gz"
         else:
             extension = basename(combination_file).split(".")[-1]
-        target_file_path = join(final_target, basename(combination_file).replace(f".{extension}", f"_combination_{combination_id}.{extension}"))
+        target_file_path = join(
+            final_target,
+            basename(combination_file).replace(
+                f".{extension}", f"_combination_{combination_id}.{extension}"
+            ),
+        )
         print(f"# {basename(combination_file)} -> {basename(target_file_path)}")
         shutil.move(src=combination_file, dst=target_file_path)
 
@@ -213,7 +234,7 @@ print("# ")
 with open(join(final_target, "model_combinations.json"), "w") as jsonData:
     json.dump(model_combinations, jsonData, indent=4, sort_keys=False, default=str)
 
-shutil.copy(src=seg_file_path, dst=join(final_target,"ensemble_seg_info.json"))
+shutil.copy(src=seg_file_path, dst=join(final_target, "ensemble_seg_info.json"))
 print("#")
 print("#")
 print("##################################################")

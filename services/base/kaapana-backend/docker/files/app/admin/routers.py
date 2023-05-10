@@ -1,6 +1,15 @@
 import requests
 
-from fastapi import APIRouter, Depends, Request, HTTPException, UploadFile, Response, File, Header
+from fastapi import (
+    APIRouter,
+    Depends,
+    Request,
+    HTTPException,
+    UploadFile,
+    Response,
+    File,
+    Header,
+)
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from opensearchpy import OpenSearch
@@ -13,17 +22,22 @@ from app.config import settings
 
 router = APIRouter()
 
+
 @router.get("/")
 async def root(request: Request):
-    return {"message": "Welcome to the backend", "root_path": request.scope.get("root_path")}
+    return {
+        "message": "Welcome to the backend",
+        "root_path": request.scope.get("root_path"),
+    }
+
 
 @router.get("/health-check")
 def health_check():
     return {f"Kaapana backend is up and running!"}
 
+
 @router.get("/get-static-website-results")
 def get_static_website_results():
-
     def build_tree(item, filepath, org_filepath):
         # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
         splits = filepath.split("/", 1)

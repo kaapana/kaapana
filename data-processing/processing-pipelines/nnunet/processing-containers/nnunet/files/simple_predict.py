@@ -352,7 +352,7 @@ folds = folds.split(",") if folds != None else None
 batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
 
-task = getenv("TASK_IDS ", "None")
+task = getenv("TASK_IDS", "None")
 task = task if task.lower() != "none" else None
 
 task_targets = os.getenv("TARGETS", "None")

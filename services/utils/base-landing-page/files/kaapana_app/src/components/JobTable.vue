@@ -65,13 +65,21 @@
             </v-chip>
           </template>
           <template v-slot:item.airflow="{ item }">
-            <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
+            <!-- <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_graph(item)' small icon>
                   <v-icon color="secondary" dark>mdi-chart-timeline-variant</v-icon>
                 </v-btn>
               </template>
-              <span>job's airflow dag_run graph view</span>
+              <span>airflow's dag_run graph view</span>
+            </v-tooltip> -->
+            <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_grid_details(item)' small icon>
+                  <v-icon color="secondary" dark>mdi-chart-timeline-variant</v-icon>
+                </v-btn>
+              </template>
+              <span>airflow's dag_run details</span>
             </v-tooltip>
             <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
               <template v-slot:activator="{ on, attrs }">
@@ -283,6 +291,7 @@
             this.deleteJobAPI(this.deleteID)
         },
         direct_airflow_graph(item) {
+          // don't call it because it's inaccurate
           this.dag_run_datetime = item.run_id.split("-").at(-1)
           this.dag_run_datetime = this.dag_run_datetime.slice(-6).slice(0, 2) + "." + this.dag_run_datetime.slice(-4)
           this.dag_run_ms = item.run_id.split("-").at(-1).slice(-6).slice(0, 2) + this.dag_run_datetime.slice(-4)
@@ -290,8 +299,12 @@
           this.airflow_url = item.kaapana_instance.protocol + "://" + item.kaapana_instance.host + "/flow/graph?dag_id=" + item.dag_id + "&execution_date=" + encodeURIComponent(this.dag_run_datetime)
           window.open(this.airflow_url, "_blank", "noreferrer")
         },
+        direct_airflow_grid_details(item) {
+          this.airflow_url = item.kaapana_instance.protocol + "://" + item.kaapana_instance.host + "/flow/dags/" + item.dag_id + "/grid?root=&dag_run_id=" + item.run_id
+          window.open(this.airflow_url, "_blank", "noreferrer")
+        },
         async direct_airflow_operator_logs(item) {     // async to make await work properly
-          await this.getJobTaskinstancesAPI(item.id);  // task_instances and states are written to -> this.dag_run_tasks_n_states ; needs to be await to asve API result to variable
+          await this.getJobTaskinstancesAPI(item.id);  // task_instances and states are written to -> this.dag_run_tasks_n_states ; needs to be await to save API result to variable
 
           // iterate over this.dag_run_tasks_n_states and search for operator with state 'failed'
           for (let key in this.dag_run_tasks_n_states) {

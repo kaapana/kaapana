@@ -10,6 +10,7 @@ from shutil import rmtree
 processed_count = 0
 target_level = None
 
+
 # Process smth
 def process_input_file(zip_path, models_dir):
     global processed_count
@@ -22,7 +23,7 @@ def process_input_file(zip_path, models_dir):
             zip_ref.extractall(models_dir)
         processed_count += 1
         return True, zip_path
-    
+
     except Exception as e:
         print("")
         print("")
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
     operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
     assert operator_out_dir is not None
-    
+
     uninstall_task = getenv("UNINSTALL_TASK", "None")
     uninstall_task = uninstall_task if uninstall_task.lower() != "none" else None
     assert uninstall_task is not None
@@ -89,11 +90,15 @@ if __name__ == "__main__":
     if uninstall_task != "":
         models_dir = "/models/nnUNet"
         print(f"Un-installing TASK: {uninstall_task}")
-        installed_models = [basename(normpath(f.path)) for f in os.scandir(models_dir) if f.is_dir()]
+        installed_models = [
+            basename(normpath(f.path)) for f in os.scandir(models_dir) if f.is_dir()
+        ]
 
         for installed_model in installed_models:
             model_path = join(models_dir, installed_model)
-            installed_tasks_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
+            installed_tasks_dirs = [
+                basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()
+            ]
             for installed_task in installed_tasks_dirs:
                 if installed_task.lower() == uninstall_task.lower():
                     task_path = join(models_dir, installed_model, installed_task)
@@ -101,7 +106,7 @@ if __name__ == "__main__":
                     rmtree(task_path)
 
     # Loop for every batch-element (usually series)
-    batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
+    batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
     for batch_element_dir in batch_folders:
         print("#")
         print(f"# Processing batch-element {batch_element_dir}")
@@ -138,7 +143,9 @@ if __name__ == "__main__":
             print(f"#")
             exit(1)
 
-        input_files = glob(join(element_input_dir, input_file_extension), recursive=True)
+        input_files = glob(
+            join(element_input_dir, input_file_extension), recursive=True
+        )
         print(f"# Found {len(input_files)} input-files!")
 
         if len(input_files) == 0:
@@ -151,10 +158,11 @@ if __name__ == "__main__":
         # Single process:
         # Loop for every input-file found with extension 'input_file_extension'
         for input_file in input_files:
-            success, input_file = process_input_file(zip_path=input_file,models_dir=models_dir)
+            success, input_file = process_input_file(
+                zip_path=input_file, models_dir=models_dir
+            )
             if not success:
                 exit(1)
-        
 
     print("#")
     print("##################################################")
@@ -200,5 +208,3 @@ if __name__ == "__main__":
         print("# ✓ successfully extracted model into model-dir.")
         print("#")
         print("# DONE")
-
-        

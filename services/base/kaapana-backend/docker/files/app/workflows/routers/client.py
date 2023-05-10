@@ -294,11 +294,6 @@ def ui_form_schemas(
     db: Session = Depends(get_db),
 ):
     username = request.headers["x-forwarded-preferred-username"]
-    dag_id = filter_kaapana_instances.dag_id
-    schemas = {}
-    if dag_id is None:
-        return JSONResponse(content=schemas)
-
     dags = {}
     just_all_dags = {}
     for instance_name in filter_kaapana_instances.instance_names:
@@ -337,61 +332,81 @@ def ui_form_schemas(
     ):  # if just one instance is selected -> return (allowed) dags of this instance
         dags = list(dags.values())[0]
 
-    if dag_id not in dags:
+    # Datasets: Checking for datasets
+    # if (
+    #     "data_form" in schemas
+    #     and "properties" in schemas["data_form"]
+    #     and "dataset_name" in schemas["data_form"]["properties"]
+    # ):
+    datasets = {}
+    dataset_size = {}
+    for instance_name in filter_kaapana_instances.instance_names:
+        # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
+        db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
+        if not db_kaapana_instance.remote:
+            client_datasets = crud.get_datasets(
+                db, username=username
+            )  # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
+            allowed_dataset = [ds.name for ds in client_datasets]
+            dataset_size = {
+                ds.name: len(json.loads(ds.identifiers)) for ds in client_datasets
+            }
+        else:
+            allowed_dataset = list(
+                ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)
+            )
+        datasets[db_kaapana_instance.instance_name] = allowed_dataset
+
+    if (
+        len(datasets) > 1
+    ):  # if multiple instances are selected -> find intersection of their allowed datasets
+        overall_allowed_datasets = []
+        for i in range(len(datasets) - 1):
+            if len(overall_allowed_datasets) == 0:
+                list1 = list(datasets.values())[i]
+                list2 = list(datasets.values())[i + 1]
+                overall_allowed_datasets = list(set(list1) & set(list2))
+            else:
+                list1 = list(datasets.values())[i]
+                overall_allowed_datasets = list(
+                    set(overall_allowed_datasets) & set(list1)
+                )
+        dataset_names = [{"const": d, "title": d} for d in overall_allowed_datasets]
+    elif (
+        len(datasets) == 1
+    ):  # if just one instance is selected -> return (allowed) datasets of this instance
+        dataset_names = [
+            {"const": d, "title": d + f" ({dataset_size[d]})"}
+            for d in list(datasets.values())[0]
+        ]
+
+    schemas_dict = {}
+    for dag_id, dag in dags.items():
+        schemas = dag.get("ui_forms", {})
+        # schemas = dag["ui_forms"]
+        if (
+            "data_form" in schemas
+            and "properties" in schemas["data_form"]
+            and "dataset_name" in schemas["data_form"]["properties"]
+        ):
+            schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = dataset_names
+        schemas_dict[dag_id] = schemas
+    # logging.info(f"\n\nFinal Schema: \n{schemas}")
+    if filter_kaapana_instances.dag_id is None:
+        return JSONResponse(content=schemas_dict)
+    elif filter_kaapana_instances.dag_id in schemas_dict:
+        return JSONResponse(
+            content={
+                filter_kaapana_instances.dag_id: schemas_dict[
+                    filter_kaapana_instances.dag_id
+                ]
+            }
+        )
+    else:
         raise HTTPException(
             status_code=404,
-            detail=f"Dag {dag_id} is not part of the allowed dags, please add it!",
+            detail=f"Dag {dag_id} is not part of the dag list. In remote execution the issue might be that is it not part of the allowed dags, please add it!",
         )
-    dag = dags[dag_id]
-    schemas = dag["ui_forms"]
-
-    # Datasets: Checking for datasets
-    if (
-        "data_form" in schemas
-        and "properties" in schemas["data_form"]
-        and "dataset_name" in schemas["data_form"]["properties"]
-    ):
-        datasets = {}
-        for instance_name in filter_kaapana_instances.instance_names:
-            # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
-            db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
-            if not db_kaapana_instance.remote:
-                client_datasets = crud.get_datasets(
-                    db, username=username
-                )  # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
-                allowed_dataset = [ds.name for ds in client_datasets]
-            else:
-                allowed_dataset = list(
-                    ds["name"]
-                    for ds in json.loads(db_kaapana_instance.allowed_datasets)
-                )
-            datasets[db_kaapana_instance.instance_name] = allowed_dataset
-        if (
-            len(datasets) > 1
-        ):  # if multiple instances are selected -> find intersection of their allowed datasets
-            overall_allowed_datasets = []
-            for i in range(len(datasets) - 1):
-                if len(overall_allowed_datasets) == 0:
-                    list1 = list(datasets.values())[i]
-                    list2 = list(datasets.values())[i + 1]
-                    overall_allowed_datasets = list(set(list1) & set(list2))
-                else:
-                    list1 = list(datasets.values())[i]
-                    overall_allowed_datasets = list(
-                        set(overall_allowed_datasets) & set(list1)
-                    )
-            schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = [
-                {"const": d, "title": d} for d in overall_allowed_datasets
-            ]
-        elif (
-            len(datasets) == 1
-        ):  # if just one instance is selected -> return (allowed) datasets of this instance
-            schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = [
-                {"const": d, "title": d} for d in list(datasets.values())[0]
-            ]
-
-    # logging.info(f"\n\nFinal Schema: \n{schemas}")
-    return JSONResponse(content=schemas)
 
 
 @router.get("/check-for-remote-updates")
@@ -528,9 +543,6 @@ def create_workflow(
                 "involved_instances"
             ],
             "federated": json_schema_data.federated,
-            "dataset_name": json_schema_data.conf_data["data_form"]["dataset_name"]
-            if "data_form" in json_schema_data.conf_data
-            else None,
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)
@@ -541,11 +553,19 @@ def create_workflow(
     #     crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
     #     )
 
-    # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
-    Thread(
-        target=crud.queue_generate_jobs_and_add_to_workflow,
-        args=(db, db_workflow, json_schema_data),
-    ).start()
+    if (
+        db_client_kaapana.instance_name
+        not in json_schema_data.conf_data["workflow_form"]["involved_instances"]
+        or len(json_schema_data.conf_data["workflow_form"]["involved_instances"]) > 1
+    ):
+        # sync solution for remote or any federated workflows
+        crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    else:
+        # solution in additional thread for purely local workflows (these are probably also the only one which are conducted at large scale)
+        Thread(
+            target=crud.queue_generate_jobs_and_add_to_workflow,
+            args=(db, db_workflow, json_schema_data),
+        ).start()
 
     # directly return created db_workflow for fast feedback
     return db_workflow

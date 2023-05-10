@@ -21,10 +21,7 @@ ui_forms = {
                 "description": "Specify the port of the DICOM receiver.",
                 "type": "string",
                 "required": True,
-                "enum": [
-                    "platipy",
-                    "totalsegmentator"
-                ]
+                "enum": ["platipy", "totalsegmentator"],
             },
             "single_execution": {
                 "title": "single execution",
@@ -33,26 +30,22 @@ ui_forms = {
                 "default": True,
                 "readOnly": True,
             },
-        }
+        },
     }
 }
 
 log = LoggingMixin().log
 
 args = {
-    'ui_forms': ui_forms,
-    'ui_visible': True,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_forms": ui_forms,
+    "ui_visible": True,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(
-    dag_id='mhub-models',
-    default_args=args,
-    schedule_interval=None
-    )
+dag = DAG(dag_id="mhub-models", default_args=args, schedule_interval=None)
 
 
 get_input = LocalGetInputDataOperator(dag=dag)

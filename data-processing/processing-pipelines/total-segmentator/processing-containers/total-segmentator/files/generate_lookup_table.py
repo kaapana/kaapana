@@ -103,7 +103,7 @@ class_map = {
         101: "autochthon_right",
         102: "iliopsoas_left",
         103: "iliopsoas_right",
-        104: "urinary_bladder"
+        104: "urinary_bladder",
     },
     "total_v2": {
         1: "spleen",
@@ -290,12 +290,9 @@ class_map = {
         60: "subcutaneous_fat",
         61: "skeletal_muscle",
         62: "torso_fat",
-        63: "spinal_cord"
+        63: "spinal_cord",
     },
-    "lung_vessels": {
-        1: "lung_vessels",
-        2: "lung_trachea_bronchia"
-    },
+    "lung_vessels": {1: "lung_vessels", 2: "lung_trachea_bronchia"},
     "covid": {
         1: "lung_covid_infiltrate",
     },
@@ -317,20 +314,17 @@ class_map = {
         2: "pleural_effusion",
         3: "pericardial_effusion",
     },
-    "liver_vessels": {
-        1: "liver_vessels",
-        2: "liver_tumor"
-    },
+    "liver_vessels": {1: "liver_vessels", 2: "liver_tumor"},
     "heartchambers_test": {
-        1: "heart_myocardium", 
-        2: "heart_atrium_left", 
-        3: "heart_ventricle_left", 
-        4: "heart_atrium_right", 
-        5: "heart_ventricle_right", 
-        6: "aorta", 
-        7: "pulmonary_artery"
+        1: "heart_myocardium",
+        2: "heart_atrium_left",
+        3: "heart_ventricle_left",
+        4: "heart_atrium_right",
+        5: "heart_ventricle_right",
+        6: "aorta",
+        7: "pulmonary_artery",
     },
-    "bones_tissue_test" : {
+    "bones_tissue_test": {
         1: "femur",
         2: "patella",
         3: "tibia",
@@ -349,7 +343,7 @@ class_map = {
         16: "subcutaneous_fat",
         17: "skeletal_muscle",
         18: "torso_fat",
-        19: "spinal_cord"
+        19: "spinal_cord",
     },
     "aortic_branches_test": {
         1: "brachiocephalic_trunk",  # brachiocephalic_trunc
@@ -359,14 +353,14 @@ class_map = {
         5: "common_carotid_artery_left",
         6: "brachiocephalic_vein_left",
         7: "brachiocephalic_vein_right",
-        8: "atrial_appendage_left",  # less common: auricle_of_heart_left 
+        8: "atrial_appendage_left",  # less common: auricle_of_heart_left
         9: "superior_vena_cava",
         10: "pulmunary_vein",
         11: "pulmunary_artery",
         12: "heart_atrium_left",
         13: "heart_atrium_right",
         14: "aorta",
-        15: "thyroid_gland"  # thyroid
+        15: "thyroid_gland",  # thyroid
     },
     "test": {
         1: "carpal",
@@ -388,13 +382,12 @@ class_map = {
         17: "tarsal",
         18: "tibia",
         19: "phalanges_feet",
-        20: "ulna"
-    }
+        20: "ulna",
+    },
 }
 
 
 class_map_5_parts = {
-
     # 17 classes
     "class_map_part_organs": {
         1: "spleen",
@@ -413,9 +406,8 @@ class_map_5_parts = {
         14: "lung_lower_lobe_left",
         15: "lung_upper_lobe_right",
         16: "lung_middle_lobe_right",
-        17: "lung_lower_lobe_right"
+        17: "lung_lower_lobe_right",
     },
-
     # 24 classes
     "class_map_part_vertebrae": {
         1: "vertebrae_L5",
@@ -441,9 +433,8 @@ class_map_5_parts = {
         21: "vertebrae_C4",
         22: "vertebrae_C3",
         23: "vertebrae_C2",
-        24: "vertebrae_C1"
+        24: "vertebrae_C1",
     },
-
     # 18
     "class_map_part_cardiac": {
         1: "esophagus",
@@ -463,9 +454,8 @@ class_map_5_parts = {
         15: "duodenum",
         16: "colon",
         17: "urinary_bladder",
-        18: "face"
+        18: "face",
     },
-
     # 21
     "class_map_part_muscles": {
         1: "humerus_left",
@@ -488,9 +478,8 @@ class_map_5_parts = {
         18: "autochthon_left",
         19: "autochthon_right",
         20: "iliopsoas_left",
-        21: "iliopsoas_right"
+        21: "iliopsoas_right",
     },
-
     # without humerus and femur
     "class_map_part_muscles_v2": {
         1: "scapula_left",
@@ -509,9 +498,8 @@ class_map_5_parts = {
         14: "autochthon_left",
         15: "autochthon_right",
         16: "iliopsoas_left",
-        17: "iliopsoas_right"
+        17: "iliopsoas_right",
     },
-
     # 24 classes
     # 12. ribs start from vertebrae T12
     # Small subset of population (roughly 8%) have 13. rib below 12. rib
@@ -521,8 +509,8 @@ class_map_5_parts = {
     #  (the extra rib would start from C7)
     #  -> this has label rib_1
     #
-    # Quite often only 11 ribs (12. ribs probably so small that not found). Those 
-    # cases often wrongly segmented. 
+    # Quite often only 11 ribs (12. ribs probably so small that not found). Those
+    # cases often wrongly segmented.
     "class_map_part_ribs": {
         1: "rib_left_1",
         2: "rib_left_2",
@@ -547,10 +535,9 @@ class_map_5_parts = {
         21: "rib_right_9",
         22: "rib_right_10",
         23: "rib_right_11",
-        24: "rib_right_12"
+        24: "rib_right_12",
     },
-
-    "class_map_part_bones" : {
+    "class_map_part_bones": {
         1: "femur",
         2: "patella",
         3: "tibia",
@@ -569,10 +556,9 @@ class_map_5_parts = {
         16: "subcutaneous_fat",
         17: "skeletal_muscle",
         18: "torso_fat",
-        19: "spinal_cord"
+        19: "spinal_cord",
     },
-
-    "test": class_map["test"]
+    "test": class_map["test"],
 }
 
 
@@ -582,20 +568,21 @@ map_taskid_to_partname = {
     253: "class_map_part_cardiac",
     254: "class_map_part_muscles",
     255: "class_map_part_ribs",
-
-    517: "test"
+    517: "test",
 }
 
-result_label_dict={}
+result_label_dict = {}
 for class_name in class_map:
-    if class_name == "total_v2_fast" or class_name == "total_v2" or class_name == "test" or "_test" in class_name:
+    if (
+        class_name == "total_v2_fast"
+        or class_name == "total_v2"
+        or class_name == "test"
+        or "_test" in class_name
+    ):
         continue
     class_list = []
     for label, value in class_map[class_name].items():
-        class_list.append({
-        "label_int": label,
-        "label_name": value
-      })
+        class_list.append({"label_int": label, "label_name": value})
     result_label_dict[class_name] = class_list
 
 from os.path import join
@@ -603,5 +590,5 @@ import pathlib
 import json
 
 json_path = join(pathlib.Path(__file__).parent.resolve(), "seg_info_lookup.json")
-with open(json_path, 'w') as fp:
+with open(json_path, "w") as fp:
     json.dump(result_label_dict, fp, indent=4)

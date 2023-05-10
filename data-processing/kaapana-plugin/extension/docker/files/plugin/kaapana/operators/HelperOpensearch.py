@@ -39,7 +39,7 @@ class HelperOpensearch:
 
         query_dict = {
             "query": query,
-            "_source": {
+            "source": {
                 "includes": [
                     HelperOpensearch.study_uid_tag,
                     HelperOpensearch.series_uid_tag,
@@ -52,7 +52,7 @@ class HelperOpensearch:
         }
 
         try:
-            hits = HelperOpensearch.execute_opensearch_query(query_dict)
+            hits = HelperOpensearch.execute_opensearch_query(**query_dict)
         except Exception as e:
             print("ERROR in search!")
             print(e)

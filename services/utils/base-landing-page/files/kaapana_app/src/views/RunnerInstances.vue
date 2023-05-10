@@ -71,7 +71,6 @@
       },
       checkForRemoteUpdates() {
         kaapanaApiService.syncRemoteInstances().then(successful => {
-          console.log(successful)
           this.getKaapanaInstances()
         })
       },

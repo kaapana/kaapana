@@ -1,4 +1,5 @@
-FROM nvcr.io/nvidia/pytorch:22.12-py3
+FROM docker.io/pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
+# FROM nvcr.io/nvidia/pytorch:22.12-py3
 
 # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-22-12.html#rel-22-12
 
@@ -13,6 +14,8 @@ WORKDIR /app
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-utils \
+    wget \
+    curl \
     git \
     htop \
     zip \

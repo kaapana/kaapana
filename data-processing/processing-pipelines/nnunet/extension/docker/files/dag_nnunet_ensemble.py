@@ -67,12 +67,6 @@ ui_forms = {
             #     "type": "string",
             #     "readOnly": True,
             # },
-            "workflow_name": {
-                "title": "Workflow name",
-                "description": "Specify a name for the training task",
-                "type": "string",
-                "required": False,
-            },
             "tasks": {
                 "title": "Tasks available",
                 "description": "Select available tasks",

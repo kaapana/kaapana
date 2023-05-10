@@ -15,13 +15,11 @@
                     v-bind="attrs",
                     v-on="on"
                   )
-                    | mdi-cloud-download-outline
-                span By clicking on this icon it will try to download the latest extensions.
+                    | mdi-cloud-refresh-outline
+                span Click to download latest extensions, this might take some time.
             br
-            span(style="font-size: 14px") On 
+            span(style="font-size: 14px") You can find the descriptions of each extension in 
               a(href="https://kaapana.readthedocs.io/", target="_blank") readthedocs
-              |
-              | you find a description of each extension
           v-col(cols="12", sm="2")
             v-select(
               label="Kind",
@@ -43,54 +41,6 @@
               label="Search",
               hide-details=""
             )
-      //- div(v-if='uploadPerc != 100 && file && loadingFile')
-      //-   div(:class="['dragdrop']")
-      //-     .dragdrop-info()
-      //-       span.fa.fa-cloud-upload.dragdrop-title
-      //-       v-tooltip(bottom="")
-      //-         template(v-slot:activator="{on}")
-      //-           v-icon(
-      //-             @click="cancelUploadFile()",
-      //-             color="primary",
-      //-             dark="",
-      //-             v-on="on"
-      //-               )
-      //-                 | mdi-close-circle
-      //-         span Cancel the upload
-      //-       span.dragdrop-title    Uploading file... {{uploadPerc}} % 
-      //-       .dragdrop-upload-limit-info
-      //-         div filename: {{file.name}} | file size: {{(file.size / 1000000).toFixed(2)}} MB
-      //- div(v-else-if='uploadPerc == 100 && !file && !loadingFile')
-      //-   div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-      //-     .dragdrop-uploaded-info(@drag='onChange')
-      //-       span.dragdrop-title {{fileResponse}}
-      //-       .dragdrop-upload-limit-info
-      //-         div Upload completed. Select another chart(.tgz) or container(.tar) file
-      //-     input(type='file' @change='onChange')
-      //- div(v-else-if='uploadPerc == 100 && file && !loadingFile')
-      //-   div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-      //-     .dragdrop-info(@drag='onChange')
-      //-       span.fa.fa-cloud-upload.dragdrop-title
-      //-       span.dragdrop-title {{fileResponse}}
-      //-       .dragdrop-upload-limit-info
-      //-         div filename: {{file.name}} | file size: {{(file.size / 1000000).toFixed(2)}} MB
-      //- div(v-else-if='file && !loadingFile')
-      //-   div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-      //-     .dragdrop-info(@drag='onChange')
-      //-       span.fa.fa-cloud-upload.dragdrop-title
-      //-       span.dragdrop-title {{fileResponse}}
-      //-       .dragdrop-upload-limit-info
-      //-         div Please try again
-      //-     input(type='file' @change='onChange')
-      //- div(v-else='')
-      //-   div(:class="['dragdrop', dragging ? 'dragdrop-over' : '']" @dragenter='dragging = true' @dragleave='dragging = false')
-      //-     .dragdrop-info(@drag='onChange')
-      //-       span.fa.fa-cloud-upload.dragdrop-title
-      //-       span.dragdrop-title Drag/select chart(.tgz) or container(.tar) file for upload
-      //-       .dragdrop-upload-limit-info
-      //-         div file types: tgz,tar  |  max size: 20GB
-      //-     input(type='file' @change='onChange')
-
       //- TODO: set max file size limit
       upload(:labelIdle="labelIdle", url="/kube-helm-api/filepond-upload", :onProcessFileStart="fileStart", :onProcessFile="fileComplete", :acceptedFileTypes="allowedFileTypes")
 
@@ -131,12 +81,12 @@
           v-tooltip(bottom="", v-if="item.kind === 'dag'")
             template(v-slot:activator="{ on, attrs }")
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
-                | mdi-chart-timeline-variant
+                | mdi-gamepad-variant
             span A workflow or algorithm that will be added to Airflow DAGs
           v-tooltip(bottom="", v-if="item.kind === 'application'")
             template(v-slot:activator="{ on, attrs }")
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
-                | mdi-laptop
+                | mdi-application-outline
             span An application to work with
         template(v-slot:item.helmStatus="{ item }")
           span {{ getHelmStatus(item) }}

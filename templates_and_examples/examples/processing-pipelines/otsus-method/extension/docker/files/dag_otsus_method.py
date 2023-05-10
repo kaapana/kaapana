@@ -24,62 +24,60 @@ ui_forms = {
                 "default": False,
                 "readOnly": False,
             }
-        }
+        },
     }
 }
 
 log = LoggingMixin().log
 
 args = {
-    'ui_forms': ui_forms,
-    'ui_visible': True,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_forms": ui_forms,
+    "ui_visible": True,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(
-    dag_id='otsus-method',
-    default_args=args,
-    schedule_interval=None
-    )
-
+dag = DAG(dag_id="otsus-method", default_args=args, schedule_interval=None)
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
 
 convert = DcmConverterOperator(dag=dag, input_operator=get_input)
 
-otsus_method = OtsusMethodOperator(dag=dag,
+otsus_method = OtsusMethodOperator(
+    dag=dag,
     input_operator=convert,
     # dev_server='code-server'
-    )
+)
 
-seg_to_dcm = Itk2DcmSegOperator(dag=dag,
+seg_to_dcm = Itk2DcmSegOperator(
+    dag=dag,
     segmentation_operator=otsus_method,
     single_label_seg_info="abdomen",
     input_operator=get_input,
-    series_description="Otsu's method"
+    series_description="Otsu's method",
 )
 
 dcm_send = DcmSendOperator(dag=dag, input_operator=seg_to_dcm)
 
 generate_report = OtsusNotebookOperator(
     dag=dag,
-    name='generate-otsus-report',
+    name="generate-otsus-report",
     input_operator=otsus_method,
     # dev_server='jupyterlab',
     cmds=["/bin/bash"],
-    arguments=["/kaapana/app/otsus_notebooks/run_otsus_report_notebook.sh"]
+    arguments=["/kaapana/app/otsus_notebooks/run_otsus_report_notebook.sh"],
 )
 
-put_report_to_minio = LocalMinioOperator(dag=dag,
-    name='upload-to-staticwebsite',
-    bucket_name='staticwebsiteresults',
-    action='put',
+put_report_to_minio = LocalMinioOperator(
+    dag=dag,
+    name="upload-to-staticwebsite",
+    bucket_name="staticwebsiteresults",
+    action="put",
     action_operators=[generate_report],
-    file_white_tuples=('.html', '.pdf')
+    file_white_tuples=(".html", ".pdf"),
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

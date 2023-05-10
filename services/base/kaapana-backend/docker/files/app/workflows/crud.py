@@ -239,7 +239,7 @@ def create_and_update_client_kaapana_instance(
     else:
         raise NameError("action must be one of create, update")
 
-    logging.info("Updating Kaapana Instance successful!")
+    logging.debug("Updating Kaapana Instance successful!")
 
     db.add(db_client_kaapana_instance)
     db.commit()
@@ -284,7 +284,7 @@ def create_and_update_remote_kaapana_instance(
         )
         db_remote_kaapana_instance.time_updated = utc_timestamp
     elif action == "external_update":
-        logging.info(
+        logging.debug(
             f"Externally updating with db_remote_kaapana_instance: {db_remote_kaapana_instance}"
         )
         if db_remote_kaapana_instance:
@@ -631,7 +631,6 @@ def sync_client_remote(
     instance_name: str = None,
     status: str = None,
 ):
-    # logging.info(f"SYNC_CLIENT_REMOTE for instance_name: {instance_name} ; job status: {status}")
     db_client_kaapana = get_kaapana_instance(db)
 
     create_and_update_remote_kaapana_instance(
@@ -664,8 +663,8 @@ def sync_client_remote(
         if outgoing_workflow is not None:
             outgoing_workflows.append(outgoing_workflow)
 
-    logging.info(f"SYNC_CLIENT_REMOTE outgoing_jobs: {outgoing_jobs}")
-    logging.info(f"SYNC_CLIENT_REMOTE outgoing_workflows: {outgoing_workflows}")
+    logging.debug(f"SYNC_CLIENT_REMOTE outgoing_jobs: {outgoing_jobs}")
+    logging.debug(f"SYNC_CLIENT_REMOTE outgoing_workflows: {outgoing_workflows}")
 
     update_remote_instance_payload = {
         "instance_name": db_client_kaapana.instance_name,
@@ -829,7 +828,7 @@ def get_remote_updates(db: Session, periodically=False):
                 # ])
                 workflow = schemas.WorkflowCreate(**incoming_workflow)
                 db_workflow = create_workflow(db, workflow)
-                logging.info(f"Created incoming remote workflow: {db_workflow}")
+                logging.debug(f"Created incoming remote workflow: {db_workflow}")
 
         # create incoming jobs
         fernet = Fernet(db_client_kaapana.encryption_key)
@@ -874,7 +873,7 @@ def get_remote_updates(db: Session, periodically=False):
                 }
             )
             db_workflow = put_workflow_jobs(db, workflow_update)
-            logging.info(f"Updated remote workflow: {db_workflow}")
+            logging.debug(f"Updated remote workflow: {db_workflow}")
 
     return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
 
@@ -923,7 +922,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         # request airflow for states of all jobs in diff_db_to_airflow && update db_jobs of all jobs in diff_db_to_airflow
         for diff_db_job in diff_db_to_airflow:
             if diff_db_job.run_id is None:
-                logging.info(
+                logging.debug(
                     "Remote db_job --> created to be executed on remote instance!"
                 )
                 continue
@@ -982,7 +981,7 @@ def create_and_update_service_workflows_and_jobs(
             }
         )
         db_service_workflow = put_workflow_jobs(db, workflow_update)
-        logging.info(f"Updated service workflow: {db_service_workflow}")
+        logging.debug(f"Updated service workflow: {db_service_workflow}")
     else:
         # if no: compose WorkflowCreate to create service-workflow ...
         workflow_create = schemas.WorkflowCreate(
@@ -999,7 +998,7 @@ def create_and_update_service_workflows_and_jobs(
         db_service_workflow = create_workflow(
             db=db, workflow=workflow_create, service_workflow=True
         )
-        logging.info(f"Created service workflow: {db_service_workflow}")
+        logging.debug(f"Created service workflow: {db_service_workflow}")
         # ... and afterwards append service-jobs to service-workflow via crud.put_workflow_jobs()
         workflow_update = schemas.WorkflowUpdate(
             **{
@@ -1009,7 +1008,7 @@ def create_and_update_service_workflows_and_jobs(
             }
         )
         db_service_workflow = put_workflow_jobs(db, workflow_update)
-        logging.info(f"Updated service workflow: {db_service_workflow}")
+        logging.debug(f"Updated service workflow: {db_service_workflow}")
 
 
 # def sync_states_from_airflow(db: Session, status: str = None, periodically=False):
@@ -1095,7 +1094,7 @@ def sync_n_clean_qsr_jobs_with_airflow(db: Session, periodically=False):
 
 
 def create_dataset(db: Session, dataset: schemas.DatasetCreate):
-    logging.info(f"Creating Dataset: {dataset.name}")
+    logging.debug(f"Creating Dataset: {dataset.name}")
 
     if dataset.kaapana_instance_id is None:
         db_kaapana_instance = (
@@ -1127,7 +1126,7 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate):
     db_kaapana_instance.datasets.append(db_dataset)
     db.add(db_kaapana_instance)
     db.commit()
-    logging.info(f"Successfully created dataset: {dataset.name}")
+    logging.debug(f"Successfully created dataset: {dataset.name}")
 
     db.refresh(db_dataset)
     return db_dataset
@@ -1146,7 +1145,7 @@ def get_datasets(
     limit=None,
     username: str = None,
 ) -> List[models.Dataset]:
-    logging.info(username)
+    logging.debug(username)
     # if username is not None:
     #     db_datasets = (
     #         db.query(models.Dataset)
@@ -1183,16 +1182,16 @@ def delete_datasets(db: Session):
 
 
 def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
-    logging.info(f"Updating dataset {dataset.name}")
+    logging.debug(f"Updating dataset {dataset.name}")
     db_dataset = get_dataset(db, dataset.name, raise_if_not_existing=False)
 
     if not db_dataset:
-        logging.info(f"Dataset {dataset.name} doesn't exist. Creating it.")
+        logging.debug(f"Dataset {dataset.name} doesn't exist. Creating it.")
         db_dataset = create_dataset(
             db,
             DatasetCreate(name=dataset.name),
         )
-        logging.info(f"Dataset {dataset.name} created.")
+        logging.debug(f"Dataset {dataset.name} created.")
 
     if dataset.action == "ADD":
         db_dataset.identifiers = json.dumps(
@@ -1211,7 +1210,7 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
     else:
         raise ValueError(f"Invalid action {dataset.action}")
 
-    logging.info(f"Successful updated Dataset {dataset.name}")
+    logging.debug(f"Successful updated Dataset {dataset.name}")
     # db_dataset.username = username
     db.commit()
     db.refresh(db_dataset)
@@ -1263,7 +1262,6 @@ def create_workflow(
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         federated=workflow.federated,
-        dataset_name=workflow.dataset_name,
     )
     if db_kaapana_instance.remote is False:
         # db_kaapana_instance.remote is False aka. db_kaapana_instance == db_local_kaapana_instance
@@ -1292,19 +1290,22 @@ def queue_generate_jobs_and_add_to_workflow(
 ):
     conf_data = json_schema_data.conf_data
     # get variables
-    single_execution = False  # initialize with False
-    if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
-        data_form = conf_data["data_form"]
-        single_execution = (
-            "workflow_form" in conf_data
-            and "single_execution" in conf_data["workflow_form"]
-            and conf_data["workflow_form"]["single_execution"] is True
+    single_execution = (
+        "workflow_form" in conf_data
+        and "single_execution" in conf_data["workflow_form"]
+        and conf_data["workflow_form"]["single_execution"] is True
+    )
+
+    dataset_limit = (
+        int(conf_data["data_form"]["dataset_limit"])
+        if (
+            "data_form" in conf_data
+            and "dataset_limit" in conf_data["data_form"]
+            and conf_data["data_form"]["dataset_limit"] is not None
         )
-        dataset_limit = (
-            int(data_form["dataset_limit"])
-            if ("dataset_limit" in data_form and data_form["dataset_limit"] is not None)
-            else None
-        )
+        else None
+    )
+
     username = (
         conf_data["workflow_form"]["username"]
         if "username" in conf_data["workflow_form"]
@@ -1348,7 +1349,7 @@ def queue_generate_jobs_and_add_to_workflow(
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []
         if single_execution is True:
-            for identifier in identifiers[:dataset_limit]:
+            for identifier in conf_data["data_form"]["identifiers"][:dataset_limit]:
                 # Copying due to reference?!
                 single_conf_data = copy.deepcopy(conf_data)
                 single_conf_data["data_form"]["identifiers"] = [identifier]
@@ -1360,8 +1361,8 @@ def queue_generate_jobs_and_add_to_workflow(
                     }
                 )
         else:
-            if identifiers:
-                conf_data["data_form"].update({"identifiers": identifiers})
+            # if identifiers:
+            #     conf_data["data_form"].update({"identifiers": identifiers})
             queued_jobs = [
                 {
                     "conf_data": conf_data,

@@ -91,7 +91,9 @@
           </v-list-group>
           <v-list-item :to="'/extensions'" v-if="isAuthenticated">
             <v-list-item-action>
-              <v-icon>mdi-apps</v-icon>
+              <!-- <v-icon>mdi-view-comfy</v-icon> -->
+              <!-- <v-icon>mdi-toy-brick-plus</v-icon> -->
+              <v-icon>mdi-puzzle</v-icon>
             </v-list-item-action>
             <v-list-item-content>
               <v-list-item-title>Extensions</v-list-item-title>
@@ -232,7 +234,6 @@
 </template>
 
 <script lang="ts">
-/* eslint-disable */
 
 import Vue from "vue";
 import request from "@/request";
@@ -276,7 +277,6 @@ export default Vue.extend({
       for (const workflow of this.workflowsList) {
         routerPath.push(workflow[2]);
       }
-      console.log(routerPath.includes(this.$route.path));
       return routerPath.includes(this.$route.path);
     },
     advancedNavigation() {
@@ -284,7 +284,6 @@ export default Vue.extend({
       for (const workflow of this.workflowsList) {
         routerPath.push(workflow[2]);
       }
-      console.log(routerPath.includes(this.$route.path));
       return !routerPath.includes(this.$route.path);
     },
   },
@@ -372,8 +371,20 @@ $kaapana-green: #ff7a20;
   color: $kaapana-blue;
 }
 
-.kaapana-iframe-container {
-  height: calc(100vh - 105px);
+.kaapana-iframe-container-side-navigation {
+  height: calc(100vh - 105px); // 105px: Calculated by substracting the height of the whole screen by the hight of the embedded iframe.
+}
+
+.kaapana-iframe-container-top-navigation {
+  height: calc(100vh - 105px - 56px);
+}
+
+.kapaana-side-navigation {
+  min-height: calc(100vh - 81px);
+}
+
+.kapaana-top-navigation {
+  min-height: calc(100vh - 81px - 56px);
 }
 
 .kaapana-headline {
@@ -394,12 +405,14 @@ $kaapana-green: #ff7a20;
   position: relative;
 }
 
-.kaapana-intro-header .kaapana-intro-image {
+// .kaapana-intro-header {
+//   min-height: calc(100vh - 105px);
+// }
+.kaapana-intro-header {
   padding-top: 10px;
   padding-bottom: 10px;
   //color: white;
   text-align: center;
-  min-height: calc(100vh - 105px);
   //background: DeepSkyBlue;
   background-size: cover;
 }

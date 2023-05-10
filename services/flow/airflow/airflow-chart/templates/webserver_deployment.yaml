@@ -100,6 +100,8 @@ spec:
           mountPath: /kaapana/mounted/workflows/plugins
         - name: airflow-dags
           mountPath: /kaapana/mounted/workflows/dags
+        - name: modeldata
+          mountPath: /kaapana/mounted/workflows/models
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5
@@ -128,6 +130,9 @@ spec:
       - name: airflow-plugins
         persistentVolumeClaim:
           claimName: af-plugins-pv-claim
+      - name: modeldata
+        persistentVolumeClaim:
+          claimName: models-pv-claim
       # - name: airflow-statsd-config
       #   configMap:
       #     name: airflow-statsd-config

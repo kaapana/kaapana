@@ -2,7 +2,7 @@
   <div>
     <v-card class="rounded-0">
       <v-card-title>
-        DICOM Tags
+        Metadata
         <v-spacer></v-spacer>
         <v-text-field
           v-model="search"
@@ -28,7 +28,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import { loadSeriesData } from "../common/api.service";
 
 export default {
@@ -53,7 +52,7 @@ export default {
           (data) =>
             (this.tagsData = Object.entries(data["metadata"]).map((i) => ({
               name: i[0],
-              value: typeof i[1] === 'object' ? JSON.stringify(i[1]): i[1],
+              value: typeof i[1] === "object" ? JSON.stringify(i[1]) : i[1],
             })))
         );
       }

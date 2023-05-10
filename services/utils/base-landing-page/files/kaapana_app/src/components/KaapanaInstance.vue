@@ -186,7 +186,7 @@
   <script>
   
   import kaapanaApiService from "@/common/kaapanaApi.service";
-  import {loadDatasetNames} from "@/common/api.service";
+  import {loadDatasets} from "@/common/api.service";
   
   
   export default {
@@ -304,7 +304,7 @@
           });
       },
       getDatasets() {
-        loadDatasetNames().then(_datasetNames => {
+        loadDatasets().then(_datasetNames => {
           this.datasets = _datasetNames;
         })
       },

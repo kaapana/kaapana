@@ -44,7 +44,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import VueApexCharts from "vue-apexcharts";
 import { loadDashboard } from "@/common/api.service";
 import { settings } from "@/static/defaultUIConfig";

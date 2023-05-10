@@ -89,7 +89,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import {
   loadDatasetByName,
   loadFieldNames,
@@ -210,7 +209,7 @@ export default {
     async updateMapping(filter) {
       filter.item_select = [];
       const key = filter.key_select;
-      loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
+      loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
         this.mapping[key] = res.data;
       });
     },

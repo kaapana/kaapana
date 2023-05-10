@@ -39,7 +39,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn class="mr-4" @click="submitRemoteForm">submit</v-btn>
-          <v-btn @click="overwriteRemotePost">clear</v-btn>
+          <v-btn @click="resetForm">clear</v-btn>
         </v-card-actions>
       </v-form>
     </v-card>
@@ -52,31 +52,31 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 export default {
   name: "AddRemoteInstance",
   
-  data: () => ({
-    remoteValid: false,
-    remoteUpdate: false,
-    remoteDialog: false,
-    remoteJobs: [],
-    remotePost: {
-      ssl_check: false,
-      token: '',
-      host: '',
-      instance_name: '',
-      port: 443,
-      fernet_key: 'deactivated',
-    }
-  }),
+  data() {
+    return this.initialState();
+  },
 
   methods: {
-    overwriteRemotePost () {
-      this.remotePost = {
-        ssl_check: false,
-        token: '',
-        host: '',
-        instance_name: '',
-        port: 443,
-        fernet_key: 'deactivated',
-        };
+    initialState () {
+      return {
+        remoteValid: false,
+        remoteUpdate: false,
+        remoteDialog: false,
+        remoteJobs: [],
+        remotePost: {
+          ssl_check: false,
+          token: '',
+          host: '',
+          instance_name: '',
+          port: 443,
+          fernet_key: 'deactivated',
+        },
+      }
+    },
+    resetForm () {
+      let resetData = this.initialState();
+      resetData["remoteDialog"] = true;
+      Object.assign(this.$data, resetData);
     },
     submitRemoteForm () {
       kaapanaApiService
@@ -84,7 +84,7 @@ export default {
         .then((response) => {
           this.remoteDialog = false
           this.$emit('refreshRemoteFromAdding')
-          this.overwriteRemotePost()
+          this.resetForm()
         })
         .catch((err) => {
           console.log(err);

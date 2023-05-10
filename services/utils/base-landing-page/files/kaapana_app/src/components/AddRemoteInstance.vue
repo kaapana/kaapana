@@ -39,7 +39,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn class="mr-4" @click="submitRemoteForm">submit</v-btn>
-          <v-btn @click="resetRemoteForm">clear</v-btn>
+          <v-btn @click="overwriteRemotePost">clear</v-btn>
         </v-card-actions>
       </v-form>
     </v-card>
@@ -68,8 +68,15 @@ export default {
   }),
 
   methods: {
-    resetRemoteForm () {
-      this.$refs.remoteForm.reset()
+    overwriteRemotePost () {
+      this.remotePost = {
+        ssl_check: false,
+        token: '',
+        host: '',
+        instance_name: '',
+        port: 443,
+        fernet_key: 'deactivated',
+        };
     },
     submitRemoteForm () {
       kaapanaApiService
@@ -77,7 +84,7 @@ export default {
         .then((response) => {
           this.remoteDialog = false
           this.$emit('refreshRemoteFromAdding')
-          this.resetRemoteForm()
+          this.overwriteRemotePost()
         })
         .catch((err) => {
           console.log(err);

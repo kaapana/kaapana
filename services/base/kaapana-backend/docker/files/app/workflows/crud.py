@@ -261,6 +261,10 @@ def create_and_update_remote_kaapana_instance(
             raise HTTPException(
                 status_code=400, detail="Kaapana instance already exists!"
             )
+        if "" in [remote_kaapana_instance.host, remote_kaapana_instance.instance_name, remote_kaapana_instance.token]:
+            raise HTTPException(
+                status_code=400, detail="Instance name, Host and Token must be defined!"
+            )
     if action == "create":
         db_remote_kaapana_instance = models.KaapanaInstance(
             instance_name=remote_kaapana_instance.instance_name,

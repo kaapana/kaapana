@@ -224,7 +224,11 @@ def check_file_namespace(filename: str) -> bool:
 
     # if any kubernetes resource (except hooks) is running under admin namespace, the check fails
     for resource in manifest:
-        if (resource is None) or ("metadata" not in resource) or ("namespace" not in resource["metadata"]):
+        if (
+            (resource is None)
+            or ("metadata" not in resource)
+            or ("namespace" not in resource["metadata"])
+        ):
             continue
 
         if resource["metadata"]["namespace"] == admin_namespace:

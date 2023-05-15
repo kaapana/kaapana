@@ -27,4 +27,4 @@ RUN cd /nnunet-pip-package && pip3 install ./
 
 RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt tensorboard==2.8.0
 
-WORKDIR /kaapana/app/
+WORKDIR /kaapana/app

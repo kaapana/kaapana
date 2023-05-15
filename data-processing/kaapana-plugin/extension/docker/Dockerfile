@@ -8,7 +8,7 @@ COPY files/dags/dag_delete_series_from_platform.py /kaapana/tmp/dags/
 COPY files/dags/dag_download_selected_files.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_extract_metadata.py /kaapana/tmp/dags/
 COPY files/dags/dag_collect_metadata.py /kaapana/tmp/dags/
-COPY files/dags/dag_convert_nifitis_to_dicoms_and_import_to_internal_pacs.py /kaapana/tmp/dags/
+COPY files/dags/dag_convert_niftis_to_dicoms_and_import_to_pacs.py /kaapana/tmp/dags/
 COPY files/dags/dag_send_dicom.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_process_incoming_dcm.py /kaapana/tmp/dags/
 COPY files/dags/dag_import_dicoms_in_zip_to_internal_pacs.py /kaapana/tmp/dags/

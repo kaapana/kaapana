@@ -261,6 +261,10 @@ def create_and_update_remote_kaapana_instance(
             raise HTTPException(
                 status_code=400, detail="Kaapana instance already exists!"
             )
+        if "" in [remote_kaapana_instance.host, remote_kaapana_instance.instance_name, remote_kaapana_instance.token]:
+            raise HTTPException(
+                status_code=400, detail="Instance name, Host and Token must be defined!"
+            )
     if action == "create":
         db_remote_kaapana_instance = models.KaapanaInstance(
             instance_name=remote_kaapana_instance.instance_name,
@@ -926,17 +930,13 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                     "Remote db_job --> created to be executed on remote instance!"
                 )
                 continue
-            # get db_job from db via 'run_id'
-            db_job = get_job(db, run_id=diff_db_job.run_id)
-            # get runner kaapana instance of db_job
-            if db_job is not None:
-                # update db_job w/ updated state
-                job_update = schemas.JobUpdate(
-                    **{
-                        "job_id": db_job.id,
-                    }
-                )
-                update_job(db, job_update, remote=False)
+            # update db_job w/ updated state
+            job_update = schemas.JobUpdate(
+                **{
+                    "job_id": diff_db_job.id,
+                }
+            )
+            update_job(db, job_update, remote=False)
     elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
         pass  # airflow and db in sync :)
     else:
@@ -1620,9 +1620,8 @@ def delete_workflow(db: Session, workflow_id: str):
 
     # iterate over jobs of to-be-deleted workflow
     for db_workflow_current_job in db_workflow.workflow_jobs:
-        delete_job(
-            db, job_id=db_workflow_current_job.id, remote=False
-        )  # deletes local and remote jobs
+        # deletes local and remote jobs
+        delete_job(db, job_id=db_workflow_current_job.id, remote=False)
 
     db.delete(db_workflow)
     db.commit()

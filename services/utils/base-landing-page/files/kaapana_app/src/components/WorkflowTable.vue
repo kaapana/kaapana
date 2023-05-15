@@ -2,7 +2,7 @@
   <v-card>
     <v-card-title>
       <v-col cols="4">
-        <p class="mx-4 my-2">Workflow Listttttttttttttttttt</p>
+        <p class="mx-4 my-2">Workflow List</p>
       </v-col>
       <v-col cols="4" align="right">
         <v-tooltip bottom>
@@ -261,7 +261,6 @@ methods: {
     }))
   },
   redirectToAirflow() {
-    console.log("window.location", window.location, "window.location.port", window.location.port)
     const airflow_url = window.location.origin + "/flow/home"
     window.open(airflow_url, "_blank", "noreferrer")
   },

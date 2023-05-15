@@ -234,7 +234,6 @@
 </template>
 
 <script lang="ts">
-
 import Vue from "vue";
 import request from "@/request";
 import kaapanaApiService from "@/common/kaapanaApi.service";
@@ -348,9 +347,6 @@ export default Vue.extend({
 </script>
 
 <style lang="scss">
-$kaapana-blue: rgba(0, 71, 156, 0.95);
-$kaapana-green: #ff7a20;
-
 #app {
   font-family: "Avenir", Helvetica, Arial, sans-serif;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -362,17 +358,9 @@ $kaapana-green: #ff7a20;
   color: #333;
 }
 
-.router-container {
-  //padding: 12px
-}
-
-// Example of colors
-.kaapana-blue {
-  color: $kaapana-blue;
-}
-
 .kaapana-iframe-container-side-navigation {
-  height: calc(100vh - 105px); // 105px: Calculated by substracting the height of the whole screen by the hight of the embedded iframe.
+  // 105px: Calculated by substracting the height of the whole screen by the hight of the embedded iframe.
+  height: calc(100vh - 105px);
 }
 
 .kaapana-iframe-container-top-navigation {
@@ -385,43 +373,5 @@ $kaapana-green: #ff7a20;
 
 .kapaana-top-navigation {
   min-height: calc(100vh - 81px - 56px);
-}
-
-.kaapana-headline {
-  font-size: 24px;
-  font-weight: 300px;
-}
-
-.kaapana-page-link {
-  color: black;
-  text-decoration: none;
-}
-
-.kaapana-card-prop {
-  padding: 10px;
-}
-
-.kaapana-intro-header {
-  position: relative;
-}
-
-// .kaapana-intro-header {
-//   min-height: calc(100vh - 105px);
-// }
-.kaapana-intro-header {
-  padding-top: 10px;
-  padding-bottom: 10px;
-  //color: white;
-  text-align: center;
-  //background: DeepSkyBlue;
-  background-size: cover;
-}
-
-.kaapana-opacity-card {
-  //background: rgba(255, 255, 255, 0.87) !important
-}
-
-.pa-0 {
-  padding: 0;
 }
 </style>

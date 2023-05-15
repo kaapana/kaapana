@@ -435,8 +435,9 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                     )
                     if len(dep) > 1 or len(tgz) > 1:
                         logger.error(
-                            f"ERROR in recently_updated_states dep or tgz, {dep=}, {tgz=}"
+                            f"ERROR in recently_updated_states dep or tgz, {dep.keys()}, {tgz.keys()}"
                         )
+                        logger.debug(f"{dep=}, {tgz=}")
                     extension_id, extension_dict = list(tgz.items())[0]
                     global_extensions_dict = add_extension_to_dict(
                         extension_id=extension_id,
@@ -742,7 +743,7 @@ def get_kube_objects(
 
         return states
 
-    logger.info(f"get_kube_objects for ({release_name=}, {helm_namespace=})")
+    logger.debug(f"get_kube_objects for ({release_name=}, {helm_namespace=})")
     success, stdout = execute_shell_command(
         f"{settings.helm_path} -n {helm_namespace} get manifest {release_name}"
     )

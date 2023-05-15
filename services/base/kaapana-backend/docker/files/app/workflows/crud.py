@@ -1466,8 +1466,12 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
 
     db_workflow = get_workflow(db, workflow.workflow_id)
 
-    if db_workflow.federated and workflow.workflow_status != "abort":
-        # federated workflow --> only restart orchestration job and not all jobs of workflow
+    if (
+        db_workflow.federated
+        and workflow.workflow_status != "abort"
+        and workflow.workflow_status != "confirmed"
+    ):
+        # federated workflow + workflow.workflow_status="scheduled" --> only restart orchestration job and not all jobs of workflow
         for workflow_job in db_workflow.workflow_jobs:
             if "external_schema_federated_form" in workflow_job.conf_data:
                 restart_job_id = workflow_job.id

@@ -197,6 +197,7 @@ export default {
     dag_id(value) {
       this.formData = {};
       if (value !== null) {
+        this.workflow_name = value;
         // not directly set to this.schemas to avoid rerendering of components
         // copied to avoid changing the original schemas
         let schemas = JSON.parse(JSON.stringify(this.schemas_dict[value]));
@@ -227,7 +228,6 @@ export default {
           }
         });
       }
-      this.workflow_name = value;
       // functions have to be called after the schemas are set
     },
     external_dag_id() {

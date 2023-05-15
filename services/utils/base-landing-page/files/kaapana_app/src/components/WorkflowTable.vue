@@ -261,7 +261,7 @@ methods: {
     }))
   },
   redirectToAirflow() {
-    const airflow_url = this.localInstance.protocol + "://" + this.localInstance.host + "/flow/home"
+    const airflow_url = window.location.origin + "/flow/home"
     window.open(airflow_url, "_blank", "noreferrer")
   },
   startWorkflowManually(item) {
@@ -407,7 +407,7 @@ methods: {
       }).then((response) => {
         this.loading = false
         // positive notification
-        const message = `Successfully manually started workflow ${workflow_id}`
+        const message = `Successfully manually started workflow ${workflow_id}` 
         this.$notify({
           type: "success",
           title: message,

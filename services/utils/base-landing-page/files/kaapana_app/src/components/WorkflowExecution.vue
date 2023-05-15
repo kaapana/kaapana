@@ -56,7 +56,7 @@
             <!-- don't do workflow_id rn-->
           </v-row>
           <!-- Data- and Workflow forms -->
-          <v-row :key="dag_id">
+          <v-row v-if="datasets_available" :key="dag_id">
             <v-col v-for="(schema, name) in schemas" cols="12">
               <!-- <p>{{name}}</p> -->
               <v-jsf
@@ -216,6 +216,18 @@ export default {
         this.schemas = {};
         this.external_dag_id = null;
       }
+      this.datasets_available = true;
+      if (this.schemas["data_form"] !== null ) {
+        Object.entries(this.schemas["data_form"]).forEach(([key, value]) => {
+          if ( key.startsWith("__emtpy__") ) {
+            this.datasets_available = false;
+            this.$notify({
+              type: "error",
+              title: "The selected runner instances have no common allowed datasets!",
+            });
+          }
+        });
+      }
       this.workflow_name = value;
       // functions have to be called after the schemas are set
     },
@@ -267,6 +279,7 @@ export default {
         // other stuff
         workflow_name: null, // or to ''
         showConfData: false,
+        datasets_available: true
       };
     },
     reset() {
@@ -326,6 +339,15 @@ export default {
     submissionValidator() {
       let valid_check = [];
       let invalid_fields = [];
+      if ( this.datasets_available !== true) {
+       // NOT all checks have been successful --> return false
+       const message = "The selected runner instances have no common allowed datasets!";
+        this.$notify({
+          type: "error",
+          title: message,
+        });
+        return false;
+      }
       if (this.$refs.executeWorkflow.validate()) {
         // validate dag_id and workflow_name in any cases
         // extract form name and attribute names of form_requiredFields

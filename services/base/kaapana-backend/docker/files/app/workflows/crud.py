@@ -520,8 +520,8 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     db_job = get_job(db, job.job_id, job.run_id)
 
-    # update jobs of own db which are remotely executed (def update_job() is in this case called from remote.py's def put_job())
-    if db_job.kaapana_instance.remote:
+    # update remote jobs in local db (def update_job() called from remote.py's def put_job() with remote=True)
+    if db_job.kaapana_instance.remote and remote:
         db_job.status = job.status
 
     if job.status == "scheduled" and db_job.kaapana_instance.remote == False:
@@ -1466,8 +1466,12 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
 
     db_workflow = get_workflow(db, workflow.workflow_id)
 
-    if db_workflow.federated and workflow.workflow_status != "abort":
-        # federated workflow --> only restart orchestration job and not all jobs of workflow
+    if (
+        db_workflow.federated
+        and workflow.workflow_status != "abort"
+        and workflow.workflow_status != "confirmed"
+    ):
+        # federated workflow + workflow.workflow_status="scheduled" --> only restart orchestration job and not all jobs of workflow
         for workflow_job in db_workflow.workflow_jobs:
             if "external_schema_federated_form" in workflow_job.conf_data:
                 restart_job_id = workflow_job.id

@@ -120,12 +120,11 @@
       </v-card-text>
       <v-card-actions v-if="available_dags.length">
         <v-spacer></v-spacer>
-        <v-btn color="primary" @click="submissionValidator()" dark="dark">
+        <v-btn color="primary" @click="submissionValidator()">
           Start Workflow
         </v-btn>
         <v-btn
           @click="isDialog ? cancel() : clearForm()"
-          dark="dark"
         >
           {{ this.isDialog ? "Cancel" : "Clear" }}
         </v-btn>

@@ -305,7 +305,7 @@ methods: {
     kaapanaApiService
       .federatedClientApiGet("/jobs",{
         workflow_name: workflow_name,
-        limit: 100,
+        // limit: 100,
       }).then((response) => {
         if (response.data.length !== 0) {
           this.loading = false

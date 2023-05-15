@@ -387,7 +387,12 @@ def ui_form_schemas(
             and "properties" in schemas["data_form"]
             and "dataset_name" in schemas["data_form"]["properties"]
         ):
-            schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = dataset_names
+            if len(dataset_names) < 1:
+                schemas["data_form"]["__emtpy__"] = "true"
+            else:
+                schemas["data_form"]["properties"]["dataset_name"][
+                    "oneOf"
+                ] = dataset_names
         schemas_dict[dag_id] = schemas
     # logging.info(f"\n\nFinal Schema: \n{schemas}")
     if filter_kaapana_instances.dag_id is None:

@@ -291,7 +291,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "count(up{job=\"node-exporter\"})",
+          "expr": "count(up{job=\"Node-Exporter\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -527,7 +527,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "count(up{job=\"node-exporter\"})",
+          "expr": "count(up{job=\"Node-Exporter\"})",
           "hide": false,
           "interval": "",
           "legendFormat": "Nodes",

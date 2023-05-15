@@ -2,7 +2,7 @@
   <v-card>
     <v-card-title>
       <v-col cols="4">
-        <p class="mx-4 my-2">Workflow List</p>
+        <p class="mx-4 my-2">Workflow Listttttttttttttttttt</p>
       </v-col>
       <v-col cols="4" align="right">
         <v-tooltip bottom>
@@ -261,7 +261,8 @@ methods: {
     }))
   },
   redirectToAirflow() {
-    const airflow_url = this.localInstance.protocol + "://" + this.localInstance.host + "/flow/home"
+    console.log("window.location", window.location, "window.location.port", window.location.port)
+    const airflow_url = window.location.origin + "/flow/home"
     window.open(airflow_url, "_blank", "noreferrer")
   },
   startWorkflowManually(item) {
@@ -407,7 +408,7 @@ methods: {
       }).then((response) => {
         this.loading = false
         // positive notification
-        const message = `Successfully manually started workflow ${workflow_id}`
+        const message = `Successfully manually started workflow ${workflow_id}` 
         this.$notify({
           type: "success",
           title: message,

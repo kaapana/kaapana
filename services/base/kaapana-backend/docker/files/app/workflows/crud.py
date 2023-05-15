@@ -520,8 +520,8 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     db_job = get_job(db, job.job_id, job.run_id)
 
-    # update jobs of own db which are remotely executed (def update_job() is in this case called from remote.py's def put_job())
-    if db_job.kaapana_instance.remote:
+    # update remote jobs in local db (def update_job() called from remote.py's def put_job() with remote=True)
+    if db_job.kaapana_instance.remote and remote:
         db_job.status = job.status
 
     if job.status == "scheduled" and db_job.kaapana_instance.remote == False:

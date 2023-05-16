@@ -12,7 +12,7 @@
   "realmRoles" : [ "default-roles-kaapana" ],
   "credentials" : [ {
     "type" : "password",
-    "value": "kaapana"
+    "value": "Kaapana2020!"
   } ],
   "groups": ["all_data"]
 }

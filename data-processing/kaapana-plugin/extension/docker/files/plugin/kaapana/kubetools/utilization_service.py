@@ -5,8 +5,12 @@ from pint import UnitRegistry
 from collections import defaultdict
 import os
 import logging
-from kaapana.kubetools.prometheus_query import get_node_gpu_infos
-from subprocess import PIPE, run, Popen
+from kaapana.kubetools.prometheus_query import (
+    get_node_gpu_infos,
+    get_node_requested_memory,
+    get_node_memory,
+)
+from subprocess import Popen, check_output
 
 # from subprocess import STDOUT, check_output
 from kubernetes.client.models.v1_container_image import V1ContainerImage
@@ -14,6 +18,8 @@ from kubernetes.client.models.v1_container_image import V1ContainerImage
 # Not imported from kaapana.blueprints.kaapana_global_variables because inside the kaapana_global_variables the get_pool method is called which results in the error "sqlalchemy.exc.ResourceClosedError: This Connection is closed " because UtilService is imported in scheduler_job.py of Airflow...
 
 GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
+node_requested_memory = None
+default_memory_offset = 2000
 
 
 class UtilService:
@@ -88,6 +94,8 @@ class UtilService:
 
     @staticmethod
     def get_utilization(logger=logging):
+        global node_requested_memory, default_memory_offset
+
         logger.info("UtilService -> get_utilization")
 
         data = {}
@@ -254,17 +262,34 @@ class UtilService:
                     else []
                 )
 
-            pool_id = "NODE_RAM"
-            processing_memory_node = abs(UtilService.mem_alloc - UtilService.mem_req)
-            if UtilService.pool_mem == None:
-                # if UtilService.pool_mem == None or UtilService.pool_mem != processing_memory_node:
+            tmp_node_requested_memory = get_node_requested_memory(logger=logger)
+            if node_requested_memory != tmp_node_requested_memory:
+                node_memory = get_node_memory(logger=logger)
+                print(f"{node_memory=}")
+                new_processing_memory = abs(
+                    node_memory - tmp_node_requested_memory - default_memory_offset
+                )
+                print(f"{new_processing_memory=}")
+                pool_id = "NODE_RAM"
                 UtilService.create_pool(
                     pool_name=pool_id,
-                    pool_slots=processing_memory_node,
+                    pool_slots=new_processing_memory,
                     pool_description="Pool for the available nodes RAM memory in MB",
                     logger=logger,
                 )
-                UtilService.pool_mem = processing_memory_node
+                node_requested_memory = tmp_node_requested_memory
+
+            # pool_id = "NODE_RAM"
+            # processing_memory_node = abs(UtilService.mem_alloc - UtilService.mem_req)
+            # if UtilService.pool_mem == None:
+            #     # if UtilService.pool_mem == None or UtilService.pool_mem != processing_memory_node:
+            #     UtilService.create_pool(
+            #         pool_name=pool_id,
+            #         pool_slots=processing_memory_node,
+            #         pool_description="Pool for the available nodes RAM memory in MB",
+            #         logger=logger,
+            #     )
+            #     UtilService.pool_mem = processing_memory_node
 
             pool_id = "NODE_CPU_CORES"
             if (

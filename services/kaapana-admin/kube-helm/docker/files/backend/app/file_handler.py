@@ -87,8 +87,10 @@ async def filepond_upload_stream(
         async for chunk in request.stream():
             f.write(chunk)
     if ulength == str(fpath.stat().st_size):
+        logger.debug(f"filepond upload completed {fpath}")
         # upload completed
         try:
+            logger.debug(f"{patch=}, {filepond_dict=}")
             object_name = filepond_dict[patch]
             target_path = Path(settings.helm_extensions_cache) / object_name.strip("/")
             target_path.parents[0].mkdir(parents=True, exist_ok=True)
@@ -220,8 +222,15 @@ def check_file_namespace(filename: str) -> bool:
 
     admin_namespace = default_sets["global.admin_namespace"]
 
-    # if any kubernetes resource (except hooks) is running under admin namespace, check is failed
+    # if any kubernetes resource (except hooks) is running under admin namespace, the check fails
     for resource in manifest:
+        if (
+            (resource is None)
+            or ("metadata" not in resource)
+            or ("namespace" not in resource["metadata"])
+        ):
+            continue
+
         if resource["metadata"]["namespace"] == admin_namespace:
             logger.error(
                 f"Uploaded chart {filename} has a Kubernetes resource {resource} which contains admin_namespace"

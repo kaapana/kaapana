@@ -119,7 +119,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_requests{unit=\"core\",namespace!=\"flow-jobs\"}) / sum(machine_cpu_cores)",
+          "expr": "sum(kube_pod_container_resource_requests{unit=\"core\",namespace!=\"jobs\"}) / sum(machine_cpu_cores)",
           "hide": false,
           "legendFormat": "Requests",
           "range": true,
@@ -131,7 +131,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_limits{unit=\"core\",namespace!=\"flow-jobs\"}) / sum(machine_cpu_cores)",
+          "expr": "sum(kube_pod_container_resource_limits{unit=\"core\",namespace!=\"jobs\"}) / sum(machine_cpu_cores)",
           "hide": false,
           "legendFormat": "Limits",
           "range": true,
@@ -215,7 +215,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(kube_pod_container_resource_requests{unit=\"byte\",namespace!=\"flow-jobs\"}) / sum(machine_memory_bytes)",
+          "expr": "sum(kube_pod_container_resource_requests{unit=\"byte\",namespace!=\"jobs\"}) / sum(machine_memory_bytes)",
           "hide": false,
           "interval": "",
           "legendFormat": "Requests",
@@ -229,7 +229,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(kube_pod_container_resource_limits{unit=\"byte\",namespace!=\"flow-jobs\"}) / sum(machine_memory_bytes)",
+          "expr": "sum(kube_pod_container_resource_limits{unit=\"byte\",namespace!=\"jobs\"}) / sum(machine_memory_bytes)",
           "hide": false,
           "interval": "",
           "legendFormat": "Limits",
@@ -291,7 +291,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "count(up{job=\"node-exporter\"})",
+          "expr": "count(up{job=\"Node-Exporter\"})",
           "interval": "",
           "legendFormat": "",
           "refId": "A"
@@ -527,7 +527,7 @@
             "uid": "${datasource}"
           },
           "exemplar": true,
-          "expr": "count(up{job=\"node-exporter\"})",
+          "expr": "count(up{job=\"Node-Exporter\"})",
           "hide": false,
           "interval": "",
           "legendFormat": "Nodes",
@@ -661,7 +661,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_requests{unit=\"core\",namespace!=\"flow-jobs\"})",
+          "expr": "sum(kube_pod_container_resource_requests{unit=\"core\",namespace!=\"jobs\"})",
           "hide": false,
           "legendFormat": "Requests",
           "range": true,
@@ -673,7 +673,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_limits{unit=\"core\",namespace!=\"flow-jobs\"})",
+          "expr": "sum(kube_pod_container_resource_limits{unit=\"core\",namespace!=\"jobs\"})",
           "hide": false,
           "legendFormat": "Limits",
           "range": true,
@@ -760,7 +760,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_requests{unit=\"byte\",namespace!=\"flow-jobs\"})",
+          "expr": "sum(kube_pod_container_resource_requests{unit=\"byte\",namespace!=\"jobs\"})",
           "hide": false,
           "legendFormat": "Requests",
           "range": true,
@@ -772,7 +772,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(kube_pod_container_resource_limits{unit=\"byte\",namespace!=\"flow-jobs\"})",
+          "expr": "sum(kube_pod_container_resource_limits{unit=\"byte\",namespace!=\"jobs\"})",
           "hide": false,
           "legendFormat": "Limits",
           "range": true,

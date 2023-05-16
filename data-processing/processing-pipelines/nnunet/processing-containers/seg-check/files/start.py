@@ -32,8 +32,8 @@ skipped_dict = {"segmentation_files": [], "base_images": []}
 def get_seg_info(input_nifti):
     print(f"# Get seg configuration for: {basename(input_nifti)}")
     model_id = (
-        f"{basename(input_nifti).replace('.nii.gz','').split('--')[-1]}"
-        if "--" in basename(input_nifti)
+        f"{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}"
+        if "-" in basename(input_nifti)
         else ""
     )
     existing_configuration = None

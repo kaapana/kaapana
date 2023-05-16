@@ -947,12 +947,28 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         logging.error("Error while syncing kaapana-backend with Airflow")
 
 
+global_service_jobs = {}
+
+
 def create_and_update_service_workflows_and_jobs(
     db: Session,
     diff_job_dagid: str = None,
     diff_job_runid: str = None,
     status: str = None,
 ):
+    # additional security buffer to check if current incoming service-job already exists
+    # check if service-workflow buffer already exists in global_service_jobs dict
+    if diff_job_dagid not in global_service_jobs:
+        # if not: add service-workflow buffer
+        global_service_jobs[diff_job_dagid] = []
+    # check if current incoming service-job is already in buffer
+    if diff_job_runid in global_service_jobs[diff_job_dagid]:
+        # if yes: current incoming service-job will be created in backend --> return
+        return
+    else:
+        # if not: add current incoming service-job to buffer and continue with creating it
+        global_service_jobs[diff_job_dagid].append(diff_job_runid)
+
     # get local kaapana instance
     db_local_kaapana_instance = get_kaapana_instance(db)
 

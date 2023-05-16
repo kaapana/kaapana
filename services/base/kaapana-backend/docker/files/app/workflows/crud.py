@@ -961,9 +961,15 @@ def create_and_update_service_workflows_and_jobs(
     if diff_job_dagid not in global_service_jobs:
         # if not: add service-workflow buffer
         global_service_jobs[diff_job_dagid] = []
+        logging.info(
+            f"CRUD def create_and_update_service_workflows_and_jobs() add new service-workflow to service-job-buffer mechanism: {diff_job_dagid}"
+        )
     # check if current incoming service-job is already in buffer
     if diff_job_runid in global_service_jobs[diff_job_dagid]:
         # if yes: current incoming service-job will be created in backend --> return
+        logging.warn(
+            f"CRUD def create_and_update_service_workflows_and_jobs() PREVENTED service-jobs from being scheduled twice: {diff_job_runid}"
+        )
         return
     else:
         # if not: add current incoming service-job to buffer and continue with creating it

@@ -1216,7 +1216,7 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
 
     if dataset.action == "ADD":
         for identifier in db_identifiers:
-            if identifier not in db_dataset:
+            if identifier not in db_dataset.identifiers:
                 db_dataset.identifiers.append(identifier)
     elif dataset.action == "DELETE":
         for identifier in db_identifiers:

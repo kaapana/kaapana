@@ -1220,7 +1220,7 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
                 db_dataset.identifiers.append(identifier)
     elif dataset.action == "DELETE":
         for identifier in db_identifiers:
-            db_dataset.remove(identifier)
+            db_dataset.identifiers.remove(identifier)
     elif dataset.action == "UPDATE":
         db_dataset.identifiers = db_identifiers
     else:

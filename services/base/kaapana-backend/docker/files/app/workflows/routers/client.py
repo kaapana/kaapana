@@ -449,12 +449,23 @@ def get_datasets(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_datasets(
+    db_objs = crud.get_datasets(
         db,
         instance_name,
         limit=limit,
         username=request.headers["x-forwarded-preferred-username"],
     )
+
+    return [
+        schemas.Dataset(
+            name=db_obj.name,
+            time_created=db_obj.time_created,
+            time_updated=db_obj.time_updated,
+            username=db_obj.username,
+            identifiers=[x.id for x in db_obj.identifiers],
+        )
+        for db_obj in db_objs
+    ]
 
 
 @router.put("/dataset", response_model=schemas.Dataset)

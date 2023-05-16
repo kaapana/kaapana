@@ -14,7 +14,7 @@ from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
 from sqlalchemy import desc
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 from urllib3.util import Timeout
 
@@ -261,7 +261,11 @@ def create_and_update_remote_kaapana_instance(
             raise HTTPException(
                 status_code=400, detail="Kaapana instance already exists!"
             )
-        if "" in [remote_kaapana_instance.host, remote_kaapana_instance.instance_name, remote_kaapana_instance.token]:
+        if "" in [
+            remote_kaapana_instance.host,
+            remote_kaapana_instance.instance_name,
+            remote_kaapana_instance.token,
+        ]:
             raise HTTPException(
                 status_code=400, detail="Instance name, Host and Token must be defined!"
             )
@@ -1093,6 +1097,19 @@ def sync_n_clean_qsr_jobs_with_airflow(db: Session, periodically=False):
         update_job(db, job_update, remote=False)
 
 
+def create_or_get_identifier(db: Session, identifier: string) -> models.Identifier:
+    try:
+        return db.query(models.Identifier).filter_by(id=identifier).one()
+    except NoResultFound:
+        try:
+            with db.begin_nested():
+                instance = models.Identifier(id=identifier)
+                db.add(instance)
+                return instance
+        except IntegrityError:
+            return db.query(models.Identifier).filter_by(id=identifier).one()
+
+
 def create_dataset(db: Session, dataset: schemas.DatasetCreate):
     logging.debug(f"Creating Dataset: {dataset.name}")
 
@@ -1115,10 +1132,12 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate):
 
     utc_timestamp = get_utc_timestamp()
 
+    db_identifiers = [create_or_get_identifier(db, idx) for idx in dataset.identifiers]
+
     db_dataset = models.Dataset(
         username=dataset.username,
         name=dataset.name,
-        identifiers=json.dumps(dataset.identifiers),
+        identifiers=db_identifiers,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
     )
@@ -1193,20 +1212,17 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
         )
         logging.debug(f"Dataset {dataset.name} created.")
 
+    db_identifiers = [create_or_get_identifier(db, idx) for idx in dataset.identifiers]
+
     if dataset.action == "ADD":
-        db_dataset.identifiers = json.dumps(
-            list(set(dataset.identifiers + json.loads(db_dataset.identifiers)))
-        )
+        for identifier in db_identifiers:
+            if identifier not in db_dataset:
+                db_dataset.identifiers.append(identifier)
     elif dataset.action == "DELETE":
-        db_dataset.identifiers = json.dumps(
-            [
-                identifier
-                for identifier in json.loads(db_dataset.identifiers)
-                if identifier not in dataset.identifiers
-            ]
-        )
+        for identifier in db_identifiers:
+            db_dataset.remove(identifier)
     elif dataset.action == "UPDATE":
-        db_dataset.identifiers = json.dumps(dataset.identifiers)
+        db_dataset.identifiers = db_identifiers
     else:
         raise ValueError(f"Invalid action {dataset.action}")
 
@@ -1332,7 +1348,7 @@ def queue_generate_jobs_and_add_to_workflow(
             dataset_name = conf_data["data_form"]["dataset_name"]
             if not db_kaapana_instance.remote:
                 db_dataset = get_dataset(db, dataset_name)
-                identifiers = json.loads(db_dataset.identifiers)
+                identifiers = [idx.id for idx in db_dataset.identifiers]
             else:
                 allowed_datasets = json.loads(db_kaapana_instance.allowed_datasets)
                 for dataset_info in allowed_datasets:

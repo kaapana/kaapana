@@ -434,12 +434,26 @@ def create_dataset(
             ],
         )
     dataset.username = request.headers["x-forwarded-preferred-username"]
-    return crud.create_dataset(db=db, dataset=dataset)
+    db_obj = crud.create_dataset(db=db, dataset=dataset)
+    return schemas.Dataset(
+        name=db_obj.name,
+        time_created=db_obj.time_created,
+        time_updated=db_obj.time_updated,
+        username=db_obj.username,
+        identifiers=[x.id for x in db_obj.identifiers],
+    )
 
 
 @router.get("/dataset", response_model=schemas.Dataset)
 def get_dataset(name: str, db: Session = Depends(get_db)):
-    return crud.get_dataset(db, name)
+    db_obj = crud.get_dataset(db, name)
+    return schemas.Dataset(
+        name=db_obj.name,
+        time_created=db_obj.time_created,
+        time_updated=db_obj.time_updated,
+        username=db_obj.username,
+        identifiers=[x.id for x in db_obj.identifiers],
+    )
 
 
 @router.get("/datasets", response_model=List[schemas.Dataset])
@@ -449,17 +463,35 @@ def get_datasets(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_datasets(
+    db_objs = crud.get_datasets(
         db,
         instance_name,
         limit=limit,
         username=request.headers["x-forwarded-preferred-username"],
     )
 
+    return [
+        schemas.Dataset(
+            name=db_obj.name,
+            time_created=db_obj.time_created,
+            time_updated=db_obj.time_updated,
+            username=db_obj.username,
+            identifiers=[x.id for x in db_obj.identifiers],
+        )
+        for db_obj in db_objs
+    ]
+
 
 @router.put("/dataset", response_model=schemas.Dataset)
 def put_dataset(dataset: schemas.DatasetUpdate, db: Session = Depends(get_db)):
-    return crud.update_dataset(db, dataset)
+    db_obj = crud.update_dataset(db, dataset)
+    return schemas.Dataset(
+        name=db_obj.name,
+        time_created=db_obj.time_created,
+        time_updated=db_obj.time_updated,
+        username=db_obj.username,
+        identifiers=[x.id for x in db_obj.identifiers],
+    )
 
 
 @router.delete("/dataset")

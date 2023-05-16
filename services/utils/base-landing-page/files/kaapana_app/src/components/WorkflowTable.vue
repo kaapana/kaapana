@@ -240,6 +240,7 @@ methods: {
           this.expanded = []
           this.filteredJobState = undefined
           this.expandedWorkflow = ''
+          this.loading = false
         } else {
           this.shouldCollapse = true
           this.loading = false

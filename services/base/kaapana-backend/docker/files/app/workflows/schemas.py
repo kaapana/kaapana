@@ -192,18 +192,7 @@ class Dataset(DatasetBase):
     time_created: datetime.datetime
     time_updated: datetime.datetime
     username: str = None
-    identifiers: Optional[str]
-
-    @validator("identifiers")
-    def convert_identifiers(cls, v):
-        return json.loads(v)
-
-    @validator("time_created")
-    def convert_time_created(cls, v):
-        if isinstance(v, datetime.datetime):
-            return v
-        else:
-            return datetime.datetime.timestamp(v)
+    identifiers: Optional[List[str]]
 
     @validator("time_updated")
     def convert_time_updated(cls, v):
@@ -218,11 +207,7 @@ class Dataset(DatasetBase):
 
 class AllowedDatasetCreate(DatasetBase):
     username: str = None
-    identifiers: Optional[str]
-
-    @validator("identifiers")
-    def convert_identifiers(cls, v):
-        return json.loads(v)
+    identifiers: Optional[List[str]]
 
     class Config:
         orm_mode = True

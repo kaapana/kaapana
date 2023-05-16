@@ -12,6 +12,7 @@ prometheus_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prome
 
 memory_query = "floor(sum(machine_memory_bytes)/1048576)"
 mem_util_per_query = 'sum (container_memory_working_set_bytes{id="/"}) / sum (machine_memory_bytes) * 100'
+memory_requeted_services = "round(sum(kube_pod_container_resource_requests{unit='byte',namespace!='jobs'})/1000000)"
 
 cpu_core_query = "machine_cpu_cores"
 cpu_util_per_query = 'sum (rate (container_cpu_usage_seconds_total{id="/"}[1m])) / sum (machine_cpu_cores) * 100'
@@ -119,6 +120,18 @@ def get_node_memory(logger=None):
         return None
 
     return node_memory
+
+
+def get_node_requested_memory(logger=None):
+    node_requested_memory, success = get_node_info(query=memory_requeted_services)
+    if not success:
+        if logger != None:
+            logger.error(
+                f"+++++++++ Could not fetch node-info: get_node_requested_memory"
+            )
+        return None
+
+    return node_requested_memory
 
 
 def get_node_mem_percent(logger=None):

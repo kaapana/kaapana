@@ -263,7 +263,7 @@ if __name__ == "__main__":
                 logger.info(f"Check if model already present: {check_file_path}")
                 if exists(check_file_path):
                     logger.info(
-                        f"{task_id} already exisis @{check_file_path} -> skipping"
+                        f"{task_id} already exists @{check_file_path} -> skipping"
                     )
                     success_count += 1
                     continue

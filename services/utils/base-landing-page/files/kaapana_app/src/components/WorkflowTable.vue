@@ -56,9 +56,15 @@
       :loading="loading"
       loading-text="Request is processed - wait a few seconds."
     >
+      <template v-slot:item.time_created="{ item }">
+        {{ new Date(item.time_created).toLocaleString() }}
+      </template>
+      <template v-slot:item.time_updated="{ item }">
+        {{ new Date(item.time_updated).toLocaleString() }}
+      </template>
       <template v-slot:item.status="{ item }">
         <v-chip
-          v-for="state in getStatesColorMap(item)"
+          v-for="state in getStatesColorMap(item, $vuetify.theme.dark)"
           :color="state.color"
           class="ml-1 my-chip"
           dense
@@ -239,14 +245,14 @@ methods: {
       this.shouldExpand = true
       }
   },
-  getStatesColorMap(item) {
+  getStatesColorMap(item, darkTheme) {
     const states = item.workflow_jobs // .map(job => job.status)
     const colorMap = {
       'queued': 'grey',
       'scheduled': 'blue',
       'pending': 'orange',
       'running': 'green',
-      'finished': 'black',
+      'finished': darkTheme ? 'blue-grey': 'black' ,
       'failed': 'red'
     }
     return Object.entries(colorMap).map(([state, color]) => ({
@@ -255,7 +261,7 @@ methods: {
     }))
   },
   redirectToAirflow() {
-    const airflow_url = this.localInstance.protocol + "://" + this.localInstance.host + "/flow/home"
+    const airflow_url = window.location.origin + "/flow/home"
     window.open(airflow_url, "_blank", "noreferrer")
   },
   startWorkflowManually(item) {
@@ -299,7 +305,7 @@ methods: {
     kaapanaApiService
       .federatedClientApiGet("/jobs",{
         workflow_name: workflow_name,
-        limit: 100,
+        // limit: 100,
       }).then((response) => {
         if (response.data.length !== 0) {
           this.loading = false
@@ -401,7 +407,7 @@ methods: {
       }).then((response) => {
         this.loading = false
         // positive notification
-        const message = `Successfully manually started workflow ${workflow_id}`
+        const message = `Successfully manually started workflow ${workflow_id}` 
         this.$notify({
           type: "success",
           title: message,

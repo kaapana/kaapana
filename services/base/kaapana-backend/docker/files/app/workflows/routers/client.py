@@ -357,9 +357,8 @@ def ui_form_schemas(
             )
         datasets[db_kaapana_instance.instance_name] = allowed_dataset
 
-    if (
-        len(datasets) > 1
-    ):  # if multiple instances are selected -> find intersection of their allowed datasets
+    if len(datasets) > 1:
+        # if multiple instances are selected -> find intersection of their allowed datasets
         overall_allowed_datasets = []
         for i in range(len(datasets) - 1):
             if len(overall_allowed_datasets) == 0:
@@ -372,9 +371,8 @@ def ui_form_schemas(
                     set(overall_allowed_datasets) & set(list1)
                 )
         dataset_names = [{"const": d, "title": d} for d in overall_allowed_datasets]
-    elif (
-        len(datasets) == 1
-    ):  # if just one instance is selected -> return (allowed) datasets of this instance
+    elif len(datasets) == 1:
+        # if just one instance is selected -> return (allowed) datasets of this instance
         dataset_names = [
             {"const": d, "title": d + f" ({dataset_size[d]})"}
             for d in list(datasets.values())[0]
@@ -389,7 +387,12 @@ def ui_form_schemas(
             and "properties" in schemas["data_form"]
             and "dataset_name" in schemas["data_form"]["properties"]
         ):
-            schemas["data_form"]["properties"]["dataset_name"]["oneOf"] = dataset_names
+            if len(dataset_names) < 1:
+                schemas["data_form"]["__emtpy__"] = "true"
+            else:
+                schemas["data_form"]["properties"]["dataset_name"][
+                    "oneOf"
+                ] = dataset_names
         schemas_dict[dag_id] = schemas
     # logging.info(f"\n\nFinal Schema: \n{schemas}")
     if filter_kaapana_instances.dag_id is None:
@@ -624,7 +627,10 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
 
         # update aborted workflow
         return crud.update_workflow(db, workflow)
-    elif workflow.workflow_status == "scheduled":
+    elif (
+        workflow.workflow_status == "scheduled"
+        or workflow.workflow_status == "confirmed"
+    ):
         return crud.update_workflow(db, workflow)
     else:
         raise HTTPException(

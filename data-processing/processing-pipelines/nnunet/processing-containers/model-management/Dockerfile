@@ -4,6 +4,8 @@ LABEL IMAGE="nnunet-model-management"
 LABEL VERSION="0.0.0"
 LABEL CI_IGNORE="False"
 
-COPY files/start.py /
+WORKDIR /kaapana/app
 
-CMD ["python3","-u","/start.py"]
+COPY files/start.py /kaapana/app
+
+CMD ["python3","-u","/kaapana/app/start.py"]

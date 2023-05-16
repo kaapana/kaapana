@@ -94,7 +94,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="convert-nifitis-to-dicoms-and-import-to-internal-pacs",
+    dag_id="convert-nifitis-to-dicoms-and-import-to-pacs",
     default_args=args,
     schedule_interval=None,
 )

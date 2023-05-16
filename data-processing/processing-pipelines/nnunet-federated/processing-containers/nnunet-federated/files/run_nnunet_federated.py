@@ -15,7 +15,7 @@ from nnunet.experiment_planning.DatasetAnalyzer import DatasetAnalyzer
 from batchgenerators.utilities.file_and_folder_operations import join
 import os, psutil
 
-sys.path.insert(0, "../")
+sys.path.insert(0, "/")
 sys.path.insert(0, "/kaapana/app")
 from kaapana_federated.KaapanaFederatedTraining import (
     KaapanaFederatedTrainingBase,

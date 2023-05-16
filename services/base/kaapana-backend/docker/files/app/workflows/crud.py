@@ -988,10 +988,13 @@ def create_and_update_service_workflows_and_jobs(
         logging.debug(f"Updated service workflow: {db_service_workflow}")
     else:
         # if no: compose WorkflowCreate to create service-workflow ...
+        workflow_id = (
+            f"{''.join([substring[0] for substring in db_job.dag_id.split('-')])}"
+        )
         workflow_create = schemas.WorkflowCreate(
             **{
-                "workflow_id": f"ID-{''.join([substring[0] for substring in db_job.dag_id.split('-')])}",
-                "workflow_name": f"{db_job.dag_id}-service-workflow",
+                "workflow_id": workflow_id,
+                "workflow_name": f"{workflow_id}-{db_job.dag_id}",
                 "kaapana_instance_id": db_local_kaapana_instance.id,
                 "dag_id": db_job.dag_id,
                 "service_workflow": True,

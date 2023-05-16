@@ -348,9 +348,7 @@ def ui_form_schemas(
                 db, username=username
             )  # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
             allowed_dataset = [ds.name for ds in client_datasets]
-            dataset_size = {
-                ds.name: len(json.loads(ds.identifiers)) for ds in client_datasets
-            }
+            dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
         else:
             allowed_dataset = list(
                 ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)

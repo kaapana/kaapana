@@ -2,63 +2,63 @@
 dependencies:
   - name: kaapana-platform-chart
     version: 0.0.0
-  - name: bodypartregression-workflow
-    version: 0.0.0
-  - name: podman-chart # lives here before build script can handle the code-server as dependency
+  - name: kaapana-plugin-chart
     version: 0.0.0
   - name: code-server-chart
     version: 0.0.0
-  - name: debug-container-chart
-    version: 0.0.0
-  - name: doccano
-    version: 0.0.0
-  - name: doccano-image-tagging-workflow
-    version: 0.0.0
-  - name: example-workflow
+  - name: jupyterlab-chart
     version: 0.0.0
   - name: federated-setup-central-test-workflow
     version: 0.0.0
   - name: federated-setup-node-test-workflow
     version: 0.0.0
-  - name: hello-backend-chart
+  - name: mitk-workbench-chart
     version: 0.0.0
-  - name: hello-world-chart
-    version: 0.0.0
-  - name: jupyterlab-chart
-    version: 0.0.0
-  - name: kaapana-plugin-chart
-    version: 0.0.0
-  - name: mhub-models-workflow
+  - name: slicer-workbench-chart
     version: 0.0.0
   - name: mitk-flow-chart
     version: 0.0.0 
   - name: mitk-flow-workflow
     version: 0.0.0
-  - name: mitk-workbench-chart
+  - name: bodypartregression-workflow
     version: 0.0.0
   - name: nnunet-workflow
     version: 0.0.0
+  - name: total-segmentator-workflow
+    version: 0.0.0
   - name: nnunet-federated-workflow
-    version: 0.0.0
-  - name: openedc-chart
-    version: 0.0.0
-  - name: otsus-method-workflow
     version: 0.0.0
   - name: radiomics-workflow
     version: 0.0.0
   - name: radiomics-federated-workflow
     version: 0.0.0
+  - name: shapemodel-workflow
+    version: 0.0.0
   - name: rateme-workflow
     version: 0.0.0
   - name: rateme-chart
     version: 0.0.0
-  - name: shapemodel-workflow
-    version: 0.0.0
-  - name: slicer-workbench-chart
-    version: 0.0.0
   - name: tensorboard-chart
-    version: 0.0.0
-  - name: total-segmentator-workflow
     version: 0.0.0
   - name: kaapana-persistence-chart
     version: 0.0.0
+  - name: mhub-models-workflow
+    version: 0.0.0
+  - name: debug-container-chart
+    version: 0.0.0
+  # - name: openedc-chart
+  #   version: 0.0.0
+  # - name: hello-backend-chart
+  #   version: 0.0.0
+  # - name: hello-world-chart
+  #   version: 0.0.0
+  # - name: doccano
+  #   version: 0.0.0
+  # - name: otsus-method-workflow
+  #   version: 0.0.0
+  # - name: doccano-image-tagging-workflow
+  #   version: 0.0.0
+  # - name: example-workflow
+  #   version: 0.0.0
+  # - name: podman-chart # lives here before build script can handle the code-server as dependency
+  #   version: 0.0.0

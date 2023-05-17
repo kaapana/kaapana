@@ -37,24 +37,33 @@ minio_upload_mapping_dict = dict()
 UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
 
 
+def remove_outdated_tmp_files(search_dir):
+    max_hours_tmp_files = 24
+    files_grabbed = (p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".json", ".tmp"})
+
+    for file_found in files_grabbed:
+        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))).total_seconds() / 3600)
+        if hours_since_creation > max_hours_tmp_files:
+            logging.warning(f"File {file_found} outdated -> delete")
+            try:
+                os.remove(file_found)
+                pass
+            except Exception as e:
+                logging.warning(f"Something went wrong with the removal of {file_found} .. ")
+
+
 @router.post("/minio-file-upload")
 async def post_minio_file_upload(request: Request):
     global minio_upload_mapping_dict
     form = await request.form()
     patch = str(uuid.uuid4())
     dict_fpath = Path(UPLOAD_DIR) / "minio_upload_mapping_dict.json"
+    remove_outdated_tmp_files(UPLOAD_DIR)
 
-    # if there is already a file
     if dict_fpath.exists():
-        max_hours_mapping_dict = 24
-        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(dict_fpath))).total_seconds() / 3600)
-        if hours_since_creation > max_hours_mapping_dict:
-            # delete if it's last modified some time ago
-            os.remove(dict_fpath)
-        else:
-            # if it's recent, read the file into the dict
-            with open(dict_fpath, "r") as fp:
-                minio_upload_mapping_dict = json.load(fp)
+        # if the file is not removed (i.e. recent), read it into the dict
+        with open(dict_fpath, "r") as fp:
+            minio_upload_mapping_dict = json.load(fp)
     minio_upload_mapping_dict.update({patch: json.loads(form["filepond"])["filepath"]})
 
     # write it back
@@ -73,11 +82,6 @@ async def post_minio_file_upload(request: Request, patch: str):
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
     fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
-    if fpath.exists():
-        # TODO: delete before release
-        logging.debug(
-            f"{patch=}, {minio_upload_mapping_dict=} completed {str(fpath.stat().st_size)} / {ulength} , process: {os.getpid()}"
-        )
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
             f.write(chunk)

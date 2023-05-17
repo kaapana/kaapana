@@ -31,7 +31,7 @@ spec:
             - '--entrypoints.web.address=:{{ .Values.global.http_port }}'
             - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
             - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
-            - '--entrypoints.websecure.http.middlewares={{  .Values.global.helm_namespace  }}-auth-check@kubernetescrd'
+            - '--entrypoints.websecure.http.middlewares={{  .Values.global.helm_namespace  }}-auth-check@kubernetescrd,{{  .Values.global.admin_namespace  }}-cors-middleware@kubernetescrd'
             - '--entrypoints.websecure.address=:{{ .Values.global.https_port }}'
             - '--entryPoints.websecure.http.tls=true'
             - '--entrypoints.dicom.Address=:11112'

@@ -4,6 +4,7 @@ import json
 import yaml
 import uuid
 from pathlib import Path
+from datetime import datetime, timedelta
 
 from typing import Tuple
 from fastapi import UploadFile, WebSocket, WebSocketDisconnect, Form, Request
@@ -72,8 +73,30 @@ global filepond_dict
 filepond_dict = dict()
 
 
+def remove_outdated_tmp_files(search_dir):
+    max_hours_tmp_files = 24
+    files_grabbed = (p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".json", ".tmp"})
+
+    for file_found in files_grabbed:
+        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))).total_seconds() / 3600)
+        if hours_since_creation > max_hours_tmp_files:
+            logger.warning(f"File {file_found} outdated -> delete")
+            try:
+                os.remove(file_found)
+                pass
+            except Exception as e:
+                logger.warning(f"Something went wrong with the removal of {file_found} .. ")
+
+
 def filepond_init_upload(form: Form) -> str:
+    global filepond_dict
     patch = str(uuid.uuid4())
+    dict_fpath = Path(settings.helm_extensions_cache) / "extension_filepond_dict.json"
+    remove_outdated_tmp_files(settings.helm_extensions_cache)
+    if dict_fpath.exists():
+        # if the file is not removed (i.e. recent), read it into the dict
+        with open(dict_fpath, "r") as fp:
+            filepond_dict = json.load(fp)
     filepond_dict.update({patch: json.loads(form["filepond"])["filepath"]})
     return patch
 
@@ -82,6 +105,7 @@ def filepond_init_upload(form: Form) -> str:
 async def filepond_upload_stream(
     request: Request, patch: str, ulength: str, uname: str
 ) -> Tuple[str, bool]:
+    global filepond_dict
     fpath = Path(settings.helm_extensions_cache) / f"{patch}.tmp"
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
@@ -90,6 +114,12 @@ async def filepond_upload_stream(
         logger.debug(f"filepond upload completed {fpath}")
         # upload completed
         try:
+            dict_fpath = Path(settings.helm_extensions_cache) / "extension_filepond_dict.json"
+            if dict_fpath.exists():
+                with open(dict_fpath, "r") as fp:
+                    filepond_dict = json.load(fp)
+            else:
+                logger.error(f"upload mapping dictionary file {dict_fpath} does not exist, using the global variable (not thread-safe)")
             logger.debug(f"{patch=}, {filepond_dict=}")
             object_name = filepond_dict[patch]
             target_path = Path(settings.helm_extensions_cache) / object_name.strip("/")

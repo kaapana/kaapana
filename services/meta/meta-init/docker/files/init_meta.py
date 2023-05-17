@@ -19,62 +19,57 @@ logging.basicConfig(
 
 
 def import_dashboards():
-    global dashboards_url, dashboards_json_file, osd_xsrf, tries
+    global dashboards_url, export_ndjson_path, osd_xsrf, tries
     print("#")
-    print(f"# -> Importing dashboards from {dashboards_json_file} ...")
+    print(f"# -> Importing dashboards from {export_ndjson_path} ...")
     print("#")
-    with open(dashboards_json_file) as f:
-        all_dashboards = json.load(f)
+    time.sleep(5)
 
-    for dashboard in all_dashboards:
-        if tries > 5:
-            print("# ")
-            print(f"# Too many tries: {tries} -> abort.")
-            exit(1)
+    files = {
+        "file": open(export_ndjson_path, "rb"),
+    }
+    if tries > 5:
+        print("# ")
+        print(f"# Too many tries: {tries} -> abort.")
+        exit(1)
 
-        try:
-            dashboard_source = dashboard["_source"]
-            response = requests.post(
-                f"{dashboards_url}/api/saved_objects/{dashboard['_type']}/{dashboard['_id']}?overwrite=true",
-                data='{"attributes":'
-                + json.JSONEncoder().encode(dashboard_source)
-                + "}",
-                verify=False,
-                headers=osd_xsrf,
-            )
+    try:
+        response = requests.post(
+            f"{dashboards_url}/api/saved_objects/_import",
+            headers={"osd-xsrf": "true"},
+            files=files,
+        )
 
-            if response.status_code == 200:
-                print(f"# {dashboard_source['title']}: OK!")
-                print("#")
-
-            elif response.text == "OpenSearch Dashboards server is not ready yet":
-                print("#")
-                print("# -> OpenSearch Dashboards server is not ready yet")
-                print("# waiting ...")
-                tries += 1
-                time.sleep(10)
-                print("# restart import_dashboards() ...")
-                import_dashboards()
-                return
-
-            else:
-                print("#")
-                print(f"# Could not import dashboard: {dashboard_source['title']}")
-                print(response.text)
-                print("#")
-                exit(1)
-        except Exception as e:
-            logging.error(traceback.format_exc())
+        if response.status_code == 200:
+            print(f"# {export_ndjson_path}: OK!")
             print("#")
-            print(
-                f"# Could not import dashboard: {dashboard_source['title']} -> Exception"
-            )
+
+        elif response.text == "OpenSearch Dashboards server is not ready yet":
             print("#")
-            tries += 1
+            print("# -> OpenSearch Dashboards server is not ready yet")
             print("# waiting ...")
+            tries += 1
             time.sleep(10)
             print("# restart import_dashboards() ...")
             import_dashboards()
+            return
+
+        else:
+            print("#")
+            print(f"# Could not import dashboard: {export_ndjson_path}")
+            print(response.text)
+            print("#")
+            exit(1)
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        print("#")
+        print(f"# Could not import dashboard: {export_ndjson_path} -> Exception")
+        print("#")
+        tries += 1
+        print("# waiting ...")
+        time.sleep(10)
+        print("# restart import_dashboards() ...")
+        import_dashboards()
 
     print("#")
     print("#")
@@ -272,7 +267,7 @@ if __name__ == "__main__":
     os_host = os.getenv("OS_HOST", None)
     os_port = os.getenv("OS_PORT", None)
     dashboards_url = os.getenv("DASHBOARDS_URL", None)
-    dashboards_json_file = os.getenv("DASHBOARDS_JSON", None)
+    export_ndjson_path = os.getenv("EXPORT_NDJSON", None)
 
     print("#")
     print("# Configuration:")
@@ -283,10 +278,10 @@ if __name__ == "__main__":
     print(f"# os_host:         {os_host}")
     print(f"# os_port:         {os_port}")
     print(f"# dashboards_url:  {dashboards_url}")
-    print(f"# dashboards_json: {dashboards_json_file}")
     print(f"# init_dashboards: {init_dashboards}")
     print(f"# init_os:         {init_os}")
     print("#")
+    print(f"# export_ndjson_path: {export_ndjson_path}")
     print("#")
 
     if domain is None:

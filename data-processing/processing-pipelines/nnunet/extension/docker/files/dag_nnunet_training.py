@@ -31,7 +31,7 @@ seg_filter = ""
 prep_modalities = "CT"
 default_model = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
-ae_title = "nnUnet-results"
+ae_title = "nnUnet-training-results"
 max_epochs = 1000
 num_batches_per_epoch = 250
 num_val_batches_per_epoch = 50
@@ -350,8 +350,6 @@ dcmseg_send_pdf = DcmSendOperator(
     dag=dag,
     parallel_id="pdf",
     level="batch",
-    pacs_host=f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc",
-    pacs_port="11112",
     ae_title=ae_title,
     input_operator=pdf2dcm,
 )
@@ -389,8 +387,6 @@ bin2dcm = Bin2DcmOperator(
 dcm_send_int = DcmSendOperator(
     dag=dag,
     level="batch",
-    pacs_host=f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc",
-    pacs_port="11112",
     ae_title=ae_title,
     input_operator=bin2dcm,
 )

@@ -17,7 +17,7 @@ concurrency = max_active_runs * 2
 default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
-
+ae_title = "nnUnet-predict-results"
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
 
 properties_template = {
@@ -206,7 +206,9 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name=alg_name,
 )
 
-dcmseg_send_multi = DcmSendOperator(dag=dag, input_operator=nrrd2dcmSeg_multi)
+dcmseg_send_multi = DcmSendOperator(
+    dag=dag, ae_title=ae_title, input_operator=nrrd2dcmSeg_multi
+)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_task_model >> nnunet_predict

@@ -5,6 +5,8 @@ import random
 import string
 import uuid
 import shutil
+import os
+from datetime import datetime, timedelta
 from typing import List, Union
 import asyncio
 from threading import Thread
@@ -37,24 +39,58 @@ UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
 
 @router.post("/minio-file-upload")
 async def post_minio_file_upload(request: Request):
+    global minio_upload_mapping_dict
     form = await request.form()
     patch = str(uuid.uuid4())
+    dict_fpath = Path(UPLOAD_DIR) / "minio_upload_mapping_dict.json"
+
+    # if there is already a file
+    if dict_fpath.exists():
+        max_hours_mapping_dict = 24
+        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(dict_fpath))).total_seconds() / 3600)
+        if hours_since_creation > max_hours_mapping_dict:
+            # delete if it's last modified some time ago
+            os.remove(dict_fpath)
+        else:
+            # if it's recent, read the file into the dict
+            with open(dict_fpath, "r") as fp:
+                minio_upload_mapping_dict = json.load(fp)
     minio_upload_mapping_dict.update({patch: json.loads(form["filepond"])["filepath"]})
-    # return Response(content=json.loads(form["filepond"])["filepath"])
+
+    # write it back
+    with open(dict_fpath, "w") as fp:
+        json.dump(minio_upload_mapping_dict, fp)
+
+    logging.debug(f"post_minio_file_upload returns {patch=}")
+    logging.debug(f"{minio_upload_mapping_dict=}")
     return Response(content=patch)
 
 
 @router.patch("/minio-file-upload")
 async def post_minio_file_upload(request: Request, patch: str):
+    global minio_upload_mapping_dict
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
     fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    if fpath.exists():
+        # TODO: delete before release
+        logging.debug(
+            f"{patch=}, {minio_upload_mapping_dict=} completed {str(fpath.stat().st_size)} / {ulength} , process: {os.getpid()}"
+        )
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
             f.write(chunk)
     if ulength == str(fpath.stat().st_size):
+        logging.info(f"filepond upload completed {fpath}")
         try:
+            dict_fpath = Path(UPLOAD_DIR) / "minio_upload_mapping_dict.json"
+            if dict_fpath.exists():
+                with open(dict_fpath, "r") as fp:
+                    minio_upload_mapping_dict = json.load(fp)
+            else:
+                logging.error(f"upload mapping dictionary file {dict_fpath} does not exist, using the global variable (not thread-safe)")
+            logging.info(f"{patch=}, {minio_upload_mapping_dict=}")
             object_name = minio_upload_mapping_dict[patch]
             target_path = Path(UPLOAD_DIR) / object_name.strip("/")
             target_path.parents[0].mkdir(parents=True, exist_ok=True)

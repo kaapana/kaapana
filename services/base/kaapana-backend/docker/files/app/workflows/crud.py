@@ -947,12 +947,37 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         logging.error("Error while syncing kaapana-backend with Airflow")
 
 
+global_service_jobs = {}
+
+
 def create_and_update_service_workflows_and_jobs(
     db: Session,
     diff_job_dagid: str = None,
     diff_job_runid: str = None,
     status: str = None,
 ):
+    # additional security buffer to check if current incoming service-job already exists
+    # check if service-workflow buffer already exists in global_service_jobs dict
+    if diff_job_dagid not in global_service_jobs:
+        # if not: add service-workflow buffer
+        global_service_jobs[diff_job_dagid] = []
+        logging.info(
+            f"Add new service-workflow to service-job-buffer mechanism: {diff_job_dagid}"
+        )
+    # to keep service-workflow lists of gloval_service_jobs small, check whether list exceeds 200 elements, if yes remove oldest 100 elements
+    if len(global_service_jobs[diff_job_dagid]) > 200:
+        del global_service_jobs[diff_job_dagid][0:99]
+    # check if current incoming service-job is already in buffer
+    if diff_job_runid in global_service_jobs[diff_job_dagid]:
+        # if yes: current incoming service-job will be created in backend --> return
+        logging.warn(
+            f"Prevented service-jobs from being scheduled multiple times: {diff_job_runid}"
+        )
+        return
+    else:
+        # if not: add current incoming service-job to buffer and continue with creating it
+        global_service_jobs[diff_job_dagid].append(diff_job_runid)
+
     # get local kaapana instance
     db_local_kaapana_instance = get_kaapana_instance(db)
 
@@ -988,10 +1013,13 @@ def create_and_update_service_workflows_and_jobs(
         logging.debug(f"Updated service workflow: {db_service_workflow}")
     else:
         # if no: compose WorkflowCreate to create service-workflow ...
+        workflow_id = (
+            f"{''.join([substring[0] for substring in db_job.dag_id.split('-')])}"
+        )
         workflow_create = schemas.WorkflowCreate(
             **{
-                "workflow_id": f"ID-{''.join([substring[0] for substring in db_job.dag_id.split('-')])}",
-                "workflow_name": f"{db_job.dag_id}-service-workflow",
+                "workflow_id": workflow_id,
+                "workflow_name": f"{workflow_id}-{db_job.dag_id}",
                 "kaapana_instance_id": db_local_kaapana_instance.id,
                 "dag_id": db_job.dag_id,
                 "service_workflow": True,

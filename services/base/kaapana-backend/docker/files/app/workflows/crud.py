@@ -962,13 +962,16 @@ def create_and_update_service_workflows_and_jobs(
         # if not: add service-workflow buffer
         global_service_jobs[diff_job_dagid] = []
         logging.info(
-            f"CRUD def create_and_update_service_workflows_and_jobs() add new service-workflow to service-job-buffer mechanism: {diff_job_dagid}"
+            f"Add new service-workflow to service-job-buffer mechanism: {diff_job_dagid}"
         )
+    # to keep service-workflow lists of gloval_service_jobs small, check whether list exceeds 200 elements, if yes remove oldest 100 elements
+    if len(global_service_jobs[diff_job_dagid]) > 200:
+        del global_service_jobs[diff_job_dagid][0:99]
     # check if current incoming service-job is already in buffer
     if diff_job_runid in global_service_jobs[diff_job_dagid]:
         # if yes: current incoming service-job will be created in backend --> return
         logging.warn(
-            f"CRUD def create_and_update_service_workflows_and_jobs() PREVENTED service-jobs from being scheduled twice: {diff_job_runid}"
+            f"Prevented service-jobs from being scheduled multiple times: {diff_job_runid}"
         )
         return
     else:

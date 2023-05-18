@@ -1,4 +1,4 @@
-FROM local-only/base-mitk-phenotyping:2021-02-18
+FROM local-only/base-mitk-phenotyping:latest
 
 LABEL IMAGE="mitk-radiomics"
 LABEL VERSION="2021-02-18"
@@ -9,6 +9,6 @@ ENV BATCHES_INPUT_DIR /input
 ENV OPERATOR_IN_DIR initial-input
 ENV OPERATOR_OUT_DIR radiomics
 
-COPY files/radiomics.sh /kaapanasrc/
+COPY files/radiomics.sh /kaapana/app/
 
-CMD ["/bin/bash", "/kaapanasrc/radiomics.sh"]
+CMD ["/bin/bash", "/kaapana/app/radiomics.sh"]

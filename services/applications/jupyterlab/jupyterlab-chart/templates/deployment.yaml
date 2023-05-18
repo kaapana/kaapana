@@ -1,31 +1,24 @@
-{{- $uuid := uuidv4 | trunc 10 }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: jupyterlab-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
   labels:
     k8s-app: jupyterlab
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: "jupyterlab-{{ $uuid }}"
+      app-name: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app-name: "jupyterlab-{{ $uuid }}"
+        app-name: {{ .Release.Name }}
     spec:
-      # securityContext:
-      #   runAsUser: 1000
       containers:
       - name: jupyterlab
-        {{- if not .Values.image }}
-        image: {{ .Values.global.registry_url }}/jupyterlab:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__3.3.2
-        {{- else }}
-        image: {{ .Values.image }}
-        {{- end }}
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        image: "{{ tpl .Values.global.complete_image . }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         command: ["/bin/bash"]
         args: ["/jupyterlab.sh"]
         resources:
@@ -38,86 +31,16 @@ spec:
           containerPort: 8888
         env:
         - name: INGRESS_PATH
-          value: "/jupyterlab-{{ $uuid }}"
-        {{- range $envVar := .Values.envVars }}
-        - name: {{ $envVar.name }}
-          value: "{{ $envVar.value }}"
-        {{- end }}
+          value: {{ printf "/%s" (tpl .Values.global.ingress_path .) }}
+{{ include "dynamicEnvs" $ | indent 8 }}
         volumeMounts:
-          {{- if not .Values.volumeMounts }}
-          - name: jupyterlabdata
-            mountPath: /kaapanasrc
-          {{- else }}
           - name: dshm
             mountPath: /dev/shm
-          {{- end }}
-          {{- range $volumeMount := .Values.volumeMounts }}
-          - name: {{ $volumeMount.name }}
-            mountPath: "{{ $volumeMount.mountPath }}"
-          {{- end }}
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:
-      {{- if not .Values.volumes }}
-      - name: jupyterlabdata
-        hostPath:
-          {{- if .Values.mount_path }}
-          path: {{ .Values.mount_path }}
-          {{- else if .Values.global.slow_mount_path }}
-          path: {{ .Values.global.slow_data_dir }}{{ .Values.global.slow_mount_path }}
-          {{- else if .Values.global.fast_mount_path }}
-          path: {{ .Values.global.fast_data_dir }}{{ .Values.global.fast_mount_path }}
-          {{- else }}
-          path: {{ .Values.global.fast_data_dir }}/jupyterlab
-          {{- end }}
-          type: DirectoryOrCreate
-      {{- else }}
+{{ include "dynamicVolumes" $ | indent 6 }}
       - name: dshm
         emptyDir:
           medium: Memory
-      {{- end }}
-      {{- range $volume := .Values.volumes }}
-      - name: {{ $volume.name }}
-        hostPath:
-          path: "{{ $volume.path }}"
-          type: DirectoryOrCreate
-      {{- end }}
       imagePullSecrets:
       - name: registry-secret
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: "jupyterlab-{{ $uuid }}"
-  namespace: {{ .Values.global.base_namespace }}
-spec:
-  selector:
-    app-name: "jupyterlab-{{ $uuid }}"
-  ports:
-    - protocol: TCP
-      port: 8888
-      targetPort: jupyterlab-http
-      name: log-http-port
-  type: ClusterIP
----
-apiVersion: networking.k8s.io/v1 
-kind: Ingress
-metadata:
-  name: "jupyterlab-{{ $uuid }}"
-  namespace: {{ .Values.global.base_namespace }}
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd
-    traefik.ingress.kubernetes.io/preserve-host: "true"
-    #traefik.frontend.rule.type: PathPrefixStrip
-spec:
-  rules:
-  - host: 
-    http:
-      paths:
-      - path: "/jupyterlab-{{ $uuid }}"
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: "jupyterlab-{{ $uuid }}"
-            port:
-              name: log-http-port
----

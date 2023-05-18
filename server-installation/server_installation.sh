@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euf -o pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 # check if stdout is a terminal
 if test -t 1; then
 
@@ -37,54 +39,28 @@ else
     WHITE=""
 fi
 
-# TODO for offline installation
-apply_microk8s_image_export() {
-    IMAGE=$1
-    if [[ $IMAGE != "REF" ]];
-    then
-        if [[ $IMAGE != sha* ]];
-        then
-            echo "${GREEN}Pulling $IMAGE"
-            microk8s ctr image pull --all-platforms $IMAGE
-        fi
-        echo "${GREEN}Exporting $IMAGE"
-        microk8s ctr images export $DUMP_TAR_DIR/microk8s_images/${IMAGE//\//@} $IMAGE
-    fi
-    return 0
-}
-
-export -f apply_microk8s_image_export
-
-apply_microk8s_image_import() {
-    IMAGE=$1
-    BASE_NAME=(${IMAGE//:/ })
-    BASE_NAME=${BASE_NAME[0]}
-    echo Uploading $IMAGE
-    
-    microk8s ctr images import --base-name ${BASE_NAME//@/\/} $TAR_LOCATION/microk8s_images/$IMAGE
-}
-
-export -f apply_microk8s_image_import
-
 function proxy_environment {
-    
     echo "${YELLOW}Checking proxy settings ...${NC}"
-    
-    if [ ! -v http_proxy ]; then
-        echo "${RED}No proxy has been found!${NC}"
-        while true; do
-            read -p "Is this correct and you don't need a proxy?" yn
-                case $yn in
-                    [Yy]* ) break;;
-                    [Nn]* ) echo "please configure your system proxy (http_proxy + https_proxy -> /etc/environment)" && exit;;
-                    * ) echo "Please answer yes or no.";;
-                esac
-        done
+    if [ ! "$QUIET" = "true" ];then
+        if [ ! -v http_proxy ]; then
+            echo "${RED}No proxy has been found!${NC}"
+            while true; do
+                read -p "Is this correct and you don't need a proxy?" yn
+                    case $yn in
+                        [Yy]* ) break;;
+                        [Nn]* ) echo "please configure your system proxy (http_proxy + https_proxy -> /etc/environment)" && exit;;
+                        * ) echo "Please answer yes or no.";;
+                    esac
+            done
+        else
+            echo "${GREEN}Proxy ok!${NC}"
+            no_proxy_environment
+        fi
     else
-        echo "${GREEN}Proxy ok!${NC}"
-        no_proxy_environment
+        echo "QUIET = true";
     fi
 }
+
 
 function no_proxy_environment {
     echo "${GREEN}Checking no_proxy settings${NC}"
@@ -125,7 +101,7 @@ function no_proxy_environment {
 function install_packages_almalinux {
     echo "${YELLOW}Check packages...${NC}"
     if [ -x "$(command -v snap)" ] && [ -x "$(command -v jq)" ]; then
-        echo "${GREEN}Dependencies ok.${NC}"
+        echo "${GREEN}Snap installed.${NC}"
     else
 
         echo "${YELLOW}Enable epel-release${NC}"
@@ -174,7 +150,7 @@ function install_packages_almalinux {
 
 function install_packages_ubuntu {
     if [ -x "$(command -v nano)" ] && [ -x "$(command -v jq)" ] && [ -x "$(command -v snap)" ]; then
-        echo "${GREEN}Dependencies ok.${NC}"
+        echo "${GREEN}snap,nano and jq already installed.${NC}"
     else
         echo "${YELLOW}Check if apt is locked ...${NC}"
         i=0
@@ -255,57 +231,138 @@ function insert_text {
     return $rc
 }
 
+function install_core18 {
+    echo "${YELLOW}Checking if core18 is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep core18 ;
+    then
+        echo ""
+        echo "${GREEN}core18 is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}core18 is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> core18 offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/core18.snap
+            assert_path=$SCRIPT_DIR/core18.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}Core18 will be automatically installed ...${NC}"
+        fi
+    fi
+}
+
+function install_helm {
+    if command -v helm &> /dev/null
+    then
+        echo ""
+        echo "${GREEN}Helm is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}Helm is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> Helm offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/helm.snap
+            assert_path=$SCRIPT_DIR/helm.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}Installing Helm v$DEFAULT_HELM_VERSION ...${NC}"
+            snap install helm --classic --channel=$DEFAULT_HELM_VERSION
+        fi
+    fi
+}
+
+function dns_check {
+    if [ ! -z "$DNS" ]; then
+        echo "${GREEN}${NC}"
+        echo "${GREEN}DNS has been manually configured to '$DNS' ...${NC}"
+        echo "${GREEN}${NC}"
+    else
+        if [ "$OFFLINE_SNAPS" != "true" ];then
+            echo "${GREEN}Checking server DNS settings ...${NC}"
+            if command -v nslookup dkfz.de &> /dev/null
+            then
+                echo "${GREEN}DNS lookup was successful ...${NC}"
+            else
+                echo ""
+                echo "${RED}DNS lookup failed -> please check your servers DNS configuration ...${NC}"
+                echo "${RED}You can test it with: 'nslookup dkfz.de'${NC}"
+                echo ""
+                exit 1
+            fi
+        fi
+
+        set +e
+        echo "${GREEN}Get DNS settings nmcli ...${NC}"
+        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+        if [ -z "$DNS" ]; then
+            echo "${RED}FAILED -> Get DNS settings resolvectl status ...${NC}"
+            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+            if [ -z "$DNS" ]; then
+                echo "${RED}FAILED -> Get DNS settings systemd-resolve ...${NC}"
+                DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+                if [[ -z $DNS ]] && [ "$OFFLINE_SNAPS" = "true" ]; then
+                    DNS="8.8.8.8,8.8.4.4"
+                fi
+            fi
+        fi
+        if [ -z "${DNS}" ]; then
+            echo "${RED}DNS lookup failed.${NC}"
+            exit 1
+        else
+            ## Format DNS to be a comma separated list of IP addresses without spaces and newlines
+            DNS=$(echo -e $DNS | tr -s ' \n,' ',' | sed 's/,$/\n/')
+            echo "${YELLOW}Identified DNS: $DNS ${NC}"
+        fi
+        set -e
+    fi
+}
+
 function install_microk8s {
     if command -v microk8s &> /dev/null
     then
         echo ""
-        echo "${GREEN}microk8s already installed ...${NC}"
+        echo "${GREEN}microk8s is already installed ...${NC}"
         echo "${GREEN}-> skipping installation ${NC}"
         echo ""
         echo ""
         echo "${GREEN}If you want to start-over use the --uninstall parameter first! ${NC}"
         echo ""
         echo ""
+        exit 0
     else
-        echo "${YELLOW}microk8s not installed -> start installation ${NC}"
+        echo "${YELLOW}microk8s is not installed -> start installation ${NC}"
+        dns_check
         
-        if [ ! -z "$OFFLINE_TAR_PATH" ]; then
-            echo "${RED}-> HAS TO BE CHECKED FIRST! ${NC}"
-            exit 1
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> offline installation! ${NC}"
 
-            # echo "${YELLOW} -> offline installation! ${NC}"
-            # TAR_LOCATION=$(dirname "$OFFLINE_TAR_PATH")/$(basename "$OFFLINE_TAR_PATH" .tar.gz)
-            # export TAR_LOCATION
-            # echo $TAR_LOCATION
-            # echo Unpacking $OFFLINE_TAR_PATH to $TAR_LOCATION
-            # tar -xvf $OFFLINE_TAR_PATH -C  $(dirname "$TAR_LOCATION")
-            # set +euf
-            # core_digits=$(find $TAR_LOCATION/core* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zcore_\/.]//g | head -1)        
-            # microk8s_digits=$(find $TAR_LOCATION/microk8s* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zmicrok8s_\/.]//g | head -1)  
-            # helm_digits=$(find $TAR_LOCATION/helm* -maxdepth 0 -not -type d -printf "%f\n" | sed -e s/[a-zhelm_\/.]//g | head -1)  
-            # set -euf
-            # echo "${YELLOW}Installing core...${NC}"
-            # snap ack $TAR_LOCATION/core_${core_digits}.assert
-            # snap install $TAR_LOCATION/core_${core_digits}.snap
-            # echo "${YELLOW}Installing microk8s...${NC}"
-            # snap ack $TAR_LOCATION/microk8s_${microk8s_digits}.assert
-            # snap install --classic  $TAR_LOCATION/microk8s_${microk8s_digits}.snap
-            # echo "${YELLOW}Installing Helm...${NC}"
-            # snap ack $TAR_LOCATION/helm_${helm_digits}.assert
-            # snap install --classic  $TAR_LOCATION/helm_${helm_digits}.snap
+            echo "${YELLOW}Installing microk8s...${NC}"
+            snap_path=$SCRIPT_DIR/microk8s.snap
+            assert_path=$SCRIPT_DIR/microk8s.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
             
-            # echo "${YELLOW}Wait until microk8s is ready...${NC}"
-            # microk8s.status --wait-ready
-            # echo Importing Images from $TAR_LOCATION/microk8s_images
-            # ls $TAR_LOCATION/microk8s_images | xargs -I {} bash -c 'apply_microk8s_image_import "$@"' _ {}
-            # rm -r $TAR_LOCATION
+            snap ack $assert_path
+            snap install --classic $snap_path
+            MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
+            echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
+            [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
+            echo "${RED}This can take a long time! -> please be patient and wait. ${NC}"
+            microk8s.ctr images import $MICROK8S_BASE_IMAGES_TAR_PATH
+            echo "${GREEN}Microk8s offline installation done!${NC}"
         else
             echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
             snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
-            
-            echo "${YELLOW}Installing Helm v$DEFAULT_HELM_VERSION ...${NC}"
-            snap install helm --classic --channel=$DEFAULT_HELM_VERSION
         fi
+
         echo "${YELLOW}Stopping microk8s for configuration ...${NC}"
         microk8s.stop
 
@@ -344,7 +401,7 @@ function install_microk8s {
         echo "${YELLOW}Enable microk8s RBAC ...${NC}"
         microk8s.enable rbac
 
-        echo "${YELLOW}Enable microk8s DNS ...${NC}"
+        echo "${YELLOW}Enable microk8s DNS: '$DNS' ...${NC}"
         microk8s.enable dns:$DNS
 
         echo "${YELLOW}Waiting for DNS to be ready ...${NC}"
@@ -354,33 +411,14 @@ function install_microk8s {
         mkdir -p $USER_HOME/.kube
 
         echo "${YELLOW}Export Kube-Config to $USER_HOME/.kube/config ...${NC}"
-        microk8s.kubectl config view --raw > $USER_HOME/.kube/config
+        microk8s.kubectl config view --raw | tee $USER_HOME/.kube/config
         chmod 600 $USER_HOME/.kube/config
 
         if [ "$REAL_USER" != "root" ]; then
             echo "${YELLOW} Setting non-root permissions ...${NC}"
             sudo usermod -a -G microk8s $REAL_USER
-            sudo chown -f -R $REAL_USER $USER_HOME/.kube
+            sudo chown -f -R $REAL_USER:$REAL_USER $USER_HOME/.kube
         fi
-
-        # TODO Offline Installation
-        # if [ "$PREPARE_OFFLINE_SNAP" = "true" ];then
-        #     DUMP_TAR_DIR=snap_offline_microk8s_${DEFAULT_MICRO_VERSION//\//@}_helm_${DEFAULT_HELM_VERSION//\//@}
-        #     export DUMP_TAR_DIR
-        #     mkdir -p $DUMP_TAR_DIR
-        #     mkdir -p $DUMP_TAR_DIR/microk8s_images
-        #     enable_gpu
-        #     microk8s.ctr images ls | awk {'print $1'} | xargs -I {} bash -c 'apply_microk8s_image_export "$@"' _ {}
-        #     snap download core --target-directory $DUMP_TAR_DIR
-        #     snap download microk8s  --channel=$DEFAULT_MICRO_VERSION --target-directory $DUMP_TAR_DIR
-        #     snap download helm --channel=$DEFAULT_HELM_VERSION --target-directory $DUMP_TAR_DIR
-        #     tar -czvf $DUMP_TAR_DIR.tar.gz $DUMP_TAR_DIR
-        #     rm -r $DUMP_TAR_DIR
-        #     snap remove microk8s
-        #     snap remove helm
-        #     exit 0
-        # fi
-        
 
         echo ""
         echo ""
@@ -396,8 +434,7 @@ function install_microk8s {
             echo ""
         fi
         echo ""
-        echo "${YELLOW}Then continue with the platform deployment script.${NC}"
-        
+        echo "${GREEN}You can now continue with the platform deployment script.${NC}"
         echo ""
         echo ""
         echo ""
@@ -405,11 +442,6 @@ function install_microk8s {
     echo ""
     echo "${GREEN} DONE ${NC}"
     echo ""
-}
-
-function change_version {
-    echo "${YELLOW}Switching to K8s version $DEFAULT_MICRO_VERSION ${NC}"
-    snap refresh microk8s --channel $DEFAULT_MICRO_VERSION --classic
 }
 
 function uninstall {
@@ -426,45 +458,6 @@ function uninstall {
     echo ""
 
 }
-
-function install_certs {
-    echo -e "Checking if Kubectl is installed..."
-    command -v microk8s.kubectl >/dev/null 2>&1 || {
-    echo -e >&2 "${RED}Kubectl has to be installed for this script - but it's not installed.  Aborting.${NC}";
-    exit 1; }
-    echo -e "${GREEN}OK!${NC}"
-
-
-    echo -e "Checking if correct Kubectl config is in place..."
-    microk8s.kubectl get pods --all-namespaces
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Server connection - OK!${NC}"
-    else
-        echo -e "${RED}Kubectl could not communicate with the server.${NC}"
-        echo -e "${RED}Have a look at the output, ${NC}"
-        echo -e "${RED}Check if the correct server certificate file is in place @ ~/.kube/config, ${NC}"
-        echo -e "${RED}Check if the IP address in the certificate matches the IP address of the server ${NC}"
-        echo -e "${RED}and try again.${NC}"
-        exit 1
-    fi
-
-    if [ ! -f ./tls.key ] || [ ! -f ./tls.crt ]; then
-        echo -e "${RED}tls.key or tls.crt could not been found in this directory.${NC}"
-        echo -e "${RED}Please rename and copy the files first!${NC}"
-        exit 1
-    else
-        echo -e "files found!"
-        echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n kube-system || true
-        microk8s.kubectl create secret tls certificate --namespace kube-system --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n kube-system |grep oauth2-proxy  | awk '{print $1;}')
-        echo "auth_proxy_pod: $auth_proxy_pod"
-        microk8s.kubectl -n kube-system delete pod $auth_proxy_pod
-    fi
-
-    echo -e "${GREEN}DONE${NC}"
-}
-
 
 OS_PRESENT=$(awk -F= '/^NAME/{print $2}' /etc/os-release)
 OS_PRESENT="${OS_PRESENT%\"}"
@@ -486,20 +479,20 @@ echo -e "${GREEN}REAL_USER: $REAL_USER ${NC}";
 echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
 echo ""
 
+DEFAULT_MICRO_VERSION=1.26/stable
+DEFAULT_HELM_VERSION=latest/stable
+
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
-_Flag: -gpu --enable-gpu     will activate gpu support for kubernetes (default: false)
-_Flag: -q   --quiet          will activate quiet mode (default: false)
-_Flag:      --install-certs  set new HTTPS-certificates for the platform
-_Flag: -sv  --switch-version will switch the Kubernetes version to [-v version]
-_Flag:      --uninstall      removes microk8s and helm from the system
+_Flag: -gpu --enable-gpu will activate gpu support for kubernetes (default: false)
+_Flag: -q   --quiet      will activate quiet mode (default: false)
+_Flag:      --uninstall  removes microk8s and helm from the system
+_Flag:      --offline    offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
 
 _Argument: -v --version [opt]
 where opt is:
-    1.22/stable --> for Kubernetes v1.22
-    1.23/stable --> for Kubernetes v1.23
-    default: 1.23/stable
+    default: $DEFAULT_MICRO_VERSION
 
 _Argument: -os --operating-system [opt]
 where opt is:
@@ -508,11 +501,8 @@ where opt is:
     default: $OS_PRESENT"
 
 QUIET=NA
-PREPARE_OFFLINE_SNAP=NA
-OFFLINE_TAR_PATH=""
-DEFAULT_MICRO_VERSION=1.23/stable
-DEFAULT_HELM_VERSION=3.7/stable
-DNS="8.8.8.8,8.8.4.4"
+OFFLINE_SNAPS=NA
+DNS=""
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -552,21 +542,9 @@ do
             shift # past argument
         ;;
 
-        -sv|--switch-version)
-            OS_PRESENT="SWITCHVERSION"
-            shift # past argument
-        ;;
-        
-        --offline-tar-path)
-            OFFLINE_TAR_PATH="$2"
-            echo -e "${GREEN}SET OFFLINE_TAR_PATH: $OFFLINE_TAR_PATH !${NC}";
-            shift # past argument
-            shift # past value
-        ;;
-
-        --prepare-offline-snap)
-            PREPARE_OFFLINE_SNAP=true
-            echo -e "${GREEN}SET PREPARE_OFFLINE_SNAP: $PREPARE_OFFLINE_SNAP !${NC}";
+        --offline)
+            OFFLINE_SNAPS=true
+            echo -e "${GREEN}SET OFFLINE_SNAPS: $OFFLINE_SNAPS !${NC}";
             shift # past argument
         ;;
 
@@ -585,12 +563,6 @@ do
             exit 0
         ;;
 
-
-        --install-certs)
-            install_certs
-            exit 0
-        ;;
-
         *)    # unknown option
             echo -e "${RED}UNKNOWN ARGUMENT: $key!${NC}";
             echo -e "$usage";
@@ -605,6 +577,8 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
         proxy_environment
         install_packages_almalinux
+        install_core18
+        install_helm
         install_microk8s
     ;;
 
@@ -612,12 +586,9 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting Ubuntu installation...${NC}";
         proxy_environment
         install_packages_ubuntu
+        install_core18
+        install_helm
         install_microk8s
-    ;;
-
-    "SWITCHVERSION")
-    change_version
-        
     ;;
 
     "GPUSUPPORT")

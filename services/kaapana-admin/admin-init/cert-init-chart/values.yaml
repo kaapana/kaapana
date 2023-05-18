@@ -1,0 +1,11 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+  tls_secret:
+    name: "certificate"
+    common_name: "kaapana"
+    expiration: 365
+  namespace: "{{ .Values.global.admin_namespace }}"
+  dynamicVolumes:
+  - name: tls
+    host_path: /tls

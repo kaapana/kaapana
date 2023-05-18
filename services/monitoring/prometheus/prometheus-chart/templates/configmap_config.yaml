@@ -25,17 +25,24 @@ data:
         - targets: ['nvidia-dcgm-exporter.gpu-operator-resources.svc:9400']
     {{- end }}
 
+      - job_name: 'Kaapana Node Info'
+        scheme: http
+        scrape_interval: 60s
+        metrics_path: '/monitoring/metrics/scrape'
+        static_configs:
+        - targets: ['kaapana-backend-service.{{  .Values.global.services_namespace  }}.svc:5000']
+
       - job_name: 'prometheus'
         scheme: http
         metrics_path: '/prometheus/metrics'
         static_configs:
-        - targets: ['prometheus-service.monitoring.svc:9090']
+        - targets: ['prometheus-service.{{  .Values.global.services_namespace  }}.svc:9090']
 
       - job_name: 'oAuth2-proxy'
         scheme: https
         metrics_path: '/oauth2/metrics'
         static_configs:
-        - targets: ['oauth2-proxy-service.kube-system.svc:8443']
+        - targets: ['oauth2-proxy-service.{{  .Values.global.admin_namespace  }}.svc:8443']
         tls_config:
           insecure_skip_verify: true
       
@@ -43,36 +50,39 @@ data:
         scheme: http
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['kube-state-metrics.kube-system.svc:8080']
+        - targets: ['kube-state-metrics.{{  .Values.global.admin_namespace  }}.svc:8080']
 
       - job_name: 'Traefik'
         scheme: http
         scrape_interval: 30s
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['traefik.kube-system.svc:8080']
+      {{- if .Values.global.instance_uid }}
+        - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.helm_namespace  }}.svc:8080']
+      {{- else }}
+        - targets: ['traefik-{{  .Values.global.instance_uid | default 0 }}.{{  .Values.global.admin_namespace  }}.svc:8080']
+      {{- end }}
 
       - job_name: 'Granafa'
         scheme: http
         scrape_interval: 30s
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['grafana.monitoring.svc:3000']
+        - targets: ['grafana.{{  .Values.global.services_namespace  }}.svc:3000']
 
       - job_name: 'Airflow'
         scheme: http
         scrape_interval: 30s
         metrics_path: '/metrics'
         static_configs:
-        - targets: ['airflow-service.flow.svc:9102']
+        - targets: ['airflow-statsd-service.{{  .Values.global.services_namespace  }}.svc:9102']
 
-      - job_name: 'node-exporter'
-        kubernetes_sd_configs:
-          - role: endpoints
-        relabel_configs:
-        - source_labels: [__meta_kubernetes_endpoints_name]
-          regex: 'node-exporter'
-          action: keep
+      - job_name: 'Node-Exporter'
+        scheme: http
+        scrape_interval: 15s
+        metrics_path: '/metrics'
+        static_configs:
+        - targets: ['node-exporter.{{  .Values.global.services_namespace  }}.svc:9100']
 
       # Scrape config for nodes (kubelet).
       #
@@ -188,12 +198,12 @@ data:
       alertmanagers:
       - static_configs:
         - targets:
-          - alertmanager-service.monitoring.svc:9093
+          - alertmanager-service.{{  .Values.global.services_namespace  }}.svc:9093
 kind: ConfigMap
 metadata:
   name: prometheus-config
   labels:
     name: prometheus-config
-  namespace: {{ .Values.global.monitoring_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 
 ---

@@ -1,0 +1,5 @@
+---
+dependencies:
+- name: code-server-chart
+  version: 0.0.0
+  repository: file://../../code-server/code-server-chart/

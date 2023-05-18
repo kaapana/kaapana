@@ -1,0 +1,12 @@
+---
+global:
+  registry_url: ""
+  pull_policy_images: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+  dynamicVolumes:
+  - name: staticwebsiteresults
+    mount_path: /usr/share/nginx/html/
+    host_path: /minio/staticwebsiteresults
+    storage: "10Mi"

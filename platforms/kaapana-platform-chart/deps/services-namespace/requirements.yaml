@@ -1,0 +1,62 @@
+---
+dependencies:
+# BASE
+  - name: auth-backend-chart
+    version: 0.0.0
+  - name: kaapana-backend-chart
+    version: 0.0.0
+  - name: static-website-chart
+    version: 0.0.0
+# MONITORING
+  - name: prometheus-chart
+    version: 0.0.0
+  - name: alertmanager-chart
+    version: 0.0.0
+  - name: grafana-chart
+    version: 0.0.0
+  - name: node-exporter-chart
+    version: 0.0.0
+# FLOW
+  - name: airflow-chart
+    version: 0.0.0
+  - name: ctp-chart
+    version: 0.0.0
+  - name: kaapana-plugin-chart
+    version: 0.0.0
+# STORE
+  - name: dcm4chee-chart
+    version: 0.0.0
+  - name: ohif-chart
+    version: 0.0.0
+  - name: ohif-chart-v3
+    version: 0.0.0
+  - name: minio-chart
+    version: 0.0.0
+  - name: minio-console-chart
+    version: 0.0.0
+  - name: minio-init-chart
+    version: 0.0.0
+    condition: Release.IsInstall
+  - name: dicom-init-chart
+    version: 0.0.0
+    condition: Release.IsInstall
+  # META
+  - name: meta-init-chart
+    condition: Release.IsInstall
+    version: 0.0.0
+  - name: opensearch-chart
+    version: 0.0.0
+  - name: os-dashboards-chart
+    version: 0.0.0
+# SYSTEM
+  - name: traefik-chart
+    condition: global.include_reverse_proxy
+    version: 0.0.0
+  - name: oAuth2-proxy-chart
+    condition: global.include_reverse_proxy
+    version: 0.0.0
+  - name: cert-copy-chart
+    version: 0.0.0
+# BASE
+  - name: landing-page-kaapana-chart
+    version: 0.0.0

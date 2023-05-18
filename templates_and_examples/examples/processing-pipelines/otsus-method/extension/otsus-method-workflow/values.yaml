@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-otsus-method"
+    action: "copy"

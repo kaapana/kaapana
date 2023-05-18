@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-mhub-models-workflow"
+    action: "copy"

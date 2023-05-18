@@ -16,13 +16,14 @@
 # under the License.
 
 import kubernetes
+import logging
 
 
 class Volume:
     """Defines Kubernetes Volume"""
 
     def __init__(self, name, configs):
-        """ Adds Kubernetes Volume to pod. allows pod to access features like ConfigMaps
+        """Adds Kubernetes Volume to pod. allows pod to access features like ConfigMaps
         and Persistent Volumes
         :param name: the name of the volume mount
         :type: name: str
@@ -34,6 +35,9 @@ class Volume:
         self.name = name
         self.configs = configs
 
+        if "hostPath" in self.configs:
+            logging.warning("hostPath mounts are not allowed in Kaapana")
+
     def get_kube_object(self):
         kube_volume = kubernetes.client.V1Volume(name=self.name)
         kube_volume.name = self.name
@@ -41,10 +45,12 @@ class Volume:
         if "PersistentVolumeClaim" in self.configs:
             config = self.configs["PersistentVolumeClaim"]
 
-            kube_volume_pvc = kubernetes.client.V1PersistentVolumeClaimVolumeSource(claim_name=config["claim_name"])
+            kube_volume_pvc = kubernetes.client.V1PersistentVolumeClaimVolumeSource(
+                claim_name=config["claim_name"]
+            )
             kube_volume_pvc.claim_name = config["claim_name"]
             kube_volume_pvc.read_only = config["read_only"]
-            kube_volume.persistent_volume_claim = kube_volume
+            kube_volume.persistent_volume_claim = kube_volume_pvc
 
         elif "GitRepo" in self.configs:
             config = self.configs["GitRepo"]
@@ -86,16 +92,18 @@ class Volume:
             kube_volume.empty_dir = kube_volume_ed
 
         elif "hostPath" in self.configs:
-            config = self.configs['hostPath']
+            config = self.configs["hostPath"]
 
-            kube_volume_hp = kubernetes.client.V1HostPathVolumeSource(path=config["path"])
+            kube_volume_hp = kubernetes.client.V1HostPathVolumeSource(
+                path=config["path"]
+            )
             if "type" in config:
                 kube_volume_hp.type = config["type"]
 
             kube_volume.host_path = kube_volume_hp
 
         elif "secret" in self.configs:
-            config = self.configs['secret']
+            config = self.configs["secret"]
             secretVolumeSource = kubernetes.client.V1SecretVolumeSource()
             if "default_mode" in config:
                 secretVolumeSource.default_mode = config["default_mode"]

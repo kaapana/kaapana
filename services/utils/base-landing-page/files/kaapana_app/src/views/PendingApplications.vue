@@ -43,6 +43,7 @@ export default Vue.extend({
   data: () => ({
     loading: true,
     launchedAppLinks: [] as any,
+    search: "",
     headers: [
       {
         text: "Name",
@@ -95,7 +96,7 @@ export default Vue.extend({
       };
       this.loading = true;
       kaapanaApiService
-        .helmApiGet("/helm-delete-chart", params)
+        .helmApiPost("/helm-delete-chart", params)
         .then((response: any) => {
           setTimeout(() => {
             this.getHelmCharts();

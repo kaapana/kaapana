@@ -1,0 +1,35 @@
+{{- $uuid := uuidv4 | trunc 10 }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: copy-kube-helm-collections-{{ $uuid }}
+  namespace: "{{ .Values.global.admin_namespace }}"
+spec:
+  template:
+    spec:
+      containers:
+      - name: copy-kube-helm-collections-{{ $uuid }}
+        image: "{{ .Values.kube_helm_collection }}"
+        {{- if .Values.global.offline_mode }}
+        imagePullPolicy: IfNotPresent
+        {{- else }}
+        imagePullPolicy: Always
+        {{- end }}
+        env:
+        - name: ACTION
+          value: copy
+        - name: TARGET_PREFIX
+          value: "{{ .Values.global.target_prefix }}"
+        volumeMounts:
+        - name: data
+          mountPath: /kaapana/mounted/extensions
+      # securityContext:
+      #   runAsUser: 0
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 0

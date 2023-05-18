@@ -1,0 +1,77 @@
+apiVersion: v1
+data:
+  keybindings.json: |-
+    // Place your key bindings in this file to override the defaults
+    [
+        {
+            "key": "ctrl+alt+down",
+            "command": "editor.action.copyLinesDownAction",
+            "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+shift+alt+down",
+            "command": "-editor.action.copyLinesDownAction",
+            "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+alt+up",
+            "command": "editor.action.copyLinesUpAction",
+            "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+shift+alt+up",
+            "command": "-editor.action.copyLinesUpAction",
+            "when": "editorTextFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+q",
+            "command": "editor.action.addSelectionToNextFindMatch",
+            "when": "editorFocus"
+        },
+        {
+            "key": "ctrl+d",
+            "command": "-editor.action.addSelectionToNextFindMatch",
+            "when": "editorFocus"
+        },
+        {
+            "key": "ctrl+d",
+            "command": "editor.action.deleteLines",
+            "when": "textInputFocus && !editorReadonly"
+        },
+        {
+            "key": "ctrl+shift+k",
+            "command": "-editor.action.deleteLines",
+            "when": "textInputFocus && !editorReadonly"
+        }
+    ]
+  user_settings.json: |-
+    {
+        "workbench.colorTheme": "Default Dark+"
+    }
+  launch.json: |-
+    {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Python: Remote Attach",
+                "type": "python",
+                "request": "attach",
+                "connect": {
+                    "host": "airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc",
+                    "port": 5678
+                },
+                "justMyCode": false,
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}",
+                        "remoteRoot": "/home/airflow"
+                    }
+                ]
+            }
+        ]
+    }
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+---

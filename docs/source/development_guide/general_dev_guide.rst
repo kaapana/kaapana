@@ -41,7 +41,7 @@ Preparations for the development
 
 * You have two options to upload images to the platform
 
-   * Using Data Upload: Create a zip file of images that end with .dcm and upload the images via drag&drop on the landing page in the section "Data upload"
+   * Using Data Upload: Create a zip file of images that end with .dcm and upload the images via drag&drop to folder ``dicoms`` in the MinIO Bucket ``uploads``.
 
    * Send images with dcmtk e.g.:
 
@@ -50,6 +50,6 @@ Preparations for the development
    dcmsend -v <ip-address of server> 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
 
 * Go to Meta on the landing page to check if the images were successfully uploaded
-* In order to create a development environment to add new DAGs to the platform go to the extension section on the landing page and install the code-server-chart. Clicking on the link you will be served with a Visual Studio Code environment in the directory of Airflow, where you will find the Kaapana plugin (``workflows/plugins``), the data during processing (``workflows/data``), the models (``workflows/models``) and the directory for the DAGs definition (``workflows/dags``). 
+* In order to create a development environment to add new DAGs to the platform go to the extension section on the landing page and install the code-server-chart. Clicking on the link you will be served with a Visual Studio Code environment in the directory of Airflow, where you will find the Kaapana plugin (``workflows/plugins``), the data during processing (``workflows/data``), the models (``workflows/models``), the directory for code that is executed within processing containers (``workflows/mounted_scripts``),  and the directory for the DAGs definition (``workflows/dags``). 
 
 In order to get a general idea about how to use the platform and to get an idea about its individual parts checkout the :ref:`platform_user_guide`.

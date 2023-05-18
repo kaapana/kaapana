@@ -1,0 +1,61 @@
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  selector:
+    app-name: kubernetes-dashboard
+  type: ClusterIP
+  ports:
+    - port: 9090
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: kube-redirect
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  redirectRegex:
+    regex: ^.*/kubernetes([^\/]*)$
+    replacement: /kubernetes/#/pod?namespace=_all
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: kube-strip-prefix
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /kubernetes
+    forceSlash: true
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: kubedashboard-ingress-ip
+  namespace: "{{  .Values.global.admin_namespace  }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.admin_namespace  }}-kube-redirect@kubernetescrd,{{  .Values.global.admin_namespace  }}-kube-strip-prefix@kubernetescrd
+    ingress.kubernetes.io/auth-remove-header: 'true'
+    ingress.kubernetes.io/custom-request-headers: "Authorization:||cookie:"
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /kubernetes
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: kubernetes-dashboard
+            port:
+              number: 9090
+---

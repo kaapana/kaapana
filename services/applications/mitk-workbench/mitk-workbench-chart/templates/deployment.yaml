@@ -1,96 +1,35 @@
-{{- $uuid := uuidv4 | trunc 10 }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: mitk-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace .  }}"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: mitk-vol-{{ $uuid }}
+      app-name: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app-name: mitk-vol-{{ $uuid }}
+        app-name: {{ .Release.Name }}
     spec:
       restartPolicy: Always
       containers:
         # ToDo add init-container to wait for db-host
       - name: mitk
-        image: {{ .Values.global.registry_url }}/mitk-workbench:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__2022.04
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        image: "{{ .Values.global.registry_url }}/mitk-workbench:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
-            memory: "5Gi"
+            memory: "4Gi"
           limits:
             memory: "8Gi"
         env:
         - name: INGRESS_PATH
-          value: "mitk-vol-{{ $uuid }}"
+          value: {{ .Release.Name }}
         volumeMounts:
-        - name: mitk-data
-          mountPath: /data
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:
-      - name: mitk-data
-        hostPath:
-          {{- if .Values.mount_path }}
-          path: {{ .Values.mount_path }}
-          {{- else }}
-          path: {{ .Values.global.slow_data_dir }}/minio
-          {{- end }}
-          type: DirectoryOrCreate
+{{ include "dynamicVolumes" $ | indent 6 }}
       imagePullSecrets:
       - name: registry-secret
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: mitk-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
-  labels:
-    app: mitk-vol-{{ $uuid }}
-spec:
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 80
-      name: pt-mitk-http
-  type: ClusterIP
-  selector:
-    app-name: mitk-vol-{{ $uuid }}
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: mitk-vol-{{ $uuid }}-redirect
-  namespace: {{ .Values.global.base_namespace }}
-spec:
-  redirectRegex:
-    regex: ^.*/mitk-vol-{{ $uuid }}([^\/]*)$
-    replacement: /mitk-vol-{{ $uuid }}/
----
-apiVersion: networking.k8s.io/v1 
-kind: Ingress
-metadata:
-  name: mitk-vol-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-mitk-vol-{{ $uuid }}-redirect@kubernetescrd,kube-system-strip-prefix@kubernetescrd
-    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
-spec:
-  rules:
-  - host:
-    http:
-      paths:
-      - path: /mitk-vol-{{ $uuid }}
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: mitk-vol-{{ $uuid }}
-            port:
-              name: pt-mitk-http
----
-
-          

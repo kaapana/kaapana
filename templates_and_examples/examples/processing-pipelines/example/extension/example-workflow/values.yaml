@@ -1,7 +1,4 @@
 ---
 global:
-    pull_policy_jobs: "IfNotPresent"
-    fast_data_dir: "/home/kaapana"
-image: "dag-example"
-version: "0.1.0"
-action: "copy"
+    image: "dag-example"
+    action: "copy"

@@ -18,6 +18,15 @@ const routes = [
         },
     },
     {
+        name: 'datasets',
+        path: '/datasets',
+        component: () => import('@/views/Datasets.vue'),
+        title: 'Datasets',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'extensions',
         path: '/extensions',
         component: () => import('@/views/Extensions.vue'),
@@ -27,10 +36,28 @@ const routes = [
         },
     },
     {
-        name: 'federated',
-        path: '/federated',
-        component: () => import('@/views/Federated.vue'),
-        title: 'Federated',
+        name: 'workflow-execution',
+        path: '/workflow-execution',
+        component: () => import('@/views/WorkflowExecution.vue'),
+        title: 'Workflow Execution',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
+        name: 'workflows',
+        path: '/workflows',
+        component: () => import('@/views/Workflows.vue'),
+        title: 'Workflow',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
+        name: 'runner-instances',
+        path: '/runner-instances',
+        component: () => import('@/views/RunnerInstances.vue'),
+        title: 'Instance Overview',
         permissions: {
             isPublic: false,
         },

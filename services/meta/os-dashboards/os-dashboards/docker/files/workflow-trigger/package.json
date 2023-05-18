@@ -1,0 +1,10 @@
+{
+  "name": "workflowTrigger",
+  "version": "0.0.2",
+  "private": true,
+  "scripts": {
+    "build": "yarn plugin-helpers build",
+    "plugin-helpers": "node ../../scripts/plugin_helpers",
+    "osd": "node ../../scripts/osd"
+  }
+}

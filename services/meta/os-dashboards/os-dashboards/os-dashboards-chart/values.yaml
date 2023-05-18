@@ -1,0 +1,4 @@
+---
+global:
+    pull_policy_images: "IfNotPresent"
+    meta_namespace: "meta"

@@ -1,0 +1,14 @@
+{
+  "username" : "kaapana",
+  "enabled" : true,
+  "emailVerified" : false,
+  "firstName" : "Default",
+  "lastName" : "User",
+  "email" : "not@available.com",
+  "attributes" : {
+    "policy" : [ "consoleAdmin" ]
+  },
+  "requiredActions" : [ "UPDATE_PASSWORD" ],
+  "realmRoles" : [ "default-roles-kaapana" ],
+  "groups": ["all_data"]
+}

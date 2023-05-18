@@ -1,10 +1,22 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
-    flow_namespace: "flow"
-    flow_jobs_namespace: "flow-jobs"
-    hostname: ""
-    fast_data_dir: /home/kaapana
-    slow_data_dir: /home/kaapana
-
+  pull_policy_images: "IfNotPresent"
+  hostname: ""
+  fast_data_dir: /home/kaapana
+  slow_data_dir: /home/kaapana
+  dynamicVolumes:
+  - name: dags
+    host_path: /workflows/dags
+  - name: af-logs
+    host_path: /airflow/logs
+  - name: af-plugins
+    host_path: /workflows/plugins
+  - name: af-data
+    host_path: /workflows/data
+  - name: af-postgres
+    host_path: /postgres-airflow
+  - name: models
+    host_path: /workflows/models
+  - name: mounted-scripts
+    host_path: /workflows/mounted_scripts
     

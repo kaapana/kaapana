@@ -3,4 +3,4 @@ apiVersion: v1
 appVersion: "v2.5.0"
 description: A Helm chart for Kubernetes
 name: kube-state-metrics-chart
-version: "v2.5.0"
+version: "0.0.0"

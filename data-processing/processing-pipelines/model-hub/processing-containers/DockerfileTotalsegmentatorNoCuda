@@ -1,0 +1,5 @@
+FROM mhubai/totalsegmentator:nocuda
+
+LABEL IMAGE="mhubai-totalsegmentator-nocuda"
+LABEL VERSION="0.0.0"
+LABEL CI_IGNORE="False"

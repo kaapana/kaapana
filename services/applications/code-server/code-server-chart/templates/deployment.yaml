@@ -1,56 +1,40 @@
-{{- $uuid := uuidv4 | trunc 10 }}
-{{- if not .Values.image }}
-{{- $uuid = "server" }}
-{{- end }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: code-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
   labels:
     k8s-app: code-server
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: code-{{ $uuid }}
+      app-name: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app-name: code-{{ $uuid }}
+        app-name: {{ .Release.Name }}
     spec:
       securityContext:
         runAsUser: 0
       containers:
       - name: code-server
-        {{- if not .Values.image }}
-        image: {{ .Values.global.registry_url }}/code-server:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__4.2.0
-        {{- else }}
-        image: {{ .Values.image }}
-        {{- end }}
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-        command: ["code-server"]
-        args: ["--auth", "none", "--bind-addr", "0.0.0.0:8080", "/kaapanasrc"]
+        image: "{{ tpl .Values.global.complete_image . }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        command: ["sh", "-c", "code-server --auth none --bind-addr 0.0.0.0:8080 ${WORKSPACE}"]
         env:
-        {{- range $envVar := .Values.envVars }}
-        - name: {{ $envVar.name }}
-          value: "{{ $envVar.value }}"
-        {{- end }}
+{{ include "dynamicEnvs" $ | indent 8 }}
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.https_proxy }}
         resources:
           requests:
             memory: 200Mi
           limits:
             memory: 30Gi
         volumeMounts:
-          {{- if not .Values.volumeMounts }}
-          - name: codeserverdata
-            mountPath: /kaapanasrc
-          {{- else }}
-          - name: dshm
-            mountPath: /dev/shm
-          {{- end }}
           - name: configs
-            # mountPath: /root/keybindings.json
             mountPath: /root/.local/share/code-server/User/keybindings.json
             subPath: keybindings.json
           - name: configs
@@ -59,24 +43,17 @@ spec:
           - name: configs
             mountPath: /root/.local/share/code-server/User/settings.json
             subPath: settings.json
-          {{- range $volumeMount := .Values.volumeMounts }}
-          - name: {{ $volumeMount.name }}
-            mountPath: "{{ $volumeMount.mountPath }}"
-          {{- end }}
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
+          - name: dshm
+            mountPath: /dev/shm
+        {{- if contains (tpl .Values.global.complete_image .) "podman" }}
+        securityContext:
+          privileged: true
+        {{- end }}
       volumes:
-      {{- if not .Values.volumes }}
-      - name: codeserverdata
-        hostPath:
-          path: {{ .Values.global.fast_data_dir }}/workflows/
-          type: DirectoryOrCreate
-      {{- else }}
-      - name: dshm
-        emptyDir:
-          medium: Memory
-      {{- end }}
       - name: configs
         configMap:
-          name: code-config-{{ $uuid }}
+          name: {{ .Release.Name }}
           items:
           - key: keybindings.json
             path: keybindings.json
@@ -84,137 +61,9 @@ spec:
             path: launch.json
           - key: user_settings.json
             path: settings.json
-      {{- range $volume := .Values.volumes }}
-      - name: {{ $volume.name }}
-        hostPath:
-          path: "{{ $volume.path }}"
-          type: DirectoryOrCreate
-      {{- end }}
+{{ include "dynamicVolumes" $ | indent 6 }}
+      - name: dshm
+        emptyDir:
+          medium: Memory
       imagePullSecrets:
       - name: registry-secret
----
-kind: Service
-apiVersion: v1
-metadata:
-  name: code-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
-spec:
-  selector:
-    app-name: code-{{ $uuid }}
-  ports:
-    - protocol: TCP
-      port: 8080
-      name: code-http
-  type: ClusterIP
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: cs-strip-prefix-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
-spec:
-  stripPrefix:
-    prefixes:
-    - /code-{{ $uuid }}
-    forceSlash: true
----
-apiVersion: networking.k8s.io/v1 
-kind: Ingress
-metadata:
-  name: code-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-errorpages@kubernetescrd,{{ .Values.global.base_namespace }}-cs-strip-prefix-{{ $uuid }}@kubernetescrd
-    traefik.ingress.kubernetes.io/preserve-host: "true"
-    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
-spec:
-  rules:
-  - host: 
-    http:
-      paths:
-      - path: /code-{{ $uuid }}/
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: code-{{ $uuid }}
-            port:
-              name: code-http
----
-apiVersion: v1
-data:
-  keybindings.json: |-
-    // Place your key bindings in this file to override the defaults
-    [
-        {
-            "key": "ctrl+alt+down",
-            "command": "editor.action.copyLinesDownAction",
-            "when": "editorTextFocus && !editorReadonly"
-        },
-        {
-            "key": "ctrl+shift+alt+down",
-            "command": "-editor.action.copyLinesDownAction",
-            "when": "editorTextFocus && !editorReadonly"
-        },
-        {
-            "key": "ctrl+alt+up",
-            "command": "editor.action.copyLinesUpAction",
-            "when": "editorTextFocus && !editorReadonly"
-        },
-        {
-            "key": "ctrl+shift+alt+up",
-            "command": "-editor.action.copyLinesUpAction",
-            "when": "editorTextFocus && !editorReadonly"
-        },
-        {
-            "key": "ctrl+q",
-            "command": "editor.action.addSelectionToNextFindMatch",
-            "when": "editorFocus"
-        },
-        {
-            "key": "ctrl+d",
-            "command": "-editor.action.addSelectionToNextFindMatch",
-            "when": "editorFocus"
-        },
-        {
-            "key": "ctrl+d",
-            "command": "editor.action.deleteLines",
-            "when": "textInputFocus && !editorReadonly"
-        },
-        {
-            "key": "ctrl+shift+k",
-            "command": "-editor.action.deleteLines",
-            "when": "textInputFocus && !editorReadonly"
-        }
-    ]
-  user_settings.json: |-
-    {
-        "workbench.colorTheme": "Default Dark+"
-    }
-  launch.json: |-
-    {
-        "version": "0.2.0",
-        "configurations": [
-            {
-                "name": "Python: Remote Attach",
-                "type": "python",
-                "request": "attach",
-                "connect": {
-                    "host": "airflow-service.flow.svc",
-                    "port": 5678
-                },
-                "justMyCode": false,
-                "pathMappings": [
-                    {
-                        "localRoot": "${workspaceFolder}",
-                        "remoteRoot": "/home/airflow"
-                    }
-                ]
-            }
-        ]
-    }
-kind: ConfigMap
-metadata:
-  name: code-config-{{ $uuid }}
-  namespace: {{ .Values.global.base_namespace }}
----

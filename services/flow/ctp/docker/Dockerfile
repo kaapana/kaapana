@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as build
+FROM docker.io/ubuntu:20.04 as build
 
 LABEL IMAGE="ctp"
 LABEL VERSION="0.1.3"
@@ -15,20 +15,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build-ctp
 
-RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout acaf7a6902a6bace4e3416a7cdb99ac031cbe0a4
+RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout 2ae3e71ce84b425857ce0b5cca249eda2ea542ed
 
-ADD /files/Runner.java ./source/java/org/rsna/runner/
+COPY /files/Runner.java ./source/java/org/rsna/runner/
 # added consolelogs, to directly view logs in kubernetes logs
-ADD /files/log4j.properties ./source/files/
-
+COPY /files/log4j.properties ./source/files/
 
 # use java 8 for correct build process
 ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64 
 RUN ant -buildfile build.xml
 
-ADD /files/additional-libraries ./build/CTP/libraries
+COPY /files/additional-libraries ./build/CTP/libraries
 
-ADD /files/kaapana-dag-trigger ./build/kaapana-dag-trigger
+COPY /files/kaapana-dag-trigger ./build/kaapana-dag-trigger
+
 RUN cd ./build/kaapana-dag-trigger \
   && ant -buildfile build.xml
 
@@ -36,9 +36,7 @@ RUN cd ./build/kaapana-dag-trigger \
 ###############################           2nd STAGE           ###############################
 #############################################################################################
 
-
-FROM ubuntu:20.04
-
+FROM docker.io/ubuntu:20.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre \
@@ -46,7 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /opt/CTP
 
-ADD /files/config.xml ./config.xml
+COPY /files/config.xml ./config.xml
 COPY --from=build /build-ctp/build/CTP/ ./
 
 CMD ["java","-jar","Runner.jar"]

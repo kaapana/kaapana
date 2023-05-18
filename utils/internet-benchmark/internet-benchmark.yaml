@@ -1,0 +1,26 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: speedtest
+  namespace: "kube-system"
+spec:
+  template:
+    metadata:
+      name: speedtest
+    spec:
+      containers:
+      - name: speedtest
+        image: "klakadkfz/speedtest"
+        imagePullPolicy:  "Always"
+        command: ["tail"]
+        args: ["-f", "/dev/null"]
+        # command: ["sh", "-c", "curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3"]
+        env:
+        - name: https_proxy
+          value: "http://www-int2.dkfz-heidelberg.de:80"
+        - name: http_proxy
+          value: "http://www-int2.dkfz-heidelberg.de:80"
+        - name: no_proxy
+          value: "localhost,127.0.0.1,169.254.169.254,dkfz-heidelberg.de,10.1.0.0/16,10.152.183.0/24"
+      restartPolicy: Never

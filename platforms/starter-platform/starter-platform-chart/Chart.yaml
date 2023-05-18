@@ -1,8 +1,0 @@
----
-apiVersion: v1
-version: "0.1.1"
-appVersion: "0.1.1"
-name: starter-platform-chart
-project_abbr: sp
-description: Starter Platform
-kaapana_type: "platform"

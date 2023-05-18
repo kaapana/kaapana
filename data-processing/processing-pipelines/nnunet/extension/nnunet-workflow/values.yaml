@@ -1,5 +1,36 @@
 ---
 global:
     image: "dag-nnunet"
-    version: "03-22"
     action: "copy"
+
+extension_params:
+    task_ids: 
+        definition: "Multi-selectable nnunet versions used in different tasks"
+        type: "list_multi"
+        value: [
+            "Task001_BrainTumour",
+            "Task002_Heart",
+            "Task003_Liver",
+            "Task004_Hippocampus",
+            "Task005_Prostate",
+            "Task006_Lung",
+            "Task007_Pancreas",
+            "Task008_HepaticVessel",
+            "Task009_Spleen",
+            "Task010_Colon",
+            "Task017_AbdominalOrganSegmentation",
+            "Task024_Promise",
+            "Task027_ACDC",
+            "Task029_LITS",
+            "Task035_ISBILesionSegmentation",
+            "Task038_CHAOS_Task_3_5_Variant2",
+            "Task048_KiTS_clean",
+            "Task055_SegTHOR",
+            "Task061_CREMI",
+            "Task075_Fluo_C3DH_A549_ManAndSim",
+            "Task076_Fluo_N3DH_SIM",
+            "Task089_Fluo-N2DH-SIM_thickborder_time",
+        ]
+        default: [
+            "Task017_AbdominalOrganSegmentation"
+        ]

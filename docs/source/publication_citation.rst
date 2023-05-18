@@ -12,8 +12,8 @@ DOI: `10.1200/CCI.20.00045 <https://doi.org/10.1200/CCI.20.00045>`_
 Scherer, J., Nolden, M., Kleesiek, J., Metzger, J., Kades, K., Schneider, V., Bach, M., Sedlaczek, O., Bucher, A. M., Vogl, T. J., Grünwald, F., Kühn, J.-P., Hoffmann, R.-T., Kotzerke, J., Bethge, O., Schimmöller, L., Antoch, G., Müller, H.-W., Daul, A., … Maier-Hein, K. (2020). Joint Imaging Platform for Federated Clinical Data Analytics. In JCO Clinical Cancer Informatics (Issue 4, pp. 1027–1038). American Society of Clinical Oncology (ASCO).
 
 
-DICOM Whole Slide Imaging for Computational Pathology Research in Kaapana and the Joint Imaging Platform
-========================================================================================================
+Efficient DICOM Image Tagging and Cohort Curation Within Kaapana
+================================================================
 
 DOI: `10.1007/978-3-658-36932-3_59 <https://doi.org/10.1007/978-3-658-36932-3_59>`_
 
@@ -27,3 +27,10 @@ DOI: `10.1007/978-3-658-36932-3_58 <https://doi.org/10.1007/978-3-658-36932-3_58
 
 Fischer, M., Schader, P., Braren, R., Götz, M., Muckenhuber, A., Weichert, W., Schüffler, P., Kleesiek, J., Scherer, J., Kades, K., Maier-Hein, K., & Nolden, M. (2022). DICOM Whole Slide Imaging for Computational Pathology Research in Kaapana and the Joint Imaging Platform. In Informatik aktuell (pp. 273–278). Springer Fachmedien Wiesbaden.
 
+
+Towards Real-World Federated Learning in Medical Image Analysis Using Kaapana
+=============================================================================
+
+DOI: `10.1007/978-3-031-18523-6_13 <https://doi.org/10.1007/978-3-031-18523-6_13>`_
+
+Kades, K., Scherer, J., Zenk, M., Kempf, M., Maier-Hein, K. (2022). Towards Real-World Federated Learning in Medical Image Analysis Using Kaapana. In: , et al. Distributed, Collaborative, and Federated Learning, and Affordable AI and Healthcare for Resource Diverse Global Health. DeCaF FAIR 2022 2022. Lecture Notes in Computer Science, vol 13573. Springer, Cham.

@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "7.2.1"
+description: oAuth2-proxy
+name: oAuth2-proxy-chart
+version: "0.0.0"
+

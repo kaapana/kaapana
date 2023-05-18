@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
-  namespace: {{ .Values.global.monitoring_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: {{ .Values.global.registry_url }}/grafana:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__8.4.4
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        image: "{{ .Values.global.registry_url }}/grafana:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
         # - name: GF_SERVER_ROOT_URL
         #   value: "https://{{ required "A valid hostname (or fqdn) is required!" .Values.global.hostname }}/grafana"
@@ -34,9 +34,9 @@ spec:
           protocol: TCP
         resources:
           requests:
-            memory: 50Mi
-          limits:
             memory: 100Mi
+          limits:
+            memory: 500Mi
         volumeMounts:
           - name: grafana-config-file
             mountPath: /etc/grafana/grafana.ini

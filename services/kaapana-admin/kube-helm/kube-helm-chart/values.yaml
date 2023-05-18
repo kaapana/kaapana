@@ -1,0 +1,11 @@
+---
+global:
+  offline_mode: "false"
+  fast_data_dir: ""
+  slow_data_dir: ""
+  home_dir: /root
+  hostname: ""
+  namespace: "{{ .Values.global.admin_namespace }}"
+  dynamicVolumes:
+  - name: extensions
+    host_path: /extensions

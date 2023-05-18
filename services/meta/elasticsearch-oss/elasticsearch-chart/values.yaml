@@ -1,6 +1,0 @@
----
-global:
-    pull_policy_pods: "IfNotPresent"
-    meta_namespace: "meta"
-    fast_data_dir: /home/kaapana
-    elastic_memory: 1000

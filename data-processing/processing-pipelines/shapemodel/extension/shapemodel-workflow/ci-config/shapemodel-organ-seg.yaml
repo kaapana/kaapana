@@ -1,0 +1,13 @@
+dag_id: "shapemodel-organ-seg"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    input: "CT"
+    body_part: "abdomen"
+    single_execution: true
+  data_form:
+    dataset_name: testCT
+    dataset_limit: 1
+remote: false
+username: "kaapana"

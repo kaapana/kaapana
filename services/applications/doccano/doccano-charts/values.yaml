@@ -1,2 +1,10 @@
+---
 global:
-    store_namespaces: "store"
+  dynamicVolumes:
+  - name: doccano-static
+    host_path: /doccano/static
+  - name: doccano-media
+    host_path: /doccano/media
+  - name: doccano-postgres
+    host_path: /postgres-doccano
+    storage: 10Mi

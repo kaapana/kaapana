@@ -1,4 +1,4 @@
-FROM local-only/base-mitk-phenotyping:2021-02-18 as build_container
+FROM local-only/base-mitk-phenotyping:latest
 
 LABEL IMAGE="mitk-resample"
 LABEL VERSION="2021-02-18"
@@ -16,10 +16,10 @@ ENV OPERATOR_OUT_DIR mitk-resample
 ENV INTERPOLATOR 1 
 ENV ORG_IMG_IN_DIR ""
 
-ENV EXECUTABLE /kaapanasrc/MitkCLResampleImageToReference.sh
+ENV EXECUTABLE /kaapana/app/MitkCLResampleImageToReference.sh
 
-COPY files/start.py /kaapanasrc/start.py
-CMD ["python3","-u","/kaapanasrc/start.py"]
+COPY files/start.py /kaapana/app/start.py
+CMD ["python3","-u","/kaapana/app/start.py"]
 
 # root@cd72f914f1cd:/opt# ./MitkCLResampleImageToReference.sh 
 # Running Command Line Utility *Resample Image To Reference*

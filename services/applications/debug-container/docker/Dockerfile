@@ -1,26 +1,21 @@
-FROM local-only/base-python-cpu:0.1.0
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="debug-container"
 LABEL VERSION="0.1.1"
 LABEL CI_IGNORE="False"
 
-ENV TZ=Europe/Berlin
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+WORKDIR /kaapana/app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-transport-https \
     nmap \
     netcat \
     iputils-ping \
     dnsutils \
-&& rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /usr/src/app
-WORKDIR /usr/src/app
-COPY files/requirements.txt /usr/src/app/
-# RUN python3 -m pip install pip --upgrade && python3 -m pip install --no-cache-dir wheel
-RUN pip3 install --no-cache-dir -r requirements.txt
+COPY files/requirements.txt /kaapana/app/
+RUN python -m pip install --no-cache-dir -r /kaapana/app/requirements.txt
 
-
-COPY files/flask_headers.py /usr/src/app/
-CMD ["python3","-u","flask_headers.py"]
+COPY files/flask_headers.py /kaapana/app/
+CMD ["python3","-u","/kaapana/app/flask_headers.py"]

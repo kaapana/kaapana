@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-server
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      role: nfs-server
+  template:
+    metadata:
+      labels:
+        role: nfs-server
+    spec:
+      initContainers:
+      - name: nfs-dirs
+        image: "{{ .Values.global.registry_url }}/nfs-init:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        volumeMounts:
+        - name: nfs-dir-config
+          mountPath: /tmp/dirs.txt
+          subPath: dirs.txt
+        - mountPath: /exports
+          name: mypvc
+        securityContext:
+          runAsUser: 0
+      containers:
+      - name: nfs-server
+        image: "{{ .Values.global.registry_url }}/volume-nfs:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        ports:
+          - name: nfs
+            containerPort: 2049
+          - name: mountd
+            containerPort: 20048
+          - name: rpcbind
+            containerPort: 111
+        securityContext:
+          privileged: true
+        volumeMounts:
+          - mountPath: /exports
+            name: mypvc
+      volumes:
+        - name: mypvc
+          persistentVolumeClaim:
+            claimName: nfs-fast-pv-claim
+        - name: nfs-dir-config
+          configMap:
+            name: nfs-dir-config
+            items:
+            - key: dirs.txt
+              path: dirs.txt
+      imagePullSecrets:
+      - name: registry-secret
+---

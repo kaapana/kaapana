@@ -1,0 +1,22 @@
+workflow: "nnunet-training"
+opensearch_form:
+  dataset: "test-SEG"
+  input_modality: "SEG"
+workflow_form:
+  body_part: "N/A"
+  fp32: false
+  input: "SEG"
+  instance_names: "central"
+  model: "3d_lowres"
+  num_bachtes_per_epoch: 250
+  num_val_batches_per_epoch: 50
+  prep_check_integrity: true
+  prep_modalities: "CT"
+  prep_preprocess: true
+  seg_filter: "spleen,liver"
+  shuffle_sed: 0
+  task: "Task017_AbdominalOrganSegmentation"
+  test_percentage: 0
+  train_max_epochs: 15 ## One epoch took around 1.5 minutes on my openstack instance
+  train_network_trainer: "nnUNetTrainerV2"
+  training_description: "nnUnet Segmentation"

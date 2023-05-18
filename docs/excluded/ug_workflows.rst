@@ -69,7 +69,7 @@ Delete images (dcm)
 -------------------
 | **What's going on?**
 | 1) DICOMsare deleted from the PACS.
-| 2) Meta data of DICOMs are deleted from the Elasticsearch database.
+| 2) Meta data of DICOMs are deleted from the OpenSearch database.
 
 | **Input data:**
 | Filter for DICOMs that you want to remove from the platform. Since in the current verison the files are copied to the local SSD drive, please, do not select too many images at once. 
@@ -85,8 +85,8 @@ Delete images (dcm)
 Re-index dicoms
 ---------------
 | **What's going on?**
-| 1) All meta data saved in Elasticsearch are deleted
-| 2) For every DICOM within the PACs the dag service-extract-metadata is triggered to write the meta data back to Elasticsearch 
+| 1) All meta data saved in OpenSearch are deleted
+| 2) For every DICOM within the PACs the dag service-extract-metadata is triggered to write the meta data back to OpenSearch 
  
 **Input data:**  
 | None
@@ -113,7 +113,7 @@ Extract metadata
 -----------------
 | **What's going on?**
 | 1) Meta data of the DICOM are extracted and written to a JSON file
-| 2) The meta data in the JSON file are sent to Elasticsearch
+| 2) The meta data in the JSON file are sent to OpenSearch
 
 | **Input data:**  
 | DICOMs
@@ -133,11 +133,11 @@ Process incoming dicom
 | None
 |
 | **Start processsing:**
-| Dag is triggered automatically, once DICOM objects are sent to the server. It should not be triggered manually or with the Kibana dashboard
+| Dag is triggered automatically, once DICOM objects are sent to the server. It should not be triggered manually or with the OpenSearch dashboard
 
-.. _workflow incomingelastic:
+.. _workflow incomingopensearch:
 
-Process incoming elasticsearch
+Process incoming OpenSearch
 ------------------------------
 | **What's going on?**
 | 1) Downloads the selected DICOMs to the local workflow data folder and triggers the selected dag
@@ -146,7 +146,7 @@ Process incoming elasticsearch
 | None
 |
 | **Start processsing:**
-| This dag is triggered any time a workflow is started via the Kibana dashboard
+| This dag is triggered any time a workflow is started via the OpenSearch dashboard
 
 
 

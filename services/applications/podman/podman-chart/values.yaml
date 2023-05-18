@@ -1,0 +1,13 @@
+---
+global:
+  ingress_path: "podman"
+  complete_image: "{{ .Values.global.registry_url }}/podman:{{ .Values.global.kaapana_build_version  }}"
+  envVars:
+  - name: WORKSPACE
+    value: "/kaapana/mounted/workflows"
+  dynamicVolumes:
+  - name: podman-containerd
+    mount_path: /root/containerd.sock
+  - name: podman-data
+    mount_path: /kaapana/mounted/podman
+    host_path: /podman

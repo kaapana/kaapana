@@ -1,28 +1,35 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
 from datetime import timedelta
+
 
 class DcmSeg2ItkOperator(KaapanaBaseOperator):
     """
-        Operator converts .dcm segmentation data into other file formats.
-        
-        This operator takes a .dcm segmentation file and creates a segmentation file in a different file format e.g. .nrrd file format.
-        The operator uses the dcmqi libary.
-        For dcmqi documentation please have a look at https://qiicr.gitbook.io/dcmqi-guide/.
-        
-        **Inputs:**
-        * .dcm segmentation file
+    Operator converts .dcm segmentation data into other file formats.
 
-        **Outputs:**
-        * segmentation file in a file format specified by output_format
+    This operator takes a .dcm segmentation file and creates a segmentation file in a different file format e.g. .nrrd file format.
+    The operator uses the dcmqi libary.
+    For dcmqi documentation please have a look at https://qiicr.gitbook.io/dcmqi-guide/.
+
+    **Inputs:**
+    * .dcm segmentation file
+
+    **Outputs:**
+    * segmentation file in a file format specified by output_format
     """
-    def __init__(self,
-                 dag,
-                 output_format=None,
-                 seg_filter=None,
-                 env_vars=None,
-                 execution_timeout=timedelta(minutes=90),
-                 **kwargs
-                 ):
+
+    def __init__(
+        self,
+        dag,
+        output_format=None,
+        seg_filter=None,
+        env_vars=None,
+        execution_timeout=timedelta(minutes=90),
+        **kwargs,
+    ):
         """
         :param output_format: File format of the created segmentation file
            If not specified "nrrd"
@@ -35,8 +42,8 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "OUTPUT_TYPE": output_format or 'nrrd',
-            "SEG_FILTER": seg_filter or '', # a bash list i.e.: 'liver,aorta'
+            "OUTPUT_TYPE": output_format or "nrrd",
+            "SEG_FILTER": seg_filter or "",  # a bash list i.e.: 'liver,aorta'
             "DCMQI_COMMAND": "segimage2itkimage",
         }
 
@@ -44,12 +51,12 @@ class DcmSeg2ItkOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/dcmqi:{default_platform_abbr}_{default_platform_version}__v1.2.4",
+            image=f"{DEFAULT_REGISTRY}/dcmqi:{KAAPANA_BUILD_VERSION}",
             name="dcmseg2nrrd",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=3000,
             ram_mem_mb_lmt=20000,
-             **kwargs
-            )
+            **kwargs,
+        )

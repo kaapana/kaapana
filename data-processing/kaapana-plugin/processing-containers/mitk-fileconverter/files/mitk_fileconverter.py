@@ -9,6 +9,7 @@ from multiprocessing.pool import ThreadPool
 
 # For shell-execution
 from subprocess import PIPE, run
+
 execution_timeout = 1200
 
 # Counter to check if smth has been processed
@@ -23,11 +24,27 @@ def process_input_file(paras):
 
     for input_filepath in input_filepaths:
         incoming_dcm_series_id = str(pydicom.dcmread(input_filepath).SeriesInstanceUID)
-        output_filepath = join(element_output_dir, f"{incoming_dcm_series_id}.{convert_to}")
-        print(f"# Starting conversion: {basename(input_filepath)} -> {basename(output_filepath)}")
+        output_filepath = join(
+            element_output_dir, f"{incoming_dcm_series_id}.{convert_to}"
+        )
+        print(
+            f"# Starting conversion: {basename(input_filepath)} -> {basename(output_filepath)}"
+        )
         if not exists(output_filepath):
-            command = ["/kaapanasrc/MitkFileConverter.sh", "-i", input_filepath, "-o", output_filepath]
-            output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
+            command = [
+                "/kaapana/app/MitkFileConverter.sh",
+                "-i",
+                input_filepath,
+                "-o",
+                output_filepath,
+            ]
+            output = run(
+                command,
+                stdout=PIPE,
+                stderr=PIPE,
+                universal_newlines=True,
+                timeout=execution_timeout,
+            )
             # command stdout output -> output.stdout
             # command stderr output -> output.stderr
             if output.returncode != 0:
@@ -58,7 +75,9 @@ def process_input_file(paras):
                     print(f"# input_filepath:  {input_filepath}")
                     print(f"# output_filepath: {output_filepath}")
                     print("#")
-                    print(f"# -> found {len(target_files)} files in target_dir -> error")
+                    print(
+                        f"# -> found {len(target_files)} files in target_dir -> error"
+                    )
                     print("#")
                     print("##################################################")
                     print("#")
@@ -89,7 +108,9 @@ operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else N
 assert operator_out_dir is not None
 
 parallel_processes = getenv("THREADS", "1")
-parallel_processes = int(parallel_processes) if parallel_processes.lower() != "none" else None
+parallel_processes = (
+    int(parallel_processes) if parallel_processes.lower() != "none" else None
+)
 assert parallel_processes is not None
 
 operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
@@ -97,7 +118,9 @@ operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else N
 assert operator_out_dir is not None
 
 input_file_extension = getenv("CONVERTFROM", "*.dcm")
-input_file_extension = input_file_extension if input_file_extension.lower() != "none" else None
+input_file_extension = (
+    input_file_extension if input_file_extension.lower() != "none" else None
+)
 assert input_file_extension is not None
 
 convert_to = getenv("CONVERTTO", "None")
@@ -129,7 +152,7 @@ print("#")
 
 # Loop for every batch-element (usually series)
 job_list = []
-batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
+batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
 for batch_element_dir in batch_folders:
     element_input_dir = join(batch_element_dir, operator_in_dir)
     element_output_dir = join(batch_element_dir, operator_out_dir)
@@ -146,29 +169,32 @@ for batch_element_dir in batch_folders:
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
 
     # creating output dir
-    input_files = glob(join(element_input_dir, f"*.{input_file_extension}"), recursive=True)
+    input_files = glob(
+        join(element_input_dir, f"*.{input_file_extension}"), recursive=True
+    )
     job_list.append((input_files, element_output_dir))
 
 
 print(f"# Processing batch-element jobs: {len(job_list)}")
-results = ThreadPool(parallel_processes).imap_unordered(process_input_file, job_list)
-for result, input_file in results:
-    if result:
-        print("#")
-        processed_count += 1
-        print(f"# ✓ {processed_count} / {len(job_list)} successful")
-        print("#")
-    else:
-        print("#")
-        print("##################################################")
-        print("#")
-        print("#               ERROR!")
-        print("#")
-        print(f"# {basename(input_file[0])} was not successful")
-        print("#")
-        print("##################################################")
-        print("#")
-        issue = True
+with ThreadPool(parallel_processes) as threadpool:
+    results = threadpool.imap_unordered(process_input_file, job_list)
+    for result, input_file in results:
+        if result:
+            print("#")
+            processed_count += 1
+            print(f"# ✓ {processed_count} / {len(job_list)} successful")
+            print("#")
+        else:
+            print("#")
+            print("##################################################")
+            print("#")
+            print("#               ERROR!")
+            print("#")
+            print(f"# {basename(input_file[0])} was not successful")
+            print("#")
+            print("##################################################")
+            print("#")
+            issue = True
 
 
 print("#")
@@ -190,8 +216,8 @@ if processed_count == 0:
     print("##################################################")
     print("#")
 
-    batch_input_dir = join('/', workflow_dir, operator_in_dir)
-    batch_output_dir = join('/', workflow_dir, operator_in_dir)
+    batch_input_dir = join("/", workflow_dir, operator_in_dir)
+    batch_output_dir = join("/", workflow_dir, operator_in_dir)
 
     # check if input dir present
     if not exists(batch_input_dir):
@@ -205,7 +231,9 @@ if processed_count == 0:
 
         # creating output dir
         dir_names = {}
-        input_files = glob(join(element_input_dir, f"*.{input_file_extension}"), recursive=True)
+        input_files = glob(
+            join(element_input_dir, f"*.{input_file_extension}"), recursive=True
+        )
         for file in input_files:
             input_dirname = dirname(file)
             if input_dirname not in dir_names.keys():
@@ -216,24 +244,25 @@ if processed_count == 0:
             job_list.append(file_list, batch_output_dir)
 
         print(f"# Processing batch-element jobs: {len(job_list)}")
-        results = ThreadPool(parallel_processes).imap_unordered(process_input_file, job_list)
-        for result, input_file in results:
-            if result:
-                print("#")
-                processed_count += 1
-                print(f"# {processed_count} / {len(job_list)} successful")
-                print("#")
-            else:
-                print("#")
-                print("##################################################")
-                print("#")
-                print("#               ERROR!")
-                print("#")
-                print(f"# {basename(input_file[0])} was not successful")
-                print("#")
-                print("##################################################")
-                print("#")
-                issue = True
+        with ThreadPool(parallel_processes) as threadpool:
+            results = threadpool.imap_unordered(process_input_file, job_list)
+            for result, input_file in results:
+                if result:
+                    print("#")
+                    processed_count += 1
+                    print(f"# {processed_count} / {len(job_list)} successful")
+                    print("#")
+                else:
+                    print("#")
+                    print("##################################################")
+                    print("#")
+                    print("#               ERROR!")
+                    print("#")
+                    print(f"# {basename(input_file[0])} was not successful")
+                    print("#")
+                    print("##################################################")
+                    print("#")
+                    issue = True
 
     print("#")
     print("##################################################")

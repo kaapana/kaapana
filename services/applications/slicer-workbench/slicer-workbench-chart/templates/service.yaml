@@ -1,0 +1,49 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+      name: pt-slicer-http
+  type: ClusterIP
+  selector:
+    app-name: {{ .Release.Name }}
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-redirect
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  redirectRegex:
+    regex: ^.*/{{ .Release.Name }}([^\/]*)$
+    replacement: {{ printf "/%s/" .Release.Name }}
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-{{ .Release.Name }}-redirect@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: {{ printf "/%s" .Release.Name }}
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}
+            port:
+              name: pt-slicer-http
+---

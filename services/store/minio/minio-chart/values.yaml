@@ -1,6 +1,8 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
-    store_namespace: "store"
-    slow_data_dir: /home/kaapana
-    hostname: ""
+  pull_policy_images: "IfNotPresent"
+  slow_data_dir: /home/kaapana
+  hostname: ""
+  dynamicVolumes:
+  - name: minio
+    host_path: /minio

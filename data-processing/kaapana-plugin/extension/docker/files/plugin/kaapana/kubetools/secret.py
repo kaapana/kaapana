@@ -18,6 +18,7 @@
 import kubernetes
 import os
 
+
 class Secret:
     """Defines Kubernetes Secret Volume"""
 
@@ -39,7 +40,7 @@ class Secret:
         """
         self.deploy_type = deploy_type
         self.deploy_target = deploy_target
-        if deploy_type == 'env':
+        if deploy_type == "env":
             self.deploy_target = deploy_target.upper()
         self.secret = secret
         self.key = key
@@ -49,13 +50,13 @@ class Secret:
         if self.deploy_type == "env":
             env = kubernetes.client.V1EnvVar()
             env.name = self.deploy_target
-            
+
             env_value_from = kubernetes.client.V1EnvVarSource()
 
             secretKeySelector = kubernetes.client.V1SecretKeySelector()
-            secretKeySelector.name= self.secret
-            secretKeySelector.key= self.key
-            secretKeySelector.optional= self.optional
+            secretKeySelector.name = self.secret
+            secretKeySelector.key = self.key
+            secretKeySelector.optional = self.optional
 
             env_value_from.secret_key_ref = secretKeySelector
             env.value_from = env_value_from
@@ -65,11 +66,10 @@ class Secret:
         else:
             return None
 
-
     def get_kube_object_volume(self):
         if self.deploy_type == "volume":
             kube_volume = kubernetes.client.V1Volume()
-            kube_volume.name = self.secret+"_volume"
+            kube_volume.name = self.secret + "_volume"
             secretVolumeSource = kubernetes.client.V1SecretVolumeSource()
             secretVolumeSource.optional = self.optional
             secretVolumeSource.secret_name = self.secret
@@ -84,15 +84,14 @@ class Secret:
 
             return kube_volume
 
-
     def get_kube_object_volume_mount(self):
         if self.deploy_type == "volume":
             kube_volume_mount = kubernetes.client.V1VolumeMount()
 
-            kube_volume_mount.name = self.secret+"_volume"
+            kube_volume_mount.name = self.secret + "_volume"
             kube_volume_mount.mount_path = self.deploy_target
             kube_volume_mount.sub_path = os.path.basename(self.deploy_target)
-            kube_volume_mount.read_only = True 
+            kube_volume_mount.read_only = True
 
             return kube_volume_mount
         else:

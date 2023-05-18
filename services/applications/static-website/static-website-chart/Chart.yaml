@@ -1,9 +1,0 @@
-apiVersion: v1
-appVersion: "0.1.0"
-description: A browser to view results or static websites
-name: static-website-chart
-version: "0.1.0"
-keywords:
-- kaapanaapplication
-- kaapanaexperimental
-    

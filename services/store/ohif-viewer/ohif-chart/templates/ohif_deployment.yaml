@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ohif
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: ohif-container
-          image: {{ .Values.global.registry_url }}/ohif:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__4.12.26
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          image: "{{ .Values.global.registry_url }}/ohif:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           ports:
             - containerPort: 80
           resources:

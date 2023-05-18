@@ -1,0 +1,173 @@
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-collections
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  template:
+    metadata:
+      name: init-collections
+    spec:
+      containers:
+      - name: init-collections
+        image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        command: ["python", "-u"]
+        args: ["/kaapana/app/backend/init_collections.py"]
+        env: # Environment variables copied from deployment.yaml
+        - name: SECRET_KEY
+          value: kaapana-secret
+        - name: APPLICATION_ROOT
+          value: "/kube-helm-api"
+        - name: HELM_PATH
+          value: "/usr/local/bin/helm"
+        - name: RELEASE_NAME
+          value: "{{ $.Values.global.release_name }}"
+        - name: HELM_NAMESPACE
+          value: "{{ $.Values.global.helm_namespace }}"
+        - name: REGISTRY_URL
+          value: "{{ $.Values.global.registry_url }}"
+        - name: OFFLINE_MODE
+          value: "{{ $.Values.global.offline_mode }}"
+        - name: KAAPANA_COLLECTIONS
+          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.kaapana_build_version }};{{- end }}"
+        - name: PREINSTALL_EXTENSIONS
+          value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
+        - name: PREFETCH_EXTENSIONS
+          value: "{{ $.Values.global.prefetch_extensions }}"
+{{- if $.Values.global.http_proxy }}
+        - name: PROXY
+          value: {{ $.Values.global.http_proxy }}
+{{- end }}
+        resources:
+          requests:
+            memory: 100Mi
+          limits:
+            memory: 500Mi    
+        volumeMounts:
+          - name: helmextensions
+            mountPath: "/kaapana/mounted/extensions" 
+      volumes:
+      - name: helmextensions
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
+      restartPolicy: Never
+      serviceAccountName: kaapana-kube-admin
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 2
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-extensions
+  namespace: "{{  $.Values.global.admin_namespace  }}"
+spec:
+  template:
+    metadata:
+      name: init-extensions
+    spec:
+      initContainers:
+        - name: wait-for-extensions
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
+          env:
+            - name: FILES_AND_FOLDERS_EXISTS
+              value: "{{- range $extension := $.Values.global.preinstall_extensions }}/kaapana/mounted/extensions/{{ $extension.name }}-{{ $extension.version }}.tgz;{{- end }}"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+          volumeMounts:
+            - name: helmextensions
+              mountPath: "/kaapana/mounted/extensions"
+      containers:
+      - name: preinstall-extensions
+        image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        command: ["python", "-u"]
+        args: ["/kaapana/app/backend/preinstall_extensions.py"]
+        env: # Environment variables copied from deployment.yaml
+        - name: SECRET_KEY
+          value: kaapana-secret
+        - name: APPLICATION_ROOT
+          value: "/kube-helm-api"
+        - name: HELM_PATH
+          value: "/usr/local/bin/helm"
+        - name: RELEASE_NAME
+          value: {{ $.Values.global.release_name }}
+        - name: HELM_NAMESPACE
+          value: {{ $.Values.global.helm_namespace }}
+        - name: REGISTRY_URL
+          value: {{ $.Values.global.registry_url }}
+        - name: OFFLINE_MODE
+          value: '{{ $.Values.global.offline_mode }}'
+{{- if $.Values.global.http_proxy }}
+        - name: PROXY
+          value: {{ $.Values.global.http_proxy }}
+{{- end }}
+        - name: KAAPANA_COLLECTIONS
+          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.kaapana_build_version }};{{- end }}"
+        - name: PREINSTALL_EXTENSIONS
+          value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
+        - name: PREFETCH_EXTENSIONS
+          value: "{{ $.Values.global.prefetch_extensions }}"
+        volumeMounts:
+          - name: helmextensions
+            mountPath: "/kaapana/mounted/extensions"
+        resources:
+          requests:
+            memory: 100Mi
+          limits:
+            memory: 500Mi
+{{- if $.Values.global.prefetch_extensions }}
+      - name: prefetch-extensions
+        image: "{{ $.Values.global.registry_url }}/kube-helm:{{ $.Values.global.kaapana_build_version }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        command: ["python", "-u"]
+        args: ["/kaapana/app/backend/prefetch_extensions.py"]
+        env: # Environment variables copied from deployment.yaml
+        - name: SECRET_KEY
+          value: kaapana-secret
+        - name: APPLICATION_ROOT
+          value: "/kube-helm-api"
+        - name: HELM_PATH
+          value: "/usr/local/bin/helm"
+        - name: RELEASE_NAME
+          value: {{ $.Values.global.release_name }}
+        - name: HELM_NAMESPACE
+          value: {{ $.Values.global.helm_namespace }}
+        - name: REGISTRY_URL
+          value: {{ $.Values.global.registry_url }}
+        - name: OFFLINE_MODE
+          value: '{{ $.Values.global.offline_mode }}'
+{{- if $.Values.global.http_proxy }}
+        - name: PROXY
+          value: {{ $.Values.global.http_proxy }}
+{{- end }}
+        - name: KAAPANA_COLLECTIONS
+          value: "{{- range $collection := $.Values.global.kaapana_collections }}{{ $.Values.global.registry_url }}/{{ $collection.name }}:{{ $.Values.global.kaapana_build_version }};{{- end }}"
+        - name: PREINSTALL_EXTENSIONS
+          value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
+        - name: PREFETCH_EXTENSIONS
+          value: "{{ $.Values.global.prefetch_extensions }}"
+        volumeMounts:
+          - name: helmextensions
+            mountPath: "/kaapana/mounted/extensions"
+        resources:
+          requests:
+            memory: 100Mi
+          limits:
+            memory: 500Mi
+{{- end }}
+      restartPolicy: Never
+      volumes:
+      - name: helmextensions
+        persistentVolumeClaim:
+          claimName: extensions-pv-claim
+      serviceAccountName: kaapana-kube-admin
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 2

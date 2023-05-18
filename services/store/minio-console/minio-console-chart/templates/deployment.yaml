@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: minio-console-deployment
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -18,33 +18,35 @@ spec:
     spec:
       initContainers:
         - name: init
-          image: {{ .Values.global.registry_url }}/service-checker:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.1
-          imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.kube-system.svc,443;minio,minio-service.store.svc,9000"
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443;minio,minio-service.{{  .Values.global.services_namespace  }}.svc,9000"
             - name: DELAY
               value: "3"
             - name: TIMEOUT
               value: "10"
       containers:
       - name: minio-console
-        image: {{ .Values.global.registry_url }}/minio-console:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.15.6
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        image: "{{ .Values.global.registry_url }}/minio-console:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         args: ["server", "--host", "0.0.0.0", "--port", "9001"]
         env:
         - name: KAAPANA_ADDRESS
           value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}"
+        - name: ADMIN_NAMESPACE
+          value: "{{ .Values.global.admin_namespace }}"
         - name: CONSOLE_SUBPATH
           value: /minio-console/
         - name: CONSOLE_MINIO_SERVER
-          value: http://minio-service.store.svc:9000
+          value: http://minio-service.{{  .Values.global.services_namespace  }}.svc:9000
         - name: CONSOLE_IDP_URL
-          value: "http://keycloak-external-service.kube-system.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+          value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
         - name: CONSOLE_IDP_CLIENT_ID
           value: "kaapana"
         - name: CONSOLE_IDP_SECRET
-          value: "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R"
+          value: "{{ .Values.global.oidc_client_secret }}"
         - name: MINIO_IDENTITY_OPENID_CLAIM_NAME
           value: "policy"
         - name: CONSOLE_IDP_CALLBACK # has to be set as allowed redirect urls in keyloak https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/oauth_callback/

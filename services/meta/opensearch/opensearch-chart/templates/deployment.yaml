@@ -1,0 +1,78 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch-de
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: opensearch
+  template:
+    metadata:
+      labels:
+        app-name: opensearch
+    spec:
+      initContainers:
+      - name: volume-permissions
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        command: ["sh", "-c", "chown -R 1000:1000 /os"]
+        volumeMounts:
+        - name: osdata
+          mountPath: /os/data
+        - name: oslogs
+          mountPath: /os/logs
+        securityContext:
+          runAsUser: 0
+      securityContext:
+        runAsUser: 1000
+      containers:
+        - name: opensearch-container
+          image: "{{ .Values.global.registry_url }}/opensearch:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
+          env:
+          - name: plugins.security.disabled
+            value: "true"
+          - name: DISABLE_INSTALL_DEMO_CONFIG
+            value: "true"
+          - name: cluster.name
+            value: "opensearch-cluster"
+          - name: node.name
+            value: "{{ .Values.global.hostname }}"
+          - name: discovery.seed_hosts
+            value: "{{ .Values.global.hostname }}"
+          - name: cluster.initial_cluster_manager_nodes
+            value: "{{ .Values.global.hostname }}"
+          - name: OPENSEARCH_JAVA_OPTS
+            value: '-Xms512m -Xmx512m'
+          resources:
+            requests:
+              memory: 1000Mi
+            limits:
+              memory: 2000Mi
+          volumeMounts:
+            - name: osdata
+              mountPath: /usr/share/opensearch/data
+            - name: oslogs
+              mountPath: /usr/share/opensearch/logs
+            - name: sec-config
+              mountPath: plugins/opensearch-security/securityconfig/config.yml
+              subPath: config.yml
+      volumes:
+      - name: osdata
+        persistentVolumeClaim:
+          claimName: os-data-pv-claim
+      - name: oslogs
+        persistentVolumeClaim:
+          claimName: os-logs-pv-claim
+      - name: sec-config
+        configMap:
+          name: os-config
+          items:
+          - key: config.yml
+            path: config.yml
+      imagePullSecrets:
+      - name: registry-secret
+---

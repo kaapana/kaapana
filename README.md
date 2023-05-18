@@ -13,8 +13,8 @@ By adhering to established standards and by adopting widely used open technologi
 
 Core components of Kaapana are:
 * [dcm4chee](https://www.dcm4che.org/): open source PACS system serving as a central DICOM data storage in Kaapana
-* [Elasticsearch](https://www.elastic.co/de/elasticsearch/): search engine used to make the DICOM data searchable via their tags and meta information
-* [Kibana](https://www.elastic.co/de/kibana/): visualization dashboard enabling the interactive exploration of the DICOM data stored in Kaapana and indexed by Elasticsearch
+* [OpenSearch](https://opensearch.org/): search engine used to make the DICOM data searchable via their tags and meta information
+* [OpenSearch Dashboards](https://opensearch.org/docs/latest/dashboards/index/): visualization dashboard enabling the interactive exploration of the DICOM data stored in Kaapana and indexed by OpenSearch
 * [Airflow](https://airflow.apache.org/): workflow management system that enables complex and flexible data processing workflows in Kaapana via container chaining
 * [Kubernetes](https://kubernetes.io/): Container orchestration
 * [Keycloak](https://www.keycloak.org/): User authentication
@@ -34,6 +34,10 @@ For more information, please also take a look at our recent publication of the K
 ## Documentation
 
 Check out our [documentation](https://kaapana.readthedocs.io/en/latest/) for further information about Kaapana and how to use it!
+
+## Versioning
+
+As of Kaapana 0.2.0 we follow strict [SemVer](https://semver.org/) approach to versioning.
 
 ## Licence
 

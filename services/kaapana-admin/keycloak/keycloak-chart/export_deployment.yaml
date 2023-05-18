@@ -1,0 +1,95 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: keycloak
+  template:
+    metadata:
+      labels:
+        app-name: keycloak
+    spec:
+      initContainers:
+      - name: init
+        image: <registry>/service-checker:1.1
+        imagePullPolicy:  Always
+        env:
+          - name: WAIT
+            value: "postgres,postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc,5432"
+          - name: DELAY
+            value: "2"
+          - name: TIMEOUT
+            value: "10"
+      containers: 
+        - name: keycloak-container
+          image: <registry>/keycloak:19.0.3
+          imagePullPolicy:  Always
+          args: ["-Djboss.socket.binding.port-offset=100","-Dkeycloak.migration.action=export","-Dkeycloak.migration.provider=singleFile","-Dkeycloak.migration.realmName=kaapana","-Dkeycloak.migration.usersExportStrategy=REALM_FILE","-Dkeycloak.migration.file=/tmp/kaapana.json"]
+          env:
+          # - name: KEYCLOAK_IMPORT
+          #   value: /import/kaapana-realm.json
+          - name: KEYCLOAK_USER
+            value: admin
+          - name: KEYCLOAK_PASSWORD
+            value: Kaapana2020
+          - name: DB_VENDOR
+            value: "postgres"
+          - name: DB_ADDR
+            value: "postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc"
+          - name: DB_PORT
+            value: "5432"
+          - name: DB_USER
+            value: "keycloak"
+          - name: DB_PASSWORD
+            value: "keycloak"
+          - name: DB_DATABASE
+            value: "keycloak"
+          - name: KEYCLOAK_HTTP_PORT
+            value: "8080"
+          - name: KEYCLOAK_HTTPS_PORT
+            value: "8443"
+          - name: ROOT_LOGLEVEL
+            value: "DEBUG"
+          - name: KEYCLOAK_LOGLEVEL
+            value: "DEBUG"
+          - name: PROXY_ADDRESS_FORWARDING
+            value: "true"
+          ports:
+          - name: http
+            containerPort: 8080
+          - name: https
+            containerPort: 8443
+          - name: admin
+            containerPort: 9990
+          resources:
+            requests:
+              memory: 600Mi
+            limits:
+              memory: 700Mi
+          volumeMounts:
+            - name: export
+              mountPath: /tmp
+            - name: keycloak-realm
+              mountPath: /import
+            - name: ssl-config-files
+              mountPath: /etc/x509/https
+              readOnly: true
+      volumes:
+      - name: export
+        hostPath:
+          path: /home/kaapana/keycloak_export
+          type: DirectoryOrCreate
+      - name: keycloak-realm
+        configMap:
+          name: keycloak-config
+      - name: ssl-config-files
+        secret:
+          secretName: certificate
+      imagePullSecrets:
+      - name: registry-secret
+---

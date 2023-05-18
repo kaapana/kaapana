@@ -1,0 +1,7 @@
+---
+global:
+    action: "copy"
+    pull_policy_images: "IfNotPresent"
+    target_prefix: "/kaapana/mounted/"
+    chart_container_image:
+    chart_container_version:

@@ -1,11 +1,11 @@
-FROM local-only/base-python-cpu:0.1.0
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="tensorboard"
-LABEL VERSION="2.8.0"
+LABEL VERSION="2.12.0"
 LABEL CI_IGNORE="False"
 
 ENV INGRESS_PATH /tensorboard
-ENV LOG_DIR=/data
+ENV LOG_DIR=/kaapana/mounted/tensorboard
 
 COPY files/requirements.txt /src/requirements.txt
 RUN pip3 install --no-cache-dir -r /src/requirements.txt

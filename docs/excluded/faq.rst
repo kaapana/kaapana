@@ -12,6 +12,6 @@ Frequently Asked Questions (FAQ)
    ht_keycloak_documentation
    ht_proxy_configuration
    ht_setup_connection_to_kubernetes
-   ht_kibana_dashboard
+   ht_os_dashboard
    ht_platform_or_service_is_not_working
    ht_browser_does_not_work

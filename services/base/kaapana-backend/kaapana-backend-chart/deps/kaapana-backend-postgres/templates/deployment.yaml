@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: kaapana-backend-postgres-deployment
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: kaapana-backend-postgres
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: kaapana-backend-postgres
+    spec:
+      containers:
+      - name: kaapana-backend-postgres
+        image: "{{ .Values.global.registry_url }}/postgres-9.6-alpine:{{ .Values.global.kaapana_build_version  }}"
+        # imagePullPolicy: Always
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        env: # Environment variables
+        - name: POSTGRES_USER
+          value: kaapanauser
+        - name: POSTGRES_PASSWORD
+          value: kaapanapassword
+        ports: # Port(s) on which your application runs
+          - containerPort: 5432
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "100Mi"
+        volumeMounts:
+          - name: kaapana-backend-postgres-data # key of volume moment
+            mountPath: "/var/lib/postgresql/data" # path in container
+      volumes:
+      - name: kaapana-backend-postgres-data # key of volume mount
+        persistentVolumeClaim:
+          claimName: backend-pv-claim
+      imagePullSecrets:
+        - name: registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kaapana-backend-postgres-service
+  # namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: kaapana-backend-postgres
+spec:
+  selector:
+    app-name: kaapana-backend-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

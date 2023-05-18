@@ -76,9 +76,16 @@ To develop an algorithm within the Kaapana instance we have to provide an image,
 In this example we provide the algorithm as a python implementation of a DAG (see: :ref:`Write your first own DAG`). 
 Therefore, we start with a minimal python image:
 
+.. important::
+   To access the base images for our container (like ``local-only/base-python-cpu:latest``) we can either build them individualy following :ref:`faq_build_base_img` or build the whole platform :ref:`build`.
+   Building only the base images and not the whole platform is in general recommended as it is a lot faster and takes less space on your system.
+
+.. hint::
+    If docker containers should be build on a system **behind a proxy**, please make sure to `configure docker correctly <https://docs.docker.com/network/proxy/#configure-the-docker-client>`_.
+
 .. code-block:: docker
 
-    FROM local-only/base-python-alpine:0.1.0
+    FROM local-only/base-python-cpu:latest
     LABEL IMAGE="python-template"
     LABEL VERSION="0.1.0"
     LABEL CI_IGNORE="True"
@@ -131,22 +138,22 @@ We can now implement and test our algorithm.
 In this example the algorithm is a python script, that extracts the study IDs from the loaded data and returns it.
 
 .. note::
-    The code server looks for the ``kaapanasrc`` directory by default. 
-    When we use it as dev-server inside the docker container it will prompt an error message, that ``kaapanasrc`` does not exist.
+    The code server looks for the ``app`` directory by default. 
+    When we use it as dev-server inside the docker container it will prompt an error message, that ``app`` does not exist.
     You can safely ignore this message and open the root directory of the container.
 
 The python file looks like this:
 
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/processing-containers/extract-study-id/files/extract_study_id.py
 
-We just store the python file in the :code:`/kaapanadevdata` directory of the docker container as ``/extract_study_id.py``.
+We just store the python file in the :code:`/mounted_scripts` directory of the docker container as ``/extract_study_id.py``.
 To check if everything works as expected open a terminal in the code-server and run :code:`python3 extract-study-id.py`.
 After we are finished we terminate the dev server in the "Pending applications" tab of Kaapana, with the "FINISHED MANUAL INTERACTION" button.
 
 .. hint:: 
-    The :code:`/kaapanadevdata` directory in the container of any operator initialized with the parameter ``dev_server="code-server"`` is mounted to the Minio bucket "kaapana-dev-data".
+    The :code:`/mounted_scripts` directory in the container of any operator initialized with the parameter ``dev_server="code-server"`` is mounted to the Minio bucket "mounted_scripts".
     Hence, you don't have to worry that your files in this directory are lost after the container is killed.
-    You can also use the Minio bucket to download your files, e.g. in order to build an image in the next step.
+    You can also use the Minio bucket to download your files, e.g., in order to build an image in the next step.
 
 .. _push-the-algorithm-to-the-repository:
 
@@ -215,15 +222,15 @@ To remain consistent with the structure of Kaapana we recommend to create the ne
 ``kaapana/data-processing/processing-piplines/``, but it can be located anywhere.
 ::
 
-    mkdir -p threshold-segmentation/processing-containers/otsus-method/files/
+    mkdir -p otsus-method/processing-containers/otsus-method/files/
 
 In the :code:`files` directory create a file called :code:`otsus_method.py` that contains the segmentation algorithm based on Otsu's method:
 
-.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/processing-containers/otsus-method/files/otsus_method.py
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/processing-containers/otsus-method/files/otsus_method.py
 
 In the :code:`otsus-method` directory create a :code:`Dockerfile` with the content:
 
-.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/processing-containers/otsus-method/Dockerfile
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/processing-containers/otsus-method/Dockerfile
 
 Starting this container will execute the segmentation algorithm.
 
@@ -231,8 +238,8 @@ To tag the image and push it to the registry, run the following commands inside 
 
 ::
 
-    docker build -t <docker-registry>/<docker-repo>/threshold-segmentation:0.1.0 .
-    docker push <docker-registry>/<docker-repo>/threshold-segmentation:0.1.0
+    docker build -t <docker-registry>/<docker-repo>/otsus-method:0.1.0 .
+    docker push <docker-registry>/<docker-repo>/otsus-method:0.1.0
 
 .. hint::
      If not already done, you have to log into your Docker registry with :code:`sudo docker login <docker-registry>/<docker-repo>`, 
@@ -241,7 +248,7 @@ To tag the image and push it to the registry, run the following commands inside 
 Step 2: Create an image for the DAG 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Create the folder for the DAG image. Inside the :code:`threshold-segmentation` directory run:
+Create the folder for the DAG image. Inside the outer :code:`otsus-method` directory run:
 
 ::
 
@@ -249,19 +256,19 @@ Create the folder for the DAG image. Inside the :code:`threshold-segmentation` d
 
 Inside the folder :code:`extension/docker/files/otsus-method` create the :code:`OtsusMethodOperator.py` file
 
-.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/files/otsus-method/OtsusMethodOperator.py
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/files/otsus-method/OtsusMethodOperator.py
 
-Create a python file :code:`dag_example_otsus_method.py` for the DAG in the folder :code:`extension/docker/files/`
+Create a python file :code:`dag_otsus_method.py` for the DAG in the folder :code:`extension/docker/files/`
 
-.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/files/dag_example_otsus_method.py
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/files/dag_otsus_method.py
 .. hint :: 
     The DAG will perform the following steps:
         - Get the dicom files (LocalGetInputDataOperator), 
-        - convert the dicom files to .nrrd files  (DcmConverterOperator), 
-        - apply the segmentation (OtsusMethodOperator),
-        - create a dicom segmentation from the .nrrd segmentation (Itk2DcmSegOperator ), 
-        - send the data back to the PACS (DcmSendOperator),
-        - clean the workflow dir (LocalWorkflowCleanerOperator).
+        - Convert the dicom files to .nrrd files  (DcmConverterOperator), 
+        - Apply the segmentation (OtsusMethodOperator),
+        - Create a dicom segmentation from the .nrrd segmentation (Itk2DcmSegOperator ), 
+        - Send the data back to the PACS (DcmSendOperator),
+        - Clean the workflow dir (LocalWorkflowCleanerOperator).
 
     **Note:** If you want to use this DAG as a template for your own segmentation algorithm note that 
     :code:`Itk2DcmSegOperator` requires the arguments :code:`segmentation_operator` and
@@ -269,22 +276,22 @@ Create a python file :code:`dag_example_otsus_method.py` for the DAG in the fold
 
 In :code:`extension/docker/` create the :code:`Dockerfile` for the DAG
 
-.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/docker/Dockerfile
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/extension/docker/Dockerfile
 
 .. hint :: 
-    The base image :code:`local-only/dag-installer:0.1.0` scans all .py files in :code:`tmp` for images and pulls them via the Helm API.
+    The base image :code:`local-only/base-installer:0.1.0` scans all .py files in :code:`tmp` for images and pulls them via the Helm API.
     It also copies files into desired locations.
 
 Tag the image and push it to the registry. Next to the :code:`Dockerfile` in :code:`extension/docker/` run 
 
 ::
 
-    docker build -t <docker-registry>/<docker-repo>/dag-example-otsus-method:kp_0.1.3__0.1.0 .
-    docker push <docker-registry>/<docker-repo>/dag-example-otsus-method:kp_0.1.3__0.1.0
+    docker build -t <docker-registry>/<docker-repo>/dag-otsus-method:<version-tag> .
+    docker push <docker-registry>/<docker-repo>/dag-otsus-method:<version-tag>
 
 .. important :: 
-    Setting the correct version tag is important, because the platform pulls the DAG with a specific version tag.
-    This tag is build as follows: :code:`<platform-abbr>_<platform-version>__<dag-version>`.
+    Setting the correct :code:`<version-tag>` is important, because the platform pulls the DAG with a specific version tag.
+    This tag is build as follows: :code:`<platform-abbr>_<platform-version>__<dag-version>`, e.g., :code:`kp_0.1.4__0.1.0`.
     The :code:`platform-abbr` for the kaapana-platform is ``kp`` and for the starter-platform ``sp``.
     The :code:`platform-version` can be found at the bottom of the user interface.
     The :code:`dag-version` is specified in the :code:`Dockerfile` of the DAG.
@@ -293,20 +300,20 @@ Tag the image and push it to the registry. Next to the :code:`Dockerfile` in :co
 Step 3: Create the helm chart
 *****************************
 
-Create a folder for the chart. Inside :code:`threshold-segmentation/extension/` run 
+Create a folder for the chart. Inside :code:`otsus-method/extension/` run 
 
 :: 
 
-    mkdir -p threshold-segmentation-workflow
-    cd threshold-segmentation-workflow
+    mkdir -p otsus-method-workflow
+    cd otsus-method-workflow
 
 Create a file :code:`Chart.yaml`
 
-.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/Chart.yaml
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/extension/otsus-method-workflow/Chart.yaml
 
 Create a file :code:`requirements.yaml`
 
-.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/requirements.yaml
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/extension/otsus-method-workflow/requirements.yaml
 
 .. important:: 
     The field :code:`repository` must be the relative path from the file :code:`requirements.yaml` to the directory that contains the 
@@ -315,7 +322,7 @@ Create a file :code:`requirements.yaml`
 
 Create a file :code:`values.yaml`
 
-.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/values.yaml
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/extension/otsus-method-workflow/values.yaml
 
 .. hint:: 
     These three files define the helm chart that will be installed on the platform in order to provide the algorithm as a workflow.
@@ -327,7 +334,7 @@ Update helm dependencies and package the chart.
     helm dep up 
     helm package .
 
-This will create the file :code:`example-threshold-segmentation-workflow-0.1.0.tgz`
+This will create the file :code:`otsus-method-workflow-0.1.0.tgz`
 
 .. _Add Extension Manually:
 
@@ -339,7 +346,7 @@ Step 4.1: Add the extension manually to the platform
 
 The easiest way to get the extension into the platform is by copying the packaged helm chart to the right location.
 To do so you need access to the host machine, of the platform.
-Copy the file :code:`example-threshold-segmentation-workflow-0.1.0.tgz` to the :code:`extensions/` subdirectory
+Copy the file :code:`otsus-method-workflow-0.1.0.tgz` to the :code:`extensions/` subdirectory
 of the :code:`FAST_DATA_DIR` directory, which is :code:`/home/kaapana/` by default. 
 
 .. hint::
@@ -363,9 +370,9 @@ First adjust the file :code:`collections/kaapana-collection/requirements.yaml` i
 
 ::
 
-    - name: example-threshold-segmentation-workflow
+    - name: otsus-method-workflow
       version: 0.1.0
-      repository: file://../../data-processing/processing-pipelines/threshold-segmentation/extension/threshold-segmentation-workflow/
+      repository: file://../../data-processing/processing-pipelines/otsus-method/extension/otsus-method-workflow/
 
 .. hint:: 
     The repository field must point from the :code:`kaapana-extension-collection` chart to the directory of the chart for the DAG.
@@ -375,8 +382,8 @@ Do all this by executing the following commands in the :code:`collections/kaapan
 ::
 
     helm dep up 
-    docker build -t <docker-registry>/<docker-repo>/kaapana-extension-collection:kp_0.1.3__0.1.0 .
-    docker push <docker-registry>/<docker-repo>/kaapana-extension-collection:kp_0.1.3__0.1.0
+    docker build -t <docker-registry>/<docker-repo>/kaapana-extension-collection:<version-tag> .
+    docker push <docker-registry>/<docker-repo>/kaapana-extension-collection:<version-tag>
 
 Finally restart the :code:`kaapana-extension-collection` pod. You can do this in the Kaapana gui by clicking on the cloud button next to **Applications and workflows** in the Extension page.
 

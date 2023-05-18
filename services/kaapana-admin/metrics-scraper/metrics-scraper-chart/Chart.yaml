@@ -1,0 +1,6 @@
+---
+apiVersion: v1
+appVersion: "v1.0.7"
+description: Kubernetes Dashboard Metrics Scraper
+name: metrics-scraper-chart
+version: "0.0.0"

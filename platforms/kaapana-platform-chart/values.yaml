@@ -1,0 +1,180 @@
+---
+global:
+    test: ""
+
+extension_params:
+    hostname:
+        default: ""
+        definition: FQDN of the server
+        type: string
+        value: ""
+    include_reverse_proxy:
+        default: false
+        definition: "Spawns a separate set of traefik and oauth2-proxy deployments for the platform"
+        type: bool
+        value: ""
+    instance_name:
+        default: ""
+        definition: "Only valid if multiple instances for the same Kaapana platform are deployed"
+        type: string
+        value: ""
+    instance_uid:
+        default: ""
+        definition: Only valid if multiple instances for the same Kaapana platform are deployed
+        type: string
+        value: ""
+    kaapana_build_version:
+        default: ""
+        definition: The current build version of the platform
+        type: string
+        value: ""
+    offline_mode:
+        default: "false"
+        definition: Offline installation build
+        type: string
+        value: ""
+    prefetch_extensions:
+        default: "false"
+        definition: Comma separated list of extensions to be installed
+        type: string
+        value: ""
+    registry_url:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    release_name:
+        default: kaapana-platform-chart
+        definition: Name of the helm chart for this platform
+        type: string
+        value: ""
+    credentials_grafana_password:
+        default: admin
+        definition: ""
+        type: string
+        value: ""
+    credentials_grafana_username:
+        default: admin
+        definition: ""
+        type: string
+        value: ""
+    credentials_keycloak_admin_password:
+        default: Kaapana2020
+        definition: ""
+        type: string
+        value: ""
+    credentials_keycloak_admin_username:
+        default: admin
+        definition: ""
+        type: string
+        value: ""
+    credentials_minio_password:
+        default: Kaapana2020
+        definition: ""
+        type: string
+        value: ""
+    credentials_minio_username:
+        default: kaapanaminio
+        definition: ""
+        type: string
+        value: ""
+    credentials_registry_password:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    credentials_registry_username:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    admin_namespace:
+        default: admin
+        definition: "Namespace for Kubernetes resources with admin access, such as reverse proxy and authentication"
+        type: string
+        value: ""
+    base_namespace:
+        default: base
+        definition: ""
+        type: string
+        value: ""
+    extensions_namespace:
+        default: extensions
+        definition: Namespace for extensions installed in this platform
+        type: string
+        value: ""
+    helm_namespace:
+        default: services
+        definition: Namespace for helm charts of this platform
+        type: string
+        value: ""
+    jobs_namespace:
+        default: jobs
+        definition: Kubernetes namespace for jobs
+        type: string
+        value: ""
+    services_namespace:
+        default: services
+        definition: "Namespace for fundamental resources in this platform, such as the backend and the landing page"
+        type: string
+        value: ""
+    dicom_port:
+        default: "11112"
+        definition: ""
+        type: string
+        value: ""
+    http_port:
+        default: "80"
+        definition: ""
+        type: string
+        value: ""
+    http_proxy:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    https_port:
+        default: "443"
+        definition: ""
+        type: string
+        value: ""
+    https_proxy:
+        default: ""
+        definition: ""
+        type: string
+        value: ""
+    fast_data_dir:
+        default: /home/kaapana-data
+        definition: Data directory path
+        type: string
+        value: ""
+    home_dir:
+        default: /home/ubuntu
+        definition: ""
+        type: string
+        value: ""
+    slow_data_dir:
+        default: /home/kaapana-data
+        definition: Data directory
+        type: string
+        value: ""
+    gpu_support:
+        default: "false"
+        definition: Enables microk8s GPU support
+        type: string
+        value: ""
+    pull_policy_jobs:
+        default: Always
+        definition: ""
+        type: string
+        value: ""
+    pull_policy_operators:
+        default: Always
+        definition: ""
+        type: string
+        value: ""
+    pull_policy_pods:
+        default: Always
+        definition: ""
+        type: string
+        value: ""

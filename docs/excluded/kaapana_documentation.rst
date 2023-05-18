@@ -97,7 +97,7 @@ Store
 The Store is responsible for data storage.
 The main component is a fully-fledged opensource PACS (`DCM4CHEE <https://www.dcm4che.org/>`__).
 There is also a object-store (`Minio <https://www.minio.io/>`__), which will be used to store non DICOM data.
-This will also enable the provision of download-links for cohort data and experiment results.
+This will also enable the provision of download-links for dataset data and experiment results.
 A web-based DICOM viewer (`OHIF <http://ohif.org/>`__) has been integrated to show images in the browser.
 The functionality of this viewer is limited at the moment, but more features will come soon.
 
@@ -108,17 +108,17 @@ The functionality of this viewer is limited at the moment, but more features wil
 Meta
 ----
 Meta makes it possible to visualize and explore the metadata of images.
-It allows not only an overview of the data on the system, but is also used to define cohorts for experiments.
+It allows not only an overview of the data on the system, but is also used to define datasets for experiments.
 By creating filters for desired DICOM tags, the total data set can be stratified.
 In addition, the results can be combined with visually appealing graphs in dashboards. 
 It is also possible to create your own visualizations and dashboards.
 For this functionality mainly two frameworks are used:
 
-- `Elasticsearch <https://medium.com/@victorsmelopoa/an-introduction-to-elasticsearch-with-kibana-78071db3704>`__ as database and search engine for metadata
-- `Kibana <https://www.elastic.co/guide/en/kibana/current/introduction.html>`__ for the visualizations and filters
+- `OpenSearch <https://opensearch.org/>`__ as database and search engine for metadata
+- `OpenSearch Dashboards <https://opensearch.org/docs/latest/dashboards/index/>`__ for the visualizations and filters
 
 In order to get a basic understanding of visualizations and dashboards,
-existing documentation from Kibana can be used.
+existing documentation from OpenSearch Dashboards can be used.
 
 .. raw:: latex
 

@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+data:
+  commonData.json: |-
+    {
+      "name": "Kaapana platform",
+      "shortName": "Kaapana",
+      "infoText": "Welcome to Kaapana",
+      "version": "{{ .Values.global.release_name }} | Version: {{ .Values.global.kaapana_build_version }} | Build-Time: {{ .Values.global.build_timestamp }} | Build-Branch: {{ .Values.global.platform_build_branch }} - {{ .Values.global.platform_last_commit_timestamp }} | KAAPANA: {{ .Values.global.kaapana_build_version }} | Build-Branch: {{ .Values.global.kaapana_build_branch }} - {{ .Values.global.kaapana_last_commit_timestamp }}"
+    }
+kind: ConfigMap
+metadata:
+  name: maintenance-page-config
+  namespace: "{{ .Values.global.admin_namespace }}"

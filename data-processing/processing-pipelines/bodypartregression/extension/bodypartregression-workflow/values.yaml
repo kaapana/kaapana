@@ -1,6 +1,4 @@
 ---
 global:
-    pull_policy_jobs: ""
     image: "dag-bodypartregression"
-    version: "0.1.0"
     action: "copy"

@@ -1,8 +1,23 @@
 ---
 global:
-    registry_url: ""
-    pull_policy_pods: ""
-    base_namespace: ""
-    fast_data_dir: ""
-    slow_data_dir: ""
-mount_path: ""
+  registry_url: ""
+  pull_policy_images: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+  - name: minio
+    mount_path: /kaapana/mounted/minio
+  nodePortMITKWorkbench: 22223
+
+extension_params:
+    service_type: 
+        definition: "Service type"
+        type: "list_single"
+        value: [
+           "ClusterIP",
+            "NodePort"
+        ]
+        default: "ClusterIP"
+        

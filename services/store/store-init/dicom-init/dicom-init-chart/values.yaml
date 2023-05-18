@@ -1,6 +1,8 @@
 ---
 global:
-    pull_policy_jobs: "IfNotPresent"
-    store_namespace: "store"
-    fast_data_dir: /home/kaapana
-    slow_data_dir: /home/kaapana/dcm_data
+  pull_policy_images: "IfNotPresent"
+  fast_data_dir: /home/kaapana
+  slow_data_dir: /home/kaapana/dcm_data
+  dynamicVolumes:
+  - name: dicom
+    host_path: /

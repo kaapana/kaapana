@@ -1,75 +1,49 @@
-import warnings
-from flask import g, Blueprint, request, jsonify, Response, url_for
-from sqlalchemy import and_
-from sqlalchemy.orm.exc import NoResultFound
-from datetime import datetime
-import requests
-import airflow.api
+import json
 from http import HTTPStatus
-from airflow.exceptions import AirflowException
-from airflow.models import DagRun, DagModel, DAG, DagBag
+
 from airflow import settings
-from airflow.utils import timezone
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+from airflow.api.common.experimental.mark_tasks import (
+    set_dag_run_state_to_failed as set_dag_run_failed,
+)
+from airflow.exceptions import AirflowException
+from airflow.models import DagRun, DagModel, DagBag, DAG
+from airflow.models.taskinstance import TaskInstance
+from airflow.utils.state import State, TaskInstanceState, DagRunState
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
-import glob
-import json
-import time
-from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from airflow.api.common.trigger_dag import trigger_dag as trigger
-from kaapana.operators.HelperElasticsearch import HelperElasticsearch
+from airflow.utils import timezone
+
+from flask import Blueprint, request, jsonify, Response
 from flask import current_app as app
-from multiprocessing.pool import ThreadPool
+
+from sqlalchemy import and_
+from sqlalchemy.orm.exc import NoResultFound
+
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_utils import (
+    generate_run_id,
+    generate_minio_credentials,
+    parse_ui_dict,
+)
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 _log = LoggingMixin().log
 parallel_processes = 1
 """
 Represents a blueprint kaapanaApi
 """
-kaapanaApi = Blueprint('kaapana', __name__, url_prefix='/kaapana')
-def async_dag_trigger(queue_entry):
-    hit, dag_id, tmp_conf, username = queue_entry
-    hit = hit["_source"]
-    studyUID = hit[HelperElasticsearch.study_uid_tag]
-    seriesUID = hit[HelperElasticsearch.series_uid_tag]
-    SOPInstanceUID = hit[HelperElasticsearch.SOPInstanceUID_tag]
-    modality = hit[HelperElasticsearch.modality_tag]
+kaapanaApi = Blueprint("kaapana", __name__, url_prefix="/kaapana")
 
-    print(f"# Triggering {dag_id} - series: {seriesUID}")
 
-    conf = {
-        "user_public_id": username,
-        "inputs": [
-            {
-                "dcm-uid": {
-                    "study-uid": studyUID,
-                    "series-uid": seriesUID,
-                    "modality": modality
-                }
-            }
-        ],
-        **tmp_conf
-        # "conf": tmp_conf
-    }
-
-    dag_run_id = generate_run_id(dag_id)
-    try:
-        result = trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-    except Exception as e:
-        pass
-
-    return seriesUID, result
-
-        
 @csrf.exempt
-@kaapanaApi.route('/api/trigger/<string:dag_id>', methods=['POST'])
+@kaapanaApi.route("/api/trigger/<string:dag_id>", methods=["POST"])
 def trigger_dag(dag_id):
-    headers = dict(request.headers)
+    # headers = dict(request.headers)
     data = request.get_json(force=True)
-    username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
-    if 'conf' in data:
-        tmp_conf = data['conf']
+    # username = headers["X-Forwarded-Preferred-Username"] if "X-Forwarded-Preferred-Username" in headers else "unknown"
+    if "conf" in data:
+        tmp_conf = data["conf"]
     else:
         tmp_conf = data
 
@@ -77,146 +51,231 @@ def trigger_dag(dag_id):
     if "x_auth_token" in data:
         tmp_conf["x_auth_token"] = data["x_auth_token"]
     else:
-        tmp_conf["x_auth_token"] = request.headers.get('X-Auth-Token')
+        tmp_conf["x_auth_token"] = request.headers.get("X-Auth-Token")
 
-    ################################################################################################ 
-    #### Deprecated! Will be removed with the next version 0.1.3
+    ################################################################################################
+    #### Deprecated! Will be removed with the next version 0.3.0
 
-    if "workflow_form" in tmp_conf: # in the future only workflow_form should be included in the tmp_conf
+    if (
+        "workflow_form" in tmp_conf
+    ):  # in the future only workflow_form should be included in the tmp_conf
         tmp_conf["form_data"] = tmp_conf["workflow_form"]
     elif "form_data" in tmp_conf:
         tmp_conf["workflow_form"] = tmp_conf["form_data"]
 
-    if dag_id == "meta-trigger":
-        warnings.warn("meta-trigger as endpoint was depcrecated in version 0.1.3, please adjust your request accordingly")
-        form_data = tmp_conf["form_data"] if "form_data" in tmp_conf else None
-        if form_data is not None:
-            warnings.warn("form_data was renamed to workflow_data, please adjust your request accordingly")
-        print(json.dumps(form_data))
-        single_execution = True if form_data is not None and "single_execution" in form_data and form_data["single_execution"] else False
-        dag_id = tmp_conf["dag"]
-        tmp_conf['elasticsearch_form'] = {
-            "query": tmp_conf["query"],
-            "index": tmp_conf["index"],
-            "single_execution": single_execution,
-            "cohort_limit": int(tmp_conf["cohort_limit"]) if "cohort_limit" in tmp_conf and tmp_conf["cohort_limit"] is not None else None
-        }
     ################################################################################################
 
-    if "elasticsearch_form" in tmp_conf:
-        elasticsearch_data = tmp_conf["elasticsearch_form"]
-        if "query" in elasticsearch_data:
-            query = elasticsearch_data["query"]
-        elif "dataset" in elasticsearch_data or "input_modality" in elasticsearch_data:
-            query = {
-                "bool": {
-                    "must": [
-                        {
-                            "match_all": {}
-                        },
-                        {
-                            "match_all": {}
-                        }
-                    ],
-                    "filter": [],
-                    "should": [],
-                    "must_not": []
-                }
-            }
+    run_id = generate_run_id(dag_id)
 
-            if "dataset" in elasticsearch_data:
-                query["bool"]["must"].append({
-                    "match_phrase": {
-                        "dataset_tags_keyword.keyword": {
-                            "query": elasticsearch_data["dataset"]
-                        }
-                    }
-                })
-            if "input_modality" in elasticsearch_data:
-                query["bool"]["must"].append({
-                    "match_phrase": {
-                        "00080060 Modality_keyword.keyword": {
-                            "query": elasticsearch_data["input_modality"]
-                        }
-                    }
-                })
-        else:
-            raise ValueError('query or dataset or input_modality needs to be defined!')
+    print(json.dumps(tmp_conf, indent=2))
 
-        index = elasticsearch_data["index"]
-        cohort_limit = int(elasticsearch_data["cohort_limit"]) if ("cohort_limit" in elasticsearch_data and elasticsearch_data["cohort_limit"] is not None) else None
-        single_execution = True if "single_execution" in elasticsearch_data and elasticsearch_data["single_execution"] else False
-
-        print(f"query: {query}")
-        print(f"index: {index}")
-        print(f"dag_id: {dag_id}")
-        print(f"single_execution: {single_execution}")
-
-        if single_execution:
-            hits = HelperElasticsearch.get_query_cohort(elastic_query=query, elastic_index=index)
-            if hits is None:
-                message = ["Error in HelperElasticsearch: {}!".format(dag_id)]
-                response = jsonify(message=message)
-                response.status_code = 500
-                return response
-
-            hits = hits[:cohort_limit] if cohort_limit is not None else hits
-
-            queue = []
-            for hit in hits:
-                queue.append((hit, dag_id, tmp_conf,username))
-
-            trigger_results = ThreadPool(parallel_processes).imap_unordered(async_dag_trigger, queue)
-            for seriesUID, result in trigger_results:
-                print(f"#  Done: {seriesUID}:{result}")
-
-        else:
-            conf = {
-                "user_public_id": username,
-                "inputs": [
-                    {
-                        "elastic-query": {
-                            "query": query,
-                            "index": index
-                        }
-                    }
-                ],
-                **tmp_conf
-                # "conf": tmp_conf
-            }
-            dag_run_id = generate_run_id(dag_id)
-            trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
-
-        message = ["{} created!".format(dag_id)]
-        response = jsonify(message=message)
+    execution_date = None
+    try:
+        dr = trigger(
+            dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False
+        )
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
 
-    else:
-        run_id = generate_run_id(dag_id)
-
-        execution_date = None
-        try:
-            dr = trigger(dag_id, run_id, tmp_conf, execution_date, replace_microseconds=False)
-        except AirflowException as err:
-            _log.error(err)
-            response = jsonify(error="{}".format(err))
-            response.status_code = err.status_code
-            return response
-
-        message = ["{} created!".format(dr.dag_id)]
-        response = jsonify(message=message)
-        return response
+    message = ["{} created!".format(dr.dag_id)]
+    dag_dagrun_dict = {}
+    dag_dagrun_dict["dag_id"] = dr.dag_id
+    dag_dagrun_dict["run_id"] = dr.run_id
+    message.append(dag_dagrun_dict)
+    response = jsonify(message=message)
+    return response
 
 
-@kaapanaApi.route('/api/getdagruns', methods=['GET'])
+@csrf.exempt
+@kaapanaApi.route("/api/get_dagrun_tasks/<dag_id>/<run_id>", methods=["POST"])
+def get_dagrun_tasks(dag_id, run_id):
+    """
+    This Airflow API does the following:
+    - query from airflow a dag_run by dag_id and run_id
+    - get all tasks including their states of queried dag_run
+    - return tasks
+    """
+    dag_objects = DagBag().dags  # returns all DAGs available on platform
+    desired_dag = dag_objects[
+        dag_id
+    ]  # filter desired_dag from all available dags via dag_id
+    session = settings.Session()
+    message = []
+
+    task_ids = [
+        task.task_id for task in desired_dag.tasks
+    ]  # get task_ids of desired_dag
+    tis = session.query(
+        TaskInstance
+    ).filter(  # query TaskInstances which are part of desired_dag wit run_id=run_id and task_ids
+        TaskInstance.dag_id == desired_dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id.in_(task_ids),
+    )
+    tis = [ti for ti in tis]
+
+    # compose 2 response dict in style: {"task_instance": "state"/"execution_date"}
+    state_dict = {}
+    exdate_dict = {}
+    for ti in tis:
+        state_dict[ti.task_id] = ti.state
+        exdate_dict[ti.task_id] = str(ti.execution_date)
+
+    # message.append(f"Result of task querying: {tis}")
+    message.append(f"{state_dict}")
+    message.append(f"{exdate_dict}")
+    response = jsonify(message=message)
+    return response
+
+
+@csrf.exempt
+@kaapanaApi.route("/api/abort/<dag_id>/<run_id>", methods=["POST"])
+def abort_dag_run(dag_id, run_id):
+    # abort dag_run by executing set_dag_run_state_to_failed() (source: https://github.com/apache/airflow/blob/main/airflow/api/common/mark_tasks.py#L421)
+    dag_objects = DagBag().dags  # returns all DAGs available on platform
+    desired_dag = dag_objects[
+        dag_id
+    ]  # filter desired_dag from all available dags via dag_id
+
+    session = settings.Session()
+    dag_runs_of_desired_dag = session.query(DagRun).filter(
+        DagRun.dag_id == desired_dag.dag_id
+    )
+    for dag_run_of_desired_dag in dag_runs_of_desired_dag:
+        if dag_run_of_desired_dag.run_id == run_id:
+            desired_execution_date = dag_run_of_desired_dag.execution_date
+            break
+        else:
+            desired_execution_date = None
+
+    message = []
+
+    # Own solution highly inspred by airflow latest (2.4.3) -> def set_dag_run_state_to_failed(*, dag: DAG, execution_date: datetime | None = None, run_id: str | None = None, commit: bool = False, session: SASession = NEW_SESSION,)
+    dag = desired_dag
+    execution_date = desired_execution_date
+    run_id = run_id
+    commit = True
+    session = session
+    state = TaskInstanceState.FAILED
+
+    if not dag:
+        return []
+    if execution_date:
+        if not timezone.is_localized(execution_date):
+            raise ValueError(f"Received non-localized date {execution_date}")
+        dag_run = dag.get_dagrun(execution_date=execution_date)
+        if not dag_run:
+            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
+        run_id = dag_run.run_id
+    if not run_id:
+        raise ValueError(f"Invalid dag_run_id: {run_id}")
+
+    # Mark the dag run to failed.
+    if commit:
+        # _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
+        # definition: def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION)
+        dag_run_state = DagRunState.FAILED
+        dag_run = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+            .one()
+        )
+        dag_run.state = dag_run_state
+        if dag_run_state == State.RUNNING:
+            dag_run.start_date = timezone.utcnow()
+            dag_run.end_date = None
+        else:
+            dag_run.end_date = timezone.utcnow()
+        session.merge(dag_run)
+
+    # Mark only RUNNING task instances.
+    task_ids = [task.task_id for task in dag.tasks]
+    tis_r = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.task_id.in_(task_ids),
+        TaskInstance.state == (TaskInstanceState.RUNNING),
+    )
+    tis_r = [ti for ti in tis_r]
+    if commit:
+        for ti in tis_r:
+            message.append(f"Running Task {ti} and its state {ti.state}")
+            ti.set_state(
+                State.FAILED
+            )  # set non-running and not finished tasks to skipped
+
+    # Mark non-finished and not running tasks as SKIPPED.
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state != (TaskInstanceState.SUCCESS),
+        TaskInstance.state != (TaskInstanceState.RUNNING),
+        TaskInstance.state != (TaskInstanceState.FAILED),
+    )
+    tis = [ti for ti in tis]
+    if commit:
+        for ti in tis:
+            message.append(f"Non-finished Task {ti} and its state {ti.state}")
+            ti.set_state(
+                State.SKIPPED
+            )  # set non-running and not finished tasks to skipped
+
+    # Mark tasks in state None as SKIPPED
+    tis_n = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state == None,
+    )
+    tis_n = [ti for ti in tis_n]
+    if commit:
+        for ti in tis_n:
+            message.append(f"None-state Task {ti} and its state {ti.state}")
+            ti.set_state(State.SKIPPED)  # set None-state tasks to skipped
+
+    # if no task is marked as FAILED so far, take last task marked as SUCCESS and set it to FAILED --> such that whole dag_run is also marked as failed!
+    # query tasks for failed
+    tis_f = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == dag.dag_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.state == (TaskInstanceState.FAILED),
+    )
+    tis_f = [ti for ti in tis_f]
+    message.append(f"So far FAILED tasks: {tis_f}")
+    if len(tis_f) == 0:
+        # if no failed task found -> query tasks for succes; select last succeeded task and set is to failed
+        tis_s = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.state == (TaskInstanceState.SUCCESS),
+        )
+        message.append(f"tis_s: {tis_s}")
+        latest_ti_s = tis_s.order_by(TaskInstance.start_date.desc()).first()
+        message.append(f"So far SUCCESS task, to.be changed to FAILED: {latest_ti_s}")
+        latest_ti_s.set_state(State.FAILED)
+
+    all_tis = [tis_r, tis, tis_n]
+
+    # prevent DAG from restarting due to set 'retries' argument
+    dag.default_args["retries"] = 0
+
+    message.append(f"Result of Job abortion: {all_tis}")
+    response = jsonify(message=message)
+    return response
+
+
+@kaapanaApi.route("/api/getdagruns", methods=["POST"])
 @csrf.exempt
 def getAllDagRuns():
-    dag_id = request.args.get('dag_id')
-    run_id = request.args.get('run_id')
-    state = request.args.get('state')
-    limit = request.args.get('limit')
-    count = request.args.get('count')
-    categorize = request.args.get('categorize')
+    data = request.get_json(force=True)
+    dag_id = data["dag_id"] if "dag_id" in data else None
+    run_id = data["run_id"] if "run_id" in data else None
+    state = data["state"] if "state" in data else None
+    limit = data["limit"] if "limit" in data else None
+    count = data["count"] if "count" in data else None
+    categorize = data["categorize"] if "categorize" in data else None
 
     session = settings.Session()
     time_format = "%Y-%m-%dT%H:%M:%S"
@@ -235,40 +294,43 @@ def getAllDagRuns():
         all_dagruns = list(all_dagruns.order_by(DagRun.execution_date).all())
 
         if limit is not None:
-            all_dagruns = all_dagruns[:int(limit)]
+            all_dagruns = all_dagruns[: int(limit)]
 
         dagruns = []
         for dagrun in all_dagruns:
-
             conf = dagrun.conf
             if conf is not None and "user_public_id" in conf:
                 user = conf["user_public_id"]
             else:
                 user = "0000-0000-0000-0000-0000"
 
-            dagruns.append({
-                'user': user,
-                'dag_id': dagrun.dag_id,
-                'run_id': dagrun.run_id,
-                'state': dagrun.state,
-                'execution_time': dagrun.execution_date
-            })
+            dagruns.append(
+                {
+                    "user": user,
+                    "dag_id": dagrun.dag_id,
+                    "run_id": dagrun.run_id,
+                    "state": dagrun.state,
+                    "execution_time": dagrun.execution_date,
+                }
+            )
 
         if count is not None:
             dagruns = len(all_dagruns)
 
     except NoResultFound:
-        print('No Dags found!')
+        print("No Dags found!")
         return jsonify({})
 
     return jsonify(dagruns)
 
 
-@kaapanaApi.route('/api/getdags', methods=['GET'])
+@kaapanaApi.route("/api/getdags", methods=["GET"])
 @csrf.exempt
 def get_dags_endpoint():
-    ids_only = request.args.get('ids_only')
-    active_only = request.args.get('active_only')
+    with app.app_context():
+        app.json.sort_keys = False
+    ids_only = request.args.get("ids_only")
+    active_only = request.args.get("active_only")
     session = settings.Session()
 
     dag_objects = DagBag().dags
@@ -282,17 +344,21 @@ def get_dags_endpoint():
         if active_only is not None and not dag_dict["is_active"]:
             continue
 
-        dag_id = dag_dict['dag_id']
-        if dag_id in dag_objects and dag_objects[dag_id] is not None and hasattr(dag_objects[dag_id], 'default_args'):
+        dag_id = dag_dict["dag_id"]
+        if (
+            dag_id in dag_objects
+            and dag_objects[dag_id] is not None
+            and hasattr(dag_objects[dag_id], "default_args")
+        ):
             default_args = dag_objects[dag_id].default_args
             for default_arg in default_args.keys():
                 if default_arg[:3] == "ui_":
                     dag_dict[default_arg] = default_args[default_arg]
 
-        del dag_dict['_sa_instance_state']
-        dags[dag_id] = dag_dict
+        del dag_dict["_sa_instance_state"]
 
-    app.config['JSON_SORT_KEYS'] = False
+        dags[dag_id] = parse_ui_dict(dag_dict)
+
     return jsonify(dags)
 
 
@@ -300,15 +366,14 @@ def check_dag_exists(session, dag_id):
     """
     if returns an error response, if it doesn't exist
     """
-    dag_exists = session.query(DagModel).filter(
-        DagModel.dag_id == dag_id).count()
+    dag_exists = session.query(DagModel).filter(DagModel.dag_id == dag_id).count()
     if not dag_exists:
-        return Response('Dag {} does not exist'.format(dag_id), http.client.BAD_REQUEST)
+        return Response("Dag {} does not exist".format(dag_id), HTTPStatus.BAD_REQUEST)
 
     return None
 
 
-@kaapanaApi.route('/api/dagids/<dag_id>', methods=['GET'])
+@kaapanaApi.route("/api/dagids/<dag_id>", methods=["GET"])
 @csrf.exempt
 def get_dag_runs(dag_id):
     """
@@ -333,14 +398,18 @@ def get_dag_runs(dag_id):
     if error_response:
         return error_response
 
-    dag_runs = session.query(DagRun).filter(
-        DagRun.dag_id == dag_id).order_by(DagRun.execution_date).all()
+    dag_runs = (
+        session.query(DagRun)
+        .filter(DagRun.dag_id == dag_id)
+        .order_by(DagRun.execution_date)
+        .all()
+    )
     run_ids = [dag_run.run_id for dag_run in dag_runs]
 
     return jsonify(dag_id=dag_id, run_ids=run_ids)
 
 
-@kaapanaApi.route('/api/dags/<dag_id>/dagRuns/state/<state>/count', methods=['GET'])
+@kaapanaApi.route("/api/dags/<dag_id>/dagRuns/state/<state>/count", methods=["GET"])
 @csrf.exempt
 def get_num_dag_runs_by_state(dag_id, state):
     """
@@ -356,7 +425,7 @@ def get_num_dag_runs_by_state(dag_id, state):
     return jsonify(number_of_dagruns=number_of_dagruns)
 
 
-@kaapanaApi.route('/api/dagdetails/<dag_id>/<run_id>', methods=['GET'])
+@kaapanaApi.route("/api/dagdetails/<dag_id>/<run_id>", methods=["GET"])
 @csrf.exempt
 def dag_run_status(dag_id, run_id):
     session = settings.Session()
@@ -366,113 +435,21 @@ def dag_run_status(dag_id, run_id):
         return error_response
 
     try:
-        dag_run = session.query(DagRun).filter(
-            and_(DagRun.dag_id == dag_id, DagRun.run_id == run_id)).one()
+        dag_run = (
+            session.query(DagRun)
+            .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+            .one()
+        )
     except NoResultFound:
-        return Response('RunId {} does not exist for Dag {}'.format(run_id, dag_id), HTTPStatus.BAD_REQUEST)
+        return Response(
+            "RunId {} does not exist for Dag {}".format(run_id, dag_id),
+            HTTPStatus.BAD_REQUEST,
+        )
 
     time_format = "%Y-%m-%dT%H:%M:%S"
     return jsonify(
         dag_id=dag_id,
         run_id=run_id,
         state=dag_run.state,
-        execution_date=dag_run.execution_date.strftime(time_format)
+        execution_date=dag_run.execution_date.strftime(time_format),
     )
-
-
-# Should be all moved to kaapana backend!!
-# Authorization topics
-@kaapanaApi.route('/api/getaccesstoken')
-@csrf.exempt
-def get_access_token():
-    x_auth_token = request.headers.get('X-Forwarded-Access-Token')
-    if x_auth_token is None:
-        return jsonify({'message': 'No X-Auth-Token found in your request, seems that you are calling me from the backend!'}), 404
-    return jsonify(xAuthToken=x_auth_token)
-
-
-@kaapanaApi.route('/api/getminiocredentials')
-@csrf.exempt
-def get_minio_credentials():
-    x_auth_token = request.headers.get('X-Forwarded-Access-Token')
-    access_key, secret_key, session_token = generate_minio_credentials(x_auth_token)
-    return jsonify({'accessKey': access_key, 'secretKey': secret_key, 'sessionToken': session_token}), 200
-
-@kaapanaApi.route('/api/get-kibana-dashboards')
-@csrf.exempt
-def get_kibana_dashboards():
-    try:
-        res = HelperElasticsearch.es.search(body={
-        "query": {
-            "exists": {
-            "field": "dashboard"
-            }
-        },
-        "_source": ["dashboard.title"]
-        }, size=10000, from_=0)
-    except Exception as e:
-        print("ERROR in elasticsearch search!")
-        return jsonify({'Error message': e}), 500
-
-    hits = res['hits']['hits']
-    dashboards = list(sorted([ hit['_source']['dashboard']['title'] for hit in hits ]))
-    return jsonify({'dashboards': dashboards}), 200
-
-
-@kaapanaApi.route('/api/get-static-website-results')
-@csrf.exempt
-def get_static_website_results():
-    import uuid
-    import os
-    from minio import Minio
-
-    def build_tree(item, filepath, org_filepath):
-    # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
-        splits = filepath.split('/', 1)
-        if len(splits) == 1:
-            print(splits)
-            # item.update({
-            #     "name": splits[0]
-            #     # "file": "html",
-            # })
-            # if "vuetifyItems" not in item:
-            #     item["vuetifyItems"] = []
-            item["vuetifyFiles"].append({
-                "name": splits[0],
-                "file": "html",
-                "path": f"/static-website-browser/{org_filepath}"
-            })
-        else:
-            parent_folder, filepath = splits
-            if parent_folder not in item:
-                item[parent_folder] = {"vuetifyFiles": []}
-            build_tree(item[parent_folder], filepath, org_filepath)
-            
-    def get_vuetify_tree_structure(tree):
-        subtree = []
-        for parent, children in tree.items():
-            print(parent, children)
-            if parent == 'vuetifyFiles':
-                subtree = children
-            else:
-                subtree.append({
-                    'name': parent,
-                    'path': str(uuid.uuid4()),
-                    'children': get_vuetify_tree_structure(children)
-                })
-        return subtree
-
-    _minio_host='minio-service.store.svc'
-    _minio_port='9000'
-    minioClient = Minio(_minio_host+":"+_minio_port,
-                        access_key='kaapanaminio',
-                        secret_key='Kaapana2020',
-                        secure=False)
-
-
-    tree = {"vuetifyFiles": []}
-    objects = minioClient.list_objects("staticwebsiteresults", prefix=None, recursive=True)
-    for obj in objects:
-        if obj.object_name.endswith('html') and obj.object_name != 'index.html':
-            build_tree(tree, obj.object_name, obj.object_name)
-    return jsonify(get_vuetify_tree_structure(tree)), 200

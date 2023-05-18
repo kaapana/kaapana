@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./target",
+    "skipLibCheck": true
+  },
+  "include": [
+    "index.ts",
+    "common/**/*.ts",
+    "public/**/*.ts",
+    "public/**/*.tsx",
+    "public/components/workflow_trigger_controller.js",
+    "public/dependencies/*.js",
+    "public/dependencies/*.scss",
+    "../../typings/**/*"
+  ],
+  "exclude": []
+}

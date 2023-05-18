@@ -1,7 +1,0 @@
----
-apiVersion: v1
-appVersion: "0.0.1"
-description: Init Job to create tls certificates for the platform
-name: cert-init-chart
-version: "0.0.1"
-

@@ -1,0 +1,49 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: traefik-strip-prefix
+  namespace: "{{  .Values.global.helm_namespace  }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /traefik
+    forceSlash: true
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: traefik-redirect
+  namespace: "{{  .Values.global.helm_namespace  }}"
+spec:
+  redirectRegex:
+    regex: ^.*/traefik$
+    replacement: /traefik/dashboard/#/
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: auth-check
+  namespace: "{{  .Values.global.helm_namespace  }}"
+spec:
+  forwardAuth:
+    address: http://auth-backend-service.{{  .Values.global.admin_namespace  }}.svc:5000/auth-check
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: remove-auth-headers
+  namespace: "{{  .Values.global.helm_namespace  }}"
+spec:
+  headers:
+    customRequestHeaders:
+      X-Auth-Token: ""
+      X-Auth-Username: ""
+      X-Auth-Userid: ""
+      X-Auth-Email: ""
+      X-Auth-Subject: ""
+      Authorization: ""
+      kc-state: ""
+      cookie: ""
+---
+    

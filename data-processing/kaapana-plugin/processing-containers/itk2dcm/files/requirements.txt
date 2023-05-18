@@ -1,0 +1,2 @@
+pydicom==2.2.2
+SimpleITK==2.0.2

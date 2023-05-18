@@ -1,6 +1,5 @@
 ---
 global:
-    pull_policy_jobs: "IfNotPresent"
+    pull_policy_images: "IfNotPresent"
 image: "dag-installer-template"
-version: "0.1.0"
 action: "copy"

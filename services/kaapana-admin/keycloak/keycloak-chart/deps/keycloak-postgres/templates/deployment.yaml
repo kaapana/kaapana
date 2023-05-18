@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-keycloak
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: postgres-keycloak
+  template:
+    metadata:
+      labels:
+        app-name: postgres-keycloak
+    spec:
+      containers:
+        - name: postgres-keycloak-container
+          image: "{{ .Values.global.registry_url }}/postgres-9.5-alpine:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          env:
+            - name: PGDATA
+              value: "/db/db-files/"
+            - name: POSTGRES_DB
+              value: keycloak
+            - name: POSTGRES_USER
+              value: keycloak
+            - name: POSTGRES_PASSWORD
+              value: keycloak
+          ports:
+            - containerPort: 5432
+          resources:
+            requests:
+              memory: 100Mi
+            limits:
+              memory: 500Mi
+          volumeMounts:
+            - mountPath: /db
+              name: postgresdata
+      volumes:
+      - name: postgresdata
+        persistentVolumeClaim:
+          claimName: keycloak-pv-claim
+      imagePullSecrets:
+      - name: registry-secret

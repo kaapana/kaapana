@@ -1,7 +1,7 @@
 {
-    "description": "Kaapana release v0.1.3",
-    "title": "kaapana/kaapana: v0.1.3",
-    "version": "0.1.3",
+    "description": "Kaapana release v0.2.0",
+    "title": "kaapana/kaapana: v0.2.0",
+    "version": "0.2.0",
     "license": {
         "id": "AGPL-3.0"
     },
@@ -90,7 +90,7 @@
     "related_identifiers": [
         {
             "scheme": "url",
-            "identifier": "https://kaapana.readthedocs.io/en/release-0.1.3/",
+            "identifier": "https://kaapana.readthedocs.io/en/stable/",
             "relation": "isDocumentedBy",
             "resource_type": "publication-softwaredocumentation"
         },

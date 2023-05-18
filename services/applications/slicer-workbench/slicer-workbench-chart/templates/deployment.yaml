@@ -1,0 +1,35 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app-name: {{ .Release.Name }}
+    spec:
+      restartPolicy: Always
+      containers:
+        # ToDo add init-container to wait for db-host
+      - name: slicer
+        image: "{{ .Values.global.registry_url }}/slicer-workbench:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        resources:
+          requests:
+            memory: "5Gi"
+          limits:
+            memory: "8Gi"
+        env:
+        - name: INGRESS_PATH
+          value: {{ printf "/%s" .Release.Name }}
+        volumeMounts:
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
+      volumes:
+{{ include "dynamicVolumes" $ | indent 6 }}
+      imagePullSecrets:
+      - name: registry-secret

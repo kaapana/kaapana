@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres-dcm4che
-  namespace: {{ .Values.global.store_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: postgres-dcm4che-container
-          image: {{ .Values.global.registry_url }}/dcm4che-postgres:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__9.6.24-26
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          image: "{{ .Values.global.registry_url }}/dcm4che-postgres:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
             - name: STORAGE_DIR
               value: /storage/fs1
@@ -43,9 +43,8 @@ spec:
               name: postgres-data
       volumes:
       - name: postgres-data
-        hostPath:
-           path: {{ .Values.global.fast_data_dir }}/postgres-dcm4che
-           type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: dcm4chee-postgres-pv-claim
       imagePullSecrets:
       - name: registry-secret
 ---

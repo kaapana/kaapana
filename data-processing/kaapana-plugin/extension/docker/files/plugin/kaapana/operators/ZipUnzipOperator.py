@@ -2,8 +2,11 @@ import os
 import glob
 from datetime import timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator, default_registry, default_platform_abbr, default_platform_version
-from kaapana.blueprints.kaapana_global_variables import BATCH_NAME, WORKFLOW_DIR
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
 
 
 class ZipUnzipOperator(KaapanaBaseOperator):
@@ -23,18 +26,19 @@ class ZipUnzipOperator(KaapanaBaseOperator):
     * When extracting the extracted files
     """
 
-    def __init__(self,
-                 dag,
-                 target_filename = None,
-                 subdir = None,
-                 mode = None, # 'zip' or 'unzip'
-                 batch_level = False,
-                 whitelist_files = None, # eg: "*.txt,*.png" or whole filenames
-                 blacklist_files = None, # eg: "*.txt,*.png" or whole filenames
-                 env_vars = None,
-                 execution_timeout=timedelta(minutes=10),
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        dag,
+        target_filename=None,
+        subdir=None,
+        mode=None,  # 'zip' or 'unzip'
+        batch_level=False,
+        whitelist_files=None,  # eg: "*.txt,*.png" or whole filenames
+        blacklist_files=None,  # eg: "*.txt,*.png" or whole filenames
+        env_vars=None,
+        execution_timeout=timedelta(minutes=10),
+        **kwargs,
+    ):
         """
         :param target_filename: Only for packing. The created file.
         :param subdir: Only for packing. Subdir used to pack, if empty all data are packed.
@@ -48,22 +52,28 @@ class ZipUnzipOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "TARGET_FILENAME": target_filename if target_filename is not None else "NONE",
+            "TARGET_FILENAME": target_filename
+            if target_filename is not None
+            else "NONE",
             "MODE": mode if mode is not None else "NONE",
             "SUBDIR": subdir if subdir is not None else "NONE",
             "BATCH_LEVEL": str(batch_level),
-            "WHITELIST_FILES": whitelist_files if whitelist_files is not None else "NONE",
-            "BLACKLIST_FILES": blacklist_files if blacklist_files is not None else "NONE",
+            "WHITELIST_FILES": whitelist_files
+            if whitelist_files is not None
+            else "NONE",
+            "BLACKLIST_FILES": blacklist_files
+            if blacklist_files is not None
+            else "NONE",
         }
 
         env_vars.update(envs)
 
         super().__init__(
             dag=dag,
-            image=f"{default_registry}/zip-unzip:{default_platform_abbr}_{default_platform_version}__3.0.0",
+            image=f"{DEFAULT_REGISTRY}/zip-unzip:{KAAPANA_BUILD_VERSION}",
             name="zip-unzip",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,
-            **kwargs
+            **kwargs,
         )

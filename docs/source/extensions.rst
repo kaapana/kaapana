@@ -47,7 +47,7 @@ Delete series from platform (delete-series-from-platform)
 ---------------------------------------------------------
 | **What's going on?**
 | 1) DICOMs are deleted from the PACS.
-| 2) Meta data of DICOMs are deleted from the Elasticsearch database.
+| 2) Meta data of DICOMs are deleted from the OpenSearch database.
 
 | **Input data:**
 | Filter for DICOMs that you want to remove from the platform. Since in the current verison the files are copied to the local SSD drive, please, do not select too many images at once. 
@@ -137,6 +137,30 @@ Radiomics (radiomics-dcmseg)
 | **Start processing:**
 | Select  *radiomics* + *START*, *single execution* on the configuration popup can be set to True or False and then click *START* again.
 
+.. _extensions mitk_flow:
+
+MITK Flow
+---------
+| **What's going on?**
+| 1) A MITK instance is started in a noVNC application.
+| 2) The noVNC application with MITK running can be accessed via the *Pending applications* page.
+| 3) After finishing manual interaction newly created segmentations are uploaed to the PACS.
+
+| **Notes:**
+| The *mitk-flow* workflow is intended to generate segmentations with MITK tools.
+  Inside the initialized MITK application only a single series is available.
+  If your work with this series is finished, save the project and exit the MITK application.
+  Within noVNC MITK will automatically be restarted with the next series available.
+  After finishing the manual interaction all created segmentations will be send to the PACS.
+  In the Kibana-Dashboard the segmentations are tagged as "MITK-flow".
+  If no segmentations were created or no project was saved, 
+  **the workflow will fail** because the :code:`DcmSendOperator` fails when no data was send.
+
+| **Input data:**  
+| DICOMs
+
+| **Start processing:**
+| Select *mitk-flow* + *START*, make sure *single execution* on the configuration popup is set to False and then click *START* again.
 
 .. _extensions applications:
 
@@ -153,6 +177,10 @@ Code server
 | **Mount point:**  
 | <fast_data_dir>/workflows
 
+| **VSCode settings:**
+| If you want to use your costum VSCode settings inside the code-server you can save them under :code:`/kaapana/app/.vscode/settings.json`.
+
+
 .. _extensions jupyterlab:
 
 Jupyter lab
@@ -163,12 +191,12 @@ Jupyter lab
 | **Mount point:**  
 | <slow_data_dir>/minio
 
-.. _extensions mitk_flow:
+.. _extensions mitk_workbench:
 
-MITK Flow
----------
+MITK Workbench
+--------------
 | **What's going on?**
-| The MITK Flow is an instance of MITK to watch image data.
+| The MITK Workbench is an instance of MITK to watch image data.
 
 | **Mount point:**  
 | <slow_data_dir>/minio

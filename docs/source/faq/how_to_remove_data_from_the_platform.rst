@@ -3,7 +3,7 @@ How to remove data from the platform
 
 There are several ways of removing data from the platform depending on the kind of data you want to remove.
 In general we distinguish between DICOM data and non-DICOM data.
-All DICOM data is stored in an internal PACS and the metadata in Elasticsearch.
+All DICOM data is stored in an internal PACS and the metadata in OpenSearch.
 Non-DICOM data is stored in Minio buckets.
 
 Removing DICOM data 
@@ -16,7 +16,7 @@ For information about how to use the Meta-Dashboard to select data and trigger a
     The :code:`delete-series-from-platform` workflow can also be triggered in the other dashboards i.e. *Segmentations* and *Trained Models*.
 
 The :code:`delete-series-from-platform` workflow deletes all series selected in the Meta-Dashboard from the PACS 
-and additionally deletes all corresponding metadata from Elasticsearch.
+and additionally deletes all corresponding metadata from OpenSearch.
 
 In case you want to delete a lot of data you can set :code:`Delete entire study: True` in the workflow dialog,
 which will be much faster.

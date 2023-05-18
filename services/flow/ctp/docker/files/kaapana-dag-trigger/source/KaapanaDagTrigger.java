@@ -107,13 +107,14 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             if (fileObject instanceof DicomObject) {
                 if (!isTagSet)
                     setImportServiceTags();
-                DicomObject dicomObject = (DicomObject) fileObject;
+
                 callingAET = "";
                 calledAET = "";
                 connectionIP = "";
-                if ((calledAETTag != 0)
+                if (removeTags.equals("yes") &&
+                        ((calledAETTag != 0)
                         || (callingAETTag != 0)
-                        || (connectionIPTag != 0))
+                        || (connectionIPTag != 0)))
                     fileObject = setTags(fileObject);
 
                 if(!fix_aetitle.equals(""))
@@ -129,7 +130,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     //get number of Files in Folder, if this is the first file trigger/retrigger airflow
                     fileCount = Objects.requireNonNull(storedFileParentDir.list()).length;
                 }
-
+                DicomObject dicomObject = (DicomObject) fileObject;
                 seriesInstanceUID = getElementValue(dicomObject, "0020000E");
 
                 if( 1 == fileCount){
@@ -270,26 +271,21 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
      */
     private FileObject setTags(FileObject fo) {
         try {
+            //DicomObject dob = (DicomObject)fo;
             DicomObject dob = new DicomObject(fo.getFile(), true); //leave the stream open
             File dobFile = dob.getFile();
             if (0 != callingAETTag) {
                 callingAET = dob.getElementValue(callingAETTag);
                 //delete value of DICOM-Tag before sending
-                if (removeTags.equals("yes")){
-                    dob.setElementValue(callingAETTag, "");
-                }
+                dob.setElementValue(callingAETTag, "");
             }
             if (0 != calledAETTag) {
                 calledAET = dob.getElementValue(calledAETTag);
-                if (removeTags.equals("yes")){
-                    dob.setElementValue(calledAETTag, "");
-                }
+                dob.setElementValue(calledAETTag, "");
             }
             if (0 != connectionIPTag) {
                 connectionIP = dob.getElementValue(connectionIPTag);
-                if (removeTags.equals("yes")){
-                    dob.setElementValue(connectionIPTag, "");
-                }
+                dob.setElementValue(connectionIPTag, "");
             }
 
             File tFile = File.createTempFile("TMP-",".dcm",dobFile.getParentFile());

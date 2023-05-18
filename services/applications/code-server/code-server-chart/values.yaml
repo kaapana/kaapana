@@ -1,16 +1,19 @@
 ---
 global:
-  registry_url: ""
-  pull_policy_pods: ""
-  base_namespace: ""
-  fast_data_dir: ""
-  slow_data_dir: ""
-envVars:
-volumeMounts:
-# - name: workflowdata
-#   mountPath: /root
-volumes:
-# - name: workflowdata
-#   path: /home/kaapana/workflows/
-  
-
+  ingress_path: "code-server"
+  complete_image: "{{ .Values.global.registry_url }}/code-server:{{ .Values.global.kaapana_build_version  }}"
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+  - name: models
+    mount_path: /kaapana/mounted/workflows/models
+  - name: dags
+    mount_path: /kaapana/mounted/workflows/dags
+  - name: af-plugins
+    mount_path: /kaapana/mounted/workflows/plugins
+  - name: af-data
+    mount_path: /kaapana/mounted/workflows/data
+  - name: mounted-scripts
+    mount_path: /kaapana/mounted/workflows/mounted_scripts
+  envVars:
+  - name: WORKSPACE
+    value: "/kaapana"

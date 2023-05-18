@@ -1,19 +1,26 @@
 from pprint import pprint
 import requests
 import time
-import json
 import logging
+import os
+import json
 
-prometheus_url = "http://prometheus-service.monitoring.svc:9090/prometheus/api/v1/query?query="
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
+assert SERVICES_NAMESPACE
+
+prometheus_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query?query="
 
 memory_query = "floor(sum(machine_memory_bytes)/1048576)"
-mem_util_per_query = "sum (container_memory_working_set_bytes{id=\"/\"}) / sum (machine_memory_bytes) * 100"
+mem_util_per_query = 'sum (container_memory_working_set_bytes{id="/"}) / sum (machine_memory_bytes) * 100'
+memory_requeted_services = "round(sum(kube_pod_container_resource_requests{unit='byte',namespace!='jobs'})/1000000)"
 
 cpu_core_query = "machine_cpu_cores"
-cpu_util_per_query = "sum (rate (container_cpu_usage_seconds_total{id=\"/\"}[1m])) / sum (machine_cpu_cores) * 100"
-cpu_util_cores_used_query = "sum(rate (container_cpu_usage_seconds_total{id=\"/\"}[1m]))"
+cpu_util_per_query = 'sum (rate (container_cpu_usage_seconds_total{id="/"}[1m])) / sum (machine_cpu_cores) * 100'
+cpu_util_cores_used_query = 'sum(rate (container_cpu_usage_seconds_total{id="/"}[1m]))'
 
-gpu_count_query = "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
+gpu_count_query = (
+    "count(DCGM_FI_DEV_POWER_USAGE{kubernetes_name='nvidia-dcgm-exporter'})"
+)
 gpu_mem_used_device_query = "DCGM_FI_DEV_FB_USED{kubernetes_name='nvidia-dcgm-exporter',instance=~'.+',gpu=~'<replace>'}"
 gpu_mem_available_device_query = "DCGM_FI_DEV_FB_FREE{kubernetes_name='nvidia-dcgm-exporter',instance=~'.+',gpu=~'<replace>'}"
 gpu_infos_query_free = "DCGM_FI_DEV_FB_FREE{app='nvidia-dcgm-exporter'}"
@@ -61,7 +68,12 @@ def get_node_gpu_infos(logger=logging):
         logger.error(f"+++++++++ Could not fetch node-info for GPUs - requests failed")
         return []
 
-    if "status" in free_result and free_result["status"] == "success" and "status" in used_result and used_result["status"] == "success":
+    if (
+        "status" in free_result
+        and free_result["status"] == "success"
+        and "status" in used_result
+        and used_result["status"] == "success"
+    ):
         free_gpu_infos = free_result["data"]["result"]
         used_gpu_infos = used_result["data"]["result"]
 
@@ -78,19 +90,21 @@ def get_node_gpu_infos(logger=logging):
             used = int(used_gpu_info["value"][1])
             capacity = free + used
 
-            gpu_list.append({
-                "node": node,
-                "gpu_id": gpu_id,
-                "pool_id": pool_id,
-                "gpu_name": gpu_name,
-                "used": used,
-                "free": free,
-                "capacity": capacity,
-                "queued_count": 0,
-                "queued_mb": 0
-            })
+            gpu_list.append(
+                {
+                    "node": node,
+                    "gpu_id": gpu_id,
+                    "pool_id": pool_id,
+                    "gpu_name": gpu_name,
+                    "used": used,
+                    "free": free,
+                    "capacity": capacity,
+                    "queued_count": 0,
+                    "queued_mb": 0,
+                }
+            )
 
-        gpu_list = sorted(gpu_list, key=lambda d: d['capacity'])
+        gpu_list = sorted(gpu_list, key=lambda d: d["capacity"])
         return gpu_list
 
     else:
@@ -106,6 +120,18 @@ def get_node_memory(logger=None):
         return None
 
     return node_memory
+
+
+def get_node_requested_memory(logger=None):
+    node_requested_memory, success = get_node_info(query=memory_requeted_services)
+    if not success:
+        if logger != None:
+            logger.error(
+                f"+++++++++ Could not fetch node-info: get_node_requested_memory"
+            )
+        return None
+
+    return node_requested_memory
 
 
 def get_node_mem_percent(logger=None):
@@ -132,7 +158,9 @@ def get_node_cpu_util_percent(logger=None):
     cpu_util_per, success = get_node_info(query=cpu_util_per_query)
     if not success:
         if logger != None:
-            logger.error(f"+++++++++ Could not fetch node-info: get_node_cpu_util_percent")
+            logger.error(
+                f"+++++++++ Could not fetch node-info: get_node_cpu_util_percent"
+            )
         return None
 
     return cpu_util_per

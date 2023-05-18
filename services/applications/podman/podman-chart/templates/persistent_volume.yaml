@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: podman-containerd-pv-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "1Mi"
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/var/snap/microk8s/common/run/containerd.sock"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /var/snap/microk8s/common/run/containerd.sock
+{{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: podman-containerd-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: podman-containerd-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: "podman-containerd-pv-volume"
+---

@@ -1,0 +1,50 @@
+{
+  "clientId" : "kaapana",
+  "secret" : "REPLACE",
+  "webOrigins" : [ "*" ],
+  "implicitFlowEnabled" : true,
+  "directAccessGrantsEnabled" : true,
+  "attributes" : {
+    "access.token.lifespan" : "3600",
+    "login_theme" : "kaapana"
+  },
+  "protocolMappers" : [ 
+    {
+    "name" : "GroupMapper",
+    "protocol" : "openid-connect",
+    "protocolMapper" : "oidc-group-membership-mapper",
+    "consentRequired" : false,
+    "config" : {
+      "full.path" : "true",
+      "id.token.claim" : "true",
+      "access.token.claim" : "true",
+      "claim.name" : "groups",
+      "userinfo.token.claim" : "true"
+    }
+  }, {
+    "name" : "KaapanaMinioAudience",
+    "protocol" : "openid-connect",
+    "protocolMapper" : "oidc-usermodel-attribute-mapper",
+    "consentRequired" : false,
+    "config" : {
+      "userinfo.token.claim" : "true",
+      "user.attribute" : "policy",
+      "id.token.claim" : "true",
+      "access.token.claim" : "true",
+      "claim.name" : "policy",
+      "jsonType.label" : "String"
+    }
+  }, {
+    "name" : "kaapana-audience",
+    "protocol" : "openid-connect",
+    "protocolMapper" : "oidc-audience-mapper",
+    "consentRequired" : false,
+    "config" : {
+      "included.client.audience" : "kaapana",
+      "id.token.claim" : "true",
+      "access.token.claim" : "true",
+      "included.custom.audience" : "kaapana",
+      "userinfo.token.claim" : "true"
+    }
+  } ]
+  }

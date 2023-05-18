@@ -1,7 +1,0 @@
----
-apiVersion: v1
-appVersion: "16.1.1"
-description: Chart for Keycloak 16.1.1
-name: keycloak-chart
-version: "16.1.1"
-

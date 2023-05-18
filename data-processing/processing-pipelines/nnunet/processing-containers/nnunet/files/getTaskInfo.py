@@ -2,8 +2,11 @@ import os
 import glob
 import json
 
+
 def get_task_info(task):
-    tasks_json_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),"prediction_tasks.json")
+    tasks_json_path = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "prediction_tasks.json"
+    )
     task_info = {}
     print("Getting task-info...")
 
@@ -19,5 +22,5 @@ def get_task_info(task):
     else:
         print("tasks.json was not found at: {} -> abort!".format(tasks_json_path))
         exit(1)
-    
+
     return task_info

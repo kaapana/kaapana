@@ -6,10 +6,10 @@ Trigger a workflow
 As the platforms main purpose is to apply processing pipelines to images a short guide of how a typical workflow would look like
 
 - Send images that you would like to process to the server. (cf. :ref:`send_images_to_the_platform_doc`)
-- Once the DICOMs are on the platform you can exmamine its meta data on the Kibana dashboard. With this dashboard you can also filter the data
-  on that you would like to apply processing pipeline. Filtering in Kibana works by clicking on the plus signs or the lines/bars in the graphics or by
+- Once the DICOMs are on the platform you can exmamine its meta data on the OpenSearch dashboard. With this dashboard you can also filter the data
+  on that you would like to apply processing pipeline. Filtering in OpenSearch Dashboards works by clicking on the plus signs or the lines/bars in the graphics or by
   designing a custom filter at the top left
-- After defining a cohort you can select a workflow that you want to trigger. You have the possibilty to choose between Batch and Single
+- After defining a dataset you can select a workflow that you want to trigger. You have the possibilty to choose between Batch and Single
   file processing. This means, if for every selected object a seperate pipeline should be started or if only one pipeline for all objects is started. Most
   of the time batch processing is the right choice
 - Click on *SEND x RESULTS* to start the workflow

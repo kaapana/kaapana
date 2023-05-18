@@ -1,0 +1,7 @@
+---
+global:
+    extensions_namespace: "extensions"
+    default_extensions_requests_mem: "50Mi"
+    default_extensions_limits_mem: "50Mi"
+    # default_extensions_requests_cpu: 0.5
+    # default_extensions_limits_cpu: 1

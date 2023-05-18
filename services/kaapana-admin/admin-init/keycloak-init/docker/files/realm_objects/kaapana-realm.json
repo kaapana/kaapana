@@ -1,0 +1,30 @@
+{
+  "id" : "kaapana",
+  "realm" : "kaapana",
+  "enabled" : true,
+  "roles" : {
+    "realm" : [ 
+      {
+      "name" : "admin",
+      "description": "Admin role for the kaapana realm.",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "kaapana",
+      "attributes" : { }
+    }, {
+      "name" : "user",
+      "description": "None admin user with limited access in the kaapana realm",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "kaapana",
+      "attributes" : { }
+    } ]
+  },
+  "attributes" : {
+    "clientOfflineSessionMaxLifespan" : "0",
+    "clientSessionIdleTimeout" : "0",
+    "clientSessionMaxLifespan" : "0",
+    "clientOfflineSessionIdleTimeout" : "0"
+  },
+  "passwordPolicy": "notUsername(undefined) and specialChars(1) and upperCase(1) and lowerCase(1) and digits(1) and passwordHistory(3) and length(8)"
+}

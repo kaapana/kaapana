@@ -1,0 +1,7 @@
+---
+global:
+  image: "dag-radiomics-federated"
+  action: "copy"
+  dynamicVolumes:
+  - name: minio
+    mount_path: /target

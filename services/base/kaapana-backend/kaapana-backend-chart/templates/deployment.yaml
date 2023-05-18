@@ -1,0 +1,137 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kaapana-backend
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: kaapana-backend
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: kaapana-backend
+    spec:
+      initContainers:
+        - name: init-wait-for-postgres
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          env:
+            - name: WAIT
+              value: "kaapana-backend-postgres,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+        - name: init-wait-for-keycloak
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          env:
+            - name: WAIT
+              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+            - name: DELAY
+              value: "2"
+            - name: TIMEOUT
+              value: "10"
+      containers:
+      - name: kaapana-backend
+        image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        # command: ["tail"]
+        # args: ["-f", "/dev/null"] 
+        command: ["/bin/sh"]
+        args: ["/kaapana/app/boot.sh"] 
+        env: # Environment variables
+        - name: SECRET_KEY
+          value: kaapana-secret
+        - name: INSTANCE_NAME
+          value: {{ .Values.global.instance_name | default "central" }}
+        - name: HOSTNAME
+          value: {{ .Values.global.hostname | default "" }}
+        - name: HTTPS_PORT
+          value: "{{ .Values.global.https_port }}"
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: no_proxy
+          value: ".svc,.svc.cluster,.svc.cluster.local"
+        - name: SERVICES_NAMESPACE
+          value: "{{  .Values.global.services_namespace  }}"
+        - name: KUBE_HELM_URL
+          value: "http://kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000/kube-helm-api"
+        - name: AIRFLOW_URL
+          value: "http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
+        - name: PROMETHEUS_URL
+          value: "http://prometheus-service.{{  .Values.global.services_namespace  }}.svc:9090/prometheus"
+        - name: KEYCLOAK_URL
+          value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
+        - name: MINIO_USERNAME
+          value: {{ .Values.global.credentials_minio_username  | default "" }}
+        - name: MINIO_PASSWORD
+          value: {{ .Values.global.credentials_minio_password | default ""}}
+        - name: MINIO_URL
+          value: "minio-service.{{  .Values.global.services_namespace  }}:9000"
+        - name: KAAPANA_BUILD_TIMESTAMP
+          value: {{ .Values.global.build_timestamp }}
+        - name: KAAPANA_BUILD_VERSION
+          value: {{ .Values.global.kaapana_build_version }}
+        - name: KAAPANA_BUILD_BRANCH
+          value: {{ .Values.global.platform_build_branch }}
+        - name: KAAPANA_LAST_COMMIT_TIMESTAMP
+          value: {{ .Values.global.platform_last_commit_timestamp }}
+        - name: DEPLOYMENT_TIMESTAMP
+          value: {{ .Values.global.deployment_timestamp }}
+        - name: MOUNT_POINTS_TO_MONITOR
+          value: {{ .Values.global.mount_points_to_monitor }}
+        - name: APPLICATION_ROOT
+          value: "/kaapana-backend"
+        - name: DATABASE_URL
+          value: postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432
+        - name: REMOTE_SYNC_INTERVAL
+          value: "5"
+        - name: AIRFLOW_SYNC_INTERVAL
+          value: "10"
+        - name: KEYCLOAK_ADMIN_USERNAME
+          value: {{ .Values.global.credentials_keycloak_admin_username }}
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          value: {{ .Values.global.credentials_keycloak_admin_password }}
+        - name: KEYCLOAK_BACKEND_USERNAME
+          value: {{ .Values.global.credentials_keycloak_backend_user }}
+        - name: KEYCLOAK_BACKEND_PASSWORD
+          value: {{ .Values.global.credentials_keycloak_backend_password }}
+        ports:
+          - containerPort: 5000
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "4Gi"
+        volumeMounts:
+{{- if .Values.global.dev_files }}
+        - name: kaapana-dev-files
+          mountPath: /kaapana/app
+{{- end }}
+        - name: alembic
+          mountPath: /kaapana/app/alembic
+        - name: minio-data
+          mountPath: /kaapana/mounted/minio
+      imagePullSecrets:
+        - name: registry-secret
+      volumes:
+      - name: alembic
+        persistentVolumeClaim:
+          claimName: alembic-pv-claim
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: minio-pv-claim
+{{- if .Values.global.dev_files }}
+      - name: kaapana-dev-files
+        persistentVolumeClaim:
+          claimName: backend-dev-pv-claim
+{{- end }}
+---

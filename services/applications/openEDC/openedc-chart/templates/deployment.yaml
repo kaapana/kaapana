@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: openedc
-  namespace: base
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
       - name: openedc-container
-        image: {{  .Values.global.registry_url }}/openedc:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__0.1.0
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        image: "{{  .Values.global.registry_url }}/openedc:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         resources:
           requests:
             memory: 20Mi

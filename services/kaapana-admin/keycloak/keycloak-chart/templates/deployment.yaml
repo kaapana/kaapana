@@ -1,0 +1,98 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: "{{  .Values.global.admin_namespace  }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: keycloak
+  template:
+    metadata:
+      labels:
+        app-name: keycloak
+    spec:
+      initContainers:
+      - name: init
+        image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        env:
+          - name: WAIT
+            value: "postgres,postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc,5432"
+          - name: DELAY
+            value: "2"
+          - name: TIMEOUT
+            value: "10"
+      containers: 
+        - name: keycloak-container
+          image: "{{ .Values.global.registry_url }}/keycloak:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          env:
+          - name: KEYCLOAK_ADMIN 
+            value: {{ .Values.global.credentials_keycloak_admin_username }}
+          - name: KEYCLOAK_ADMIN_PASSWORD
+            value: {{ .Values.global.credentials_keycloak_admin_password }}
+          - name: KC_DB 
+            value: "postgres"
+          - name: KC_DB_URL 
+            value: "jdbc:postgresql://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
+          - name: KC_DB_USERNAME 
+            value: "keycloak"
+          - name: KC_DB_PASSWORD
+            value: "keycloak"
+          - name: KC_LOG_LEVEL
+            value: "INFO"
+          {{- if ne (.Values.global.https_port | default "443") "443" }}
+          - name: KC_HOSTNAME_ADMIN_URL
+            value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth" 
+          - name: KC_HOSTNAME_URL
+            value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth" 
+          {{- else }}
+          - name: KC_HOSTNAME_ADMIN_URL
+            value: "https://{{ .Values.global.hostname }}/auth" 
+          - name: KC_HOSTNAME_URL
+            value: "https://{{ .Values.global.hostname }}/auth" 
+          {{- end }}
+          - name: KC_PROXY
+            value: edge
+          - name: KC_HTTP_RELATIVE_PATH
+            value: "/auth/"
+          - name: KC_HTTPS_CERTIFICATE_KEY_FILE
+            value: "/etc/x509/https/tls.key"
+          - name: KC_HTTPS_CERTIFICATE_FILE
+            value: "/etc/x509/https/tls.crt"
+          ports:
+          - name: http
+            containerPort: 8080
+          - name: https
+            containerPort: 8443
+          - name: admin
+            containerPort: 9990
+          resources:
+            requests:
+              memory: 600Mi
+            limits:
+              memory: 700Mi
+          volumeMounts:
+            - name: ssl-config-files
+              mountPath: /etc/x509/https
+              readOnly: true
+          command: 
+          - "/opt/keycloak/bin/kc.sh"
+          - "--verbose"
+          - "start"
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: 8080
+          #   initialDelaySeconds: 30
+          #   periodSeconds: 20
+      volumes:
+      - name: ssl-config-files
+        secret:
+          secretName: certificate
+      imagePullSecrets:
+      - name: registry-secret
+---

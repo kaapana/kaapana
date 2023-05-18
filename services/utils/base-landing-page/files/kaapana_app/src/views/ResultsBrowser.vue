@@ -15,6 +15,10 @@
               span(class="text-wrap") {{item.name}}
 
       v-col(cols="9")
+        div(v-if="this.tree.length == 0")
+          h1 Workflow results 
+          p Results from the workflows will be shown here!
+          v-icon(class="results-icon") mdi-chart-bar-stacked
         v-expansion-panels(v-model="panel" accordion)
           v-expansion-panel(v-for="node in tree" :key="node.path")
             v-expansion-panel-header
@@ -99,5 +103,11 @@ export default {
 }
 .v-treeview-node__root {
   height: auto;
+}
+
+.results-icon {
+  font-size: 425px !important;
+  text-align: center;
+  width: 100%;
 }
 </style>

@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+appVersion: "v1.5.5"
+description: Total Segmentator workflow
+name: total-segmentator-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental

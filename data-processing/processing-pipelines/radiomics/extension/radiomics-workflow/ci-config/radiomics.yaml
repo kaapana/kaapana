@@ -1,0 +1,12 @@
+dag_id: radiomics-dcmseg
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    parameters: "-fo 1 -cooc 1"
+    input: "SEG"
+    single_execution: false
+  data_form:
+    dataset_name: testSEG
+remote: false
+username: "kaapana"

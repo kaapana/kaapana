@@ -45,7 +45,7 @@ DICOM
    :undoc-members:
    :show-inheritance: 
 
-.. automodule:: kaapana.operators.LocalDeleteFromElasticOperator
+.. automodule:: kaapana.operators.LocalDeleteFromMetaOperator
    :members:
    :undoc-members:
    :show-inheritance:

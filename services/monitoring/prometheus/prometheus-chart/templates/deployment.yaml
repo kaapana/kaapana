@@ -1,44 +1,10 @@
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: prometheus
-rules:
-- apiGroups: [""]
-  resources:
-  - nodes
-  - nodes/proxy
-  - services
-  - endpoints
-  - pods
-  verbs: ["get", "list", "watch"]
-- apiGroups:
-  - extensions
-  resources:
-  - ingresses
-  verbs: ["get", "list", "watch"]
-- nonResourceURLs: ["/metrics"]
-  verbs: ["get"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: prometheus
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: prometheus
-subjects:
-- kind: ServiceAccount
-  name: default
-  namespace: {{ .Values.global.monitoring_namespace }}
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
-  namespace: {{ .Values.global.monitoring_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -51,8 +17,8 @@ spec:
     spec:
       initContainers:
       - name: volume-permissions
-        image: {{ .Values.global.registry_url }}/busybox:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__1.31
-        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         command: ["sh", "-c", "chown -R 1000:1000 /prometheus"]
         volumeMounts:
         - name: prometheus-storage-volume
@@ -63,10 +29,11 @@ spec:
         runAsUser: 1000
       containers:
         - name: prometheus
-          image: {{ .Values.global.registry_url }}/prometheus:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__v2.34.0
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          image: "{{ .Values.global.registry_url }}/prometheus:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           args:
             - "--config.file=/etc/prometheus.yaml"
+            - "--log.level=warn"
             - "--storage.tsdb.path=/prometheus/"
             - "--web.external-url=/prometheus"
             - "--web.route-prefix=/prometheus"
@@ -103,9 +70,9 @@ spec:
             defaultMode: 420
             name: prometheus-alerts-config
         - name: prometheus-storage-volume
-          hostPath:
-            path: {{ .Values.global.fast_data_dir }}/prometheus
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: prometheus-pv-claim
       imagePullSecrets:
       - name: registry-secret
+      serviceAccountName: kaapana-kube-admin
 ---

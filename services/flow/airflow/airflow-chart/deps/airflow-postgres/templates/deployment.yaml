@@ -19,7 +19,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: postgres-airflow
-  namespace: {{ .Values.global.flow_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -33,8 +33,8 @@ spec:
       restartPolicy: Always
       containers:
         - name: postgres
-          image: {{ .Values.global.registry_url }}/postgres:{{ .Values.global.platform_abbr | default "uk" }}_{{ .Values.global.platform_version | default "0" }}__9.6-alpine
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          image: "{{ .Values.global.registry_url }}/postgres-9.6-alpine:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           args: ["-c", "max_connections=200"]          
           ports:
             - containerPort: 5432
@@ -46,8 +46,7 @@ spec:
               memory: 500Mi
           volumeMounts:
             - name: dbvol
-              mountPath: /var/lib/postgresql/data/pgdata
-              subPath: pgdata
+              mountPath: /var/lib/postgresql/data
           env:
             - name: POSTGRES_USER
               value: root
@@ -55,8 +54,6 @@ spec:
               value: root
             - name: POSTGRES_DB
               value: airflow
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
             - name: POD_IP
               valueFrom: { fieldRef: { fieldPath: status.podIP } }
           livenessProbe:
@@ -79,10 +76,8 @@ spec:
               - exec pg_isready --host $POD_IP
       volumes:
         - name: dbvol
-          # emptyDir: {}
-          hostPath:
-            path: {{ .Values.global.fast_data_dir }}/postgres-airflow
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: af-postgres-pv-claim
       imagePullSecrets:
       - name: registry-secret
 ---

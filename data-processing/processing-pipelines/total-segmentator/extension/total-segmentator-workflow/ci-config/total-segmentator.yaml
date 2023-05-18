@@ -1,0 +1,12 @@
+dag_id: "total-segmentator"
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    task: "total"
+    single_execution: true
+  data_form:
+    dataset_name: testCT
+    dataset_limit: 1
+remote: false
+username: "kaapana"

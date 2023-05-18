@@ -1,2 +1,2 @@
 protobuf~=3.19.0
-tensorboard==2.8.0
+tensorboard==2.12.0

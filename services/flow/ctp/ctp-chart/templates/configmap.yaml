@@ -25,7 +25,7 @@ data:
             condition_tag="0008103E"
             dagnames="service-process-incoming-dcm"
             debug_log="no"
-            airflowUrl="http://airflow-service.flow.svc:8080/flow/kaapana/api"
+            airflowUrl="http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
             triggerurl="/trigger"
             name="MetaExtraction"
             acceptDuplicates="yes"
@@ -58,7 +58,7 @@ data:
             condition_tag="0008103E"
             dagnames="service-process-incoming-dcm"
             debug_log="no"
-            airflowUrl="http://airflow-service.flow.svc:8080/flow/kaapana/api"
+            airflowUrl="http://airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc:8080/flow/kaapana/api"
             triggerurl="/trigger"
             name="MetaExtraction"
             acceptDuplicates="yes"
@@ -79,6 +79,6 @@ data:
 kind: ConfigMap
 metadata:
   name: ctp-config
-  namespace: {{ .Values.global.flow_namespace }}
+  namespace: "{{ .Values.global.services_namespace }}"
 
 

@@ -19,8 +19,8 @@ New Features
 ============
 
 .. figure:: _static/img/datasets.png
-   :align: center
-   :scale: 20 %
+   :align: left
+   :scale: 25 %
    :alt: New Dataset UI
 
 Datasets
@@ -70,6 +70,7 @@ MISC:
 * Security vulnerability improvements
 * Included `Trivy <https://trivy.dev//>`_ container scanning for automatic CVE detection + SBOM creation in the build system
 * Improved security check for all ingress requests
+* Improved Keycloak initialization & password policy for production mode
 * Introduced Black code formatter for Kaapana
 * Introduction of a dark mode to the landing page
 * Introduction of new base images for better dependency management and security handling (also smaller and more efficient)

@@ -20,8 +20,9 @@ New Features
 
 .. figure:: _static/img/datasets.png
    :align: left
-   :scale: 25 %
+   :scale: 30 %
    :alt: New Dataset UI
+
 
 Datasets
 --------
@@ -51,7 +52,6 @@ Workflow List:
 * Live updates of the job's status
 * Redirect links to the job's airflow DAG run
 * Job actions to abort, restart or delete jobs
-
 
 Instance Overview:
 

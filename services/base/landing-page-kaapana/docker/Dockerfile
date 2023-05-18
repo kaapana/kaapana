@@ -1,7 +1,7 @@
 FROM local-only/base-landing-page:latest as build-stage
 
 LABEL IMAGE="landing-page-kaapana"
-LABEL VERSION="0.1.3"
+LABEL VERSION="0.2.0"
 LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app

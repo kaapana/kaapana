@@ -20,7 +20,7 @@ New Features
 
 .. figure:: _static/img/datasets.png
    :align: center
-   :scale: 50 %
+   :scale: 20 %
    :alt: New Dataset UI
 
 Datasets

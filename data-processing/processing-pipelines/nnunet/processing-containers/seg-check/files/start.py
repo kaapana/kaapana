@@ -879,7 +879,25 @@ for batch_element_dir in batch_folders:
     base_input_dir = join(batch_element_dir, org_input_dir)
     seg_input_dir = join(batch_element_dir, operator_in_dir)
     base_files = sorted(glob(join(base_input_dir, "*.nii*"), recursive=False))
-    assert len(base_files) == 1
+    if len(base_files) != 1:
+        print("#")
+        print("#")
+        print(
+            f"# Something went wrong with DICOM to NIFTI conversion for series: {batch_element_dir}"
+        )
+        print(
+            "# Probaly the DICOM is corrupted, which results in multiple volumes after the conversion."
+        )
+        print(
+            "# You can manually remove this series from the tmp processing data and restart the SEG-Check operator."
+        )
+        print(f"# {base_files=}")
+        print("#")
+        print("# Abort")
+        print("#")
+        print("#")
+        exit(1)
+
     seg_files = sorted(glob(join(seg_input_dir, "*.nii*"), recursive=False))
     if len(seg_files) == 0:
         print("#")

@@ -18,6 +18,11 @@ May 18, 2023
 New Features
 ============
 
+.. figure:: _static/img/datasets.png
+   :align: center
+   :scale: 50 %
+   :alt: New Dataset UI
+
 Datasets
 --------
 

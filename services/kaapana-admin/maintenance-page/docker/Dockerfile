@@ -12,7 +12,7 @@ COPY files/kaapana_app .
 
 
 LABEL IMAGE="maintenance-page-kaapana"
-LABEL VERSION="0.1.3"
+LABEL VERSION="0.2.0"
 LABEL CI_IGNORE="False"
 
 RUN npm run build

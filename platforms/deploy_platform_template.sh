@@ -444,7 +444,7 @@ function deploy_chart {
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
-    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.1.3
+    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
     fi

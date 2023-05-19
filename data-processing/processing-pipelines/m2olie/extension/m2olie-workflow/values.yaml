@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-m2olie"
+    action: "copy"

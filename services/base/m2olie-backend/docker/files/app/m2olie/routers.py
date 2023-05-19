@@ -13,20 +13,19 @@ import time
 
 class Dataseries(BaseModel):
     imageSeries: list
+    additionalImageSeries: list
 
 
 router = APIRouter()
 
 def execute_job_airflow(conf_data, db_job):
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).post(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{db_job.dag_id}',
-            timeout=TIMEOUT,
+        resp = s.post(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{db_job.dag_id}',
             json={
                 'conf': {
                 **conf_data,
                 }
             })
-    raise_kaapana_connection_error(resp)
     return resp
 
 @router.get("/")
@@ -74,12 +73,13 @@ async def start_workflow(
 
     conf_data = dict()
     conf_data["data_form"] = {
-        "cohort_identifiers": dataseries.imageSeries,
+        "identifiers": dataseries.imageSeries,
         "cohort_query": {"index": ["meta-index"]},
         "workflow_form": {
             "single_execution": False,
             "task_label": taskLabel,
             "process_instance_label": processInstanceLabel,
+            "additional_identifiers": dataseries.additionalImageSeries
         },
     }
     db_job = type("db_job", (object,), {"dag_id": dagId})

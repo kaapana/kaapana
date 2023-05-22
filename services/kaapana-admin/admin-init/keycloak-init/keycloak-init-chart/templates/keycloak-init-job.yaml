@@ -37,7 +37,7 @@ spec:
             - name: KEYCLOAK_HOST
               value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
             - name: KEYCLOAK_URI
-              value: "https://{{ .Values.global.hostname }}"
+              value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}"
             - name: OIDC_CLIENT_SECRET
               value: "{{ .Values.global.oidc_client_secret }}"
             - name: DEV_MODE

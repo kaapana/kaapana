@@ -1,5 +1,12 @@
-workflow: nnunet-model-uninstall
-opensearch_form:
-  dataset: "testMODEL"
-workflow_form:
-  task: "Task017_AbdominalOrganSegmentation"
+dag_id: nnunet-model-uninstall
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    task: "Task017_AbdominalOrganSegmentation"
+    single_execution: false
+  data_form:
+    cohort_name: "testModel"
+    cohort_limit: 1
+remote: false
+username: "kaapana"

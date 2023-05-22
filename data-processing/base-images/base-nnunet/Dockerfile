@@ -25,6 +25,6 @@ COPY files/patched/run_training.py /nnunet-pip-package/nnunet/run/run_training.p
 
 RUN cd /nnunet-pip-package && pip3 install ./
 
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt tensorboard==2.8.0
+RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt tensorboard==2.8.0
 
 WORKDIR /kaapana/app

@@ -5,6 +5,8 @@ import random
 import string
 import uuid
 import shutil
+import os
+from datetime import datetime, timedelta
 from typing import List, Union
 import asyncio
 from threading import Thread
@@ -35,17 +37,47 @@ minio_upload_mapping_dict = dict()
 UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
 
 
+def remove_outdated_tmp_files(search_dir):
+    max_hours_tmp_files = 24
+    files_grabbed = (p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".json", ".tmp"})
+
+    for file_found in files_grabbed:
+        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))).total_seconds() / 3600)
+        if hours_since_creation > max_hours_tmp_files:
+            logging.warning(f"File {file_found} outdated -> delete")
+            try:
+                os.remove(file_found)
+                pass
+            except Exception as e:
+                logging.warning(f"Something went wrong with the removal of {file_found} .. ")
+
+
 @router.post("/minio-file-upload")
 async def post_minio_file_upload(request: Request):
+    global minio_upload_mapping_dict
     form = await request.form()
     patch = str(uuid.uuid4())
+    dict_fpath = Path(UPLOAD_DIR) / "minio_upload_mapping_dict.json"
+    remove_outdated_tmp_files(UPLOAD_DIR)
+
+    if dict_fpath.exists():
+        # if the file is not removed (i.e. recent), read it into the dict
+        with open(dict_fpath, "r") as fp:
+            minio_upload_mapping_dict = json.load(fp)
     minio_upload_mapping_dict.update({patch: json.loads(form["filepond"])["filepath"]})
-    # return Response(content=json.loads(form["filepond"])["filepath"])
+
+    # write it back
+    with open(dict_fpath, "w") as fp:
+        json.dump(minio_upload_mapping_dict, fp)
+
+    logging.debug(f"post_minio_file_upload returns {patch=}")
+    logging.debug(f"{minio_upload_mapping_dict=}")
     return Response(content=patch)
 
 
 @router.patch("/minio-file-upload")
 async def post_minio_file_upload(request: Request, patch: str):
+    global minio_upload_mapping_dict
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
@@ -54,7 +86,15 @@ async def post_minio_file_upload(request: Request, patch: str):
         async for chunk in request.stream():
             f.write(chunk)
     if ulength == str(fpath.stat().st_size):
+        logging.info(f"filepond upload completed {fpath}")
         try:
+            dict_fpath = Path(UPLOAD_DIR) / "minio_upload_mapping_dict.json"
+            if dict_fpath.exists():
+                with open(dict_fpath, "r") as fp:
+                    minio_upload_mapping_dict = json.load(fp)
+            else:
+                logging.error(f"upload mapping dictionary file {dict_fpath} does not exist, using the global variable (not thread-safe)")
+            logging.info(f"{patch=}, {minio_upload_mapping_dict=}")
             object_name = minio_upload_mapping_dict[patch]
             target_path = Path(UPLOAD_DIR) / object_name.strip("/")
             target_path.parents[0].mkdir(parents=True, exist_ok=True)
@@ -348,9 +388,7 @@ def ui_form_schemas(
                 db, username=username
             )  # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
             allowed_dataset = [ds.name for ds in client_datasets]
-            dataset_size = {
-                ds.name: len(json.loads(ds.identifiers)) for ds in client_datasets
-            }
+            dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
         else:
             allowed_dataset = list(
                 ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)
@@ -434,12 +472,26 @@ def create_dataset(
             ],
         )
     dataset.username = request.headers["x-forwarded-preferred-username"]
-    return crud.create_dataset(db=db, dataset=dataset)
+    db_obj = crud.create_dataset(db=db, dataset=dataset)
+    return schemas.Dataset(
+        name=db_obj.name,
+        time_created=db_obj.time_created,
+        time_updated=db_obj.time_updated,
+        username=db_obj.username,
+        identifiers=[x.id for x in db_obj.identifiers],
+    )
 
 
 @router.get("/dataset", response_model=schemas.Dataset)
 def get_dataset(name: str, db: Session = Depends(get_db)):
-    return crud.get_dataset(db, name)
+    db_obj = crud.get_dataset(db, name)
+    return schemas.Dataset(
+        name=db_obj.name,
+        time_created=db_obj.time_created,
+        time_updated=db_obj.time_updated,
+        username=db_obj.username,
+        identifiers=[x.id for x in db_obj.identifiers],
+    )
 
 
 @router.get("/datasets", response_model=List[schemas.Dataset])
@@ -449,17 +501,35 @@ def get_datasets(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_datasets(
+    db_objs = crud.get_datasets(
         db,
         instance_name,
         limit=limit,
         username=request.headers["x-forwarded-preferred-username"],
     )
 
+    return [
+        schemas.Dataset(
+            name=db_obj.name,
+            time_created=db_obj.time_created,
+            time_updated=db_obj.time_updated,
+            username=db_obj.username,
+            identifiers=[x.id for x in db_obj.identifiers],
+        )
+        for db_obj in db_objs
+    ]
+
 
 @router.put("/dataset", response_model=schemas.Dataset)
 def put_dataset(dataset: schemas.DatasetUpdate, db: Session = Depends(get_db)):
-    return crud.update_dataset(db, dataset)
+    db_obj = crud.update_dataset(db, dataset)
+    return schemas.Dataset(
+        name=db_obj.name,
+        time_created=db_obj.time_created,
+        time_updated=db_obj.time_updated,
+        username=db_obj.username,
+        identifiers=[x.id for x in db_obj.identifiers],
+    )
 
 
 @router.delete("/dataset")

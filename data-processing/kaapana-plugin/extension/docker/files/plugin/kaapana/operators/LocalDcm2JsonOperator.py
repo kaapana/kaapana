@@ -64,10 +64,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         print("++++++++++++++++++++++++++++++++++++++++++++++++++ get_label_tags  ")
         print(json.dumps(metadata, indent=4))
         result_dict = {}
-        segmentation_label_list = []
-        rtstruct_organ_list = []
-        rtstruct_marker_list = []
-        rtstruct_other_list = []
+        annotation_label_list = []
 
         ref_list = None
         if "30060080" in metadata:
@@ -87,13 +84,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     if ref_list is not None and len(ref_list) == size_list:
                         label_type = ref_list[idx]
                         if label_type.lower() == "marker":
-                            rtstruct_marker_list.append(value)
+                            annotation_label_list.append(value)
                         elif label_type.lower() == "organ":
-                            rtstruct_organ_list.append(value)
+                            annotation_label_list.append(value)
                         else:
-                            rtstruct_other_list.append(value)
+                            annotation_label_list.append(value)
                     else:
-                        rtstruct_other_list.append(value)
+                        annotation_label_list.append(value)
 
         if "00620002" in metadata:
             if "00620002 SegmentSequence_object_object" not in result_dict:
@@ -112,33 +109,15 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
                 if "00620005" in label_entry:
                     value = label_entry["00620005"]["Value"][0].replace(",", "-")
-                    segmentation_label_list.append(value)
+                    annotation_label_list.append(value)
                 else:
                     pass
-        result_dict["00000000 SegmentationLabelsList_keyword"] = (
-            ",".join(sorted(segmentation_label_list))
-            if len(segmentation_label_list) > 0
+        result_dict["00000000 AnnotationLabelsList_keyword"] = (
+            ",".join(sorted(annotation_label_list))
+            if len(annotation_label_list) > 0
             else None
         )
-        result_dict["00620005 SegmentLabel_keyword"] = segmentation_label_list
-        result_dict["00000000 RtstructOrganList_keyword"] = (
-            ",".join(sorted(rtstruct_organ_list))
-            if len(rtstruct_organ_list) > 0
-            else None
-        )
-        result_dict["00000000 RtstructMarkerList_keyword"] = (
-            ",".join(sorted(rtstruct_marker_list))
-            if len(rtstruct_marker_list) > 0
-            else None
-        )
-        result_dict["00000000 RtstructOtherList_keyword"] = (
-            ",".join(sorted(rtstruct_other_list))
-            if len(rtstruct_other_list) > 0
-            else None
-        )
-        result_dict["00000000 RtstructOrgan_keyword"] = rtstruct_organ_list
-        result_dict["00000000 RtstructMarker_keyword"] = rtstruct_marker_list
-        result_dict["00000000 RtstructOther_keyword"] = rtstruct_other_list
+        result_dict["00000000 AnnotationLabel_keyword"] = annotation_label_list
 
         return result_dict
 

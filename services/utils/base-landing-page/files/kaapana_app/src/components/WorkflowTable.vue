@@ -63,14 +63,18 @@
         {{ new Date(item.time_updated).toLocaleString() }}
       </template>
       <template v-slot:item.status="{ item }">
-        <v-chip
+        <v-btn
           v-for="state in getStatesColorMap(item, $vuetify.theme.dark)"
           :color="state.color"
           class="ml-1 my-chip"
           dense
-          small
-          outlined>{{ state.count }}
-        </v-chip>
+          x-small
+          rounded
+          outlined
+          @click="getJobsOfWorkflow(item.workflow_name, state.status, collapse=false)"
+        >
+          {{ state.count }}
+        </v-btn>
       </template>
       <template v-slot:item.actions="{ item }">
         <div v-if="item.service_workflow">
@@ -169,19 +173,17 @@ data () {
       { text: 'Owner Instance', value: 'kaapana_instance.instance_name' },
       { text: 'Status', value: 'status', align: 'center'},
       { text: 'Actions', value: 'actions', sortable: false, filterable: false, align: 'center'},
-      // { text: 'Auto', value: 'automatic_execution', sortable: false, filterable: false, align: 'center'}
     ],
     expandedWorkflow: '',
     jobsofExpandedWorkflow: [],
     jobsofWorkflows: [],
-    states_jobsofWorkflow: [],
+    filteredJobState: undefined,
     manual_startID: '',
     abortID: '',
     restartID: '',
     deleteID: '',
-    hover: false,
-    activateAddRemote: false,
     shouldExpand: true,
+    shouldCollapse: true,
     localInstance: {},
     loading: false,
   }
@@ -207,7 +209,7 @@ computed: {
   filteredWorkflows() {  
     if (this.workflows !== null) {
       if (this.expandedWorkflow) {
-        this.getJobsOfWorkflow(this.expandedWorkflow.workflow_name)
+        this.getJobsOfWorkflow(this.expandedWorkflow.workflow_name, this.filteredJobState)
       }
       return this.workflows
     }
@@ -231,15 +233,25 @@ methods: {
   },
   expandRow(item) {
     if ( this.shouldExpand == true) {
-      if (item === this.expanded[0] ) {
+      if (item === this.expanded[0]) {
         // Clicked row is already expanded, so collapse it
-        this.expanded = []
-        this.expandedWorkflow = ''
+        if (this.shouldCollapse) {
+          // but only if it is wanted to collapse row
+          this.expanded = []
+          this.filteredJobState = undefined
+          this.expandedWorkflow = ''
+          this.loading = false
+        } else {
+          this.shouldCollapse = true
+          this.loading = false
+        }
       } else {
         // Clicked row is not expanded, so expand it
         this.expanded = [item]
         this.expandedWorkflow = item
-        this.getJobsOfWorkflow(this.expandedWorkflow.workflow_name)
+        if (!this.jobsofExpandedWorkflow) {
+          this.getJobsOfWorkflow(this.expandedWorkflow.workflow_name, this.filteredJobState)
+        }
       }
     } else {
       this.shouldExpand = true
@@ -256,6 +268,7 @@ methods: {
       'failed': 'red'
     }
     return Object.entries(colorMap).map(([state, color]) => ({
+      status: state,
       color: color,
       count: states.filter(_state => _state === state).length
     }))
@@ -300,12 +313,18 @@ methods: {
         console.log(err);
       });
   },
-  getJobsOfWorkflow(workflow_name) {
+  getJobsOfWorkflow(workflow_name, state, collapse=true) {
+    if (typeof state !== "undefined") {
+      this.filteredJobState = state;
+    }
     this.loading = true
+    if (!collapse) {
+      this.shouldCollapse = collapse
+    }
     kaapanaApiService
       .federatedClientApiGet("/jobs",{
         workflow_name: workflow_name,
-        // limit: 100,
+        status: state,
       }).then((response) => {
         if (response.data.length !== 0) {
           this.loading = false

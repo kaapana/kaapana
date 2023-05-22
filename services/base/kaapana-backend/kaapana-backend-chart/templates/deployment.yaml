@@ -37,23 +37,6 @@ spec:
               value: "2"
             - name: TIMEOUT
               value: "10"
-        - name: init-create-backend-user
-          image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-          command: ["/kaapana/app/scripts/create_backend_user.py"]
-          env:
-            - name: KEYCLOAK_URL
-              value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
-            - name: KEYCLOAK_ADMIN_USERNAME
-              value: {{ .Values.global.credentials_keycloak_admin_username }}
-            - name: KEYCLOAK_ADMIN_PASSWORD
-              value: {{ .Values.global.credentials_keycloak_admin_password }}
-            - name: KEYCLOAK_BACKEND_USERNAME
-              value: {{ .Values.global.credentials_keycloak_backend_user }}
-            - name: KEYCLOAK_BACKEND_PASSWORD
-              value: {{ .Values.global.credentials_keycloak_backend_password }}
-            - name: KEYCLOAK_BACKEND_ROLES
-              value: "query-groups;query-users;view-users"
       containers:
       - name: kaapana-backend
         image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"

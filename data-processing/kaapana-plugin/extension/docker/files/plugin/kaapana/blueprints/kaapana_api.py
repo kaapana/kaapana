@@ -54,7 +54,7 @@ def trigger_dag(dag_id):
         tmp_conf["x_auth_token"] = request.headers.get("X-Auth-Token")
 
     ################################################################################################
-    #### Deprecated! Will be removed with the next version 0.1.3
+    #### Deprecated! Will be removed with the next version 0.3.0
 
     if (
         "workflow_form" in tmp_conf

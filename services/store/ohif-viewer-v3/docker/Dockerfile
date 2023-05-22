@@ -6,7 +6,7 @@ LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python3
 
-RUN git clone https://github.com/OHIF/Viewers.git /src
+RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout 368b8308a4fa620123677d4e23b78bf83eba251a
 
 RUN yarn config set workspaces-experimental true
 

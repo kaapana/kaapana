@@ -40,6 +40,11 @@ INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
+if [ "$DEV_MODE" == "true" ]; then
+    KAAPANA_INIT_PASSWORD="kaapana"
+else
+    KAAPANA_INIT_PASSWORD="Kaapana2020!"
+fi
 
 CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
 CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
@@ -433,11 +438,13 @@ function deploy_chart {
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     --set-string global.instance_name="$INSTANCE_NAME" \
+    --set-string global.dev_mode="$DEV_MODE" \
+    --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
-    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.1.3
+    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
     fi
@@ -508,7 +515,7 @@ function print_deployment_done {
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
         echo -e "username: kaapana"
-        echo -e "password: kaapana ${NC}"
+        echo -e "password: ${KAAPANA_INIT_PASSWORD} ${NC}"
     fi
 }
 

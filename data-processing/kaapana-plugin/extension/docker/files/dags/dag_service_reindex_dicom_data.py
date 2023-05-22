@@ -33,7 +33,7 @@ def start_reindexing(ds, **kwargs):
     import glob
     from airflow.api.common.trigger_dag import trigger_dag as trigger
 
-    pacs_data_dir = "/pacsdata"
+    pacs_data_dir = "/kaapana/mounted/pacsdata"
     dag_id = "service-extract-metadata"
 
     print("Start re-index")

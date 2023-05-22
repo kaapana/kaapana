@@ -1,8 +1,11 @@
-pyyaml
 treelib
 networkx[default]
 jinja2
 GitPython
 semver
 alive-progress
-requests
+requests>=2.26.0
+urllib3>=1.26.0
+pyyaml>=5.4.1
+kubernetes==26.1.0
+docker==6.0.1

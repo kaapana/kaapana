@@ -1,4 +1,4 @@
-FROM mhubai/totalsegmentator:nocuda
+FROM docker.io/mhubai/totalsegmentator:nocuda
 
 LABEL IMAGE="mhubai-totalsegmentator-nocuda"
 LABEL VERSION="0.0.0"

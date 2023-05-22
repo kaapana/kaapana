@@ -1,5 +1,11 @@
-workflow: nnunet-model-install
-opensearch_form:
-  dataset: "testMODEL"
-workflow_form:
-  input: "OT"
+dag_id: nnunet-model-install
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    combination_method: "averaging"
+  data_form:
+    cohort_name: "testModel"
+    cohort_limit: 1
+remote: false
+username: "kaapana"

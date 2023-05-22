@@ -58,7 +58,7 @@ echo kwargs for start_build.py for $START_BUILD_KWARGS
 echo Cloning from $GIT_REPOSITORY
 echo Building branch $BRANCH
 git clone -b $BRANCH --single-branch $GIT_REPOSITORY
-pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt -r /kaapana/app/kaapana/build-scripts/requirements.txt
+pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt -r /kaapana/app/kaapana/build-scripts/requirements.txt
 cp /kaapana/app/kaapana/build-scripts/build-config-template.yaml /kaapana/app/kaapana/build-scripts/build-config.yaml
 sed -i 's/container_engine: "docker"/container_engine: "podman"/g' /kaapana/app/kaapana/build-scripts/build-config.yaml
 python3 /kaapana/app/kaapana/build-scripts/start_build.py $START_BUILD_KWARGS

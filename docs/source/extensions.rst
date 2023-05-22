@@ -5,19 +5,62 @@ Kaapana Extensions
 
 Introduction
 ^^^^^^^^^^^^
-The *Extension* functional unit can be considered as an app store.
-It allows (un-)installing components, which can either be workflows or applications.
-Workflows are algorithms which are executed via `Apache Airflow <https://airflow.apache.org/>`_.
-In addition to the distinction in kinds, there is also an distinction in version, either *stable* or *experimental*.
-*Experimental* extensions are not properly tested yet, while *stable* extensions are. There are filters on top of the extension functional unit page, which allow to filter by those criteria.
-The filters are automatically applied and will update the extension list below.
-For each extension in the list, there is a button for installing or uninstalling, depending on the current status.
-When clicking the *install* button, the extension will be downloaded and installed. The current helm and kubernetes status of the freshly installed extension can be seen in the respective columns.
-For installing a specific version of an extension, the dropdown in the *version* column can be used.
-Uninstalling an extension is as easy as installing one by clicking on *uninstall* for the respective extension in the extension list.
+The *Extension* functional unit can be considered as an app store of Kaapana.
+It allows installing/uninstalling applications, workflows and even platforms(experimental).
+In a more technical sense, an extension is essentially a `Helm chart <https://helm.sh/docs/topics/charts/>`. A Helm chart is a structured way of deploying different Kubernetes resources, which consist of containers. That is why in the Kaapana repository, each extension always has two folders named `docker` and `<extension-name>-chart`.
+More info about the file structure can be found in :ref:`helm_charts`
+
+There are two types of extensions (excluding the experimental "platforms"):
+1. Workflows are algorithms which are executed via `Apache Airflow <https://airflow.apache.org/>`_.
+2. Applications allow supporting additional functionalities such as opening a VS code server, a jupyterlab notebook or an mitk workbench instance.
+
+In addition to the distinction in kinds, there is also an distinction in versions, namely *stable* or *experimental*.
+*Experimental* extensions are not properly tested yet, while *stable* extensions are. The filters on top of the Extensions page allow filtering with respect to this versioning.
+These filters will update the extension list below in real time.
+Also for each extension in the list, it is possible to see the current helm and kubernetes status in the respective columns as Runnning, Completed, Failed, Error etc.
+For installing a specific version of an extension, the dropdown in the version column can be used. It is also possible to force uninstall an extension if it is in a Pending state.
 
 A detailed description of available workflows and applications can be found in :ref:`extensions workflows` and :ref:`extensions applications`.
 Information about how to integrate custom components into the platform via the *Extension* functional unit can be found at :ref:`service_dev_guide` and :ref:`processing_dev_guide`.
+
+
+Extension Parameters
+^^^^^^^^^^^^^^^^^^^^
+One of the new features introduced in 0.2.0 for Extensions is that it is possible to specify parameters that are passed to extensions as environment variables. 
+This is a general purpose functionality and can be tailored with respect to the requirements of the extension. 
+Some of the examples that are already available are the task IDs for nnunet, which is a multi selectable list of models that will be downloaded during the installation of the extension, and the service type field for mitk-workbench, which specifies the service type as either NodePort or ClusterIP.
+A parameter can either be a string, a boolean, a single selectable or a multi selectable list. They should be defined in values.yaml file for the chart and each parameter should have the following structure:
+
+.. code-block::
+
+extension_params:
+  <parameter_name>:
+    default: <default_value>
+    definition: "definition of the parameter"
+    type: oneof (string, bool, list_single, list_multi)
+    value: <value_entered_by_the_user>
+
+Uploading Extensions to the Platform
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Version 0.2.0 also introduces the upload component for extensions. This is a useful way of uploading both the docker container and the Helm chart to the platform.
+Currently, this component only accepts two file types: ".tar" for exported docker containers and ".tgz" for Helm charts. 
+
+Chart upload 
+
+* Uploaded chart files will be checked for basic safety measures, such as whether or not it is running any resource under the admin namespace.
+* In order to create a zipped chart file that can be uploaded to Kaapana, users should run the following helm command inside of the chart folder
+
+::
+
+  helm dep up
+  helm package .
+
+
+Container Upload:
+
+* Uploaded containers will be automatically imported into the microk8s ctr environment (for details see the `images import command here <https://microk8s.io/docs/command-reference#heading--microk8s-ctr>`) 
+* For container upload, it is possible to save an image as a .tar file using `docker <https://docs.docker.com/engine/reference/commandline/save/>` or `podman <https://docs.podman.io/en/latest/markdown/podman-save.1.html>`.
+
 
 .. _extensions workflows:
 

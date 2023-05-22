@@ -10,7 +10,7 @@ RUN curl --output /test-dicoms.zip "https://www.kaapana.ai/kaapana-downloads/kaa
     && mkdir -p /dicom_test_data && unzip /test-dicoms.zip -d /dicom_test_data && rm -rf test-dicoms.zip
 
 COPY files/requirements.txt /kaapana/app/
-RUN python3 -m pip install --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
+RUN python3 -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
 
 COPY files/start.py /kaapana/app/start.py
 

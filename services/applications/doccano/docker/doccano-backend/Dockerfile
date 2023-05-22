@@ -28,14 +28,14 @@ RUN apt-get update \
     libpq-dev=11.* \
     unixodbc-dev=2.* \
     g++=4:* \
- && pip install --no-cache-dir pipenv==2020.11.15 \
+ && pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt --no-cache-dir pipenv==2020.11.15 \
  && pipenv install --system --deploy \
  && pip uninstall -y pipenv virtualenv-clone virtualenv \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* 
 
  # Security fixes
- RUN pip install --no-cache-dir \ 
+ RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt --no-cache-dir \ 
       # Security fix for CVE-2022-40898
       wheel==0.38.1 \
       # Security fix for CVE-2022-40897
@@ -49,7 +49,7 @@ RUN apt-get update \
       # Security fix for CVE-2022-28346
       Django==3.2.18 \
       # Security fix for CVE-2022-29217
-      PyJWT==2.4.0 
+      PyJWT==2.6.0 
  
 COPY --from=build-stage /doccano/tools/ /opt/bin/
 RUN mkdir -p /backend/staticfiles \

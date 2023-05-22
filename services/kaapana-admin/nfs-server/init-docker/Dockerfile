@@ -1,7 +1,7 @@
-FROM docker.io/busybox:1.31
+FROM docker.io/busybox:1.36
 
 LABEL IMAGE="nfs-init"
-LABEL VERSION="1.31"
+LABEL VERSION="1.36"
 LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app

@@ -6,11 +6,8 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-# RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev
-# RUN pip install psycopg2
-
 COPY files/requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt -r requirements.txt
 
 COPY files/ ./
 RUN chmod +x boot.sh

@@ -53,7 +53,7 @@ GRAFANA_USERNAME="{{ credentials_grafana_username|default('admin', true) }}"
 GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
 
 KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
-KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}"
+KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
 
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)

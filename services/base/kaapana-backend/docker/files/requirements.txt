@@ -1,4 +1,4 @@
-alembic==1.7.6
+alembic==1.10.2 
 asyncio==3.4.3
 opensearch-py==2.0.0
 fastapi==0.95.0

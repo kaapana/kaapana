@@ -70,11 +70,18 @@ def combine_mask_nifits(nifti_dir, target_dir):
         nifti_numpy = nifti_loaded.get_fdata().astype(int)
         nifti_labels_found = list(np.unique(nifti_numpy))
         logger.info(f"{ nifti_labels_found= }")
-        assert len(nifti_labels_found) > 1
-        shutil.copy(label_nifti_path, target_nifti_path)
-        target_seg_info_dict["seg_info"].append(seg_info_dict[0])
-        processed_count += 1
-        True, nifti_dir, target_seg_info_dict
+        if len(nifti_labels_found) > 1:
+            shutil.copy(label_nifti_path, target_nifti_path)
+            target_seg_info_dict["seg_info"].append(seg_info_dict[0])
+            processed_count += 1
+            return True, nifti_dir, target_seg_info_dict
+        elif len(nifti_labels_found) == 1:
+            logger.error(f"No segmentation found in {label_nifti_path} -> skipping")
+            return True, nifti_dir, target_seg_info_dict
+        else:
+            logger.error("Unknown state -> no labels found-> abort")
+            logger.error(f"{nifti_labels_found=}")
+            exit(1)
 
     for label_entry in seg_info_dict:
         label_entry["file_found"] = False

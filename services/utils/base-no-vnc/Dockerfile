@@ -113,7 +113,7 @@ COPY /files/requirements.txt /tmp
 RUN apt-get update \
     && dpkg-query -W -f='${Package}\n' > /tmp/a.txt \
     && apt-get install -y python3-pip python3-dev build-essential \
-	&& pip3 install setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt \
+	&& pip3 install setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.2.0.txt \
     && ln -s /usr/bin/python3 /usr/local/bin/python \
     && dpkg-query -W -f='${Package}\n' > /tmp/b.txt \
     && apt-get remove -y `diff --changed-group-format='%>' --unchanged-group-format='' /tmp/a.txt /tmp/b.txt | xargs` \

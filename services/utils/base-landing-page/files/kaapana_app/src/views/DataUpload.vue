@@ -13,7 +13,7 @@
               <br>
               <br>
               <code>
-                dcmsend -v {{ '<' }}ip-address-of-server{{ '>' }} 11112  --scan-directories --call {{ '<' }}dataset-name{{ '>' }} --scan-pattern '*.dcm'  --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
+                dcmsend -v {{ '<' }}ip-address-of-server{{ '>' }} 11112 (default) --scan-directories --call {{ '<' }}dataset-name{{ '>' }} --scan-pattern '*.dcm'  --recurse {{ '<' }}data-dir-of-DICOM-images{{ '>' }}
               </code>
             </v-card-text>
           </v-card>
@@ -24,7 +24,7 @@
               Option 2: Upload the data via the browser(experimental).
             </v-card-title>
             <v-card-text>
-              <v-icon class="my-2" large>mdi-numeric-1-circle</v-icon>&nbsp; Make sure your data are correctly formatted for the upload.
+              <v-icon class="my-2" large>mdi-numeric-1-circle</v-icon>&nbsp; Make sure your data is correctly formatted for the upload.
               <v-btn
                 color="primary"
                 dark
@@ -47,12 +47,12 @@
                   </v-card-title>
                   <v-card-text>
                     <h3>Upload of DICOM data</h3>
-                    <p>DICOM data should be uploaded in a single compressed zip-file containing folder(s) with DICOM files. The default expected file ending for DICOMs is `.dcm`, but can be configured when triggering the ´import-dicoms-in-zip-to-internal-pacs´ workflow.</p>
+                    <p>DICOM data should be uploaded in a single compressed zip-file containing folder(s) with DICOM files. The default expected file-extension for DICOMs is `.dcm`, but can be configured when triggering the ´import-dicoms-in-zip-to-internal-pacs´ workflow.</p>
                     <h3>Upload NIfTI data</h3>
-                    <p>Since the platform works with the DICOM standard, NIfTI data are converted to DICOMs by triggering the workflow `convert-nifitis-to-dicoms-and-import-to-pacs`. If you have only NIfTI data without segmentations, the files with file endings `.nii.gz` or `.nii` can be uploaded either in a compressed zip-file or directly in a folder.
+                    <p>Since the platform works with the DICOM standard, NIfTI data is converted to DICOMs by triggering the workflow `convert-nifitis-to-dicoms-and-import-to-pacs`. If you have only NIfTI files without segmentations, the files with file endings `.nii.gz` or `.nii` can be uploaded either in a compressed zip-file or directly in a folder.
                     </p>
                     <p>
-                      For NIfTI data with segmentation the multiple folder structures are supported, which are outline in the <a href="https://kaapana.readthedocs.io/en/latest/" target="_blank">readthedocs of Kaapana</a>.
+                      For NIfTI data with segmentation the multiple folder structures are supported, which are outline in the <a href="https://kaapana.readthedocs.io/en/latest/" target="_blank">readthedocs of Kaapana TBD</a>.
                       <!-- structure of the <a href="https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/dataset_format_inference.md">nnunet dataset format</a> is expected. An example is given below:
                       <pre>
                       Dataset001_BrainTumour

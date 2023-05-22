@@ -14,7 +14,7 @@ from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
 from sqlalchemy import desc
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 from urllib3.util import Timeout
 
@@ -261,7 +261,11 @@ def create_and_update_remote_kaapana_instance(
             raise HTTPException(
                 status_code=400, detail="Kaapana instance already exists!"
             )
-        if "" in [remote_kaapana_instance.host, remote_kaapana_instance.instance_name, remote_kaapana_instance.token]:
+        if "" in [
+            remote_kaapana_instance.host,
+            remote_kaapana_instance.instance_name,
+            remote_kaapana_instance.token,
+        ]:
             raise HTTPException(
                 status_code=400, detail="Instance name, Host and Token must be defined!"
             )
@@ -943,12 +947,37 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         logging.error("Error while syncing kaapana-backend with Airflow")
 
 
+global_service_jobs = {}
+
+
 def create_and_update_service_workflows_and_jobs(
     db: Session,
     diff_job_dagid: str = None,
     diff_job_runid: str = None,
     status: str = None,
 ):
+    # additional security buffer to check if current incoming service-job already exists
+    # check if service-workflow buffer already exists in global_service_jobs dict
+    if diff_job_dagid not in global_service_jobs:
+        # if not: add service-workflow buffer
+        global_service_jobs[diff_job_dagid] = []
+        logging.info(
+            f"Add new service-workflow to service-job-buffer mechanism: {diff_job_dagid}"
+        )
+    # to keep service-workflow lists of gloval_service_jobs small, check whether list exceeds 200 elements, if yes remove oldest 100 elements
+    if len(global_service_jobs[diff_job_dagid]) > 200:
+        del global_service_jobs[diff_job_dagid][0:99]
+    # check if current incoming service-job is already in buffer
+    if diff_job_runid in global_service_jobs[diff_job_dagid]:
+        # if yes: current incoming service-job will be created in backend --> return
+        logging.warn(
+            f"Prevented service-jobs from being scheduled multiple times: {diff_job_runid}"
+        )
+        return
+    else:
+        # if not: add current incoming service-job to buffer and continue with creating it
+        global_service_jobs[diff_job_dagid].append(diff_job_runid)
+
     # get local kaapana instance
     db_local_kaapana_instance = get_kaapana_instance(db)
 
@@ -984,10 +1013,13 @@ def create_and_update_service_workflows_and_jobs(
         logging.debug(f"Updated service workflow: {db_service_workflow}")
     else:
         # if no: compose WorkflowCreate to create service-workflow ...
+        workflow_id = (
+            f"{''.join([substring[0] for substring in db_job.dag_id.split('-')])}"
+        )
         workflow_create = schemas.WorkflowCreate(
             **{
-                "workflow_id": f"ID-{''.join([substring[0] for substring in db_job.dag_id.split('-')])}",
-                "workflow_name": f"{db_job.dag_id}-service-workflow",
+                "workflow_id": workflow_id,
+                "workflow_name": f"{workflow_id}-{db_job.dag_id}",
                 "kaapana_instance_id": db_local_kaapana_instance.id,
                 "dag_id": db_job.dag_id,
                 "service_workflow": True,
@@ -1093,6 +1125,19 @@ def sync_n_clean_qsr_jobs_with_airflow(db: Session, periodically=False):
         update_job(db, job_update, remote=False)
 
 
+def create_or_get_identifier(db: Session, identifier: string) -> models.Identifier:
+    try:
+        return db.query(models.Identifier).filter_by(id=identifier).one()
+    except NoResultFound:
+        try:
+            with db.begin_nested():
+                instance = models.Identifier(id=identifier)
+                db.add(instance)
+                return instance
+        except IntegrityError:
+            return db.query(models.Identifier).filter_by(id=identifier).one()
+
+
 def create_dataset(db: Session, dataset: schemas.DatasetCreate):
     logging.debug(f"Creating Dataset: {dataset.name}")
 
@@ -1115,10 +1160,12 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate):
 
     utc_timestamp = get_utc_timestamp()
 
+    db_identifiers = [create_or_get_identifier(db, idx) for idx in dataset.identifiers]
+
     db_dataset = models.Dataset(
         username=dataset.username,
         name=dataset.name,
-        identifiers=json.dumps(dataset.identifiers),
+        identifiers=db_identifiers,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
     )
@@ -1193,20 +1240,17 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
         )
         logging.debug(f"Dataset {dataset.name} created.")
 
+    db_identifiers = [create_or_get_identifier(db, idx) for idx in dataset.identifiers]
+
     if dataset.action == "ADD":
-        db_dataset.identifiers = json.dumps(
-            list(set(dataset.identifiers + json.loads(db_dataset.identifiers)))
-        )
+        for identifier in db_identifiers:
+            if identifier not in db_dataset.identifiers:
+                db_dataset.identifiers.append(identifier)
     elif dataset.action == "DELETE":
-        db_dataset.identifiers = json.dumps(
-            [
-                identifier
-                for identifier in json.loads(db_dataset.identifiers)
-                if identifier not in dataset.identifiers
-            ]
-        )
+        for identifier in db_identifiers:
+            db_dataset.identifiers.remove(identifier)
     elif dataset.action == "UPDATE":
-        db_dataset.identifiers = json.dumps(dataset.identifiers)
+        db_dataset.identifiers = db_identifiers
     else:
         raise ValueError(f"Invalid action {dataset.action}")
 
@@ -1332,7 +1376,7 @@ def queue_generate_jobs_and_add_to_workflow(
             dataset_name = conf_data["data_form"]["dataset_name"]
             if not db_kaapana_instance.remote:
                 db_dataset = get_dataset(db, dataset_name)
-                identifiers = json.loads(db_dataset.identifiers)
+                identifiers = [idx.id for idx in db_dataset.identifiers]
             else:
                 allowed_datasets = json.loads(db_kaapana_instance.allowed_datasets)
                 for dataset_info in allowed_datasets:

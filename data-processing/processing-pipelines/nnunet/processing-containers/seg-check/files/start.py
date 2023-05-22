@@ -29,42 +29,35 @@ base_image_ref_dict = {}
 skipped_dict = {"segmentation_files": [], "base_images": []}
 
 
+# RTSTRUCT mask_5--1--Lung-Right-meta.json
+# RTSTRUCT mask_5--1--Lung-Right.nii.gz
 def get_seg_info(input_nifti):
     print(f"# Get seg configuration for: {basename(input_nifti)}")
-    model_id = (
-        f"{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}"
-        if "-" in basename(input_nifti)
-        else ""
-    )
-    existing_configuration = None
+    model_id = basename(input_nifti).replace(".nii.gz", "").split("--")[-1]
     seg_nifti_id = basename(input_nifti).replace(".nii.gz", "")
+    print(f"# {model_id=}")
+    print(f"# {seg_nifti_id=}")
     json_files_found = glob(join(dirname(input_nifti), "*.json"), recursive=False)
-    print(f"{model_id=}")
-    json_files_found = [
-        meta_json_path
-        for meta_json_path in json_files_found
-        if "model_combinations" not in meta_json_path
-    ]
-    if len(json_files_found) > 0 and "-meta.json" in json_files_found[0]:
-        assert "--" in input_nifti
-        json_file_found = [
-            list_json
-            for list_json in json_files_found
-            if seg_nifti_id.split("--")[0] in list_json
-        ]
-        if len(json_files_found) > 1:
-            print(f"Still more than one file found: {json_files_found=}")
-            json_file_found = [
-                list_json
-                for list_json in json_files_found
-                if f"--{model_id.lower()}-meta.json" in list_json.lower()
-            ]
-        print(json_file_found)
-        assert len(json_file_found) == 1
+    json_files_found = [x for x in json_files_found if "model_combinations" not in x]
+    assert len(json_files_found) > 0
 
-        meta_info_json_path = json_file_found[0]
-        seg_file_info = input_nifti.split("--")
-        seg_id = seg_file_info[-2]
+    if any("-meta.json" in x for x in json_files_found):
+        print("-meta.json identified ...")
+        if len(json_files_found) == 1:
+            assert "-meta.json" in json_files_found[0]
+            meta_info_json_path = json_files_found[0]
+        else:
+            print("No single meta-json found -> search for specific config...")
+            model_id_search_string = f"--{model_id.lower()}-meta.json"
+            print(f"Search for {model_id_search_string=}")
+            json_files_found = [
+                x for x in json_files_found if model_id_search_string in x.lower()
+            ]
+            print(json_files_found)
+            assert len(json_files_found) == 1
+            meta_info_json_path = 1[0]
+
+        seg_id = input_nifti.split("--")[-2]
         label_int = None
         label_name = None
         existing_configuration = {}
@@ -84,11 +77,13 @@ def get_seg_info(input_nifti):
                             label_name = part["TrackingIdentifier"]
                             break
 
-        if label_int is None or label_name is None:
-            return queue_dict, "label extraction issue"
+        assert label_name is not None
+        assert label_int is not None
+
         existing_configuration[label_name] = str(label_int)
 
-    elif len(json_files_found) > 0 and "seg_info" in json_files_found[0]:
+    elif any("seg_info" in x for x in json_files_found):
+        print("seg_info identified ...")
         json_files_found = [
             meta_json_path
             for meta_json_path in json_files_found
@@ -884,7 +879,25 @@ for batch_element_dir in batch_folders:
     base_input_dir = join(batch_element_dir, org_input_dir)
     seg_input_dir = join(batch_element_dir, operator_in_dir)
     base_files = sorted(glob(join(base_input_dir, "*.nii*"), recursive=False))
-    assert len(base_files) == 1
+    if len(base_files) != 1:
+        print("#")
+        print("#")
+        print(
+            f"# Something went wrong with DICOM to NIFTI conversion for series: {batch_element_dir}"
+        )
+        print(
+            "# Probaly the DICOM is corrupted, which results in multiple volumes after the conversion."
+        )
+        print(
+            "# You can manually remove this series from the tmp processing data and restart the SEG-Check operator."
+        )
+        print(f"# {base_files=}")
+        print("#")
+        print("# Abort")
+        print("#")
+        print("#")
+        exit(1)
+
     seg_files = sorted(glob(join(seg_input_dir, "*.nii*"), recursive=False))
     if len(seg_files) == 0:
         print("#")

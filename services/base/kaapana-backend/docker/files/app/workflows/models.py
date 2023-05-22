@@ -1,6 +1,7 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Table
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.schema import UniqueConstraint, Index
+from typing import List
 
 from app.database import Base
 
@@ -9,6 +10,20 @@ from app.database import Base
 #     Column('job_id', ForeignKey('job.id'), primary_key=True),
 #     Column('kaapana_instance_id', ForeignKey('kaapana_instance.id'), primary_key=True)
 # )
+identifiers2dataset = Table(
+    "identifier2dataset",
+    Base.metadata,
+    Column("identifier", ForeignKey("identifiers.id"), primary_key=True),
+    Column("dataset", ForeignKey("dataset.name"), primary_key=True),
+)
+
+
+class Identifier(Base):
+    __tablename__ = "identifiers"
+    id = Column(String, primary_key=True)
+    datasets = relationship(
+        "Dataset", secondary=identifiers2dataset, back_populates="identifiers"
+    )
 
 
 class Dataset(Base):
@@ -18,7 +33,9 @@ class Dataset(Base):
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
-    identifiers = Column(String(10485760))
+    identifiers = relationship(
+        "Identifier", secondary=identifiers2dataset, back_populates="datasets"
+    )
 
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))

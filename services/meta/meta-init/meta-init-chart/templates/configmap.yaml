@@ -1,8 +1,8 @@
 ---
 apiVersion: v1
 data:
-{{ (.Files.Glob "files/dashboard_import.json").AsConfig | indent 2 }}
+{{ (.Files.Glob "files/export.ndjson").AsConfig | indent 2 }}
 kind: ConfigMap
 metadata:
-  name: dashboard-import
+  name: os-export
   namespace: "{{ .Values.global.services_namespace }}"

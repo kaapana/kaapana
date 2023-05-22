@@ -41,9 +41,8 @@ if __name__ == "__main__":
     file = "realm_objects/kaapana-client.json"
     payload = json.load(open(file, "r"))
     payload["secret"] = oidc_client_secret
-    KEYCLOAK_URI = os.environ["KEYCLOAK_URI"]
 
     redirect_uris = []
     redirect_uris.append(f"/oauth2/callback")
-    redirect_uris.append(f"{KEYCLOAK_URI}/minio-console/oauth_callback/")
+    redirect_uris.append(f"/minio-console/oauth_callback/")
     keycloak.post_client(payload, redirectUris=redirect_uris)

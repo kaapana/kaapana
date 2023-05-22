@@ -59,6 +59,15 @@ Instance Overview:
 * Connection of remote Kaapana instances
 * Information regarding the instance specification
 
+
+Extension Upload / Data Upload mechanism
+----------------------------------------
+* Introduction of new NIfTI + DICOM upload (NIfTIs will be converted to DICOM + incl. segmentation support)
+* Easily importing the uploaded images into PACS via available workflows
+* New chart (.tgz) and container (.tar) upload feature which enables users to upload their own extensions into the platform
+* Importing container .tar files directly into the microk8s container runtime
+
+
 MISC:
 -----
 

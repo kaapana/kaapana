@@ -1,2 +1,2 @@
-dcmrtstruct2nii==2
-pydicom==2.3.0
+dcmrtstruct2nii==5
+pydicom==2.3.1

@@ -47,7 +47,7 @@ There are two options how to upload images to the platform
 
 ::
 
-   dcmsend -v <ip-address of server> 11112  --scan-directories --call <aetitle of images, used for filtering> --scan-pattern '*'  --recurse <data-dir-of-DICOM images>
+   dcmsend -v <ip-address-of-server> <dicom port, default:11112> --scan-directories --call <dataset-name> --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>
 
 To check whether the data was sucessfully uploaded to the platform, navigate to Workflows -> Datasets and you will find your data!
 

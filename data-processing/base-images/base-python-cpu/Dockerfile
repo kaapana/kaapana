@@ -30,7 +30,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
 
 # Common Python packages
 COPY files/requirements.txt /app/
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt --upgrade setuptools pip && pip3 install -r /app/requirements.txt
+RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt --upgrade setuptools pip && pip3 install -r /app/requirements.txt
 
 # Code server
 RUN wget https://code-server.dev/install.sh

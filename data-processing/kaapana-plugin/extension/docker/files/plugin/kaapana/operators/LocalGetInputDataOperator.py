@@ -26,7 +26,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     * data_form: 'json'
     * data_type: 'dicom' or 'json'
-    * cohort_limit: limit the download series list number
+    * dataset_limit: limit the download series list number
 
     **Outputs:**
 
@@ -101,7 +101,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 download_successful = False
 
         elif self.data_type == "json":
-            meta_data = HelperOpensearch.get_series_metadata(series_uid=seriesUID)
+            meta_data = HelperOpensearch.get_series_metadata(
+                series_instance_uid=seriesUID
+            )
             json_path = join(target_dir, "metadata.json")
             with open(json_path, "w") as fp:
                 json.dump(meta_data, fp, indent=4, sort_keys=True)
@@ -118,28 +120,16 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         return download_successful, seriesUID
 
-    def move_series(self, dag_run_id: str, series_uid: str, dcm_path: str):
+    def move_series(self, src_dcm_path: str, target: str):
         print("#")
         print(
             "############################ Get input data ############################"
         )
         print("#")
-        print(f"# SeriesUID:  {series_uid}")
-        print(f"# RUN_id:     {dag_run_id}")
+        print(f"# Moving data from {src_dcm_path} -> {target}")
         print("#")
-        target = join(
-            self.airflow_workflow_dir,
-            dag_run_id,
-            "batch",
-            series_uid,
-            self.operator_out_dir,
-        )
-
-        print("#")
-        print(f"# Moving data from {dcm_path} -> {target}")
-        print("#")
-        shutil.move(src=dcm_path, dst=target)
-        print(f"# Series CTP import -> OK: {series_uid}")
+        shutil.move(src=src_dcm_path, dst=target)
+        print(f"# Series CTP import -> OK: {target}")
 
     @cache_operator_output
     def start(self, ds, **kwargs):
@@ -155,12 +145,25 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             )
             print("#")
             print(f"# Dicom-path: {dcm_path}")
+            target = join(
+                self.airflow_workflow_dir,
+                dag_run_id,
+                "batch",
+                series_uid,
+                self.operator_out_dir,
+            )
 
-            if not os.path.isdir(dcm_path):
-                print(f"Could not find dicom dir: {dcm_path}")
-                print("Abort!")
-                raise ValueError("ERROR")
-            self.move_series(dag_run_id, series_uid, dcm_path)
+            if not exists(target) or not any(
+                fname.endswith(".dcm") for fname in os.listdir(target)
+            ):
+                if not os.path.isdir(dcm_path):
+                    print(f"Could not find dicom dir: {dcm_path}")
+                    print("Abort!")
+                    raise ValueError("ERROR")
+                else:
+                    self.move_series(src_dcm_path=dcm_path, target=target)
+            else:
+                print("Files have already been moved -> skipping")
             return
         if self.conf and "ctpBatch" in self.conf:
             batch_folder = join(
@@ -173,9 +176,21 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 if dcm_file_list:
                     dcm_file = pydicom.dcmread(dcm_file_list[0], force=True)
                     series_uid = dcm_file[0x0020, 0x000E].value
-                    self.move_series(dag_run_id, series_uid, dcm_series_path)
+                    target = join(
+                        self.airflow_workflow_dir,
+                        dag_run_id,
+                        "batch",
+                        series_uid,
+                        self.operator_out_dir,
+                    )
+                    if exists(target) and any(
+                        fname.endswith(".dcm") for fname in os.listdir(target)
+                    ):
+                        print("Files have already been moved -> skipping")
+                    else:
+                        self.move_series(src_dcm_path=dcm_series_path, target=target)
             # remove parent batch folder
-            if not os.listdir(batch_folder):
+            if exists(batch_folder) and not os.listdir(batch_folder):
                 shutil.rmtree(batch_folder)
             return
 
@@ -197,15 +212,30 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print("# Dag input dir correctly adjusted.")
             return
 
-        if self.conf is not None and "data_form" in self.conf:
-            self.data_form = self.conf["data_form"]
-
         if self.data_form is None:
+            if self.conf is not None and "data_form" in self.conf:
+                print("Setting data_from from conf object")
+                self.data_form = self.conf["data_form"]
+            else:
+                print(
+                    "No data_form in config or object found! Data seems to be present already..."
+                )
+                print("Skipping...")
+                return
+        if "query" in self.data_form and "identifiers" in self.data_form:
             print(
-                "No data_form in config or object found! Data seems to be present already..."
+                "You defined 'identifiers' and a 'query', only one definition is supported!"
             )
-            print("Skipping...")
-            return
+            exit(1)
+        if "query" in self.data_form:
+            print(
+                HelperOpensearch.get_query_dataset(
+                    self.data_form["query"], only_uids=True
+                )
+            )
+            self.data_form["identifiers"] = HelperOpensearch.get_query_dataset(
+                self.data_form["query"], only_uids=True
+            )
 
         print("# data_form:")
         print("#")
@@ -213,48 +243,18 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("#")
         print("#")
 
-        self.cohort_limit = (
-            int(self.data_form["cohort_limit"])
-            if "cohort_limit" in self.data_form
-            and self.data_form["cohort_limit"] is not None
-            else None
-        )
+        dataset_limit = int(self.data_form.get("dataset_limit", 0))
+        self.dataset_limit = dataset_limit if dataset_limit > 0 else None
 
-        if (
-            len(self.data_form["cohort_identifiers"]) == 0
-            and len(self.data_form["cohort_query"].keys()) > 1
-        ):
-            assert "index" in self.data_form["cohort_query"]
-            assert "query" in self.data_form["cohort_query"]
-            index = self.data_form["cohort_query"]["index"]
-            query = self.data_form["cohort_query"]["query"]
-            hits = HelperOpensearch.get_query_cohort(index=index, query=query)
-            self.dicom_data_infos = []
-            for hit in hits:
-                self.dicom_data_infos.append(
-                    {
-                        "dcm-uid": {
-                            "study-uid": hit["_source"][
-                                "0020000D StudyInstanceUID_keyword"
-                            ],
-                            "series-uid": hit["_source"][
-                                "0020000E SeriesInstanceUID_keyword"
-                            ],
-                            "modality": hit["_source"]["00080060 Modality_keyword"],
-                            "curated_modality": hit["_source"]["curated_modality"],
-                        }
-                    }
-                )
-        elif len(self.data_form["cohort_identifiers"]) > 0:
+        if len(self.data_form["identifiers"]) > 0:
             self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(
-                self.data_form["cohort_identifiers"],
-                self.data_form["cohort_query"]["index"],
+                self.data_form["identifiers"]
             )
         else:
             print("# Issue with data form -> exit. ")
             exit(1)
 
-        print(f"# Cohort-limit: {self.cohort_limit}")
+        print(f"# Dataset-limit: {self.dataset_limit}")
         print("#")
         print("#")
         print("# Dicom data information:")
@@ -307,10 +307,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("")
         print(f"## SERIES FOUND: {len(download_list)}")
         print("")
-        print(f"## SERIES LIMIT: {self.cohort_limit}")
+        print(f"## SERIES LIMIT: {self.dataset_limit}")
         download_list = (
-            download_list[: self.cohort_limit]
-            if self.cohort_limit is not None
+            download_list[: self.dataset_limit]
+            if self.dataset_limit is not None
             else download_list
         )
         print("")
@@ -349,7 +349,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         data_type="dicom",
         data_form=None,
         check_modality=False,
-        cohort_limit=None,
+        dataset_limit=None,
         parallel_downloads=3,
         batch_name=None,
         **kwargs,
@@ -358,13 +358,13 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         :param data_type: 'dicom' or 'json'
         :param data_form: 'json'
         :param check_modality: 'True' or 'False'
-        :param cohort_limit: limits the download list
+        :param dataset_limit: limits the download list
         :param parallel_downloads: default 3, number of parallel downloads
         """
 
         self.data_type = data_type
         self.data_form = data_form
-        self.cohort_limit = cohort_limit
+        self.dataset_limit = dataset_limit
         self.check_modality = check_modality
         self.parallel_downloads = parallel_downloads
 

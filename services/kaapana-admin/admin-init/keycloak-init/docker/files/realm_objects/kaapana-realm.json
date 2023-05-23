@@ -25,5 +25,6 @@
     "clientSessionIdleTimeout" : "0",
     "clientSessionMaxLifespan" : "0",
     "clientOfflineSessionIdleTimeout" : "0"
-  }
+  },
+  "passwordPolicy": "notUsername(undefined) and specialChars(1) and upperCase(1) and lowerCase(1) and digits(1) and passwordHistory(3) and length(8)"
 }

@@ -20,6 +20,10 @@ spec:
       - name: landingpage
         image: "{{ .Values.global.registry_url }}/landing-page-kaapana:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+{{- if .Values.global.dev_files }}
+        command: ["sh"]
+        args: ["/kaapana/app/dev.sh"]
+ {{- end }}
         ports:
         - name: landing-http
           containerPort: 5000
@@ -30,15 +34,26 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 20
         resources:
+{{- if .Values.global.dev_files }}
+          requests:
+            memory: 10Gi
+          limits:
+            memory: 10Gi
+ {{- else }}
           requests:
             memory: 10Mi
           limits:
             memory: 10Mi
+ {{- end }}
         volumeMounts:
           - name: common-data-file
             mountPath: /kaapana/app/jsons
           - name: minio-data
             mountPath: /kaapana/app/minio
+{{- if .Values.global.dev_files }}
+          - name: landing-dev-files
+            mountPath: /kaapana/app/src
+ {{- end }}
       volumes:
       - name: common-data-file
         configMap:
@@ -46,5 +61,10 @@ spec:
       - name: minio-data
         persistentVolumeClaim:
           claimName: minio-pv-claim
+{{- if .Values.global.dev_files }}
+      - name: landing-dev-files
+        persistentVolumeClaim:
+          claimName: landing-dev-pv-claim
+{{- end }}
       imagePullSecrets:
       - name: registry-secret

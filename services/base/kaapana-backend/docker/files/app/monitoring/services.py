@@ -2,9 +2,13 @@ from typing import List
 from .schemas import Measurement
 from datetime import datetime
 from opensearchpy import OpenSearch
+from opensearchpy import logger as os_logger
 from app.config import settings
 from prometheus_api_client import PrometheusConnect
 from prometheus_client import CollectorRegistry, Info, Gauge, generate_latest
+import logging
+
+os_logger.setLevel(logging.WARNING)
 
 
 class MonitoringService:
@@ -47,7 +51,11 @@ class MonitoringService:
         try:
             prom_result = MonitoringService.prom.custom_query(query=query)
             if return_type == "int":
-                return int(prom_result[0]["value"][1])
+                if len(prom_result) > 0 and "value" in prom_result[0]:
+                    return int(prom_result[0]["value"][1])
+                else:
+                    return 0
+
             elif return_type == "float":
                 return float(prom_result[0]["value"][1])
             elif return_type == "raw":
@@ -153,7 +161,11 @@ class MonitoringService:
             query="round(time() - process_start_time_seconds{job='oAuth2-proxy'})",
             return_type="int",
         )
-        g = Gauge(name="component_uptime_seconds", documentation="Number of seconds the system is running.", registry=registry)
+        g = Gauge(
+            name="component_uptime_seconds",
+            documentation="Number of seconds the system is running.",
+            registry=registry,
+        )
         g.set(component_uptime_seconds)
 
         (
@@ -177,7 +189,7 @@ class MonitoringService:
             registry=registry,
         )
         dicom_patients_total.labels("total").set(number_patiens_total)
-        
+
         dicom_series_total = Gauge(
             name="dicom_series_total",
             documentation="Number of individual series stored in the component.",
@@ -185,7 +197,6 @@ class MonitoringService:
             registry=registry,
         )
         dicom_series_total.labels("total").set(number_series_total)
-        
 
         number_patiens_ct = MonitoringService.get_modaility_series_count(modality="CT")
         dicom_series_total.labels("CT").set(number_patiens_ct)
@@ -193,7 +204,9 @@ class MonitoringService:
         dicom_series_total.labels("MR").set(number_patiens_mr)
         number_patiens_ot = MonitoringService.get_modaility_series_count(modality="OT")
         dicom_series_total.labels("OT").set(number_patiens_ot)
-        number_patiens_seg = MonitoringService.get_modaility_series_count(modality="SEG")
+        number_patiens_seg = MonitoringService.get_modaility_series_count(
+            modality="SEG"
+        )
         dicom_series_total.labels("SEG").set(number_patiens_seg)
 
         system_load_24h_percent = MonitoringService.query_prom(
@@ -201,7 +214,9 @@ class MonitoringService:
             return_type="float",
         )
         g = Gauge(
-            name="system_load_24h_percent", documentation="A load indicator for the system indicating the system load over the last 24 hours in percent.", registry=registry
+            name="system_load_24h_percent",
+            documentation="A load indicator for the system indicating the system load over the last 24 hours in percent.",
+            registry=registry,
         )
         g.set(system_load_24h_percent)
 
@@ -230,8 +245,6 @@ class MonitoringService:
             storage_size_total_bytes.labels(mount_point).set(storage_size_total)
             storage_size_free_bytes.labels(mount_point).set(storage_size_free)
 
-        
-        
         jobs_success_total = MonitoringService.query_prom(
             query="af_agg_ti_successes", return_type="int"
         )
@@ -261,7 +274,6 @@ class MonitoringService:
             registry=registry,
         )
         g.set(jobs_queued_total)
-
 
         workflow_avg_execution_time_seconds = Gauge(
             name="workflow_avg_execution_time_seconds",

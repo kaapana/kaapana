@@ -2,7 +2,7 @@
 # # # ############# Build ###########
 # # # ###############################
 
-FROM node:lts-alpine3.16 as build-stage
+FROM docker.io/node:lts-alpine3.16 as build-stage
 
 WORKDIR /maintenance/app
 COPY files/kaapana_app/package*.json ./
@@ -12,7 +12,7 @@ COPY files/kaapana_app .
 
 
 LABEL IMAGE="maintenance-page-kaapana"
-LABEL VERSION="0.1.3"
+LABEL VERSION="0.2.0"
 LABEL CI_IGNORE="False"
 
 RUN npm run build
@@ -30,7 +30,7 @@ RUN npm run build
 ###############################
 ######### Production ##########
 ###############################
-FROM nginx:1.19.3-alpine
+FROM docker.io/nginx:1.23.3-alpine
 
 RUN mkdir /app
 COPY --from=build-stage /maintenance/app/dist /app/maintenance

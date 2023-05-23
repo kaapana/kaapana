@@ -11,10 +11,10 @@ import datetime
 
 suite_tag = "security"
 
+
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:
-
     sboms = {}
     vulnerability_reports = {}
     compressed_vulnerability_reports = {}
@@ -28,7 +28,6 @@ class TrivyUtils:
     tag = None
 
     def __init__(self, cache=True, tag=None):
-
         if tag is None:
             raise Exception("Please provide a tag")
 
@@ -120,7 +119,6 @@ class TrivyUtils:
 
     # Function to check for vulnerabilities in a given image
     def create_vulnerability_report(self, image):
-
         issue = None
 
         if self.cache:
@@ -156,6 +154,18 @@ class TrivyUtils:
             "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
             "--skip-dirs",
             "usr/local/lib/python3.9/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.8/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.9/dist-packages/nibabel/test/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.8/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.9/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.8/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.9/dist-packages/nibabel/tests/data",
             "--quiet",
             "--timeout",
             str(self.timeout) + "s",
@@ -300,7 +310,6 @@ class TrivyUtils:
         return image, issue
 
     def create_sboms(self, list_of_images):
-
         try:
             with self.threadpool as threadpool:
                 with alive_bar(
@@ -331,7 +340,6 @@ class TrivyUtils:
 
     # Function to create SBOM for a given image
     def create_sbom(self, image):
-
         issue = None
         # convert image name to a valid SBOM name
         image_name = image.replace("/", "_").replace(":", "_")
@@ -361,6 +369,10 @@ class TrivyUtils:
             "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
             "--skip-dirs",
             "usr/local/lib/python3.9/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.8/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.9/dist-packages/nibabel/test/data",
             "--quiet",
             "--timeout",
             str(self.timeout) + "s",
@@ -501,7 +513,6 @@ class TrivyUtils:
 
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
-
         command = [
             "trivy",
             "config",
@@ -588,12 +599,15 @@ class TrivyUtils:
     def safe_vulnerability_reports(self):
         # save the vulnerability reports to the build directory
         with open(
-            os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"), "w"
+            os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"),
+            "w",
         ) as f:
             json.dump(self.vulnerability_reports, f)
 
         with open(
-            os.path.join(self.reports_path, self.tag + "_compressed_vulnerability_report.json"),
+            os.path.join(
+                self.reports_path, self.tag + "_compressed_vulnerability_report.json"
+            ),
             "w",
         ) as f:
             json.dump(self.compressed_vulnerability_reports, f)
@@ -608,7 +622,6 @@ class TrivyUtils:
         self.semaphore_running_containers.acquire()
         try:
             for container in self.list_of_running_containers:
-
                 command = ["docker", "kill", container]
                 run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
 
@@ -621,10 +634,15 @@ class TrivyUtils:
     def load_cache(self):
         # load cache
         if os.path.exists(
-            os.path.join(self.reports_path, self.tag + "_compressed_vulnerability_report.json")
+            os.path.join(
+                self.reports_path, self.tag + "_compressed_vulnerability_report.json"
+            )
         ):
             with open(
-                os.path.join(self.reports_path, self.tag + "_compressed_vulnerability_report.json"),
+                os.path.join(
+                    self.reports_path,
+                    self.tag + "_compressed_vulnerability_report.json",
+                ),
                 "r",
             ) as f:
                 self.compressed_vulnerability_reports = json.load(f)
@@ -633,7 +651,10 @@ class TrivyUtils:
             os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json")
         ):
             with open(
-                os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"), "r"
+                os.path.join(
+                    self.reports_path, self.tag + "_vulnerability_reports.json"
+                ),
+                "r",
             ) as f:
                 self.vulnerability_reports = json.load(f)
 
@@ -685,7 +706,6 @@ class TrivyUtils:
 
     # docker run --rm aquasec/trivy:0.38.3 image --quiet --download-db-only && trivy --version
     def get_database_next_update_timestamp(self):
-
         command = " ".join(
             [
                 "docker run --rm",
@@ -706,10 +726,11 @@ class TrivyUtils:
             )
             raise Exception(output.stderr)
 
-        # Get the timestamp of the last database download 
+        # Get the timestamp of the last database download
         # Ignore the under second part of the timestamp
         return output.stdout.split("NextUpdate: ")[1].split(".")[0]
-        #timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

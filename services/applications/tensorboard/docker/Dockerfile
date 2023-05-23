@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="tensorboard"
-LABEL VERSION="2.8.0"
+LABEL VERSION="2.12.0"
 LABEL CI_IGNORE="False"
 
 ENV INGRESS_PATH /tensorboard

@@ -58,6 +58,10 @@ spec:
             value: ldap-service.{{  .Values.global.services_namespace  }}.svc:389 postgres-dcm4che-service.{{  .Values.global.services_namespace  }}.svc:5432
           - name: TZ
             value: Europe/Paris
+          - name: WILDFLY_CRON_ENABLED
+            value: "true"
+          - name: WILDFLY_LOG_RETENTION_DAYS
+            value: "7"
           # - name: GELF_LEVEL
           #   value: INFO
           # - name: AUTH_SERVER_URL

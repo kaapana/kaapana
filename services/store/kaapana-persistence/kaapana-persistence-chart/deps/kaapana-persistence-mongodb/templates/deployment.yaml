@@ -1,0 +1,43 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kaapana-persistence-mongodb-deployment
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: kaapana-persistence-mongodb 
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: kaapana-persistence-mongodb
+    spec:
+      containers:
+      - name: kaapana-persistence-mongodb
+        image: "{{ .Values.global.registry_url }}/kaapana-persistence-mongodb:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          value: "{{ .Values.mongodb.user }}"
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          value: "{{ .Values.mongodb.password }}"
+        ports:
+          - containerPort: 27017
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "100Mi"
+        volumeMounts:
+          - name: kaapana-persistence-mongodb-data
+            mountPath: "/data/db"
+      volumes:
+      - name: kaapana-persistence-mongodb-data
+        persistentVolumeClaim:
+          claimName: kaapana-persistence-mongodb-pv-claim
+      imagePullSecrets:
+        - name: registry-secret

@@ -1,4 +1,3 @@
-from datetime import datetime
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
 from datetime import timedelta
@@ -6,26 +5,26 @@ import pydicom
 from shutil import copyfile
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
-from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION, INSTANCE_NAME
+from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 
 args = {
-    'ui_visible': False,
-    'owner': 'system',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=10),
+    "ui_visible": False,
+    "owner": "system",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=10),
 }
 
 dag = DAG(
-    dag_id='service-re-index-dicom-data',
+    dag_id="service-re-index-dicom-data",
     default_args=args,
     schedule_interval=None,
     concurrency=1,
     max_active_runs=1,
-    tags=['service']
+    tags=["service"],
 )
 
 
@@ -34,13 +33,13 @@ def start_reindexing(ds, **kwargs):
     import glob
     from airflow.api.common.trigger_dag import trigger_dag as trigger
 
-    pacs_data_dir = '/pacsdata'
+    pacs_data_dir = "/kaapana/mounted/pacsdata"
     dag_id = "service-extract-metadata"
 
     print("Start re-index")
 
     dcm_dirs = []
-    file_list = glob.glob(pacs_data_dir+"/fs1/**/*", recursive=True)
+    file_list = glob.glob(pacs_data_dir + "/fs1/**/*", recursive=True)
     for fi in file_list:
         if os.path.isfile(fi):
             dcm_dirs.append(os.path.dirname(fi))
@@ -58,31 +57,38 @@ def start_reindexing(ds, **kwargs):
         incoming_dcm = pydicom.dcmread(dcm_file)
         seriesUID = incoming_dcm.SeriesInstanceUID
 
-        target_dir = os.path.join(AIRFLOW_WORKFLOW_DIR, dag_run_id, BATCH_NAME, "{}".format(seriesUID), 'get-input-data')
+        target_dir = os.path.join(
+            AIRFLOW_WORKFLOW_DIR,
+            dag_run_id,
+            BATCH_NAME,
+            "{}".format(seriesUID),
+            "get-input-data",
+        )
         print(target_dir)
 
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
 
-        copyfile(dcm_file, os.path.join(target_dir, os.path.basename(dcm_file)+".dcm"))
+        copyfile(
+            dcm_file, os.path.join(target_dir, os.path.basename(dcm_file) + ".dcm")
+        )
 
         trigger(dag_id=dag_id, run_id=dag_run_id, replace_microseconds=False)
 
 
-clean_meta = LocalDeleteFromMetaOperator(dag=dag, operator_in_dir='get-input-data', delete_all_documents=True)
+clean_meta = LocalDeleteFromMetaOperator(
+    dag=dag, operator_in_dir="get-input-data", delete_all_documents=True
+)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 reindex_pacs = PythonOperator(
-    task_id='reindex-pacs',
+    task_id="reindex-pacs",
     provide_context=True,
-    pool='default_pool',
-    executor_config={
-        "cpu_millicores": 100,
-        "ram_mem_mb": 50,
-        "gpu_mem_mb": 0
-    },
+    pool="default_pool",
+    executor_config={"cpu_millicores": 100, "ram_mem_mb": 50, "gpu_mem_mb": 0},
     python_callable=start_reindexing,
-    dag=dag)
+    dag=dag,
+)
 
 
 clean_meta >> reindex_pacs >> clean

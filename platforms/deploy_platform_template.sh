@@ -34,10 +34,17 @@ JOBS_NAMESPACE="{{ jobs_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 
+OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
+
 INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
+if [ "$DEV_MODE" == "true" ]; then
+    KAAPANA_INIT_PASSWORD="kaapana"
+else
+    KAAPANA_INIT_PASSWORD="Kaapana2020!"
+fi
 
 CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
 CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
@@ -46,7 +53,7 @@ GRAFANA_USERNAME="{{ credentials_grafana_username|default('admin', true) }}"
 GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
 
 KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
-KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}"
+KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
 
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -58,6 +65,8 @@ DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 VERSION_IMAGE_COUNT="20"
 DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
+
+INSTANCE_NAME="{{ instance_name|default('') }}"
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
@@ -222,10 +231,21 @@ function delete_deployment {
             echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
         fi
     done
+    if [ ! "$QUIET" = "true" ];then
+        while true; do
+            read -e -p "Do you also want to remove all Persistent Volumes in the cluster (kubectl delete pv --all)?" -i " yes" yn
+            case $yn in
+                [Yy]* ) echo -e "${GREEN}Removing all pvs from cluster ...${NC}" && microk8s.kubectl delete pv --all; break;;
+                [Nn]* ) echo -e "${YELLOW}Skipping pv removal ...{NC}"; break;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    else
+        echo -e "${YELLOW}QUIET-MODE active!${NC}"
+        echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
+        microk8s.kubectl delete pv --all
+    fi
     
-    # echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
-    # microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
-
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
@@ -280,6 +300,11 @@ function deploy_chart {
 
     get_domain
     
+    if [ -z "$INSTANCE_NAME"]; then
+        INSTANCE_NAME=$DOMAIN
+        echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
+    fi
+
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -393,6 +418,7 @@ function deploy_chart {
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
     --set global.enable_nfs=$ENABLE_NFS \
+    --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
@@ -411,11 +437,14 @@ function deploy_chart {
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
+    --set-string global.instance_name="$INSTANCE_NAME" \
+    --set-string global.dev_mode="$DEV_MODE" \
+    --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
-    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.1.3
+    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
     fi
@@ -486,7 +515,7 @@ function print_deployment_done {
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
         echo -e "username: kaapana"
-        echo -e "password: kaapana ${NC}"
+        echo -e "password: ${KAAPANA_INIT_PASSWORD} ${NC}"
     fi
 }
 

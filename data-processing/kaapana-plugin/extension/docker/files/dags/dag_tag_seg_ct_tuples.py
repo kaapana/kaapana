@@ -19,18 +19,18 @@ ui_forms = {
                 "type": "string",
                 "default": "add",
                 "required": True,
-                "readOnly": False
+                "readOnly": False,
             },
             "tags": {
                 "title": "Tags",
                 "description": "Specify a , seperated list of tags to add/delete (e.g. tag1,tag2)",
                 "type": "string",
                 "default": "",
-                "required": True
+                "required": True,
             },
             "input": {
                 "title": "Input",
-                "default": "SEG",
+                "default": "SEG,RTSTRUCT",
                 "description": "Input-data modality",
                 "type": "string",
                 "readOnly": True,
@@ -41,41 +41,38 @@ ui_forms = {
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,
-            }
-        }
+            },
+        },
     }
 }
 
 args = {
-    'ui_visible': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
 }
 
 dag = DAG(
-    dag_id='tag-seg-ct-tuples',
+    dag_id="tag-seg-ct-tuples",
     default_args=args,
     concurrency=10,
     max_active_runs=1,
-    schedule_interval=None
+    schedule_interval=None,
 )
 
 get_input_dicom = LocalGetInputDataOperator(
-    dag=dag,
-    name='get-input-dicom',
-    check_modality=True,
-    parallel_downloads=5
+    dag=dag, name="get-input-dicom", check_modality=True, parallel_downloads=5
 )
 
 get_input_json = LocalGetInputDataOperator(
     dag=dag,
-    name='get-input-json',
+    name="get-input-json",
     check_modality=True,
     data_type="json",
-    parallel_downloads=5
+    parallel_downloads=5,
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
@@ -88,7 +85,9 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     modality=None,
 )
 
-tag_cts = LocalTaggingOperator(dag=dag, name="tag-cts", input_operator=get_ref_ct_series_from_seg)
+tag_cts = LocalTaggingOperator(
+    dag=dag, name="tag-cts", input_operator=get_ref_ct_series_from_seg
+)
 tag_segs = LocalTaggingOperator(dag=dag, name="tag-segs", input_operator=get_input_json)
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

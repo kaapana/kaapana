@@ -481,6 +481,7 @@ class HelmChart:
         if len(charts_found) == 1:
             dep_chart = charts_found[0]
             self.dependencies[dep_chart.chart_id] = dep_chart
+            dep_chart.check_dependencies()
             BuildUtils.logger.debug(
                 f"{self.chart_id}: dependency found: {dep_chart.chart_id} at {dep_chart.chart_dir}"
             )
@@ -538,6 +539,8 @@ class HelmChart:
                 dependency_version = f"{dependency['version']}"
                 if dependency_version == "0.0.0":
                     dependency_version = self.repo_version
+                else:
+                    dependency_version = BuildUtils.platform_repo_version
 
                 dependency_name = f"{dependency['name']}"
                 self.add_dependency_by_id(
@@ -725,7 +728,7 @@ class HelmChart:
                 and "complete_image" in self.values_yaml["global"]
                 and self.values_yaml["global"]["complete_image"] != None
             ):
-                regex = r'({{\s*\.Values\.global\.registry_url\s+}}\/)(.*)(:{{\s*\.Values\.global\.kaapana_build_version\s*}})'
+                regex = r"({{\s*\.Values\.global\.registry_url\s+}}\/)(.*)(:{{\s*\.Values\.global\.kaapana_build_version\s*}})"
                 match = re.search(regex, self.values_yaml["global"]["complete_image"])
                 assert match
                 self.add_container_by_tag(
@@ -733,7 +736,6 @@ class HelmChart:
                     container_name=match.group(2),
                     container_version=self.repo_version,
                 )
-
 
         template_dirs = (
             f"{self.chart_dir}/templates/*.yaml",
@@ -995,17 +997,24 @@ class HelmChart:
             BuildUtils.logger.info(
                 f"Searching for Charts in target_dir: {external_source_dir}"
             )
-            external_charts = glob(external_source_dir + "/**/Chart.yaml", recursive=True)
-            external_charts = [x for x in external_charts if BuildUtils.kaapana_dir not in x]
+            external_charts = glob(
+                external_source_dir + "/**/Chart.yaml", recursive=True
+            )
+            external_charts = [
+                x for x in external_charts if BuildUtils.kaapana_dir not in x
+            ]
             charts_found.extend(external_charts)
             BuildUtils.logger.info(f"Found {len(charts_found)} Charts")
 
         if len(charts_found) != len(set(charts_found)):
-            BuildUtils.logger.warning(f"-> Duplicate Charts found: {len(charts_found)} vs {len(set(charts_found))}")
-            for duplicate in set([x for x in charts_found if charts_found.count(x) > 1]):
+            BuildUtils.logger.warning(
+                f"-> Duplicate Charts found: {len(charts_found)} vs {len(set(charts_found))}"
+            )
+            for duplicate in set(
+                [x for x in charts_found if charts_found.count(x) > 1]
+            ):
                 BuildUtils.logger.warning(duplicate)
             BuildUtils.logger.warning("")
-
 
         charts_found = sorted(
             set(charts_found), key=lambda p: (-p.count(os.path.sep), p)
@@ -1078,6 +1087,7 @@ class HelmChart:
                 BuildUtils.logger.info(
                     f"{platform_chart.name} - {collection_name}: create create_collection_build_files"
                 )
+                collections_chart.check_dependencies()
                 HelmChart.create_collection_build_files(
                     collections_chart=collections_chart,
                     platform_build_files_target_dir=platform_build_files_base_target_dir,
@@ -1116,9 +1126,6 @@ class HelmChart:
                 BuildUtils.logger.info(
                     f"Collection chart {collection_chart_index+1}/{collections_chart.dependencies_count_all}: {collection_chart_name}:"
                 )
-                collection_chart_target_dir = join(
-                    collection_build_target_dir, "charts", collection_chart.name
-                )
                 collection_chart.lint_chart(build_version=True)
                 collection_chart.lint_kubeval(build_version=True)
                 collection_chart.make_package()
@@ -1134,7 +1141,7 @@ class HelmChart:
     @staticmethod
     def create_chart_build_version(src_chart, target_build_dir, bar=None):
         BuildUtils.logger.info(f"{src_chart.chart_id}: create_chart_build_version")
-        
+
         shutil.copytree(src=src_chart.chart_dir, dst=target_build_dir)
 
         # remove repositories from requirements.txt
@@ -1198,7 +1205,10 @@ class HelmChart:
                 {
                     "platform_build_branch": BuildUtils.platform_build_branch,
                     "platform_last_commit_timestamp": BuildUtils.platform_last_commit_timestamp,
-                    "build_timestamp": datetime.now().astimezone().replace(microsecond=0).isoformat(),
+                    "build_timestamp": datetime.now()
+                    .astimezone()
+                    .replace(microsecond=0)
+                    .isoformat(),
                     "kaapana_build_version": BuildUtils.platform_build_version,
                 }
             )
@@ -1239,15 +1249,20 @@ class HelmChart:
             repo_last_commit,
             repo_last_commit_timestamp,
         ) = BuildUtils.get_repo_info(platform_chart.chart_dir)
+
         if BuildUtils.version_latest:
-            repo_version = "0.0.0-latest"
+            build_version = "0.0.0-latest"
+        else:
+            build_version = repo_version
 
         BuildUtils.platform_name = platform_chart.name
-        BuildUtils.platform_build_version = repo_version
+        BuildUtils.platform_build_version = build_version
+        BuildUtils.platform_repo_version = repo_version
         BuildUtils.platform_build_branch = repo_branch
         BuildUtils.platform_last_commit_timestamp = repo_last_commit_timestamp
 
         platform_chart.build_version = BuildUtils.platform_build_version
+        platform_chart.check_dependencies()
 
         HelmChart.create_platform_build_files(platform_chart=platform_chart)
         nx_graph = generate_build_graph(platform_chart=platform_chart)
@@ -1360,7 +1375,7 @@ class HelmChart:
                                 )
                             else:
                                 bar.text(f"{result_container.build_tag}: ok")
-                    
+
                     tmp_waiting_containers_to_built = [
                         (x, tmp_waiting_containers_to_built[x])
                         for x in range(0, len(tmp_waiting_containers_to_built))
@@ -1391,7 +1406,7 @@ class HelmChart:
                     if trivy_utils.threadpool is not None:
                         trivy_utils.threadpool.terminate()
                         trivy_utils.threadpool = None
-                    
+
                 trivy_utils.error_clean_up()
 
                 if BuildUtils.create_sboms:
@@ -1409,7 +1424,7 @@ class HelmChart:
         # Scan for vulnerabilities if enabled
         if BuildUtils.vulnerability_scan:
             trivy_utils.create_vulnerability_reports(successful_built_containers)
-            
+
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()
             images_tarball_path = join(

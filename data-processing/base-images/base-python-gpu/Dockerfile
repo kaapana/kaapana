@@ -1,4 +1,5 @@
-FROM nvcr.io/nvidia/pytorch:22.12-py3
+FROM docker.io/pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime
+# FROM nvcr.io/nvidia/pytorch:22.12-py3
 
 # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-22-12.html#rel-22-12
 
@@ -13,6 +14,8 @@ WORKDIR /app
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-utils \
+    wget \
+    curl \
     git \
     htop \
     zip \
@@ -26,11 +29,11 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
 
 # Common Python packages
 COPY files/requirements.txt /app/
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/develop/build-scripts/constraints-0.1.3.txt --upgrade setuptools pip && pip3 install -r /app/requirements.txt
+RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt --upgrade setuptools pip && pip3 install -r /app/requirements.txt
 
 # Code server
 RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.2.0
+RUN /bin/bash install.sh --version 4.10.1
 RUN code-server --install-extension ms-python.python
 
 # Juyterlab

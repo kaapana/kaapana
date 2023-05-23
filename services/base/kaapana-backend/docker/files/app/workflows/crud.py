@@ -206,6 +206,9 @@ def create_and_update_client_kaapana_instance(
             db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
             if db_dataset:
                 dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
+                dataset["identifiers"] = [
+                    identifier.id for identifier in db_dataset.identifiers
+                ]
                 if "identifiers" in dataset:
                     dataset["identifiers"] = [
                         fernet.encrypt(identifier.encode()).decode()

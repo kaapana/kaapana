@@ -7,7 +7,7 @@ conf_data:
     name: "Test Seq2seq"
     project_type: "Seq2seq"
   data_form:
-    dataset_name: testCT
+    dataset_name: test-CT
     dataset_limit: 2
 remote: false
 username: "kaapana"
@@ -21,7 +21,7 @@ conf_data:
     name: "Test DocumentClassification"
     project_type: "DocumentClassification"
   data_form:
-    dataset_name: testCT
+    dataset_name: test-CT
     dataset_limit: 2
 remote: false
 username: "kaapana"

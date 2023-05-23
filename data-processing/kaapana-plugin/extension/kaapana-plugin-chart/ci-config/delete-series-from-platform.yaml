@@ -3,7 +3,7 @@ instance_names:
   - central
 conf_data:
   data_form: 
-    dataset_name: "testDELETE"
+    dataset_name: "test-DELETE"
     dataset_limit: 2
   workflow_form:
     delete_complete_study: false
@@ -16,7 +16,7 @@ remote: false
 #   - central
 # conf_data:
 #   data_form: 
-#     dataset_name: "testDELETE"
+#     dataset_name: "test-DELETE"
 #     dataset_limit: 2
 #   workflow_form:
 #     delete_complete_study: true

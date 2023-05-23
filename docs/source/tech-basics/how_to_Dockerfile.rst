@@ -7,7 +7,6 @@ In order to get an overview how to generally design Dockerfiles take a look at t
 
 *  https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
 *  https://chrisedrego.medium.com/20-best-practise-in-2020-for-dockerfile-bb04104bffb6
-*  ...
 
 Base images
 -----------

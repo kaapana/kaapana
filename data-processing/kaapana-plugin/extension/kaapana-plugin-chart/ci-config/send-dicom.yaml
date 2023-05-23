@@ -1,6 +1,4 @@
 dag_id: "send-dicom"
-instance_names:
-  - central
 conf_data:
   workflow_form:
     aetitle: Send2OwnPacs
@@ -8,7 +6,7 @@ conf_data:
     port: 11112
     single_execution: false
   data_form:
-    dataset_name: testCT
+    dataset_name: test-CT
     dataset_limit: 2
 remote: false
 username: "kaapana"

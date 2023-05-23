@@ -1,27 +1,23 @@
 dag_id: "study-ids-to-doccano"
-instance_names:
-  - central
 conf_data:
   workflow_form:
     description: Testing workflow study-ids-to-doccano
     name: "Test Seq2seq"
     project_type: "Seq2seq"
   data_form:
-    dataset_name: testCT
+    dataset_name: test-CT
     dataset_limit: 2
 remote: false
 username: "kaapana"
 ---
 dag_id: "study-ids-to-doccano"
-instance_names:
-  - central
 conf_data:
   workflow_form:
     description: Testing workflow study-ids-to-doccano
     name: "Test DocumentClassification"
     project_type: "DocumentClassification"
   data_form:
-    dataset_name: testCT
+    dataset_name: test-CT
     dataset_limit: 2
 remote: false
 username: "kaapana"

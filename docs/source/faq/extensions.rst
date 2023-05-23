@@ -2,7 +2,7 @@
 
 
 Failed to Install or Launch an Extension
-***************************************
+****************************************
 
 If you encounter this issue, follow these steps:
 
@@ -20,7 +20,7 @@ If you encounter this issue, follow these steps:
 
    ::
    
-       helm ls --uninstalled --pending --failed
+       helm ls --uninstalling --pending --failed
 
 4. To delete, use the following command:
 

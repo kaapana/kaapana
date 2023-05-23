@@ -8,7 +8,7 @@ conf_data:
     action: "add"
     tags: "TestSegTag"
   data_form:
-    dataset_name: "testSEG"
+    dataset_name: "test-SEG"
     dataset_limit: 2
 remote: false
 username: "kaapana"
@@ -23,7 +23,7 @@ conf_data:
     action: "delete"
     tags: "TestSegTag"
   data_form:
-    dataset_name: "testSEG"
+    dataset_name: "test-SEG"
     dataset_limit: 2
 remote: false
 username: "kaapana"

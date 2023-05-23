@@ -1,9 +1,7 @@
 dag_id: "download-selected-files"
-instance_names:
-  - central
 conf_data:
   data_form: 
-    dataset_name: "testCT"
+    dataset_name: "test-CT"
     dataset_limit: 2
   workflow_form:
     zip_files: false
@@ -12,11 +10,9 @@ remote: false
 username: "kaapana" 
 ---
 dag_id: "download-selected-files"
-instance_names:
-  - central
 conf_data:
   data_form: 
-    dataset_name: "testCT"
+    dataset_name: "test-CT"
     dataset_limit: 2
   workflow_form:
     zip_files: true

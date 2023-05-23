@@ -22,7 +22,7 @@ conf_data:
     train_network_trainer: "nnUNetTrainerV2"
     training_description: "nnUnet Segmentation"
   data_form:
-    cohort_name: "testSEG"
-    cohort_limit: 1
+    dataset_name: test-SEG
+    dataset_limit: 1
 remote: false 
 username: "kaapana"

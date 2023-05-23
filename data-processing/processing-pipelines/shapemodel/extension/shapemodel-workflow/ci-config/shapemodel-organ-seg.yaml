@@ -7,7 +7,7 @@ conf_data:
     body_part: "abdomen"
     single_execution: true
   data_form:
-    dataset_name: testCT
+    dataset_name: test-CT
     dataset_limit: 1
 remote: false
 username: "kaapana"

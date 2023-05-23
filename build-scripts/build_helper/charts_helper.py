@@ -1395,7 +1395,7 @@ class HelmChart:
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
         if BuildUtils.vulnerability_scan or BuildUtils.create_sboms:
-            trivy_utils = TrivyUtils()
+            trivy_utils = TrivyUtils(tag=build_version)
 
             def handler(signum, frame):
                 BuildUtils.logger.info("Exiting...")

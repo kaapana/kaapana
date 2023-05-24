@@ -1009,7 +1009,7 @@ def create_and_update_service_workflows_and_jobs(
         workflow_update = schemas.WorkflowUpdate(
             **{
                 "workflow_id": db_service_workflow.workflow_id,
-                "workflow_name": f"{db_job.dag_id}-service-workflow",
+                "workflow_name": db_service_workflow.workflow_name,
                 "workflow_jobs": [db_job],
             }
         )
@@ -1020,31 +1020,34 @@ def create_and_update_service_workflows_and_jobs(
         workflow_id = (
             f"{''.join([substring[0] for substring in db_job.dag_id.split('-')])}"
         )
-        workflow_create = schemas.WorkflowCreate(
-            **{
-                "workflow_id": workflow_id,
-                "workflow_name": f"{db_job.dag_id}-{workflow_id}",
-                "kaapana_instance_id": db_local_kaapana_instance.id,
-                "dag_id": db_job.dag_id,
-                "service_workflow": True,
-                "username": "system",
-                # "username": request.headers["x-forwarded-preferred-username"],
-            }
-        )
-        db_service_workflow = create_workflow(
-            db=db, workflow=workflow_create, service_workflow=True
-        )
-        logging.debug(f"Created service workflow: {db_service_workflow}")
-        # ... and afterwards append service-jobs to service-workflow via crud.put_workflow_jobs()
-        workflow_update = schemas.WorkflowUpdate(
-            **{
-                "workflow_id": db_service_workflow.workflow_id,
-                "workflow_name": db_service_workflow.workflow_name,
-                "workflow_jobs": [db_job],
-            }
-        )
-        db_service_workflow = put_workflow_jobs(db, workflow_update)
-        logging.debug(f"Updated service workflow: {db_service_workflow}")
+        # should normally be not necessary, but additional safety net to not create 2x the same service-workflow
+        db_service_workflow = get_workflow(db, dag_id=workflow_id)
+        if not db_service_workflow:
+            workflow_create = schemas.WorkflowCreate(
+                **{
+                    "workflow_id": workflow_id,
+                    "workflow_name": f"{db_job.dag_id}-{workflow_id}",
+                    "kaapana_instance_id": db_local_kaapana_instance.id,
+                    "dag_id": db_job.dag_id,
+                    "service_workflow": True,
+                    "username": "system",
+                    # "username": request.headers["x-forwarded-preferred-username"],
+                }
+            )
+            db_service_workflow = create_workflow(
+                db=db, workflow=workflow_create, service_workflow=True
+            )
+            logging.info(f"Created service workflow: {db_service_workflow}")
+            # ... and afterwards append service-jobs to service-workflow via crud.put_workflow_jobs()
+            workflow_update = schemas.WorkflowUpdate(
+                **{
+                    "workflow_id": db_service_workflow.workflow_id,
+                    "workflow_name": db_service_workflow.workflow_name,
+                    "workflow_jobs": [db_job],
+                }
+            )
+            db_service_workflow = put_workflow_jobs(db, workflow_update)
+            logging.info(f"Updated service workflow: {db_service_workflow}")
 
 
 # def sync_states_from_airflow(db: Session, status: str = None, periodically=False):

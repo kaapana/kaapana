@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="m2olie-elastix-registration"
 LABEL VERSION="2023-05-15"
@@ -47,6 +47,7 @@ ENV OPERATOR_OUT_DIR registration
 # RUN mkdir -p OPERATOR_OUT_DIR
 
 COPY files/* /kaapana/app/
+RUN chmod +x /kaapana/app/elastix-registration.sh
 CMD ["/bin/bash", "/kaapana/app/elastix-registration.sh"]
 
 # to test the container without using kaapana 

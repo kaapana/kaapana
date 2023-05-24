@@ -98,3 +98,5 @@ dependencies:
     version: 0.0.0
   - name: m2olie-backend-chart
     version: 0.0.0
+  - name: m2olie-workflow
+    version: 0.0.0

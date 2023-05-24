@@ -7,7 +7,8 @@ from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from m2olie.LocalCallbackfunction import LocalCallbackfunction
 from m2olie.LocalGetAdditionalInput import LocalGetAdditionalInput
-from m2olie.ElastikRegistration import ElastikRegistration
+from m2olie.LocalCreateMITKScene import LocalCreateMITKScene
+from m2olie.ElastixRegistration import ElastixRegistration
 
 
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
@@ -41,43 +42,60 @@ ui_forms = {
                 "description": "The M2olie Prometheus callback ip.",
                 "type": "string",
                 "readOnly": False,
-            }
-        }
+            },
+        },
     }
 }
 
 args = {
-    'ui_visible': True,
-    'ui_federated': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_visible": True,
+    "ui_federated": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
 }
 
 dag = DAG(
-    dag_id='image_registration',
+    dag_id="image_registration",
     default_args=args,
     concurrency=10,
     max_active_runs=1,
     schedule_interval=None,
-    tags=['m2olie']
+    tags=["m2olie"],
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
 get_input_additional = LocalGetAdditionalInput(dag=dag)
-registration = ElastikRegistration(dag=dag, 
-                                    task_id="registration",  
-                                    operator_in_dir_fixed=get_input.operator_out_dir, 
-                                    operator_in_dir_moving=get_input_additional.operator_out_dir)
-launch_app = KaapanaApplicationOperator(dag=dag,
-                                        name="application-registration-flow",
-                                        input_operator=get_input,
-                                        chart_name='m2olie-workbench-chart',
-                                        version=KAAPANA_BUILD_VERSION)
+registration = ElastixRegistration(
+    dag=dag,
+    task_id="registration",
+    operator_in_dir_fixed=get_input.operator_out_dir,
+    operator_in_dir_moving=get_input_additional.operator_out_dir,
+)
+create_mitk_scene = LocalCreateMITKScene(
+    dag=dag,
+    additional_input=get_input_additional.operator_out_dir,
+    registration_dir=registration.operator_out_dir,
+    input_operator=get_input,
+)
+launch_app = KaapanaApplicationOperator(
+    dag=dag,
+    name="application-registration-flow",
+    input_operator=create_mitk_scene,
+    chart_name="m2olie-workbench-chart",
+    version=KAAPANA_BUILD_VERSION,
+)
 m2olie_callback_funktion = LocalCallbackfunction(dag=dag, input_operator=get_input)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input>> get_input_additional >> registration >> launch_app >> clean
+(
+    get_input
+    >> get_input_additional
+    >> registration
+    >> create_mitk_scene
+    >> launch_app
+    >> clean
+)
 registration >> m2olie_callback_funktion >> clean

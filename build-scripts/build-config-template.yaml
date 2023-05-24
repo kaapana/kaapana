@@ -1,5 +1,5 @@
 http_proxy: "" # put the proxy here if needed
-default_registry: "registry.<gitlab-url>/<group/user>/<project>" # registry url incl. project Gitlab template: "registry.<gitlab-url>/<group/user>/<project>"
+default_registry: "registry.<gitlab-url>/<group-or-user>/<project>" # registry url incl. project Gitlab template: "registry.<gitlab-url>/<group-or-user>/<project>"
 registry_username: "" # container registry username
 registry_password: "" # container registry password
 container_engine: "docker" # docker or podman

@@ -72,11 +72,11 @@ Namespace configurations
 | 
 
 | :code:`SERVICES_NAMESPACE` `(default: "services", type=string)` 
-| The kubernetes namespace of all kubernetes service ressources.
+| The kubernetes namespace for all applications of a Kaapana platform, e.g. landingpage, airflow, minio, the kaapana-backend, installed extensions.
 |
 
 | :code:`ADMIN_NAMESPACE` `(default: "admin", type=string)`
-| The kubernetes namespace for all ressources that can be shared between multiple instances.
+| The kubernetes namespace for furndamental parts of a Kaapana platform, e.g. reverse proxy, authentication.
 | 
 
 | :code:`JOBS_NAMESPACE` `(default: "jobs", type=string)`

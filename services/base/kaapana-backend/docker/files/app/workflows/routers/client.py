@@ -39,17 +39,26 @@ UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
 
 def remove_outdated_tmp_files(search_dir):
     max_hours_tmp_files = 24
-    files_grabbed = (p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".json", ".tmp"})
+    files_grabbed = (
+        p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".json", ".tmp"}
+    )
 
     for file_found in files_grabbed:
-        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))).total_seconds() / 3600)
+        hours_since_creation = int(
+            (
+                datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))
+            ).total_seconds()
+            / 3600
+        )
         if hours_since_creation > max_hours_tmp_files:
             logging.warning(f"File {file_found} outdated -> delete")
             try:
                 os.remove(file_found)
                 pass
             except Exception as e:
-                logging.warning(f"Something went wrong with the removal of {file_found} .. ")
+                logging.warning(
+                    f"Something went wrong with the removal of {file_found} .. "
+                )
 
 
 @router.post("/minio-file-upload")
@@ -93,7 +102,9 @@ async def post_minio_file_upload(request: Request, patch: str):
                 with open(dict_fpath, "r") as fp:
                     minio_upload_mapping_dict = json.load(fp)
             else:
-                logging.error(f"upload mapping dictionary file {dict_fpath} does not exist, using the global variable (not thread-safe)")
+                logging.error(
+                    f"upload mapping dictionary file {dict_fpath} does not exist, using the global variable (not thread-safe)"
+                )
             logging.info(f"{patch=}, {minio_upload_mapping_dict=}")
             object_name = minio_upload_mapping_dict[patch]
             target_path = Path(UPLOAD_DIR) / object_name.strip("/")
@@ -626,18 +637,22 @@ def create_workflow(
     #     crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
     #     )
 
+    # all sync
+    # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+
+    # thread async w/ db session in thread
     if (
         db_client_kaapana.instance_name
         not in json_schema_data.conf_data["workflow_form"]["involved_instances"]
         or len(json_schema_data.conf_data["workflow_form"]["involved_instances"]) > 1
     ):
         # sync solution for remote or any federated workflows
-        crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+        crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data)
     else:
         # solution in additional thread for purely local workflows (these are probably also the only one which are conducted at large scale)
         Thread(
             target=crud.queue_generate_jobs_and_add_to_workflow,
-            args=(db, db_workflow, json_schema_data),
+            args=(db_workflow, json_schema_data),
         ).start()
 
     # directly return created db_workflow for fast feedback
@@ -719,7 +734,7 @@ def put_workflow_jobs(
     db: Session = Depends(get_db),
 ):
     db_workflow = crud.get_workflow(db, workflow_id=json_schema_data.workflow_id)
-    r = crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    r = crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, db)
     resp = r["jobs"]
     return resp
 

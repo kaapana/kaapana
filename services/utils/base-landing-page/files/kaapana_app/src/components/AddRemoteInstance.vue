@@ -75,7 +75,7 @@ export default {
     },
     resetForm () {
       let resetData = this.initialState();
-      resetData["remoteDialog"] = true;
+      // resetData["remoteDialog"] = true;
       Object.assign(this.$data, resetData);
     },
     submitRemoteForm () {

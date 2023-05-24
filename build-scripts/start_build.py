@@ -685,7 +685,7 @@ if __name__ == "__main__":
         logger.info("-----------------------------------------------------------")
         logger.info("")
         for chart_object in BuildUtils.platform_filter:
-            trivy_utils = TrivyUtils()
+            trivy_utils = TrivyUtils(tag=BuildUtils.platform_repo_version)
             trivy_utils.check_chart(
                 path_to_chart=os.path.join(BuildUtils.build_dir, chart_object)
             )

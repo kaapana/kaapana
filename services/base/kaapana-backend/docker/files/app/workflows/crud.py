@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from urllib3.util import Timeout
 
 from app.config import settings
+from app.database import SessionLocal
 from . import models, schemas
 from .schemas import DatasetCreate
 from .utils import (
@@ -205,6 +206,9 @@ def create_and_update_client_kaapana_instance(
             db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
             if db_dataset:
                 dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
+                dataset["identifiers"] = [
+                    identifier.id for identifier in db_dataset.identifiers
+                ]
                 if "identifiers" in dataset:
                     dataset["identifiers"] = [
                         fernet.encrypt(identifier.encode()).decode()
@@ -1328,10 +1332,14 @@ def create_workflow(
 # TODO removed async because our current database is not able to execute async methods
 # async def queue_generate_jobs_and_add_to_workflow(
 def queue_generate_jobs_and_add_to_workflow(
-    db: Session,
     db_workflow: models.Workflow,
     json_schema_data: schemas.JsonSchemaData,
+    db=None,
 ):
+    # open separate db session if method is called with db=None, i.e. called in Thread while workflow creation
+    if db is None:
+        db = SessionLocal()
+
     conf_data = json_schema_data.conf_data
     # get variables
     single_execution = (

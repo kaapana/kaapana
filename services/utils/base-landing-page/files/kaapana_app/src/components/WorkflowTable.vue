@@ -328,6 +328,10 @@ methods: {
       }).then((response) => {
         if (response.data.length !== 0) {
           this.loading = false
+        } else {
+          // no jobs could be get from backend from this workflow in this state
+          // check whether workflow has at least any jobs
+          this.getSingleJobOfWorkflow(workflow_name)
         }
         if (this.expanded.length > 0) {
           this.jobsofExpandedWorkflow = response.data;
@@ -337,6 +341,27 @@ methods: {
       })
       .catch((err) => {
         this.loading = false
+        console.log(err);
+      })
+  },
+  getSingleJobOfWorkflow(workflow_name) {
+    kaapanaApiService
+      .federatedClientApiGet("/jobs",{
+        workflow_name: workflow_name,
+        limit: 1,
+      }).then((response) => {
+        if (response.data.length === 0) {
+          const message_title = `No jobs for workflow ${workflow_name}`
+          const message_text = `Workflow just triggered with >50 jobs? -> Jobs are created. \n
+                                Workflow triggered >20 seconds ago?    -> Error while creating jobs.`
+          this.$notify({
+            type: "warning",
+            title: message_title,
+            text: message_text,
+          })
+        }
+      })
+      .catch((err) => {
         console.log(err);
       })
   },

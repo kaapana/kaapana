@@ -1023,7 +1023,7 @@ def create_and_update_service_workflows_and_jobs(
         workflow_create = schemas.WorkflowCreate(
             **{
                 "workflow_id": workflow_id,
-                "workflow_name": f"{workflow_id}-{db_job.dag_id}",
+                "workflow_name": f"{db_job.dag_id}-{workflow_id}",
                 "kaapana_instance_id": db_local_kaapana_instance.id,
                 "dag_id": db_job.dag_id,
                 "service_workflow": True,

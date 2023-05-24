@@ -11,7 +11,7 @@ Deployment Requirements
    | You will need some kind of :term:`server` to run the platform on.
    | Minimum specs:
 
-   - OS: Ubuntu 20.04 or Ubuntu Server 20.04
+   - OS: Ubuntu 20.04/22.04 or Ubuntu Server 20.04/22.04
    - CPU: 8 cores (recommended 16+)
    - RAM: 64GB+ (recommended 128GB+) 
    - Storage for application-data (fast-dir): 100GB (recommended >200GB) 
@@ -24,8 +24,8 @@ Deployment Requirements
 
    .. hint::
 
-      | **Get access to our docker registry or a tarball with the built docker containers**
-      | In case you just want to try out the platform, you are very welcome to reach out to us (:ref:`contact`). In this case, we will provide you either with credentials to our docker registry or with a tarball that contains the docker containers from which you can directly deploy the platform and skip the building part!
+      | **Accessing Docker Registry or Tarball with Pre-built Docker Containers**
+      | If you are interested in exploring our platform, we encourage you to get in touch with us (:ref:`contact`). Should you choose to do so, we will gladly offer you two options for accessing it. You can either receive credentials for our docker registry or receive a tarball that includes the necessary docker containers. With these options, you can directly deploy the platform without the need to go through the building process.
 
    To provide the services in Kaapana, the corresponding containers are needed.
    These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry or a tarball.
@@ -68,20 +68,15 @@ To do this, you can use the :term:`server-deployment-script`, located at :code:`
 
    | :code:`chmod +x server_installation.sh`
 
-3. It's important to add your custom :term:`DNS` to the server installation script before you proceed, e.g. by running the following command to add the custom DNS:
-   
-   | :code:`sed -i 's/8.8.8.8,8.8.4.4/<add_your_custom_dns_here>/g' server_installation.sh`
-   | :code:`cat server_installation.sh | grep DNS=`
-
-4. Execute the script:
+3. Execute the script:
 
    | :code:`sudo ./server_installation.sh`
 
-5. Reboot the system 
+4. Reboot the system 
 
    | :code:`sudo reboot`
 
-6. (optional) Enable GPU support for Microk8s 
+5. (optional) Enable GPU support for Microk8s 
 
    | :code:`sudo ./server_installation.sh -gpu`
 
@@ -102,7 +97,7 @@ Platform Deployment
   | 2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
   | They can be adjusted in the :term:`platform-deployment-script` and can also be identical (everything is stored at one place).
 
-The platform is deployed using the :term:`platform-deployment-script`, which you can find at :code:`kaapana/platforms/kaapana-platform/platform-deployment/deploy_platform.sh`.
+The platform is deployed using the :term:`platform-deployment-script`, which you can find at :code:`kaapana/build/kaapana-admin-chart/deploy_platform.sh`.
 
 Copy the script to your target-system (server) and **adjust it as described below**:
 
@@ -113,6 +108,7 @@ Copy the script to your target-system (server) and **adjust it as described belo
 2. Have a look at the variables on top of the script.
    
 **You need to do at least the following customizations:**
+Note: If you have already built the platform, these variables should have been filled in.
 
 .. tabs::
 
@@ -159,22 +155,18 @@ Copy the script to your target-system (server) and **adjust it as described belo
 
 You may be asked the following questions:
 
-1. *Please enter the credentials for the Container-Registry:*
+1. *server domain (FQDN):*
 
-   Use the credentials to your own registry or the ones provided to you by the Kaapana team.
+   You should enter the **domain, hostname or IP-address** where the server is accessible from client workstations.
+   **Keep in mind, that valid SSL-certificates are only working with FQDN domains.**
 
 2. *Enable GPU support?*
 
    Answer *yes* if you have a Nvidia GPU, installed drivers and enabled GPU for Microk8s.
 
-3. *Please enter the domain (FQDN) of the server.*
+3. *Please enter the credentials for the Container-Registry:*
 
-   You should enter the **domain, hostname or IP-address** where the server is accessible from client workstations.
-   **Keep in mind, that valid SSL-certificates are only working with FQDN domains.**
-
-4. *Which <platform-name> version do you want to deploy?:*
-
-   Specify the version you want to deploy.
+   Use the credentials to your own registry or the ones provided to you by the Kaapana team.
 
 The script will stop and **wait** until the platform is deployed.
 Since all Docker containers must be downloaded, this may take some time (~15 min).

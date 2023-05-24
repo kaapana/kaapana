@@ -18,7 +18,7 @@ class ExtractStudyIdOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{DEFAULT_REGISTRY}/example-extract-study-id:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/example-extract-study-id:0.1.0",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             *args,

@@ -18,14 +18,14 @@ Deployment Requirements
    - Storage for imaging-data (slow-dir): depends on your needs 
 
 
-#. **Access to a docker registry or a tarball with built docker containers**
+#. **Access to a container registry or a tarball with built  containers**
 
-   Before proceeding with further installation steps, make sure you have access to a docker registry or a tarball with built Kaapana docker containers, otherwise please visit :ref:`getting_started`.
+   Before proceeding with further installation steps, make sure you have access to a container registry or a tarball with built Kaapana  containers, otherwise please visit :ref:`getting_started`.
 
    .. hint::
 
-      | **Accessing Docker Registry or Tarball with Pre-built Docker Containers**
-      | If you are interested in exploring our platform, we encourage you to get in touch with us (:ref:`contact`). Should you choose to do so, we will gladly offer you two options for accessing it. You can either receive credentials for our docker registry or receive a tarball that includes the necessary docker containers. With these options, you can directly deploy the platform without the need to go through the building process.
+      | **Accessing container Registry or Tarball with Pre-built  Containers**
+      | If you are interested in exploring our platform, we encourage you to get in touch with us (:ref:`contact`). Should you choose to do so, we will gladly offer you two options for accessing it. You can either receive credentials for our container registry or receive a tarball that includes the necessary  containers. With these options, you can directly deploy the platform without the need to go through the building process.
 
    To provide the services in Kaapana, the corresponding containers are needed.
    These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry or a tarball.

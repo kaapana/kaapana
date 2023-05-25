@@ -160,12 +160,8 @@ data () {
     search: '',
     expanded: [],
     workflowHeaders: [
-      {
-        text: 'Workflow ID',
-        align: 'start',
-        value: 'workflow_id',
-      },
       { text: 'Workflow Name', value: 'workflow_name' },
+      { text: 'Workflow ID', align: 'start', value: 'workflow_id' },
       { text: 'Dataset Name', value: 'dataset_name' },
       { text: 'Created', value: 'time_created' },
       { text: 'Updated', value: 'time_updated' },

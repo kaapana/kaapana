@@ -10,7 +10,7 @@ Glossary
       The Domain Name System (DNS) is the phonebook of the Internet. 
       Humans access information online through domain names, e.g. www.dkfz.de. 
       Web browsers interact through Internet Protocol (IP) addresses. 
-      DNS translates domain names to IP addresses so browsers can load Internet resources.
+      A DNS translates domain names to IP addresses so browsers can load Internet resources.
     
     platform
       A platform describes a system that runs on a remote :term:`server` and is accessible via the browser. 

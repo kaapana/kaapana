@@ -66,7 +66,11 @@ Glossary
     
     kaapana-admin-chart
       This :term:`Helm<helm>` chart consists of all :term:`Kubernetes<kubernetes>` configuration required for the :term:`kaapana-platform`.
-      
+      It contains the fundamental features of the platform such as reverse proxy, authentication, and kube-helm backend. It has :term:`kaapana-platform-chart` as a sub-chart.
+
+    kaapana-platform-chart
+      This :term:`Helm<helm>` chart consists of most of the interactive components of Kaapana, such as Airflow, PACS, Minio, landing page and Kaapana backend.
+    
     containerd
       We use `containerd <https://containerd.io/>`_ as runtime environment for the :term:`containers<container>` in the :term:`Kubernetes<kubernetes>` cluster.
       It manages the lifecycle of a container.

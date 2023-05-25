@@ -8,7 +8,6 @@ LABEL CI_IGNORE="False"
 ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
-
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-utils \
     git \
@@ -26,6 +25,8 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     wget \
     curl \
     procps \
+    libpng-dev \
+    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Common Python packages

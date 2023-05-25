@@ -17,3 +17,5 @@ protobuf==3.20.2
 cryptography==39.0.1
 # Security fix for CVE-2023-25577
 Werkzeug==2.2.3
+wheel==0.38.1
+Pillow==9.3.0

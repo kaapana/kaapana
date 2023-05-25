@@ -17,7 +17,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get purge -y libhwloc-dev libhwloc-plugins
+# RUN apt-get purge -y libhwloc-dev libhwloc-plugins
 # Clone directory from git
 RUN git clone  --single-branch --branch master https://github.com/MIC-DKFZ/BodyPartRegression.git && cd BodyPartRegression && git checkout v1.1 
 

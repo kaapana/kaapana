@@ -593,7 +593,7 @@ def create_workflow(
     characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
     workflow_id = "".join(random.choices(characters, k=6))
     # append workflow_id to workflow_name
-    workflow_name = workflow_id + "-" + json_schema_data.workflow_name
+    workflow_name = json_schema_data.workflow_name + "-" + workflow_id
 
     # TODO adapt involed instances per job?
     if json_schema_data.federated:  # == True ;-)

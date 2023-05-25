@@ -335,7 +335,8 @@ def add_info_from_deployments(
                     chart_template.successful = "yes" if deployment.ready else "pending"
                     chart_template.helmStatus = deployment.helm_status.capitalize()
                     chart_template.kubeStatus = None
-                    chart_template.links = deployment.links
+                    # TODO: rm "kaapanaint" workaround
+                    chart_template.links.extend([link for link in deployment.links if "kaapanaint" not in link])
                     chart_template.version = version
                     chart_template.latest_version = version
                     chart_template.versions = [version]
@@ -352,7 +353,8 @@ def add_info_from_deployments(
                 extension_info.successful = ""
             else:
                 for deployment in version_content.deployments:
-                    extension_info.links = deployment.links
+                    # TODO: /pending-applications does not use this function so it's fine to exclude "kaapanaint", but definitely a workaround for now
+                    extension_info.links.extend([link for link in deployment.links if "kaapanaint" not in link])
                 extension_info.installed = "yes"
         else:
             # no deployments

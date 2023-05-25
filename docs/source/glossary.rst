@@ -22,7 +22,7 @@ Glossary
       You can utilize this platform as a starting-point to derive a customized platform for your specific project.
 
     registry
-      A registry is a storage and content delivery system holding images and :term:`charts<chart>` available in different tagged versions. 
+      A registry is a storage and content delivery system holding container images and :term:`Helm<helm>` :term:`charts<chart>` available in different tagged versions. 
       A registry can be private or public. Examples of such registries are, `DockerHub <https://hub.docker.com/>`_ and Elastic Container Registry (ECR) provided by Amazon's AWS. `GitLab <https://about.gitlab.com/>`_ offers free, private registries.
     
     deployment
@@ -49,7 +49,7 @@ Glossary
     operator
       An Airflow operator is a Python class that represents a single task within a :term:`DAG<dag>`. 
       This allows for the reuse of operators as building blocks across multiple DAG definitions. 
-      Operators can also run tasks by running a Docker :term:`container<container>`. 
+      Operators can also run tasks by running a :term:`container<container>`. 
       This makes the execution of operators heavily scalable.
     
     server
@@ -66,26 +66,27 @@ Glossary
     
     kaapana-admin-chart
       This :term:`Helm<helm>` chart consists of all :term:`Kubernetes<kubernetes>` configuration required for the :term:`kaapana-platform`.
-
-    docker
-      Docker is the technology that enables the integration of an entire operating system together with an executable software along with its necessary dependencies into a :term:`container`. 
-      When running such a container, only the physical resources of the host system are utilized. 
-      In Kaapana, every :term:`service` and :term:`job` runs within a container.
+      
+    containerd
+      We use `containerd <https://containerd.io/>`_ as runtime environment for the :term:`containers<container>` in the :term:`Kubernetes<kubernetes>` cluster.
+      It manages the lifecycle of a container.
 
     container
-      A container is a self contained virtual environment that runs a software along with the code and all of its dependencies. 
-      In this way, it can run quickly and reliably on any environment. 
-      Containers are specified by images that are :term:`built<build>` according to a file e.g. a :term:`Dockerfile<docker>`. 
-      Commonly available containerization technologies are provided by `Docker <https://www.docker.com/resources/what-container/>`_ and `Podman <https://docs.podman.io/en/latest/>`_.
-    
+      A container is a self contained virtual environment that runs a software along with the code and all of its dependencies.
+      In this way, it can run quickly and reliably on any environment.
+      We utilize :term:`containerd` to run containers.
+      In Kaapana, every :term:`service` and :term:`job` runs within a container.
+      Containers are specified by container images that are :term:`built<build>` according to a file e.g. a Dockerfile.
+         
     build
       A build describes the process of building :term:`container`-images from files like Dockerfiles.
+      Images for Kaapana can be build using tools like `Docker <https://www.docker.com/resources/what-container/>`_ or `Podman <https://docs.podman.io/en/latest/>`_.
     
     microk8s
       MicoK8s is a lightweight, single-package :term:`Kubernetes<kubernetes>` distribution that we utilize to set up our Kubernetes cluster.
 
     kubernetes
-      Kubernetes is an open-source container-orchestration system that we use to manage all the Docker containers required for Kaapana.
+      Kubernetes is an open-source container-orchestration system that we use to manage all the :term:`containers<container>` required for Kaapana.
 
     server-installation-script
       This script is used to install all required dependencies on the :term:`server`.

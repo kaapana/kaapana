@@ -336,7 +336,7 @@ def add_info_from_deployments(
                     chart_template.helmStatus = deployment.helm_status.capitalize()
                     chart_template.kubeStatus = None
                     # TODO: rm "kaapanaint" workaround
-                    chart_template.links.extend([link for link in deployment.links if "kaapanaint" not in link])
+                    chart_template.links = deployment.links
                     chart_template.version = version
                     chart_template.latest_version = version
                     chart_template.versions = [version]

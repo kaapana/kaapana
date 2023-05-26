@@ -14,7 +14,6 @@ from multiprocessing.pool import ThreadPool
 import networkx as nx
 from alive_progress import alive_bar
 from build_helper.container_helper import get_image_stats
-from build_helper.security_utils import TrivyUtils
 from build_helper.offline_installer_helper import OfflineInstallerHelper
 import threading
 import signal
@@ -1429,7 +1428,8 @@ class HelmChart:
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
         if BuildUtils.vulnerability_scan or BuildUtils.create_sboms:
-            trivy_utils = TrivyUtils(tag=build_version)
+            trivy_utils = BuildUtils.trivy_utils
+            trivy_utils.tag = build_version
 
             def handler(signum, frame):
                 BuildUtils.logger.info("Exiting...")

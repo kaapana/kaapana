@@ -86,6 +86,7 @@ class TrivyUtils:
             self.load_cache()
 
         self.database_timestamp = self.get_database_next_update_timestamp()
+        
 
     def create_vulnerability_reports(self, list_of_images):
         try:

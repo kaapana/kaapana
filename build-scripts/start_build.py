@@ -644,6 +644,7 @@ if __name__ == "__main__":
     BuildUtils.version_latest = version_latest
     BuildUtils.enable_image_stats = enable_image_stats
     BuildUtils.create_sboms = create_sboms
+    BuildUtils.trivy_utils = TrivyUtils(tag="no_tag_yet")
 
     Container.init_containers(
         container_engine=container_engine,
@@ -685,7 +686,8 @@ if __name__ == "__main__":
         logger.info("-----------------------------------------------------------")
         logger.info("")
         for chart_object in BuildUtils.platform_filter:
-            trivy_utils = TrivyUtils(tag=BuildUtils.platform_repo_version)
+            trivy_utils = BuildUtils.trivy_utils
+            trivy_utils.tag = BuildUtils.platform_repo_version
             trivy_utils.check_chart(
                 path_to_chart=os.path.join(BuildUtils.build_dir, chart_object)
             )

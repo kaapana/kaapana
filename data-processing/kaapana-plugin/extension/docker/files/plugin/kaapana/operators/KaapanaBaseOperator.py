@@ -55,8 +55,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     :param image: Docker image you wish to launch. Defaults to dockerhub.io,
         but fully qualified URLS will point to custom repositories
     :type image: str
-    :param: namespace: the namespace to run within kubernetes
-    :type: namespace: str
+    :param namespace: the namespace to run within kubernetes
+    :type namespace: str
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provide.
     :type cmds: list of str

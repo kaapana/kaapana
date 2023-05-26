@@ -13,9 +13,11 @@ class LocalCtpQuarantineCheckOperator(KaapanaPythonBaseOperator):
     """
     Operator to check the CTP quarantine folder (FASTDATADIR/ctp/incoming/.quarantines), for dicom files.
     If files are found, trigger_dag_id is triggered.
-     **Inputs:**
-     Quarantine folder of the CTP
-    **Outputs:**
+
+    **Inputs:**
+
+    * Quarantine folder of the CTP
+
     Found quarantine files are processed as incoming files and added to the PACs and meta.
     """
 

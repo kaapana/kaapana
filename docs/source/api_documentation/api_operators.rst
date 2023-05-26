@@ -8,7 +8,8 @@ This section
 Base operators
 --------------
 
-Base operators are used as base classes for task specific operators.
+Base operators serve as foundational classes for task-specific operators.
+When developing your own customized operator leverage these operators as base classes.
 
 KaapanaBaseOperator
 ***********************
@@ -38,9 +39,8 @@ KaapanaApplicationOperator
 DICOM operators
 --------------------------
 
-We have multiple operators that can handle and manage dicom data on the platform. 
-You can use these operators e.g. to modify dicom tags, to send or delete dicom data within the internal PACS or to resample dicom data.
-Most of these operators take dicom data as input.
+We provide a range of operators designed to handle and manage DICOM data efficiently. 
+These operators offer various capabilities, such as modifying DICOM tags, generating DICOM data from binaries or JSON, and much more.
 
 Bin2DcmOperator
 ****************
@@ -110,6 +110,8 @@ Pdf2DcmOperator
 NIFTI and nrrd operators
 --------------------------
 
+We offer operators specifically designed for NIFTI and nrrd data, enabling functionalities such as radiomics, resampling, and more.
+
 CombineMasksOperator
 **********************
 
@@ -144,6 +146,9 @@ Itk2DcmSegOperator
 
 Store operators (MinIO and PACS)
 -------------------------------------
+
+You can utilize existing operators to communicate with the MinIO storage and the interal PACS of Kaapana.
+Use these operators e.g. to send, retrieve or delete data.
 
 DcmSendOperator
 ******************
@@ -197,6 +202,9 @@ LocalMinioOperator
 Workflow management operators
 ------------------------------
 
+This section comprises commonly used operators for obtaining input data and performing workflow directory cleanup. 
+Additionally, it includes specialized operators for automatically triggering workflows and synchronizing the Airflow API with the DAGs available in the file system.
+
 LocalAutoTriggerOperator
 **************************
 
@@ -233,6 +241,8 @@ LocalWorkflowCleanerOperator
 Opensearch operators
 ----------------------
 
+Utilize the following operators to establish communication with Opensearch and effectively manage metadata information.
+
 LocalDeleteFromMetaOperator
 ****************************
 
@@ -252,6 +262,8 @@ LocalJson2MetaOperator
 
 File management operators
 ---------------------------
+
+This is a collection of operators that can be utilized for various file-based operations.
 
 ZipUnzipOperator
 *****************

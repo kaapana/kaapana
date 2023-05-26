@@ -42,6 +42,7 @@ class ElastixRegistration(KaapanaBaseOperator):
             dag=dag,
             name=name,
             image=f"{DEFAULT_REGISTRY}/m2olie-elastix-registration:{KAAPANA_BUILD_VERSION}",
+            ram_mem_mb=5000,
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,

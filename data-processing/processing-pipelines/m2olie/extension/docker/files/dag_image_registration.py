@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
@@ -67,18 +68,22 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
-get_input_additional = LocalGetAdditionalInput(dag=dag)
+input_converted = DcmConverterOperator(dag=dag, input_operator=get_input)
+get_input_moving = LocalGetAdditionalInput(dag=dag)
+input_moving_converted = DcmConverterOperator(
+    dag=dag, name="dcm-converter_moving", input_operator=get_input_moving
+)
 registration = ElastixRegistration(
     dag=dag,
     task_id="registration",
-    operator_in_dir_fixed=get_input.operator_out_dir,
-    operator_in_dir_moving=get_input_additional.operator_out_dir,
+    operator_in_dir_fixed=input_converted.operator_out_dir,
+    operator_in_dir_moving=input_moving_converted.operator_out_dir,
 )
 create_mitk_scene = LocalCreateMITKScene(
     dag=dag,
-    additional_input=get_input_additional.operator_out_dir,
+    additional_input=input_moving_converted.operator_out_dir,
     registration_dir=registration.operator_out_dir,
-    input_operator=get_input,
+    input_operator=input_converted,
 )
 launch_app = KaapanaApplicationOperator(
     dag=dag,
@@ -92,7 +97,9 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
     get_input
-    >> get_input_additional
+    >> input_converted
+    >> get_input_moving
+    >> input_moving_converted
     >> registration
     >> create_mitk_scene
     >> launch_app

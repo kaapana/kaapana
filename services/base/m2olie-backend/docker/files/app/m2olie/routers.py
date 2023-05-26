@@ -18,15 +18,19 @@ class Dataseries(BaseModel):
 
 router = APIRouter()
 
+
 def execute_job_airflow(conf_data, db_job):
     with requests.Session() as s:
-        resp = s.post(f'http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{db_job.dag_id}',
+        resp = s.post(
+            f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{db_job.dag_id}",
             json={
-                'conf': {
-                **conf_data,
+                "conf": {
+                    **conf_data,
                 }
-            })
+            },
+        )
     return resp
+
 
 @router.get("/")
 async def root(request: Request):
@@ -68,9 +72,9 @@ async def start_workflow(
     dagId: str,
     processInstanceLabel: str,
     taskLabel: str,
+    prometheus_uri: str,
     dataseries: Dataseries,
 ):
-
     conf_data = dict()
     conf_data["data_form"] = {
         "identifiers": dataseries.imageSeries,
@@ -79,7 +83,8 @@ async def start_workflow(
             "single_execution": False,
             "task_label": taskLabel,
             "process_instance_label": processInstanceLabel,
-            "additional_identifiers": dataseries.additionalImageSeries
+            "additional_identifiers": dataseries.additionalImageSeries,
+            "prometheus_uri": prometheus_uri,
         },
     }
     db_job = type("db_job", (object,), {"dag_id": dagId})
@@ -100,4 +105,3 @@ async def start_workflow(
     #     # response = get_dagrun_tasks_airflow() not used, since no task details are needed
     #     time.sleep(15)
     return response.content
-

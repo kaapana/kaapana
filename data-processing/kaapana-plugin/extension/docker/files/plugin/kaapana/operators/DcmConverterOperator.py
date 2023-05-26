@@ -22,6 +22,7 @@ class DcmConverterOperator(KaapanaBaseOperator):
         output_format="nrrd",
         parallel_processes=3,
         env_vars=None,
+        name="dcm-converter",
         execution_timeout=timedelta(hours=10),
         ram_mem_mb=2000,
         ram_mem_mb_lmt=12000,

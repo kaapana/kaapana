@@ -33,18 +33,6 @@ class LocalCreateMITKScene(KaapanaPythonBaseOperator):
             )
             ElementTree.SubElement(node, "properties", file="image_props_" + str(index))
 
-            image_name = ElementTree.Element(
-                "property", {"key": "name", "type": "StringProperty"}
-            )
-            ElementTree.SubElement(image_name, "string", value=element["image_name"])
-            node.append(image_name)
-
-            image_layer = ElementTree.Element(
-                "property", {"key": "layer", "type": "IntProperty"}
-            )
-            ElementTree.SubElement(image_layer, "int", value=str(index))
-            node.append(image_layer)
-
             if index == 0:
                 start_tree = ElementTree.ElementTree(node)
                 start_tree.write(
@@ -55,25 +43,34 @@ class LocalCreateMITKScene(KaapanaPythonBaseOperator):
                 xmlstr = ElementTree.tostring(
                     node, encoding="utf-8", method="xml"
                 ).decode()
-                print("Writing additional node to scene file")
                 with open(output_file, "a") as myfile:
                     myfile.write(xmlstr)
 
             image_prop_file = os.path.join(output_dir, "image_props_" + str(index))
+
+            image_name = ElementTree.Element(
+                "property", {"key": "name", "type": "StringProperty"}
+            )
+            ElementTree.SubElement(image_name, "string", value=element["image_name"])
+
             image_layer = ElementTree.Element(
                 "property", {"key": "layer", "type": "IntProperty"}
             )
             ElementTree.SubElement(image_layer, "int", value=str(index))
 
-            start_prop = ElementTree.ElementTree(image_layer)
+            start_prop = ElementTree.ElementTree(image_name)
             start_prop.write(
                 image_prop_file, xml_declaration=True, encoding="utf-8", method="xml"
             )
+
+            xmlstr = ElementTree.tostring(
+                image_layer, encoding="utf-8", method="xml"
+            ).decode()
+            with open(image_prop_file, "a") as myfile:
+                myfile.write(xmlstr)
             print("Writing image_props:", image_prop_file)
 
     def start(self, ds, **kwargs):
-        workflow_from = kwargs["dag_run"].conf["data_form"]["workflow_form"]
-        additional_identifiers = workflow_from["additional_identifiers"]
         dag_run_id = kwargs["dag_run"].run_id
         batch_folders = sorted(
             [
@@ -93,62 +90,78 @@ class LocalCreateMITKScene(KaapanaPythonBaseOperator):
             print("batch_element_dir: " + batch_element_dir)
             path_dir = os.path.basename(batch_element_dir)
             print("oerator_in_dir: ", self.operator_in_dir)
-            dcm_files = sorted(
+            fixed_image = sorted(
                 glob.glob(
+                    os.path.join(batch_element_dir, self.operator_in_dir, "*.nrrd*"),
+                    recursive=True,
+                )
+                + glob.glob(
+                    os.path.join(batch_element_dir, self.operator_in_dir, "*.nii*"),
+                    recursive=True,
+                )
+                + glob.glob(
                     os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"),
                     recursive=True,
                 )
             )
-            print("Dicmo flies: ", dcm_files)
-            if len(dcm_files) > 0:
+            print("Flies: ", fixed_image)
+            if len(fixed_image) > 0:
                 # check if it is a segmentation, if so, download the referencing images
                 mitk_scenes.append(
                     {
                         "file_image": os.path.join(
-                            self.operator_in_dir, os.path.basename(dcm_files[0])
+                            self.operator_in_dir, os.path.basename(fixed_image[0])
                         ),
                         "image_name": "fixed_image",
                     }
                 )
-            dcm_files = sorted(
+            moving_image = sorted(
                 glob.glob(
+                    os.path.join(batch_element_dir, self.additional_input, "*.nrrd*"),
+                    recursive=True,
+                )
+                + glob.glob(
+                    os.path.join(batch_element_dir, self.additional_input, "*.nii*"),
+                    recursive=True,
+                )
+                + glob.glob(
                     os.path.join(batch_element_dir, self.additional_input, "*.dcm*"),
                     recursive=True,
                 )
             )
-            print("Dicmo flies: ", dcm_files)
-            if len(dcm_files) > 0:
+            print("Flies: ", moving_image)
+            if len(moving_image) > 0:
                 # check if it is a segmentation, if so, download the referencing images
                 mitk_scenes.append(
                     {
                         "file_image": os.path.join(
-                            self.additional_input, os.path.basename(dcm_files[0])
+                            self.additional_input, os.path.basename(moving_image[0])
                         ),
                         "image_name": "moving_image",
                     }
                 )
             registration_file = sorted(
                 glob.glob(
-                    os.path.join(batch_element_dir, self.registration_dir, "*.nrrd"),
+                    os.path.join(batch_element_dir, self.registration_dir, "*.nrrd*"),
                     recursive=True,
                 )
                 + glob.glob(
-                    os.path.join(batch_element_dir, self.registration_dir, "*.nii"),
+                    os.path.join(batch_element_dir, self.registration_dir, "*.nii*"),
                     recursive=True,
                 )
                 + glob.glob(
-                    os.path.join(batch_element_dir, self.registration_dir, "*.dcm"),
+                    os.path.join(batch_element_dir, self.registration_dir, "*.dcm*"),
                     recursive=True,
                 )
             )
-            if len(registration_file) > 0:
+            for index, reg_file in enumerate(registration_file):
                 # check if it is a segmentation, if so, download the referencing images
                 mitk_scenes.append(
                     {
                         "file_image": os.path.join(
-                            self.registration_dir, os.path.basename(dcm_files[0])
+                            self.registration_dir, os.path.basename(reg_file)
                         ),
-                        "image_name": "registration_image",
+                        "image_name": "registration_image_" + str(index),
                     }
                 )
 

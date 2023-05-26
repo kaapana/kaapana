@@ -52,14 +52,14 @@ class LocalCallbackfunction(KaapanaPythonBaseOperator):
                         print(release)
                         print("Sending result to Prometheus!")
                         url = workflow_from["prometheus_uri"] + "/setState"
-                        payload = {"url": release["link"]}
+                        payload = {"url": release["links"]}
                         response = requests.post(
                             url,
                             params={
                                 "processInstanceLabel": workflow_from[
-                                    "processInstanceLabel"
+                                    "process_instance_label"
                                 ],
-                                "taskLabel": workflow_from["taskLabel"],
+                                "taskLabel": workflow_from["task_label"],
                                 "newTaskState": "Completed",
                             },
                             json=payload,

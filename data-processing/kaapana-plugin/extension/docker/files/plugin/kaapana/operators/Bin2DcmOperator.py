@@ -21,8 +21,8 @@ class Bin2DcmOperator(KaapanaBaseOperator):
     **Inputs:**
 
     * The input_operator
-    * When decoding: file_extension *.dcm
-    + When encoding: file_extensions, size_limit and additional encoded string parameters
+    * When decoding: file_extension .dcm
+    * When encoding: file_extensions, size_limit and additional encoded string parameters
 
     **Outputs:**
 

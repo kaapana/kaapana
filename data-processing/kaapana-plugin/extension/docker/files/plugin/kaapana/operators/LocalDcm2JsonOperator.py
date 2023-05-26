@@ -21,8 +21,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     The operator uses the dcmtk tool dcm2json https://support.dcmtk.org/docs/dcm2json.html
     Additionally some keywords and values are transformed to increase the usability to find/search key-values.
 
-
     **Inputs:**
+
     * exit_on_error: exit with error, when some key/values are missing or mismatching.
     * delete_pixel_data: uses dcmtk's dcmodify to remove some specific to be known private tags
     * bulk: process all files of a series or only the first one (default)
@@ -801,7 +801,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     ):
         """
         :param exit_on_error: 'True' or 'False' (default). Exit with error, when some key/values are missing or mismatching.
-        :param delete_pixel_data:'True' (default) or 'False'. removes pixel-data from DICOM
+        :param delete_pixel_data: 'True' (default) or 'False'. removes pixel-data from DICOM.
         :param bulk: 'True' or 'False' (default). Process all files of a series or only the first one.
         """
 

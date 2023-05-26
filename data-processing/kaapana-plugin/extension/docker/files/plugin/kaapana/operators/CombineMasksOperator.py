@@ -9,7 +9,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 class CombineMasksOperator(KaapanaBaseOperator):
     """
-    Searches for NIFTI files (expects segmentation masks) in oeprator input-dir and combines them into a single NIFTI-file.
+    Searches for NIFTI files (expects segmentation masks) in operator input-dir and combines them into a single NIFTI-file.
     """
 
     execution_timeout = timedelta(minutes=60)

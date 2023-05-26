@@ -6,7 +6,6 @@ from time import time
 from shutil import which
 from build_helper.build_utils import BuildUtils
 from alive_progress import alive_bar
-from build_helper.security_utils import TrivyUtils
 import json
 
 suite_tag = "Container"
@@ -765,7 +764,7 @@ class Container:
 
         # Init Trivy if configuration check is enabled
         if BuildUtils.configuration_check:
-            trivy_utils = TrivyUtils()
+            trivy_utils = BuildUtils.trivy_utils
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 

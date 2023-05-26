@@ -5,7 +5,6 @@ import networkx as nx
 from os.path import join, dirname, basename, exists
 from git import Repo
 
-
 class BuildUtils:
     max_build_rounds = 4
     container_images_available = None
@@ -39,6 +38,7 @@ class BuildUtils:
     platform_build_branch = None
     platform_last_commit_timestamp = None
     enable_image_stats = None
+    trivy_utils = None
 
     @staticmethod
     def add_container_images_available(container_images_available):

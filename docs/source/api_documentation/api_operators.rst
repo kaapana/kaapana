@@ -2,7 +2,9 @@
 
 Operators
 =========
-This section 
+
+Not yet all operators are documented.
+For the full picture, please have a look at the `kaapana.operators <https://github.com/kaapana/kaapana/tree/develop/data-processing/kaapana-plugin/extension/docker/files/plugin/kaapana/operators>`_ package in the code.
 
 
 Base operators
@@ -50,6 +52,14 @@ Bin2DcmOperator
    :undoc-members:
    :show-inheritance:
 
+Dcm2MetaJsonConverter
+*********************
+
+.. automodule:: kaapana.operators.Dcm2MetaJsonConverter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 DcmConverterOperator
 *********************
 
@@ -62,6 +72,14 @@ DcmModifyOperator
 ******************
 
 .. automodule:: kaapana.operators.DcmModifyOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+DcmQueryOperator
+******************
+
+.. automodule:: kaapana.operators.DcmQueryOperator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -82,6 +100,14 @@ Json2DcmSROperator
    :undoc-members:
    :show-inheritance:
 
+LocalDcmAnonymizerOperator
+******************************
+
+.. automodule:: kaapana.operators.LocalDcmAnonymizerOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 LocalDcm2JsonOperator
 ************************
 
@@ -89,7 +115,6 @@ LocalDcm2JsonOperator
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Mask2nifitiOperator
 **********************
@@ -132,6 +157,14 @@ ResampleOperator
 *****************
 
 .. automodule:: kaapana.operators.ResampleOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Itk2DcmOperator
+********************
+
+.. automodule:: kaapana.operators.Itk2DcmOperator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -190,6 +223,14 @@ LocalGetRefSeriesOperator
    :undoc-members:
    :show-inheritance:
 
+LocalTaggingOperator
+****************************
+
+.. automodule:: kaapana.operators.LocalTaggingOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 LocalMinioOperator
 *******************
 
@@ -209,6 +250,22 @@ LocalAutoTriggerOperator
 **************************
 
 .. automodule:: kaapana.operators.LocalAutoTriggerOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+LocalCleanUpExpiredWorkflowDataOperator
+*****************************************
+
+.. automodule:: kaapana.operators.LocalCleanUpExpiredWorkflowDataOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+LocalDagTriggerOperator
+*****************************************
+
+.. automodule:: kaapana.operators.LocalDagTriggerOperator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -260,10 +317,18 @@ LocalJson2MetaOperator
    :show-inheritance:
 
 
-File management operators
+File-based operators
 ---------------------------
 
 This is a collection of operators that can be utilized for various file-based operations.
+
+LocalConcatJsonOperator
+*****************************************
+
+.. automodule:: kaapana.operators.LocalConcatJsonOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 ZipUnzipOperator
 *****************
@@ -273,5 +338,40 @@ ZipUnzipOperator
    :undoc-members:
    :show-inheritance:
 
+Uncategorized operators
+---------------------------
 
-   
+We have even more operators for different usecases.
+Just take a look if there is something you can utilize in your own workflow.
+
+GenerateThumbnailOperator
+***************************
+
+.. automodule:: kaapana.operators.GenerateThumbnailOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+GetZenodoModelOperator
+***************************
+
+.. automodule:: kaapana.operators.GetZenodoModelOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+LocalAddToDatasetOperator
+***************************
+
+.. automodule:: kaapana.operators.LocalAddToDatasetOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+TrainTestSplitOperator
+*****************************************
+
+.. automodule:: kaapana.operators.TrainTestSplitOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:

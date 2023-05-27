@@ -1,6 +1,5 @@
 opencv-python==4.5.5.64
 pytorch-lightning==1.9.4
-nibabel==3.2.1
 scipy==1.7.3
 albumentations==0.5.2
 dataclasses

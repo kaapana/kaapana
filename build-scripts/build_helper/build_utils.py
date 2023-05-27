@@ -7,7 +7,7 @@ from git import Repo
 
 
 class BuildUtils:
-    max_build_rounds = 4
+    max_build_rounds = 5
     container_images_available = None
     container_images_unused = None
     charts_available = None

@@ -11,4 +11,9 @@ ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
 
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    libgl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+
 WORKDIR /kaapana/app

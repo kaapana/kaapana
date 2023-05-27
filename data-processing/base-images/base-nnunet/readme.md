@@ -8,7 +8,7 @@ changes
     from kaapana.kubetools.volume_mount import VolumeMount
     from kaapana.kubetools.volume import Volume
     volume_mounts = [
-        VolumeMount('nnunetdata', mount_path='/opt/conda/lib/python3.8/site-packages/nnunet', sub_path=None, read_only=False)
+        VolumeMount('nnunetdata', mount_path='/usr/local/lib/python3.9/site-packages/nnunet', sub_path=None, read_only=False)
     ]
 
     volumes = [
@@ -36,7 +36,7 @@ z.B.:
     from kaapana.kubetools.volume_mount import VolumeMount
     from kaapana.kubetools.volume import Volume
     volume_mounts = [
-        VolumeMount('nnunetdata', mount_path='/opt/conda/lib/python3.8/site-packages/nnunet', sub_path=None, read_only=False),
+        VolumeMount('nnunetdata', mount_path='/usr/local/lib/python3.9/site-packages/nnunet', sub_path=None, read_only=False),
         VolumeMount('srcdata', mount_path='/src', sub_path=None, read_only=False)
     ]
 

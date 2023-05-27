@@ -1,1 +1,1 @@
-nibabel
+nibabel==5.1.0

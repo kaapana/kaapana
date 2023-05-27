@@ -14,7 +14,6 @@ WORKDIR /kaapana/app
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     python3-opencv \
-    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # RUN apt-get purge -y libhwloc-dev libhwloc-plugins
@@ -28,7 +27,7 @@ RUN curl https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1
 RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d /kaapana/app/BodyPartRegression/src/models/
 
 COPY files/requirements.txt /kaapana/app/
-RUN pip3 uninstall -y torch torchtext &&  pip3 install -r /kaapana/app/requirements.txt
+RUN pip3 uninstall -y torch torchtext && pip3 install -r /kaapana/app/requirements.txt
 
 WORKDIR /kaapana/app/BodyPartRegression
 

@@ -16,13 +16,12 @@ conf_data:
     prep_preprocess: true
     seg_filter: "spleen,liver"
     shuffle_sed: 0
-    task: "Task017_AbdominalOrganSegmentation"
+    task: "Task000_CI_training"
     test_percentage: 0
-    train_max_epochs: 2 ## One epoch took around 1.5 minutes on my openstack instance
+    train_max_epochs: 10 ## One epoch took around 1.5 minutes on my openstack instance
     train_network_trainer: "nnUNetTrainerV2"
     training_description: "nnUnet Segmentation"
   data_form:
     dataset_name: test-SEG
-    dataset_limit: 1
 remote: false 
 username: "kaapana"

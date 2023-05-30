@@ -4,22 +4,8 @@ instance_names:
 conf_data:
   data_form: 
     dataset_name: "test-DELETE"
-    dataset_limit: 2
   workflow_form:
     delete_complete_study: false
     single_execution: true
 username: "kaapana"
 remote: false
-#---
-# dag_id: "delete-series-from-platform"
-# instance_names:
-#   - central
-# conf_data:
-#   data_form: 
-#     dataset_name: "test-DELETE"
-#     dataset_limit: 2
-#   workflow_form:
-#     delete_complete_study: true
-#     single_execution: true
-# username: "kaapana"
-# remote: false

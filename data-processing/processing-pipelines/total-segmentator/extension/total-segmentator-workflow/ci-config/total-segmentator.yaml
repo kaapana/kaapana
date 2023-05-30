@@ -30,6 +30,22 @@ conf_data:
   workflow_form:
     task: "total"
     single_execution: true
+    nr_thr_saving: 6
+    nr_thr_resamp: 1
+    pleural_pericard_effusion: true
+    body: true
+    coronary_arteries: false
+    hip_implant: false
+    cerebral_bleed: false
+    lung_vessels: true
+    bodyseg: false
+    forcesplit: false
+    quiet: false
+    verbose: false
+    radiomics: true
+    statistics: true
+    preview: false
+    fast: true
   data_form:
     dataset_name: test-CT
     dataset_limit: 2

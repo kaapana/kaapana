@@ -1,8 +1,18 @@
 <template>
   <v-card>
     <v-form v-model="valid" ref="executeWorkflow" lazy-validation>
-      <v-card-title>
+      <v-card-title class="d-flex justify-space-between">
         <h5>Workflow Execution</h5>
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn v-on="on" @click='getKaapanaInstances()' small icon>
+              <v-icon color="primary" dark>
+                mdi-refresh
+              </v-icon> 
+            </v-btn> 
+          </template>
+          <span>refresh Workflow Execution component</span>
+        </v-tooltip>
       </v-card-title>
       <v-card-text>
         <v-container>
@@ -541,5 +551,8 @@ export default {
 <style scoped lang="scss">
 .is-invalid {
   border: 1px solid red;
+}
+.justify-space-between {
+  justify-content: 0;
 }
 </style>

@@ -10,8 +10,8 @@ assert SERVICES_NAMESPACE
 
 prometheus_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prometheus/api/v1/query?query="
 
-memory_query = "floor(sum(machine_memory_bytes)/1048576)"
-mem_util_per_query = 'sum (container_memory_working_set_bytes{id="/"}) / sum (machine_memory_bytes) * 100'
+memory_query = "floor(node_memory_MemTotal_bytes{job='Node-Exporter'}/1048576)"
+mem_util_per_query = "sum(node_memory_MemTotal_bytes{job='Node-Exporter'} - node_memory_MemAvailable_bytes{job='Node-Exporter'}) / sum(node_memory_MemTotal_bytes{job='Node-Exporter'})"
 memory_requeted_services = "round(sum(kube_pod_container_resource_requests{unit='byte',namespace!='jobs'})/1000000)"
 
 cpu_core_query = "machine_cpu_cores"

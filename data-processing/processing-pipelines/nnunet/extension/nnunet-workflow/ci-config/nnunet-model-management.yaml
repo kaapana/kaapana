@@ -1,0 +1,9 @@
+dag_id: nnunet-model-management
+instance_names:
+  - central
+conf_data:
+  workflow_form:
+    uninstall_tasks: []
+    tasks: ["Task001_CI_model_for_installation"]
+remote: false
+username: "kaapana"

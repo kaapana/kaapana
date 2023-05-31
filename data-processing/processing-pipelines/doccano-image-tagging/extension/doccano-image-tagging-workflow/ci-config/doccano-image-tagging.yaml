@@ -1,4 +1,6 @@
-dag_id: "study-ids-to-doccano"
+ci_ignore_testcase: True ### Comment/Remove this line or set to False to run this workflow
+instance_names:
+  - central
 conf_data:
   workflow_form:
     description: Testing workflow study-ids-to-doccano
@@ -9,8 +11,12 @@ conf_data:
     dataset_limit: 2
 remote: false
 username: "kaapana"
+
 ---
+ci_ignore_testcase: True ### Comment/Remove this line or set to False to run this workflow
 dag_id: "study-ids-to-doccano"
+instance_names:
+  - central
 conf_data:
   workflow_form:
     description: Testing workflow study-ids-to-doccano

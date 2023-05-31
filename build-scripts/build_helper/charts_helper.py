@@ -26,13 +26,11 @@ os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
 semaphore_successful_built_containers = threading.Lock()
 successful_built_containers = []
 
+
 def parallel_execute(container_object):
     queue_id, container_object = container_object
     waiting = None
     issue = None
-    build_time_needed = None
-    push_time_needed = None
-    build_start = timer()
 
     for base_container in container_object.base_images:
         semaphore_successful_built_containers.acquire()
@@ -42,19 +40,11 @@ def parallel_execute(container_object):
                 and base_container.tag not in successful_built_containers
             ):
                 waiting = base_container.name
-                return (
-                    queue_id,
-                    container_object,
-                    issue,
-                    waiting,
-                    build_time_needed,
-                    push_time_needed,
-                )
+                return (queue_id, container_object, issue, waiting)
         finally:
             semaphore_successful_built_containers.release()
 
-    issue = container_object.build()
-    build_time_needed =  round(timer() - build_start)
+    issue, build_time_needed = container_object.build()
 
     if issue == None:
         semaphore_successful_built_containers.acquire()
@@ -62,9 +52,7 @@ def parallel_execute(container_object):
             successful_built_containers.append(container_object.build_tag)
         finally:
             semaphore_successful_built_containers.release()
-        push_start = timer()
-        issue = container_object.push()
-        push_time_needed =  round(timer() - push_start)
+        issue, push_time_needed = container_object.push()
 
     return (
         queue_id,

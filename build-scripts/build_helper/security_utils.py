@@ -484,7 +484,7 @@ class TrivyUtils:
             "-f",
             "json",
             "-o",
-            os.path.join(self.reports_path, "chart_report.json"),
+            os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_chart_report.json"),
             "--severity",
             BuildUtils.configuration_check_severity_level,
             path_to_chart,
@@ -494,7 +494,7 @@ class TrivyUtils:
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,
-            timeout=self.timeout,
+            timeout=self.timeout*2,
         )
 
         if output.returncode != 0:
@@ -508,7 +508,7 @@ class TrivyUtils:
             )
 
         # read the chart report file
-        with open(os.path.join(self.reports_path, "chart_report.json"), "r") as f:
+        with open(os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_chart_report.json"), "r") as f:
             chart_report = json.load(f)
 
         compressed_chart_report = {}
@@ -540,15 +540,25 @@ class TrivyUtils:
                         "Severity"
                     ] = misconfiguration["Severity"]
 
-        # Safe the chart report to the build directory if there are any errors
+        # Safe the chart report to the security-reports directory if there are any errors
         if not compressed_chart_report == {}:
             BuildUtils.logger.error(
                 "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
             )
             with open(
-                os.path.join(self.reports_path, "compressed_chart_report.json"), "w"
+                os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_compressed_chart_report.json"), "w"
             ) as f:
                 json.dump(compressed_chart_report, f)
+
+        # Safe the dockerfile report to the security-reports directory if there are any errors
+        if not self.compressed_dockerfile_report == {}:
+            BuildUtils.logger.error(
+                "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
+            )
+            with open(
+                os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_compressed_dockerfile_report.json"), "w"
+            ) as f:
+                json.dump(self.compressed_dockerfile_report, f)
 
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
@@ -636,7 +646,7 @@ class TrivyUtils:
         os.remove(os.path.join(self.reports_path, "dockerfile_report.json"))
 
     def safe_vulnerability_reports(self):
-        # save the vulnerability reports to the build directory
+        # save the vulnerability reports to the security-reports directory
         with open(
             os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"),
             "w",
@@ -652,7 +662,7 @@ class TrivyUtils:
             json.dump(self.compressed_vulnerability_reports, f)
 
     def safe_sboms(self):
-        # save the SBOMs to the build directory
+        # save the SBOMs to the security-reports directory
         with open(os.path.join(self.reports_path, self.tag + "_sboms.json"), "w") as f:
             json.dump(self.sboms, f)
 

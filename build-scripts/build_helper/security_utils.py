@@ -11,7 +11,6 @@ import datetime
 
 suite_tag = "security"
 
-
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:
@@ -206,7 +205,6 @@ class TrivyUtils:
                 "description": "Vulnerability scan was interrupted.",
             }
             return image, issue
-
         elif output.returncode != 0:
             BuildUtils.logger.error(
                 "Failed to create vulnerability report for image: "
@@ -323,6 +321,53 @@ class TrivyUtils:
         os.remove(
             os.path.join(self.reports_path, image_name + "_vulnerability_report.json")
         )
+
+        if self.kill_flag:
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "SBOM creation was interrupted",
+            }
+            return image, issue
+
+        elif output.returncode != 0:
+            BuildUtils.logger.error(
+                "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag."
+            )
+            BuildUtils.logger.error(output.stderr)
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag.",
+            }
+            return image, issue
+
+        # read the SBOM file
+        with open(os.path.join(self.reports_path, image_name + "_sbom.json"), "r") as f:
+            sbom = json.load(f)
+
+        # Remove the image from the list of running containers
+        self.semaphore_running_containers.acquire()
+        try:
+            self.list_of_running_containers.remove(image_name + "_sbom")
+        finally:
+            self.semaphore_running_containers.release()
+
+        self.semaphore_sboms.acquire()
+        try:
+            # add the SBOM to the dictionary
+            self.sboms[image] = sbom
+        finally:
+            self.semaphore_sboms.release()
+
+        # Remove the SBOM file
+        os.remove(os.path.join(self.reports_path, image_name + "_sbom.json"))
 
         return image, issue
 
@@ -564,24 +609,9 @@ class TrivyUtils:
 
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
-        command = [
-            "trivy",
-            "config",
-            "-f",
-            "json",
-            "-o",
-            os.path.join(self.reports_path, "dockerfile_report.json"),
-            "--severity",
-            BuildUtils.configuration_check_severity_level,
-            path_to_dockerfile,
-        ]
-        output = run(
-            command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            timeout=self.timeout,
-        )
+
+        command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_dockerfile]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Dockerfile")
@@ -594,7 +624,7 @@ class TrivyUtils:
             )
 
         # Log the dockerfile report
-        with open(os.path.join(self.reports_path, "dockerfile_report.json"), "r") as f:
+        with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'r') as f:
             dockerfile_report = json.load(f)
 
         # Check if the report contains any results -> weird if it doesn't e.g. when the Dockerfile is empty
@@ -782,6 +812,10 @@ class TrivyUtils:
         return output.stdout.split("NextUpdate: ")[1].split(".")[0]
         # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
 
+        # Get the timestamp of the last database download 
+        # Ignore the under second part of the timestamp
+        return output.stdout.split("NextUpdate: ")[1].split(".")[0]
+        #timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

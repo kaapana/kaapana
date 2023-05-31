@@ -22,32 +22,10 @@
     <v-divider />
     <v-card-text>
       <IFrameWindow
-        v-if="modalitySupported"
         :iFrameUrl="iFrameURL"
         :fullSize="false"
         customStyle="aspect-ratio: 1 / 1; max-height: 80vh;"
       />
-      <v-container
-        v-else
-        style="
-          width: 100%;
-          max-height: 80vh;
-          background-color: darkgray;
-          font-size: 1.3em;
-          aspect-ratio: 1 / 1;
-        "
-        fill-height
-        fluid
-      >
-        <v-col>
-          <v-row align="center" justify="center">
-            <v-icon large>mdi-alert-circle-outline</v-icon>
-          </v-row>
-          <v-row align="center" justify="center">
-            Modality not supported
-          </v-row>
-        </v-col>
-      </v-container>
       <TagsTable :series-instance-u-i-d="seriesInstanceUID" />
     </v-card-text>
   </v-card>
@@ -107,9 +85,6 @@ export default {
         "&initialSeriesInstanceUID=" +
         this.seriesInstanceUID
       );
-    },
-    modalitySupported() {
-      return !["RTSTRUCT", "SEG"].includes(this.modality);
     },
   },
 };

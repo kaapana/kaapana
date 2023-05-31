@@ -62,7 +62,6 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     @staticmethod
     def get_label_tags(metadata):
         print("++++++++++++++++++++++++++++++++++++++++++++++++++ get_label_tags  ")
-        print(json.dumps(metadata, indent=4))
         result_dict = {}
         annotation_label_list = []
 

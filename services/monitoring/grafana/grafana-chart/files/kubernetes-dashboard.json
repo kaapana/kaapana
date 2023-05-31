@@ -229,7 +229,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(kube_pod_container_resource_limits{unit='byte',namespace!='jobs'}) / sum(node_memory_MemTotal_bytes{job='Node-Exporter'})y",
+          "expr": "sum(kube_pod_container_resource_limits{unit='byte',namespace!='jobs'}) / sum(node_memory_MemTotal_bytes{job='Node-Exporter'})",
           "hide": false,
           "interval": "",
           "legendFormat": "Limits",

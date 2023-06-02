@@ -202,6 +202,7 @@ def generate_xml(
     dicom_input_dir=None,
     template_path="/kaapana/app/template.xml",
 ):
+
     if not exists(target_dir):
         os.makedirs(target_dir)
 
@@ -282,26 +283,6 @@ def generate_xml(
 
     split_part_count = len(binary_path_list)
     full_filename = basename(binary_path)
-
-    if dicom_input_dir:
-        ####################
-        #
-        # read some actual data from referenced dicom_input_dir
-        #
-        dcm_imgs = glob.glob(join(dicom_input_dir, "*.dcm"))
-        dcm_img = pydicom.dcmread(dcm_imgs[0])
-        # get Study Instance UID
-        study_uid = dcm_img[0x0020, 0x000D].value
-        print(f"DICOM_IN_DIR is given --> use study_uid of dcm img: {study_uid}")
-        # get Study ID
-        study_id = dcm_img[0x0020, 0x0010].value
-        print(f"DICOM_IN_DIR is given --> use study_id of dcm img: {study_id}")
-        # get Patient ID (has to be set if study_uid is set and there are already other samples w/ same study_uid on the platform)
-        patient_id = dcm_img[0x0010, 0x0020].value
-        #
-        # done reading some actual data from referenced dicom_input_dir
-        #
-        ####################
 
     series_uid = pydicom.uid.generate_uid()
     for i in range(0, len(binary_path_list)):

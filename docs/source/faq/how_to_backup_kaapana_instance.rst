@@ -11,7 +11,7 @@ In the default configuration there are two locations on the filesystem, which wi
 
 #. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, an HDD is mounted here.
 
-They can be adjusted in the :term:`platform-deployment-script` and can also be identical (everything is stored at one place).
+They can be adjusted in the :term:`deploy-platform-script` and can also be identical (everything is stored at one place).
 
 Some details about the data directories are described below:
 

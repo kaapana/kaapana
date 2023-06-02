@@ -102,7 +102,11 @@ class BuildUtils:
                 .isoformat()
             )
             build_version = requested_repo.git.describe()
-            build_branch = requested_repo.active_branch.name.split("/")[-1]
+            try:
+                build_branch = requested_repo.active_branch.name.split("/")[-1]
+            except TypeError as e:
+                # detached HEAD
+                build_branch = "DETACHED-HEAD"
             version_check = semver.VersionInfo.parse(build_version)
 
         return build_version, build_branch, last_commit, last_commit_timestamp

@@ -1,3 +1,5 @@
+.. _browser_support:
+
 Browser Support
 ***************
 

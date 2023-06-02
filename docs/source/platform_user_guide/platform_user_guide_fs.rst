@@ -111,7 +111,7 @@ The imaging data is saved in the internal PACS and its metadata in OpenSearch. A
 #. Press the ``Start Workflow`` button (the one with the Play symbol) and start the ``delete-series-from-platform`` workflow.
 #. In the ``Workflow List`` the status of the deletion can be observed. Once the workflow has successfully ended the images are deleted from the platform.
 
-For more information check out the documentation of the workflow at :ref:`extensions delete`.
+For more information check out the documentation of the workflow at :ref:`faq_howto_remove_data`.
 
 
 Viewing and Exploring images

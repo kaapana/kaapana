@@ -292,6 +292,12 @@ def generate_xml(
         dcm_img = pydicom.dcmread(dcm_imgs[0])
         # get Study Instance UID
         study_uid = dcm_img[0x0020, 0x000D].value
+        print(f"DICOM_IN_DIR is given --> use study_uid of dcm img: {study_uid}")
+        # get Study ID
+        study_id = dcm_img[0x0020, 0x0010].value
+        print(f"DICOM_IN_DIR is given --> use study_id of dcm img: {study_id}")
+        # get Patient ID (has to be set if study_uid is set and there are already other samples w/ same study_uid on the platform)
+        patient_id = dcm_img[0x0010, 0x0020].value
         #
         # done reading some actual data from referenced dicom_input_dir
         #

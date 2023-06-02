@@ -1,3 +1,5 @@
+.. _faq_howto_remove_data:
+
 How to remove data from the platform
 ************************************
 

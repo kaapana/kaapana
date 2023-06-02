@@ -196,7 +196,12 @@ def xml_to_binary(target_dir, delete_xml=True):
     converter_count += 1
 
 
-def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.xml"):
+def generate_xml(
+    binary_path,
+    target_dir,
+    dicom_input_dir=None,
+    template_path="/kaapana/app/template.xml",
+):
     if not exists(target_dir):
         os.makedirs(target_dir)
 
@@ -277,6 +282,20 @@ def generate_xml(binary_path, target_dir, template_path="/kaapana/app/template.x
 
     split_part_count = len(binary_path_list)
     full_filename = basename(binary_path)
+
+    if dicom_input_dir:
+        ####################
+        #
+        # read some actual data from referenced dicom_input_dir
+        #
+        dcm_imgs = glob.glob(join(dicom_input_dir, "*.dcm"))
+        dcm_img = pydicom.dcmread(dcm_imgs[0])
+        # get Study Instance UID
+        study_uid = dcm_img[0x0020, 0x000D].value
+        #
+        # done reading some actual data from referenced dicom_input_dir
+        #
+        ####################
 
     series_uid = pydicom.uid.generate_uid()
     for i in range(0, len(binary_path_list)):
@@ -403,6 +422,12 @@ batch_folders = sorted(
 for batch_element_dir in batch_folders:
     element_input_dir = join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
     element_output_dir = join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
+    dicom_input_dir = os.getenv("DICOM_IN_DIR", "None")
+    dicom_input_dir = (
+        None
+        if dicom_input_dir == "None"
+        else join("/", dirname(element_input_dir), dicom_input_dir)
+    )
 
     binaries_found = []
     for extension in binary_file_extensions:
@@ -434,7 +459,9 @@ for batch_element_dir in batch_folders:
             print("#")
             print(f"# --> generate_xml -> {element_output_dir}")
             generated_xml_list = generate_xml(
-                binary_path=binary, target_dir=element_output_dir
+                binary_path=binary,
+                target_dir=element_output_dir,
+                dicom_input_dir=dicom_input_dir,
             )
             print("#")
             print("# --> xml_to_dicom")
@@ -486,7 +513,7 @@ else:
         print("#")
         print(f"# --> generate_xml -> {batch_output_dir}")
         generated_xml_list = generate_xml(
-            binary_path=binary, target_dir=batch_output_dir
+            binary_path=binary, target_dir=batch_output_dir, dicom_dir=dicom_input_dir
         )
         print("#")
         print("# --> xml_to_dicom")

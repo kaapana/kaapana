@@ -7,6 +7,19 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
+    """
+    Concatenate data from multiple json files in the dag_run directory into a single json file.
+
+    **Inputs:**
+
+        * Multiple json files
+
+    **Outputs**
+
+        * A single json file in the outpot directory of the operator
+
+    """
+
     def start(self, ds, **kwargs):
         print("Starting module LocalConcatJsonOperator...")
         print(kwargs)
@@ -39,4 +52,8 @@ class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
             json.dump(json_files, jsonData, indent=4, sort_keys=True)
 
     def __init__(self, dag, name="concatenated", **kwargs):
+        """
+        :param name: Used in the filename of the output json file i.e. :code:`timestamp-name.json`. Defaults to "concatenated".
+        :type name: str
+        """
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

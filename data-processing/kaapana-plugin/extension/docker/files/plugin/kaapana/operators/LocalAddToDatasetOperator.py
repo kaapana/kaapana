@@ -40,9 +40,10 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
 
                     # extract datasets from dicom tags
                     datasets = [
-                        metadata.get(dicom_tags)
+                        tag
                         for dicom_tags in self.tags_to_add_from_file
                         if metadata.get(dicom_tags) is not None
+                        for tag in metadata.get(dicom_tags)
                     ]
 
                     for dataset in datasets:

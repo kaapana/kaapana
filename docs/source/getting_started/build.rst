@@ -77,7 +77,7 @@ You should also have the following packages installed on your build-system.
 
 #. Helm
 
-   :code:`sudo snap install helm --classic --channel=3.7/stable`
+   :code:`sudo snap install helm --classic --channel=latest/stable`
 
 #. Reboot
 

@@ -14,7 +14,6 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.CombineMasksOperator import CombineMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
-from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 max_active_runs = 10

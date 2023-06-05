@@ -91,7 +91,7 @@ def dicom_to_xml(dicom_dir, target_dir):
 
     generated_xml_list = []
     for dcm_file in dcm_files:
-        xml_path = dcm_file.replace(dirname(dcm_file), target_dir).replace("dcm", "xml")
+        xml_path = os.path.join(target_dir, basename(dcm_file).replace("dcm", "xml"))
 
         print("#")
         print(f"# convert DICOM to XML: {dcm_file} -> {xml_path}")
@@ -202,6 +202,7 @@ def generate_xml(
     dicom_input_dir=None,
     template_path="/kaapana/app/template.xml",
 ):
+
     if not exists(target_dir):
         os.makedirs(target_dir)
 

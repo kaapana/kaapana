@@ -568,7 +568,7 @@ class Container:
 
             if self.container_push_status == "pushed":
                 BuildUtils.logger.info(f"{self.build_tag}: Already pushed -> skip")
-                return
+                return issue, duration_time_text
 
             elif self.container_build_status != "built":
                 BuildUtils.logger.warning(
@@ -590,7 +590,7 @@ class Container:
                 BuildUtils.logger.debug(
                     f"{self.build_tag}: Skipping push: local image! "
                 )
-                return
+                return issue, duration_time_text
 
             BuildUtils.logger.debug(f"{self.build_tag}: start pushing! ")
             retries = 0

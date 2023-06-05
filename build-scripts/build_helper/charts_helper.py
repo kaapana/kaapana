@@ -31,6 +31,8 @@ def parallel_execute(container_object):
     queue_id, container_object = container_object
     waiting = None
     issue = None
+    build_time_needed = ""
+    push_time_needed = ""
 
     for base_container in container_object.base_images:
         semaphore_successful_built_containers.acquire()
@@ -40,7 +42,14 @@ def parallel_execute(container_object):
                 and base_container.tag not in successful_built_containers
             ):
                 waiting = base_container.name
-                return (queue_id, container_object, issue, waiting)
+                return (
+                    queue_id,
+                    container_object,
+                    issue,
+                    waiting,
+                    build_time_needed,
+                    push_time_needed,
+                )
         finally:
             semaphore_successful_built_containers.release()
 
@@ -1373,7 +1382,7 @@ class HelmChart:
                         else:
                             bar()
                             BuildUtils.logger.info(
-                                f"{result_container.build_tag} - build: {build_time_needed}s - push {push_time_needed}s : DONE"
+                                f"{result_container.build_tag} - build: {build_time_needed} - push {push_time_needed} : DONE"
                             )
                             if issue != None:
                                 # Close threadpool if error is fatal

@@ -11,6 +11,19 @@ import os
 
 
 class GetZenodoModelOperator(KaapanaBaseOperator):
+    """
+    Operator to download models from https://zenodo.org/ and extract them into the desired location on the file system.
+
+    **Inputs:**
+
+        * model_dir: Location where to extract the model archive
+        * task_ids: List of comma separated tasks that should be downloaded
+
+    **Outputs:**
+
+        * The downloaded model is available for inference.
+    """
+
     execution_timeout = timedelta(minutes=240)
 
     def __init__(
@@ -25,6 +38,19 @@ class GetZenodoModelOperator(KaapanaBaseOperator):
         execution_timeout=execution_timeout,
         **kwargs,
     ):
+        """
+        :param model_dir: The directory relative to SLOW_DATA_DIR/workflows where the downloaded models should be extracted. Defaults to "/models/nnUNet".
+        :type model_dir: str
+        :param name: The base name of the pod. Defaults to "get-zenodo-models".
+        :type name: str
+        :param task_ids: A comma separated list of the task IDs associated with the models that should be downloaded and extracted. Defaults to None.
+        :type task_ids: str
+        :param enable_proxy: Determines if the proxy should be enabled. Defaults to True.
+        :type enable_proxy: bool
+        :param delete_output_on_start: Determines if the operator output directory should be deleted on start. Defaults to False.
+        :type delete_output_on_start: bool
+        """
+
         envs = {"MODEL_DIR": str(model_dir), "LOG_LEVEL": "INFO"}
         env_vars.update(envs)
 

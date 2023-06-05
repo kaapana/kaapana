@@ -61,7 +61,7 @@ Besides a few required software packages, mainly Microk8s is installed, to setup
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server. 
-To do this, you can use the :term:`server-deployment-script`, located at :code:`kaapana/server-installation/server_installation.sh`, by following the steps listed below.
+To do this, you can use the :term:`server-installation-script`, located at :code:`kaapana/server-installation/server_installation.sh`, by following the steps listed below.
 
 1. Copy the script to your target-system (server)
 2. Make it executable:
@@ -95,9 +95,9 @@ Platform Deployment
   | In the default configuration there are two locations on the filesystem, which will be used for stateful data on the host machine:
   | 1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
   | 2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
-  | They can be adjusted in the :term:`platform-deployment-script` and can also be identical (everything is stored at one place).
+  | They can be adjusted in the :term:`deploy-platform-script` and can also be identical (everything is stored at one place).
 
-The platform is deployed using the :term:`platform-deployment-script`, which you can find at :code:`kaapana/build/kaapana-admin-chart/deploy_platform.sh`.
+The platform is deployed using the :term:`deploy-platform-script`, which you can find at :code:`kaapana/build/kaapana-admin-chart/deploy_platform.sh`.
 
 Copy the script to your target-system (server) and **adjust it as described below**:
 

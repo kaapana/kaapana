@@ -19,7 +19,7 @@ from kubernetes.client.models.v1_container_image import V1ContainerImage
 
 GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
 node_requested_memory = None
-default_memory_offset = 2000
+default_memory_offset_percent = 0.05
 
 
 class UtilService:
@@ -94,7 +94,7 @@ class UtilService:
 
     @staticmethod
     def get_utilization(logger=logging):
-        global node_requested_memory, default_memory_offset
+        global node_requested_memory, default_memory_offset_percent
 
         logger.info("UtilService -> get_utilization")
 
@@ -267,7 +267,9 @@ class UtilService:
                 node_memory = get_node_memory(logger=logger)
                 print(f"{node_memory=}")
                 new_processing_memory = abs(
-                    node_memory - tmp_node_requested_memory - default_memory_offset
+                    node_memory
+                    - tmp_node_requested_memory
+                    - round(default_memory_offset_percent * node_memory)
                 )
                 print(f"{new_processing_memory=}")
                 pool_id = "NODE_RAM"

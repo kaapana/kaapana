@@ -202,7 +202,6 @@ def generate_xml(
     dicom_input_dir=None,
     template_path="/kaapana/app/template.xml",
 ):
-
     if not exists(target_dir):
         os.makedirs(target_dir)
 
@@ -426,6 +425,8 @@ batch_folders = sorted(
     ]
 )
 
+# set to None by default
+dicom_input_dir = None
 for batch_element_dir in batch_folders:
     element_input_dir = join(batch_element_dir, os.getenv("OPERATOR_IN_DIR", ""))
     element_output_dir = join(batch_element_dir, os.getenv("OPERATOR_OUT_DIR", ""))
@@ -520,7 +521,9 @@ else:
         print("#")
         print(f"# --> generate_xml -> {batch_output_dir}")
         generated_xml_list = generate_xml(
-            binary_path=binary, target_dir=batch_output_dir, dicom_dir=dicom_input_dir
+            binary_path=binary,
+            target_dir=batch_output_dir,
+            dicom_input_dir=dicom_input_dir,
         )
         print("#")
         print("# --> xml_to_dicom")

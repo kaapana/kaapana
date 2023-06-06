@@ -37,7 +37,7 @@ Datasets is the central component to organize and manage the data on the platfor
 * Intuitive Gallery-style view visualizing thumbnails and (configurable) metadata of DICOM Series
 * Multiselect which allows performing actions on multiple series at once including add/removing to/from a dataset, executing workflows on individual series or creating new datasets based on the selection
 * Configurable side panel metadata dashboard allowing the exploration of metadata distributions (based on selections)
-* Intuitive shortcut based tagging functionality allowing fast and convenient annotation and categorization of your data
+* Intuitive shortcut based tagging functionality allowing fast and convenient annotation and categorization of the data
 * (Full-text) search to filter for items based on metadata
 * Open a series in a side panel visualizing the DICOM using (an adjusted) OHIF Viewer-v3 next to all Metadata of the specific series.
 
@@ -55,7 +55,8 @@ Items are loaded on demand to ensure scalability.
    :alt: Scrolling through the gallery view
 
 
-Sometimes it is of interest to structure the data by patient and study. You can enable this Structured Gallery View also in the :ref:`settings`.
+
+Sometimes it is of interest to structure the data by patient and study. The Structured Gallery View can be enabled in :ref:`settings`.
 
 .. image:: _static/gif/structured_gallery_view.gif
    :alt: Scrolling through the structured gallery view
@@ -63,73 +64,85 @@ Sometimes it is of interest to structure the data by patient and study. You can 
 The (Structured) Gallery View enables easy and intuitive interactions with the data on the platform by offering a multi-select functionality. 
 Either you select multiple individual series by holding CTRL (CMD on MacOS) and click on the individual series or you make use of the dragging functionality.
 
-With your selection you then have multiple options which are indicated right above the Gallery View. 
-- Create a dataset from the selected data. 
-- Add selected data to an existing dataset.
-- If a dataset is selected (top row), you can delete the selected items from the currently selected dataset. This only removes the data from the dataset, but does not delete the data from the platform. 
-- Execute a workflow with the selected data. Note: While in :ref:`workflow_execution` the dataset is linked to the workflow, if you trigger workflow in here, it will just be a collection of data, i.e. there is no explicit linkage to a dataset.
+Once selected, there are multiple options which are indicated right above the Gallery View. 
+
+* Create a dataset from the selected data. 
+* Add selected data to an existing dataset.
+* If a dataset is selected (top row), delete the selected items from the currently selected dataset. This only removes the data from the dataset, but does not delete the data from the platform. 
+* Execute a workflow with the selected data. Note: While in :ref:`workflow_execution` the dataset is linked to the workflow, triggering a workflow here, will just be a collection of data, i.e. there is no explicit linkage to a dataset.
 
 
 .. image:: _static/gif/save_dataset.gif
    :alt: Saving a dataset
+   :class: half-width-gif
 
 .. image:: _static/gif/add_to_dataset.gif
    :alt: Adding items to an existing dataset
+   :class: half-width-gif
 
 .. image:: _static/gif/remove_from_dataset.gif
    :alt: Removing items from a dataset
+   :class: half-width-gif
 
 .. image:: _static/gif/workflow.gif
    :alt: Starting a worklfow
+   :class: half-width-gif
 
 .. note::
-  If you did not do an active selection, everything is selected. The 'Items Selected' shows on how many items an action will be performed on.
+  Without an active selection, everything is selected. The 'Items Selected' shows on how many items an action will be performed on.
 
 
 Dataset management and Workflow Execution
 -----------------------------------------
-Above the (Structured) Gallery View you can find the actions to interact with it. 
+The actions to interact with the (Structured) Gallery View are above it. 
 The first row is for selecting and managing the datasets. 
 Selecting a dataset will instantly update the (Structured) Gallery View.
-Next to the selection, there is a button to open the dataset managment dialog which gives you an overview of the datasets on the platform but also allows deleting datasets which are not of need anymore.
+Next to the selection, there is a button to open the dataset managment dialog which gives an overview of the datasets on the platform but also allows deleting datasets which are not of need anymore.
+
 .. note::
   Deleting a dataset, does *not* delete its containing data form the platform. 
 
 The next row is for filtering and searching. We offer a lucene-based full-text search. 
-.. hint::
+
+.. note::
   Some useful commands: 
-  - '*' for Wildcarding, e.g. 'LUNG1-*'. This will show all series where at least on field in the metadata starts with 'LUNG1-'.
-  - '-' for excluding, e.g. '-CHEST'. This will exclude all series where at least on field in the metadata contains 'CHEST'.
-  - Checkout the `OpenSearch Documentation <https://opensearch.org/docs/latest/query-dsl/full-text/>`__ .
+
+  * Use `*` for Wildcarding, e.g. `LUNG1-*`. This will show all series where at least on field in the metadata starts with `LUNG1-`.
+  * Use `-` for excluding, e.g. `-CHEST`. This will exclude all series where at least on field in the metadata contains `CHEST`.
+  * Checkout the `OpenSearch Documentation <https://opensearch.org/docs/latest/query-dsl/full-text/>`__ .
 
 Additional filters can be added which allow for filtering for specific DICOM tags. It comes with a very convenient autocomplete functionality.
-.. hint::
+
+.. note:: 
   Individual filters are combined by `AND`, while the different values within a filter are combined by `OR`.
 
 .. image:: _static/gif/search.gif
    :alt: Filtering
 
-The next row is responsible for tagging, which is a very convenient way to structure your data. 
-Tags are free-text, but the autocomplete functionality allows you to reuse already existing tags. 
+The next row is responsible for tagging, which is a very convenient way to structure the data. 
+Tags are free-text, but the autocomplete functionality allows reusing already existing tags. 
 First put all tags of interest and save them. 
-Then tag a series by first activting the tag(s) with clicking on them, and then clicking on the series you would like to tag. 
-The switch next to the tags allows enabling multiple tags at once. 
-.. hint::
-- You can also select (or unselect in multiple tags mode) by shortcuts. Pressing `1` (de-)activates the first tag, pressing `2` the second and so on.
-- If a tag is already given to a series and you have this tag activated and click on this series, the tag will be removed. This is also the case in multiple tags mode.
-- Another way to remove tags is to click on the `X`` next to the tag. (Note: If you are visualizing the tag distribution in the :ref:`meta_dashboard` on the righthand side, removing a tag this way will not update the dashboard)
+To tag a series, first activate the tag(s) by clicking on them, and then clicking on the series will tag it. 
+The switch next to the tags definition allows enabling multiple tags at once. 
+
+.. note::
+* Tags can be activated by shortcuts. Pressing `1` (de-)activates the first tag, pressing `2` the second and so on.
+* If a series is already tagged with the current active tag, clicking on the series again, will remove it. This is also the case in multiple tags mode.
+* Another way to remove tags is to click on the `X` next to the tag. (Note: If the tag distribution is visualized in the :ref:`meta_dashboard` on the righthand side, removing a tag this way will not update the dashboard)
 
 
 .. image:: _static/gif/tagging.gif
    :alt: Tagging items in the gallery view
+
 
 .. _meta_dashboard:
 Metadata Dashboard
 ------------------
 Next to the (Structured) Gallery View is the Metadata Dashboard. It is also configurable in the :ref:`settings`.
 It visualizes the Metadata of the currently selected items in the (Structured) Gallery View. 
-.. hint::
-  Clicking on a bar in a bar chart will set the selected value as a filter. You still have to actively click on search.
+
+.. note::
+  Clicking on a bar in a bar chart will set the selected value as a filter. Only clicking on search will fire the query.
 
 .. image:: _static/gif/dashboard.gif
    :alt: Metadata Dashboard and how to interact with it
@@ -139,7 +152,7 @@ Detail View
 Sometimes a thumbnail of a series is not enough. 
 Therefore, by double-clicking on a series card or clicking on the eye in the top-right of the thumbnail will open the detail view in the side panel.
 The detail view consists of an (adjusted) OHIF-v3 viewer which allows fast and convenient investigation of the whole series. 
-Underneath you can find the searchable metadata table with all the metadata for the selected series. 
+Underneath there is the searchable metadata table with all the metadata for the selected series. 
 
 .. image:: _static/gif/detail_view.gif
    :alt: Detail view with OHIF viewer and metadata table. 
@@ -147,23 +160,26 @@ Underneath you can find the searchable metadata table with all the metadata for 
 
 .. _settings:
 
-Settings:
+Settings
 ---------
 .. todo: should we rename it to UI Configurations? 
-.. note::
-  You might find it confusing that Settings is mentioned here, but since the Dataset view is so far the only component which makes use of it, we decided to put it here.
 
-You can find the settings by clicking on the user icon on the top right and on Settings. A dialog will open.
+
+.. note::
+  It might be confusing that settings is mentioned here, but since the Dataset view is so far the only component which makes use of it, we decided to put it here.
+
+Settings can be found by clicking on the user icon on the top right and on then on Settings. A dialog will open.
 As mentioned several times before, the Dataset view is very configurable. 
-You can not only choose between the Gallery View and Structured Gallery View but can also decide how many items you would like to see in one row. 
+It is not only possible to choose between the Gallery View and Structured Gallery View but its also possible to decide how many items should be visualized in one row. 
 
 It's also configurable if only the thumbnails or also the metadata of a series should be shown.
 Furthermore, for each field in the metadata, there are the following options: 
-- Dashboard: Visualize the aggregated metadata the Metadata Dashboard
-- Patient View: If the Structured Gallery View is enabled, visualize the values in the patient card
-- Study View: If the Structured Gallery View is enabled, visualize the values in the series card
-- Series Card: Visualize values in the Series Card
-- Truncate: If the values in the Series Card should be truncated to a single line. This allows visually aligning the values to easier compare them across series.
+
+* Dashboard: Visualize the aggregated metadata the Metadata Dashboard
+* Patient View: If the Structured Gallery View is enabled, visualize the values in the patient card
+* Study View: If the Structured Gallery View is enabled, visualize the values in the series card
+* Series Card: Visualize values in the Series Card
+* Truncate: If the values in the Series Card should be truncated to a single line. This allows visually aligning the values to easier compare them across series.
 
 Clicking on save will update the configuration and reload the page. 
 
@@ -173,9 +189,10 @@ Clicking on save will update the configuration and reload the page.
 .. note::
   For now, the configuration of Settings is only stored in the browsers localstorage. 
   This has the following implications:
-  - Deleting the browser cache will restore the default settings
-  - Logging in with a different user from the same computer accesses the same settings
-  - Logging in with the same user on a different computer will load the default settings
+
+  * Deleting the browser cache will restore the default settings
+  * Logging in with a different user from the same computer accesses the same settings
+  * Logging in with the same user on a different computer will load the default settings
 
 
 
@@ -295,3 +312,10 @@ arrives, are represented as service workflows accompanied by service jobs.
 By incorporating these service workflows into the visualization, users can easily track 
 and monitor the execution of these important background processes within the platform.
 
+.. raw:: html
+
+   <style>
+   .half-width-gif {
+       width: 49%;
+   }
+   </style>

@@ -1,3 +1,4 @@
 ---
 global:
-  dev_files: false
+  # dev_files: false
+  dev_files: /home/ubuntu/landing-page-files/src

@@ -1,16 +1,17 @@
-import json
 import kubernetes as k8s
 from datetime import datetime
 from pint import UnitRegistry
 from collections import defaultdict
 import os
+import json
 import logging
+import time
 from kaapana.kubetools.prometheus_query import (
     get_node_gpu_infos,
     get_node_requested_memory,
-    get_node_memory,
 )
 from subprocess import Popen, check_output
+from pathlib import Path
 
 # from subprocess import STDOUT, check_output
 from kubernetes.client.models.v1_container_image import V1ContainerImage
@@ -18,9 +19,9 @@ from kubernetes.client.models.v1_container_image import V1ContainerImage
 # Not imported from kaapana.blueprints.kaapana_global_variables because inside the kaapana_global_variables the get_pool method is called which results in the error "sqlalchemy.exc.ResourceClosedError: This Connection is closed " because UtilService is imported in scheduler_job.py of Airflow...
 
 GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
-node_requested_memory = None
 default_memory_offset_percent = 0.05
-
+schedule_lockfile = Path("/kaapana/mounted/schedule_stop.lock")
+schedule_lockfile_max_duration_seconds = 300
 
 class UtilService:
     query_delay = None
@@ -48,6 +49,7 @@ class UtilService:
     mem_lmt_per = None
     mem_percent = None
     max_util_ram = None
+    node_requested_memory = None
 
     cpu_available_req = None
     cpu_available_limit = None
@@ -95,12 +97,9 @@ class UtilService:
     @staticmethod
     def get_utilization(logger=logging):
         global node_requested_memory, default_memory_offset_percent
-
         logger.info("UtilService -> get_utilization")
-
         data = {}
         UtilService.last_update = datetime.now()
-
         try:
             for node in UtilService.core_v1.list_node().items:
                 stats = {}
@@ -211,7 +210,6 @@ class UtilService:
             UtilService.memory_available_limit = abs(
                 UtilService.mem_alloc - UtilService.mem_lmt
             )
-
             pool_id = "NODE_GPU_COUNT"
             if (
                 UtilService.pool_gpu_count == None
@@ -261,17 +259,13 @@ class UtilService:
                     if UtilService.gpu_dev_count > 0
                     else []
                 )
-
             tmp_node_requested_memory = get_node_requested_memory(logger=logger)
-            if node_requested_memory != tmp_node_requested_memory:
-                node_memory = get_node_memory(logger=logger)
-                print(f"{node_memory=}")
+            if UtilService.node_requested_memory != tmp_node_requested_memory:
                 new_processing_memory = abs(
-                    node_memory
+                    UtilService.mem_alloc
                     - tmp_node_requested_memory
-                    - round(default_memory_offset_percent * node_memory)
+                    - round(default_memory_offset_percent * UtilService.mem_alloc)
                 )
-                print(f"{new_processing_memory=}")
                 pool_id = "NODE_RAM"
                 UtilService.create_pool(
                     pool_name=pool_id,
@@ -279,7 +273,7 @@ class UtilService:
                     pool_description="Pool for the available nodes RAM memory in MB",
                     logger=logger,
                 )
-                node_requested_memory = tmp_node_requested_memory
+                UtilService.node_requested_memory = tmp_node_requested_memory
 
             # pool_id = "NODE_RAM"
             # processing_memory_node = abs(UtilService.mem_alloc - UtilService.mem_req)
@@ -340,8 +334,9 @@ class UtilService:
 
     @staticmethod
     def check_operator_scheduling(task_instance, logger=logging):
+        global schedule_lockfile,schedule_lockfile_max_duration_seconds
         logger.info(f"UtilService: check_operator_scheduling {task_instance.task_id=}")
-        job_scheduler_delay = 10
+        job_scheduler_delay = 5
 
         if (
             "enable_job_scheduler" in task_instance.executor_config
@@ -360,6 +355,19 @@ class UtilService:
         logging.info(
             f"last_update: {UtilService.last_update.strftime('%Y-%m-%d %H:%M:%S.%f')}"
         )
+
+        if schedule_lockfile.exists():
+            logger.warning("##############################################")
+            logger.warning("")
+            logger.warning(f"UtilService: schedule lockfile found -> skipping scheduling !!!!")
+            logger.warning("")
+            logger.warning("##############################################")
+            lockfile_age_seconds = round(time.time() - schedule_lockfile.stat().st_mtime)
+            if lockfile_age_seconds > schedule_lockfile_max_duration_seconds:
+                logger.warning(f"UtilService: {lockfile_age_seconds=} -> Forcefully removing lockfile !!!!")
+                schedule_lockfile.unlink(missing_ok=True)
+            else:
+                return False, task_instance.pool, task_instance.pool_slots
 
         if (
             "gpu_mem_mb" in task_instance.executor_config
@@ -465,14 +473,18 @@ class UtilService:
             "ram_mem_mb" in task_instance.executor_config
             and task_instance.executor_config["ram_mem_mb"] != None
         ):
-            if (
-                task_instance.executor_config["ram_mem_mb"]
-                > UtilService.memory_available_req
+            mem_offset = round(UtilService.mem_alloc * default_memory_offset_percent)
+            if task_instance.executor_config["ram_mem_mb"] >= (
+                UtilService.memory_available_req
+                - mem_offset
             ):
                 logger.error(
                     "TI ram_mem_mb > UtilService.memory_available_req -> not scheduling!"
                 )
                 return False, task_instance.pool, task_instance.pool_slots
 
-        logging.info("ok")
+        logging.warning(f"# UtilService {task_instance.task_id}: OK")
+        logging.warning(f"# Job requested mem {task_instance.executor_config['ram_mem_mb']}")
+        logging.warning(f"# Cluster mem req available {UtilService.memory_available_req}")
+        logging.warning(f"# Offset: {mem_offset}")
         return True, task_instance.pool, task_instance.pool_slots

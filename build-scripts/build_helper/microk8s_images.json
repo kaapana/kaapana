@@ -11,6 +11,7 @@
        "nvcr.io/nvidia/k8s-device-plugin:v0.12.3-ubi8",
        "nvcr.io/nvidia/k8s/container-toolkit:v1.11.0-ubuntu20.04",
        "nvcr.io/nvidia/k8s/dcgm-exporter:3.0.4-3.0.0-ubuntu20.04",
+       "registry.k8s.io/metrics-server/metrics-server:v0.5.2",
        "registry.k8s.io/pause:3.7"
       ]
    }

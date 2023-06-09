@@ -529,22 +529,31 @@ class SchedulerJob(BaseJob):
 
                 (
                     util_service_success,
-                    pool_id,
-                    pool_slots,
+                    gpu_device,
                 ) = UtilService.check_operator_scheduling(
                     task_instance=task_instance, logger=self.log
                 )
-                if not util_service_success:
-                    if (
-                        pool_id != task_instance.pool
-                        or pool_slots != task_instance.pool_slots
-                    ):
-                        task_instance.pool = pool_id
-                        task_instance.pool_slots = pool_slots
-                        session.merge(task_instance)
-                        session.flush()
-                        # session.commit()
+                
+                if gpu_device is not None:
+                    self.log.info("-> setting gpu_device in executor_config ...")
+                    new_config = dict(task_instance.executor_config)
+                    new_config["gpu_device"] = gpu_device
+                    task_instance.executor_config = new_config
+                    session.merge(task_instance)
+                    session.flush()
 
+                if "gpu_mem_mb" in task_instance.executor_config and task_instance.executor_config["gpu_mem_mb"] != None and "gpu_device" not in task_instance.executor_config:
+                    self.log.error("###########################################################################")
+                    self.log.error("")
+                    self.log.error("")
+                    self.log.error(f"# {task_instance.task_id=} -> GPU requirement found - but no device set!")
+                    self.log.error("")
+                    self.log.error(f"{task_instance.executor_config=}")
+                    self.log.error("")
+                    self.log.error("###########################################################################")
+                    util_service_success= False
+
+                if not util_service_success:
                     starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                     self.log.warning(
                         f"Not executing {task_instance} since the UtilService check was negative!"

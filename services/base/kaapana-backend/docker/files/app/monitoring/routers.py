@@ -44,7 +44,7 @@ def mem_usage(client=Depends(get_monitoring_service)):
     """Return cluster memory utilization"""
     return client.query(
         "mem-usage",
-        "sum (container_memory_working_set_bytes{id='/',kubernetes_io_hostname=~'^.*$'}) / sum (node_memory_MemTotal_bytes{job='Node-Exporter'}) * 100",
+        "round(sum(node_memory_MemAvailable_bytes{job='Node-Exporter'}) / sum(node_memory_MemTotal_bytes{job='Node-Exporter'}) * 100)",
     )
 
 

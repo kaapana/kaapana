@@ -41,5 +41,6 @@ spec:
       - name: postgresdata
         persistentVolumeClaim:
           claimName: keycloak-pv-claim
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

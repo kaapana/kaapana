@@ -57,6 +57,7 @@ spec:
           items:
           - key: Launcher.properties
             path: Launcher.properties
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret
 ---

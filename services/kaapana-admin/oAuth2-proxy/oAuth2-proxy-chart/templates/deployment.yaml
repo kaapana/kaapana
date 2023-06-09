@@ -86,6 +86,7 @@ spec:
       - name: ssl-config
         secret:
           secretName: certificate
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret
 ---

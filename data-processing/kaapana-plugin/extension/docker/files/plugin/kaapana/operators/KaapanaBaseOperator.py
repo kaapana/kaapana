@@ -126,7 +126,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         gpu_mem_mb_lmt=None,
         retries=1,
         retry_delay=timedelta(seconds=30),
-        priority_weight=1,
         execution_timeout=timedelta(minutes=90),
         max_active_tis_per_dag=None,
         manage_cache=None,
@@ -143,6 +142,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         arguments=None,
         env_vars=None,
         image_pull_secrets=None,
+        priority_weight=1,
+        priority_class_name="kaapana-low-priority",
         startup_timeout_seconds=120,
         namespace=JOBS_NAMESPACE,
         image_pull_policy=PULL_POLICY_IMAGES,
@@ -196,6 +197,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             airflow_workflow_dir=airflow_workflow_dir,
             delete_input_on_success=delete_input_on_success,
             delete_output_on_start=delete_output_on_start,
+            priority_class_name=priority_class_name,
         )
 
         # Airflow
@@ -474,12 +476,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             63,
         )  # actually 63, but because of helm set to 53, maybe...
 
-        if (
-            "NODE_GPU_" in str(context["task_instance"].pool)
-            and str(context["task_instance"].pool).count("_") == 3
-        ):
-            gpu_id = str(context["task_instance"].pool).split("_")[2]
-            self.env_vars.update({"CUDA_VISIBLE_DEVICES": str(gpu_id)})
+        
+        if "gpu_device" in context["task_instance"].executor_config:
+            self.env_vars.update({"CUDA_VISIBLE_DEVICES": str(context["task_instance"].executor_config["gpu_device"]["gpu_id"])})
+        else:
+            self.env_vars.update({"CUDA_VISIBLE_DEVICES": ""})
 
         if (
             context["dag_run"].conf is not None
@@ -516,7 +517,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         logging.info("CONTAINER ENVS:")
         logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
-
         if self.dev_server is not None:
             url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
             env_vars_sets = {}
@@ -642,6 +642,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 namespace=self.namespace,
                 image_pull_policy=self.image_pull_policy,
                 image_pull_secrets=self.image_pull_secrets,
+                priority_class_name=self.priority_class_name,
                 resources=self.pod_resources,
                 annotations=self.annotations,
                 affinity=self.affinity,
@@ -787,6 +788,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         airflow_workflow_dir,
         delete_input_on_success,
         delete_output_on_start,
+        priority_class_name,
     ):
         obj.name = name
 
@@ -808,6 +810,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         obj.whitelist_federated_learning = whitelist_federated_learning
         obj.delete_input_on_success = delete_input_on_success
         obj.delete_output_on_start = delete_output_on_start
+        obj.priority_class_name = priority_class_name
 
         obj.batch_name = batch_name if batch_name != None else BATCH_NAME
         obj.airflow_workflow_dir = (

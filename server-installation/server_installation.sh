@@ -372,13 +372,15 @@ function install_microk8s {
         echo "${YELLOW}Disable insecure port ...${NC}";
         insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
         
-        echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
-        insert_text "--terminated-pod-gc-threshold=0" /var/snap/microk8s/current/args/kube-controller-manager
+        echo "${YELLOW}Set limit of completed pods to 50 ...${NC}";
+        insert_text "--terminated-pod-gc-threshold=50" /var/snap/microk8s/current/args/kube-controller-manager
         set -e
 
         echo "${YELLOW}Set vm.max_map_count=262144${NC}"
         sysctl -w vm.max_map_count=262144
-        sh -c "echo 'vm.max_map_count=262144' >> /etc/sysctl.conf"
+        set +e
+        insert_text "vm.max_map_count=262144" /etc/sysctl.conf
+        set -e
         
         echo "${YELLOW}Reload systemct daemon ...${NC}"
         systemctl daemon-reload

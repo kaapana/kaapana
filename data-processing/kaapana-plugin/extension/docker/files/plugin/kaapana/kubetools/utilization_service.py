@@ -10,7 +10,7 @@ from kaapana.kubetools.prometheus_query import (
     get_node_gpu_infos,
     get_node_requested_memory,
 )
-from subprocess import Popen, check_output
+from subprocess import Popen
 from pathlib import Path
 
 # from subprocess import STDOUT, check_output
@@ -22,6 +22,7 @@ GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else F
 default_memory_offset_percent = 0.05
 schedule_lockfile = Path("/kaapana/mounted/schedule_stop.lock")
 schedule_lockfile_max_duration_seconds = 300
+
 
 class UtilService:
     query_delay = None
@@ -136,11 +137,6 @@ class UtilService:
                 stats["gpu_dev_count"] = UtilService.Q_(
                     capacity["nvidia.com/gpu"] if "nvidia.com/gpu" in capacity else 0
                 )
-                stats["gpu_dev_free"] = UtilService.Q_(
-                    allocatable["nvidia.com/gpu"]
-                    if "nvidia.com/gpu" in allocatable
-                    else 0
-                )
 
                 pods = UtilService.core_v1.list_pod_for_all_namespaces(
                     limit=max_pods, field_selector=field_selector
@@ -195,7 +191,7 @@ class UtilService:
                 node_info["mem_lmt_per"].to_base_units().magnitude
             )
             UtilService.gpu_dev_count = int(node_info["gpu_dev_count"])
-            UtilService.gpu_dev_free = int(node_info["gpu_dev_free"])
+
             UtilService.memory_pressure = node_info["memory_pressure"]
             UtilService.disk_pressure = node_info["disk_pressure"]
             UtilService.pid_pressure = node_info["pid_pressure"]
@@ -303,6 +299,7 @@ class UtilService:
             logger.debug("#####################################")
             logger.debug("#####################################")
             logger.debug("")
+            logger.debug(f"# {UtilService.gpu_dev_count=}")
             logger.debug(f"# {UtilService.cpu_alloc=}")
             logger.debug(f"# {UtilService.cpu_req=}")
             logger.debug(f"# {UtilService.cpu_lmt=}")
@@ -334,7 +331,7 @@ class UtilService:
 
     @staticmethod
     def check_operator_scheduling(task_instance, logger=logging):
-        global schedule_lockfile,schedule_lockfile_max_duration_seconds
+        global schedule_lockfile, schedule_lockfile_max_duration_seconds
         logger.info(f"UtilService: check_operator_scheduling {task_instance.task_id=}")
         job_scheduler_delay = 5
 
@@ -343,7 +340,7 @@ class UtilService:
             and not task_instance.executor_config["enable_job_scheduler"]
         ):
             logger.warning(f"UtilService: enable_job_scheduler disabled!")
-            return True, task_instance.pool, task_instance.pool_slots
+            return True, None
 
         if UtilService.last_update == None:
             UtilService.init_util_service()
@@ -359,23 +356,33 @@ class UtilService:
         if schedule_lockfile.exists():
             logger.warning("##############################################")
             logger.warning("")
-            logger.warning(f"UtilService: schedule lockfile found -> skipping scheduling !!!!")
+            logger.warning(
+                f"UtilService: schedule lockfile found -> skipping scheduling !!!!"
+            )
             logger.warning("")
             logger.warning("##############################################")
-            lockfile_age_seconds = round(time.time() - schedule_lockfile.stat().st_mtime)
+            lockfile_age_seconds = round(
+                time.time() - schedule_lockfile.stat().st_mtime
+            )
             if lockfile_age_seconds > schedule_lockfile_max_duration_seconds:
-                logger.warning(f"UtilService: {lockfile_age_seconds=} -> Forcefully removing lockfile !!!!")
+                logger.warning(
+                    f"UtilService: {lockfile_age_seconds=} -> Forcefully removing lockfile!"
+                )
                 schedule_lockfile.unlink(missing_ok=True)
             else:
-                return False, task_instance.pool, task_instance.pool_slots
+                return False, None
 
         if (
             "gpu_mem_mb" in task_instance.executor_config
             and task_instance.executor_config["gpu_mem_mb"] != None
             and task_instance.executor_config["gpu_mem_mb"] > 0
         ):
-            if "gpu" in str(task_instance.pool).lower():
-                logger.info(f"GPU pool already set! ({task_instance.pool=})")
+            logger.error(f"START: {task_instance.executor_config}")
+
+            if "gpu_device" in task_instance.executor_config:
+                logger.info(
+                    f"GPU config already set! ({task_instance.executor_config['gpu_device']=})"
+                )
             else:
                 gpu_mem_mb = task_instance.executor_config["gpu_mem_mb"]
                 if len(UtilService.node_gpu_queued_dict) > 0:
@@ -407,6 +414,7 @@ class UtilService:
                     0, len(UtilService.node_gpu_list)
                 ):  # Check if queued_left has enough ram
                     gpu_info = UtilService.node_gpu_list[i]
+                    gpu_id = gpu_info["gpu_id"]
                     pool_id = gpu_info["pool_id"]
                     capacity = gpu_info["capacity"]
                     free = gpu_info["free"]
@@ -423,12 +431,13 @@ class UtilService:
                         UtilService.node_gpu_list[i]["queued_count"] += 1
                         UtilService.node_gpu_list[i]["queued_mb"] += gpu_mem_mb
                         logger.error(
-                            f"1) Identified GPU for TI: {pool_id=} {gpu_mem_mb=}"
+                            f"1) Identified GPU for TI: {gpu_id=} {gpu_mem_mb=}"
                         )
-                        return False, pool_id, gpu_mem_mb
+                        return True, {"gpu_id": gpu_id, "gpu_mem": gpu_mem_mb}
 
                 for i in range(0, len(UtilService.node_gpu_list)):  # Check for capacity
                     gpu_info = UtilService.node_gpu_list[i]
+                    gpu_id = gpu_info["gpu_id"]
                     pool_id = gpu_info["pool_id"]
                     capacity = gpu_info["capacity"]
                     free = gpu_info["free"]
@@ -441,26 +450,22 @@ class UtilService:
                         logger.error(
                             f"2) Identified GPU for TI: {pool_id=} {gpu_mem_mb=}"
                         )
-                        return False, pool_id, gpu_mem_mb
+                        return True, {"gpu_id": gpu_id, "gpu_mem": gpu_mem_mb}
 
                 logger.error(f"No GPU for the TI found! -> Not scheduling !")
-                if GPU_SUPPORT:
-                    pool_id = "NODE_GPU_COUNT"
-                    return False, pool_id, 1
-                else:
-                    return False, task_instance.pool, task_instance.pool_slots
+                return False, None
 
         if UtilService.memory_pressure:
             logger.error("UtilService.memory_pressure == TRUE -> not scheduling!")
-            return False, task_instance.pool, task_instance.pool_slots
+            return False, None
 
         if UtilService.disk_pressure:
             logger.error("UtilService.disk_pressure == TRUE -> not scheduling!")
-            return False, task_instance.pool, task_instance.pool_slots
+            return False, None
 
         if UtilService.pid_pressure:
             logger.error("UtilService.pid_pressure == TRUE -> not scheduling!")
-            return False, task_instance.pool, task_instance.pool_slots
+            return False, None
 
         if (
             "cpu_millicores" in task_instance.executor_config
@@ -475,16 +480,11 @@ class UtilService:
         ):
             mem_offset = round(UtilService.mem_alloc * default_memory_offset_percent)
             if task_instance.executor_config["ram_mem_mb"] >= (
-                UtilService.memory_available_req
-                - mem_offset
+                UtilService.memory_available_req - mem_offset
             ):
                 logger.error(
                     "TI ram_mem_mb > UtilService.memory_available_req -> not scheduling!"
                 )
-                return False, task_instance.pool, task_instance.pool_slots
+                return False, None
 
-        logging.warning(f"# UtilService {task_instance.task_id}: OK")
-        logging.warning(f"# Job requested mem {task_instance.executor_config['ram_mem_mb']}")
-        logging.warning(f"# Cluster mem req available {UtilService.memory_available_req}")
-        logging.warning(f"# Offset: {mem_offset}")
-        return True, task_instance.pool, task_instance.pool_slots
+        return True, None

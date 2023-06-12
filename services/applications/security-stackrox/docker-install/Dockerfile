@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="security-stackrox-install"
-LABEL VERSION="0.0.1"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
 WORKDIR /

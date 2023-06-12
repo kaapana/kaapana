@@ -17,7 +17,7 @@ RUN /entrypoint.sh
 FROM alpine:3.16.2
 
 LABEL IMAGE="security-wazuh-init"
-LABEL VERSION="0.0.1"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
 RUN apk update && apk add --no-cache sed

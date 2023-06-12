@@ -70,7 +70,8 @@ export default defineComponent({
         return;
       }
       this.notifications = json["data"];
-      this.notifications.push({title: "test test test", description: "desc desc desc desc desc desc desc desc", link: "no link"});
+      // comment this in to display a permanent test notification
+      // this.notifications.push({title: "test test test", description: "desc desc desc desc desc desc desc desc", link: "no link"});
     }, 5000);
   },
   beforeDestroy() {

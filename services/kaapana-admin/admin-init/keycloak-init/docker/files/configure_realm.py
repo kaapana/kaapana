@@ -42,13 +42,12 @@ if __name__ == "__main__":
     payload = json.load(open(file, "r"))
     payload["secret"] = oidc_client_secret
 
-    KEYCLOAK_URI = os.environ["KEYCLOAK_URI"]
     STACKROX_URI = os.environ["STACKROX_URI"]
 
     redirect_uris = []
     redirect_uris.append(f"/oauth2/callback")
     redirect_uris.append(f"/minio-console/oauth_callback/")
-    redirect_uris.append(f"{KEYCLOAK_URI}/security-wazuh/auth/openid/login")
+    redirect_uris.append(f"/security-wazuh/auth/openid/login")
     redirect_uris.append(f"{STACKROX_URI}/sso/providers/oidc/callback")
     redirect_uris.append(f"{STACKROX_URI}/auth/response/oidc")
     keycloak.post_client(payload, redirectUris=redirect_uris)

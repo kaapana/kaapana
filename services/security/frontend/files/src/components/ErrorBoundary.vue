@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { defineComponent } from "vue";
+import Divider from '@/components/Divider.vue';
+import Button from '@/components/Button.vue';
 </script>
 
 <template>
@@ -11,7 +13,11 @@ import { defineComponent } from "vue";
         <p>in &lt; {{ component }} /&gt;</p>
         <p>Further information: {{ info }}</p>
       </div>
-
+      <Divider></Divider>
+      <div class="buttons">
+        <Button @:click="reload" class="button">Reload</Button>
+        <Button @:click="goBack" class="button">Go back</Button>
+      </div>
     </slot>
     <slot v-else></slot>
   </div>
@@ -33,6 +39,14 @@ export default defineComponent({
       info: null
     };
   },
+  methods: {
+    reload() {
+      window.location.reload();
+    },
+    goBack() {
+      window.history.back();
+    }
+  },
   errorCaptured(err, vm, info) {
     this.err = err;
     this.component = vm ? vm.$options.__name : undefined;
@@ -46,6 +60,15 @@ export default defineComponent({
 .error-wrapper {
   display: flex;
   flex-direction: column;
+}
+
+.buttons {
+  display: flex;
+  gap: 20px;
+}
+
+.button {
+  min-width: 150px;
 }
 
 h2 {

@@ -203,4 +203,16 @@ Tensorboard
 | **Mount point:**  
 | <slow_data_dir>/minio
 
+.. _extensions security_wazuh:
 
+Security: Wazuh
+-----------
+| **What's going on?**
+| Wazuh is an open source application for real-time monitoring of different systems to detect and respond to security threats. More information can be found on the official website: https://wazuh.com/. Information from Wazuh about the Kaapana environment can be accessed under the `monitoring > Wazuh` menu after the extension was installed.
+
+.. _extensions security_stackrox:
+
+Security: StackRox
+-----------
+| **What's going on?**
+| StackRox is a cloud-native open source application that provides security analysis, runtime alerts and configuration assessment of Kubernetes clusters. More information can be found on the official website: https://www.stackrox.io/. Information from Wazuh about the Kaapana environment can be accessed under the `monitoring > StackRox` menu after the extension was installed.

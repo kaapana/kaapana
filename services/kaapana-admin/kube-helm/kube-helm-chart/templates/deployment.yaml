@@ -55,11 +55,23 @@ spec:
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
+          - name: helmplatforms
+            mountPath: "/kaapana/mounted/platforms"
+          - name: containerd-socket
+            mountPath: "/kaapana/mounted/containerd.sock"
       volumes:
+      - name: containerd-socket
+        hostPath:
+          path: /var/snap/microk8s/common/run/containerd.sock
       - name: helmextensions
         persistentVolumeClaim:
           claimName: extensions-pv-claim
+      - name: helmplatforms
+        hostPath:
+          path: "{{ $.Values.global.fast_data_dir }}/platforms"
+          type: DirectoryOrCreate
       serviceAccountName: kaapana-kube-admin
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret
 ---

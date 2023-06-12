@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: auth-backend
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.helm_namespace }}"
 spec:
   replicas: 1
   selector:
@@ -38,6 +38,7 @@ spec:
           items:
           - key: auth_role_mapping.json
             path: auth_role_mapping.json
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
 ---

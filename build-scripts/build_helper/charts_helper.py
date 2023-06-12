@@ -4,10 +4,8 @@ import shutil
 import yaml
 import os
 import re
-import json
-from datetime import datetime
 from treelib import Tree
-from subprocess import PIPE, run
+from subprocess import PIPE, run, DEVNULL
 from os.path import join, dirname, exists, isfile
 from pathlib import Path
 from build_helper.build_utils import BuildUtils
@@ -19,6 +17,9 @@ from build_helper.container_helper import get_image_stats
 from build_helper.security_utils import TrivyUtils
 from build_helper.offline_installer_helper import OfflineInstallerHelper
 import threading
+import signal
+from datetime import datetime
+from timeit import default_timer as timer
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -28,8 +29,10 @@ successful_built_containers = []
 
 def parallel_execute(container_object):
     queue_id, container_object = container_object
-    done = True
+    waiting = None
     issue = None
+    build_time_needed = ""
+    push_time_needed = ""
 
     for base_container in container_object.base_images:
         semaphore_successful_built_containers.acquire()
@@ -38,21 +41,36 @@ def parallel_execute(container_object):
                 base_container.local_image
                 and base_container.tag not in successful_built_containers
             ):
-                done = False
-                return queue_id, container_object, issue, done
+                waiting = base_container.name
+                return (
+                    queue_id,
+                    container_object,
+                    issue,
+                    waiting,
+                    build_time_needed,
+                    push_time_needed,
+                )
         finally:
             semaphore_successful_built_containers.release()
 
-    issue = container_object.build()
+    issue, build_time_needed = container_object.build()
+
     if issue == None:
         semaphore_successful_built_containers.acquire()
         try:
             successful_built_containers.append(container_object.build_tag)
         finally:
             semaphore_successful_built_containers.release()
-        issue = container_object.push()
+        issue, push_time_needed = container_object.push()
 
-    return queue_id, container_object, issue, done
+    return (
+        queue_id,
+        container_object,
+        issue,
+        waiting,
+        build_time_needed,
+        push_time_needed,
+    )
 
 
 def generate_deployment_script(platform_chart):
@@ -350,7 +368,6 @@ class HelmChart:
         self.log_list = []
         self.chartfile = chartfile
         self.dependencies = {}
-        self.external_dependencies = {}
         self.kaapana_collections = []
         self.preinstall_extensions = []
         self.dependencies_count_all = None
@@ -422,7 +439,7 @@ class HelmChart:
         self.ignore_linting = False
         if "ignore_linting" in self.chart_yaml:
             self.ignore_linting = self.chart_yaml["ignore_linting"]
-    
+
         self.chart_id = f"{self.name}"
         # self.chart_id = f"{self.name}:{self.app_version}"
         BuildUtils.logger.debug(f"{self.chart_id}: chart init")
@@ -482,6 +499,7 @@ class HelmChart:
         if len(charts_found) == 1:
             dep_chart = charts_found[0]
             self.dependencies[dep_chart.chart_id] = dep_chart
+            dep_chart.check_dependencies()
             BuildUtils.logger.debug(
                 f"{self.chart_id}: dependency found: {dep_chart.chart_id} at {dep_chart.chart_dir}"
             )
@@ -536,26 +554,23 @@ class HelmChart:
 
             self.dependencies_count_all = len(requirements_yaml["dependencies"])
             for dependency in requirements_yaml["dependencies"]:
-                dependency_id = f"{dependency['name']}"
-                dependency_repository = f"{dependency['repository']}" if "repository" in dependency else ""
-                if dependency_repository.startswith("https"): # support for external dependencies
-                    self.external_dependencies[dependency_id] = dependency
+                dependency_version = f"{dependency['version']}"
+                if dependency_version == "0.0.0":
+                    dependency_version = self.repo_version
                 else:
-                    dependency_version = f"{dependency['version']}"
-                    if dependency_version == "0.0.0":
-                        dependency_version = self.repo_version
+                    dependency_version = BuildUtils.platform_repo_version
 
-                    dependency_name = f"{dependency['name']}"
-                    self.add_dependency_by_id(
-                        dependency_name=dependency_name,
-                        dependency_version=dependency_version,
-                    )
+                dependency_name = f"{dependency['name']}"
+                self.add_dependency_by_id(
+                    dependency_name=dependency_name,
+                    dependency_version=dependency_version,
+                )
 
             BuildUtils.logger.debug(
                 f"{self.chart_id}: found {len(self.dependencies)}/{self.dependencies_count_all} dependencies."
             )
 
-            if len(self.dependencies) + len(self.external_dependencies) != self.dependencies_count_all:
+            if len(self.dependencies) != self.dependencies_count_all:
                 BuildUtils.logger.error(
                     f"{self.chart_id}: check_dependencies failed! -> size self.dependencies vs dependencies_count_all"
                 )
@@ -725,6 +740,20 @@ class HelmChart:
                     container_name=container_image,
                     container_version=container_version,
                 )
+            elif (
+                "global" in self.values_yaml
+                and self.values_yaml["global"] is not None
+                and "complete_image" in self.values_yaml["global"]
+                and self.values_yaml["global"]["complete_image"] != None
+            ):
+                regex = r"({{\s*\.Values\.global\.registry_url\s+}}\/)(.*)(:{{\s*\.Values\.global\.kaapana_build_version\s*}})"
+                match = re.search(regex, self.values_yaml["global"]["complete_image"])
+                assert match
+                self.add_container_by_tag(
+                    container_registry=BuildUtils.default_registry,
+                    container_name=match.group(2),
+                    container_version=self.repo_version,
+                )
 
         template_dirs = (
             f"{self.chart_dir}/templates/*.yaml",
@@ -785,7 +814,7 @@ class HelmChart:
 
                         elif (
                             ".Values.image" in line
-                            or ".Values.global.processing_image" in line
+                            or ".Values.global.complete_image" in line
                             or ".Values.global.image" in line
                             or "collection.name" in line
                             or "kube_helm_collection" in line
@@ -834,7 +863,9 @@ class HelmChart:
 
     def lint_chart(self, build_version=False):
         if self.ignore_linting:
-            BuildUtils.logger.debug(f"{self.chart_id}: ignore_linting is true, lint_chart skipped")
+            BuildUtils.logger.debug(
+                f"{self.chart_id}: ignore_linting is true, lint_chart skipped"
+            )
             return
 
         if self.helmlint_done:
@@ -911,33 +942,11 @@ class HelmChart:
         else:
             BuildUtils.logger.debug(f"{self.chart_id}: kubeval disabled")
 
-    def get_external_dependencies(self, chart_dir):
-        BuildUtils.logger.info(f"{self.chart_id}: get_external_dependencies")
-        os.chdir(chart_dir)
-
-        command = ["helm", "dep", "up"]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=60)
-        if output.returncode == 0 and "Successfully" in output.stdout:
-            BuildUtils.logger.debug(f"{self.chart_id}: successfully retrieved external dependencies")
-        else:
-            BuildUtils.logger.error(f"{self.chart_id}: get_external_dependencies failed!")
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name=f"{self.chart_id}",
-                msg="chart get_external_dependencies failed!",
-                level="ERROR",
-                output=output,
-                path=chart_dir
-            )
-
     def make_package(self):
         BuildUtils.logger.info(f"{self.chart_id}: make_package")
 
-        if len(self.external_dependencies) > 0:
-            self.get_external_dependencies(chart_dir=self.build_chart_dir)
-
         os.chdir(dirname(self.build_chart_dir))
-        
+
         command = ["helm", "package", self.name]
         output = run(
             command,
@@ -999,7 +1008,7 @@ class HelmChart:
                     component=suite_tag,
                     name=f"{self.chart_id}",
                     msg="chart push failed!",
-                    level="ERROR",
+                    level="FATAL",
                     output=output,
                     path=self.chart_dir,
                 )
@@ -1019,13 +1028,24 @@ class HelmChart:
             BuildUtils.logger.info(
                 f"Searching for Charts in target_dir: {external_source_dir}"
             )
-            charts_found.extend(
-                glob(external_source_dir + "/**/Chart.yaml", recursive=True)
+            external_charts = glob(
+                external_source_dir + "/**/Chart.yaml", recursive=True
             )
+            external_charts = [
+                x for x in external_charts if BuildUtils.kaapana_dir not in x
+            ]
+            charts_found.extend(external_charts)
             BuildUtils.logger.info(f"Found {len(charts_found)} Charts")
 
         if len(charts_found) != len(set(charts_found)):
-            BuildUtils.logger.warning("-> Duplicate Charts found!")
+            BuildUtils.logger.warning(
+                f"-> Duplicate Charts found: {len(charts_found)} vs {len(set(charts_found))}"
+            )
+            for duplicate in set(
+                [x for x in charts_found if charts_found.count(x) > 1]
+            ):
+                BuildUtils.logger.warning(duplicate)
+            BuildUtils.logger.warning("")
 
         charts_found = sorted(
             set(charts_found), key=lambda p: (-p.count(os.path.sep), p)
@@ -1098,11 +1118,12 @@ class HelmChart:
                 BuildUtils.logger.info(
                     f"{platform_chart.name} - {collection_name}: create create_collection_build_files"
                 )
+                collections_chart.check_dependencies()
                 HelmChart.create_collection_build_files(
                     collections_chart=collections_chart,
                     platform_build_files_target_dir=platform_build_files_base_target_dir,
                 )
-
+        platform_chart.lint_chart(build_version=True)
         platform_chart.lint_kubeval(build_version=True)
 
     @staticmethod
@@ -1136,9 +1157,8 @@ class HelmChart:
                 BuildUtils.logger.info(
                     f"Collection chart {collection_chart_index+1}/{collections_chart.dependencies_count_all}: {collection_chart_name}:"
                 )
-                collection_chart_target_dir = join(
-                    collection_build_target_dir, "charts", collection_chart.name
-                )
+                collection_chart.lint_chart(build_version=True)
+                collection_chart.lint_kubeval(build_version=True)
                 collection_chart.make_package()
                 bar()
         collection_container = [
@@ -1153,7 +1173,6 @@ class HelmChart:
     def create_chart_build_version(src_chart, target_build_dir, bar=None):
         BuildUtils.logger.info(f"{src_chart.chart_id}: create_chart_build_version")
 
-        src_chart.lint_chart(build_version=False)
         shutil.copytree(src=src_chart.chart_dir, dst=target_build_dir)
 
         # remove repositories from requirements.txt
@@ -1164,7 +1183,11 @@ class HelmChart:
             with open(build_requirements, "w") as f:
                 for build_requirements_line in build_requirements_lines:
                     stripped_line = build_requirements_line.strip("\n")
-                    if "repository:" not in stripped_line or re.match(r"\s*repository:\s*https", stripped_line) is not None:
+                    if (
+                        "repository:" not in stripped_line
+                        or re.match(r"\s*repository:\s*https", stripped_line)
+                        is not None
+                    ):
                         f.write(build_requirements_line)
 
         src_chart.build_chart_dir = target_build_dir
@@ -1218,7 +1241,10 @@ class HelmChart:
                 {
                     "platform_build_branch": BuildUtils.platform_build_branch,
                     "platform_last_commit_timestamp": BuildUtils.platform_last_commit_timestamp,
-                    "build_timestamp": datetime.now().strftime("%d-%m-%Y"),
+                    "build_timestamp": datetime.now()
+                    .astimezone()
+                    .replace(microsecond=0)
+                    .isoformat(),
                     "kaapana_build_version": BuildUtils.platform_build_version,
                 }
             )
@@ -1259,15 +1285,20 @@ class HelmChart:
             repo_last_commit,
             repo_last_commit_timestamp,
         ) = BuildUtils.get_repo_info(platform_chart.chart_dir)
+
         if BuildUtils.version_latest:
-            repo_version = "0.0.0-latest"
+            build_version = "0.0.0-latest"
+        else:
+            build_version = repo_version
 
         BuildUtils.platform_name = platform_chart.name
-        BuildUtils.platform_build_version = repo_version
+        BuildUtils.platform_build_version = build_version
+        BuildUtils.platform_repo_version = repo_version
         BuildUtils.platform_build_branch = repo_branch
         BuildUtils.platform_last_commit_timestamp = repo_last_commit_timestamp
 
         platform_chart.build_version = BuildUtils.platform_build_version
+        platform_chart.check_dependencies()
 
         HelmChart.create_platform_build_files(platform_chart=platform_chart)
         nx_graph = generate_build_graph(platform_chart=platform_chart)
@@ -1338,7 +1369,7 @@ class HelmChart:
         containers_to_built = [
             (x, containers_to_built[x]) for x in range(0, len(containers_to_built))
         ]
-        waiting_containers_to_built = containers_to_built.copy()
+        waiting_containers_to_built = sorted(containers_to_built).copy()
         with alive_bar(container_count, dual_line=True, title="Container-Build") as bar:
             with ThreadPool(BuildUtils.parallel_processes) as threadpool:
                 while (
@@ -1346,18 +1377,31 @@ class HelmChart:
                     and build_rounds <= BuildUtils.max_build_rounds
                 ):
                     build_rounds += 1
+                    BuildUtils.logger.info("")
+                    BuildUtils.logger.info(f"Build round: {build_rounds}")
+                    BuildUtils.logger.info("")
                     tmp_waiting_containers_to_built = []
                     result_containers = threadpool.imap_unordered(
                         parallel_execute, waiting_containers_to_built
                     )
-                    for queue_id, result_container, issue, done in result_containers:
-                        if not done:
+                    for (
+                        queue_id,
+                        result_container,
+                        issue,
+                        waiting,
+                        build_time_needed,
+                        push_time_needed,
+                    ) in result_containers:
+                        if waiting != None:
                             BuildUtils.logger.info(
-                                f"{result_container.build_tag}: Base image not ready yet -> waiting list"
+                                f"{result_container.build_tag}: Base image {waiting} not ready yet -> waiting list"
                             )
                             tmp_waiting_containers_to_built.append(result_container)
                         else:
                             bar()
+                            BuildUtils.logger.info(
+                                f"{result_container.build_tag} - build: {build_time_needed} - push {push_time_needed} : DONE"
+                            )
                             if issue != None:
                                 # Close threadpool if error is fatal
                                 if (
@@ -1380,14 +1424,17 @@ class HelmChart:
                                 )
                             else:
                                 bar.text(f"{result_container.build_tag}: ok")
-                    
+
                     tmp_waiting_containers_to_built = [
                         (x, tmp_waiting_containers_to_built[x])
                         for x in range(0, len(tmp_waiting_containers_to_built))
                     ]
                     waiting_containers_to_built = tmp_waiting_containers_to_built.copy()
 
-        if build_rounds == BuildUtils.max_build_rounds:
+        if (
+            build_rounds == BuildUtils.max_build_rounds
+            and len(waiting_containers_to_built) > 0
+        ):
             BuildUtils.generate_issue(
                 component=suite_tag,
                 name="container_build",
@@ -1399,14 +1446,36 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
-        # Scan for vulnerabilities if enabled
-        if BuildUtils.vulnerability_scan:
-            trivy_utils = TrivyUtils()
-            trivy_utils.create_vulnerability_reports(successful_built_containers)
+        if BuildUtils.vulnerability_scan or BuildUtils.create_sboms:
+            trivy_utils = TrivyUtils(tag=build_version)
+
+            def handler(signum, frame):
+                BuildUtils.logger.info("Exiting...")
+
+                trivy_utils.kill_flag = True
+
+                with trivy_utils.semaphore_threadpool:
+                    if trivy_utils.threadpool is not None:
+                        trivy_utils.threadpool.terminate()
+                        trivy_utils.threadpool = None
+
+                trivy_utils.error_clean_up()
+
+                if BuildUtils.create_sboms:
+                    trivy_utils.safe_sboms()
+                if BuildUtils.vulnerability_scan:
+                    trivy_utils.safe_vulnerability_reports()
+
+                exit(1)
+
+            signal.signal(signal.SIGTSTP, handler)
+
         # Create SBOMs if enabled
         if BuildUtils.create_sboms:
-            trivy_utils = TrivyUtils()
             trivy_utils.create_sboms(successful_built_containers)
+        # Scan for vulnerabilities if enabled
+        if BuildUtils.vulnerability_scan:
+            trivy_utils.create_vulnerability_reports(successful_built_containers)
 
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()

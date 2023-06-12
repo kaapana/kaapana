@@ -1,0 +1,47 @@
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nnunet-get-zenodo-models
+  namespace: "{{ .Values.global.jobs_namespace }}"
+spec:
+  template:
+    metadata:
+      name: nnunet-get-zenodo-models
+    spec:
+      # hostNetwork: true
+      containers:
+      - name: zenodo-models
+        image: "{{ .Values.global.registry_url }}/download-zenodo-models:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: TASK_IDS
+          value: {{ .Values.global.task_ids | default "all" }}
+        - name: MODEL_DIR
+          value: "/models/nnUNet"
+        - name: LOG_LEVEL
+          value: "INFO"
+{{- if .Values.global.http_proxy }}
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+{{- end }}
+{{- if .Values.global.https_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.https_proxy }}
+{{- end }}
+        volumeMounts:
+        - name: modeldata
+          mountPath: /models
+        resources:
+          requests:
+            memory: 100Mi
+          limits:
+            memory: 200Mi
+      volumes:
+      - name: modeldata
+        persistentVolumeClaim:
+          claimName: models-jobs-pv-claim
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 0

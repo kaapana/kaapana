@@ -6,96 +6,75 @@
       </v-col>
       <v-col cols="7">
         <v-text-field
-            label="Search"
-            v-model="query_string"
-            dense
-            single-line
-            clearable
+          label="Search"
+          v-model="query_string"
+          dense
+          single-line
+          clearable
+          hide-details
+          @keydown.enter="search"
         />
       </v-col>
       <v-col cols="1" align="center">
         <v-btn @click="addEmptyFilter" icon>
-          <v-icon>
-            mdi-filter-plus-outline
-          </v-icon>
+          <v-icon> mdi-filter-plus-outline </v-icon>
         </v-btn>
       </v-col>
       <v-col cols="1" align="center">
-        <v-btn v-if="!display_filters && filters.length > 0"
-               @click="display_filters = !display_filters" icon>
-          <v-icon>
-            mdi-filter-menu
-          </v-icon>
+        <v-btn
+          v-if="!display_filters && filters.length > 0"
+          @click="display_filters = !display_filters"
+          icon
+        >
+          <v-icon> mdi-filter-menu </v-icon>
           ({{ filters.length }})
         </v-btn>
-        <v-btn v-if="display_filters && filters.length > 0"
-               @click="display_filters = !display_filters" icon>
-          <v-icon>
-            mdi-filter-menu-outline
-          </v-icon>
+        <v-btn
+          v-if="display_filters && filters.length > 0"
+          @click="display_filters = !display_filters"
+          icon
+        >
+          <v-icon> mdi-filter-menu-outline </v-icon>
           ({{ filters.length }})
         </v-btn>
       </v-col>
 
       <v-col cols="2" align="center">
-        <v-menu
-            open-on-hover
-            bottom
-            offset-y
-            :close-on-click=false
-        >
-          <template v-slot:activator="{ on, attrs }">
-            <v-btn
-                color="primary"
-                v-bind="attrs"
-                v-on="on"
-                style="width: 100%;"
-                @click="() => search()"
-            >
-              Search
-            </v-btn>
-          </template>
-          <v-list>
-            <v-list-item @click.stop="dialog=true">
-              Save as Dataset
-            </v-list-item>
-            <v-list-item v-if="cohort_name !== null" @click="() => updateCohort()">
-              Update Dataset
-            </v-list-item>
-          </v-list>
-        </v-menu>
-        <SaveDatasetDialog
-            v-model="dialog"
-            @save="(name) => createCohort(name)"
-            @cancel="() => this.dialog=false"
-        />
+        <v-btn color="primary" style="width: 100%" @click="search">
+          Search
+        </v-btn>
       </v-col>
     </v-row>
-    <div
-        v-show="display_filters"
-        v-for="filter in filters" :key="filter.id"
-    >
+    <div v-show="display_filters" v-for="filter in filters" :key="filter.id">
       <v-row dense align="center" justify="center">
-        <v-col cols="1"/>
+        <v-col cols="1" />
         <v-col cols="2">
           <v-autocomplete
-              solo v-model="filter.key_select" :items="Object.keys(mapping)" :key="filter.key_select"
-              dense hide-details @change="() => {filter.item_select=[]}"
+            v-model="filter.key_select"
+            :items="fieldNames"
+            :key="filter.key_select"
+            dense
+            hide-details
+            @change="updateMapping(filter)"
           ></v-autocomplete>
         </v-col>
         <v-col cols="5">
           <v-autocomplete
-              :disabled="filter.key_select == null"
-              v-model="filter.item_select"
-              :items="mapping[filter.key_select] != null ? mapping[filter.key_select]['items'] : null"
-              auto-select-first
-              chips
-              clearable
-              deletable-chips
-              multiple
-              small-chips
-              dense
-              hide-details
+            :disabled="filter.key_select == null"
+            v-model="filter.item_select"
+            :items="
+              mapping[filter.key_select] != null
+                ? mapping[filter.key_select]['items']
+                : null
+            "
+            auto-select-first
+            chips
+            clearable
+            deletable-chips
+            multiple
+            small-chips
+            dense
+            hide-details
           ></v-autocomplete>
         </v-col>
         <v-col cols="1" align="center">
@@ -103,21 +82,24 @@
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </v-col>
-        <v-spacer/>
+        <v-spacer />
       </v-row>
     </div>
   </div>
 </template>
 
 <script>
-/* eslint-disable */
-import {loadAvailableTags, loadCohortByName} from "../common/api.service";
+import {
+  loadDatasetByName,
+  loadFieldNames,
+  loadValues,
+} from "../common/api.service";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 
 export default {
   name: "Search",
   props: {
-    cohort_name: null
+    datasetName: null,
   },
   data() {
     return {
@@ -125,75 +107,67 @@ export default {
       display_filters: true,
       filters: [],
       counter: 0,
-      item_values: {},
+      fieldNames: [],
       mapping: {},
-      dialog: false
-    }
+      dialog: false,
+    };
   },
-  components: {SaveDatasetDialog},
+  components: { SaveDatasetDialog },
   methods: {
     addFilterItem(key, value) {
-      const filters = this.filters.filter(filter => filter.key_select === key)
+      const filters = this.filters.filter(
+        (filter) => filter.key_select === key
+      );
       if (
-          filters.length > 0 &&
-          filters[0].item_select.filter(item => item === value).length === 0
+        filters.length > 0 &&
+        filters[0].item_select.filter((item) => item === value).length === 0
       ) {
-        filters[0].item_select.push(value)
-        this.display_filters = true
+        filters[0].item_select.push(value);
+        this.display_filters = true;
       } else if (filters.length === 0) {
-        this.filters.push({
-          id: this.counter++,
-          key_select: key,
-          item_select: [value]
-        })
-        this.display_filters = true
+        loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
+          this.mapping[key] = res.data;
+          this.filters.push({
+            id: this.counter++,
+            key_select: key,
+            item_select: [value],
+          });
+        });
+
+        this.display_filters = true;
       }
     },
     addEmptyFilter() {
-      this.display_filters = true
+      this.display_filters = true;
       this.filters.push({
-        id: this.counter++
-      })
+        id: this.counter++,
+      });
     },
     deleteFilter(id) {
-      this.filters = this.filters.filter(filter => filter.id !== id)
-    },
-    async createCohort(name) {
-      this.dialog = false
-
-      this.$emit('saveCohort', {
-        name: name,
-        query: await this.composeQuery()
-      })
-    },
-    async updateCohort() {
-      this.$emit('updateCohort', {
-        name: this.cohort_name,
-        query: await this.composeQuery()
-      })
+      this.filters = this.filters.filter((filter) => filter.id !== id);
     },
     async composeQuery() {
       const query = {
-        "bool": {
-          "must": [
-            await this.constructCohortQuery(this.cohort_name),
-            ...(
-                this.filters.map(filter => this.queryFromFilter(filter)).filter(query => query !== null)
-            ),
+        bool: {
+          must: [
+            this.constructDatasetQuery() || "",
+            ...this.filters
+              .map((filter) => this.queryFromFilter(filter))
+              .filter((query) => query !== null),
             {
-              "query_string": {
-                "query": this.query_string || '*'
-              }
-            }
-          ]
+              query_string: {
+                query: this.query_string || "*",
+              },
+            },
+          ],
         },
-      }
-      console.log(JSON.stringify(query))
-      return JSON.stringify(query)
+      };
+      console.log(JSON.stringify(query));
+      return query;
     },
     async search(onMount = false) {
-      this.display_filters = onMount
-      this.$emit("search", await this.composeQuery())
+      this.display_filters = onMount;
+      this.$emit("search", await this.composeQuery());
       // localStorage['Dataset.search.filters'] = JSON.stringify(
       //     this.filters.map(filter => (
       //         {
@@ -204,68 +178,71 @@ export default {
       //     )
       // )
       // localStorage['Dataset.search.query_string'] = JSON.stringify(this.query_string)
-      // localStorage['Dataset.search.cohort_name'] = JSON.stringify(this.cohort_name)
+      // localStorage['Dataset.search.datasetName'] = JSON.stringify(this.datasetName)
     },
     queryFromFilter(filter) {
       if (filter.item_select && filter.item_select.length > 0) {
         return {
-          "bool": {
-            "should": filter.item_select.map(item => ({
-                  "match": {
-                    [this.mapping[filter.key_select]['key']]: item
-                  }
-                })
-            )
-          }
-        }
+          bool: {
+            should: filter.item_select.map((item) => ({
+              match: {
+                [this.mapping[filter.key_select]["key"]]: item,
+              },
+            })),
+          },
+        };
       } else {
-        return null
+        return null;
       }
     },
-    async constructCohortQuery(cohort_name = null) {
-      if (cohort_name === null)
-        return ''
-      const cohort = await loadCohortByName(cohort_name)
-      if (cohort.identifiers && cohort.identifiers.length > 0) {
+    constructDatasetQuery() {
+      if (this.dataset && this.dataset.identifiers) {
         return {
-          "ids": {
-            "values": cohort.identifiers.map(item => item['identifier'])
-          }
-        }
+          ids: {
+            values: this.dataset.identifiers,
+          },
+        };
       } else {
-        return ''
+        return null;
       }
-    }
+    },
+    async updateMapping(filter) {
+      filter.item_select = [];
+      const key = filter.key_select;
+      loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
+        this.mapping[key] = res.data;
+      });
+    },
+    async initSearch(onMount = false) {
+      this.filters = [];
+      this.dataset =
+        this.datasetName && (await loadDatasetByName(this.datasetName));
+      this.search(onMount);
+      loadFieldNames().then((res) => {
+        this.fieldNames = res.data;
+        this.mapping = Object.assign(
+          {},
+          ...this.fieldNames.map((_name) => ({
+            [_name]: { items: [], key: "" },
+          }))
+        );
+      });
+    },
   },
   async mounted() {
-    // console.log(await this.constructCohortQuery(this.cohort_name))
-    this.mapping = (await loadAvailableTags(
-        (await this.constructCohortQuery(this.cohort_name)) || {}
-    )).data
-    // if (localStorage['Dataset.search.filters']) {
-    //   this.filters = JSON.parse(localStorage['Dataset.search.filters'])
-    //   this.counter = this.filters.length
-    // }
-    // if (localStorage['Dataset.search.query_string']) {
-    //   this.query_string = JSON.parse(localStorage['Dataset.search.query_string'])
-    // }
-    await this.search(true)
+    await this.initSearch(true);
+
+    // this.filters = JSON.parse(localStorage['Dataset.search.filters'] || "[]")
+    // this.counter = this.filters.length
+    // this.query_string = JSON.parse(localStorage['Dataset.search.query_string'] || "")
+    // await this.search(true)
   },
   watch: {
-    async cohort_name() {
-
-      this.filters = []
-
-      this.mapping = (await loadAvailableTags(
-          (await this.constructCohortQuery(this.cohort_name)) || {}
-      )).data
-      console.log('watch: ' + this.cohort_name)
-      await this.search()
-    }
-  }
-}
+    async datasetName() {
+      await this.initSearch(false);
+    },
+  },
+};
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

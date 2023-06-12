@@ -8,9 +8,7 @@ import hashlib
 
 import yaml
 import secrets
-import tarfile
-import shutil
-import uuid
+import json
 
 from typing import Tuple
 from fastapi import Response
@@ -33,16 +31,9 @@ charts_hashes = {}
 
 
 def all_successful(status):
-    successfull = [
-        "completed",
-        "running",
-        "Completed",
-        "Running",
-        "deployed",
-        "Deployed",
-    ]
+    successful = ["completed", "running", "deployed"]
     for i in status:
-        if i not in successfull:
+        if type(i) is not str or i.lower() not in successful:
             return "pending"
 
     return "yes"
@@ -59,9 +50,7 @@ def sha256sum(filepath):
 
 
 def helm_search_repo(keywords_filter):
-    logger.debug(
-        "in function: helm_search_repo, with filter {0}".format(keywords_filter)
-    )
+    logger.debug(f"in function: helm_search_repo, with filter {keywords_filter}")
     global charts_cached
     keywords_filter = set(keywords_filter)
 
@@ -264,6 +253,8 @@ def helm_install(
     helm_cache_path=None,
     update_state=True,
     blocking=True,
+    platforms=False,
+    execute_cmd=True,
 ) -> Tuple[bool, str, dict, str]:
     # TODO: must be shell=False as default
     """
@@ -282,16 +273,19 @@ def helm_install(
     Returns:
         Tuple[bool, str, dict, str, str]: success, stdout, helm_result_dict, release_name, helm_command
     """
-    logger.debug(
-        "in function: helm_install with payload {0}, shell {1}".format(payload, shell)
-    )
+    logger.debug(f"in function: helm_install with {payload=}, {shell=}")
 
     helm_cache_path = helm_cache_path or settings.helm_extensions_cache
+    if platforms:
+        assert (
+            settings.helm_platforms_cache is not None
+        ), f"HELM_PLATFORMS_CACHE is not defined"
+        helm_cache_path = settings.helm_platforms_cache
 
     name = payload["name"]
     version = payload["version"]
 
-    release_values = helm_get_values(settings.release_name)
+    release_values = helm_get_values(settings.release_name, helm_namespace="default")
 
     default_sets = {}
     if "global" in release_values:
@@ -301,20 +295,22 @@ def helm_install(
     default_sets.pop("global.kaapana_collections", None)
 
     if "extension_params" in payload:
-        logger.debug(
-            "found extension_params in payload {0}".format(payload["extension_params"])
-        )
+        logger.debug(f"found extension_params in payload {payload['extension_params']}")
         for key, value in payload["extension_params"].items():
-            if (";" not in key) and (";" not in value):
+            if (";" not in key) and (";" not in str(value)):
                 default_sets.update({f"global.{key}": value})
 
     logger.debug("Using default sets")
     logger.debug(json.dumps(default_sets, indent=4, sort_keys=True))
 
     # get chart's values
-    values = helm_helper.helm_show_values(name, version)
+    values = helm_helper.helm_show_values(
+        name=name, version=version, platforms=platforms
+    )
     if "keywords" not in payload:
-        chart = helm_helper.helm_show_chart(name, version)
+        chart = helm_helper.helm_show_chart(
+            name=name, version=version, platforms=platforms
+        )
         if "keywords" in chart:
             keywords = chart["keywords"]
         else:
@@ -331,10 +327,6 @@ def helm_install(
                     for k, v in sub_dict.items():
                         default_sets[f"global.{key}[{idx}].{k}"] = v
 
-    if "kaapanamultiinstallable" in keywords:
-        multi_installable_uuid = secrets.token_hex(5)
-        default_sets["global.uuid"] = multi_installable_uuid
-
     if "sets" not in payload:
         payload["sets"] = default_sets
     else:
@@ -345,7 +337,7 @@ def helm_install(
     if "release_name" in payload:
         release_name = payload["release_name"]
     elif "kaapanamultiinstallable" in keywords:
-        release_name = f"{name}-{multi_installable_uuid}"
+        release_name = f"{name}-{secrets.token_hex(10)}"
     else:
         release_name = name
 
@@ -362,17 +354,54 @@ def helm_install(
     else:
         logger.info("No previous installations were found")
 
+    if not platforms and "global.helm_namespace" in payload["sets"]:
+        helm_namespace = payload["sets"]["global.helm_namespace"]
+
+    if platforms:
+        # current workaround for avoiding the namespace conflict
+        helm_namespace = "default"
+        helm_command_addons = ""
+        # for preinstall, set correct helm_namespace for charts
+        if (
+            "extension_params" in values
+            and "helm_namespace" in values["extension_params"]
+        ):
+            eparams = values["extension_params"]
+            payload["sets"]["global.helm_namespace"] = eparams["helm_namespace"][
+                "default"
+            ]
+
+        # for preinstall, change path folder to extensions if doesn't exist
+        curr_fpath = f"{helm_cache_path}/{name}-{version}.tgz"
+        if (
+            not os.path.exists(curr_fpath)
+            and helm_cache_path == settings.helm_platforms_cache
+        ):
+            helm_cache_path = settings.helm_extensions_cache
+
     # creating --set variables from values
     helm_sets = ""
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            value = str(value).replace(",", "\,").replace("'", "'\"'").replace(" ", "")
-            helm_sets = helm_sets + f" --set {key}='{value}'"
+            if type(value) == str:
+                value = (
+                    str(value)
+                    .replace(",", "\,")
+                    .replace("'", "'\"'")
+                    .replace(" ", "")
+                    .replace(" ", "")
+                    .replace("{", "\{")
+                    .replace("}", "\}")
+                )
+                helm_sets = helm_sets + f" --set-string {key}='{value}'"
+            else:
+                helm_sets = helm_sets + f" --set {key}='{value}'"
 
     # make the whole command
     helm_command = f"{settings.helm_path} -n {helm_namespace} install {helm_command_addons} {release_name} {helm_sets} {helm_cache_path}/{name}-{version}.tgz -o json {helm_command_suffix}"
+    if not execute_cmd:
+        return True, "", keywords, release_name, helm_command
 
-    # TODO: fix the following: currently skips check for ';' if there are any suffixes in the command, not safe
     skip_check = False
     if helm_command_suffix != "":
         skip_check = True
@@ -384,14 +413,16 @@ def helm_install(
             logger.error(
                 f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}"
             )
+    timeout = 5
+    if platforms:
+        timeout = 15
     success, stdout = helm_helper.execute_shell_command(
-        helm_command, shell=shell, blocking=blocking
+        helm_command, shell=shell, blocking=blocking, timeout=timeout
     )
 
     helm_result_dict = {}
     if blocking and success:
-        logger.debug(f"making helm_result_dict after blocking execution, {stdout=}")
-        for item in helm_helper.global_extensions_dict_cached:
+        for item in helm_helper.global_extensions_list:
             if item["releaseName"] == release_name and item["version"] == version:
                 item["successful"] = KUBE_STATUS_PENDING
         helm_result_dict = json.loads(stdout)
@@ -402,10 +433,51 @@ def helm_install(
                 extension_name=release_name,
                 extension_version=version,
                 state=schemas.ExtensionStateType.INSTALLED,
+                multiinstallable=(
+                    True if "kaapanamultiinstallable" in keywords else False
+                ),
             )
         )
 
     return success, stdout, helm_result_dict, release_name, helm_command
+
+
+async def helm_delete_cmd_run_async(release_name, version, cmd, multiinstallable):
+    success, stdout = await helm_helper.exec_shell_cmd_async(
+        cmd, shell=True, timeout=20
+    )
+
+    if success and version is not None:
+        helm_helper.update_extension_state(
+            schemas.ExtensionStateUpdate.construct(
+                extension_name=release_name,
+                extension_version=version,
+                state=schemas.ExtensionStateType.NOT_INSTALLED,
+                multiinstallable=multiinstallable,
+            )
+        )
+
+    return success, stdout
+
+
+async def helm_install_cmd_run_async(release_name, version, cmd, keywords):
+    success, stdout = await helm_helper.exec_shell_cmd_async(
+        cmd, shell=True, timeout=10
+    )
+
+    if success and version is not None:
+        helm_helper.update_extension_state(
+            schemas.ExtensionStateUpdate.construct(
+                extension_name=release_name,
+                extension_version=version,
+                state=schemas.ExtensionStateType.INSTALLED,
+                multiinstallable=(
+                    True if "kaapanamultiinstallable" in keywords else False
+                ),
+            )
+        )
+
+    return success, stdout
 
 
 def helm_delete(
@@ -414,42 +486,60 @@ def helm_delete(
     release_version=None,
     helm_command_addons="",
     update_state=True,
+    multiinstallable=False,
+    platforms=False,
+    execute_cmd=True,
 ):
-    logger.debug(f"in function: helm_delete with {release_name}")
     # release version only important for extensions charts
-    cached_extension = [
-        x
-        for x in helm_helper.global_extensions_dict_cached
-        if x["releaseName"] == release_name
-    ]
-    try:
-        if len(cached_extension) == 1:
-            ext = cached_extension[0]
-            versions = ext.available_versions
-            dep = list(versions.items())[0]
-            if release_version is not None:
-                logger.debug(
-                    "fetching version {0} in available versions {1}".format(
-                        release_version, versions
-                    )
-                )
-                dep = versions[release_version]
+    cached_extension = []
+    if platforms:
+        cached_extension = [
+            x
+            for x in helm_helper.global_platforms_list
+            if x["releaseName"] == release_name
+        ]
+    else:
+        cached_extension = [
+            x
+            for x in helm_helper.global_extensions_list
+            if x["releaseName"] == release_name
+        ]
 
-            release_name = dep.deployments[0].helm_info.name
+    if len(cached_extension) > 1:
+        logger.warning(f"Found more than one matching extensions for {release_name=}")
 
-            if ext.multiinstallable == "yes":
-                release_name = dep.deployments[0].helm_info.name
-    except Exception as e:
-        logger.error(f"Error in helm_delete {str(e)=} {cached_extension=}")
+    # if len(cached_extension) == 1:
+    #     ext = cached_extension[0]
+    #     versions = ext.available_versions
+    #     version_items = list(versions.items())
+    #     dep = None
+    #     if len(version_items) > 0:
+    #         dep = version_items[0][1]
+    #     if release_version is not None:
+    #         dep = versions[release_version]
+    #     if dep is not None:
+    #         if len(dep.deployments) > 0:
+    #             release_name = dep.deployments[0].helm_info.name
+
+    # if ext.multiinstallable == "yes":
+    #     release_name = dep.deployments[0].helm_info.name
 
     # delete version
     helm_command = f"{settings.helm_path} -n {helm_namespace} uninstall {helm_command_addons} {release_name}"
+
+    if not execute_cmd:
+        return False, helm_command
+
+    # run blocking if deleting a platform
+    timeout = 5
+    if platforms:
+        timeout = 60
     success, stdout = helm_helper.execute_shell_command(
-        helm_command, shell=True, blocking=False
+        helm_command, shell=True, blocking=platforms, timeout=timeout
     )
     if success:
         if release_version is not None:
-            for item in helm_helper.global_extensions_dict_cached:
+            for item in helm_helper.global_extensions_list:
                 if (
                     item["releaseName"] == release_name
                     and item["version"] == release_version
@@ -485,9 +575,7 @@ def helm_delete(
             for release in json_out:
                 if release["name"] == release_name:
                     logger.debug(
-                        "found the release in helm ls results, release: {0}".format(
-                            release
-                        )
+                        f"found the release in helm ls results, release: {release}"
                     )
                     found = True
                     break
@@ -501,6 +589,7 @@ def helm_delete(
                 extension_name=release_name,
                 extension_version=release_version,
                 state=schemas.ExtensionStateType.NOT_INSTALLED,
+                multiinstallable=multiinstallable,
             )
         )
 
@@ -520,7 +609,7 @@ def helm_ls(helm_namespace=settings.helm_namespace, release_filter=""):
         )
         return json.loads(resp)
     except Exception as e:
-        logger.error("Error when running helm ls: {0}".format(e))
+        logger.error(f"Error when running helm ls: {e}")
         return []
 
 
@@ -574,24 +663,18 @@ def execute_update_extensions():
     """
     logger.debug(f"in function: execute_update_extensions")
     chart = {"name": "update-collections-chart", "version": "0.0.0"}
-    logger.info(
-        "chart info for update extensions {0}, {1}".format(
-            chart["name"], chart["version"]
-        )
-    )
+    logger.info(f"chart info for update extensions {chart['name']}, {chart['version']}")
     payload = {k: chart[k] for k in ("name", "version")}
 
     install_error = False
     message = f"No kaapana_collections defined..."
     logger.info(
-        "split kaapana collections {0}".format(
-            settings.kaapana_collections.split(";")[:-1]
-        )
+        f"split kaapana collections {settings.kaapana_collections.split(';')[:-1]}"
     )
     for idx, kube_helm_collection in enumerate(
         settings.kaapana_collections.split(";")[:-1]
     ):
-        logger.debug("kube_helm_collection {0}".format(kube_helm_collection))
+        logger.debug(f"kube_helm_collection {kube_helm_collection}")
         release_name = cure_invalid_name(
             "-".join(kube_helm_collection.split("/")[-1].split(":")),
             r"[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",

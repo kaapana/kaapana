@@ -1,27 +1,34 @@
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
 from datetime import timedelta
 
 
 class DiceEvaluationOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(hours=10)
 
-    def __init__(self,
-                 dag,
-                 gt_operator,
-                 ensemble_operator=None,
-                 anonymize=True,
-                 parallel_processes=1,
-                 name="dice-evaluation",
-                 batch_name=None,
-                 env_vars={},
-                 execution_timeout=execution_timeout,
-                 **kwargs
-                 ):
-
+    def __init__(
+        self,
+        dag,
+        gt_operator,
+        ensemble_operator=None,
+        anonymize=True,
+        parallel_processes=1,
+        name="dice-evaluation",
+        batch_name=None,
+        env_vars={},
+        execution_timeout=execution_timeout,
+        **kwargs,
+    ):
         envs = {
-            "GT_IN_DIR": str(gt_operator.operator_out_dir) if gt_operator is not None else str(None),
-            "ENSEMBLE_IN_DIR": str(ensemble_operator.operator_out_dir) if ensemble_operator is not None else str(None),
+            "GT_IN_DIR": str(gt_operator.operator_out_dir)
+            if gt_operator is not None
+            else str(None),
+            "ENSEMBLE_IN_DIR": str(ensemble_operator.operator_out_dir)
+            if ensemble_operator is not None
+            else str(None),
             "ANONYMIZE": str(anonymize),
             "THREADS": str(parallel_processes),
         }
@@ -37,5 +44,5 @@ class DiceEvaluationOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             ram_mem_mb=6200,
             ram_mem_mb_lmt=150000,
-            **kwargs
+            **kwargs,
         )

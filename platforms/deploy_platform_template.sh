@@ -25,7 +25,7 @@ PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
 CHART_PATH=""
 NO_HOOKS=""
 ENABLE_NFS=false
-OFFLINE_MODE="false"
+OFFLINE_MODE=false
 
 INSTANCE_UID=""
 SERVICES_NAMESPACE="{{ services_namespace }}"
@@ -35,10 +35,17 @@ EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 SECURITY_NAMESPACE="{{ security_namespace }}"
 
+OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
+
 INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
+if [ "$DEV_MODE" == "true" ]; then
+    KAAPANA_INIT_PASSWORD="kaapana"
+else
+    KAAPANA_INIT_PASSWORD="Kaapana2020!"
+fi
 
 CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
 CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
@@ -47,7 +54,7 @@ GRAFANA_USERNAME="{{ credentials_grafana_username|default('admin', true) }}"
 GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
 
 KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
-KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}"
+KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
 
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -55,6 +62,12 @@ SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the s
 HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
 HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
+
+VERSION_IMAGE_COUNT="20"
+DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
+MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
+
+INSTANCE_NAME="{{ instance_name|default('') }}"
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
@@ -205,7 +218,10 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
-    helm -n $HELM_NAMESPACE ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+    for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+        helm -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+    done
+
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -221,10 +237,21 @@ function delete_deployment {
             echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
         fi
     done
+    if [ ! "$QUIET" = "true" ];then
+        while true; do
+            read -e -p "Do you also want to remove all Persistent Volumes in the cluster (kubectl delete pv --all)?" -i " yes" yn
+            case $yn in
+                [Yy]* ) echo -e "${GREEN}Removing all pvs from cluster ...${NC}" && microk8s.kubectl delete pv --all; break;;
+                [Nn]* ) echo -e "${YELLOW}Skipping pv removal ...{NC}"; break;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    else
+        echo -e "${YELLOW}QUIET-MODE active!${NC}"
+        echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
+        microk8s.kubectl delete pv --all
+    fi
     
-    echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
-    microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
-
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
@@ -251,7 +278,7 @@ function nuke_pods {
 
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE $HELM_NAMESPACE;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE; # $HELM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -279,6 +306,11 @@ function deploy_chart {
 
     get_domain
     
+    if [ -z "$INSTANCE_NAME"]; then
+        INSTANCE_NAME=$DOMAIN
+        echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
+    fi
+
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -322,32 +354,36 @@ function deploy_chart {
             exit 1
         fi
 
-        while true; do
-        echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
-            read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
-                case $yn in
-                    [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
-                    [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
-                    * ) echo "Please answer yes or no.";;
-                esac
-        done
+        if [ ! "$QUIET" = "true" ];then
+            while true; do
+            echo -e "${YELLOW}You are deploying the platform in offline mode!${NC}"
+                read -p "${YELLOW}Please confirm that you are sure that all images are present in microk8s (yes/no): ${NC}" yn
+                    case $yn in
+                        [Yy]* ) echo "${GREEN}Confirmed${NC}"; break;;
+                        [Nn]* ) echo "${RED}Cancel${NC}"; exit;;
+                        * ) echo "Please answer yes or no.";;
+                    esac
+            done
+        else
+            echo -e "${GREEN}QUIET: true -> SKIP USER INPUT ${NC}";
+        fi
 
         echo -e "${YELLOW}Checking available images with version: $PLATFORM_VERSION ${NC}"
         set +e
         PRESENT_IMAGE_COUNT=$( microk8s.ctr images ls | grep $PLATFORM_VERSION | wc -l)
         set -e
         echo -e "${YELLOW}PRESENT_IMAGE_COUNT: $PRESENT_IMAGE_COUNT ${NC}"
-        if [ "$PRESENT_IMAGE_COUNT" -lt "20" ];then
+        if [ "$PRESENT_IMAGE_COUNT" -lt "$VERSION_IMAGE_COUNT" ];then
             echo -e "${RED}There are only $PRESENT_IMAGE_COUNT present with the version $PLATFORM_VERSION - there seems to be an issue. ${NC}"
             exit 1
         else
             echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
         fi
 
-        OFFLINE_MODE="true"
+        OFFLINE_MODE=true
         DEV_MODE="false"
         PULL_POLICY_IMAGES="IfNotPresent"
-        PREFETCH_EXTENSIONS="false"
+        PREFETCH_EXTENSIONS=false
 
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
@@ -387,8 +423,9 @@ function deploy_chart {
     --set-string global.security_namespace=$SECURITY_NAMESPACE \
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
-    --set-string global.helm_namespace="$HELM_NAMESPACE" \
+    --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
     --set global.enable_nfs=$ENABLE_NFS \
+    --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
@@ -396,20 +433,25 @@ function deploy_chart {
     --set-string global.http_proxy="$http_proxy" \
     --set-string global.https_port="$HTTPS_PORT" \
     --set-string global.https_proxy="$https_proxy" \
-    --set-string global.offline_mode="$OFFLINE_MODE" \
-    --set-string global.prefetch_extensions="$PREFETCH_EXTENSIONS" \
+    --set global.offline_mode=$OFFLINE_MODE \
+    --set global.prefetch_extensions=$PREFETCH_EXTENSIONS \
     --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
     --set-string global.pull_policy_jobs="$PULL_POLICY_IMAGES" \
     --set-string global.pull_policy_pods="$PULL_POLICY_IMAGES" \
     --set-string global.registry_url="$CONTAINER_REGISTRY_URL" \
     --set-string global.release_name="$PLATFORM_NAME" \
+    --set-string global.deployment_timestamp="$DEPLOYMENT_TIMESTAMP" \
+    --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
+    --set-string global.instance_name="$INSTANCE_NAME" \
+    --set-string global.dev_mode="$DEV_MODE" \
+    --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
-    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.1.3
+    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
     fi
@@ -480,7 +522,7 @@ function print_deployment_done {
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
         echo -e "username: kaapana"
-        echo -e "password: kaapana ${NC}"
+        echo -e "password: ${KAAPANA_INIT_PASSWORD} ${NC}"
     fi
 }
 

@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as build
+FROM docker.io/ubuntu:20.04 as build
 
 LABEL IMAGE="ctp"
 LABEL VERSION="0.1.3"
@@ -36,7 +36,7 @@ RUN cd ./build/kaapana-dag-trigger \
 ###############################           2nd STAGE           ###############################
 #############################################################################################
 
-FROM ubuntu:20.04
+FROM docker.io/ubuntu:20.04
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre \

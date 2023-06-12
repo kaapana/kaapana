@@ -6,30 +6,37 @@ Deployment Server Config
 Proxy
 -----
 
-If you need to configure a proxy in your institution to access internet, you can do this as following:
+If you need to configure a proxy in your institution to access the internet, you can do this as follows:
 
-| Open **/etc/environment** with vi insert:
+#. Open **/etc/environment** on your deployment server:
 
-| http\_proxy="your.proxy.url:port"
-| https\_proxy="your.proxy.url:port"
+    :code:`nano /etc/environment`
 
-| HTTP\_PROXY="your.proxy.url:port"
-| HTTPS\_PROXY="your.proxy.url:port"
+#. Insert the proxy variables for the proxy in your institution
 
-::
+    :: 
 
-    logout
+        http_proxy="your.proxy.url:port"
+        https_proxy="your.proxy.url:port"
+        HTTP_PROXY="your.proxy.url:port"
+        HTTPS_PROXY="your.proxy.url:port"
 
-Login again
 
-::
+#. Logout :code:`logout` and login again
 
-    ping www.dkfz-heidelberg.de 
 
-Should work -> network connection is working
+#. Your network connection is working if you can reach the dkfz website or any other website:
 
-SSL/TLS Certificates
---------------------
+    :code:`curl www.dkfz-heidelberg.de`
+
+.. SSL/TLS Certificates
+.. --------------------
 
 Custom DNS Server
 -----------------
+
+    You can configure a custom DNS :code:`my.custom.dns` by executing:
+
+    :code:`sed -i 's/DNS=""/DNS="my.custom.dns"/' ./kaapana/server-installation/server_installation.sh`
+    
+    If not set manually, the DNS will be configured according to system information.

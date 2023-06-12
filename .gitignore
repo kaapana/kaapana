@@ -1,6 +1,8 @@
 node_modules
 build
+security-reports
 venv
+security-reports/*.json
 tmpcharts
 migrations
 .ipynb_checkpoints
@@ -17,8 +19,12 @@ __pycache__
 *.spyproject
 *.pyc
 *.lock
+# https://classic.yarnpkg.com/lang/en/docs/yarn-lock/#toc-check-into-source-control
+!yarn.lock
 *.tgz
 ## Linux
 *~
 history
 build-scripts/build-config.yaml
+.direnv/
+.envrc

@@ -2,15 +2,18 @@ from enum import IntEnum
 from typing import Union, List, Dict
 from pydantic import BaseModel
 
+
 class BaseModelExtended(BaseModel):
     """
     BaseModel that is subscriptable and supports item assignment
     """
+
     def __getitem__(self, item):
         return getattr(self, item)
 
     def __setitem__(self, key, value):
         return setattr(self, key, value)
+
 
 class HelmInfo(BaseModelExtended):
     app_version: str
@@ -61,7 +64,7 @@ class KaapanaExtension(BaseModelExtended):
     chart_name: str
     description: str
     experimental: str  # TODO: make bool
-    extension_params: Union[Dict, None] 
+    extension_params: Union[Dict, None]
     helmStatus: Union[str, None]  # TODO: name should be snake case
     installed: str  # TODO: name should be snake case
     keywords: List[str]
@@ -95,6 +98,7 @@ class ExtensionStateUpdate(BaseModelExtended):
     extension_name: str
     extension_version: str
     state: ExtensionStateType
+    multiinstallable: bool
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -103,10 +107,12 @@ class ExtensionStateUpdate(BaseModelExtended):
 class ExtensionState(BaseModelExtended):
     extension_name: str
     extension_version: str
+    releaseName: str
     state: ExtensionStateType
     update_time: int
     last_read_time: int
     recently_updated: bool
+    multiinstallable: bool
 
     def __getitem__(self, item):
         return getattr(self, item)

@@ -8,7 +8,7 @@ conf_data:
     port: 11112
     single_execution: false
   data_form:
-    cohort_name: testCT
-    cohort_limit: 2
+    dataset_name: testCT
+    dataset_limit: 2
 remote: false
 username: "kaapana"

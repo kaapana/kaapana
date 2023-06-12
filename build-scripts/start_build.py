@@ -171,7 +171,7 @@ if __name__ == "__main__":
         dest="configuration_check",
         default=None,
         action="store_true",
-        help="Wheter the Charts, deployments, dockerfiles etc. should be checked for configuration errors",
+        help="Whether the Charts, deployments, dockerfiles etc. should be checked for configuration errors",
     )
     parser.add_argument(
         "-ccl",
@@ -181,7 +181,14 @@ if __name__ == "__main__":
         action="store_true",
         help="Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN.",
     )
-    parser.add_argument("-sbom", "--create-sboms", dest="create_sboms", default=None, action="store_true", help="Create Software Bill of Materials (SBOMs) for the built containers.")
+    parser.add_argument(
+        "-sbom",
+        "--create-sboms",
+        dest="create_sboms",
+        default=None,
+        action="store_true",
+        help="Create Software Bill of Materials (SBOMs) for the built containers.",
+    )
     parser.add_argument(
         "-is",
         "--enable-image-stats",
@@ -407,7 +414,11 @@ if __name__ == "__main__":
         if "enable_image_stats" in configuration
         else template_configuration["enable_image_stats"]
     )
-    conf_create_sboms = configuration["create_sboms"] if "create_sboms" in configuration else template_configuration["create_sboms"]
+    conf_create_sboms = (
+        configuration["create_sboms"]
+        if "create_sboms" in configuration
+        else template_configuration["create_sboms"]
+    )
 
     registry_user = (
         args.username if args.username is not None else conf_registry_username
@@ -632,7 +643,7 @@ if __name__ == "__main__":
     BuildUtils.configuration_check_severity_level = configuration_check_severity_level
     BuildUtils.version_latest = version_latest
     BuildUtils.enable_image_stats = enable_image_stats
-    BuildUtils.create_sboms=create_sboms
+    BuildUtils.create_sboms = create_sboms
 
     Container.init_containers(
         container_engine=container_engine,
@@ -674,7 +685,7 @@ if __name__ == "__main__":
         logger.info("-----------------------------------------------------------")
         logger.info("")
         for chart_object in BuildUtils.platform_filter:
-            trivy_utils = TrivyUtils()
+            trivy_utils = TrivyUtils(tag=BuildUtils.platform_repo_version)
             trivy_utils.check_chart(
                 path_to_chart=os.path.join(BuildUtils.build_dir, chart_object)
             )

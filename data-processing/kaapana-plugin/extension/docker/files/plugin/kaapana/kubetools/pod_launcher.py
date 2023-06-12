@@ -27,6 +27,7 @@ from airflow import AirflowException
 from requests.exceptions import HTTPError
 from kaapana.kubetools.kube_client import get_kube_client
 from kaapana.kubetools.pod_stopper import PodStopper
+from pathlib import Path
 
 # NONE = None
 # REMOVED = "removed"
@@ -56,40 +57,58 @@ from kaapana.kubetools.pod_stopper import PodStopper
 # Tasks in the SCHEDULED state are sent to the executor, at which point it is put into the QUEUED state until it actually runs.
 # Unfortunately a race condition remains for UP_FOR_RETRY tasks as another scheduler can pick those up. To eliminate this the check for UP_FOR_RETRY needs to migrate from the TI to the scheduler. However, was it not for that fact that we have backfills... (see below)
 
+schedule_lockfile = Path("/kaapana/mounted/schedule_stop.lock")
 
 class PodStatus(object):
-    PENDING = 'pending'
-    RUNNING = 'running'
-    FAILED = 'failed'
-    SUCCEEDED = 'succeeded'
+    PENDING = "pending"
+    RUNNING = "running"
+    FAILED = "failed"
+    SUCCEEDED = "succeeded"
 
 
 class PodLauncher(LoggingMixin):
     pod_stopper = PodStopper()
 
-    def __init__(self, kube_client=None, in_cluster=True, cluster_context=None,
-                 extract_xcom=False):
+    def __init__(
+        self,
+        kube_client=None,
+        in_cluster=True,
+        cluster_context=None,
+        extract_xcom=False,
+    ):
         super(PodLauncher, self).__init__()
-        self._client, self._batch_client, self._extensions_client = kube_client or get_kube_client(in_cluster=in_cluster,
-                                                                                                   cluster_context=cluster_context)
+        (
+            self._client,
+            self._batch_client,
+            self._extensions_client,
+        ) = kube_client or get_kube_client(
+            in_cluster=in_cluster, cluster_context=cluster_context
+        )
         self._watch = watch.Watch()
         self.extract_xcom = extract_xcom
 
     def run_pod_async(self, pod):
         req = pod.get_kube_object()
-        self.log.debug('Pod Creation Request: \n%s', json.dumps(req.to_dict(), indent=2))
+        self.log.debug(
+            "Pod Creation Request: \n%s", json.dumps(req.to_dict(), indent=2)
+        )
         try:
             if pod.kind == "Pod":
-                resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace)
+                resp = self._client.create_namespaced_pod(
+                    body=req, namespace=pod.namespace
+                )
             elif pod.kind == "Job":
-                resp = self._batch_client.create_namespaced_job(body=req, namespace=pod.namespace)
-            self.log.debug('Pod Creation Response: %s', resp)
+                resp = self._batch_client.create_namespaced_job(
+                    body=req, namespace=pod.namespace
+                )
+            self.log.debug("Pod Creation Response: %s", resp)
         except ApiException:
-            self.log.exception('Exception when attempting to create Namespaced Pod.')
+            self.log.exception("Exception when attempting to create Namespaced Pod.")
             raise
         return resp
 
     def run_pod(self, pod, startup_timeout=360, heal_timeout=360, get_logs=True):
+        global schedule_lockfile_path
         # type: (Pod) -> (State, result)
         """
         Launches the pod synchronously and waits for completion.
@@ -100,60 +119,107 @@ class PodLauncher(LoggingMixin):
         """
 
         try:
-            resp = self._client.read_namespaced_pod(name=pod.name,namespace=pod.namespace)
-            self.log.debug('Pod already exists, we will delete it and then start your pod.')
+            resp = self._client.read_namespaced_pod(
+                name=pod.name, namespace=pod.namespace
+            )
+            self.log.debug(
+                "Pod already exists, we will delete it and then start your pod."
+            )
             PodLauncher.pod_stopper.stop_pod_by_name(pod_id=resp.metadata.name)
         except ApiException as e:
             if e.status != 404:
                 raise
 
         resp = self.run_pod_async(pod)
-        curr_time = dt.now()
+        start_time = dt.now()
 
         last_status = None
         return_msg = None
-        pull_time_reset = 0
+        start_time_reset = 0
+        locked_scheduling = False
 
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
                 if last_status != pod.last_kube_status:
                     pull_image = False
                     last_status = pod.last_kube_status
-                    if pod.last_kube_status == "NONE" or pod.last_kube_status == None or pod.last_kube_status == "UNKNOWN":
-                        self.log.error("Pod has status {} -> This is unexpected and treated as an fatal error!".format(pod.last_kube_status))
+                    if (
+                        pod.last_kube_status == "NONE"
+                        or pod.last_kube_status == None
+                        or pod.last_kube_status == "UNKNOWN"
+                    ):
+                        self.log.error(
+                            "Pod has status {} -> This is unexpected and treated as an fatal error!".format(
+                                pod.last_kube_status
+                            )
+                        )
                         self.log.error("ABORT!")
                         exit(1)
 
-                    elif pod.last_kube_status == "PENDING" or pod.last_kube_status == "ContainerCreating":
-                        self.log.debug("Pod has status {} -> waiting...!".format(pod.last_kube_status))
+                    elif (
+                        pod.last_kube_status == "PENDING"
+                        or pod.last_kube_status == "ContainerCreating"
+                    ):
+                        self.log.debug(
+                            "Pod has status {} -> waiting...!".format(
+                                pod.last_kube_status
+                            )
+                        )
                         pull_image = True
 
                     if pod.last_kube_status == "UNSCHEDULABLE":
-                        self.log.warning("Pod has status {} -> Problems with POD-Quotas!".format(pod.last_kube_status))
+                        self.log.warning(
+                            f"Pod has status {pod.last_kube_status} -> Problems with POD-Quotas!"
+                        )
                         self.log.warning("Pod should not have been scheduled...")
-                        self.log.warning("-> waiting")
+                        self.log.warning("-> waiting & locking scheduling!")
+                        start_time_reset += 1
+                        start_time = dt.now()
+                        schedule_lockfile.touch()
 
                     elif pod.last_kube_status == "ErrImagePull":
-                        self.log.warning("Pod has status {} -> Problems with pulling the container image from the registry!".format(pod.last_kube_status))
+                        self.log.warning(
+                            "Pod has status {} -> Problems with pulling the container image from the registry!".format(
+                                pod.last_kube_status
+                            )
+                        )
                         self.log.warning("Image: {}".format(pod.image))
                         self.log.warning("-> waiting")
 
                     elif pod.last_kube_status == "FAILED":
-                        self.log.error("Pod has status {} -> Something went wrong within the container!".format(pod.last_kube_status))
+                        self.log.error(
+                            "Pod has status {} -> Something went wrong within the container!".format(
+                                pod.last_kube_status
+                            )
+                        )
 
                     elif pod.last_kube_status == "RUNNING":
-                        self.log.debug("Pod has status {} -> container still running.".format(pod.last_kube_status))
+                        self.log.debug(
+                            "Pod has status {} -> container still running.".format(
+                                pod.last_kube_status
+                            )
+                        )
+                        schedule_lockfile.unlink(missing_ok=True)
 
-
-                delta = dt.now() - curr_time
-                if delta.seconds >= startup_timeout and pull_image and pull_time_reset <= 3:
-                    pull_time_reset += 1
-                    self.log.warning("Pod is still downloading the container! -> reset startup-timeout! counter: {}".format(pull_time_reset))
-                    curr_time = dt.now()
+                delta = dt.now() - start_time
+                if (
+                    delta.seconds >= startup_timeout
+                    and pull_image
+                    and start_time_reset <= 3
+                ):
+                    start_time_reset += 1
+                    self.log.warning(
+                        f"Pod is still downloading the container! -> reset startup-timeout! counter: {start_time_reset}"
+                    )
+                    start_time = dt.now()
                     continue
 
                 if delta.seconds >= startup_timeout:
-                    self.log.exception('Pod took too long to start! startup_timeout: {}'.format(startup_timeout))
+                    self.log.exception(
+                        "Pod took too long to start! startup_timeout: {}".format(
+                            startup_timeout
+                        )
+                    )
                     return_msg = ("No message", pod.last_kube_status)
                     break
                     # raise AirflowException("Pod took too long to start")
@@ -178,7 +244,8 @@ class PodLauncher(LoggingMixin):
                     container=_pod.spec.containers[0].name,
                     follow=True,
                     tail_lines=10,
-                    _preload_content=False)
+                    _preload_content=False,
+                )
                 for log in logs:
                     self.log.info(log)
                     # log = log.decode("utf-8").replace("\n","").split("\\n")
@@ -188,23 +255,29 @@ class PodLauncher(LoggingMixin):
             result = None
             if self.extract_xcom:
                 while self.base_container_is_running(pod):
-                    self.log.info('Container %s has state %s', pod.name, State.RUNNING)
+                    self.log.info("Container %s has state %s", pod.name, State.RUNNING)
                     time.sleep(2)
                 result = self._extract_xcom(pod)
                 self.log.info(result)
                 result = json.loads(result)
             while self.pod_is_running(pod):
-                self.log.debug('Pod %s has state %s', pod.name, State.RUNNING)
+                self.log.debug("Pod %s has state %s", pod.name, State.RUNNING)
                 time.sleep(2)
             return (self._task_status(pod=pod, event=self.read_pod(pod)), result)
         except Exception as e:
-            self.log.warn(f"################# ISSUE! Could not _monitor_pod: {pod}")
+            self.log.warn(
+                f"################# ISSUE! Could not _monitor_pod: {pod.metadata.name}"
+            )
             self.log.warn(f"################# ISSUE! message: {e}")
 
     def _task_status(self, pod, event):
         af_status, kube_status = self.process_status(event=event, pod=pod)
         if kube_status != pod.last_kube_status:
-            self.log.info('############## Container: %s had an event of type %s', event.metadata.name, kube_status)
+            self.log.info(
+                "############## Container: %s had an event of type %s",
+                event.metadata.name,
+                kube_status,
+            )
         pod.last_kube_status = kube_status
         pod.last_af_status = af_status
         return af_status
@@ -219,7 +292,10 @@ class PodLauncher(LoggingMixin):
 
     def base_container_is_running(self, pod):
         event = self.read_pod(pod)
-        status = next(iter(filter(lambda s: s.name == 'base', event.status.container_statuses)), None)
+        status = next(
+            iter(filter(lambda s: s.name == "base", event.status.container_statuses)),
+            None,
+        )
         return status.state.running is not None
 
     def read_pod(self, pod):
@@ -227,37 +303,53 @@ class PodLauncher(LoggingMixin):
             if pod.kind == "Pod":
                 return self._client.read_namespaced_pod(pod.name, pod.namespace)
             elif pod.kind == "Job":
-                job_name = self._batch_client.read_namespaced_job(pod.name, pod.namespace).metadata._name
+                job_name = self._batch_client.read_namespaced_job(
+                    pod.name, pod.namespace
+                ).metadata._name
                 pod_list = self._client.list_namespaced_pod(namespace=pod.namespace)
                 for pod_running in pod_list.items:
-                    if "job-name" in pod_running.metadata._labels and pod_running.metadata._labels['job-name'] == job_name:
+                    if (
+                        "job-name" in pod_running.metadata._labels
+                        and pod_running.metadata._labels["job-name"] == job_name
+                    ):
                         return pod_running
             return self._client.read_namespaced_pod(pod.name, pod.namespace)
 
         except HTTPError as e:
-            raise AirflowException(f'There was an error reading the kubernetes API: {e}')
+            raise AirflowException(
+                f"There was an error reading the kubernetes API: {e}"
+            )
 
     def _extract_xcom(self, pod):
-        resp = kubernetes_stream(self._client.connect_get_namespaced_pod_exec,
-                                 pod.name, pod.namespace,
-                                 container=self.kube_req_factory.SIDECAR_CONTAINER_NAME,
-                                 command=['/bin/sh'], stdin=True, stdout=True,
-                                 stderr=True, tty=False,
-                                 _preload_content=False)
+        resp = kubernetes_stream(
+            self._client.connect_get_namespaced_pod_exec,
+            pod.name,
+            pod.namespace,
+            container=self.kube_req_factory.SIDECAR_CONTAINER_NAME,
+            command=["/bin/sh"],
+            stdin=True,
+            stdout=True,
+            stderr=True,
+            tty=False,
+            _preload_content=False,
+        )
         try:
             result = self._exec_pod_command(
-                resp, 'cat {}/return.json'.format(self.kube_req_factory.XCOM_MOUNT_PATH))
-            self._exec_pod_command(resp, 'kill -s SIGINT 1')
+                resp, "cat {}/return.json".format(self.kube_req_factory.XCOM_MOUNT_PATH)
+            )
+            self._exec_pod_command(resp, "kill -s SIGINT 1")
         finally:
             resp.close()
         if result is None:
-            raise AirflowException('Failed to extract xcom from pod: {}'.format(pod.name))
+            raise AirflowException(
+                "Failed to extract xcom from pod: {}".format(pod.name)
+            )
         return result
 
     def _exec_pod_command(self, resp, command):
         if resp.is_open():
-            self.log.info('Running command... %s\n' % command)
-            resp.write_stdin(command + '\n')
+            self.log.info("Running command... %s\n" % command)
+            resp.write_stdin(command + "\n")
             while resp.is_open():
                 resp.update(timeout=1)
                 if resp.peek_stdout():
@@ -285,7 +377,15 @@ class PodLauncher(LoggingMixin):
                     message = state_terminated.message
                     reason = state_terminated.reason
                     signal = state_terminated.signal
-                    if exit_code != 0:
+                    if exit_code == 126:
+                        self.log.warn("")
+                        self.log.warn("######## Container Skip !!")
+                        self.log.warn("")
+
+                        af_status = State.SKIPPED
+                        kube_status = "SKIPPED"
+
+                    elif exit_code != 0:
                         self.log.warn("")
                         self.log.warn("######## Container Error !!")
                         self.log.warn("")
@@ -299,16 +399,23 @@ class PodLauncher(LoggingMixin):
                         kube_status = "SUCCESS"
 
                 elif state_waiting is not None:
-                    if state_waiting.reason == 'ErrImagePull' or state_waiting.reason == 'ImagePullBackOff':
+                    if (
+                        state_waiting.reason == "ErrImagePull"
+                        or state_waiting.reason == "ImagePullBackOff"
+                    ):
                         af_status = State.QUEUED
                         kube_status = "ErrImagePull"
 
-                    elif state_waiting.reason == 'ContainerCreating':
+                    elif state_waiting.reason == "ContainerCreating":
                         kube_status = "ContainerCreating"
                         af_status = State.QUEUED
 
                     else:
-                        self.log.info("#################### Container not running - reason: {}".format(state_waiting.reason))
+                        self.log.info(
+                            "#################### Container not running - reason: {}".format(
+                                state_waiting.reason
+                            )
+                        )
 
                 elif state_running is not None:
                     af_status = State.RUNNING
@@ -323,7 +430,9 @@ class PodLauncher(LoggingMixin):
                     self.log.warning("container_name: {}".format(container_name))
                     self.log.warning("container_image: {}".format(container_image))
                     self.log.warning("container_ready: {}".format(container_ready))
-                    self.log.warning("container_restart_count: {}".format(container_restart_count))
+                    self.log.warning(
+                        "container_restart_count: {}".format(container_restart_count)
+                    )
                     self.log.warning("state_running: {}".format(state_running))
                     self.log.warning("state_terminated: {}".format(state_terminated))
                     self.log.warning("state_waiting: {}".format(state_waiting))
@@ -331,9 +440,17 @@ class PodLauncher(LoggingMixin):
                     kube_status = "UNKNOWN"
 
         elif event.status.phase == "Pending":
-            if event.status.conditions != None and len(event.status.conditions) != 0 and event.status.conditions[0].reason == "Unschedulable":
+            if (
+                event.status.conditions != None
+                and len(event.status.conditions) != 0
+                and event.status.conditions[0].reason == "Unschedulable"
+            ):
                 if pod.last_kube_status != "UNSCHEDULABLE":
-                    self.log.warning("Insufficient quota: {}".format(event.status.conditions[0].message))
+                    self.log.warning(
+                        "Insufficient quota: {}".format(
+                            event.status.conditions[0].message
+                        )
+                    )
                 af_status = State.SCHEDULED
                 kube_status = "UNSCHEDULABLE"
             else:

@@ -1,8 +1,7 @@
-alembic==1.7.6
+alembic==1.10.2 
 asyncio==3.4.3
-cryptography==3.4.8
 opensearch-py==2.0.0
-fastapi==0.73.0
+fastapi==0.95.0
 gunicorn==20.1.0
 httpx==0.22.0
 minio==7.1.2
@@ -12,5 +11,6 @@ psycopg2-binary==2.9.3
 python-keycloak==2.9.0
 python-multipart==0.0.5
 pytest==7.0.0
-requests==2.27.1
+requests-cache==1.0.1
 SQLAlchemy==1.4.31
+dicom_parser==1.2.3

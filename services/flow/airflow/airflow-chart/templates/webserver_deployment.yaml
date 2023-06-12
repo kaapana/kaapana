@@ -74,6 +74,10 @@ spec:
           value: "{{ .Values.global.jobs_namespace }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
+        - name: MINIOUSER
+          value: "{{ .Values.global.credentials_minio_username }}"
+        - name: MINIOPASSWORD
+          value: "{{ .Values.global.credentials_minio_password }}"
         - name: PULL_POLICY_IMAGES
           value: "{{ .Values.global.pull_policy_images }}"
         - name: SERVICES_NAMESPACE
@@ -96,6 +100,8 @@ spec:
           mountPath: /kaapana/mounted/workflows/plugins
         - name: airflow-dags
           mountPath: /kaapana/mounted/workflows/dags
+        - name: modeldata
+          mountPath: /kaapana/mounted/workflows/models
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5
@@ -124,6 +130,9 @@ spec:
       - name: airflow-plugins
         persistentVolumeClaim:
           claimName: af-plugins-pv-claim
+      - name: modeldata
+        persistentVolumeClaim:
+          claimName: models-pv-claim
       # - name: airflow-statsd-config
       #   configMap:
       #     name: airflow-statsd-config
@@ -142,6 +151,7 @@ spec:
       # - name: dicomdir
       #   persistentVolumeClaim:
       #     claimName: dcm4chee-dicom-pv-claim
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret
 ---

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: postgres-keycloak-container
-          image: "{{ .Values.global.registry_url }}/postgres-9.5-alpine:{{ .Values.global.kaapana_build_version  }}"
+          image: "{{ .Values.global.registry_url }}/postgres-15.2-alpine:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           env:
             - name: PGDATA
@@ -41,5 +41,6 @@ spec:
       - name: postgresdata
         persistentVolumeClaim:
           claimName: keycloak-pv-claim
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

@@ -1,7 +1,11 @@
 ---
 global:
-    registry_url: ""
-    pull_policy_images: "IfNotPresent"
-    base_namespace: "base"
-    fast_data_dir: "/home/kaapana"
+  registry_url: ""
+  pull_policy_images: "IfNotPresent"
+  base_namespace: "base"
+  fast_data_dir: "/home/kaapana"
+  namespace: "{{ .Values.global.services_namespace }}"
+  dynamicVolumes:
+  - name: hello-postgres
+    host_path: /postgres-hello
 hello_world_user: "Congratulation, you made it!"

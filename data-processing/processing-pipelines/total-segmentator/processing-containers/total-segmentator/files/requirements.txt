@@ -1,1 +1,2 @@
-TotalSegmentator==1.5.2
+TotalSegmentator==1.5.5
+cucim==23.2.0

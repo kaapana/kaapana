@@ -1,7 +1,5 @@
 ---
 dependencies:
-  - name: error-pages-chart
-    version: 0.0.0
   - name: keycloak-chart
     version: 0.0.0
   - name: kube-dashboard-chart
@@ -15,8 +13,15 @@ dependencies:
   - name: nfs-server-chart
     version: 0.0.0
     condition: global.enable_nfs
-  - name: kaapana-platform-chart
+  - name: maintenance-page-chart
+    version: 0.0.0
+  - name: kube-helm-chart
     version: 0.0.0
   - name: keycloak-init-chart
     version: 0.0.0
-  
+  - name: kaapana-library-chart
+    version: 0.0.0
+  - name: auth-backend-chart
+    version: 0.0.0
+  - name: admin-namespace
+    version: 0.0.0

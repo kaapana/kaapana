@@ -2,9 +2,10 @@ import json
 import os
 from glob import glob
 from os.path import join, basename, dirname, normpath, exists
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 
-def get_dataset_json(model_path, installed_task):
+def _get_dataset_json(model_path, installed_task):
     dataset_json_path = join(model_path, installed_task, "**", "dataset.json")
     dataset_json_path = glob(dataset_json_path, recursive=True)
     if len(dataset_json_path) > 0 and exists(dataset_json_path[-1]):
@@ -46,47 +47,115 @@ def get_dataset_json(model_path, installed_task):
 
     return dataset_json
 
-def get_available_pretrained_tasks(af_home_path):
+
+def _get_available_pretrained_tasks(af_home_path):
     tasks_json_path = join(af_home_path, "dags", "nnunet", "nnunet_tasks.json")
     with open(tasks_json_path) as f:
         tasks = json.load(f)
-    available_pretrained_task_names = [*{k: v for (k, v) in tasks.items() if "supported" in tasks[k] and tasks[k]["supported"]}]
+    available_pretrained_task_names = [
+        *{
+            k: v
+            for (k, v) in tasks.items()
+            if "supported" in tasks[k] and tasks[k]["supported"]
+        }
+    ]
     return tasks, available_pretrained_task_names
 
-def get_installed_tasks(af_home_path):
+
+def _get_installed_tasks(af_home_path):
     installed_tasks = {}
-    installed_models_path = join("/models", "nnUNet")
+    installed_models_path = join("/kaapana/mounted/workflows/models", "nnUNet")
     if not exists(installed_models_path):
         return installed_tasks
-    installed_models = [basename(normpath(f.path)) for f in os.scandir(installed_models_path) if f.is_dir() and "ensembles" not in f.name]
+    installed_models = [
+        basename(normpath(f.path))
+        for f in os.scandir(installed_models_path)
+        if f.is_dir() and "ensembles" not in f.name
+    ]
     for installed_model in installed_models:
         model_path = join(installed_models_path, installed_model)
-        installed_tasks_dirs = [basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()]
+        installed_tasks_dirs = [
+            basename(normpath(f.path)) for f in os.scandir(model_path) if f.is_dir()
+        ]
         for installed_task in installed_tasks_dirs:
             if installed_task not in installed_tasks:
-                dataset_json = get_dataset_json(model_path=model_path, installed_task=installed_task)
+                dataset_json = _get_dataset_json(
+                    model_path=model_path, installed_task=installed_task
+                )
                 installed_tasks[installed_task] = {
-                    "description": dataset_json["description"] if "description" in dataset_json else "N/A",
+                    "description": dataset_json["description"]
+                    if "description" in dataset_json
+                    else "N/A",
                     "model": [],
-                    "input-mode": dataset_json["input-mode"] if "input-mode" in dataset_json else "all",
+                    "input-mode": dataset_json["input-mode"]
+                    if "input-mode" in dataset_json
+                    else "all",
                     "input": dataset_json["input"],
-                    "body_part": dataset_json["body_part"] if "body_part" in dataset_json else "N/A",
+                    "body_part": dataset_json["body_part"]
+                    if "body_part" in dataset_json
+                    else "N/A",
                     "targets": dataset_json["targets"],
                     "supported": True,
                     "info": dataset_json["info"] if "info" in dataset_json else "N/A",
                     "url": dataset_json["url"] if "url" in dataset_json else "N/A",
-                    "task_url": dataset_json["task_url"] if "task_url" in dataset_json else "N/A"
+                    "task_url": dataset_json["task_url"]
+                    if "task_url" in dataset_json
+                    else "N/A",
                 }
             if installed_model not in installed_tasks[installed_task]["model"]:
                 installed_tasks[installed_task]["model"].append(installed_model)
                 installed_tasks[installed_task]["model"].sort()
     return installed_tasks
 
-def get_tasks():
-    af_home_path = "/kaapana/mounted/workflows"
-    tasks, available_pretrained_task_names = get_available_pretrained_tasks(af_home_path=af_home_path)
-    installed_tasks = get_installed_tasks(af_home_path=af_home_path)
-    all_selectable_tasks = installed_tasks.copy()
-    all_selectable_tasks.update(tasks)
 
-    return available_pretrained_task_names, installed_tasks, all_selectable_tasks
+def get_tasks():
+    try:
+        af_home_path = "/kaapana/mounted/workflows"
+        tasks, available_pretrained_task_names = _get_available_pretrained_tasks(
+            af_home_path=af_home_path
+        )
+        installed_tasks = _get_installed_tasks(af_home_path=af_home_path)
+        all_selectable_tasks = installed_tasks.copy()
+        all_selectable_tasks.update(tasks)
+
+        return available_pretrained_task_names, installed_tasks, all_selectable_tasks
+    except Exception as e:
+        print("Error in getTasks.py: ", e)
+        return [], {}, {}
+
+
+def get_available_protocol_names():
+    try:
+        hits = HelperOpensearch.get_query_dataset(
+            query={
+                "bool": {
+                    "must": [
+                        {"match_all": {}},
+                        {
+                            "match_phrase": {
+                                "00080060 Modality_keyword.keyword": {"query": "OT"}
+                            }
+                        },
+                    ],
+                }
+            },
+            index="meta-index",
+        )
+
+        available_protocol_names = []
+        if hits is not None:
+            for hit in hits:
+                if "00181030 ProtocolName_keyword" in hit["_source"]:
+                    available_protocol_name_hits = hit["_source"][
+                        "00181030 ProtocolName_keyword"
+                    ]
+                    if isinstance(available_protocol_name_hits, str):
+                        available_protocol_name_hits = [available_protocol_name_hits]
+                    available_protocol_names = (
+                        available_protocol_names + available_protocol_name_hits
+                    )
+        return available_protocol_names
+
+    except Exception as e:
+        print("Error in get_available_protocol_names: ", e)
+        return []

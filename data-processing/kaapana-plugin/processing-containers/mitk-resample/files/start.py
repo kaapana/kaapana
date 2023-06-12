@@ -11,10 +11,12 @@ from multiprocessing.pool import ThreadPool
 
 # For shell-execution
 from subprocess import PIPE, run
+
 execution_timeout = 10
 
 # Counter to check if smth has been processed
 processed_count = 0
+
 
 def process_input_file(input_path, original_path, original_shape, target_dir):
     global processed_count, execution_timeout, executable, interpolator, copy_target_data
@@ -39,8 +41,24 @@ def process_input_file(input_path, original_path, original_shape, target_dir):
         print("# -> starting resampling ...")
         print("#")
 
-        command = [str(executable), "-f", str(original_path), "-m", str(input_path), "-o", str(target_path), "--interpolator", str(interpolator)]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=execution_timeout)
+        command = [
+            str(executable),
+            "-f",
+            str(original_path),
+            "-m",
+            str(input_path),
+            "-o",
+            str(target_path),
+            "--interpolator",
+            str(interpolator),
+        ]
+        output = run(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=execution_timeout,
+        )
         # command stdout output -> output.stdout
         # command stderr output -> output.stderr
         if output.returncode != 0:
@@ -133,9 +151,11 @@ print("##################################################")
 print("#")
 
 # Loop for every batch-element (usually series)
-batch_folders = sorted([f for f in glob(join('/', workflow_dir, batch_name, '*'))])
+batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
 for batch_element_dir in batch_folders:
-    print("####################################################################################################")
+    print(
+        "####################################################################################################"
+    )
     print("#")
     print("#")
     print(f"# Processing batch-element {batch_element_dir}")
@@ -158,7 +178,9 @@ for batch_element_dir in batch_folders:
 
     # creating output dir
     input_files = glob(join(element_input_dir, input_file_extension), recursive=False)
-    original_files = glob(join(element_org_input_dir, input_file_extension), recursive=False)
+    original_files = glob(
+        join(element_org_input_dir, input_file_extension), recursive=False
+    )
     assert len(original_files) == 1
     original_path = original_files[0]
     original_shape = nib.load(original_path).shape
@@ -169,10 +191,12 @@ for batch_element_dir in batch_folders:
             input_path=input_file,
             original_path=original_path,
             original_shape=original_shape,
-            target_dir=element_output_dir
+            target_dir=element_output_dir,
         )
     print("#")
-    print("####################################################################################################")
+    print(
+        "####################################################################################################"
+    )
     print("#")
     print(f"# Batch-element {batch_element_dir} done.")
 
@@ -194,9 +218,9 @@ if processed_count == 0:
     print("##################################################")
     print("#")
 
-    batch_input_dir = join('/', workflow_dir, operator_in_dir)
-    batch_output_dir = join('/', workflow_dir, operator_in_dir)
-    batch_org_input_dir = join('/', workflow_dir, org_input_dir)
+    batch_input_dir = join("/", workflow_dir, operator_in_dir)
+    batch_output_dir = join("/", workflow_dir, operator_in_dir)
+    batch_org_input_dir = join("/", workflow_dir, org_input_dir)
 
     # check if input dir present
     if not exists(batch_input_dir):
@@ -209,7 +233,9 @@ if processed_count == 0:
         Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
         input_files = glob(join(batch_input_dir, input_file_extension), recursive=False)
-        original_files = glob(join(batch_org_input_dir, input_file_extension), recursive=False)
+        original_files = glob(
+            join(batch_org_input_dir, input_file_extension), recursive=False
+        )
         assert len(original_files) == 1
 
         original_path = original_files[0]
@@ -221,7 +247,7 @@ if processed_count == 0:
                 input_path=input_file,
                 original_path=original_path,
                 original_shape=original_shape,
-                target_dir=element_output_dir
+                target_dir=element_output_dir,
             )
 
     print("#")

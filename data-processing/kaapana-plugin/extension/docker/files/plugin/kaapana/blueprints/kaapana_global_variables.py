@@ -1,21 +1,16 @@
 import os
 from airflow.api.common.experimental.pool import get_pool
 
-BATCH_NAME = 'batch'
-AIRFLOW_WORKFLOW_DIR = '/kaapana/mounted/workflows/data'
-PROCESSING_WORKFLOW_DIR = '/kaapana/mounted/data'
-INSTANCE_NAME = os.getenv('INSTANCE_NAME', None)
-assert INSTANCE_NAME
-ADMIN_NAMESPACE = os.getenv('ADMIN_NAMESPACE', None)
-assert ADMIN_NAMESPACE
-SERVICES_NAMESPACE = os.getenv('SERVICES_NAMESPACE', None)
-assert SERVICES_NAMESPACE
-JOBS_NAMESPACE = os.getenv('JOBS_NAMESPACE', None)
-assert JOBS_NAMESPACE
-EXTENSIONS_NAMESPACE = os.getenv('EXTENSIONS_NAMESPACE', None)
-assert EXTENSIONS_NAMESPACE
-SECURITY_NAMESPACE = os.getenv('SECURITY_NAMESPACE', None)
-assert SECURITY_NAMESPACE
+BATCH_NAME = "batch"
+AIRFLOW_WORKFLOW_DIR = "/kaapana/mounted/workflows/data"
+PROCESSING_WORKFLOW_DIR = "/kaapana/mounted/data"
+INSTANCE_NAME = os.getenv("INSTANCE_NAME", None)
+KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
+ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE", None)
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
+JOBS_NAMESPACE = os.getenv("JOBS_NAMESPACE", None)
+EXTENSIONS_NAMESPACE = os.getenv("EXTENSIONS_NAMESPACE", None)
+SECURITY_NAMESPACE = os.getenv("SECURITY_NAMESPACE", None)
 PULL_POLICY_IMAGES = os.getenv("PULL_POLICY_IMAGES", "IfNotPresent")
 DEFAULT_REGISTRY = os.getenv("DEFAULT_REGISTRY", None)
 KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
@@ -23,6 +18,9 @@ PLATFORM_VERSION = os.getenv("PLATFORM_VERSION", None)
 GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
 ENABLE_NFS = os.getenv("ENABLE_NFS", None)
 
+# Deprecated kept for backwards compatibility
+WORKFLOW_DIR = AIRFLOW_WORKFLOW_DIR
+BUILD_VERSION = KAAPANA_BUILD_VERSION
 
 try:
     GPU_COUNT = int(get_pool(name="NODE_GPU_COUNT").slots)
@@ -33,4 +31,3 @@ try:
     CPU_CORE_COUNT = int(get_pool(name="NODE_CPU_CORES").slots)
 except Exception as e:
     CPU_CORE_COUNT = 1
-    

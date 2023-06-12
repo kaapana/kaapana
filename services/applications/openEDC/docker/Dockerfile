@@ -1,4 +1,4 @@
-FROM httpd:2.4.55
+FROM docker.io/httpd:2.4.56
 
 LABEL IMAGE="openedc"
 LABEL VERSION="0.1.0"

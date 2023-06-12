@@ -1,0 +1,179 @@
+id: https://www.kaapana.ai/
+name: Kaapana-Objects
+description: Persistent Objects within Kaapana
+version: 0.0.1
+
+imports:
+  - linkml:types
+
+default_range: string
+
+classes:
+
+  KaapanaObject:
+    abstract: true
+
+  HasOwner:
+    mixin: true
+    attributes:
+      owner:
+        range: User
+      group:
+        range: Group
+
+  IsTimed:
+    mixin: true
+    attributes:
+      createdOn:
+        range: Datetime
+      updatedOn:
+        range: Datetime
+
+  Location:
+    is_a: KaapanaObject
+    attributes:
+      lat:
+        range: Double
+      lon:
+        range: Double
+      city:
+      country:
+
+  Group:
+    is_a: KaapanaObject
+    attributes:
+    slots:
+      - display_name
+
+  User:
+    is_a: KaapanaObject
+    attributes:
+    slots:
+      - id
+      - display_name
+
+  Workflow:
+    is_a: KaapanaObject
+    attributes:
+      airflow_dag_id:
+        description: The id of the Airflow DAG for this workflow
+
+  Instance:
+    description: Representation of a Kaapana instance
+    is_a: KaapanaObject
+    attributes:
+      token:
+        description: The Authenfication token to access the federation api
+      endpoint:
+        description: The endpoint where the federation api is available
+      ssl_check:
+        range: bool
+      automatic_update:
+        range: bool
+      fernet_key:
+      allowed_workflows:
+        range: Workflow
+        multivalued: true
+      allowed_datasets:
+        range: Dataset
+        multivalued: true
+    mixins:
+      - IsTimed
+      - HasOwner
+    slots:
+      - id
+      - display_name
+
+  Dataset:
+    is_a: KaapanaObject
+    attributes:
+      items:
+        multivalued: true
+        inlined_as_list: true
+        range: ObjectIdentifier
+      instance:
+        range: Instance
+    mixins:
+      - IsTimed
+      - HasOwner
+    slots:
+      - id
+      - display_name
+
+
+  # MethodParameterization:
+  #   description: Archetype tying up methos and their parameterization for later execution
+  #   attributes:
+  #     method:
+  #       range: Method
+  #     params:
+  #       range: Object
+  #   slots:
+  #     - id
+
+  # Method:
+  #   description: Representation of single algorithm
+  #   is_a: KaapanaObject
+  #   attributes:
+  #     dag_name:
+  
+  Experiment:
+    description: Archetype tying up methods, their parameterization and the used dataset accross Instances
+    is_a: KaapanaObject
+    attributes:
+      data:
+        range: Dataset
+      instance:
+        description: The Kaapana instance owning this experiment
+        range: Instance
+      federation:
+        description: Kaapana instances which are involved in this experiment either as owner or runner instance
+        range: Instance
+        multivalued: true
+    mixins:
+      - IsTimed
+      - HasOwner
+    slots:
+      - id
+      - display_name
+
+  WorkflowExecution:
+    description: Representation of the execution of a Workflow
+    is_a: KaapanaObject
+    attributes:
+      configuration:
+        description: Job configuration
+      workflow:
+        range: Workflow
+      airflow_run_id:
+      airflow_status:
+
+  Job:
+    description: A Job is derived from an experiment to be executed with a certain configuration on a certain platform at a certain time.
+    is_a: KaapanaObject
+    attributes:
+      external_job_id:
+        description: Id if job is executed on a remote instance
+      owner_instance:
+        range: Instance
+        description: Instance which owens the experiment in which the job is running
+      description:
+      username:
+        description: Name of the user who created that job (same as username of the experiment)
+      execution:
+        range: WorkflowExecution
+      instance:
+        range: Instance
+      experiment:
+        range: Experiment
+        description: Experiment from which this Job was created
+    mixins:
+      - IsTimed
+    slots:
+      - id
+
+slots:
+  id:
+    identifier: true
+  display_name:
+

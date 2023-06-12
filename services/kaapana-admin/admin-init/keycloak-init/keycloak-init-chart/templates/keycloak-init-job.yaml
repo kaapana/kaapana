@@ -40,6 +40,12 @@ spec:
               value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}"
             - name: STACKROX_URI
               value: "https://{{ .Values.global.hostname }}:19443"
+            - name: OIDC_CLIENT_SECRET
+              value: "{{ .Values.global.oidc_client_secret }}"
+            - name: DEV_MODE
+              value: "{{ .Values.global.dev_mode }}"
+            - name: KAAPANA_INIT_PASSWORD
+              value: "{{ .Values.global.kaapana_init_password }}"
         restartPolicy: Never
         serviceAccountName: kaapana-kube-admin
         imagePullSecrets:

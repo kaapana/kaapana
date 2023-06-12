@@ -101,7 +101,7 @@ function no_proxy_environment {
 function install_packages_almalinux {
     echo "${YELLOW}Check packages...${NC}"
     if [ -x "$(command -v snap)" ] && [ -x "$(command -v jq)" ]; then
-        echo "${GREEN}Dependencies ok.${NC}"
+        echo "${GREEN}Snap installed.${NC}"
     else
 
         echo "${YELLOW}Enable epel-release${NC}"
@@ -150,7 +150,7 @@ function install_packages_almalinux {
 
 function install_packages_ubuntu {
     if [ -x "$(command -v nano)" ] && [ -x "$(command -v jq)" ] && [ -x "$(command -v snap)" ]; then
-        echo "${GREEN}Dependencies ok.${NC}"
+        echo "${GREEN}snap,nano and jq already installed.${NC}"
     else
         echo "${YELLOW}Check if apt is locked ...${NC}"
         i=0
@@ -231,6 +231,30 @@ function insert_text {
     return $rc
 }
 
+function install_core18 {
+    echo "${YELLOW}Checking if core18 is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep core18 ;
+    then
+        echo ""
+        echo "${GREEN}core18 is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}core18 is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ];then
+            echo "${YELLOW} -> core18 offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/core18.snap
+            assert_path=$SCRIPT_DIR/core18.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}Core18 will be automatically installed ...${NC}"
+        fi
+    fi
+}
+
 function install_helm {
     if command -v helm &> /dev/null
     then
@@ -277,25 +301,25 @@ function dns_check {
 
         set +e
         echo "${GREEN}Get DNS settings nmcli ...${NC}"
-        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
-        echo "${YELLOW}Identified DNS: $DNS ${NC}"
+        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
         if [ -z "$DNS" ]; then
             echo "${RED}FAILED -> Get DNS settings resolvectl status ...${NC}"
-            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
-            echo "${YELLOW}Identified DNS: $DNS ${NC}"
+            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
             if [ -z "$DNS" ]; then
                 echo "${RED}FAILED -> Get DNS settings systemd-resolve ...${NC}"
-                DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
-                echo "${YELLOW}Identified DNS: $DNS ${NC}"
-                if [[ -z $DNS ]]; then
-                    if [ "$OFFLINE_SNAPS" = "true" ];then
-                        DNS="8.8.8.8,8.8.4.4"
-                    else
-                        echo "${RED}DNS lookup failed.${NC}"
-                        exit 1
-                    fi
+                DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+                if [[ -z $DNS ]] && [ "$OFFLINE_SNAPS" = "true" ]; then
+                    DNS="8.8.8.8,8.8.4.4"
                 fi
             fi
+        fi
+        if [ -z "${DNS}" ]; then
+            echo "${RED}DNS lookup failed.${NC}"
+            exit 1
+        else
+            ## Format DNS to be a comma separated list of IP addresses without spaces and newlines
+            DNS=$(echo -e $DNS | tr -s ' \n,' ',' | sed 's/,$/\n/')
+            echo "${YELLOW}Identified DNS: $DNS ${NC}"
         fi
         set -e
     fi
@@ -320,16 +344,6 @@ function install_microk8s {
         if [ "$OFFLINE_SNAPS" = "true" ];then
             echo "${YELLOW} -> offline installation! ${NC}"
 
-            # echo "${YELLOW}Installing core...${NC}"
-            # snap_path=$SCRIPT_DIR/core.snap
-            # assert_path=$SCRIPT_DIR/core.assert
-            # [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
-            # [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
-            # snap ack $assert_path
-            # set +e
-            # snap install $snap_path
-            # set -e
-
             echo "${YELLOW}Installing microk8s...${NC}"
             snap_path=$SCRIPT_DIR/microk8s.snap
             assert_path=$SCRIPT_DIR/microk8s.assert
@@ -338,8 +352,6 @@ function install_microk8s {
             
             snap ack $assert_path
             snap install --classic $snap_path
-            echo "${YELLOW}Wait until microk8s is ready...${NC}"
-            microk8s.status --wait-ready
             MICROK8S_BASE_IMAGES_TAR_PATH="$SCRIPT_DIR/microk8s_base_images.tar"
             echo "${YELLOW}Start Microk8s image import from $MICROK8S_BASE_IMAGES_TAR_PATH ... ${NC}"
             [ -f $MICROK8S_BASE_IMAGES_TAR_PATH ] && echo "${GREEN}MICROK8S_BASE_IMAGES_TAR exists ... ${NC}" || (echo "${RED}Images tar does not exist -> exit ${NC}" && exit 1)
@@ -360,13 +372,15 @@ function install_microk8s {
         echo "${YELLOW}Disable insecure port ...${NC}";
         insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
         
-        echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
-        insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
+        echo "${YELLOW}Set limit of completed pods to 50 ...${NC}";
+        insert_text "--terminated-pod-gc-threshold=50" /var/snap/microk8s/current/args/kube-controller-manager
         set -e
 
         echo "${YELLOW}Set vm.max_map_count=262144${NC}"
         sysctl -w vm.max_map_count=262144
-        sh -c "echo 'vm.max_map_count=262144' >> /etc/sysctl.conf"
+        set +e
+        insert_text "vm.max_map_count=262144" /etc/sysctl.conf
+        set -e
         
         echo "${YELLOW}Reload systemct daemon ...${NC}"
         systemctl daemon-reload
@@ -637,6 +651,7 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
         proxy_environment
         install_packages_almalinux
+        install_core18
         install_helm
         install_microk8s
     ;;
@@ -646,6 +661,7 @@ case "$OS_PRESENT" in
         proxy_environment
         install_packages_ubuntu
         install_wazuh_agent
+        install_core18
         install_helm
         install_microk8s
     ;;

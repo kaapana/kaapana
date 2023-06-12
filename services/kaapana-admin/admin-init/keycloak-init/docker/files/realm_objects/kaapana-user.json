@@ -10,9 +10,5 @@
   },
   "requiredActions" : [ "UPDATE_PASSWORD" ],
   "realmRoles" : [ "default-roles-kaapana" ],
-  "credentials" : [ {
-    "type" : "password",
-    "value": "kaapana"
-  } ],
   "groups": ["all_data"]
 }

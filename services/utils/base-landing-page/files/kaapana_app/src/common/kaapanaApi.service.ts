@@ -2,10 +2,12 @@ import Vue from 'vue'
 import request from '@/request'
 import AuthService from '@/common/auth.service'
 
-const kaapanaApiService = {
 
-  helmApiPost(subUrl: any, payload: any) {
+
+
+  const helmApiPost = (subUrl: any, payload: any, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
+      request.defaults.timeout = timeout
       request.post('/kube-helm-api' + subUrl, payload).then((response: any) => {
         console.log(response)
         resolve(response)
@@ -14,10 +16,11 @@ const kaapanaApiService = {
         reject(error)
       })
     })
-  },
+  }
 
-  helmApiGet(subUrl: any, params: any) {
+  const helmApiGet = (subUrl: any, params: any, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
+      request.defaults.timeout = timeout
       request.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
@@ -25,9 +28,9 @@ const kaapanaApiService = {
         reject(error)
       })
     })
-  },
+  }
 
-  getExternalWebpages() {
+  const getExternalWebpages = () => {
     return new Promise((resolve, reject) => {
 
 
@@ -63,7 +66,7 @@ const kaapanaApiService = {
             if (externalWebpages.hasOwnProperty(key1)) {
               for (const key2 in externalWebpages[key1].subSections) {
                 if (externalWebpages[key1].subSections.hasOwnProperty(key2)) {
-                  if (!this.checkUrl(trainingJson, externalWebpages[key1].subSections[key2].endpoint)) {
+                  if (!checkUrl(trainingJson, externalWebpages[key1].subSections[key2].endpoint)) {
                     delete externalWebpages[key1].subSections[key2]
                   }
                 }
@@ -72,7 +75,7 @@ const kaapanaApiService = {
           }
         }).then(() => {
 
-          let osDashboardsUrl = '/flow/kaapana/api/get-os-dashboards'
+          let osDashboardsUrl = '/kaapana-backend/get-os-dashboards'
           request.get(osDashboardsUrl)
             .then((response: { data: any }) => {
               var dashboards = response.data['dashboards']
@@ -103,8 +106,8 @@ const kaapanaApiService = {
         // reject(error)
       })
     })
-  },
-  checkUrl(trainingJson: any, endpoint: any) {
+  }
+  const checkUrl = (trainingJson: any, endpoint: any) => {
     let availableRoute = false
     for (const routes in trainingJson) {
       if (trainingJson[routes]['status'] == 'enabled') {
@@ -114,9 +117,9 @@ const kaapanaApiService = {
       }
     }
     return availableRoute
-  },
+  }
 
-  federatedClientApiPost(subUrl: any, payload: any = null, params: any=null) {
+  const federatedClientApiPost = (subUrl: any, payload: any = null, params: any=null) => {
     return new Promise((resolve, reject) => {
       request.post('/kaapana-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
         resolve(response)
@@ -125,9 +128,9 @@ const kaapanaApiService = {
         reject(error)
       })
     })
-  },
+  }
 
-  federatedClientApiGet(subUrl: any, params: any = null) {
+  const federatedClientApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
       request.get('/kaapana-backend/client' + subUrl, { params }).then((response: any) => {
         resolve(response)
@@ -136,9 +139,9 @@ const kaapanaApiService = {
         reject(error)
       })
     })
-  },
+  }
 
-  federatedClientApiPut(subUrl: any, payload: any=null, params: any=null) {
+  const federatedClientApiPut = (subUrl: any, payload: any=null, params: any=null) => {
     return new Promise((resolve, reject) => {
       request.put('/kaapana-backend/client' + subUrl,  payload, { params: params }).then((response: any) => {
         resolve(response)
@@ -147,9 +150,9 @@ const kaapanaApiService = {
         reject(error)
       })
     })
-  },
+  }
 
-  federatedClientApiDelete(subUrl: any, params: any = null) {
+  const federatedClientApiDelete = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
       request.delete('/kaapana-backend/client' + subUrl, { params: params} ).then((response: any) => {
         resolve(response)
@@ -158,9 +161,9 @@ const kaapanaApiService = {
         reject(error)
       })
     })
-  },
+  }
 
-  federatedRemoteApiPut(subUrl: any, payload: any = null,  params: any=null) {
+  const federatedRemoteApiPut = (subUrl: any, payload: any = null,  params: any=null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
         request.put('/kaapana-backend/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
@@ -174,9 +177,9 @@ const kaapanaApiService = {
         reject(error)
       });
     })
-  },
+  }
 
-  federatedRemoteApiPost(subUrl: any, payload: any=null, params: any=null) {
+  const federatedRemoteApiPost = (subUrl: any, payload: any=null, params: any=null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
         request.post('/kaapana-backend/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
@@ -190,9 +193,9 @@ const kaapanaApiService = {
         reject(error)
       });
     })
-  },
+  }
 
-  federatedRemoteApiGet(subUrl: any, params: any = null) {
+  const federatedRemoteApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
         request.get('/kaapana-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
@@ -206,8 +209,8 @@ const kaapanaApiService = {
         reject(error)
       });
     })
-  },
-  federatedRemoteApiDelete(subUrl: any, params: any = null) {
+  }
+  const federatedRemoteApiDelete = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
         request.delete('/kaapana-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
@@ -221,17 +224,48 @@ const kaapanaApiService = {
         reject(error)
       });
     })
-  },
-  kaapanaApiGet(subUrl: any, params: any = null) {
+  }
+  const kaapanaApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
-      request.get('/flow/kaapana/api/' + subUrl, { params }).then((response: any) => {
+      request.get('/kaapana-backend/' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.data)
         reject(error)
       })
     })
   }
-}
+
+  const syncRemoteInstances = () => {
+        return federatedClientApiGet("/check-for-remote-updates")
+        .then((response) => {
+          Vue.notify({
+            type: 'success',
+            title: 'Successfully checked for remote updates',
+            // text: 
+          })
+          return true
+        })
+        .catch((err) => {
+          console.log(err);
+          // return false
+        });
+    }
+  const kaapanaApiService = {
+    helmApiPost,
+    helmApiGet,
+    getExternalWebpages,
+    checkUrl,
+    federatedClientApiPost,
+    federatedClientApiGet,
+    federatedClientApiPut,
+    federatedClientApiDelete,
+    federatedRemoteApiPut,
+    federatedRemoteApiPost,
+    federatedRemoteApiGet,
+    federatedRemoteApiDelete,
+    kaapanaApiGet,
+    syncRemoteInstances
+  }
 
 export default kaapanaApiService

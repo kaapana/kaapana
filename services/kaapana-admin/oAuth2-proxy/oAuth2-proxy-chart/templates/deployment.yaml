@@ -41,13 +41,13 @@ spec:
           - --upstream=https://traefik-{{  .Values.global.instance_uid  | default 0 }}.{{ .Values.global.helm_namespace }}.svc:{{ .Values.global.https_port }}
           - --provider=keycloak-oidc
           - --client-id=kaapana
-          - --client-secret=uQBJzc2YDzjRfj2OCT79JDShojeqAK2R
-          - --cookie-secret=P7AiFgxZhLuuTZ2iuIQHSnYWrDlU_NVaA-Su1dZ9HMQ=
+          - --client-secret={{ .Values.global.oidc_client_secret }}
+          - --cookie-secret={{ randAlphaNum 32 | b64enc }}
           - --redeem-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/token
           - --oidc-jwks-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/certs
           - --profile-url=https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/realms/kaapana/protocol/openid-connect/userinfo
+          - --custom-templates-dir=/usr/share/oauth2-proxy
           - --https-address=0.0.0.0:8443
-          # - --http-address=0.0.0.0:8080
           - --metrics-address=:8081
           - --tls-cert-file=/ssl/tls.crt 
           - --tls-key-file=/ssl/tls.key
@@ -60,17 +60,13 @@ spec:
           - --skip-jwt-bearer-tokens
           - --insecure-oidc-allow-unverified-email 
           - --email-domain=*
-          # - --force-https=true
+          - --skip-auth-route=^/auth/*
+          - --skip-auth-route=^/kaapana-backend/remote/*
+          - --skip-auth-route=^/oauth2/metrics
           - --pass-access-token 
-          - --skip-auth-regex=/metrics
-          - --skip-auth-regex=/auth/*
-          - --skip-auth-regex=/kaapana-backend/remote/*
           - --reverse-proxy
-          # - --set-authorization-header
-          # - --set-xauthrequest
-          # - --skip-auth-preflight
-          # - --insecure-oidc-skip-nonce
-          # - --show-debug-on-error
+          - --show-debug-on-error
+          # - --force-https=true
           ports:
           - name: metrics
             containerPort: 8081
@@ -90,6 +86,7 @@ spec:
       - name: ssl-config
         secret:
           secretName: certificate
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret
 ---

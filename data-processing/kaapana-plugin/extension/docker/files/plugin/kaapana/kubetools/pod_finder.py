@@ -19,21 +19,32 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from kubernetes.client.rest import ApiException
 from airflow import AirflowException
 from kaapana.kubetools.kube_client import get_kube_client
-import json 
+import json
+
 
 class PodFinder(LoggingMixin):
-    def __init__(self, kube_client=None, in_cluster=True, cluster_context=None,
-                 extract_xcom=False):
+    def __init__(
+        self,
+        kube_client=None,
+        in_cluster=True,
+        cluster_context=None,
+        extract_xcom=False,
+    ):
         super(PodFinder, self).__init__()
-        self._client,self._batch_client,self._extensions_client = kube_client or get_kube_client(in_cluster=in_cluster,
-                                                      cluster_context=cluster_context)
+        (
+            self._client,
+            self._batch_client,
+            self._extensions_client,
+        ) = kube_client or get_kube_client(
+            in_cluster=in_cluster, cluster_context=cluster_context
+        )
 
     def find_pod(self, namespace):
-        self.log.debug('Pod Find Request Created')
-        try: 
+        self.log.debug("Pod Find Request Created")
+        try:
             resp = self._client.list_namespaced_pod(namespace=namespace, pretty=True)
-            self.log.debug('Pod Find Response: %s', resp)
+            self.log.debug("Pod Find Response: %s", resp)
         except ApiException:
-            self.log.exception('Exception when attempting to find namespaced Pod.')
+            self.log.exception("Exception when attempting to find namespaced Pod.")
             raise
         return resp

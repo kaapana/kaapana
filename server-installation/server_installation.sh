@@ -563,6 +563,7 @@ _Flag: -gpu --enable-gpu will activate gpu support for kubernetes (default: fals
 _Flag: -q   --quiet      will activate quiet mode (default: false)
 _Flag:      --uninstall  removes microk8s and helm from the system
 _Flag:      --offline    offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
+_Flag:      --skip-wazuh skips the installation of the Wazuh agent on the server system, which can break Wazuh extension functionality 
 
 _Argument: -v --version [opt]
 where opt is:
@@ -577,6 +578,7 @@ where opt is:
 QUIET=NA
 OFFLINE_SNAPS=NA
 DNS=""
+SKIP_WAZUH=false
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -622,6 +624,11 @@ do
             shift # past argument
         ;;
 
+        --skip-wazuh)
+            SKIP_WAZUH=true
+            shift # past argument
+        ;;
+
         --install-ubuntu-packages)
             install_packages_ubuntu
             exit 0
@@ -629,6 +636,11 @@ do
         
         --install-almalinux-packages)
             install_packages_almalinux
+            exit 0
+        ;;
+
+        --install-wazuh-agent)
+            install_wazuh_agent
             exit 0
         ;;
         
@@ -660,7 +672,11 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting Ubuntu installation...${NC}";
         proxy_environment
         install_packages_ubuntu
-        install_wazuh_agent
+        if [ "$SKIP_WAZUH" = "true" ];then
+            echo -e "${YELLOW}Skipping Wazuh agent installation ${NC}";
+        else
+            install_wazuh_agent
+        fi
         install_core18
         install_helm
         install_microk8s

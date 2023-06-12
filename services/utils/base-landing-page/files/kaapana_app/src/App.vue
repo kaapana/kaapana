@@ -88,17 +88,13 @@
               <v-list-item-action></v-list-item-action>
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
-          </v-list-group>
-
-          <v-list-group :prepend-icon="'mdi-security'" v-if="!settings.navigationMode && isAuthenticated && securityProviders?.length > 0">
-            <template v-slot:activator>
-              <v-list-item-title>Security</v-list-item-title>
+            <template v-if="section.label.toLowerCase() === 'monitoring'">
+              <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id">
+                <v-list-item-action></v-list-item-action>
+                <v-list-item-title v-text="provider.name"></v-list-item-title>
+              </v-list-item>
             </template>
-            <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id">
-              <v-list-item-title v-text="provider.name"></v-list-item-title>
-            </v-list-item>
           </v-list-group>
-          
           <v-list-item :to="'/extensions'" v-if="isAuthenticated">
             <v-list-item-action>
               <!-- <v-icon>mdi-view-comfy</v-icon> -->
@@ -225,6 +221,11 @@
                           subSection.label
                         }}</v-list-item-title>
                       </v-list-item>
+                      <template v-if="section.label.toLowerCase() === 'monitoring'">
+                        <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id">
+                          <v-list-item-title v-text="provider.name"></v-list-item-title>
+                        </v-list-item>
+                      </template>
                     </v-list>
                   </v-menu>
                 </v-bottom-navigation>

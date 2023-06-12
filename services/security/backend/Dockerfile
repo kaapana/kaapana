@@ -1,14 +1,17 @@
 FROM local-only/security-pages-frontend:latest as build-frontend
 
 LABEL IMAGE="security-pages"
-LABEL VERSION="0.0.0"
+LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
-FROM python:3.10-slim
+FROM local-only/base-python-cpu:latest
 
 WORKDIR /security-pages
 
-RUN apt update && apt install -y curl
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 
 COPY files/ ./
 RUN chmod +x boot.sh

@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: security-stackrox-persistent-volume
+  labels:
+    type: local
+spec:
+  # storageClassName: manual
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  hostPath:
+    path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/security/stackrox
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: security-stackrox-api-persistent-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  claimRef:
+    name: security-stackrox-api-persistent-volume-claim
+    namespace: {{ .Values.global.security_namespace }}
+  capacity:
+    storage: 10Mi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  hostPath:
+    path: {{ .Values.global.fast_data_dir | default "/home/kaapana" }}/security/api_credentials
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: security-stackrox-api-persistent-volume-claim
+  namespace: {{ .Values.global.security_namespace }}
+spec:
+  storageClassName: manual
+  volumeName: security-stackrox-api-persistent-volume
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Mi
+status: {}

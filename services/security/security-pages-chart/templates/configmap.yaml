@@ -1,6 +1,0 @@
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: security-pages-config
-  namespace: {{ .Values.global.security_namespace }}

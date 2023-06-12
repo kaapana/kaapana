@@ -1,13 +1,13 @@
 from functools import wraps
 import inspect
 from typing import List, Optional
-import uuid
 import httpx
 import logging
 from helpers.resources import LOGGER_NAME
 from helpers.logger import get_logger, function_logger_factory, trimContent
 from models.JWTToken import JWTToken
 import jwt
+import os
 from datetime import datetime, timezone
 
 from models.provider import ProviderAPIEndpoints
@@ -28,27 +28,26 @@ STACKROX_API_ITEM_LIMIT = 100
 
 class StackRoxAPIAuthentication:
     __jwt_token: JWTToken = None
-    __api_username: str = "admin"
-    __api_pw: str = "adminpassword"
+    __api_username: str = ""
+    __api_pw: str = ""
     __api_endpoint: Optional[str] = None
 
     def __init__(self):
         self.__read_credentials()
 
     def __read_credentials(self):
-        pass
-        # user_file = "/api_credentials/wazuh_username"
-        # pw_file = "/api_credentials/wazuh_password"
+        user_file = "/api_credentials/stackrox_username"
+        pw_file = "/api_credentials/stackrox_password"
 
-        # if os.path.isfile(user_file) and self.__api_username == "":
-        #     with open(user_file, "r") as file:
-        #         self.__api_username = file.read().rstrip()
+        if os.path.isfile(user_file) and self.__api_username == "":
+            with open(user_file, "r") as file:
+                self.__api_username = file.read().rstrip()
 
-        # if os.path.isfile(pw_file) and self.__api_pw == "":
-        #     with open(pw_file, "r") as file:
-        #         self.__api_pw = file.read().rstrip()
+        if os.path.isfile(pw_file) and self.__api_pw == "":
+            with open(pw_file, "r") as file:
+                self.__api_pw = file.read().rstrip()
 
-        # logger.debug(f"wazuh user: {self.__api_username}, pw: {self.__api_pw}")
+        logger.debug(f"wazuh user: {self.__api_username}, pw: {self.__api_pw}")
 
     @function_logger_factory(logger)
     def __retrieve_token(self, retry=True) -> bool:

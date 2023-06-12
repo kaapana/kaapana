@@ -20,6 +20,11 @@ spec:
             memory: "1Gi"
           requests:
             memory: "100Mi"
+        volumeMounts:
+          - mountPath: /api_credentials
+            name: security-stackrox-api-volume
+          - mountPath: /stackrox_api_secret
+            name: api-credentials-secret
         lifecycle:
           postStart:
             exec:
@@ -28,3 +33,10 @@ spec:
       - name: registry-secret
       restartPolicy: Never
       serviceAccountName: kaapana-kube-admin
+      volumes:
+      - name: security-stackrox-api-volume
+        persistentVolumeClaim:
+          claimName: security-stackrox-api-persistent-volume-claim
+      - name: api-credentials-secret
+        secret:
+          secretName: stackrox-api-credentials

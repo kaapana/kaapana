@@ -85,6 +85,8 @@ spec:
         resources:
           limits:
             memory: "8Gi"
+          requests:
+            memory: "4Gi"
         volumeMounts:
           - mountPath: /var/ossec/api/configuration
             name: security-wazuh-volume
@@ -143,6 +145,8 @@ spec:
         resources:
           limits:
             memory: "12Gi"
+          requests:
+            memory: "6Gi"
         volumeMounts:
           - mountPath: /var/lib/wazuh-indexer
             name: security-wazuh-volume
@@ -184,6 +188,8 @@ spec:
         resources:
           limits:
             memory: "8Gi"
+          requests:
+            memory: "4Gi"
         volumeMounts:
           - mountPath: /usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem
             name: security-wazuh-volume

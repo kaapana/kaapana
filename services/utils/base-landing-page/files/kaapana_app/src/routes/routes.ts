@@ -72,6 +72,15 @@ const routes = [
         },
     },
     {
+        name: 'user-management',
+        path: '/user-management',
+        component: () => import('@/views/UserManagement.vue'),
+        title: 'User Management',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'data-upload',
         path: '/data-upload',
         component: () => import('@/views/DataUpload.vue'),

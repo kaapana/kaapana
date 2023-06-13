@@ -100,6 +100,7 @@ app.include_router(
 
 app.include_router(routers.router, prefix="/dataset")
 app.include_router(monitoring.router, prefix="/monitoring")
+app.include_router(users.router, prefix="/users")
 
 # # Not used yet
 # app.include_router(users.router, prefix="/users")

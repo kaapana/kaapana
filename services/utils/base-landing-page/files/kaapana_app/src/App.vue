@@ -100,6 +100,17 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
+          <v-list-item :to="'/user-management'" v-if="isAuthenticated">
+            <v-list-item-action>
+              <!-- <v-icon>mdi-view-comfy</v-icon> -->
+              <!-- <v-icon>mdi-toy-brick-plus</v-icon> -->
+              <v-icon>mdi-account-group</v-icon>
+            </v-list-item-action>
+            <v-list-item-content>
+              <v-list-item-title>Users</v-list-item-title>
+            </v-list-item-content>
+            <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
         </v-list>
       </v-navigation-drawer>
       <v-app-bar color="primary" dark dense clipped-left app>

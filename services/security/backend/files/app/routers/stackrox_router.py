@@ -81,6 +81,11 @@ class StackRoxRouter(DeactivatableRouter):
     def set_activated(self, activated: bool):
         logger.debug(f"Set route active: {activated}")
         self._activated = activated
+        if activated:
+            try:
+                self.__enable_oidc()
+            except Exception as e:
+                logger.info(f"exception while enabling oidc: {e}")
 
     @function_logger_factory(logger)
     def set_endpoints(self, ui_url: str, api_endpoints: List[ProviderAPIEndpoints]):
@@ -91,10 +96,12 @@ class StackRoxRouter(DeactivatableRouter):
         )
 
     @function_logger_factory(logger)
-    def enable_oidc(self):
-        # https+insecure://vm-128-206.cloud.dkfz-heidelberg.de/auth/realms/kaapana
-        # {"id":"","name":"Kaapana","type":"oidc","config":{"mode":"auto","do_not_use_client_secret":"false","client_secret":"","client_id":"kaapana","issuer":"https+insecure://vm-128-206.cloud.dkfz-heidelberg.de/auth/realms/kaapana"},"uiEndpoint":"vm-128-206.cloud.dkfz-heidelberg.de:19443","enabled":true,"traits":{"mutabilityMode":"ALLOW_MUTATE"}}
-        pass
+    def __enable_oidc(self):
+        if self.__stackrox_api.check_oidc_authprovider_available():
+            return
+
+        logger.debug(f"enabling OIDC")
+        self.__stackrox_api.post_oidc_auth_provider(self.__ui_url)
 
     @DeactivatableRouter.activation_wrapper
     @function_logger_factory(logger)

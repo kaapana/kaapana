@@ -20,6 +20,7 @@ from models.stackrox_models import (
     PolicyViolation,
     Secret,
 )
+from urllib.parse import urlparse
 
 logger = get_logger(f"{LOGGER_NAME}.stackrox_api", logging.INFO)
 
@@ -518,10 +519,77 @@ class StackRoxAPIWrapper:
             },
         )
 
+        result.raise_for_status()
+
         logger.debug(
             f"result from '/v1/debug/loglevel' with': {result} - {trimContent(result.content)}"
         )
         return result.json()
+
+    @retry_on_unauthorized
+    @function_logger_factory(logger)
+    def check_oidc_authprovider_available(self) -> bool:
+        result = httpx.get(
+            f"{self.__api_endpoint}/v1/authProviders",
+            verify=False,
+            headers={
+                "Authorization": self.__stackrox_authentication.get_bearer_token()
+            },
+        )
+
+        result.raise_for_status()
+
+        logger.debug(
+            f"result from '/v1/dauthProviders': {result} - {trimContent(result.content)}"
+        )
+
+        available_auth_providers = result.json()["authProviders"]
+
+        provider = next(
+            filter(
+                lambda provider: provider["type"] == "oidc",
+                available_auth_providers,
+            ),
+            None,
+        )
+
+        return provider is not None
+
+    @retry_on_unauthorized
+    @function_logger_factory(logger)
+    def post_oidc_auth_provider(self, ui_url: str):
+        parsed_url = urlparse(ui_url)
+
+        data = {
+            "id": "",
+            "name": "Kaapana",
+            "type": "oidc",
+            "config": {
+                "mode": "auto",
+                "do_not_use_client_secret": "false",
+                "client_secret": os.environ.get("OIDC_CLIENT_SECRET", ""),
+                "client_id": "kaapana",
+                "issuer": f"https+insecure://{parsed_url.hostname}/auth/realms/kaapana",
+            },
+            "uiEndpoint": ui_url,
+            "enabled": True,
+            "traits": {"mutabilityMode": "ALLOW_MUTATE"},
+        }
+
+        result = httpx.post(
+            f"{self.__api_endpoint}/v1/authProviders",
+            verify=False,
+            headers={
+                "Authorization": self.__stackrox_authentication.get_bearer_token()
+            },
+            json=data,
+        )
+
+        result.raise_for_status()
+
+        logger.debug(
+            f"result from '/v1/dauthProviders': {result} - {trimContent(result.content)}"
+        )
 
     @retry_on_unauthorized
     @function_logger_factory(logger)
@@ -536,6 +604,8 @@ class StackRoxAPIWrapper:
             },
             json=data,
         )
+
+        result.raise_for_status()
 
         logger.debug(
             f"result from '/v1/debug/loglevel' with level '{data['level']}': {result} - {trimContent(result.content)}"
@@ -554,6 +624,8 @@ class StackRoxAPIWrapper:
             },
             json=data,
         )
+
+        result.raise_for_status()
 
         logger.debug(
             f"result from '/v1/debug/loglevel' with level '{data['level']}': {result} - {trimContent(result.content)}"

@@ -28,6 +28,8 @@ spec:
           value: "kaapana-secret"
         - name: APPLICATION_ROOT
           value: "/security"
+        - name: OIDC_CLIENT_SECRET
+          value: "{{ .Values.global.oidc_client_secret }}"
         resources:
           requests:
             memory: 100Mi

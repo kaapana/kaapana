@@ -5,6 +5,10 @@ from pydantic.dataclasses import dataclass
 class KaapanaUser:
     idx: str
     name: str
+    attributes: dict
+    firstName: str
+    lastName: str
+    email: str
 
 
 @dataclass

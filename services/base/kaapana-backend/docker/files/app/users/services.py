@@ -1,7 +1,11 @@
 from keycloak import KeycloakAdmin
 from typing import List
-from keycloak.exceptions import KeycloakGetError
+from keycloak.exceptions import KeycloakGetError, KeycloakPostError
 from .schemas import KaapanaUser, KaapanaGroup, KaapanaRole
+from app.logger import get_logger
+import logging
+
+logger = get_logger(__name__, logging.DEBUG)
 
 
 class UserService:
@@ -57,15 +61,32 @@ class UserService:
             result = self.keycloak_admin.get_group_members(group_id)
         else:
             result = self.keycloak_admin.get_users({})
-        return [KaapanaUser(name=r["username"], idx=r["id"]) for r in result]
+        return [
+            KaapanaUser(
+                name=r["username"],
+                idx=r["id"],
+                attributes=r.get("attributes", {}),
+                email=r.get("email", ""),
+                firstName=r.get("firstName", ""),
+                lastName=r.get("lastName", ""),
+            )
+            for r in result
+        ]
 
     def get_user(self, idx: str) -> KaapanaUser:
         self._login()
         try:
             r = self.keycloak_admin.get_user(idx)
         except KeycloakGetError as e:
-            return None
-        return KaapanaUser(name=r["username"], idx=r["id"])
+            raise e
+        return KaapanaUser(
+            name=r["username"],
+            idx=r["id"],
+            attributes=r.get("attributes", []),
+            email=r.get("email", ""),
+            firstName=r.get("firstName", ""),
+            lastName=r.get("lastName", ""),
+        )
 
     def get_groups(self, user_id: str = None) -> List[KaapanaGroup]:
         self._login()
@@ -100,3 +121,36 @@ class UserService:
             )
             for r in result
         ]
+
+    def post_user(
+        self,
+        username: str,
+        email: str = None,
+        firstName: str = None,
+        lastName: str = None,
+        attributes: dict = {},
+    ) -> KaapanaUser:
+        self._login()
+        try:
+            new_user = self.keycloak_admin.create_user(
+                {
+                    "username": username,
+                    "email": email,
+                    "enabled": True,
+                    "firstName": firstName,
+                    "lastName": lastName,
+                }
+            )
+        except KeycloakPostError as e:
+            logger.warning(f"User exists with same {username=} or {email=}!")
+            raise e
+
+        logger.warning(f"{new_user=}")
+        return KaapanaUser(
+            idx=new_user,
+            name=username,
+            email=email,
+            firstName=firstName,
+            lastName=lastName,
+            attributes=attributes,
+        )

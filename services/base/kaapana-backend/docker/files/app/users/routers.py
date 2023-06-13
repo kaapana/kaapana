@@ -2,6 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from .schemas import KaapanaRole, KaapanaGroup, KaapanaUser
 from app.dependencies import get_user_service
+from keycloak.exceptions import KeycloakGetError, KeycloakPostError
+
 
 router = APIRouter(tags=["users"])
 
@@ -62,3 +64,21 @@ async def get_user_roles(idx: str, us=Depends(get_user_service)):
 async def get_user_groups(idx: str, us=Depends(get_user_service)):
     """Returns the groups a user belongs to"""
     return us.get_groups(user_id=idx)
+
+
+@router.post("/user", response_model=KaapanaUser)
+async def post_user(
+    username: str,
+    email="",
+    firstName="",
+    lastName="",
+    attributes={},
+    us=Depends(get_user_service),
+):
+    """Create a new user with username"""
+    try:
+        return us.post_user(
+            username=username, email=email, firstName=firstName, lastName=lastName
+        )
+    except KeycloakPostError as e:
+        raise HTTPException(status_code=409, detail="Username already exists.")

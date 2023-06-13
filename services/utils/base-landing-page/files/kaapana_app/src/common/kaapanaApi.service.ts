@@ -229,6 +229,19 @@ import AuthService from '@/common/auth.service'
     })
   }
 
+  const kaapanaApiPost = (subUrl: any, params:any = null, timeout: any = 10000) => {
+    return new Promise((resolve, reject) => {
+      request.defaults.timeout = timeout
+      request.post('/kaapana-backend/' + subUrl, null, { params: params }).then((response: any) => {
+        console.log(response)
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response)
+        reject(error)
+      })
+    })
+  }
+
   const syncRemoteInstances = () => {
         return federatedClientApiGet("/check-for-remote-updates")
         .then((response) => {
@@ -258,7 +271,8 @@ import AuthService from '@/common/auth.service'
     federatedRemoteApiGet,
     federatedRemoteApiDelete,
     kaapanaApiGet,
-    syncRemoteInstances
+    syncRemoteInstances,
+    kaapanaApiPost
   }
 
 export default kaapanaApiService

@@ -5,6 +5,10 @@ import json
 import subprocess
 from subprocess import PIPE
 from os import getenv
+from pathlib import Path
+
+logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -36,15 +40,17 @@ container_name = container_name_version.split(":")[0]
 def manage_iso_inst():
     instance_state = getenv("INSTANCE_STATE", "None")
     if instance_state == "present":
-        logging.info("Starting an isolated environment...")
+        logger.info("Starting an isolated environment...")
     elif instance_state == "absent":
-        logging.info("Deleting isolated environment...")
+        logger.info("Deleting isolated environment...")
 
     playbook_path = os.path.join(playbooks_dir, "manage_"+platform_name+"_instance.yaml")
     if not os.path.isfile(playbook_path):
         raise Exception(f"Playbook '{playbook_path}' file not found!")
 
-    playbook_args = f"instance_name={workflow_type}_instance instance_state={instance_state}"
+    ssh_key_operator_path = os.path.join(workflow_dir, ".ssh")
+    Path(ssh_key_operator_path).mkdir(parents=True, exist_ok=True)
+    playbook_args = f"instance_name={workflow_type}_instance instance_state={instance_state} ssh_key_operator_path={ssh_key_operator_path}"
     
     if platform_name in ["openstack", "qemu_kvm"]:
         for key, value in platform_config["platforms"][platform_name]["platform_flavors"][flavor_name].items():
@@ -78,12 +84,12 @@ def manage_iso_inst():
             ip_addr_str_search = re.findall(r'isolated_env_ip: \d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', output)
             if instance_state == "present" and ip_addr_str_search:
                 ip_addr_string = re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', output)
-                logging.info(f"IP address of new isolated instance is: {ip_addr_string[-1]}")
+                logger.info(f"IP address of new isolated instance is: {ip_addr_string[-1]}")
                 with open(iso_env_ip_path, "w+") as f:
                     f.write(ip_addr_string[-1])
     rc = process.poll()
     if rc == 0:
-        logging.info(f'Iso instance managed successfully!')
+        logger.info(f'Iso instance managed successfully!')
     else:
         raise Exception("Failed to manage isolated environment!")
     
@@ -91,7 +97,7 @@ def copy_data_algo():
     operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
     operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
     assert operator_in_dir is not None
-    logging.info("Copy data and algorithm to isolated environment...")
+    logger.info("Copy data and algorithm to isolated environment...")
     # base_dir = os.path.dirname(workflow_dir)
     # minio_path = os.path.join(base_dir, "minio")
     # operator_dir = os.path.dirname(os.path.abspath(__file__))
@@ -120,18 +126,18 @@ def copy_data_algo():
             print(output.strip())
     rc = process.poll()
     if rc == 0:
-        logging.info(f"Files copied successfully!!")
+        logger.info(f"Files copied successfully!!")
     else:
         raise Exception("Playbook FAILED! Cannot proceed further...")
 
-logging.info("##################################################")
-logging.info("#")
-logging.info("# Starting operator dice-evaluation:")
-logging.info("#")
-logging.info(f"# workflow_dir:     {workflow_dir}")
-logging.info("#")
-logging.info(f"# dag_run_id:     {dag_run_id}")
-logging.info("#")
+logger.info("##################################################")
+logger.info("#")
+logger.info("# Starting operator dice-evaluation:")
+logger.info("#")
+logger.info(f"# workflow_dir:     {workflow_dir}")
+logger.info("#")
+logger.info(f"# dag_run_id:     {dag_run_id}")
+logger.info("#")
 task_type = getenv("TASK_TYPE", "None")
 task_type = task_type if task_type.lower() != "none" else None
 assert task_type is not None

@@ -94,7 +94,7 @@
           name: "{{ ssh_key }}"
           public_key_file: "/root/.ssh/{{ ssh_key }}.pub"
 
-      - name: name: Download ssh private key to operator directory
+      - name: Download ssh private key to operator directory
         copy:
           src: "/root/.ssh/{{ ssh_key }}"
           dest: "{{ ssh_key_operator_path }}/{{ ssh_key }}"
@@ -102,7 +102,7 @@
           # group: foo
           mode: '0600'
       
-      - name: name: Download ssh public key to operator directory
+      - name: Download ssh public key to operator directory
         copy:
           src: "/root/.ssh/{{ ssh_key }}.pub"
           dest: "{{ ssh_key_operator_path }}/{{ ssh_key }}.pub"

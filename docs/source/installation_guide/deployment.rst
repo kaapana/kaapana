@@ -230,3 +230,19 @@ Data configurations
 | :code:`SLOW_DATA_DIR` `(default: "/home/kaapana", type=string)` 
 | Absolute path for directory on the server, where the DICOM images and other data will be stored (can be slower).
 |
+
+Credentials
+---------------------------------
+
+ ============================ ============== ============
+  Component                    Username       Password   
+ ============================ ============== ============
+  **Kaapana Login**            kaapana        kaapana    
+  **Keycloak Administrator**   admin          Kaapana2020
+  **Minio**                    kaapanaminio   Kaapana2020
+  **Grafana**                  admin          admin      
+ ============================ ============== ============
+
+.. hint::
+    | Most likely you will not need the Minio admin password. Use the ``Login with OpenID`` instead.  
+

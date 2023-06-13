@@ -89,8 +89,8 @@ Here are some additional Docker best practices to adhere to:
 - **Utilize `WORKDIR`**: Use the `WORKDIR` instruction to avoid specifying lengthy paths when using `COPY` and other instructions. This makes Dockerfiles more readable and easier to maintain.
 
 
-Example of a Kaapana Dockerfile for a **workflow**:
----------------------------------------------------
+Example of a Kaapana Dockerfile for a workflow
+-----------------------------------------------
 
 Assume that the processing algorithm of your workflow is written in a Python file named `example-workflow.py`. The Dockerfile for the workflow should install the necessary requirements, copy the `example-workflow.py` file into the Docker image, and define a command to execute the algorithm. Here is an example Dockerfile:
 

@@ -5,6 +5,7 @@ import datetime
 from pathlib import Path
 import nibabel as nib
 import numpy as np
+from os.path import basename
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -54,9 +55,11 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
                 # load json file
                 f = open(json_fname)
                 json_data = json.load(f)
-                # check if modality in CT or MR
-                if json_data["00000000 CuratedModality_keyword"] not in ["SEG"]:
-                    print("sample is not a SEG --> continue w/ next sample")
+                # check if modality is SEG
+                if json_data["00000000 CuratedModality_keyword"] in ["SEG"]:
+                    print("Valid SEG sample!")
+                else:
+                    print("Sample is not a SEG --> continue w/ next sample")
                     continue
             else:
                 json_data = {}
@@ -70,7 +73,7 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
             class_counts = {}
             for nifti_fname in nifti_fnames:
                 print(f"{nifti_fname=}")
-                nifti = nib.load(nifti_fname)
+                nifti_img = nib.load(nifti_fname)
                 data = np.array(nifti_img.dataobj)
                 # Get the unique labels/classes in the data
                 unique_labels = np.unique(data)
@@ -79,8 +82,9 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
                 for label in unique_labels:
                     # if label == 0:  # Skip background class
                     #     continue
-                    class_counts[nifti_fname] = np.sum(data == label)
+                    class_counts[basename(nifti_fname)] = int(np.sum(data == label))
             print(f"{class_counts=}")
+            json_data.update({"seg_voxels_per_class": class_counts})
 
             # save to out_dir
             with open(

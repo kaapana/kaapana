@@ -25,6 +25,7 @@ class Mask2nifitiOperator(KaapanaBaseOperator):
         dicom_operator=None,
         output_type="nii.gz",
         seg_filter=None,
+        exit_on_error=True,
         env_vars=None,
         execution_timeout=timedelta(days=5),
         **kwargs,
@@ -43,7 +44,8 @@ class Mask2nifitiOperator(KaapanaBaseOperator):
             if dicom_operator is not None
             else str(None),
             "OUTPUT_TYPE": output_type,
-            "SEG_FILTER": seg_filter or "",  # a bash list i.e.: 'liver,aorta'
+            "SEG_FILTER": seg_filter or "",  # a bash list i.e.: 'liver,aorta',
+            "EXIT_ON_ISSUE": str(exit_on_error),
         }
 
         env_vars.update(envs)

@@ -147,6 +147,7 @@ class WazuhAPIWrapper:
             f"setting wazuh api wrapper endpoints, api: {self.__api_endpoint}, elastic api: {self.__elastic_api_endpoint}"
         )
 
+    # TODO: same method here and in stackrox_api.py -> extract & combine
     def retry_on_unauthorized(fn):
         if inspect.iscoroutinefunction(fn):
 
@@ -355,7 +356,7 @@ class WazuhAPIWrapper:
                     iteration * WAZUH_API_ITEM_LIMIT, WAZUH_API_ITEM_LIMIT
                 ),
                 verify=False,
-                # Auth is default 'admin:SecretPassword', todo: remove once SSO works
+                # Auth is default 'admin:SecretPassword', TODO: remove once SSO works
                 headers={
                     "Content-Type": "application/json",
                     "Authorization": "Basic YWRtaW46U2VjcmV0UGFzc3dvcmQ=",
@@ -505,7 +506,7 @@ class WazuhAPIWrapper:
             f"{self.__elastic_api_endpoint}/wazuh-alerts*/_search",
             json=payload,
             verify=False,
-            # Auth is default 'admin:SecretPassword', todo: remove once SSO works
+            # Auth is default 'admin:SecretPassword', TODO: remove once SSO works
             headers={
                 "Content-Type": "application/json",
                 "Authorization": "Basic YWRtaW46U2VjcmV0UGFzc3dvcmQ=",

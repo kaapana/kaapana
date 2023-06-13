@@ -45,7 +45,7 @@ mv /tmp-certificates/* ./config/wazuh_indexer_ssl_certs/
 
 # without write permissions for other users the wazuh-indexer container fails to start
 mkdir ./wazuh-indexer-data >/dev/null 2>&1
-chmod -R 777 ./wazuh-indexer-data # todo set correct owner instead
+chmod -R 777 ./wazuh-indexer-data # TODO: set correct owner instead (find out which)
 
 # make the randomly generated api credentials available to security-pages
 cp /wazuh_api_secret/username /api_credentials/wazuh_username
@@ -53,7 +53,7 @@ cp /wazuh_api_secret/password /api_credentials/wazuh_password
 
 # add shared agent config
 mkdir -p /wazuh-agent-config/shared/default/
-chmod -R 777 /wazuh-agent-config # todo set correct owner instead
+chmod -R 777 /wazuh-agent-config # TODO: set correct owner instead (find out which)
 cp /shared_agent_config.xml /wazuh-agent-config/shared/default/agent.conf
 
 cp /security_config.yml ./config/wazuh_indexer/security_config.yml

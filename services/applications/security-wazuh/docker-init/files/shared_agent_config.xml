@@ -68,7 +68,7 @@
     <!-- Directories to check  (perform all possible verifications) -->
     <directories>/etc,/usr/bin,/usr/sbin</directories>
     <directories>/bin,/sbin,/boot</directories>
-    <directories realtime="yes">/home/ubuntu/test</directories> <!-- todo: test only, remove -->
+    <!-- <directories realtime="yes">/home/ubuntu/test</directories> --> <!-- test only, remove for production -->
 
     <!-- Files/directories to ignore -->
     <ignore>/etc/mtab</ignore>

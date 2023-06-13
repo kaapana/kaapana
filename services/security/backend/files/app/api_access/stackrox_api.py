@@ -155,7 +155,7 @@ class StackRoxAPIWrapper:
             f"setting stackrox api wrapper endpoints, api: {self.__api_endpoint}"
         )
 
-    # todo extract here and in wazuh api
+    # TODO: same method here and in wazuh_api.py -> extract & combine
     def retry_on_unauthorized(fn):
         if inspect.iscoroutinefunction(fn):
 
@@ -519,7 +519,7 @@ class StackRoxAPIWrapper:
         )
 
         logger.debug(
-            f"result from '/v1/debug/loglevel' with': {result} - {(result.content)}"  # todo: trim content
+            f"result from '/v1/debug/loglevel' with': {result} - {trimContent(result.content)}"
         )
         return result.json()
 
@@ -538,7 +538,7 @@ class StackRoxAPIWrapper:
         )
 
         logger.debug(
-            f"result from '/v1/debug/loglevel' with level '{data['level']}': {result} - {(result.content)}"  # todo: trim content
+            f"result from '/v1/debug/loglevel' with level '{data['level']}': {result} - {trimContent(result.content)}"
         )
 
     @retry_on_unauthorized
@@ -556,5 +556,5 @@ class StackRoxAPIWrapper:
         )
 
         logger.debug(
-            f"result from '/v1/debug/loglevel' with level '{data['level']}': {result} - {(result.content)}"  # todo: trim content
+            f"result from '/v1/debug/loglevel' with level '{data['level']}': {result} - {trimContent(result.content)}"
         )

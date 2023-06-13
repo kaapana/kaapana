@@ -163,7 +163,7 @@ class WazuhRouter(DeactivatableRouter):
         try:
             return {
                 "data": self.__wazuh_api.get_agent_sca_policy_checks(agent_id, policy_id)
-            }  # todo pagination?
+            }
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -176,7 +176,7 @@ class WazuhRouter(DeactivatableRouter):
         try:
             return {
                 "data": self.__wazuh_api.get_agent_file_integrity_alerts(agent_id)
-            }  # todo pagination?
+            }
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,
@@ -189,7 +189,7 @@ class WazuhRouter(DeactivatableRouter):
         try:
             return {
                 "data": await self.__wazuh_api.get_agent_vulnerabilities(agent_id)
-            }  # todo pagination?
+            }
         except:
             raise HTTPException(
                 status_code=HTTP_500_INTERNAL_SERVER_ERROR,

@@ -75,13 +75,15 @@ operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
 assert operator_out_dir is not None
 
+exit_on_issue = getenv("EXIT_ON_ISSUE", "True")
+exit_on_issue = False if exit_on_issue.lower() != "true" else True
+
 
 # File-extension to search for in the input-dir
 input_file_extension = "*.dcm"
 
 # How many processes should be started?
 parallel_processes = 3
-exit_on_issue = True
 
 logger.info("##################################################")
 logger.info("#")

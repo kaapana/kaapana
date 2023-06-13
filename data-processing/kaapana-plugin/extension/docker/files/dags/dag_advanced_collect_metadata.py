@@ -80,6 +80,7 @@ extract_img_intensities = LocalExtractImgIntensitiesOperator(
 dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_input,
+    exit_on_error=False,
     retries=0,
 )
 

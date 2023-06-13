@@ -37,15 +37,20 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
         batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
         for batch_element_dir in batch_dirs:
-
             # create batch-element out dir
-            batch_element_out_dir = os.path.join(batch_element_dir, self.operator_out_dir)
+            batch_element_out_dir = os.path.join(
+                batch_element_dir, self.operator_out_dir
+            )
             Path(batch_element_out_dir).mkdir(exist_ok=True)
 
             # check if json_operator is defined; if yes load existing json file from json_operator's dir
             if self.json_operator:
-                batch_element_json_in_dir = os.path.join(batch_element_dir, self.json_operator)
-                json_fname = glob.glob(os.path.join(batch_element_json_in_dir, "*.json"), recursive=True)[0]
+                batch_element_json_in_dir = os.path.join(
+                    batch_element_dir, self.json_operator
+                )
+                json_fname = glob.glob(
+                    os.path.join(batch_element_json_in_dir, "*.json"), recursive=True
+                )[0]
                 # load json file
                 f = open(json_fname)
                 json_data = json.load(f)
@@ -58,28 +63,35 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
             # load batch-element's nifti image form input_operator's dir
             batch_element_in_dir = os.path.join(batch_element_dir, self.input_operator)
-            nifti_fname = glob.glob(os.path.join(batch_element_in_dir, "*.nii.gz"), recursive=True)[0]
+            nifti_fname = glob.glob(
+                os.path.join(batch_element_in_dir, "*.nii.gz"), recursive=True
+            )[0]
             nifti = nib.load(nifti_fname)
 
             pixel_data = nifti.get_fdata()
             unique_values, counts = np.unique(pixel_data, return_counts=True)
-            histo_dict = {f"{value}": f"{count}" for value, count in zip(unique_values, counts)}
+            histo_dict = {
+                f"{value}": f"{count}" for value, count in zip(unique_values, counts)
+            }
             json_data["pixel_intensities_n_freq"] = histo_dict
 
             # save to out_dir
-            with open(os.path.join(batch_element_out_dir, "metadata_n_histodata.json"), "w", encoding="utf-8") as fp:
+            with open(
+                os.path.join(batch_element_out_dir, "metadata_n_histodata.json"),
+                "w",
+                encoding="utf-8",
+            ) as fp:
                 json.dump(json_data, fp, indent=4, sort_keys=False, ensure_ascii=False)
 
     def __init__(
-        self, 
-        dag, 
+        self,
+        dag,
         name="extract-img-intensities",
         input_operator=None,
         json_operator=None,
-        **kwargs
-        ):
-
+        **kwargs,
+    ):
         self.input_operator = input_operator.name
         self.json_operator = json_operator.name
-        
+
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

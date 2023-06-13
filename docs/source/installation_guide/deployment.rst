@@ -1,11 +1,139 @@
-.. _platform_config:
+.. _deployment:
+
+Platform Deployment
+*******************
+
+
+Deploy Platform
+^^^^^^^^^^^^^^^^
+
+.. hint::
+
+  | **Filesystem directories**
+  | In the default configuration there are two locations on the filesystem, which will be used for stateful data on the host machine:
+  | 1. ``fast_data_dir=/home/kaapana``: Location of data that do not take a lot of space and should be loaded fast. Preferably, a SSD is mounted here.
+  | 2. ``slow_data_dir=/home/kaapana``:  Location of huge files, like images or our object store is located here.  Preferably, a HDD is mounted here.
+  | They can be adjusted in the :term:`deploy-platform-script` and can also be identical (everything is stored at one place).
+
+The platform is deployed using the :term:`deploy-platform-script`, which you can find at :code:`kaapana/build/kaapana-admin-chart/deploy_platform.sh`.
+
+Copy the script to your target-system (server) and **adjust it as described below**:
+
+1. Open the :code:`deploy_platform.sh` script on the server
+   
+   :code:`nano deploy_platform.sh`
+
+2. Have a look at the variables on top of the script. An explanation for all of the variables can be found below under **Platform configuration**.
+   
+**You need to do at least the following customizations:**
+Note: If you have already built the platform, these variables should have been filled in.
+
+.. tabs::
+
+   .. tab:: Private registry
+
+      .. code-block:: python
+
+         ...
+         CONTAINER_REGISTRY_URL="<registry-url>"
+         ...
+
+   .. tab:: Tarball
+
+      .. code-block:: python
+
+         ...
+         CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
+         ...
+
+3. Make it executable with :code:`chmod +x deploy_platform.sh`
+4. Execute the script:
+
+.. note:: 
+
+   If you are use a tarball make sure that you also make the following changes to the :code:`deploy_platform.sh` file:
+
+   .. code-block:: python
+
+      ...
+      OFFLINE_MODE="true"
+      DEV_MODE="false"
+      CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
+      ...
+
+.. tabs::
+
+   .. tab:: Private registry
+
+      :code:`./deploy_platform.sh`
+
+   .. tab:: Tarball
+
+      :code:`./deploy_platform.sh --upload-tar <path-to-tarball-file>`
+
+You may be asked the following questions:
+
+1. *server domain (FQDN):*
+
+   You should enter the **domain, hostname or IP-address** where the server is accessible from client workstations.
+   **Keep in mind, that valid SSL-certificates are only working with FQDN domains.**
+
+2. *Enable GPU support?*
+
+   Answer *yes* if you have a Nvidia GPU, installed drivers and enabled GPU for Microk8s.
+
+3. *Please enter the credentials for the Container-Registry:*
+
+   Use the credentials to your own registry or the ones provided to you by the Kaapana team.
+
+The script will stop and **wait** until the platform is deployed.
+Since all Docker containers must be downloaded, this may take some time (~15 min).
+
+After a successful deployment you'll get the following message:
+
+.. code-block:: python
+
+   Deployment done.
+   Please wait till all components have been downloaded and started.
+   You can check the progress with:
+   watch microk8s.kubectl get pods --all-namespaces
+   When all pod are in the "running" or "completed" state,
+   you can visit: <domain>
+   You should be welcomed by the login page.
+   Initial credentials:
+   username: kaapana
+   password: kaapana
+
+
+Undeploy Platform
+^^^^^^^^^^^^^^^^^
+
+To undeploy the Kaapana platform, the kaapana-platform-chart and all related charts need to be deleted. For that, run the deployment script :code:`./deploy_platform.sh` and choose the **2) Undeploy** option.
+
+If the **undeployment fails**, make sure to manually check that
+
+1. All helm charts are deleted. All helm charts in Kaapana are created with the same namespace so that they are distinguished from possible other charts
+
+   :code:`helm ls -n kaapana`
+
+2. All pods are deleted. Kaapana uses multiple namespaces for managing deployment and pods, i.e. **kaapana, flow-jobs flow, monitoring, store, meta, base**
+
+   :code:`kubectl get pods -A`
+
+.. hint::
+
+   | The :code:`./deploy_platform.sh` script also has a purge flag.
+   | :code:`--purge-kube-and-helm` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forerver.
+
+
+
 
 Platform Config
-===============
+^^^^^^^^^^^^^^^
 
 During the build process the file :code:`.kaapana/build/kaapana-admin-chart/deploy_platform.sh` is generated.
-Inside :code:`deploy_platform.sh`, there are multiple variables available for configuring your Kaapana platform for different needs.
-This section will give a brief explanation about these.
+This section provides a brief explanation about the multiple variables in :code:`deploy_platform.sh` which can be changed to configure the Kaapana platform for different use cases.
+
 Some of the variables are automatically set during the build process.
 
 Platform and registry configurations

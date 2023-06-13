@@ -11,8 +11,7 @@ KAAPANA Documentation
    :maxdepth: 2
    
    intro_kaapana
-   getting_started_root
-   configuration_root
+   installation_guide_root
    tech_basics_root
    extensions
    workflow_management_system

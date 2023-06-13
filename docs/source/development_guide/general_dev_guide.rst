@@ -1,25 +1,18 @@
 .. _general_dev_guide:
 
-=======
-General
-=======
-
 Introduction
 ------------
 
 This guide is intended to provide a quick and easy way to get started with developments on the Kaapana platform.
  
 The guide currently consists of three parts. This part gives a brief overview over the technologies and needed preparations for the rest of the guide.
-The part :ref:`processing_dev_guide` focuses on the integration of custom processing workflows into the platform. 
+The part :ref:`workflow_dev_guide` focuses on the integration of custom processing workflows into the platform. 
 It will be explained how to formulate workflows in Airflow-DAGs and further how to integrate workflows as extensions into the Kaapana technology stack.
-The last section :ref:`service_dev_guide` gives step by step instructions how to deploy a general--purpose web application within Kaapana as an example how new components can be added to the platform.
+The last section :ref:`application_dev_guide` gives step by step instructions how to deploy a general--purpose web application within Kaapana as an example how new components can be added to the platform.
 
 
-Getting started
----------------
-
-List of the technologies used within this guide
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+List of the technologies
+^^^^^^^^^^^^^^^^^^^^^^^^
 These tutorials/technologies are good references, when starting with the Kaapana deployment:
 
 * `Docker <https://docs.docker.com/get-docker/>`_: Necessary when you want to build containers on your local machine
@@ -29,9 +22,8 @@ These tutorials/technologies are good references, when starting with the Kaapana
 
 All of the examples below are taken from the ``templates_and_examples`` folder of our Github repository!
 
-Preparations for the development
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-**Requirements:**
+Requirements
+^^^^^^^^^^^^
 
 * Running version of the Kaapana platform and access to a terminal where the platform is running
 * Installation of `Docker <https://docs.docker.com/get-docker/>`_ on your local machine

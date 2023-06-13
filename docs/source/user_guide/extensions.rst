@@ -8,7 +8,7 @@ Introduction
 
 .. note::
   This section explains the types of Kaapana extensions and how they work. For descriptions of available workflows and applications, refer to the  :ref:`extensions_workflows` and :ref:`extensions_applications`. 
-  To learn how to integrate custom components into the platform as extensions, refer to the :ref:`service_dev_guide` and :ref:`processing_dev_guide`.
+  To learn how to integrate custom components into the platform as extensions, refer to the :ref:`application_dev_guide` and :ref:`workflow_dev_guide`.
 
 
 The *Extension* functional unit in Kaapana serves as an app store. It allows users to install/uninstall applications, workflows, and even platforms (experimental feature). Technically, an extension is a `Helm chart <https://helm.sh/docs/topics/charts/>`_. 
@@ -30,7 +30,7 @@ In addition to the distinction in kinds, there is also an distinction in version
 
   To install a specific version of an extension, use the dropdown in the version column.
 
-The section :ref:`processing_dev_guide` also explains how to write and add your own extensions.
+The section :ref:`workflow_dev_guide` also explains how to write and add your own extensions.
 
 Uploading Extensions to the Platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

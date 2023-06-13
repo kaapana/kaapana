@@ -13,9 +13,7 @@ KAAPANA Documentation
    intro_kaapana
    installation_guide_root
    tech_basics_root
-   extensions
-   workflow_management_system
-   platform_guide_root
+   user_guide_root
    development_guide_root
    api_documentation_root
    faq_root

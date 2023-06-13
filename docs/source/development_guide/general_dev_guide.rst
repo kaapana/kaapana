@@ -53,4 +53,4 @@ To check whether the data was sucessfully uploaded to the platform, navigate to 
 
 **Note**
 
-In order to get a general idea about how to use the platform and to get an idea about its individual parts checkout the :ref:`platform_user_guide`.
+In order to get a general idea about how to use the platform and to get an idea about its individual parts checkout the :ref:`user_guide`.

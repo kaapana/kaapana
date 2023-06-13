@@ -1,10 +1,15 @@
-.. _extensions start:
+.. _extensions:
 
-Kaapana Extensions
-##################
+Extensions
+##########
 
 Introduction
 ^^^^^^^^^^^^
+
+.. note::
+  This section explains the types of Kaapana extensions and how they work. For descriptions of available workflows and applications, refer to the  :ref:`extensions_workflows` and :ref:`extensions_applications`. 
+  To learn how to integrate custom components into the platform as extensions, refer to the :ref:`service_dev_guide` and :ref:`processing_dev_guide`.
+
 
 The *Extension* functional unit in Kaapana serves as an app store. It allows users to install/uninstall applications, workflows, and even platforms (experimental feature). Technically, an extension is a `Helm chart <https://helm.sh/docs/topics/charts/>`_. 
 
@@ -25,27 +30,12 @@ In addition to the distinction in kinds, there is also an distinction in version
 
   To install a specific version of an extension, use the dropdown in the version column.
 
-For a detailed description of available workflows and applications, refer to the  :ref:`extensions workflows` and :ref:`extensions applications` sections. To learn how to integrate custom components into the platform as extensions, refer to the :ref:`service_dev_guide` and :ref:`processing_dev_guide` sections.
-
-Extension Parameters
-^^^^^^^^^^^^^^^^^^^^
-
-Introduced in version 0.2.0, Extensions support specifying parameters as environment variables. This functionality can be customized according to the requirements of the extension. Some examples of available parameters are :code:`task_ID`s for **nnUNet** and the :code:`service_type`` field for **MITK Workbench**. Parameters can be of type :code:`string`, :code:`boolean`, :code:`single_selectable`, or :code:`multi_selectable`. Parameters should be defined in the values.yaml file of the chart. Each of them should follow this structure:
-
-.. code-block::
-
-  extension_params:
-    <parameter_name>:
-      default: <default_value>
-      definition: "definition of the parameter"
-      type: oneof (string, bool, list_single, list_multi)
-      value: <value_entered_by_the_user>
+The section :ref:`processing_dev_guide` also explains how to write and add your own extensions.
 
 Uploading Extensions to the Platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
-Kaapana version 0.2.0 also provides an upload component for extensions. This allows users to upload both Docker containers and the Helm charts to the platform. Currently, this component only accepts two file types: ".tar" for exported containers and ".tgz" for Helm charts.
+Kaapana also provides an upload component for extensions. This allows users to upload both Docker containers and the Helm charts to the platform. Currently, this component only accepts two file types: ".tar" for exported containers and ".tgz" for Helm charts.
 
 **Chart Upload:**
 
@@ -61,12 +51,29 @@ Kaapana version 0.2.0 also provides an upload component for extensions. This all
 
 * Uploaded containers are automatically imported into the microk8s ctr environment (for details see the `images import command here <https://microk8s.io/docs/command-reference#heading--microk8s-ctr>`_) . 
 * To save an image as a .tar file, use `docker <https://docs.docker.com/engine/reference/commandline/save/>`_ or `podman <https://docs.podman.io/en/latest/markdown/podman-save.1.html>`_.
-.. _extensions workflows:
+
+
+Extension Parameters
+^^^^^^^^^^^^^^^^^^^^
+
+Introduced in version 0.2.0, Extensions support specifying parameters as environment variables. This functionality can be customized according to the requirements of the extension. Some examples of available parameters are :code:`task_ID`s for **nnUNet** and the :code:`service_type`` field for **MITK Workbench**. Parameters can be of type :code:`string`, :code:`boolean`, :code:`single_selectable`, or :code:`multi_selectable`. Parameters should be defined in the values.yaml file of the chart. Each of them should follow this structure:
+
+.. code-block::
+
+  extension_params:
+    <parameter_name>:
+      default: <default_value>
+      definition: "definition of the parameter"
+      type: oneof (string, bool, list_single, list_multi)
+      value: <value_entered_by_the_user>
+
+
+.. _extensions_workflows:
 
 Workflows
 ^^^^^^^^^
 
-.. _extensions nnunet:
+.. _extensions_nnunet:
 
 nnUNet (nnunet-predict)
 -----------------------
@@ -89,7 +96,7 @@ nnUNet (nnunet-predict)
 
 
 
-.. _extensions organseg:
+.. _extensions_organseg:
 
 Automatic organ segmentation (shapemodel-organ-seg)
 ---------------------------------------------------
@@ -111,7 +118,7 @@ Automatic organ segmentation (shapemodel-organ-seg)
 | Select  *organ-segmentation* + *START*, make sure *single execution* on the configuration popup is set to True and then click *START* again.
 
 
-.. _extensions radiomics:
+.. _extensions_radiomics:
 
 Radiomics (radiomics-dcmseg)
 ----------------------------
@@ -129,7 +136,7 @@ Radiomics (radiomics-dcmseg)
 | **Start processing:**
 | Select  *radiomics* + *START*, *single execution* on the configuration popup can be set to True or False and then click *START* again.
 
-.. _extensions mitk_flow:
+.. _extensions_mitk_flow:
 
 MITK Flow
 ---------
@@ -154,12 +161,12 @@ MITK Flow
 | **Start processing:**
 | Select *mitk-flow* + *START*, make sure *single execution* on the configuration popup is set to False and then click *START* again.
 
-.. _extensions applications:
+.. _extensions_applications:
 
 Applications
 ^^^^^^^^^^^^
 
-.. _extensions code_server:
+.. _extensions_code_server:
 
 Code server
 -----------
@@ -173,7 +180,7 @@ Code server
 | If you want to use your costum VSCode settings inside the code-server you can save them under :code:`/kaapana/app/.vscode/settings.json`.
 
 
-.. _extensions jupyterlab:
+.. _extensions_jupyterlab:
 
 Jupyter lab
 -----------
@@ -183,7 +190,7 @@ Jupyter lab
 | **Mount point:**  
 | <slow_data_dir>/minio
 
-.. _extensions mitk_workbench:
+.. _extensions_mitk_workbench:
 
 MITK Workbench
 --------------
@@ -193,7 +200,7 @@ MITK Workbench
 | **Mount point:**  
 | <slow_data_dir>/minio
 
-.. _extensions tensorboard:
+.. _extensions_tensorboard:
 
 Tensorboard
 -----------

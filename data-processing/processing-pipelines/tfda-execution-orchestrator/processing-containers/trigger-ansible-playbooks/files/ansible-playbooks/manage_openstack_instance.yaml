@@ -5,6 +5,7 @@
 
   vars:
     ssh_key: "{{ ssh_key_name }}"
+    ssh_key_operator_path: "{{ ssh_key_operator_path }}"
     os_auth_url: "{{ os_auth_url }}"
     project_name: "{{ os_project_name }}"
     os_project_id: "{{ os_proj_id }}"
@@ -92,6 +93,22 @@
           state: replace # will only replace if the remote key is different than local
           name: "{{ ssh_key }}"
           public_key_file: "/root/.ssh/{{ ssh_key }}.pub"
+
+      - name: name: Download ssh private key to operator directory
+        copy:
+          src: "/root/.ssh/{{ ssh_key }}"
+          dest: "{{ ssh_key_operator_path }}/{{ ssh_key }}"
+          # owner: foo
+          # group: foo
+          mode: '0600'
+      
+      - name: name: Download ssh public key to operator directory
+        copy:
+          src: "/root/.ssh/{{ ssh_key }}.pub"
+          dest: "{{ ssh_key_operator_path }}/{{ ssh_key }}.pub"
+          # owner: foo
+          # group: foo
+          mode: '0600'
 
       - name: check ssh_key_file present
         stat: 

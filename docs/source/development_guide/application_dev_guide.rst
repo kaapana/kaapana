@@ -1,13 +1,13 @@
-.. _service_dev_guide:
+.. _application_dev_guide:
 
-=================
-Service Dev-Guide
-=================
+=======================
+Developing Applications
+=======================
 
 Introduction
 ------------
 
-In the service dev-guide we demonstrate how one can integrate functionalities into the Kaapana platform, that do not fit into the
+In the application development guide we demonstrate how one can integrate functionalities into the Kaapana platform, that do not fit into the
 structure of processing pipelines. For this purpose we show how we can host a general flask web application within Kaapana.
 
 .. _Deploy a Flask Application on the platform:

@@ -15,7 +15,6 @@ KAAPANA Documentation
    tech_basics_root
    user_guide_root
    development_guide_root
-   api_documentation_root
    faq_root
    publication_citation
    releases

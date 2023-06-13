@@ -1,8 +1,8 @@
-.. _processing_dev_guide:
+.. _workflow_dev_guide:
 
-========================================
-Dev-Guide: Integrating custom workflows
-========================================
+====================
+Developing Workflows
+====================
 
 Introduction
 -------------

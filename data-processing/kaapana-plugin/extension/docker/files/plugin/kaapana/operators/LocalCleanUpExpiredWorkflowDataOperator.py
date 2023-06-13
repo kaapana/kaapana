@@ -9,6 +9,15 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to cleanup/remove the expired workflows data directories
+
+    **Inputs:**
+
+    * dag: DAG to be cleaned.
+    * expired_period: Clean items that have expired since a certain period.
+
+    """
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
 
@@ -36,6 +45,11 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
         return
 
     def __init__(self, dag, expired_period=timedelta(days=60), **kwargs):
+        """
+        :param dag: DAG in which the operator has to be executed.
+        :param expired_period: Clean items that have expired since in day(s), default: 60 days
+        """
+        
         self.expired_period = expired_period
 
         super().__init__(

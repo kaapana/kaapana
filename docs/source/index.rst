@@ -12,7 +12,6 @@ KAAPANA Documentation
    
    intro_kaapana
    installation_guide_root
-   tech_basics_root
    user_guide_root
    development_guide_root
    faq_root

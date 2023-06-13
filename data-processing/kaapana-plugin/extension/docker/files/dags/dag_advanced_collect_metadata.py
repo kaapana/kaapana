@@ -80,8 +80,10 @@ extract_img_intensities = LocalExtractImgIntensitiesOperator(
 dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_input,
+    dicom_operator=get_input,
     exit_on_error=False,
     retries=0,
+    image_pull_policy="Always",
 )
 
 extract_seg_metadata = LocalExtractSegMetadataOperator(
@@ -102,6 +104,7 @@ concat_metadata = LocalConcatJsonOperator(
     dag=dag,
     name="concatenated-metadata",
     input_operator=merge_branches,
+    # trigger_rule=TriggerRule.ALL_DONE,
 )
 
 put_to_minio = LocalMinioOperator(

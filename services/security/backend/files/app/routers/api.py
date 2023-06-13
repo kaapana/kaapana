@@ -81,7 +81,7 @@ def get_disable_debug():
     return Response(status_code=HTTP_200_OK)
 
 
-# todo: get alerts from stackrox and also include errors from fastapi
+# TODO: get alerts from stackrox and also include errors from fastapi
 @router.get("/notifications", response_model=ResponseModel[List[Notification]])
 def get_notifications(response: Response):
     response.headers["max-age"] = "5"

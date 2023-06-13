@@ -934,7 +934,6 @@ class HelmChart:
 
     def make_package(self):
         BuildUtils.logger.info(f"{self.chart_id}: make_package")
-
         command = ["helm", "package", self.name]
         output = run(
             command,

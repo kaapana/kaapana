@@ -4,7 +4,7 @@ Development Guide
 #################
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     development_guide/general_dev_guide
     development_guide/workflow_dev_guide

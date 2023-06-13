@@ -11,7 +11,7 @@ Non-DICOM data is stored in Minio buckets.
 Removing DICOM data 
 -------------------
 
-DICOM data can be removed by triggering the :code:`delete-series-from-platform` workflow in the :ref:`Workflow Management System<wms start>` or the `Datasets` tool.
+DICOM data can be removed by triggering the :code:`delete-series-from-platform` workflow in :ref:`workflows<wms start>` or the :ref:`datasets` tool.
 
 The :code:`delete-series-from-platform` workflow deletes all series in the :term:`dataset` from the PACS and additionally deletes all corresponding metadata from OpenSearch.
 However, it is important to note that the corresponding series identifier will remain within any dataset it is associated with and will not be removed.

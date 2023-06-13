@@ -4,7 +4,7 @@ Installation Guide
 ##################
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     installation_guide/introduction
     installation_guide/build

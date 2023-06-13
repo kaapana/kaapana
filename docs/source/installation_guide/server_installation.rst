@@ -40,6 +40,23 @@ Server Installation
 Server Config
 =============
 
+
+Port Configuration
+^^^^^^^^^^^^^^^^^^
+In the default configuration the following ports are opened for incoming traffic on the system
+
+======= ========== =================================================================
+ Port    Protocol   Description
+======= ========== =================================================================
+    80   HTTP       Redirect to HTTPS port 443
+   443   HTTPS      Web Interface of the Platform (Interaction, File Upload, APIs)
+ 11112   DIMSE      DICOM C-STORE SCP to send images to the platform
+======= ========== =================================================================
+
+.. attention::
+    | Kaapana uses MicroK8s as Kubernetes distribution which also opens ports on the machine it runs on. For an up to date list visit `the corresponding microk8s documentation <https://microk8s.io/docs/services-and-ports>`_.
+
+
 Proxy
 ^^^^^
 

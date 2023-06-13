@@ -10,7 +10,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
     """
-    Operator to cleanup/remove the expited workflows data directories
+    Operator to cleanup/remove the expired workflows data directories
 
     **Inputs:**
 

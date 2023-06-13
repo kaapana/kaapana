@@ -36,8 +36,6 @@ spec:
               value: "{{ .Values.global.credentials_keycloak_admin_password }}"
             - name: KEYCLOAK_HOST
               value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
-            - name: KEYCLOAK_URI
-              value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}"
             - name: STACKROX_URI
               value: "https://{{ .Values.global.hostname }}:19443"
             - name: OIDC_CLIENT_SECRET

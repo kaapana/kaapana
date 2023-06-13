@@ -793,10 +793,6 @@ class HelmChart:
                 for line in yaml_content:
                     line = line.rstrip()
                     if "image:" in line:
-                        if re.match(r"\s*#", line) is not None:
-                            BuildUtils.logger.debug(f"Commented: {line} -> skip")
-                            continue
-
                         line = (
                             line.split("image:")[1]
                             .replace('"', "")
@@ -862,12 +858,6 @@ class HelmChart:
                             )
 
     def lint_chart(self, build_version=False):
-        if self.ignore_linting:
-            BuildUtils.logger.debug(
-                f"{self.chart_id}: ignore_linting is true, lint_chart skipped"
-            )
-            return
-
         if self.helmlint_done:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart already done - skip")
             return
@@ -944,8 +934,6 @@ class HelmChart:
 
     def make_package(self):
         BuildUtils.logger.info(f"{self.chart_id}: make_package")
-
-        os.chdir(dirname(self.build_chart_dir))
 
         command = ["helm", "package", self.name]
         output = run(
@@ -1182,12 +1170,7 @@ class HelmChart:
                 build_requirements_lines = f.readlines()
             with open(build_requirements, "w") as f:
                 for build_requirements_line in build_requirements_lines:
-                    stripped_line = build_requirements_line.strip("\n")
-                    if (
-                        "repository:" not in stripped_line
-                        or re.match(r"\s*repository:\s*https", stripped_line)
-                        is not None
-                    ):
+                    if "repository:" not in build_requirements_line.strip("\n"):
                         f.write(build_requirements_line)
 
         src_chart.build_chart_dir = target_build_dir

@@ -236,13 +236,6 @@ def pull_docker_image(
     return success, helm_result_dict
 
 
-def create_namespace(name: str):
-    create_namespace = f"kubectl create namespace {name}"
-    success, stdout = helm_helper.execute_shell_command(create_namespace)
-    if not success:
-        logger.error(f"creating namespace {name} failed: {stdout}")
-
-
 def helm_install(
     payload,
     helm_namespace=settings.helm_namespace,

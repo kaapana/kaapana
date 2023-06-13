@@ -4,8 +4,12 @@ from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOpera
 from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalExtractImgIntensitiesOperator import LocalExtractImgIntensitiesOperator
-from kaapana.operators.LocalExtractSegMetadataOperator import LocalExtractSegMetadataOperator
+from kaapana.operators.LocalExtractImgIntensitiesOperator import (
+    LocalExtractImgIntensitiesOperator,
+)
+from kaapana.operators.LocalExtractSegMetadataOperator import (
+    LocalExtractSegMetadataOperator,
+)
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalMergeBranchesOperator import LocalMergeBranchesOperator
@@ -54,20 +58,15 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag)
 
 anonymizer = LocalDcmAnonymizerOperator(
-    dag=dag, 
-    input_operator=get_input, 
-    single_slice=True
+    dag=dag, input_operator=get_input, single_slice=True
 )
 
-extract_metadata = LocalDcm2JsonOperator(
-    dag=dag, 
-    input_operator=anonymizer
-)
+extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer)
 
 ### SPLITTED: BRANCH CT, MR IMAGE ###
 dcm2nifti_ct = DcmConverterOperator(
-    dag=dag, 
-    input_operator=get_input, 
+    dag=dag,
+    input_operator=get_input,
     output_format="nii.gz",
 )
 
@@ -99,8 +98,8 @@ merge_branches = LocalMergeBranchesOperator(
 )
 
 concat_metadata = LocalConcatJsonOperator(
-    dag=dag, 
-    name="concatenated-metadata", 
+    dag=dag,
+    name="concatenated-metadata",
     input_operator=merge_branches,
 )
 
@@ -114,5 +113,15 @@ put_to_minio = LocalMinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
-get_input >> anonymizer >> extract_metadata >> dcm2nifti_ct >> extract_img_intensities >> merge_branches >> concat_metadata >> put_to_minio >> clean
+(
+    get_input
+    >> anonymizer
+    >> extract_metadata
+    >> dcm2nifti_ct
+    >> extract_img_intensities
+    >> merge_branches
+    >> concat_metadata
+    >> put_to_minio
+    >> clean
+)
 extract_metadata >> dcm2nifti_seg >> extract_seg_metadata >> merge_branches

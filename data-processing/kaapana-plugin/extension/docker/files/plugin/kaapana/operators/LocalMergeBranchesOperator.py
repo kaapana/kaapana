@@ -37,16 +37,25 @@ class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):
         batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
         for batch_element_dir in batch_dirs:
-
             # create batch-element out dir
-            batch_element_out_dir = os.path.join(batch_element_dir, self.operator_out_dir)
+            batch_element_out_dir = os.path.join(
+                batch_element_dir, self.operator_out_dir
+            )
             Path(batch_element_out_dir).mkdir(exist_ok=True)
 
-            first_batch_element_in_dir = os.path.join(batch_element_dir, self.first_input_operator)
-            frist_fnames = glob.glob(os.path.join(first_batch_element_in_dir, "*"), recursive=True)
+            first_batch_element_in_dir = os.path.join(
+                batch_element_dir, self.first_input_operator
+            )
+            frist_fnames = glob.glob(
+                os.path.join(first_batch_element_in_dir, "*"), recursive=True
+            )
             print(f"{frist_fnames=}")
-            second_batch_element_in_dir = os.path.join(batch_element_dir, self.second_input_operator)
-            second_fnames = glob.glob(os.path.join(second_batch_element_in_dir, "*"), recursive=True)
+            second_batch_element_in_dir = os.path.join(
+                batch_element_dir, self.second_input_operator
+            )
+            second_fnames = glob.glob(
+                os.path.join(second_batch_element_in_dir, "*"), recursive=True
+            )
             print(f"{second_fnames=}")
             fnames = frist_fnames + second_fnames
 
@@ -58,15 +67,14 @@ class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):
                 shutil.copy(src, dst)
 
     def __init__(
-        self, 
-        dag, 
+        self,
+        dag,
         name="merge_2branches",
         first_input_operator=None,
         second_input_operator=None,
-        **kwargs
-        ):
-
+        **kwargs,
+    ):
         self.first_input_operator = first_input_operator.name
         self.second_input_operator = second_input_operator.name
-        
+
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

@@ -1,7 +1,7 @@
 .. _how_to_dockerfile:
 
-How to write a Dockerfile for Kaapana?
-**************************************
+Best Practices: Writing Dockerfile
+**********************************
 
 In order to get an overview how to generally design Dockerfiles take a look at the following basic tutorials:
 
@@ -88,31 +88,34 @@ Here are some additional Docker best practices to adhere to:
 
 - **Utilize `WORKDIR`**: Use the `WORKDIR` instruction to avoid specifying lengthy paths when using `COPY` and other instructions. This makes Dockerfiles more readable and easier to maintain.
 
+
 Example of a Kaapana Dockerfile for a **workflow**:
 ---------------------------------------------------
+
 Assume that the processing algorithm of your workflow is written in a Python file named `example-workflow.py`. The Dockerfile for the workflow should install the necessary requirements, copy the `example-workflow.py` file into the Docker image, and define a command to execute the algorithm. Here is an example Dockerfile:
 
-```Dockerfile
-# Base Image - Using a slim and small-sized Python base image
-FROM python:3.9.16-slim
+.. code-block::
 
-# LABELS - To organize Kaapana Docker images
-LABEL REGISTRY="example-registry"
-LABEL IMAGE="example-dockerfile-workflow"
-LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+  Dockerfile
+  # Base Image - Using a slim and small-sized Python base image
+  FROM python:3.9.16-slim
 
-# Setting up the working directory
-WORKDIR /app
+  # LABELS - To organize Kaapana Docker images
+  LABEL REGISTRY="example-registry"
+  LABEL IMAGE="example-dockerfile-workflow"
+  LABEL VERSION="0.1.0"
+  LABEL CI_IGNORE="False"
 
-# Update pip first and install the necessary Python packages using constraints file
-COPY files/requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt -r requirements.txt
+  # Setting up the working directory
+  WORKDIR /app
 
-# Copy only the necessary script to be executed
-COPY files/example-workflow.py .
+  # Update pip first and install the necessary Python packages using constraints file
+  COPY files/requirements.txt .
+  RUN pip install --upgrade pip && \
+      pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt -r requirements.txt
 
-# Define the command to execute the script
-CMD ["python3","-u","example-workflow.py"]
-```
+  # Copy only the necessary script to be executed
+  COPY files/example-workflow.py .
+
+  # Define the command to execute the script
+  CMD ["python3","-u","example-workflow.py"]

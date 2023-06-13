@@ -9,10 +9,10 @@ Introduction
 
 This dev-guide introduces how to integrate your custom workflow into your Kaapana platform.
 By doing so, you can leverage Kaapana's infrastructure and extend the platforms capabilities to process data with your workflow.
-The platform's data (provided by Kaapana's :ref:`storage stack<storage-stack>`) can be explored and curated to specific datasets in the "Datasets" view, 
+The platform's data (provided by Kaapana's :ref:`storage stack<storage>`) can be explored and curated to specific datasets in the "Datasets" view, 
 or further inspected via the Meta-Dashboard.
 In order to integrate your custom workflow, we will use the python API for Apache Airflow to create Directed Acyclic Graphs (DAGs).
-For more details about Kaapana's underlying workflow engine and deployment mechanims, see :ref:`processing stack<processing-stack>`.
+For more details about Kaapana's underlying workflow engine and deployment mechanims, see :ref:`processing_stack`.
 
 .. _write your first own dag:
 

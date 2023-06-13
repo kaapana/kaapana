@@ -66,11 +66,11 @@ pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scr
 ```
 
 Utilizing Multi-Stage Dockerfiles
-------------------
+---------------------------------
 Multi-stage Dockerfiles are particularly useful when a Dockerfile contains both the building and the deployment of an application. They allow these two processes to be separated from each other. All build dependencies are left behind in the first (build) stage, while only the essential "artifacts" are preserved for the second stage. Both stages should be clearly marked as "build-stage" (1st stage) and "runtime" (2nd stage).
 
 General Guidelines
----------------
+------------------
 
 Here are some additional Docker best practices to adhere to:
 

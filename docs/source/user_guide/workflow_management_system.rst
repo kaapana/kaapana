@@ -136,6 +136,7 @@ The switch next to the tags definition allows enabling multiple tags at once.
 
 
 .. _meta_dashboard:
+
 Metadata Dashboard
 ------------------
 Next to the (Structured) Gallery View is the Metadata Dashboard. It is also configurable in the :ref:`settings`.

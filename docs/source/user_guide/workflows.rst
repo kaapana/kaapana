@@ -10,12 +10,13 @@ Introduction
 .. TODO: WMS should rather be the whole Workflows tab with all its components (?)
 .. Adjust the introduction
 
-Starting from Kaapana version 0.2.0, the Kaapana platform is equipped with a powerful 
-Workflow Management System (*WMS*) which allows the user to interact with the also newly 
-introduced Kaapana object *workflow*. 
+Starting from Kaapana version 0.2.0, the Kaapana platform is equipped with a 
+Workflow Management System (*WMS*) including a handy Data Upload tool :ref:`data_upload` 
+and a powerful data inspection tool, Datasets :ref:`datasets`.
+The WMS allows the user to interact with the also newly introduced Kaapana object *workflow*. 
 The workflow object semantically binds together multiple jobs, their processing data, 
 and the orchestrating- and runner-instances of those jobs. 
-In order to manage these workflows, the WMS comes with three components: 
+In order to manage these workflows, the WMS comes with three components:
 :ref:`workflow_execution`, :ref:`workflow_list` and :ref:`instance_overview`.
 
 
@@ -279,6 +280,32 @@ Workflows are configured in the following way:
 * select the Airflow-DAG which should be run and further configured with DAG-specific specification
 * select a dataset is selected with the data which should be processed within the workflow
 
+Remote and Federated Workflow Execution
+""""""""""""""""""""""""""""""""""""""""
+
+Workflows can be executed in the following ways:
+
+* Local execution: Workflow is orchestrated by the same instance that serves as runner instance.
+* Remote execution: Workflow is orchestrated by another instance that serves as a runner instance.
+* Federated execution: The workflows-orchestrating instance coordinates the execution of jobs on both local and remote instances. These jobs then report back data/information to the orchestrating instance. This mode is particularly useful for federated learning scenarios.
+  
+  - On the orchestrating instance a federated orchestration DAG has to be started which then automatically spawns up runner jobs on the workflow`s runner instances.
+
+Both remote and federated executed workflows are triggered from the Workflow Execution component.
+Concerning remote and federated execution of workflows, it is worth mentioning that Kaapana 
+provides several security layers in order to avoid adversarial attacks:
+
+* Each Kaapana platform has a username and password-protected login
+* The registration of remote instances is handled by the instance name and a random 36-char token
+* Each remote/federated communication can be SSL verified if configured
+* Each remote/federated communication can be fernet encrypted with a 44-char fernet key if configured
+* For each Kaapana platform, the user can configure whether the local instance should check automatically, regularly for updates from connected remote instances or only on demand
+* For each Kaapana platform, the user can configure whether the local instance should automatically execute remote/federated workflow jobs which are orchestrated by a connected remote instance
+  
+  - If automatic execution is not allowed, remote/federated workflows will appear in the Workflow List with a confirmation button
+
+* Remote/federated workflow jobs can always be aborted on the runner instance to give the user of the runner instance full control about her/his instance
+
 
 .. _workflow_list:
 
@@ -302,6 +329,16 @@ This list of job list comes with the following features:
 * set of job actions that users can perform, including the ability to abort, restart, or delete jobs
 
 .. image:: _static/img/wms_workflow_list.png
+
+
+Service-workflows
+""""""""""""""""""
+
+In addition to regular workflows, the Workflow Management System (WMS) also visualizes background 
+services within the platform. These services, such as pipelines triggered whenever a DICOM image 
+arrives, are represented as service workflows accompanied by service jobs. 
+By incorporating these service workflows into the visualization, users can easily track 
+and monitor the execution of these important background processes within the platform.
 
 
 .. _instance_overview:
@@ -339,42 +376,6 @@ Remote instances
 
 .. image:: _static/img/wms_instance_overview.png
 
-
-Remote and Federated Workflow Execution
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Workflows can be executed in the following ways:
-
-* Local execution: Workflow is orchestrated by the same instance that serves as runner instance.
-* Remote execution: Workflow is orchestrated by another instance that serves as a runner instance.
-* Federated execution: The workflows-orchestrating instance coordinates the execution of jobs on both local and remote instances. These jobs then report back data/information to the orchestrating instance. This mode is particularly useful for federated learning scenarios.
-  
-  - On the orchestrating instance a federated orchestration DAG has to be started which then automatically spawns up runner jobs on the workflow`s runner instances.
-
-Both remote and federated executed workflows are triggered from the Workflow Execution component.
-Concerning remote and federated execution of workflows, it is worth mentioning that Kaapana 
-provides several security layers in order to avoid adversarial attacks:
-
-* Each Kaapana platform has a username and password-protected login
-* The registration of remote instances is handled by the instance name and a random 36-char token
-* Each remote/federated communication can be SSL verified if configured
-* Each remote/federated communication can be fernet encrypted with a 44-char fernet key if configured
-* For each Kaapana platform, the user can configure whether the local instance should check automatically, regularly for updates from connected remote instances or only on demand
-* For each Kaapana platform, the user can configure whether the local instance should automatically execute remote/federated workflow jobs which are orchestrated by a connected remote instance
-  
-  - If automatic execution is not allowed, remote/federated workflows will appear in the Workflow List with a confirmation button
-
-* Remote/federated workflow jobs can always be aborted on the runner instance to give the user of the runner instance full control about her/his instance
-
-
-Service-workflows
-^^^^^^^^^^^^^^^^^
-
-In addition to regular workflows, the Workflow Management System (WMS) also visualizes background 
-services within the platform. These services, such as pipelines triggered whenever a DICOM image 
-arrives, are represented as service workflows accompanied by service jobs. 
-By incorporating these service workflows into the visualization, users can easily track 
-and monitor the execution of these important background processes within the platform.
 
 .. raw:: html
 

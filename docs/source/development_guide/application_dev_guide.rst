@@ -86,11 +86,14 @@ Step 3: Write the Kubernetes deployments
 
 Since the Kaapana platform runs in Kubernetes, we will create a Kubernetes deployment, service and ingress in order to get the application running inside the platform. The following steps will show how to to that:
 
-* Replace inside the ``hello-world-chart/templates/deployment.yaml`` file the ``<docker-registry><docker-repo>`` with your docker registry.
-* Copy the folder ``hello-word-chart`` to the instance where the platform is running
+* Copy the folder ``hello-word-chart`` from ``kaapana/templates_and_examples/examples/services/hello-world/hello-world-chart``to the instance where the platform is running.
 * Log in to the server and go to the templates directory.
+* Inside the ``hello-world-chart/templates/deployment.yaml`` file comment the lines containing templated arguments e.g. ``namespace: "{{ .Values.global.services_namespace }}"``
+* Each of these lines has a commented version with a specific value right next to it enable these lines. 
+* Now replace ``<docker-registry><docker-repo>/hello-world:<version-tag>`` with your docker registry and the version tag you used, e.g. ``0.1.0``.
 
-Now you should be able to deploy the platform. Go to the server to the directory of the ``hello-world-chart`` folder and execute:
+Repeat the same procedure with the ``service.yaml``, you will not need to fill in your registry here.
+Now you should be able to deploy the platform. Go to the server directory containing the ``hello-world-chart`` folder and execute:
 
 ::
 
@@ -116,7 +119,7 @@ In order to remove the deployment again execute:
 Step 4: Write a helm chart
 **************************
 
-For only local testing you can go to the ``hello-world`` directory and build the helm chart locally with:
+For local testing you can go to the ``hello-world`` directory and build the helm chart locally with:
 
 ::
 

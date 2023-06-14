@@ -23,8 +23,8 @@ Perform these steps on the build-machine! Recommended operating system is Ubuntu
 .. important::
 
   | **Disk space needed:**
-  | For the complete build of the project ~60GB of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
-  | 50GB will be needed additionally if you enable the generation of an offline-installation-tarball (build-config: create_offline_installation).
+  | For the complete build of the project ~90GB (~110GB including build cache) of container images will be stored at :code:`/var/snap/docker/common/var-lib-docker`.
+  | 75GB will be needed additionally if you enable the generation of an offline-installation-tarball (build-config: create_offline_installation).
   |
 
 Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`about_kaapana`.

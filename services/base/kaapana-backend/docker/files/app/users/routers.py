@@ -35,6 +35,12 @@ async def get_group_users(idx: str, us=Depends(get_user_service)):
     return us.get_users(group_id=idx)
 
 
+@router.get("/groups/{idx}/roles", response_model=List[KaapanaRole])
+async def get_group_users(idx: str, us=Depends(get_user_service)):
+    """Returns the roles belonging to a given group"""
+    return us.get_roles(group_id=idx)
+
+
 @router.get("/", response_model=List[KaapanaUser])
 async def get_users(
     username: Optional[str] = None,
@@ -82,3 +88,15 @@ async def post_user(
         )
     except KeycloakPostError as e:
         raise HTTPException(status_code=409, detail="Username already exists.")
+
+
+@router.post("/group", response_model=KaapanaGroup)
+async def post_user(
+    groupname: str,
+    us=Depends(get_user_service),
+):
+    """Create a new group with groupname"""
+    try:
+        return us.post_group(groupname=groupname)
+    except KeycloakPostError as e:
+        raise HTTPException(status_code=409, detail="Group already exists.")

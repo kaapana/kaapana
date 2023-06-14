@@ -1,18 +1,18 @@
 <template>
   <v-card>
     <v-card-title class="d-flex justify-space-between">
-      {{  title }}
+    {{  title }}
     </v-card-title>
     <v-card-text>
-      UserInformation: {{ userInformation }}
+      GroupInformation: {{ groupInformation }}
     </v-card-text>
     <v-divider></v-divider>
     <v-card-text>
-      Groups: {{ userGroups }}
+      Users: {{ groupUsers }}
     </v-card-text>
     <v-divider></v-divider>
     <v-card-text>
-      Roles: {{ userRoles }}
+      Roles: {{ groupRoles }}
     </v-card-text>
   </v-card>
 </template>
@@ -21,8 +21,8 @@
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
 export default {
-  name: "UserInformation",
-  props: ['userInformation','userGroups','userRoles','title'],
+  name: "GroupInformation",
+  props: ['groupInformation','groupUsers','groupRoles','title'],
 
 
 }

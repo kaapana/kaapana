@@ -18,6 +18,7 @@ WORKDIR /build-ctp
 RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout 2ae3e71ce84b425857ce0b5cca249eda2ea542ed
 
 COPY /files/Runner.java ./source/java/org/rsna/runner/
+COPY /files/PCTable.java ./source/java/org/rsna/ctp/stdstages/dicom
 # added consolelogs, to directly view logs in kubernetes logs
 COPY /files/log4j.properties ./source/files/
 

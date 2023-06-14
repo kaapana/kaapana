@@ -1,7 +1,8 @@
 Introduction
 ************
 
-This manual is intended to provide a quick and easy way to get started with :ref:`Kaapana<about_kaapana>`.
-Kaapana is not a ready-to-use software but a toolkit that enables you to build the platform that fits your specific needs.
-The steps described in this guide will build an example :term:`platform`, which is a default configuration and contains many of the typical platform components.
-This basic platform can be used as a starting-point to derive a customized platform for your specific project.
+This manual serves as a resource for getting started with :ref:`Kaapana<about_kaapana>`. Kaapana is a highly customizable platform toolkit designed to facilitate the creation of a platform tailored to the specific requirements of your project. 
+It provides a core system along with several pre-built functionalities, such as image curation, workflow management, and training and inference capabilities for medical imaging models (specifically nnUnet). 
+
+If you want to deploy the platform as it is, you can request access to our container registry through `Slack <https://kaapana.slack.com/archives/C018MPL9404>`_. While the platform can be adjusted manually with additional extensions, custom web applications, and manually defined workflows, 
+for more extensive development, we recommend following the :ref:`build process<build>` to populate a custom registry with your own images.

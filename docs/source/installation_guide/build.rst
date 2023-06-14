@@ -10,7 +10,7 @@ The results of this build (containers and charts) are usually pushed into a regi
 .. important::
 
   | **1) Do you really need to build the project?**
-  | Only build the project if you don't have access to an existing registry containing the Kaapana binaries or if you want to setup your own infrastructure. (Evaluation registry access can be requested from the DKFZ Kaapana Team)
+  | Only build the project if you don't have access to an existing registry containing the Kaapana binaries or if you want to setup your own infrastructure. Registry access can be requested from the DKFZ Kaapana Team via `Slack <https://kaapana.slack.com/archives/C018MPL9404>`_.
   | 
   | **2) You don't need to build the repository on the deployment server!**
   | A typical misconception we often hear is that you need to clone the repository on the deployment server and build it there. That is not the case! The repository can be built on a completely different machine and the results then made available via a registry. Practically, it is even recommended to separate the repository and the deployment server. Of course it is possible to build the repository on the deployment server (and there is also the possibility to work completely without a registry) - but this should be done in rather rare cases. 

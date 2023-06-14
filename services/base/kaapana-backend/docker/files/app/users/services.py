@@ -109,10 +109,12 @@ class UserService:
     def _refresh_token_if_necessary(self):
         pass
 
-    def get_roles(self, user_id: str = None) -> List[KaapanaRole]:
+    def get_roles(self, user_id: str = None, group_id: str = None) -> List[KaapanaRole]:
         self._login()
         if user_id:
             result = self.keycloak_admin.get_realm_roles_of_user(user_id)
+        elif group_id:
+            result = self.keycloak_admin.get_group_realm_roles(group_id)
         else:
             result = self.keycloak_admin.get_realm_roles()
         return [
@@ -145,7 +147,7 @@ class UserService:
             logger.warning(f"User exists with same {username=} or {email=}!")
             raise e
 
-        logger.warning(f"{new_user=}")
+        logger.debug(f"{new_user=}")
         return KaapanaUser(
             idx=new_user,
             name=username,
@@ -154,3 +156,17 @@ class UserService:
             lastName=lastName,
             attributes=attributes,
         )
+
+    def post_group(
+        self,
+        groupname: str,
+    ) -> KaapanaGroup:
+        self._login()
+        try:
+            new_group = self.keycloak_admin.create_group({"name": groupname})
+        except KeycloakPostError as e:
+            logger.warning(f"Group exists with same {groupname=}!")
+            raise e
+
+        logger.debug(f"{new_group=}")
+        return KaapanaGroup(idx=new_group, name=groupname)

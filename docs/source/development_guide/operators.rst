@@ -1,11 +1,10 @@
-.. _api_operators:
+.. _operators:
 
-Operators
-=========
+Existing Operators
+==================
 
-Not yet all operators are documented.
-For the full picture, please have a look at the `kaapana.operators <https://github.com/kaapana/kaapana/tree/develop/data-processing/kaapana-plugin/extension/docker/files/plugin/kaapana/operators>`_ package in the code.
-
+This section lists the ready-to-use operators available in Kaapana.
+Note that all operators might not be documented yet. For the full list, please refer to the `kaapana.operators <https://github.com/kaapana/kaapana/tree/develop/data-processing/kaapana-plugin/extension/docker/files/plugin/kaapana/operators>`_ package.
 
 Base operators
 --------------

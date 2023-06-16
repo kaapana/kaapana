@@ -1,3 +1,5 @@
+.. _minio_idp_error:
+
 MinIO - Error from IDP
 **************************
 

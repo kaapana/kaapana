@@ -1,7 +1,7 @@
 .. _wms start:
 
 
-Workflow Management System
+Workflows
 #####################################
 
 Introduction
@@ -10,19 +10,83 @@ Introduction
 .. TODO: WMS should rather be the whole Workflows tab with all its components (?)
 .. Adjust the introduction
 
-Starting from Kaapana version 0.2.0, the Kaapana platform is equipped with a powerful 
-Workflow Management System (*WMS*) which allows the user to interact with the also newly 
-introduced Kaapana object *workflow*. 
+Starting from Kaapana version 0.2.0, the Kaapana platform is equipped with a 
+Workflow Management System (*WMS*) including a handy Data Upload tool :ref:`data_upload` 
+and a powerful data inspection tool, Datasets :ref:`datasets`.
+The WMS allows the user to interact with the also newly introduced Kaapana object *workflow*. 
 The workflow object semantically binds together multiple jobs, their processing data, 
 and the orchestrating- and runner-instances of those jobs. 
-In order to manage these workflows, the WMS comes with three components: 
+In order to manage these workflows, the WMS comes with three components:
 :ref:`workflow_execution`, :ref:`workflow_list` and :ref:`instance_overview`.
+
+
+.. TODO: use sth of that? 
+
+.. Data uploaded to the platform is processed within *Workflows*. The execution of this workflows is managed by a workflow management system which in Kaapana is Airflow. In Airflow a workflow is called a DAG (directed acyclic graph) and it consists of operators which perform the actual work. Airflow takes care that the operators of a workflow are executed in the correct order and allows scheduling and error handling necessary to process images at scale. Operators can also be shared between workflows and therefore provide building-blocks for reoccurring tasks in workflows (the :ref:`operators` provides an overview of the available operators).
+
+.. .. hint::
+..   Airflow operators are in general implement as containers which are executed in the underlying Kubernetes cluster. When Airflow executes an operator within Kaapana it creates a Kubernetes Job object which then executes the actual container. The Job objects performing the actual processing on the Kubernetes cluster are grouped within the ``jobs`` namespace.
+
+.. A detailed overview of the concepts of Airflow can be found `in their documentation <https://airflow.apache.org/docs/stable/concepts.html>`_.
+
+.. If you are more interested in the technologies, you can get started here:
+
+.. * `Airflow <https://airflow.apache.org/docs/stable/tutorial.html>`_
+.. * `Kubernetes <https://kubernetes.io/docs/concepts/>`_
+
+
+.. Execute workflows
+.. ^^^^^^^^^^^^^^^^^
+
+.. Workflows are executed on dataset which contain the data the workflow should process.
+.. Datasets can be created using the *Datasets View* or the Meta-Dashboard (see :ref:`creating-datasets`).
+.. A workflow can then be executed either directly via the *Dataset View* or via the *Workflow Execution* dialog in the *Workflows* menu.
+.. After a workflow is selected in the *Workflow Execution* dialog the user the dialog automatically extends and asks all the parameters necessary to run the workflow including the dataset.
+.. After clicking the *Start Workflow* button on the end the workflow is triggered within Airflow and it appears in the *Workflow List* within the *Workflows* menu.
+.. Here the execution of the workflow can be monitored. If things are not working as expected the *Workflow List* provides links to jump directly into the Airflow Web Interface where the issue can be investigated in more detail.
+
+.. .. hint::
+..   | Check out the difference between :term:`single file and batch processing` 
+
 
 
 .. _data_upload:
 
 Data Upload
 ^^^^^^^^^^^
+
+There are two ways of getting images into the platform either sending them directly via DICOM (which is the preferred way) or uploading them via the web browser (currently an experimental feature).
+
+.. note::
+  When DICOM data is sent to the DICOM receiver of the platform two things happen:
+
+  #. The incoming data is **saved to the local PACS**
+  #. **Metadata** of the incoming data is extracted and indexed to allow fast filtering and querying via :ref:`datasets`.
+
+Option 1: Sending images via DICOM DIMSE (preferred)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Images can directly be send via DICOM DIMSE to the DICOM receiver port ``11112`` of the platform.
+If you have images locally you can use e.g. `DCMTK <https://dicom.offis.de/dcmtk.php.en>`_.
+However, any tool that sends images to a DICOM receiver can be used. 
+
+Here is an example of sending images with DCMTK:
+::
+  dcmsend -v <ip-address-of-server> 11112 (default) --scan-directories --call <dataset-name> --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>
+
+.. hint::
+    | The called AE title is used to specify the dataset. If the dataset already exist on the platform the new images will be appended.
+
+
+Option 2: Uploading images via the Web Interface (experimental)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+To upload images via the webfrontend, visit the *Data Upload* wizard page within the *Workflows* menu of the Web interface and follow the steps described in the wizard. 
+Make sure to check the information how uploaded data should be formatted which is provided within the wizard.
+
+
+.. hint::
+    | The upload via the web interface also allows to upload **NIfTI** data.
 
 
 
@@ -45,7 +109,7 @@ In the following chapters, we are going to explore the functionalities.
 
 
 (Structured) Gallery View
--------------------------
+"""""""""""""""""""""""""
 Dealing with thousands of DICOMs can be tedious. However, in the recent years, photo gallery apps have established great concepts for those interactions. 
 Since DICOMs are not that different from classical images, we got inspired and handel this interaction in similar ways. We call it the Gallery View. 
 An item in the Gallery View consists of a thumbnail of the series and its metadata. Everything is completely configurable in :ref:`settings`.
@@ -93,7 +157,7 @@ Once selected, there are multiple options which are indicated right above the Ga
 
 
 Dataset management and Workflow Execution
------------------------------------------
+"""""""""""""""""""""""""""""""""""""""""
 The actions to interact with the (Structured) Gallery View are above it. 
 The first row is for selecting and managing the datasets. 
 Selecting a dataset will instantly update the (Structured) Gallery View.
@@ -126,9 +190,9 @@ To tag a series, first activate the tag(s) by clicking on them, and then clickin
 The switch next to the tags definition allows enabling multiple tags at once. 
 
 .. note::
-* Tags can be activated by shortcuts. Pressing `1` (de-)activates the first tag, pressing `2` the second and so on.
-* If a series is already tagged with the current active tag, clicking on the series again, will remove it. This is also the case in multiple tags mode.
-* Another way to remove tags is to click on the `X` next to the tag. (Note: If the tag distribution is visualized in the :ref:`meta_dashboard` on the righthand side, removing a tag this way will not update the dashboard)
+  * Tags can be activated by shortcuts. Pressing `1` (de-)activates the first tag, pressing `2` the second and so on.
+  * If a series is already tagged with the current active tag, clicking on the series again, will remove it. This is also the case in multiple tags mode.
+  * Another way to remove tags is to click on the `X` next to the tag. (Note: If the tag distribution is visualized in the :ref:`meta_dashboard` on the righthand side, removing a tag this way will not update the dashboard)
 
 
 .. image:: _static/gif/tagging.gif
@@ -136,8 +200,9 @@ The switch next to the tags definition allows enabling multiple tags at once.
 
 
 .. _meta_dashboard:
+
 Metadata Dashboard
-------------------
+""""""""""""""""""
 Next to the (Structured) Gallery View is the Metadata Dashboard. It is also configurable in the :ref:`settings`.
 It visualizes the Metadata of the currently selected items in the (Structured) Gallery View. 
 
@@ -148,7 +213,7 @@ It visualizes the Metadata of the currently selected items in the (Structured) G
    :alt: Metadata Dashboard and how to interact with it
 
 Detail View
------------
+"""""""""""
 Sometimes a thumbnail of a series is not enough. 
 Therefore, by double-clicking on a series card or clicking on the eye in the top-right of the thumbnail will open the detail view in the side panel.
 The detail view consists of an (adjusted) OHIF-v3 viewer which allows fast and convenient investigation of the whole series. 
@@ -161,7 +226,7 @@ Underneath there is the searchable metadata table with all the metadata for the 
 .. _settings:
 
 Settings
----------
+"""""""""
 .. todo: should we rename it to UI Configurations? 
 
 
@@ -215,69 +280,8 @@ Workflows are configured in the following way:
 * select the Airflow-DAG which should be run and further configured with DAG-specific specification
 * select a dataset is selected with the data which should be processed within the workflow
 
-
-.. _workflow_list:
-
-Workflow List
-^^^^^^^^^^^^^
-
-The Workflow List component allows users to visualize all workflows that are currently running 
-or have previously run on the platform. The Workflow List comes with the following features:
-
-* comprehensive information regarding the specification of each workflow: workflow name, workflow UUID, dataset, time of workflow creation and time of last workflow update, username, owner instance
-* live status updates on the jobs associated with each workflow
-* set of workflow actions that users can perform, including the ability to abort, restart, or delete workflows and all their associated jobs
-
-Each row of the Workflow List, which represents one workflow, can be expanded to further 
-present all jobs which are associated with the expanded workflow. 
-This list of job list comes with the following features:
-
-* comprehensive information regarding the specification of each job: ID of Airflow-DAG, time of job creation and time of last job update, runner instance, owner instance (= owner instance of workflow), configuration object, live updated status of the job
-* redirect links to the job's Airflow DAG run to access additional details and insights about the job's execution
-* redirect links to the Airflow logs of the job's failed operator for troubleshooting and understanding the cause of the failure
-* set of job actions that users can perform, including the ability to abort, restart, or delete jobs
-
-.. image:: _static/img/wms_workflow_list.png
-
-
-.. _instance_overview:
-
-Instance Overview
-^^^^^^^^^^^^^^^^^
-
-The Instance Overview component mainly serves to manage the local instance and its behaviour 
-in a remote/federated workflow execution federation as well as the management of connected 
-remote instances.
-
-Local instance:
----------------
-
-* comprehensive information regarding the specification of the local instance: instance name, network including protocol and port, token to establish a secure connection to remote instances, time of instance creation and time of last instance update
-* configurations which are used in the remote/federated workflow execution can be defined and modified:
-  
-  - SSL verification and fernet encryption for remote/federated communication
-  - remote/federated syncing and execution privileges
-  - permissions for the remote/federated usage of Airflow DAGs and datasets
-
-Since the main aim of the Instance Overview component is the usage of the local Kaapana instance 
-in a federation, the presented component also offers the possibility to add remote instances, 
-which are described in the following.
-When it comes to connecting instance, there are a few important things to take care of:
-
-* instance names have to be unique in a federation of connected instances
-* when registering a remote instance you have to specify the remote instance`s name, network, token and fernet key exactly the same as these attributes are set on the remote instance itself
-
-Remote instances:
------------------
-
-* comprehensive information regarding the specification of the local instance: instance name, network including protocol and port, token to establish a secure connection to remote instances, time of instance creation and time of last instance update, SSL verification, fernet encryption, configurations of the connection remote instance regarding remote/federated syncing and execution privileges and permissions for the remote/federated usage of Airflow DAGs and datasets
-* on the local instance, the user can define and modify the following specifications of remote instances: port of the network, token, SSL verification and fernet encryption
-
-.. image:: _static/img/wms_instance_overview.png
-
-
 Remote and Federated Workflow Execution
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+""""""""""""""""""""""""""""""""""""""""
 
 Workflows can be executed in the following ways:
 
@@ -303,14 +307,75 @@ provides several security layers in order to avoid adversarial attacks:
 * Remote/federated workflow jobs can always be aborted on the runner instance to give the user of the runner instance full control about her/his instance
 
 
+.. _workflow_list:
+
+Workflow List
+^^^^^^^^^^^^^
+
+The Workflow List component allows users to visualize all workflows that are currently running 
+or have previously run on the platform. The Workflow List comes with the following features:
+
+* comprehensive information regarding the specification of each workflow: workflow name, workflow UUID, dataset, time of workflow creation and time of last workflow update, username, owner instance
+* live status updates on the jobs associated with each workflow
+* set of workflow actions that users can perform, including the ability to abort, restart, or delete workflows and all their associated jobs
+
+Each row of the Workflow List, which represents one workflow, can be expanded to further 
+present all jobs which are associated with the expanded workflow. 
+This list of job list comes with the following features:
+
+* comprehensive information regarding the specification of each job: ID of Airflow-DAG, time of job creation and time of last job update, runner instance, owner instance (= owner instance of workflow), configuration object, live updated status of the job
+* redirect links to the job's Airflow DAG run to access additional details and insights about the job's execution
+* redirect links to the Airflow logs of the job's failed operator for troubleshooting and understanding the cause of the failure
+* set of job actions that users can perform, including the ability to abort, restart, or delete jobs
+
+.. image:: _static/img/wms_workflow_list.png
+
+
 Service-workflows
-^^^^^^^^^^^^^^^^^
+""""""""""""""""""
 
 In addition to regular workflows, the Workflow Management System (WMS) also visualizes background 
 services within the platform. These services, such as pipelines triggered whenever a DICOM image 
 arrives, are represented as service workflows accompanied by service jobs. 
 By incorporating these service workflows into the visualization, users can easily track 
 and monitor the execution of these important background processes within the platform.
+
+
+.. _instance_overview:
+
+Instance Overview
+^^^^^^^^^^^^^^^^^
+
+The Instance Overview component mainly serves to manage the local instance and its behaviour 
+in a remote/federated workflow execution federation as well as the management of connected 
+remote instances.
+
+Local instance
+""""""""""""""
+
+* comprehensive information regarding the specification of the local instance: instance name, network including protocol and port, token to establish a secure connection to remote instances, time of instance creation and time of last instance update
+* configurations which are used in the remote/federated workflow execution can be defined and modified:
+  
+  - SSL verification and fernet encryption for remote/federated communication
+  - remote/federated syncing and execution privileges
+  - permissions for the remote/federated usage of Airflow DAGs and datasets
+
+Since the main aim of the Instance Overview component is the usage of the local Kaapana instance 
+in a federation, the presented component also offers the possibility to add remote instances, 
+which are described in the following.
+When it comes to connecting instance, there are a few important things to take care of:
+
+* instance names have to be unique in a federation of connected instances
+* when registering a remote instance you have to specify the remote instance`s name, network, token and fernet key exactly the same as these attributes are set on the remote instance itself
+
+Remote instances
+""""""""""""""""
+
+* comprehensive information regarding the specification of the local instance: instance name, network including protocol and port, token to establish a secure connection to remote instances, time of instance creation and time of last instance update, SSL verification, fernet encryption, configurations of the connection remote instance regarding remote/federated syncing and execution privileges and permissions for the remote/federated usage of Airflow DAGs and datasets
+* on the local instance, the user can define and modify the following specifications of remote instances: port of the network, token, SSL verification and fernet encryption
+
+.. image:: _static/img/wms_instance_overview.png
+
 
 .. raw:: html
 

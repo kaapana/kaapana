@@ -4,7 +4,7 @@ How to automatically trigger a workflow
 It is possible to create a dag that automatically triggers other dags. 
 We use this functionality when processing incoming dicom files.
 But there are many more possible usecases.
-Take a look at the :ref:`Operator and DAG Documentation<api_documentation_root>` for implementation details.
+Take a look at the :ref:`operators` for implementation details.
 
 LocalAutoTriggerOperator
 ---------------------------------

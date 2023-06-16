@@ -1,18 +1,17 @@
-.. _processing_dev_guide:
+.. _workflow_dev_guide:
 
-========================================
-Dev-Guide: Integrating custom workflows
-========================================
+====================
+Developing Workflows
+====================
 
 Introduction
 -------------
 
 This dev-guide introduces how to integrate your custom workflow into your Kaapana platform.
 By doing so, you can leverage Kaapana's infrastructure and extend the platforms capabilities to process data with your workflow.
-The platform's data (provided by Kaapana's :ref:`storage stack<storage-stack>`) can be explored and curated to specific datasets in the "Datasets" view, 
+The platform's data (provided by Kaapana's :ref:`storage stack<storage>`) can be explored and curated to specific datasets in the "Datasets" view, 
 or further inspected via the Meta-Dashboard.
 In order to integrate your custom workflow, we will use the python API for Apache Airflow to create Directed Acyclic Graphs (DAGs).
-For more details about Kaapana's underlying workflow engine and deployment mechanims, see :ref:`processing stack<processing-stack>`.
 
 .. _write your first own dag:
 
@@ -74,7 +73,7 @@ Finally we adjust the formerly empty base image to execute the developed code.
 .. _Provide an empty base image:
 
 Step 1: Provide an empty base image
-************************************
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To develop an algorithm within the Kaapana instance we have to provide an image, to start with. 
 In this example we provide the algorithm as a python implementation of a DAG (see: :ref:`Write your first own DAG`). 
@@ -107,7 +106,7 @@ python based algorithm.
 .. _Create a developement DAG:
 
 Step 2: Create a development DAG
-********************************
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In the next step we want to run a container based on the python base image inside the Kaapana platform and access it with the built-in code server to implement our algorithm there.
 To do so, we need to create an operator that runs the container. Afterwards we create a DAG to execute the operator.
@@ -129,7 +128,7 @@ This is achieved by to the ``ExtractStudyIdOperator`` the argument ``dev_server=
 .. _Start the development workflow and implement the algorithm:
 
 Step 3: Start the development workflow and implement the algorithm
-*******************************************************************
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Now it's time to trigger the development workflow.
 Therefore, we go to Workflows -> Workflow Execution and select from the workflow drop-down menu our developed workflow ``example-dcm-extract-study-id`` and start the workflow.
@@ -165,7 +164,7 @@ After we are finished, we can close the code-server browser tab and terminate th
 .. _push-the-algorithm-to-the-repository:
 
 Step 4: Push the algorithm to the repository
-********************************************
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When we are finished with the implementation, we push the algorithm to our registry. To do so, we create a ``files`` 
 directory beside the :code:`Dockerfile` of the original image and put the :code:`extract-study-id.py` script inside it. 
@@ -308,7 +307,7 @@ Tag the image and push it to the registry. Next to the :code:`Dockerfile` in :co
 
 
 Step 3: Create the helm chart
-*****************************
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Create a folder for the chart. Inside :code:`otsus-method/extension/` run 
 
@@ -349,7 +348,7 @@ This will create the file :code:`otsus-method-workflow-0.1.0.tgz`
 .. _Add Extension Manually:
 
 Step 4.1: Add the extension manually to the platform
-****************************************************
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. warning:: 
     This approach requires root permissions on the host server of the platform.
@@ -371,7 +370,7 @@ of the :code:`FAST_DATA_DIR` directory, which is :code:`/home/kaapana/` by defau
 .. _Add to Extention Collection:
 
 Step 4.2: (Persistent alternative) Update the :code:`kaapana-extension-collection` chart
-****************************************************************************************
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Kaapana repository contains a special *collection* chart that depends on a list of other charts required for Kaapana.
 You will add the chart of our new DAG to this list and update the dependencies to add the new extension in a persistent way.
@@ -412,3 +411,26 @@ The name of the pod you need to delete begins with :code:`copy-kube-helm-collect
 
 This will automatically download a new version of the chart and start a new pod.
 
+.. _debugging:
+Debugging
+---------
+
+This short section will show you how to debug in case a workflow throws an error.
+
+Syntax errors
+^^^^^^^^^^^^^
+
+If there is a syntax error in the implementation of a DAG or in the implementation of an operator, the errors are normally shown directly at the top of the Airflow DAGs view in red.
+For further information, you can also consult the log of the container that runs Airflow. For this, you have to go to Kubernetes, select the namespace ``services`` and click on the Airflow pod.
+On the top right there is a button to view the logs. Since Airflow starts two containers at the same time, you can switch between the two outputs at the top in 'Logs from...'.
+
+
+Operator errors during execution
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Via Workflow List: When you click on the red bubble within the workflow list all failed workflow runs will appear underneath the workflow. Within the 'Logs' column you can see two buttons linking directly to the logs in airflow and to the task view.
+* Via Airflow: when you click in Airflow on the DAG you are guided to the 'Graph View'. Clicking on the red, failed operator a pop-up dialog opens where you can click on 'View Log' to see what happened.
+* Via Kubernetes: in the namespace ``jobs``, you should find the running pod that was triggered from Airflow. Here you can click on the logs to see why the container failed. If the container is still running, you can also click on 'Exec into pod' to debug directly into the container.
+
+After you resolved the bug in the operator, you can either restart the whole workflow or you can click on the operator in the 'Graph View', select 'Clear' in the pop-up dialog and confirm the next dialog.
+This will restart the operator.

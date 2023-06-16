@@ -1,7 +1,12 @@
 .. _helm_charts:
 
-What is Helm
-************
+Advanced: How Kaapana uses Helm
+********************************
+
+.. note::
+      This section is **not** a necessary read in order to develop workflows or applications for Kaapana. It explains the technical details of how the platform uses Helm for managing extensions.
+      
+
 
 Helm is a package manager for Kubernetes that helps define and manage different Kubernetes applications. It simplifies the deployment process by providing a templating system for writing and maintaining YAML configuration files.
 

@@ -84,7 +84,7 @@ Option 2: Uploading images via the Web Interface (experimental)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 To upload images via the webfrontend, visit the :Code:`Data Upload` wizard page within the :code:`Workflows` menu of the Web interface. You can upload 
-arbitrary data here and access and manage it via minio. Additionally you can import uploaded :term:`DICOM` or :term:`NIFTI` data into the internal *PACS*.
+arbitrary data here and access and manage it via minio. Additionally you can import uploaded :term:`DICOM` or :term:`NIfTI` data into the internal *PACS*.
 
 Dicom Data
 ''''''''''
@@ -94,21 +94,10 @@ DICOM data should be uploaded in a single compressed zip-file containing folder(
 
 .. _import-uploaded-nifti-files:
 
-Nifti data
+NIfTI data
 ''''''''''
 
-.. To import Nifti data follow the :ref:`import-uploaded-nifti-files` guide.
-
-
-.. 
-
-.. Import uploaded NIFTI files
-.. """""""""""""""""""""""""""
-
-.. To import NIFTI files to the kaapana platform you upload them via the data upload field in the :code:`workflows > Data` Upload view, the uploaded data will be stored in a minio bucket at first. 
-.. After the upload has finished, you can click the :code:`IMPORT THE DATA` button and seletct the :code:`convert-niftis-to-dicoms-and-upload-to-pacs` workflow.
-
-In order to import NIFTI data it will be converted to dicom. The :code:`convert-niftis-to-dicoms-and-upload-to-pacs` workflow expectes the nifit data to be
+In order to import NIfTI data it will be converted to dicom. The :code:`convert-niftis-to-dicoms-and-upload-to-pacs` workflow expectes the nifit data to be
 structured as described in this section. Additionally you can to provide matadata for the images and (if any) about the segmentations. 
 This information is provided within two json files:
 

@@ -11,9 +11,8 @@ import requests
 
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from opensearchpy import OpenSearch
-
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     """
@@ -45,7 +44,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             exit(1)
         try:
             json_dict = self.produce_inserts(json_dict)
-            response = self.os_client.index(
+            response = HelperOpensearch.os_client.index(
                 index=self.opensearch_index, body=json_dict, id=id, refresh=True
             )
         except Exception as e:
@@ -62,7 +61,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     def produce_inserts(self, new_json):
         print("INFO: get old json from index.")
         try:
-            old_json = self.os_client.get(
+            old_json = HelperOpensearch.os_client.get(
                 index=self.opensearch_index, id=self.instanceUID
             )["_source"]
             print("Series already found in OS")
@@ -185,9 +184,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         no_update: bool = False,
         avalability_check_delay: int = 10,
         avalability_check_max_tries: int = 15,
-        opensearch_host: str = f"opensearch-service.{SERVICES_NAMESPACE}.svc",
-        opensearch_port: int = 9200,
-        opensearch_index: str = "meta-index",
         check_in_pacs: bool = True,
         **kwargs,
     ):
@@ -213,22 +209,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.avalability_check_max_tries = avalability_check_max_tries
         self.set_dag_id = set_dag_id
         self.no_update = no_update
-        self.opensearch_host = opensearch_host
-        self.opensearch_port = opensearch_port
-        self.opensearch_index = opensearch_index
         self.instanceUID = None
         self.check_in_pacs = check_in_pacs
         auth = None
-        self.os_client = OpenSearch(
-            hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
-            http_compress=True,
-            http_auth=auth,
-            use_ssl=False,
-            verify_certs=False,
-            ssl_assert_hostname=False,
-            ssl_show_warn=False,
-            timeout=2,
-        )
 
         super().__init__(
             dag=dag,

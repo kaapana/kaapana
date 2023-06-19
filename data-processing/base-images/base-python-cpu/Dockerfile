@@ -8,7 +8,6 @@ LABEL CI_IGNORE="False"
 ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
-
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-utils \
     git \
@@ -26,9 +25,13 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     wget \
     curl \
     procps \
+    libpng-dev \
+    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Common Python packages
+RUN python -m pip install torch torchvision==0.15.2+cu118 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
+
 COPY files/requirements.txt /app/
 RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt --upgrade setuptools pip && pip3 install -r /app/requirements.txt
 

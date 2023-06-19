@@ -11,14 +11,9 @@ KAAPANA Documentation
    :maxdepth: 2
    
    intro_kaapana
-   getting_started_root
-   configuration_root
-   tech_basics_root
-   extensions
-   workflow_management_system
-   platform_guide_root
+   installation_guide_root
+   user_guide_root
    development_guide_root
-   api_documentation_root
    faq_root
    publication_citation
    releases

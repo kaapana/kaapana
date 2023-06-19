@@ -1,4 +1,2 @@
-SimpleITK==2.2.1
-nibabel==5.0.0
 pynrrd==1.0.0
 matplotlib==3.6.3

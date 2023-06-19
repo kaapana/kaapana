@@ -12,11 +12,18 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
-    def start(self, ds, **kwargs):
-        print("Start tagging")
-        tags = []
+    """
+    Operator to assign series to dataset.
 
-        print(f"Tags from form: {tags}")
+    Given the metadata of a series, this operator assigns the series to a dataset based on the tags_to_add_from_file parameter.
+
+    **Inputs:**
+    * Metadata of a series
+    """
+
+    def start(self, ds, **kwargs):
+        print("Start assigning series to dataset")
+
         run_dir = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = list(Path(run_dir, self.batch_name).glob("*"))
 
@@ -24,21 +31,21 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
             json_files = sorted(
                 list(Path(batch_element_dir, self.operator_in_dir).rglob("*.json*"))
             )
+
             for meta_files in json_files:
-                print(f"Do tagging for file {meta_files}")
+                print(f"Do assignment for file {meta_files}")
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
                     series_uid = metadata["0020000E SeriesInstanceUID_keyword"]
 
-                    # Adding tags based on other fields of the file
-                    file_tags = []
+                    # extract datasets from dicom tags
+                    datasets = [
+                        tag
+                        for dicom_tags in self.tags_to_add_from_file
+                        if metadata.get(dicom_tags) is not None
+                        for tag in metadata.get(dicom_tags)
+                    ]
 
-                    for tag_from_file in self.tags_to_add_from_file:
-                        value = metadata.get(tag_from_file)
-                        if value:
-                            file_tags.extend(value)
-
-                    datasets = file_tags
                     for dataset in datasets:
                         try:
                             res = requests.put(
@@ -50,7 +57,9 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                                 ),
                             )
                             if res.status_code != 200:
-                                raise Exception()
+                                raise Exception(
+                                    f"ERROR: [{res.status_code}] {res.text}"
+                                )
                         except Exception as e:
                             print(f"Processing of {series_uid} threw an error.", e)
                             exit(1)
@@ -59,17 +68,13 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         self,
         dag,
         name: str = "add2dataset",
-        add_tags_from_file: bool = False,
         tags_to_add_from_file: List[str] = ["00120020 ClinicalTrialProtocolID_keyword"],
         *args,
         **kwargs,
     ):
         """
-        :param tag_field: the field of the opensearch object where the tags are stored
-        :param add_tags_from_file: determines if the content of the fields specified by tags_to_add_from_file are added as tags
-        :param tags_to_add_from_file: a list of fields form the input json where the values are added as tags if add_tags_from_file is true
+        :param tags_to_add_from_file: a list of fields form the metadata json which holds the dataset name.
         """
 
-        self.add_tags_from_file = add_tags_from_file
         self.tags_to_add_from_file = tags_to_add_from_file
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

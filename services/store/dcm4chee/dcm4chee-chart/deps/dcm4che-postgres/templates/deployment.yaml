@@ -45,6 +45,7 @@ spec:
       - name: postgres-data
         persistentVolumeClaim:
           claimName: dcm4chee-postgres-pv-claim
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret
 ---

@@ -6,7 +6,7 @@ from os.path import join, dirname, basename, exists
 from git import Repo
 
 class BuildUtils:
-    max_build_rounds = 4
+    max_build_rounds = 5
     container_images_available = None
     container_images_unused = None
     charts_available = None
@@ -102,7 +102,11 @@ class BuildUtils:
                 .isoformat()
             )
             build_version = requested_repo.git.describe()
-            build_branch = requested_repo.active_branch.name.split("/")[-1]
+            try:
+                build_branch = requested_repo.active_branch.name.split("/")[-1]
+            except TypeError as e:
+                # detached HEAD
+                build_branch = "DETACHED-HEAD"
             version_check = semver.VersionInfo.parse(build_version)
 
         return build_version, build_branch, last_commit, last_commit_timestamp

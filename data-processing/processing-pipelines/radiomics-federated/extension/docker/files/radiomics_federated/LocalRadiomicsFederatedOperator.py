@@ -220,7 +220,7 @@ class KaapanaFederatedTrainingBase(ABC):
             conf["dag_run"].run_id,
             BATCH_NAME,
             datetime.datetime.now().strftime("batch-%Y-%m-%d_%H-%M-%S"),
-        )  # workflow_dir or os.getenv('AIRFLOW_WORKFLOW_DIR', f'/kaapanasrc/data/federated-setup-central-test-220316153201233296')
+        )  # workflow_dir or os.getenv('AIRFLOW_WORKFLOW_DIR', f'/kaapana/data/federated-setup-central-test-220316153201233296')
         print("working directory", self.workflow_dir)
 
         conf_data = self.get_conf()  # self.get_conf(self.workflow_dir)

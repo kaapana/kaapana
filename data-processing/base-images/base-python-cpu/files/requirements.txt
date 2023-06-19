@@ -1,14 +1,14 @@
 # Versions should be equal to base-python-gpu container check with pip freeze
 opensearch-py==2.0.0
-pydicom==2.3.0
+pydicom==2.3.1
 scikit-learn==0.24.0
 kaleido==0.2.1
 minio==7.1.5
 pandas==1.3.5
 pathlib==1.0.1
 plotly==5.7.0
-torch==1.13.1
-torchvision==0.14.1
+# torch==2.0.1
+torchvision==0.15.2
 jupyterlab==3.3.2
 seaborn==0.11.2
 # Security fix for CVE-2022-1941
@@ -17,3 +17,8 @@ protobuf==3.20.2
 cryptography==39.0.1
 # Security fix for CVE-2023-25577
 Werkzeug==2.2.3
+wheel==0.38.1
+Pillow==9.3.0
+nibabel==5.1.0
+SimpleITK==2.2.1
+requests==2.31.0

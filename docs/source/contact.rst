@@ -19,4 +19,4 @@ Contact
 | Im Neuenheimer Feld 280
 | 69120 Heidelberg
 
-Copyright (C) 2022  German Cancer Research Center (DKFZ)
+Copyright (C) 2023  German Cancer Research Center (DKFZ)

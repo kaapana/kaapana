@@ -25,3 +25,5 @@ __pycache__
 *~
 history
 build-scripts/build-config.yaml
+.direnv/
+.envrc

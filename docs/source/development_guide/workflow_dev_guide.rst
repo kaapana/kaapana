@@ -412,6 +412,7 @@ The name of the pod you need to delete begins with :code:`copy-kube-helm-collect
 This will automatically download a new version of the chart and start a new pod.
 
 .. _debugging:
+
 Debugging
 ---------
 

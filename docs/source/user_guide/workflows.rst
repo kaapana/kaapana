@@ -71,7 +71,9 @@ If you have images locally you can use e.g. `DCMTK <https://dicom.offis.de/dcmtk
 However, any tool that sends images to a DICOM receiver can be used. 
 
 Here is an example of sending images with DCMTK:
+
 ::
+  
   dcmsend -v <ip-address-of-server> 11112 (default) --scan-directories --call <dataset-name> --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>
 
 .. hint::

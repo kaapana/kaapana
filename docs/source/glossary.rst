@@ -155,11 +155,3 @@ Glossary
 
     job
       A job belongs to a :term:`workflow` and is associated with a unique Airflow :term:`DAG-run<dag>`.
-
-    NIfTI
-      NIfTI (Neuroimaging Informatics Technology Initiative) is a data format for the storage of Magnetic Resonance Imaging (MRI) and other medical images.
-      It provides a metadata header along with the actual volumes and is commonly used for research datasets and within scientific challenges. 
-
-    DICOM
-      Digital Imaging and Communications in Medicine (DICOM) is the standard for the communication and management of medical imaging information and related data.
-      Since Kaapana is designed to integrate well with clinical medical imaging processes, DICOM is the primary data format of Kaapana and most workflows rely on data beeing present in the internal *PACS*.

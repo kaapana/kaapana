@@ -143,7 +143,7 @@ An exemplary :code:`meta_data.json` could  look like this:
             }
         }
 
-As you can see in the example, the :code:`meta_data.json` file allows to set dicom tags for the whole dataset with the :code:`"global_tags"` field and for each series with the :code:`"series_tags"` field. The respective file path serves as identifier.
+As you can see in the example, the :code:`meta_data.json` file allows to set DICOM tags for the whole dataset with the :code:`"global_tags"` field and for each series with the :code:`"series_tags"` field. The respective file path serves as identifier.
             
 
 Images with SEGs:

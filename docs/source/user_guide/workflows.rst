@@ -84,7 +84,7 @@ Option 2: Uploading images via the Web Interface (experimental)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 To upload images via the webfrontend, visit the :Code:`Data Upload` wizard page within the :code:`Workflows` menu of the Web interface. You can upload 
-arbitrary data here and access and manage it via minio. Additionally you can import uploaded :term:`DICOM` or :term:`NIfTI` data into the internal *PACS*.
+arbitrary data here and access and manage it via minio. Additionally you can import uploaded DICOM or NIfTI data into the internal *PACS*.
 
 Dicom Data
 ''''''''''

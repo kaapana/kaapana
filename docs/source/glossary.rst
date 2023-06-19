@@ -156,7 +156,7 @@ Glossary
     job
       A job belongs to a :term:`workflow` and is associated with a unique Airflow :term:`DAG-run<dag>`.
 
-    NIFTI
+    NIfTI
       NIfTI (Neuroimaging Informatics Technology Initiative) is a data format for the storage of Magnetic Resonance Imaging (MRI) and other medical images.
       It provides a metadata header along with the actual volumes and is commonly used for research datasets and within scientific challenges. 
 

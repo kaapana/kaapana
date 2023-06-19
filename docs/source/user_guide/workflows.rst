@@ -172,10 +172,7 @@ If the segmentation contains multiple regions you need to add a block to :code:`
     seg_info_template.json (Todo check in code if this is all correct)
 
         {
-            "task_id": "<optional - task id>",
             "task_body_part": "<optional - body part>",
-            "task_protocols": "<optional - modality protocols>",
-            "task_targets": "<optional - segementation targets (comma separated) >",
             "algorithm": "<optional - algorithm name>",
             "seg_info": [
                 {

@@ -86,7 +86,7 @@ Step 3: Write the Kubernetes deployments
 
 Since the Kaapana platform runs in Kubernetes, we will create a Kubernetes deployment, service and ingress in order to get the application running inside the platform. The following steps will show how to to that:
 
-* Copy the folder ``hello-word-chart`` from ``kaapana/templates_and_examples/examples/services/hello-world/hello-world-chart``to the instance where the platform is running.
+* Copy the folder ``hello-word-chart`` from ``kaapana/templates_and_examples/examples/services/hello-world/hello-world-chart`` to the instance where the platform is running.
 * Log in to the server and go to the templates directory.
 * Inside the ``hello-world-chart/templates/deployment.yaml`` file comment the lines containing templated arguments e.g. ``namespace: "{{ .Values.global.services_namespace }}"``
 * Each of these lines has a commented version with a specific value right next to it enable these lines. 

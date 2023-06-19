@@ -83,12 +83,237 @@ Here is an example of sending images with DCMTK:
 Option 2: Uploading images via the Web Interface (experimental)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-To upload images via the webfrontend, visit the *Data Upload* wizard page within the *Workflows* menu of the Web interface and follow the steps described in the wizard. 
-Make sure to check the information how uploaded data should be formatted which is provided within the wizard.
+To upload images via the webfrontend, visit the :Code:`Data Upload` wizard page within the :code:`Workflows` menu of the Web interface. You can upload 
+arbitrary data here and access and manage it via minio. Additionally you can import uploaded :term:`DICOM` or :term:`NIFTI` data into the internal *PACS*.
 
+Dicom Data
+''''''''''
+
+DICOM data should be uploaded in a single compressed zip-file containing folder(s) with DICOM files. The default expected file-extension for DICOMs is 
+:code:`.dcm`, but can be configured when triggering the :code:`import-dicoms-in-zip-to-internal-pacs` workflow.
+
+.. _import-uploaded-nifti-files:
+
+Nifti data
+''''''''''
+
+.. To import Nifti data follow the :ref:`import-uploaded-nifti-files` guide.
+
+
+.. 
+
+.. Import uploaded NIFTI files
+.. """""""""""""""""""""""""""
+
+.. To import NIFTI files to the kaapana platform you upload them via the data upload field in the :code:`workflows > Data` Upload view, the uploaded data will be stored in a minio bucket at first. 
+.. After the upload has finished, you can click the :code:`IMPORT THE DATA` button and seletct the :code:`convert-niftis-to-dicoms-and-upload-to-pacs` workflow.
+
+In order to import NIFTI data it will be converted to dicom. The :code:`convert-niftis-to-dicoms-and-upload-to-pacs` workflow expectes the nifit data to be
+structured as described in this section. Additionally you can to provide matadata for the images and (if any) about the segmentations. 
+This information is provided within two json files:
+
+.. code-block::
+
+    meta-data.json
+    seg-info.json
+
+For the format of the uploaded files we support a general format, which we will call the :code:`basic` format and the :code:`nnunet v2` data format.
+The :code:`basic` format assumes that you put all your cases with a unique identifier into a folder, along with the :code:`meta_data.json`
+and (if necessary) the :code:`seg_info.json`. 
+
+
+Example: Images without SEG:
+////////////////////////////
+
+If your data doesn't contain segmentations the directory would be structured as follows:
+
+.. code-block::
+
+    ├───OnlyMRs
+    │       Case00.nii.gz
+    │       Case02.nii.gz
+    │       Case03.nii.gz
+    │       meta_data.json
+
+An exemplary :code:`meta_data.json` could  look like this:
+
+.. code-block::
+
+    meta_data.json
+
+        {
+            "global_tags": {
+                "0008|0060": "MR"
+            },
+            "series_tags": {
+                "Case00.nii": {
+                    "0008|103e": "I am unique"
+                }
+            }
+        }
+
+As you can see in the example, the :code:`meta_data.json` file allows to set dicom tags for the whole dataset with the :code:`"global_tags"` field and for each series with the :code:`"series_tags"` field. The respective file path serves as identifier.
+            
+
+Images with SEGs:
+/////////////////
+
+If you data also contains segmentations the import pipeline will convert them and associate them with their respective volumes. Meta data that is specific to the segmentations is provided by the :code:`seg_info.json` file.
+This is a minimal example:
+
+.. code-block::
+
+    seg_info.json
+
+        {
+            "algorithm": "Ground truth",
+            "seg_info": [
+                {
+                    "label_name": "prostate",
+                    "label_int": "1"
+                }
+            ]   
+        }
+
+The :code:`"algorithm"` field specifies which algorithm or model was used to create the segmentation. If it is provided by a clinician use :code:`"Ground truth"`. The :code:`"seg_info"` field is a list containing segmentation information for each segmented region/organ, where :code:`"label_name"` specifies the name of the region/organ and :code:`"label_int"` the respective integer in the segmentation file.
+If the segmentation contains multiple regions you need to add a block to :code:`"seg_info"` for each region. You can use the following template as a basis:
+
+.. code-block::
+
+    seg_info_template.json (Todo check in code if this is all correct)
+
+        {
+            "task_id": "<optional - task id>",
+            "task_body_part": "<optional - body part>",
+            "task_protocols": "<optional - modality protocols>",
+            "task_targets": "<optional - segementation targets (comma separated) >",
+            "algorithm": "<optional - algorithm name>",
+            "seg_info": [
+                {
+                    "label_name": "<label 1 name>",
+                    "label_int": "<label 1 encoding integer>"
+                },
+                {
+                    "label_name": "<label 2 name>",
+                    "label_int": "<label 2 encoding integer>"
+                }
+
+            ]
+        }
+
+You can use one of the following options to structure your data such that the parser is able to associate the cases with their respective segmentations:
+
+.. code-block::
+
+    Option One:
+
+        ├───MRsWithSegmentationsSameFolder
+        │       Case11.nii.gz
+        │       Case11_segmentation.nii.gz
+        │       Case12.nii.gz
+        │       Case12_segmentation.nii.gz
+        │       seg_info.json
+
+    Option Two:
+
+        ├───MRsWithSegmentationsTwoFolders
+        │   │   seg_info.json
+        │   │
+        │   ├───cases
+        │   │       Case03.nii.gz
+        │   │       Case04.nii.gz
+        │   │
+        │   └───segs
+        │           Case03.nii.gz
+        │           Case04.nii.gz
+
+
+Images in nnU-Net v2 formatting:
+////////////////////////////////
+
+Additonally to the described `basic` format, we also support the `nnU-Net v2` format that was build upon the `medical segmentation decathlon`. This file format combines segmentation meta-data and general meta-data within one file calles :code:`dataset.json`.
+
+.. code-block::
+
+    dataset.json
+
+        {
+            "description": "Left and right hippocampus segmentation",
+            "file_ending": ".nii.gz",
+            "labels": {
+                "Anterior": 1,
+                "Posterior": 2,
+                "background": 0
+            },
+            "licence": "CC-BY-SA 4.0",
+            "channel_names": {
+                "0": "MRI"
+            },
+            "name": "Hippocampus",
+            "numTraining": 260,
+            "reference": " Vanderbilt University Medical Center",
+            "relase": "1.0 04/05/2018"
+        }
+
+
+.. code-block::
+
+    ├───Dataset004_Hippocampus
+    │   │   dataset.json
+    │   │
+    │   ├───imagesTr
+    │   │       hippocampus_001_0000.nii.gz
+    │   │       hippocampus_003_0000.nii.gz
+    │   │       hippocampus_004_0000.nii.gz
+    │   │       hippocampus_006_0000.nii.gz
+    │   │
+    │   ├───imagesTs
+    │   │       hippocampus_002_0000.nii.gz
+    │   │       hippocampus_005_0000.nii.gz
+    │   │       hippocampus_009_0000.nii.gz
+    │   │       hippocampus_010_0000.nii.gz
+    │   │
+    │   └───labelsTr
+    │           hippocampus_001.nii.gz
+    │           hippocampus_003.nii.gz
+    │           hippocampus_004.nii.gz
+    │           hippocampus_006.nii.gz
 
 .. hint::
-    | The upload via the web interface also allows to upload **NIfTI** data.
+
+    Note that the :code:`nnU-Net v2` format is particularly suited to import data with multiple channels per case. The :code:`basic` parser does not support this case at the moment.
+
+If you want to import data with multiple channels per case (e.g. mri data with FLAIR, T1w, T1gb, T2w  sequences) your Data structure will look like this:
+
+.. code-block::
+
+    nnUNet_raw/Dataset001_BrainTumour/
+    ├── dataset.json
+    ├── imagesTr
+    │   ├── BRATS_001_0000.nii.gz
+    │   ├── BRATS_001_0001.nii.gz
+    │   ├── BRATS_001_0002.nii.gz
+    │   ├── BRATS_001_0003.nii.gz
+    │   ├── BRATS_002_0000.nii.gz
+    │   ├── BRATS_002_0001.nii.gz
+    │   ├── BRATS_002_0002.nii.gz
+    │   ├── BRATS_002_0003.nii.gz
+    │   ├── ...
+    ├── imagesTs
+    │   ├── BRATS_485_0000.nii.gz
+    │   ├── BRATS_485_0001.nii.gz
+    │   ├── BRATS_485_0002.nii.gz
+    │   ├── BRATS_485_0003.nii.gz
+    │   ├── BRATS_486_0000.nii.gz
+    │   ├── BRATS_486_0001.nii.gz
+    │   ├── BRATS_486_0002.nii.gz
+    │   ├── BRATS_486_0003.nii.gz
+    │   ├── ...
+    └── labelsTr
+        ├── BRATS_001.nii.gz
+        ├── BRATS_002.nii.gz
+        ├── ...
+
 
 
 

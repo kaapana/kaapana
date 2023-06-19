@@ -97,18 +97,20 @@ DICOM data should be uploaded in a single compressed zip-file containing folder(
 NIfTI data
 ''''''''''
 
-In order to import NIfTI data it will be converted to dicom. The :code:`convert-niftis-to-dicoms-and-upload-to-pacs` workflow expectes the nifit data to be
-structured as described in this section. Additionally you can to provide matadata for the images and (if any) about the segmentations. 
-This information is provided within two json files:
+NIfTI data will be converted to DICOM data before it is imported in the internal PACS. The :code:`convert-niftis-to-dicoms-and-upload-to-pacs` workflow expects the nifit data to be
+structured in one of the following formats. The first one will be called the :code:`basic` format and the second one is the :code:`nnunet v2` data format. 
+The :code:`basic` format assumes that you put all your images with a unique identifier into a folder, along with the :code:`meta_data.json`
+and (if necessary) the :code:`seg_info.json`. 
+
+The :code:`basic` format allows you to provide matadata for the images and (if any) for the segmentations. 
+This additional information is provided within two json files:
 
 .. code-block::
 
     meta-data.json
     seg-info.json
 
-For the format of the uploaded files we support a general format, which we will call the :code:`basic` format and the :code:`nnunet v2` data format.
-The :code:`basic` format assumes that you put all your cases with a unique identifier into a folder, along with the :code:`meta_data.json`
-and (if necessary) the :code:`seg_info.json`. 
+
 
 
 Example: Images without SEG:

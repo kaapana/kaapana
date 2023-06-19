@@ -10,6 +10,8 @@ from m2olie.LocalCallbackfunction import LocalCallbackfunction
 from m2olie.LocalGetAdditionalInput import LocalGetAdditionalInput
 from m2olie.LocalCreateMITKScene import LocalCreateMITKScene
 from m2olie.ElastixRegistration import ElastixRegistration
+from m2olie.NiftiConvOperator import NiftiConvOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
 
 
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
@@ -93,6 +95,18 @@ launch_app = KaapanaApplicationOperator(
     version=KAAPANA_BUILD_VERSION,
 )
 m2olie_callback_funktion = LocalCallbackfunction(dag=dag, input_operator=get_input)
+convert_nifti = NiftiConvOperator(dag=dag, input_operator=registration)
+dcm_send_result = DcmSendOperator(
+    dag=dag,
+    input_operator=get_input,
+    ae_title="REGISTRATION",
+    pacs_host="x.x.x.x",
+    pacs_port="11112",
+    level="element",
+    enable_proxy=True,
+    no_proxy=".svc,.svc.cluster,.svc.cluster.local",
+)
+
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
@@ -103,6 +117,8 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> registration
     >> create_mitk_scene
     >> launch_app
+    >> convert_nifti
+    >> dcm_send_result
     >> clean
 )
 registration >> m2olie_callback_funktion >> clean

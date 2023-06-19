@@ -89,7 +89,7 @@ class LocalCreateMITKScene(KaapanaPythonBaseOperator):
         for batch_element_dir in batch_folders:
             print("batch_element_dir: " + batch_element_dir)
             path_dir = os.path.basename(batch_element_dir)
-            print("oerator_in_dir: ", self.operator_in_dir)
+            print("operator_in_dir: ", self.operator_in_dir)
             fixed_image = sorted(
                 glob.glob(
                     os.path.join(batch_element_dir, self.operator_in_dir, "*.nrrd*"),
@@ -154,17 +154,21 @@ class LocalCreateMITKScene(KaapanaPythonBaseOperator):
                     recursive=True,
                 )
             )
+
             for index, reg_file in enumerate(registration_file):
                 # check if it is a segmentation, if so, download the referencing images
-                mitk_scenes.append(
-                    {
-                        "file_image": os.path.join(
-                            self.registration_dir, os.path.basename(reg_file)
-                        ),
-                        "image_name": "registration_image_" + str(index),
-                    }
-                )
-
+                if "result.1" in reg_file:
+                    mitk_scenes.append(
+                        {
+                            "file_image": os.path.join(
+                                self.registration_dir, os.path.basename(reg_file)
+                            ),
+                            "image_name": "registration_image",
+                        }
+                    )
+                    print("Registraiton result", reg_file)
+                else:
+                    print("different result, not used in scene: ", reg_file)
             self.createScene(mitk_scenes, batch_element_dir)
 
     def __init__(

@@ -25,16 +25,6 @@ Server Installation
    To provide the services in Kaapana, the corresponding containers are needed.
    These can be looked at as normal binaries of Kaapana and therefore only need to be built if you do not have access to already built containers via a container registry or a tarball.
 
-   .. .. mermaid::
-
-   ..    flowchart TB
-   ..       a1(Do you want to use a remote container registry or a tarball for your Kaapana installation?)
-   ..       a1-->|Yes| a2(Do you already have access to a registry or a tarball containing all needed containers?)
-   ..       a1-->|No| b1
-   ..       a2-->|Yes| c1
-   ..       a2-->|No| b1
-   ..       b1(Build Kaapana) --> c1
-   ..       c1(Install Kaapana)
 
 
 Server Config

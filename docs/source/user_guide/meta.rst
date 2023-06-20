@@ -1,4 +1,8 @@
 Meta-Dashboard
 """"""""""""""
 
-When the focus is more on metadata than visually inspecting the image data directly the *Meta-Dashboard* might be useful. It provides aggregated visualizations for the metadata of the images in the platform and can be used to define datasets based on metadata queries. The Dashboard can be found as *Meta-Dashboard* under the *Meta* menu.
+The Meta-Dashboard used to be the default way to visualize the metadata of the images on the platform.
+While it still can be used for that, for most use-cases it probably makes more sense to use the more powerful :ref:`datasets` component instead.
+However, it has the very convenient possiblity to create dashboards which allow to not only visualize column charts but also line graphs or pie charts.
+It is based on OpenSearch, therefore for creating customized dashboards, have a look at the `OpenSearch documentation <https://opensearch.org/docs/latest/>`_.
+

@@ -145,7 +145,7 @@ Therefore, we go to Workflows -> Workflow Execution and select from the workflow
 The workflow will run all operators until it comes to the :code:`ExtractStudyIdOperator` which we have set by adding the ``dev_server="code-server"`` argument into dev-mode.
 Now we navigate to Workflows -> Pending Applications, click on the blue link icon besides the operator's name and a dev-code-server is opened up and we can create, modify and run files inside the container.
 
-.. image:: ../_static/img/dev_guide_pending.png
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/dev_guide_pending.png
 
 We can now implement and test our algorithm. 
 In this example the algorithm is a python script, that extracts the study IDs from the loaded data and returns it.
@@ -450,7 +450,7 @@ Option 1: Add the extension via the UI
 
 You can simply drag and drop the file :code:`otsus-method-workflow-0.1.0.tgz` into the Upload field on the *Extensions* page.
 
-.. image:: ../_static/img/extensions_upload_chart.png
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/extensions_upload_chart.png
 
 .. _Add Extension Manually:
 

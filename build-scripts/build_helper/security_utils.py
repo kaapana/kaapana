@@ -613,7 +613,7 @@ class TrivyUtils:
     def check_dockerfile(self, path_to_dockerfile):
 
         command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_dockerfile]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=timeout)
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=self.timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Dockerfile")

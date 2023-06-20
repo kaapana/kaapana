@@ -101,7 +101,6 @@ if __name__ == "__main__":
             if trivy_utils.threadpool is not None:
                 trivy_utils.threadpool.terminate()
                 trivy_utils.threadpool = None
-
         trivy_utils.error_clean_up()
 
         if BuildUtils.create_sboms:

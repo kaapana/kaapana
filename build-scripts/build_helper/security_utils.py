@@ -791,11 +791,9 @@ class TrivyUtils:
     def get_database_next_update_timestamp(self):
         command = " ".join(
             [
-                "docker run --rm",
+                "docker run --rm --entrypoint /bin/sh",
                 self.trivy_image,
-                "image --quiet --download-db-only",
-                "&&",
-                "trivy --version",
+                '-c "trivy image --quiet --download-db-only; trivy --version"',
             ]
         )
 
@@ -813,11 +811,6 @@ class TrivyUtils:
         # Ignore the under second part of the timestamp
         return output.stdout.split("NextUpdate: ")[1].split(".")[0]
         # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
-
-        # Get the timestamp of the last database download 
-        # Ignore the under second part of the timestamp
-        return output.stdout.split("NextUpdate: ")[1].split(".")[0]
-        #timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

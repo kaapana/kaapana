@@ -11,6 +11,8 @@ ENV https_proxy http://www-int2.dkfz-heidelberg.de:80
 WORKDIR /kaapana/app
 
 RUN mkdir -p /root/.ssh
+RUN touch /root/.ssh/config
+RUN echo "StrictHostKeyChecking=accept-new" > /root/.ssh/config
 
 ## TODO Remove Skopeo from this image if not needed
 RUN apt-get update -q -y &&  apt-get dist-upgrade -q -y

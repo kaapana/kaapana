@@ -677,7 +677,10 @@ class TrivyUtils:
                     ]["Severity"] = misconfiguration["Severity"]
 
         # Delete the dockerfile report file
-        os.remove(os.path.join(self.reports_path, "dockerfile_report.json"))
+        try:
+            os.remove(os.path.join(self.reports_path, "dockerfile_report.json"))
+        except OSError:
+            pass
 
     def safe_vulnerability_reports(self):
         # save the vulnerability reports to the security-reports directory

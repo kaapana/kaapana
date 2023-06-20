@@ -331,14 +331,14 @@ Since DICOMs are not that different from classical images, we got inspired and h
 An item in the Gallery View consists of a thumbnail of the series and its metadata. Everything is completely configurable in :ref:`settings`.
 Items are loaded on demand to ensure scalability.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/gallery_view.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/gallery_view.gif
    :alt: Scrolling through the gallery view
 
 
 
 Sometimes it is of interest to structure the data by patient and study. The Structured Gallery View can be enabled in :ref:`settings`.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/structured_gallery_view.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/structured_gallery_view.gif
    :alt: Scrolling through the structured gallery view
 
 The (Structured) Gallery View enables easy and intuitive interactions with the data on the platform by offering a multi-select functionality. 
@@ -352,19 +352,19 @@ Once selected, there are multiple options which are indicated right above the Ga
 * Execute a workflow with the selected data. Note: While in :ref:`workflow_execution` the dataset is linked to the workflow, triggering a workflow here, will just be a collection of data, i.e. there is no explicit linkage to a dataset.
 
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/save_dataset.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/save_dataset.gif
    :alt: Saving a dataset
    :class: half-width-gif
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/add_to_dataset.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/add_to_dataset.gif
    :alt: Adding items to an existing dataset
    :class: half-width-gif
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/remove_from_dataset.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/remove_from_dataset.gif
    :alt: Removing items from a dataset
    :class: half-width-gif
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/workflow.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/workflow.gif
    :alt: Starting a worklfow
    :class: half-width-gif
 
@@ -396,7 +396,7 @@ Additional filters can be added which allow for filtering for specific DICOM tag
 .. note:: 
   Individual filters are combined by `AND`, while the different values within a filter are combined by `OR`.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/search.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/search.gif
    :alt: Filtering
 
 The next row is responsible for tagging, which is a very convenient way to structure the data. 
@@ -411,7 +411,7 @@ The switch next to the tags definition allows enabling multiple tags at once.
   * Another way to remove tags is to click on the `X` next to the tag. (Note: If the tag distribution is visualized in the :ref:`meta_dashboard` on the righthand side, removing a tag this way will not update the dashboard)
 
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/tagging.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/tagging.gif
    :alt: Tagging items in the gallery view
 
 
@@ -425,7 +425,7 @@ It visualizes the Metadata of the currently selected items in the (Structured) G
 .. note::
   Clicking on a bar in a bar chart will set the selected value as a filter. Only clicking on search will fire the query.
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/dashboard.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/dashboard.gif
    :alt: Metadata Dashboard and how to interact with it
 
 Detail View
@@ -435,7 +435,7 @@ Therefore, by double-clicking on a series card or clicking on the eye in the top
 The detail view consists of an (adjusted) OHIF-v3 viewer which allows fast and convenient investigation of the whole series. 
 Underneath there is the searchable metadata table with all the metadata for the selected series. 
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/detail_view.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/detail_view.gif
    :alt: Detail view with OHIF viewer and metadata table. 
 
 
@@ -464,7 +464,7 @@ Furthermore, for each field in the metadata, there are the following options:
 
 Clicking on save will update the configuration and reload the page. 
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/gif/settings.gif
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/settings.gif
    :alt: Opening the settings window and adjusting the configuration.
 
 .. note::
@@ -544,7 +544,7 @@ This list of job list comes with the following features:
 * redirect links to the Airflow logs of the job's failed operator for troubleshooting and understanding the cause of the failure
 * set of job actions that users can perform, including the ability to abort, restart, or delete jobs
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/wms_workflow_list.png
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/wms_workflow_list.png
 
 
 Service-workflows
@@ -590,7 +590,7 @@ Remote instances
 * comprehensive information regarding the specification of the local instance: instance name, network including protocol and port, token to establish a secure connection to remote instances, time of instance creation and time of last instance update, SSL verification, fernet encryption, configurations of the connection remote instance regarding remote/federated syncing and execution privileges and permissions for the remote/federated usage of Airflow DAGs and datasets
 * on the local instance, the user can define and modify the following specifications of remote instances: port of the network, token, SSL verification and fernet encryption
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/wms_instance_overview.png
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/wms_instance_overview.png
 
 
 .. raw:: html

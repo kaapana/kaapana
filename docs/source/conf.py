@@ -116,9 +116,7 @@ pygments_style = None
 #
 # html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
-html_logo = (
-    "https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/kaapana_logo_mono.png"
-)
+html_logo = "https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_mono.png"
 html_theme_options = {
     "logo_only": True,
     "display_version": True,

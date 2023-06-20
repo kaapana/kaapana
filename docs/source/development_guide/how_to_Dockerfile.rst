@@ -62,6 +62,7 @@ Python packages are usually installed using pip, Python's package installer. The
 When installing Python packages, it's also recommended to use a constraints file. This helps ensure compatibility and stability across different environments. For example, Kaapana provides a constraints file that can be used with the :code:`pip install` command:
 
 .. code-block:: bash
+
   pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt <package-name>
 
 
@@ -122,6 +123,7 @@ Assume that the processing algorithm of your workflow is written in a Python fil
 
 .. _Docker: https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
 .. _Medium: https://chrisedrego.medium.com/20-best-practise-in-2020-for-dockerfile-bb04104bffb6
+
 =======
 
 To build and push the docker container, run the following commands:

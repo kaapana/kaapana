@@ -20,7 +20,7 @@ class NiftiConvOperator(KaapanaBaseOperator):
         execution_timeout: datetime = timedelta(minutes=60),
         **kwargs,
     ):
-                    env_vars = {}
+        env_vars = {}
 
         super().__init__(
             dag=dag,

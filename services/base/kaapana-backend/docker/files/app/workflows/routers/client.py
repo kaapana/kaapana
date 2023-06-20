@@ -395,15 +395,18 @@ def ui_form_schemas(
         # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if not db_kaapana_instance.remote:
-            client_datasets = crud.get_datasets(
-                db, username=username
-            )  # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
+            # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
+            client_datasets = crud.get_datasets(db, username=username)
             allowed_dataset = [ds.name for ds in client_datasets]
             dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
         else:
             allowed_dataset = list(
                 ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)
             )
+            dataset_size = {
+                ds["name"]: len(ds["identifiers"])
+                for ds in json.loads(db_kaapana_instance.allowed_datasets)
+            }
         datasets[db_kaapana_instance.instance_name] = allowed_dataset
 
     if len(datasets) > 1:

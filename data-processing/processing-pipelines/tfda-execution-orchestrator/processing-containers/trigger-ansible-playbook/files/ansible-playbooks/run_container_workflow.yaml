@@ -15,7 +15,7 @@
   gather_facts: yes
   remote_user: "{{ remote_username }}"
   vars:
-    ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
+    ansible_ssh_private_key_file: "{{ ssh_key_operator_path }}/{{ ssh_key_name }}"
     dst_results_dir: "{{ ansible_env.HOME }}/results"
   environment:
     PATH: '{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}'

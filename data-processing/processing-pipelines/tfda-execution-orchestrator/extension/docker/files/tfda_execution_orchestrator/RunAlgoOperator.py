@@ -2,12 +2,12 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
 from datetime import timedelta
 
-class FetchResultsOperator(KaapanaBaseOperator):
+class RunAlgoOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(hours=10)
 
     def __init__(self,
                  dag,
-                 name = "fetch-results",
+                 name = "run-isolated-workflow",
                  env_vars={},
                  execution_timeout=execution_timeout,
                  **kwargs):

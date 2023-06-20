@@ -14,6 +14,7 @@ workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
 assert workflow_dir is not None
 dag_run_id = getenv("RUN_ID")
+data_dir_name = "user-selected-data"
 
 def load_config(config_filepath):
     with open(config_filepath, "r") as stream:
@@ -36,6 +37,8 @@ ssh_key_name = platform_config["platforms"][platform_name]["platform_flavors"][f
 remote_username = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["remote_username"]
 container_name_version = getenv('CONTAINER_NAME_VERSION', "None")
 container_name = container_name_version.split(":")[0]
+ssh_key_operator_path = os.path.join(workflow_dir, ".ssh")
+Path(ssh_key_operator_path).mkdir(parents=True, exist_ok=True)
 
 def manage_iso_inst():
     instance_state = getenv("INSTANCE_STATE", "None")
@@ -48,8 +51,6 @@ def manage_iso_inst():
     if not os.path.isfile(playbook_path):
         raise Exception(f"Playbook '{playbook_path}' file not found!")
 
-    ssh_key_operator_path = os.path.join(workflow_dir, ".ssh")
-    Path(ssh_key_operator_path).mkdir(parents=True, exist_ok=True)
     playbook_args = f"instance_name={workflow_type}_instance instance_state={instance_state} ssh_key_operator_path={ssh_key_operator_path}"
     
     if platform_name in ["openstack", "qemu_kvm"]:
@@ -94,9 +95,6 @@ def manage_iso_inst():
         raise Exception("Failed to manage isolated environment!")
     
 def copy_data_algo():
-    operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
-    operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
-    assert operator_in_dir is not None
     logger.info("Copy data and algorithm to isolated environment...")
     # base_dir = os.path.dirname(workflow_dir)
     # minio_path = os.path.join(base_dir, "minio")
@@ -107,15 +105,14 @@ def copy_data_algo():
     container_name_version = getenv('CONTAINER_NAME_VERSION', "None")
     container_name = container_name_version.split(":")[0]
     user_container_path = os.path.join(workflow_dir, "algorithm_files", container_name)
-    src_data_path = os.path.join(workflow_dir, operator_in_dir)
+    src_data_path = os.path.join(workflow_dir, data_dir_name)
 
     with open(iso_env_ip_path, 'r') as file:
         iso_env_ip = file.read().rstrip()
-
-    playbook_args = f"target_host={iso_env_ip} ssh_key_name={ssh_key_name} remote_username={remote_username} \
+    playbook_args = f"target_host={iso_env_ip} ssh_key_operator_path={ssh_key_operator_path} ssh_key_name={ssh_key_name} remote_username={remote_username} \
                         workflow_type={workflow_type} src_algorithm_files_path={user_container_path} \
                         user_experiment_name={container_name} src_data_path={src_data_path} \
-                        user_selected_data={operator_in_dir}"        
+                        user_selected_data={data_dir_name}"        
     command = ["ansible-playbook", playbook_path, "--extra-vars", playbook_args]
     process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE, encoding="Utf-8")
     while True:
@@ -130,9 +127,62 @@ def copy_data_algo():
     else:
         raise Exception("Playbook FAILED! Cannot proceed further...")
 
+def run_isolated_workflow():
+    logger.info("Run algorithm in isolated environment...")
+    playbook_path = os.path.join(playbooks_dir, f"run_{workflow_type}.yaml")
+    if not os.path.isfile(playbook_path):
+        raise Exception(f"Playbook '{playbook_path}' file not found!")
+    container_name_version = getenv('CONTAINER_NAME_VERSION', "None")
+    container_name = container_name_version.split(":")[0]
+    with open(iso_env_ip_path, 'r') as file:
+        iso_env_ip = file.read().rstrip()
+    playbook_args = f"target_host={iso_env_ip} ssh_key_operator_path={ssh_key_operator_path} ssh_key_name={ssh_key_name} \
+                    user_experiment_name={container_name} user_selected_data={data_dir_name} user_container_name_version={container_name_version} remote_username={remote_username}"
+    command = ["ansible-playbook", playbook_path, "--extra-vars", playbook_args]
+    process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE, encoding="Utf-8")
+    while True:
+        output = process.stdout.readline()
+        if process.poll() is not None:
+            break
+        if output:
+            print(output.strip())
+    rc = process.poll()
+    if rc == 0:
+        logger.info(f"Algorithm ran successfully!!")
+    else:
+        raise Exception("Playbook FAILED! Cannot proceed further...")
+
+def fetch_results():
+    operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
+    operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
+    assert operator_out_dir is not None
+    logger.info("Fetching results from isolated execution environment...")
+    playbook_path = os.path.join(playbooks_dir, "fetch_results.yaml")
+    if not os.path.isfile(playbook_path):
+        raise Exception(f"Playbook '{playbook_path}' file not found!")
+    container_name_version = getenv('CONTAINER_NAME_VERSION', "None")
+    container_name = container_name_version.split(":")[0]
+    with open(iso_env_ip_path, 'r') as file:
+        iso_env_ip = file.read().rstrip()
+    results_path = os.path.join(workflow_dir, operator_out_dir)
+    Path(ssh_key_operator_path).mkdir(parents=True, exist_ok=True)
+    playbook_args = f"target_host={iso_env_ip} ssh_key_operator_path={ssh_key_operator_path} ssh_key_name={ssh_key_name} \
+                    user_experiment_name={container_name} user_selected_data={data_dir_name} user_container_name_version={container_name_version} results_path={results_path} remote_username={remote_username}"
+    command = ["ansible-playbook", playbook_path, "--extra-vars", playbook_args]
+    process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE, encoding="Utf-8")
+    while True:
+        output = process.stdout.readline()
+        if process.poll() is not None:
+            break
+        if output:
+            print(output.strip())
+    rc = process.poll()
+    if rc == 0:
+        logger.info(f"Results were fetched successfully!!")
+    else:
+        raise Exception("Playbook FAILED! Cannot proceed further...")
+
 logger.info("##################################################")
-logger.info("#")
-logger.info("# Starting operator dice-evaluation:")
 logger.info("#")
 logger.info(f"# workflow_dir:     {workflow_dir}")
 logger.info("#")
@@ -145,3 +195,7 @@ if task_type in ["create-iso-inst", "delete-iso-inst"]:
     manage_iso_inst()
 elif task_type == "copy-data-algo":
     copy_data_algo()
+elif task_type == "run-isolated-workflow":
+    run_isolated_workflow()
+elif task_type == "fetch-results":
+    fetch_results()

@@ -6,9 +6,9 @@ from tfda_execution_orchestrator.LocalLoadPlatformConfigOperator import LocalLoa
 from tfda_execution_orchestrator.ManageIsoInstanceOperator import ManageIsoInstanceOperator
 from tfda_execution_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
 from tfda_execution_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
-from tfda_execution_orchestrator.LocalRunAlgoOperator import LocalRunAlgoOperator
+from tfda_execution_orchestrator.RunAlgoOperator import RunAlgoOperator
 # from tfda_execution_orchestrator.LocalTFDAPrepareEnvOperator import LocalTFDAPrepareEnvOperator
-from tfda_execution_orchestrator.LocalFetchResultsOperator import LocalFetchResultsOperator
+from tfda_execution_orchestrator.FetchResultsOperator import FetchResultsOperator
 from tfda_execution_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
@@ -40,11 +40,12 @@ load_platform_config = LocalLoadPlatformConfigOperator(dag=dag, platform_config_
 create_iso_env = ManageIsoInstanceOperator(dag=dag, instanceState="present", taskName="create-iso-inst")
 # prepare_env = LocalTFDAPrepareEnvOperator(dag=dag)
 trusted_pre_etl = TrustedPreETLOperator(dag=dag)
-get_minio_bucket = LocalMinioOperator(action='get', dag=dag, local_root_dir="{run_dir}/user-selected-data", operator_out_dir="user-selected-data")
+get_minio_bucket = LocalMinioOperator(action='get', dag=dag, name="get-data-bucket", local_root_dir="{run_dir}/user-selected-data", operator_out_dir="user-selected-data")
 copy_data_algo = CopyDataAndAlgoOperator(dag=dag, input_operator=get_minio_bucket)
-run_isolated_workflow = LocalRunAlgoOperator(dag=dag)
-fetch_results = LocalFetchResultsOperator(dag=dag)
+run_isolated_workflow = RunAlgoOperator(dag=dag)
+fetch_results = FetchResultsOperator(dag=dag, operator_out_dir="results")
 trusted_post_etl = TrustedPostETLOperator(dag=dag)
+upload_results = LocalMinioOperator(action='put', dag=dag, name="upload-results", bucket_name="results", action_operators=[fetch_results], zip_files=False)
 delete_iso_inst = ManageIsoInstanceOperator(dag=dag, trigger_rule="all_done", instanceState="absent", taskName="delete-iso-inst")
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True, trigger_rule="all_done")
 

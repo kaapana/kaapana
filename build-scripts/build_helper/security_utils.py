@@ -33,17 +33,19 @@ class TrivyUtils:
         self.tag = tag
         self.cache = cache
 
-        # Check if trivy is installed
-        if which("trivy") is None:
-            BuildUtils.logger.error(
-                "Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.38/getting-started/installation/ for installation instructions. You must install Trivy version 0.38.1, higher is not supported yet."
-            )
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name="Check if Trivy is installed",
-                msg="Trivy is not installed",
-                level="ERROR",
-            )
+        if BuildUtils.configuration_check:
+            # Check if trivy is installed
+            if which("trivy") is None:
+                BuildUtils.logger.error(
+                    "Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.38/getting-started/installation/ for installation instructions. You must install Trivy version 0.38.1, higher is not supported yet."
+                )
+                BuildUtils.generate_issue(
+                    component=suite_tag,
+                    name="Check if Trivy is installed",
+                    msg="Trivy is not installed",
+                    level="ERROR",
+                )
+                
         # Check if severity level is set (enable all vulnerabily severity levels if not set)
         if (
             BuildUtils.vulnerability_severity_level == ""

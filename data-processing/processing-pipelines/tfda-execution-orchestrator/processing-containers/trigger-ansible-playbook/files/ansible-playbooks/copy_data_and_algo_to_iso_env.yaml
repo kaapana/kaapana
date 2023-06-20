@@ -16,8 +16,8 @@
   gather_facts: yes
   remote_user: "{{ remote_username }}"
   vars:
-    ansible_ssh_private_key_file: ~/.ssh/{{ ssh_key_name }}
-    src_algorithm_dir: "{{ src_algorithm_files_path }}/{{ user_experiment_name }}"
+    ansible_ssh_private_key_file: "{{ ssh_key_operator_path }}/{{ ssh_key_name }}"
+    src_algorithm_dir: "{{ src_algorithm_files_path }}"
     dst_algorithm_dir: "{{ ansible_env.HOME }}/algorithm_files/{{ user_experiment_name }}"
     dst_data_dir: "{{ ansible_env.HOME }}/{{ user_selected_data }}"
   # TODO: data could be in any or multiple instances

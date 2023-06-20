@@ -140,7 +140,7 @@
               </v-list-item>
               <v-list-item>
                 <v-switch
-                  label="Navigation"
+                  label="Top navigation"
                   hide-details
                   v-model="settings.navigationMode"
                   @change="(v) => changeNavigation(v)"

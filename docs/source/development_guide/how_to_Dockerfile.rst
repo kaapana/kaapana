@@ -125,7 +125,8 @@ Assume that the processing algorithm of your workflow is written in a Python fil
 =======
 
 To build and push the docker container, run the following commands:
+
 .. code-block:: bash
-  
+
   docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0 .
   docker push <docker-registry><docker-repo>/example-extract-study-id:0.1.0

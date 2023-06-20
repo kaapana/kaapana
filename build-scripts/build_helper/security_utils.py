@@ -11,7 +11,6 @@ import datetime
 
 suite_tag = "security"
 
-
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:
@@ -34,17 +33,19 @@ class TrivyUtils:
         self.tag = tag
         self.cache = cache
 
-        # Check if trivy is installed
-        if which("trivy") is None:
-            BuildUtils.logger.error(
-                "Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.38/getting-started/installation/ for installation instructions. You must install Trivy version 0.38.1, higher is not supported yet."
-            )
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name="Check if Trivy is installed",
-                msg="Trivy is not installed",
-                level="ERROR",
-            )
+        if BuildUtils.configuration_check:
+            # Check if trivy is installed
+            if which("trivy") is None:
+                BuildUtils.logger.error(
+                    "Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.38/getting-started/installation/ for installation instructions. You must install Trivy version 0.38.1, higher is not supported yet."
+                )
+                BuildUtils.generate_issue(
+                    component=suite_tag,
+                    name="Check if Trivy is installed",
+                    msg="Trivy is not installed",
+                    level="ERROR",
+                )
+                
         # Check if severity level is set (enable all vulnerabily severity levels if not set)
         if (
             BuildUtils.vulnerability_severity_level == ""
@@ -87,6 +88,7 @@ class TrivyUtils:
             self.load_cache()
 
         self.database_timestamp = self.get_database_next_update_timestamp()
+        
 
     def create_vulnerability_reports(self, list_of_images):
         try:
@@ -150,7 +152,6 @@ class TrivyUtils:
             BuildUtils.vulnerability_severity_level,
             "--format",
             "json",
-            "--ignore-unfixed",
             "--skip-dirs",
             "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
             "--skip-dirs",
@@ -206,7 +207,6 @@ class TrivyUtils:
                 "description": "Vulnerability scan was interrupted.",
             }
             return image, issue
-
         elif output.returncode != 0:
             BuildUtils.logger.error(
                 "Failed to create vulnerability report for image: "
@@ -294,9 +294,12 @@ class TrivyUtils:
                             compressed_vulnerability_report[target["Target"]][
                                 "InstalledVersion"
                             ] = vulnerability["InstalledVersion"]
-                            compressed_vulnerability_report[target["Target"]][
-                                "FixedVersion"
-                            ] = vulnerability["FixedVersion"]
+
+                            if "FixedVersion" in vulnerability:
+                                compressed_vulnerability_report[target["Target"]][
+                                    "FixedVersion"
+                                ] = vulnerability["FixedVersion"]
+                                
                             compressed_vulnerability_report[target["Target"]][
                                 "Severity"
                             ] = vulnerability["Severity"]
@@ -320,6 +323,53 @@ class TrivyUtils:
         os.remove(
             os.path.join(self.reports_path, image_name + "_vulnerability_report.json")
         )
+
+        if self.kill_flag:
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "SBOM creation was interrupted",
+            }
+            return image, issue
+
+        elif output.returncode != 0:
+            BuildUtils.logger.error(
+                "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag."
+            )
+            BuildUtils.logger.error(output.stderr)
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag.",
+            }
+            return image, issue
+
+        # read the SBOM file
+        with open(os.path.join(self.reports_path, image_name + "_sbom.json"), "r") as f:
+            sbom = json.load(f)
+
+        # Remove the image from the list of running containers
+        self.semaphore_running_containers.acquire()
+        try:
+            self.list_of_running_containers.remove(image_name + "_sbom")
+        finally:
+            self.semaphore_running_containers.release()
+
+        self.semaphore_sboms.acquire()
+        try:
+            # add the SBOM to the dictionary
+            self.sboms[image] = sbom
+        finally:
+            self.semaphore_sboms.release()
+
+        # Remove the SBOM file
+        os.remove(os.path.join(self.reports_path, image_name + "_sbom.json"))
 
         return image, issue
 
@@ -483,7 +533,7 @@ class TrivyUtils:
             "-f",
             "json",
             "-o",
-            os.path.join(self.reports_path, "chart_report.json"),
+            os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_chart_report.json"),
             "--severity",
             BuildUtils.configuration_check_severity_level,
             path_to_chart,
@@ -493,7 +543,7 @@ class TrivyUtils:
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,
-            timeout=self.timeout,
+            timeout=self.timeout*2,
         )
 
         if output.returncode != 0:
@@ -507,7 +557,7 @@ class TrivyUtils:
             )
 
         # read the chart report file
-        with open(os.path.join(self.reports_path, "chart_report.json"), "r") as f:
+        with open(os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_chart_report.json"), "r") as f:
             chart_report = json.load(f)
 
         compressed_chart_report = {}
@@ -539,36 +589,31 @@ class TrivyUtils:
                         "Severity"
                     ] = misconfiguration["Severity"]
 
-        # Safe the chart report to the build directory if there are any errors
+        # Safe the chart report to the security-reports directory if there are any errors
         if not compressed_chart_report == {}:
             BuildUtils.logger.error(
                 "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
             )
             with open(
-                os.path.join(self.reports_path, "compressed_chart_report.json"), "w"
+                os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_compressed_chart_report.json"), "w"
             ) as f:
                 json.dump(compressed_chart_report, f)
 
+        # Safe the dockerfile report to the security-reports directory if there are any errors
+        if not self.compressed_dockerfile_report == {}:
+            BuildUtils.logger.error(
+                "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
+            )
+            with open(
+                os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_compressed_dockerfile_report.json"), "w"
+            ) as f:
+                json.dump(self.compressed_dockerfile_report, f)
+
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
-        command = [
-            "trivy",
-            "config",
-            "-f",
-            "json",
-            "-o",
-            os.path.join(self.reports_path, "dockerfile_report.json"),
-            "--severity",
-            BuildUtils.configuration_check_severity_level,
-            path_to_dockerfile,
-        ]
-        output = run(
-            command,
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-            timeout=self.timeout,
-        )
+
+        command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_dockerfile]
+        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=self.timeout)
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Dockerfile")
@@ -581,7 +626,7 @@ class TrivyUtils:
             )
 
         # Log the dockerfile report
-        with open(os.path.join(self.reports_path, "dockerfile_report.json"), "r") as f:
+        with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'r') as f:
             dockerfile_report = json.load(f)
 
         # Check if the report contains any results -> weird if it doesn't e.g. when the Dockerfile is empty
@@ -635,7 +680,7 @@ class TrivyUtils:
         os.remove(os.path.join(self.reports_path, "dockerfile_report.json"))
 
     def safe_vulnerability_reports(self):
-        # save the vulnerability reports to the build directory
+        # save the vulnerability reports to the security-reports directory
         with open(
             os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"),
             "w",
@@ -651,7 +696,7 @@ class TrivyUtils:
             json.dump(self.compressed_vulnerability_reports, f)
 
     def safe_sboms(self):
-        # save the SBOMs to the build directory
+        # save the SBOMs to the security-reports directory
         with open(os.path.join(self.reports_path, self.tag + "_sboms.json"), "w") as f:
             json.dump(self.sboms, f)
 
@@ -746,11 +791,9 @@ class TrivyUtils:
     def get_database_next_update_timestamp(self):
         command = " ".join(
             [
-                "docker run --rm",
+                "docker run --rm --entrypoint /bin/sh",
                 self.trivy_image,
-                "image --quiet --download-db-only",
-                "&&",
-                "trivy --version",
+                '-c "trivy image --quiet --download-db-only; trivy --version"',
             ]
         )
 
@@ -768,7 +811,6 @@ class TrivyUtils:
         # Ignore the under second part of the timestamp
         return output.stdout.split("NextUpdate: ")[1].split(".")[0]
         # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
-
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

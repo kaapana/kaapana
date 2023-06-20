@@ -17,12 +17,10 @@ class NiftiConvOperator(KaapanaBaseOperator):
         self,
         dag,
         name: str = "nifti-conv",
-        env_vars: str = None,
         execution_timeout: datetime = timedelta(minutes=60),
         **kwargs,
     ):
-        if env_vars is None:
-            env_vars = {}
+                    env_vars = {}
 
         super().__init__(
             dag=dag,

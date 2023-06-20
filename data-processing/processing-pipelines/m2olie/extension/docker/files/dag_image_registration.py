@@ -98,7 +98,7 @@ m2olie_callback_funktion = LocalCallbackfunction(dag=dag, input_operator=get_inp
 convert_nifti = NiftiConvOperator(dag=dag, input_operator=registration)
 dcm_send_result = DcmSendOperator(
     dag=dag,
-    input_operator=get_input,
+    input_operator=convert_nifti,
     ae_title="REGISTRATION",
     pacs_host="x.x.x.x",
     pacs_port="11112",

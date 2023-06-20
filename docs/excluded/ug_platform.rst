@@ -8,7 +8,7 @@ User Guide Platform
 When the system gets initialized, the platform sends a first image to the dicom receiver to check its function.
 If you select the 'Meta' tab on the main page, you should see that there is already an image listed. 
 
-.. figure:: _static/img/meta_beginning.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/meta_beginning.png
    :align: center
    :scale: 18%
 
@@ -24,7 +24,7 @@ If you haven't already registered the server within you clinic pacs, you should 
 After this, you can send the first image to the server from within your default pacs interface.
 You can check this by viewing the currently running workflows in the Airflow area.
 
-.. figure:: _static/img/airflow_start.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/airflow_start.png
    :align: center
    :scale: 18%
 
@@ -35,7 +35,7 @@ You can check this by viewing the currently running workflows in the Airflow are
 Bright green (dark green --> completed, red --> error ) cirlces indicate a running workflow. In the case of the metadata-extraction 
 this happens quite quickly. It may already be completed when you look for it.
 
-.. figure:: _static/img/airflow_meta.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/airflow_meta.png
    :align: center
    :scale: 40%
 
@@ -43,7 +43,7 @@ The metadata will appear in the 'DKTK Kaapana' dashboard of the Meta section of 
 You should now see two (or more) entries in the list. 
 The 'Datasets' visualization will show the AE-title, the image was sent to (Kaapana when you used the default).
 
-.. figure:: _static/img/meta_second_image.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/meta_second_image.png
    :align: center
    :scale: 18%
 
@@ -66,10 +66,10 @@ You can also simply click on a modality in the 'Modality Donut' to reduce all da
 
 |pic1| |pic2|
 
-.. |pic1| image:: _static/img/meta_filtering.png
+.. |pic1| image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/meta_filtering.png
    :width: 50%
 
-.. |pic2| image:: _static/img/meta_modality.png
+.. |pic2| image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/meta_modality.png
    :width: 40%
 
 .. raw:: latex
@@ -79,14 +79,14 @@ You can also simply click on a modality in the 'Modality Donut' to reduce all da
 
 You can also create manual filters by clicking on 'Add a filter' at the top of the dashboard and specifying the desired properties.
 
-.. figure:: _static/img/meta_filter.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/meta_filter.png
    :align: center
    :scale: 30%
 
 
 Once you have selected your dataset, you can choose and start a workflow in the lower part of the dashboard.
 
-.. figure:: _static/img/dag_tigger.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/dag_tigger.png
    :align: center
    :scale: 30%
 

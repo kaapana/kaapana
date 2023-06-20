@@ -71,6 +71,7 @@ spec:
           path: "{{ $.Values.global.fast_data_dir }}/platforms"
           type: DirectoryOrCreate
       serviceAccountName: kaapana-kube-admin
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret
 ---

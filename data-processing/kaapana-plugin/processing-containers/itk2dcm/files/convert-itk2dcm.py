@@ -361,7 +361,7 @@ class Parser:
         )  # TODO: use a proper regex to specifically filter for .nii, .nii.gz and .nrrd
         segs = glob.glob(os.path.join(seg_dir, "*.nii*"))
 
-        return self.zip_cases_with_segs(cases, segs, **kwds)
+        return self.zip_cases_with_segs([Path(c) for c in cases], [Path(s) for s in segs], **kwds)
 
     def zip_cases_with_segs(self, cases, segs, *args, **kwds):
         cases.sort()

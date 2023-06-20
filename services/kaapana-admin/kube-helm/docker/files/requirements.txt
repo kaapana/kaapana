@@ -6,7 +6,6 @@ fastapi==0.95.0
 gunicorn==20.1.0
 Jinja2==3.1.2
 python-dotenv==1.0.0
-requests==2.28.2
 uvicorn==0.21.1
 python-multipart==0.0.6
 # Security fix for CVE-2020-14343

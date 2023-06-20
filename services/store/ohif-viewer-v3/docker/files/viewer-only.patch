@@ -1,8 +1,47 @@
+diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+index 58d190f5a..dfa99d432 100644
+--- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
++++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+@@ -339,7 +339,7 @@ function OHIFCornerstoneRTViewport(props) {
+             patientSex: PatientSex || '',
+             patientAge: PatientAge || '',
+             MRN: PatientID || '',
+-            thickness: SliceThickness ? `${SliceThickness.toFixed(2)}mm` : '',
++            thickness: '',
+             spacing:
+               SpacingBetweenSlices !== undefined
+                 ? `${SpacingBetweenSlices.toFixed(2)}mm`
+diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+index 08ed004f0..8956e4bef 100644
+--- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
++++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+@@ -343,7 +343,7 @@ function OHIFCornerstoneSEGViewport(props) {
+             patientSex: PatientSex || '',
+             patientAge: PatientAge || '',
+             MRN: PatientID || '',
+-            thickness: SliceThickness ? `${SliceThickness.toFixed(2)}mm` : '',
++            thickness: '',
+             spacing:
+               SpacingBetweenSlices !== undefined
+                 ? `${SpacingBetweenSlices.toFixed(2)}mm`
+diff --git a/extensions/cornerstone-dicom-sr/src/viewports/OHIFCornerstoneSRViewport.tsx b/extensions/cornerstone-dicom-sr/src/viewports/OHIFCornerstoneSRViewport.tsx
+index 8d56f400d..e5afc92b5 100644
+--- a/extensions/cornerstone-dicom-sr/src/viewports/OHIFCornerstoneSRViewport.tsx
++++ b/extensions/cornerstone-dicom-sr/src/viewports/OHIFCornerstoneSRViewport.tsx
+@@ -389,7 +389,7 @@ function OHIFCornerstoneSRViewport(props) {
+             patientSex: PatientSex || '',
+             patientAge: PatientAge || '',
+             MRN: PatientID || '',
+-            thickness: SliceThickness ? `${SliceThickness.toFixed(2)}mm` : '',
++            thickness: '',
+             spacing:
+               SpacingBetweenSlices !== undefined
+                 ? `${SpacingBetweenSlices.toFixed(2)}mm`
 diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
-index 30b8932a5..3cd418552 100644
+index 7d64064fe..10abdd4ee 100644
 --- a/extensions/default/src/ViewerLayout/index.tsx
 +++ b/extensions/default/src/ViewerLayout/index.tsx
-@@ -204,37 +204,14 @@ function ViewerLayout({
+@@ -218,37 +218,14 @@ function ViewerLayout({
  
    return (
      <div>
@@ -41,7 +80,7 @@ index 30b8932a5..3cd418552 100644
            {/* TOOLBAR + GRID */}
            <div className="flex flex-col flex-1 h-full">
              <div className="flex items-center justify-center flex-1 h-full overflow-hidden bg-black relative">
-@@ -247,16 +224,6 @@ function ViewerLayout({
+@@ -261,16 +238,6 @@ function ViewerLayout({
                </ErrorBoundary>
              </div>
            </div>

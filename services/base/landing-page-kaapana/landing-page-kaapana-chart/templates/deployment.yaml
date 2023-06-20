@@ -66,5 +66,6 @@ spec:
         persistentVolumeClaim:
           claimName: landing-dev-pv-claim
 {{- end }}
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

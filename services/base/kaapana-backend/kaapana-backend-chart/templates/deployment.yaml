@@ -120,6 +120,7 @@ spec:
           mountPath: /kaapana/app/alembic
         - name: minio-data
           mountPath: /kaapana/mounted/minio
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
       volumes:

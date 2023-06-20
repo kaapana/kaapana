@@ -215,7 +215,10 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
-    helm -n $HELM_NAMESPACE ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+    for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+        helm -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+    done
+
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)

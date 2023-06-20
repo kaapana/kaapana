@@ -1,2 +1,1 @@
 dcmrtstruct2nii==5
-pydicom==2.3.1

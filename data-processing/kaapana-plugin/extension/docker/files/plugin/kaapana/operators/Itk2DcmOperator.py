@@ -7,6 +7,27 @@ from datetime import timedelta
 
 
 class Itk2DcmOperator(KaapanaBaseOperator):
+    """
+    Operator which converts nifti files to dicom files. 
+
+    **Inputs:**
+        Nifti files in a dataset directory structure specified by the nnU-Net project (https://github.com/MIC-DKFZ/nnUNet)
+        
+        Unimodal datasets can also be parsed directly with the following structure.
+
+        path
+        |----dataset
+        |    | meta_data.json
+        |    | seg_info.json
+        |    | series1.nii.gz
+        |    | series1_seg.nii.gz
+        |    | series2.nii.gz
+        |    | series2_seg.nii.gz
+        |    | ...
+
+    **Outputs:**
+        Converted Dicoms. Associated segmentations are not converted yet, but prepared to be converted by the Itk2DcmSegOperator. 
+    """
     def __init__(
         self, dag, name=None, execution_timeout=timedelta(minutes=90), *args, **kwargs
     ) -> None:

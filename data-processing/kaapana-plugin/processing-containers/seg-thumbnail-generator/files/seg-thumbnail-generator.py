@@ -135,9 +135,15 @@ def create_thumbnail(parameters):
         )
         slice_index_cmd = f"dcmdump {base_dcm} --search 0020,0013"
         slice_index = execute_command(cmd=slice_index_cmd, timeout=10)
-        slice_index = int(
-            slice_index.stdout.split(" ")[2].replace("[", "").replace("]", "")
-        )
+        
+        try:
+            slice_index = int(
+                slice_index.stdout.split(" ")[2].replace("[", "").replace("]", "")
+            )
+        except ValueError as e:
+            logger.info(f"Could not extract Instance Number, counting based on filenames...: {e}")
+            slice_index = index
+
         if scan_direction[0].lower() == "f" or scan_direction.lower() == "hfs":
             slice_index = base_slice_count - slice_index
 

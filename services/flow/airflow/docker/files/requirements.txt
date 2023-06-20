@@ -1,11 +1,8 @@
 apache-airflow==2.5.3
 psycopg2-binary == 2.9.5
 Flask-Admin==1.6.0
-pydicom == 2.3.0
 pint == 0.16.1
 dicomweb-client == 0.56.2
-nibabel == 3.2.2
-numpy == 1.22.4
 kubernetes==23.6.0
 dicom_parser==1.2.3
 statsd==4.0.1

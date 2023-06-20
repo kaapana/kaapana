@@ -38,6 +38,7 @@ spec:
           items:
           - key: auth_role_mapping.json
             path: auth_role_mapping.json
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
 ---

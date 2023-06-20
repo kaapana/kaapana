@@ -171,7 +171,7 @@ if __name__ == "__main__":
         dest="configuration_check",
         default=None,
         action="store_true",
-        help="Wheter the Charts, deployments, dockerfiles etc. should be checked for configuration errors",
+        help="Whether the Charts, deployments, dockerfiles etc. should be checked for configuration errors",
     )
     parser.add_argument(
         "-ccl",

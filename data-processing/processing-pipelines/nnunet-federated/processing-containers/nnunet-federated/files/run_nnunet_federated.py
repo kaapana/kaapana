@@ -155,7 +155,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                     if idx == 0:
                         with open(fname, "rb") as f:
                             concat_dataset_properties = pickle.load(f)
-                        if "intensityproperties" in concat_dataset_properties:
+                        if "intensityproperties" in concat_dataset_properties and concat_dataset_properties["intensityproperties"]:
                             local_intensityproperties = collections.OrderedDict()
                             for mod_id, _ in concat_dataset_properties[
                                 "intensityproperties"
@@ -191,7 +191,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                         concat_dataset_properties["size_reductions"].update(
                             dataset_properties["size_reductions"]
                         )
-                        if "intensityproperties" in concat_dataset_properties:
+                        if "intensityproperties" in concat_dataset_properties and concat_dataset_properties["intensityproperties"]:
                             for (
                                 mod_id,
                                 intensityproperties,
@@ -218,7 +218,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                             )
                     print(fname)
             print(len(dataset_properties_files))
-            if "intensityproperties" in concat_dataset_properties:
+            if "intensityproperties" in concat_dataset_properties and concat_dataset_properties["intensityproperties"]:
                 global_intensityproperties = (
                     nnUNetFederatedTraining.collect_intensity_properties(
                         voxels_in_foreground

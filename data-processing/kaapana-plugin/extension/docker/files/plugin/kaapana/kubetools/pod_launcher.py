@@ -27,6 +27,7 @@ from airflow import AirflowException
 from requests.exceptions import HTTPError
 from kaapana.kubetools.kube_client import get_kube_client
 from kaapana.kubetools.pod_stopper import PodStopper
+from pathlib import Path
 
 # NONE = None
 # REMOVED = "removed"
@@ -56,6 +57,7 @@ from kaapana.kubetools.pod_stopper import PodStopper
 # Tasks in the SCHEDULED state are sent to the executor, at which point it is put into the QUEUED state until it actually runs.
 # Unfortunately a race condition remains for UP_FOR_RETRY tasks as another scheduler can pick those up. To eliminate this the check for UP_FOR_RETRY needs to migrate from the TI to the scheduler. However, was it not for that fact that we have backfills... (see below)
 
+schedule_lockfile = Path("/kaapana/mounted/schedule_stop.lock")
 
 class PodStatus(object):
     PENDING = "pending"
@@ -106,6 +108,7 @@ class PodLauncher(LoggingMixin):
         return resp
 
     def run_pod(self, pod, startup_timeout=360, heal_timeout=360, get_logs=True):
+        global schedule_lockfile_path
         # type: (Pod) -> (State, result)
         """
         Launches the pod synchronously and waits for completion.
@@ -128,11 +131,12 @@ class PodLauncher(LoggingMixin):
                 raise
 
         resp = self.run_pod_async(pod)
-        curr_time = dt.now()
+        start_time = dt.now()
 
         last_status = None
         return_msg = None
-        pull_time_reset = 0
+        start_time_reset = 0
+        locked_scheduling = False
 
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
@@ -165,12 +169,13 @@ class PodLauncher(LoggingMixin):
 
                     if pod.last_kube_status == "UNSCHEDULABLE":
                         self.log.warning(
-                            "Pod has status {} -> Problems with POD-Quotas!".format(
-                                pod.last_kube_status
-                            )
+                            f"Pod has status {pod.last_kube_status} -> Problems with POD-Quotas!"
                         )
                         self.log.warning("Pod should not have been scheduled...")
-                        self.log.warning("-> waiting")
+                        self.log.warning("-> waiting & locking scheduling!")
+                        start_time_reset += 1
+                        start_time = dt.now()
+                        schedule_lockfile.touch()
 
                     elif pod.last_kube_status == "ErrImagePull":
                         self.log.warning(
@@ -194,20 +199,19 @@ class PodLauncher(LoggingMixin):
                                 pod.last_kube_status
                             )
                         )
+                        schedule_lockfile.unlink(missing_ok=True)
 
-                delta = dt.now() - curr_time
+                delta = dt.now() - start_time
                 if (
                     delta.seconds >= startup_timeout
                     and pull_image
-                    and pull_time_reset <= 3
+                    and start_time_reset <= 3
                 ):
-                    pull_time_reset += 1
+                    start_time_reset += 1
                     self.log.warning(
-                        "Pod is still downloading the container! -> reset startup-timeout! counter: {}".format(
-                            pull_time_reset
-                        )
+                        f"Pod is still downloading the container! -> reset startup-timeout! counter: {start_time_reset}"
                     )
-                    curr_time = dt.now()
+                    start_time = dt.now()
                     continue
 
                 if delta.seconds >= startup_timeout:

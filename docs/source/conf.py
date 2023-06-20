@@ -116,7 +116,9 @@ pygments_style = None
 #
 # html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
-html_logo = "_static/img/kaapana_logo_mono.png"
+html_logo = (
+    "https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/kaapana_logo_mono.png"
+)
 html_theme_options = {
     "logo_only": True,
     "display_version": True,
@@ -132,6 +134,11 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+# Add the Mermaid library to the static path
+html_js_files = [
+    "mermaid.min.js",
+]
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

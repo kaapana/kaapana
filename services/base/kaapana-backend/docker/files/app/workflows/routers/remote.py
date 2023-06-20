@@ -37,7 +37,6 @@ async def get_minio_presigned_url(presigned_url: str = Header(...)):
     with requests.Session() as s:
         resp = requests_retry_session(session=s).get(
             f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}",
-            timeout=TIMEOUT,
         )
     return Response(resp.content, resp.status_code)
 
@@ -51,7 +50,6 @@ async def post_minio_presigned_url(
         resp = requests_retry_session(session=s).put(
             f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}",
             data=file.file,
-            timeout=TIMEOUT,
         )
     return Response(resp.content, resp.status_code)
 

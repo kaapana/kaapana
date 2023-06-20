@@ -93,6 +93,7 @@ spec:
       - name: ssl-config-files
         secret:
           secretName: certificate
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret
 ---

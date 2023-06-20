@@ -180,12 +180,10 @@ def _get_ti(
         task.task_id, map_index=map_index, session=session
     )
 
-    override_pool = None
-    override_pool_slots = None
-    if ti_or_none != None and "gpu" in str(ti_or_none.pool).lower():
-        log.info(f"Override TI pool: {ti_or_none.pool} !")
-        override_pool = ti_or_none.pool
-        override_pool_slots = ti_or_none.pool_slots
+    override_executor_config = None
+    if ti_or_none != None and "gpu_device" in ti_or_none.executor_config:
+        log.info(f"Override TI executor_config: {ti_or_none.executor_config} !")
+        override_executor_config = dict(ti_or_none.executor_config)
 
     if ti_or_none is None:
         if not create_if_necessary:
@@ -200,10 +198,10 @@ def _get_ti(
         ti = ti_or_none
 
     log.info("refresh_from_task commands")
-    ti.refresh_from_task(task, pool_override=override_pool)
+    ti.refresh_from_task(task, pool_override=pool)
 
-    if override_pool_slots != None:
-        ti.pool_slots = override_pool_slots
+    if override_executor_config != None:
+        ti.executor_config = override_executor_config
 
     return ti, dr_created
 

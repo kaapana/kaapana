@@ -62,5 +62,6 @@ spec:
       - name: ldif
         configMap:
           name: dcm4che-iid-config
+      priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

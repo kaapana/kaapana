@@ -45,7 +45,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         try:
             json_dict = self.produce_inserts(json_dict)
             response = HelperOpensearch.os_client.index(
-                index=self.opensearch_index, body=json_dict, id=id, refresh=True
+                index=HelperOpensearch.index, body=json_dict, id=id, refresh=True
             )
         except Exception as e:
             print("#")
@@ -62,7 +62,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         print("INFO: get old json from index.")
         try:
             old_json = HelperOpensearch.os_client.get(
-                index=self.opensearch_index, id=self.instanceUID
+                index=HelperOpensearch.index, id=self.instanceUID
             )["_source"]
             print("Series already found in OS")
             if self.no_update:
@@ -195,9 +195,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         :param no_update: If there is a series found with the same ID, setting this to True will replace the series with new data instead of updating it.
         :param avalability_check_delay: When checking for series availability in PACS, this parameter determines how many seconds are waited between checks in case series is not found.
         :param avalability_check_max_tries: When checking for series availability in PACS, this parameter determines how often to check for series in case it is not found.
-        :param opensearch_host: Host address for OpenSearch.
-        :param opensearch_port: Port for OpenSearch.
-        :param opensearch_index: Specifies the index of OpenSearch where to put data into.
         :param check_in_pacs: Determines whether or not to search for series in PACS. If set to True and series is not found in PACS, the data will not be put into OpenSearch.
         """
 
@@ -211,7 +208,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.no_update = no_update
         self.instanceUID = None
         self.check_in_pacs = check_in_pacs
-        auth = None
 
         super().__init__(
             dag=dag,

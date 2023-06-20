@@ -298,12 +298,16 @@ In the :code:`files` directory create a file called :ref:`otsus-method` that con
     :caption: otsus_method.py
     :name: otsus-method
 
-In :code:`otsus_notebooks/` include the file :ref:`run-otsus-report-notebook-sh`. 
-This file generates an example jupyter notebook from the algorithm results in *Workflows -> Workflow Results*.
+In :code:`otsus_notebooks/` include the files :ref:`run-otsus-report-notebook-sh` and :ref:`run-otsus-report-notebook-ipynb`. 
+These files generate an example jupyter notebook from the algorithm results in *Workflows -> Workflow Results*.
 
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/processing-containers/otsus-method/files/otsus_notebooks/run_otsus_report_notebook.sh
     :caption: run_otsus_report_notebook.sh 
     :name: run-otsus-report-notebook-sh
+
+.. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/otsus-method/processing-containers/otsus-method/files/otsus_notebooks/run_otsus_report_notebook.ipynb
+    :caption: run_otsus_report_notebook.ipynb 
+    :name: run-otsus-report-notebook-ipynb
 
 
 In the :code:`files` directory create :ref:`otsus-method-requirements`, which contains all dependencies the image needs to run the above scripts:

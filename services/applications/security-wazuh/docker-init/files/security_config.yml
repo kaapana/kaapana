@@ -1,0 +1,71 @@
+---
+
+# This is the main OpenSearch Security configuration file where authentication
+# and authorization is defined.
+#
+# You need to configure at least one authentication domain in the authc of this file.
+# An authentication domain is responsible for extracting the user credentials from
+# the request and for validating them against an authentication backend like Active Directory for example.
+#
+# If more than one authentication domain is configured the first one which succeeds wins.
+# If all authentication domains fail then the request is unauthenticated.
+# In this case an exception is thrown and/or the HTTP status is set to 401.
+#
+# After authentication authorization (authz) will be applied. There can be zero or more authorizers which collect
+# the roles from a given backend for the authenticated user.
+#
+# Both, authc and auth can be enabled/disabled separately for REST and TRANSPORT layer. Default is true for both.
+#        http_enabled: true
+#        transport_enabled: true
+#
+# For HTTP it is possible to allow anonymous authentication. If that is the case then the HTTP authenticators try to
+# find user credentials in the HTTP request. If credentials are found then the user gets regularly authenticated.
+# If none can be found the user will be authenticated as an "anonymous" user. This user has always the username "anonymous"
+# and one role named "anonymous_backendrole".
+# If you enable anonymous authentication all HTTP authenticators will not challenge.
+#
+#
+# Note: If you define more than one HTTP authenticators make sure to put non-challenging authenticators like "proxy" or "clientcert"
+# first and the challenging one last.
+# Because it's not possible to challenge a client with two different authentication methods (for example
+# Kerberos and Basic) only one can have the challenge flag set to true. You can cope with this situation
+# by using pre-authentication, e.g. sending a HTTP Basic authentication header in the request.
+#
+# Default value of the challenge flag is true.
+
+_meta:
+  type: "config"
+  config_version: 2
+
+config:
+  dynamic:
+    http:
+      anonymous_auth_enabled: false
+    authc:
+      basic_internal_auth_domain:
+        description: "Authenticate via HTTP Basic against internal users database"
+        http_enabled: true
+        transport_enabled: true
+        order: 0
+        http_authenticator:
+          type: basic
+          challenge: false
+        authentication_backend:
+          type: internal
+     
+      openid_auth_domain:
+        http_enabled: true
+        transport_enabled: true
+        order: 1
+        http_authenticator:
+          type: openid
+          challenge: false
+          config:
+            openid_connect_idp:
+              enable_ssl: false
+              verify_hostnames: false
+            subject_key: preferred_username
+            roles_key: roles
+            openid_connect_url: http://keycloak-external-service.admin.svc:80/auth/realms/kaapana/.well-known/openid-configuration
+        authentication_backend:
+          type: noop

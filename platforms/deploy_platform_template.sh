@@ -33,6 +33,7 @@ ADMIN_NAMESPACE="{{ admin_namespace }}"
 JOBS_NAMESPACE="{{ jobs_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
+SECURITY_NAMESPACE="{{ security_namespace }}"
 
 OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
@@ -88,6 +89,7 @@ if [ ! -z $INSTANCE_UID ]; then
     JOBS_NAMESPACE="$INSTANCE_UID-$JOBS_NAMESPACE"
     EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
     HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
+    SECURITY_NAMESPACE="$INSTANCE_UID-$SECURITY_NAMESPACE"
 
     FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
     SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
@@ -100,6 +102,7 @@ echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
 echo "ADMIN_NAMESPACE:      $ADMIN_NAMESPACE "
 echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
 echo "EXTENSIONS_NAMESPACE: $EXTENSIONS_NAMESPACE "
+echo "SECURITY_NAMESPACE:   $SECURITY_NAMESPACE "
 echo ""
 echo "FAST_DATA_DIR: $FAST_DATA_DIR "
 echo "SLOW_DATA_DIR: $SLOW_DATA_DIR "
@@ -417,6 +420,7 @@ function deploy_chart {
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
     --set-string global.jobs_namespace=$JOBS_NAMESPACE \
     --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
+    --set-string global.security_namespace=$SECURITY_NAMESPACE \
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \

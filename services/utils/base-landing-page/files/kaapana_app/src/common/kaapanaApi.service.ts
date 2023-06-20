@@ -102,7 +102,7 @@ import AuthService from '@/common/auth.service'
           // reject(error)
         })
       }).catch((error: any) => {
-        console.log('Something went wrong loading the default external wepages', error)
+        console.log('Something went wrong loading the default external webpages', error)
         // reject(error)
       })
     })

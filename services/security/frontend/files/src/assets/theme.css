@@ -1,0 +1,101 @@
+
+html {
+  --c-light: #ffffff;
+  --c-light-soft: whitesmoke;
+
+  --c-light-50: rgba(255, 255, 255, 50);
+  --c-light-soft-50: rgba(245, 245, 245, 50);
+
+  --c-dark: #363636;
+  --c-dark-soft: #181818;
+
+  --c-dark-50: rgba(54, 54, 54, 50);
+  --c-dark-soft-50: rgba(24, 24, 24, 50);
+
+  --c-warning-light: crimson;
+  --c-warning-dark: crimson;
+
+  --c-success-light: green;
+  --c-success-dark: green;
+
+  --c-kaapana-blue-light: #005ba0;
+  --c-kaapana-blue-dark: #2196f3; 
+
+  --c-color-priority-low: #FFAE12;
+  --c-color-priority-medium: #E46000;
+  --c-color-priority-high: #FF0000;
+  --c-color-priority-critical: #B7006E;
+}
+
+/* semantic color variables for this project */
+html {
+  --color-background-light: var(--c-light);
+  --color-background-soft-light: var(--c-light-soft);
+
+  --color-text-light: var(--c-dark);
+  --color-text-soft-light: var(--c-dark-soft);
+
+  --color-background-dark: var(--c-dark);
+  --color-background-soft-dark: var(--c-dark-soft);
+
+  --color-text-dark: var(--c-light);
+  --color-text-soft-dark: var(--c-light-soft);
+
+  --color-background: var(--color-background-light);
+  --color-background-soft: var(--color-background-soft-light);
+
+  --color-border: var(--c-dark-soft-50);
+
+  --color-text: var(--color-text-light);
+
+  --color-warning-background: var(--c-warning-light);
+  --color-warning-text: var(--c-light);
+  
+  --color-success-background: var(--c-success-light);
+  --color-success-text: var(--c-light);
+
+  --color-kaapana-blue: var(--c-kaapana-blue-light);
+
+  --section-gap: 160px;
+}
+
+@media (prefers-color-scheme: dark) {
+  html {
+    --color-background: var(--color-background-dark);
+    --color-background-soft: var(--color-background-soft-dark);
+  
+    --color-border: var(--c-light-soft-50);
+  
+    --color-text: var(--color-text-dark);
+
+    --color-warning-background: var(--c-warning-dark);
+    --color-warning-text: var(--c-light-soft);
+
+    --color-success-background: var(--c-success-dark);
+    --color-success-text: var(--c-light-soft);
+
+    --color-kaapana-blue: var(--c-kaapana-blue-dark);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  position: relative;
+  font-weight: normal;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--color-text);
+  background: var(--color-background);
+  line-height: 1.6;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu,
+    Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 15px;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

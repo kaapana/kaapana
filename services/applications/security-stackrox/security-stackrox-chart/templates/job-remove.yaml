@@ -1,0 +1,29 @@
+
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: security-stackrox-uninstall
+  namespace: {{ .Values.global.security_namespace }}
+  labels:
+    k8s-app: security-stackrox-uninstall
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
+spec:
+  template:
+    metadata:
+      name: security-stackrox-uninstall
+    spec:
+      containers:
+      - name: security-stackrox-uninstall
+        image: "{{ .Values.global.registry_url }}/security-stackrox-uninstall:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        resources:
+          limits:
+            memory: "500Mi"
+          requests:
+            memory: "100Mi"
+      imagePullSecrets:
+      - name: registry-secret
+      restartPolicy: Never
+      serviceAccountName: kaapana-kube-admin

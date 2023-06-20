@@ -68,6 +68,8 @@ spec:
         env:
         - name: ADMIN_NAMESPACE
           value: "{{ .Values.global.admin_namespace }}"
+        - name: SECURITY_NAMESPACE
+          value: "{{ .Values.global.security_namespace }}"
         - name: AIRFLOW_HOME
           value: "/kaapana/mounted/workflows"
         - name: DEFAULT_REGISTRY
@@ -118,6 +120,8 @@ spec:
           value: "{{ .Values.global.instance_name }}"
         - name: JOBS_NAMESPACE
           value: "{{ .Values.global.jobs_namespace }}"
+        - name: SECURITY_NAMESPACE
+          value: "{{ .Values.global.security_namespace }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
         - name: MINIODIR

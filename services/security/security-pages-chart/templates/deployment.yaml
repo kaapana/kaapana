@@ -1,0 +1,51 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: security-pages
+  namespace: {{ .Values.global.security_namespace }}
+  labels:
+    k8s-app: security-pages
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: security-pages
+  template:
+    metadata:
+      labels:
+        app-name: security-pages
+    spec:
+      containers:
+      - name: security-pages
+        image: "{{ .Values.global.registry_url }}/security-pages:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        ports:
+        - name: sec-pg-http
+          containerPort: 5000
+        env:
+        - name: SECRET_KEY
+          value: "kaapana-secret"
+        - name: APPLICATION_ROOT
+          value: "/security"
+        - name: OIDC_CLIENT_SECRET
+          value: "{{ .Values.global.oidc_client_secret }}"
+        resources:
+          requests:
+            memory: 100Mi
+          limits:
+            memory: 500Mi
+        volumeMounts:
+        - mountPath: /data
+          name: security-pages-persistence
+        - mountPath: /api_credentials
+          name: security-pages-api-credentials
+      volumes:
+      - name: security-pages-persistence
+        persistentVolumeClaim:
+          claimName: security-pages-persistence-volume-claim
+      - name: security-pages-api-credentials
+        persistentVolumeClaim:
+          claimName: security-pages-api-persistent-volume-claim
+      imagePullSecrets:
+      - name: registry-secret

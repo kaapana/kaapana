@@ -1,0 +1,39 @@
+@import "./theme.css";
+
+:root.dark-mode {
+  --color-background: var(--color-background-dark);
+  --color-background-soft: var(--color-background-soft-dark);
+
+  --color-border: var(--c-light-soft-50);
+
+  --color-text: var(--color-text-dark);
+
+  --color-warning-background: var(--c-warning-dark);
+  --color-warning-text: var(--c-light-soft);
+
+  --color-success-background: var(--c-success-dark);
+  --color-success-text: var(--c-light-soft);
+
+  --color-kaapana-blue: var(--c-kaapana-blue-dark);
+}
+
+:root.light-mode {
+  --color-background: var(--color-background-light);
+  --color-background-soft: var(--color-background-soft-light);
+
+  --color-border: var(--c-dark-soft-50);
+
+  --color-text: var(--color-text-light);
+
+  --color-warning-background: var(--c-warning-light);
+  --color-warning-text: var(--c-light);
+
+  --color-success-background: var(--c-success-light);
+  --color-success-text: var(--c-light);
+
+  --color-kaapana-blue: var(--c-kaapana-blue-light);
+}
+
+body {
+  transition: color 0.3s, background-color 0.3s;
+}

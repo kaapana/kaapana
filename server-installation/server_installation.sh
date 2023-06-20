@@ -446,6 +446,75 @@ function install_microk8s {
     echo ""
 }
 
+function install_wazuh_agent {
+    architecture=$(uname -m)
+    arm="arm"
+
+    # values checked based on: https://wiki.debian.org/ArchitectureSpecificsMemo
+    if [ "$architecture" == "x86_64" ]; then
+        wazuh_package_url="https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.3.9-1_amd64.deb"
+    elif [ "$architecture" == "i386" ] || [ "$architecture" == "i486" ] || [ "$architecture" == "i586" ] || [ "$architecture" == "i686" ]; then
+        wazuh_package_url="https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.3.9-1_i386.deb"
+    elif [ "$architecture" == "aarch64" ]; then
+        wazuh_package_url="https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.3.9-1_arm64.deb"
+    elif [[ $architecture == $arm* ]]; then
+        wazuh_package_url="https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_4.3.9-1_armhf.deb"
+    else
+        # no supported architecture found
+        return 1
+    fi
+
+    curl -so wazuh-agent-4.3.9.deb $wazuh_package_url >/dev/null
+    WAZUH_MANAGER='localhost' WAZUH_AGENT_GROUP='default' WAZUH_MANAGER_PORT='1514' WAZUH_REGISTRATION_PORT='1515' dpkg -i ./wazuh-agent-4.3.9.deb >/dev/null 
+    
+    rm wazuh-agent-4.3.9.deb >/dev/null
+
+    if [ $? -ne 0 ]; then
+        return 1
+    fi
+
+    systemctl daemon-reload
+    systemctl enable wazuh-agent >/dev/null 2>&1 
+    if ! systemctl is-enabled wazuh-agent > /dev/null; then
+        uninstall_wazuh_agent
+        return 1
+    fi
+
+    systemctl start wazuh-agent
+    if ! systemctl is-active wazuh-agent > /dev/null; then
+        uninstall_wazuh_agent
+        return 1
+    fi
+
+    return 0
+}
+
+function uninstall_wazuh_agent {
+    # if package is not insalled and service not active, just return
+    if ! dpkg -s wazuh_agent &> /dev/null && ! systemctl is-active wazuh_agent > /dev/null; then
+        return 0
+    fi
+
+    # return false if any of these fail
+    apt-get remove --purge wazuh-agent
+    if dpkg -s wazuh_agent &> /dev/null; then
+        return 1
+    fi
+
+    systemctl disable wazuh-agent >/dev/null 2>&1 
+    if systemctl is-enabled wazuh-agent > /dev/null; then
+        return 1
+    fi
+
+    systemctl daemon-reload
+    return 0
+}
+
+function change_version {
+    echo "${YELLOW}Switching to K8s version $DEFAULT_MICRO_VERSION ${NC}"
+    snap refresh microk8s --channel $DEFAULT_MICRO_VERSION --classic
+}
+
 function uninstall {
     echo ""
     echo "${YELLOW}Uninstalling Helm ...${NC}"
@@ -453,6 +522,9 @@ function uninstall {
 
     echo "${YELLOW}Uninstalling microk8s ...${NC}"
     snap remove microk8s --purge && echo "${GREEN}DONE${NC}" || echo "${RED}########################  NOT SUCCESSFUL! ########################${NC}"
+
+    echo "${YELLOW}Uninstalling Wazuh agent ...${NC}"
+    uninstall_wazuh_agent && echo "${GREEN}DONE${NC}" || echo "${RED}########################  NOT SUCCESSFUL! ########################${NC}"
     echo ""
     echo ""
     echo "${YELLOW}UNINSTALLATION DONE ${NC}"
@@ -491,6 +563,7 @@ _Flag: -gpu --enable-gpu will activate gpu support for kubernetes (default: fals
 _Flag: -q   --quiet      will activate quiet mode (default: false)
 _Flag:      --uninstall  removes microk8s and helm from the system
 _Flag:      --offline    offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
+_Flag:      --skip-wazuh skips the installation of the Wazuh agent on the server system, which can break Wazuh extension functionality 
 
 _Argument: -v --version [opt]
 where opt is:
@@ -505,6 +578,7 @@ where opt is:
 QUIET=NA
 OFFLINE_SNAPS=NA
 DNS=""
+SKIP_WAZUH=false
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -550,6 +624,11 @@ do
             shift # past argument
         ;;
 
+        --skip-wazuh)
+            SKIP_WAZUH=true
+            shift # past argument
+        ;;
+
         --install-ubuntu-packages)
             install_packages_ubuntu
             exit 0
@@ -557,6 +636,11 @@ do
         
         --install-almalinux-packages)
             install_packages_almalinux
+            exit 0
+        ;;
+
+        --install-wazuh-agent)
+            install_wazuh_agent
             exit 0
         ;;
         
@@ -588,6 +672,11 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting Ubuntu installation...${NC}";
         proxy_environment
         install_packages_ubuntu
+        if [ "$SKIP_WAZUH" = "true" ];then
+            echo -e "${YELLOW}Skipping Wazuh agent installation ${NC}";
+        else
+            install_wazuh_agent
+        fi
         install_core18
         install_helm
         install_microk8s
@@ -599,7 +688,7 @@ case "$OS_PRESENT" in
 
     *)  
         echo "${RED}Your OS: $OS_PRESENT is not supported at the moment.${NC}"
-        echo "${RED}This scripts suppors: Ubuntu and AlmaLinux${NC}"
+        echo "${RED}This script supports: Ubuntu and AlmaLinux${NC}"
         echo -e "$usage"
         exit 1
 esac

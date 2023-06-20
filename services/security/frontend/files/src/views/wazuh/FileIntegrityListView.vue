@@ -1,0 +1,42 @@
+<script setup lang="ts">
+import { defineComponent } from 'vue'
+import GroupHeader, { type BreadCrumb } from "@/components/GroupHeader.vue"
+import AgentSecondaryInformation from "@/components/wazuh/AgentSecondaryInformation.vue";
+import AgentFileIntegrityList from "@/components/wazuh/AgentFileIntegrityList.vue"
+import Group from "@/components/Group.vue"
+import { useWazuhStore } from '@/stores/wazuh';
+import { mapState } from 'pinia';
+</script>
+
+<template>
+  <Group>
+    <GroupHeader v-if="agent !== undefined" :title="'Agent ' + agent.id" :divider="true" :breadCrumbs="headerBreadCrumbs()">
+      <AgentSecondaryInformation :agent="agent"></AgentSecondaryInformation>
+    </GroupHeader>
+    <AgentFileIntegrityList v-if="agent !== undefined" :agent_id="agent.id"></AgentFileIntegrityList>
+  </Group>
+</template>
+
+<script lang="ts">
+export default defineComponent({
+  computed: {
+    ...mapState(useWazuhStore, {
+      agentInformation: 'agentInformation', 
+      agent(store) {
+        return store.agentInformation?.get((this as any).$route.params.agent_id);
+      }
+    })
+  },
+  methods: {
+    headerBreadCrumbs(): BreadCrumb[] {
+      return [
+        { name: "Overview", underlined: false, routerLink: { name: "agentlist", params: {} } },
+        { name: "File Integrity Monitoring", underlined: true }
+      ];
+    }
+  }
+});
+</script>
+
+<style scoped>
+</style>

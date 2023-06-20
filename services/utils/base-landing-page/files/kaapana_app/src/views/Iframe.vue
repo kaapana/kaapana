@@ -40,6 +40,8 @@ export default {
       } else if (this.$route.name === 'ew-section-view') {
         // console.log('external', this.externalWebpages)
         finalUrl = this.externalWebpages[this.$route.params.ewSection].subSections[this.$route.params.ewSubSection].linkTo
+      } else if (this.$route.name == 'security-iframe-view') {
+        finalUrl = window.location.origin + window.location.href.substring(window.location.href.lastIndexOf('/security'));
       }
       return finalUrl
     }

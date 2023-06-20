@@ -60,3 +60,6 @@ dependencies:
 # BASE
   - name: landing-page-kaapana-chart
     version: 0.0.0
+# SECURITY
+  - name: security-pages-chart
+    version: 0.0.0

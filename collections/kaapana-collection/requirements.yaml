@@ -46,6 +46,10 @@ dependencies:
     version: 0.0.0
   - name: debug-container-chart
     version: 0.0.0
+  - name: security-wazuh-chart
+    version: 0.0.0
+  - name: security-stackrox-chart
+    version: 0.0.0
   # - name: openedc-chart
   #   version: 0.0.0
   # - name: hello-backend-chart

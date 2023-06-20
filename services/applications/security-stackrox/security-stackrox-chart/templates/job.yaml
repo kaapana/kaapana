@@ -1,0 +1,42 @@
+
+kind: Job
+apiVersion: batch/v1
+metadata:
+  name: security-stackrox
+  namespace: {{ .Values.global.security_namespace }}
+  labels:
+    k8s-app: security-stackrox
+spec:
+  template:
+    metadata:
+      name: security-stackrox
+    spec:
+      containers:
+      - name: security-stackrox
+        image: "{{ .Values.global.registry_url }}/security-stackrox-install:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        resources:
+          limits:
+            memory: "1Gi"
+          requests:
+            memory: "100Mi"
+        volumeMounts:
+          - mountPath: /api_credentials
+            name: security-stackrox-api-volume
+          - mountPath: /stackrox_api_secret
+            name: api-credentials-secret
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "curl -H 'Content-Type: application/json' -d '{\"name\": \"StackRox\", \"url\": \"https://{{ .Values.global.hostname }}:19443\", \"api_endpoints\": [{\"identifier\": \"api\", \"endpoint\":\"https://{{ .Values.service_name }}.stackrox.svc:443/\"}]}' -X PUT http://security-pages-service.services.svc:5000/api/providers --insecure"]
+      imagePullSecrets:
+      - name: registry-secret
+      restartPolicy: Never
+      serviceAccountName: kaapana-kube-admin
+      volumes:
+      - name: security-stackrox-api-volume
+        persistentVolumeClaim:
+          claimName: security-stackrox-api-persistent-volume-claim
+      - name: api-credentials-secret
+        secret:
+          secretName: stackrox-api-credentials

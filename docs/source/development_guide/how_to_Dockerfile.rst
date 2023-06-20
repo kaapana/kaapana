@@ -95,6 +95,7 @@ Example of a Kaapana Dockerfile for a workflow
 Assume that the processing algorithm of your workflow is written in a Python file named :code:`example-workflow.py`. The Dockerfile for the workflow should install the necessary requirements, copy the :code:`example-workflow.py` file into the Docker image, and define a command to execute the algorithm. Here is an example Dockerfile:
 
 .. code-block::
+
   # Dockerfile
   # Base Image - Using a slim and small-sized Python base image
   FROM python:3.9.16-slim
@@ -125,5 +126,6 @@ Assume that the processing algorithm of your workflow is written in a Python fil
 
 To build and push the docker container, run the following commands:
 .. code-block:: bash
+  
   docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0 .
   docker push <docker-registry><docker-repo>/example-extract-study-id:0.1.0

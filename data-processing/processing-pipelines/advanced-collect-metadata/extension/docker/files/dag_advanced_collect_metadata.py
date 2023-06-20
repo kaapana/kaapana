@@ -3,16 +3,19 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
 from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalExtractImgIntensitiesOperator import (
-    LocalExtractImgIntensitiesOperator,
-)
-from kaapana.operators.LocalExtractSegMetadataOperator import (
-    LocalExtractSegMetadataOperator,
-)
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalMergeBranchesOperator import LocalMergeBranchesOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+
+from advanced_collect_metadata.LocalExtractImgIntensitiesOperator import (
+    LocalExtractImgIntensitiesOperator,
+)
+from advanced_collect_metadata.LocalExtractSegMetadataOperator import (
+    LocalExtractSegMetadataOperator,
+)
+from advanced_collect_metadata.LocalMergeBranchesOperator import (
+    LocalMergeBranchesOperator,
+)
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago

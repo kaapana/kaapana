@@ -4,9 +4,8 @@ OpenSearch dashboard does not work
 You open OpenSearch/Meta and you see something like this?
 
 
-.. figure:: ../_static/img/kibana_bug.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/kibana_bug.png
    :align: center
-   :scale: 25%
 
 The error occurred, because the dashboard was opened while not all the meta-data of the images were extracted. You can resolve this by going to
 

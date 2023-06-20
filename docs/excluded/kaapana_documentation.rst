@@ -54,7 +54,7 @@ Basic deployment schema:
 Technology-stack
 ################
 
-.. figure:: _static/img/technology_stack.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/technology_stack.png
    :align: center
    :scale: 25 %
 
@@ -127,7 +127,7 @@ existing documentation from OpenSearch Dashboards can be used.
 Flow
 ----
 
-.. figure:: _static/img/flow_figure.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/flow_figure.png
    :align: center
    :scale: 20 %
 
@@ -140,7 +140,7 @@ the desired result.
 Example of a typical workflow:
 
 
-.. figure:: _static/img/dag_example.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/dag_example.png
    :align: center
    :scale: 40 %
 
@@ -172,14 +172,14 @@ As with all platforms, a system to monitor the current system status is needed.
 To provide this, the Kaapana utilized a commonly used combination of `Prometheus <https://prometheus.io/>`__ and `Grafana <https://grafana.com/>`__.
 The graphical dashboards present states such as disk space, CPU and memory usage, network pressure etc.
 
-.. figure:: _static/img/grafana.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/grafana.png
    :align: center
    :scale: 20 %
 
 For the monitoring of the system components, there is a powerfull Kubernetes dashboard,
 which enables all kinds of container monitoring and system adjustment.
 
-.. figure:: _static/img/kube_dashboard.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/kube_dashboard.png
    :align: center
    :scale: 25 %
 

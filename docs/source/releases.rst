@@ -18,9 +18,8 @@ May 18, 2023
 New Features
 ============
 
-.. figure:: _static/img/datasets.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/img/datasets.png
    :align: center
-   :scale: 30 %
    :alt: New Dataset UI
 
 

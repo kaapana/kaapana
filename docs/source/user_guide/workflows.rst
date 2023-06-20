@@ -97,13 +97,14 @@ DICOM data should be uploaded in a single compressed zip-file containing folder(
 NIfTI data
 ''''''''''
 
-NIfTI data will be converted to DICOM data before it is imported in the internal PACS. The :code:`convert-niftis-to-dicoms-and-upload-to-pacs` workflow expects the nifit data to be
-structured in one of the following formats. The first one will be called the :code:`basic` format and the second one is the :code:`nnunet v2` data format. 
-The :code:`basic` format assumes that you put all your images with a unique identifier into a folder, along with the :code:`meta_data.json`
-and (if necessary) the :code:`seg_info.json`. 
 
-The :code:`basic` format allows you to provide matadata for the images and (if any) for the segmentations. 
-This additional information is provided within two json files:
+
+NIfTI data will be converted to DICOM data before being imported into the internal PACS. The workflow for converting NIfTI data to DICOM and uploading it to PACS expects the NIfTI data to be structured in one of the following formats. 
+The first format is referred to as the "basic format," while the second format is the " `nnUnetv2 <https://github.com/MIC-DKFZ/nnUNet>`_ data format."
+
+In the basic format, it is assumed that you will place all your images with a unique identifier into a folder, along with the :code:`meta_data.json` file and, if necessary, the :code:`seg_info.json` file.
+
+The basic format allows you to provide metadata for the images and, if applicable, for the segmentations. This additional information is provided within two JSON files:
 
 .. code-block::
 
@@ -116,7 +117,7 @@ This additional information is provided within two json files:
 Example: Images without SEG:
 ////////////////////////////
 
-If your data doesn't contain segmentations the directory would be structured as follows:
+If your data does not contain segmentations, the directory should be structured as follows:
 
 .. code-block::
 
@@ -143,14 +144,12 @@ An exemplary :code:`meta_data.json` could  look like this:
             }
         }
 
-As you can see in the example, the :code:`meta_data.json` file allows to set DICOM tags for the whole dataset with the :code:`"global_tags"` field and for each series with the :code:`"series_tags"` field. The respective file path serves as identifier.
-            
+As shown in the example, the :code:`meta_data.json` file allows you to set DICOM tags for the entire dataset using the :code:`"global_tags"` field, and for each series using the :code:`"series_tags"`. The respective file path serves as the identifier.            
 
 Images with SEGs:
 /////////////////
 
-If you data also contains segmentations the import pipeline will convert them and associate them with their respective volumes. Meta data that is specific to the segmentations is provided by the :code:`seg_info.json` file.
-This is a minimal example:
+If your data also contains segmentations, the import pipeline will convert them and associate them with their respective volumes. Metadata specific to the segmentations is provided by the :code:`seg_info.json` file. Here is a minimal example:
 
 .. code-block::
 
@@ -166,8 +165,10 @@ This is a minimal example:
             ]   
         }
 
-The :code:`"algorithm"` field specifies which algorithm or model was used to create the segmentation. If it is provided by a clinician use :code:`"Ground truth"`. The :code:`"seg_info"` field is a list containing segmentation information for each segmented region/organ, where :code:`"label_name"` specifies the name of the region/organ and :code:`"label_int"` the respective integer in the segmentation file.
-If the segmentation contains multiple regions you need to add a block to :code:`"seg_info"` for each region. You can use the following template as a basis:
+The :code:`"algorithm"` field specifies the algorithm or model used to create the segmentation. If the segmentation is provided by a clinician, use :code:`"Ground truth"` as the value. 
+The :code:`"seg_info"` field is a list that contains segmentation information for each segmented region or organ. Each block in the :code:`"seg_info"` list includes the :code:`"label_name"` field, which specifies the name of the region or organ, 
+and the :code:`"label_int"` field, which represents the respective integer in the segmentation file. If the segmentation includes multiple regions, you need to add a block to the :code:`"seg_info"` list for each region. You can use the following template as a basis:
+
 
 .. code-block::
 
@@ -189,7 +190,7 @@ If the segmentation contains multiple regions you need to add a block to :code:`
             ]
         }
 
-You can use one of the following options to structure your data such that the parser is able to associate the cases with their respective segmentations:
+You can use one of the following options to structure your data in a way that allows the parser to associate the cases with their respective segmentations:
 
 .. code-block::
 
@@ -269,9 +270,9 @@ Additonally to the described `basic` format, we also support the `nnU-Net v2` fo
 
 .. hint::
 
-    Note that the :code:`nnU-Net v2` format is particularly suited to import data with multiple channels per case. The :code:`basic` parser does not support this case at the moment.
+    Please note that the :code:`nnU-Net v2` format is particularly suitable for importing data with multiple channels per case. However, it is important to mention that the :code:`basic` parser currently does not support this case.
 
-If you want to import data with multiple channels per case (e.g. mri data with FLAIR, T1w, T1gb, T2w  sequences) your Data structure will look like this:
+If you want to import data with multiple channels per case, such as MRI data with FLAIR, T1w, T1gb, and T2w sequences, your data structure will look like this:
 
 .. code-block::
 

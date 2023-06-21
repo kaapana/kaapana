@@ -30,7 +30,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logging.getLogger().setLevel(logging.INFO)
 
-app = FastAPI(openapi_prefix="/kaapana-backend")
+app = FastAPI(root_path="/kaapana-backend")
 
 
 @app.on_event("startup")

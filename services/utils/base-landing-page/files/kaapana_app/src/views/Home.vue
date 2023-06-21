@@ -12,21 +12,21 @@
                   v-flex(d-flex, class="sm12")
                     v-card(width='100%')
                       v-card-title
-                        span.kaapana-headline Workflows&nbsp;
-                        v-icon(large) mdi-gamepad-variant
+                        //- span.kaapana-headline Workflows&nbsp;
+                        //- v-icon(large) mdi-gamepad-variant
                       v-card-text
                         v-layout(row='', wrap='')
                           v-flex.justify-center(v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to")
-                            v-card(:to="to")
+                            v-card(:to="to" elevation=0)
                               v-card-title.justify-center
-                                v-icon {{ icon }}
-                              v-card-subtitle
+                                v-icon(x-large) {{ icon }}
+                              v-card-text
                                 span {{ title }}
                           v-flex
-                            v-card(to="/extensions")
+                            v-card(to="/extensions" elevation=0)
                               v-card-title.justify-center
-                                v-icon mdi-puzzle
-                              v-card-subtitle
+                                v-icon(x-large) mdi-puzzle
+                              v-card-text
                                 span Extensions
             v-layout(v-if='currentUser.role === "admin"') 
               v-flex(sm4)

@@ -279,6 +279,7 @@ The final directory structure has to look like this:
             └── files
                 ├── otsus_method.py
                 ├── otsus_notebooks
+                │   ├── run_otsus_report_notebook.ipynb
                 │   └── run_otsus_report_notebook.sh
                 └── requirements.txt
 

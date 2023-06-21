@@ -50,7 +50,7 @@
 #         # sending_ts = datetime.now()
 
 #         sub = f'FeTS 2022 Evaluation Result for Submission (ID: {subm_id})'
-        
+
 #         msgRoot = MIMEMultipart('related')
 #         msgRoot['From'] = from_address
 #         msgRoot['To'] = email_address
@@ -60,10 +60,10 @@
 
 #         msgAlt = MIMEMultipart('alternative')
 #         msgRoot.attach(msgAlt)
-        
+
 #         msgTxt = MIMEText(message, 'html')
 #         msgAlt.attach(msgTxt)
-        
+
 #         # if filepath is not None and filepath != "":
 #         #     with open(filepath,'rb') as file:
 #         #         attachment = MIMEApplication(file.read())
@@ -73,7 +73,7 @@
 #         s = smtplib.SMTP(host='mailhost2.dkfz-heidelberg.de', port=25)
 #         s.sendmail(from_address, msgRoot["To"].split(", ") + msgRoot["Cc"].split(", "), msgRoot.as_string())
 #         s.quit()
-    
+
 #     def get_most_recent_dag_run(self, dag_id):
 #         dag_runs = DagRun.find(dag_id=dag_id)
 #         dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
@@ -105,22 +105,22 @@
 #         if os.path.exists(subm_dict_path):
 #             with open(subm_dict_path, "r") as fp_:
 #                 subm_dict = json.load(fp_)
-        
+
 #         logging.info("Logging into Synapse...")
 #         syn = sc.login(email=synapse_user, apiKey=API_KEY)
 
-#         logging.info("Logging into container registry!!!") 
+#         logging.info("Logging into container registry!!!")
 #         command = ["skopeo", "login", "--username", f"{synapse_user}", "--password", f"{synapse_pw}", f"{container_reg}"]
 #         return_code = self.run_command(command=command)
 #         if return_code == 0:
 #             logging.info(f"Login to the registry successful!!")
 #         else:
 #             raise AirflowFailException("Login to the registry FAILED! Cannot proceed further...")
-        
+
 #         logging.info("Checking for new submissions...")
 #         for task_name, task_id in tasks:
 #             print(f"Checking {task_name}...")
-#             for subm in syn.getSubmissions(task_id, status="RECEIVED"):      
+#             for subm in syn.getSubmissions(task_id, status="RECEIVED"):
 #                 subm_id = subm["id"]
 #                 if subm_id not in subm_dict or subm_dict.get(subm_id) != "success":
 #                     print(f"Pulling container with submission ID: {subm_id}...")
@@ -134,7 +134,7 @@
 #                         logging.error(f"Error while trying to download container! Skipping...")
 #                         subm_dict[subm_id] = "skipped"
 #                         continue
-                    
+
 #                     self.trigger_dag_id = "dag-tfda-execution-orchestrator"
 #                     # self.dag_run_id = kwargs['dag_run'].run_id
 #                     self.conf = kwargs['dag_run'].conf
@@ -158,8 +158,8 @@
 
 #                     while dag_state["state"] != "failed" and dag_state['state'] != "success":
 #                         dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
-#                         dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)                        
-                    
+#                         dag_state = get_dag_run_state(dag_id="tfda-execution-orchestrator", execution_date=dag_run.execution_date)
+
 #                     sending_ts = datetime.now()
 #                     subm_results_file = f"{subm_results_path}/results_{subm_id}_{sending_ts.strftime('%Y-%m-%d')}.zip"
 
@@ -169,16 +169,16 @@
 #                             print("Uploading results to Synpase...")
 #                             syn_usr_folder = Folder(f"{subm['userId']}", parent="syn32177645")
 #                             syn_usr_folder = syn.store(syn_usr_folder)
-                            
+
 #                             ## Update permissions for folders containing submissions
 #                             permissions.set_entity_permissions(syn, entity=syn_usr_folder, principalid=subm['userId'], permission_level="download")
 
 #                             syn_subm_folder = Folder(f"{subm_id}", parent=syn_usr_folder)
-#                             syn_subm_folder = syn.store(syn_subm_folder)                            
+#                             syn_subm_folder = syn.store(syn_subm_folder)
 
 #                             push_results = File(subm_results_file, description=f"Results/logs for submission: {subm_id}", parent=syn_subm_folder)
 #                             push_results = syn.store(push_results)
-                            
+
 #                             syn_subm_res_link = f"https://www.synapse.org/#!Synapse:{syn_subm_folder['id']}"
 #                         except:
 #                             print("Could not upload results files to Synapse, no link will be provided to the users...")
@@ -186,7 +186,7 @@
 #                     else:
 #                         subm_results = None
 #                         syn_subm_res_link = "Sorry! Unfortunately, result files were not generated for your submission. Please respond to all from this Email to clarify why this happened."
-                    
+
 #                     # Get Synapse user ID
 #                     try:
 #                         synapse_id = syn.getTeam(subm["userId"]).get('name')

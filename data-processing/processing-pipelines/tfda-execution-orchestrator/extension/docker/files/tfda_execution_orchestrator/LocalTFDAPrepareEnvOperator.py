@@ -8,21 +8,22 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalTFDAPrepareEnvOperator(KaapanaPythonBaseOperator):
-
     def start(self, ds, ti, **kwargs):
         logging.info("Prepare the Secure Processing Environment (SPE)...")
         operator_dir = os.path.dirname(os.path.abspath(__file__))
         playbooks_dir = os.path.join(operator_dir, "ansible_playbooks")
         download_pkg_path = os.path.join(operator_dir, "downloaded_packages")
-        
+
         iso_env_ip = ti.xcom_pull(key="iso_env_ip", task_ids="create-iso-inst")
 
         conf = kwargs["dag_run"].conf
         platform_config = conf["platform_config"]
-        
+
         workflow_type = conf["workflow_type"]
         platform_name = platform_config["default_platform"][workflow_type]
-        flavor_name = platform_config["platforms"][platform_name]["default_flavor"][workflow_type]
+        flavor_name = platform_config["platforms"][platform_name]["default_flavor"][
+            workflow_type
+        ]
         ##TODO get a list of Python packages to be installed from the UI side
         # python_packages = conf["python_packages"]
         python_packages = []
@@ -30,23 +31,42 @@ class LocalTFDAPrepareEnvOperator(KaapanaPythonBaseOperator):
             requirements_filepath = os.path.join(playbooks_dir, "requirements.txt")
             with open(requirements_filepath, "w") as myfile:
                 try:
-                    myfile.write('\n'.join(str(package) for package in python_packages))
+                    myfile.write("\n".join(str(package) for package in python_packages))
                 except Exception as exc:
-                    raise AirflowFailException(f"Could not extract configuration due to error: {exc}!!")
+                    raise AirflowFailException(
+                        f"Could not extract configuration due to error: {exc}!!"
+                    )
             print(f"Python package list: {python_packages}")
 
-            prepare_env_playbook_path = os.path.join(playbooks_dir, "prepare_instance.yaml")
+            prepare_env_playbook_path = os.path.join(
+                playbooks_dir, "prepare_instance.yaml"
+            )
             if not os.path.isfile(prepare_env_playbook_path):
-                raise AirflowFailException(f"Playbook '{prepare_env_playbook_path}' file not found!")
+                raise AirflowFailException(
+                    f"Playbook '{prepare_env_playbook_path}' file not found!"
+                )
 
             # ssh_key_path = platform_config["platform_config"][platform_name]["platform_flavors"][flavor_name]["ssh_key_path"]
-            ssh_key_name = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["ssh_key_name"]
-            remote_username = platform_config["platforms"][platform_name]["platform_flavors"][flavor_name]["remote_username"]
-            
-            logging.debug("Downloading requested python packages and installing them offline into isolated environment...")
+            ssh_key_name = platform_config["platforms"][platform_name][
+                "platform_flavors"
+            ][flavor_name]["ssh_key_name"]
+            remote_username = platform_config["platforms"][platform_name][
+                "platform_flavors"
+            ][flavor_name]["remote_username"]
+
+            logging.debug(
+                "Downloading requested python packages and installing them offline into isolated environment..."
+            )
             playbook_args = f"target_host={iso_env_ip} ssh_key_name={ssh_key_name} remote_username={remote_username} requirements_filepath={requirements_filepath} download_pkg_path={download_pkg_path}"
-            command = ["ansible-playbook", prepare_env_playbook_path, "--extra-vars", playbook_args]
-            process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE, encoding="Utf-8")
+            command = [
+                "ansible-playbook",
+                prepare_env_playbook_path,
+                "--extra-vars",
+                playbook_args,
+            ]
+            process = subprocess.Popen(
+                command, stdout=PIPE, stderr=PIPE, encoding="Utf-8"
+            )
             while True:
                 output = process.stdout.readline()
                 if process.poll() is not None:
@@ -55,22 +75,22 @@ class LocalTFDAPrepareEnvOperator(KaapanaPythonBaseOperator):
                     print(output.strip())
             rc = process.poll()
             if rc == 0:
-                logging.info(f"Requested dependendencies successfully installed!! Cleaning up package downloads folder...")
+                logging.info(
+                    f"Requested dependendencies successfully installed!! Cleaning up package downloads folder..."
+                )
                 for package in os.scandir(download_pkg_path):
                     os.remove(package.path)
             else:
-                raise AirflowFailException("FAILED to install requested packages! Cannot proceed further...")
+                raise AirflowFailException(
+                    "FAILED to install requested packages! Cannot proceed further..."
+                )
 
         else:
-            logging.debug("No additional packages were requested to be installed, skipping...")
+            logging.debug(
+                "No additional packages were requested to be installed, skipping..."
+            )
 
-    def __init__(self,
-                 dag,
-                 **kwargs):
-
+    def __init__(self, dag, **kwargs):
         super().__init__(
-            dag=dag,
-            name="prepare-env",
-            python_callable=self.start,
-            **kwargs
+            dag=dag, name="prepare-env", python_callable=self.start, **kwargs
         )

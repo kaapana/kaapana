@@ -125,6 +125,7 @@ export default {
     window.removeEventListener("keypress", (event) =>
       this.keypressListener(event)
     );
+    this.$store.commit("setActiveTags", []);
   },
   methods: {
     onChangeSelection(e) {

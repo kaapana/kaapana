@@ -37,7 +37,7 @@ UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
 def remove_outdated_tmp_files(search_dir):
     max_hours_tmp_files = 24
     files_grabbed = (
-        p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".txt", ".tmp"}
+        p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".tmppatch", ".tmpfile"}
     )
 
     for file_found in files_grabbed:
@@ -62,19 +62,11 @@ def remove_outdated_tmp_files(search_dir):
 async def post_minio_file_upload(request: Request):
     form = await request.form()
     patch = str(uuid.uuid4())
-    txt_fpath = Path(UPLOAD_DIR) / f"{patch}.txt"
     remove_outdated_tmp_files(UPLOAD_DIR)
-
-    # TODO: this is mostly redundant
-    if txt_fpath.exists():
-        logging.warning(f"{txt_fpath=} already exists in POST file upload {patch=}")
-        # if the file is not removed (i.e. recent), read it into the dict
-        with open(txt_fpath, "r") as fp:
-            filepath = fp.read()
     filepath = json.loads(form["filepond"])["filepath"]
 
-    # write it back
-    with open(txt_fpath, "w") as fp:
+    patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
+    with open(patch_fpath, "w") as fp:
         fp.write(filepath)
 
     logging.debug(f"post_minio_file_upload returns {patch=}")
@@ -87,34 +79,36 @@ async def post_minio_file_upload(request: Request, patch: str):
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
             f.write(chunk)
-    if ulength == str(fpath.stat().st_size):
+    if fpath.is_file() and ulength == str(fpath.stat().st_size):
+        patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
         logging.info(f"filepond upload completed {fpath}")
         try:
-            txt_fpath = Path(UPLOAD_DIR) / f"{patch}.txt"
-            if txt_fpath.exists():
-                with open(txt_fpath, "r") as fp:
+            if patch_fpath.exists():
+                with open(patch_fpath, "r") as fp:
                     filename = fp.read()
             else:
                 logging.error(
-                    f"upload mapping dictionary file {txt_fpath} does not exist"
+                    f"upload mapping dictionary file {patch_fpath} does not exist"
                 )
             logging.info(f"{patch=}, {filename=}")
             target_path = Path(UPLOAD_DIR) / filename.strip("/")
             target_path.parents[0].mkdir(parents=True, exist_ok=True)
             logging.info(f"Moving file {fpath} to {target_path}")
             shutil.move(fpath, target_path)
+            patch_fpath.unlink()
             # Todo check if fput_objects also needs a long time... if not Minio file mount can be removed and UPLOAD_DIR might be /tmp
             logging.info(f"Successfully saved file {uname} to Minio")
-            # fpath.unlink()
             return Response(f"Upload of {filename} succesful!")
         except Exception as e:
-            logging.error(f"Failed to upload to Minio: {e}")
+            logging.error(f"Upload failed: {e}")
             if fpath.is_file():
                 fpath.unlink()
+            if patch_fpath.is_file():
+                patch_fpath.unlink()
             raise HTTPException(
                 status_code=500, detail=f"Failed to upload {filename} to Minio: {e}"
             )
@@ -126,7 +120,7 @@ def head_minio_file_upload(request: Request, patch: str):
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
     if fpath.is_file():
         offset = int(ulength) - fpath.stat().st_size
     else:
@@ -138,12 +132,13 @@ def head_minio_file_upload(request: Request, patch: str):
 async def delete_minio_file_upload(request: Request):
     body = await request.body()
     patch = body.decode("utf-8")
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
-    txt_fpath = Path(UPLOAD_DIR) / f"{patch}.txt"
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
+    patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
+    # Delete the .tmppatch file if uploaded file is deleted
+    if patch_fpath.is_file():
+        patch_fpath.unlink()
     if fpath.is_file():
         fpath.unlink()
-        # also delete the txt file if uploaded file is deleted
-        txt_fpath.unlink()
         return Response(f"Deleted {fpath} succesfully!")
     else:
         return Response(

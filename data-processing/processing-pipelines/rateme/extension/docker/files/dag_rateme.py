@@ -23,8 +23,7 @@ ui_forms = {
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": False,
-                "readOnly": True,
-                "required": True,
+                "readOnly": True
             },
             "annotator": {
                 "title": "User ID",

@@ -644,7 +644,10 @@ if __name__ == "__main__":
     BuildUtils.version_latest = version_latest
     BuildUtils.enable_image_stats = enable_image_stats
     BuildUtils.create_sboms = create_sboms
-    BuildUtils.trivy_utils = TrivyUtils(tag="no_tag_yet")
+
+    if BuildUtils.vulnerability_scan or BuildUtils.create_sboms or BuildUtils.configuration_check:
+        BuildUtils.logger.info("Initilizing Trivy.")
+        BuildUtils.trivy_utils = TrivyUtils(tag="no_tag_yet")
 
     Container.init_containers(
         container_engine=container_engine,

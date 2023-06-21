@@ -254,36 +254,21 @@ export default Vue.extend({
     drawer: true,
     federatedBackendAvailable: false,
     settings: settings,
-    workflowsList: [
-      ["Data Upload", "mdi-cloud-upload", "/data-upload"],
-      ["Datasets", "mdi-view-gallery-outline", "/datasets"],
-      ["Workflow Execution", "mdi-play", "/workflow-execution"],
-      ["Workflow List", "mdi-clipboard-text-outline", "/workflows"],
-      ["Workflow Results", "mdi-chart-bar-stacked", "/results-browser"],
-      ["Instance Overview", "mdi-vector-triangle", "/runner-instances"],
-      ["Pending Applications", "mdi-timer-sand", "/pending-applications"],
-    ],
   }),
   computed: {
     ...mapGetters([
       "currentUser",
       "isAuthenticated",
       "externalWebpages",
+      "workflowsList",
       "commonData",
     ]),
     workflowNavigation() {
-      let routerPath = [];
-      for (const workflow of this.workflowsList) {
-        routerPath.push(workflow[2]);
-      }
-      return routerPath.includes(this.$route.path);
+      let routerPath = ["/", "/extensions"]
+      return !this.$route.path.startsWith("/web/") && !routerPath.includes(this.$route.path);
     },
     advancedNavigation() {
-      let routerPath = ["/", "/data-upload", "/extensions"];
-      for (const workflow of this.workflowsList) {
-        routerPath.push(workflow[2]);
-      }
-      return !routerPath.includes(this.$route.path);
+      return this.$route.path.startsWith("/web/");
     },
   },
   methods: {

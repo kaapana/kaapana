@@ -1,19 +1,23 @@
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
 from datetime import timedelta
+
 
 class RunAlgoOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(hours=10)
 
-    def __init__(self,
-                 dag,
-                 name = "run-isolated-workflow",
-                 env_vars={},
-                 execution_timeout=execution_timeout,
-                 **kwargs):
-        envs = {
-            "TASK_TYPE": name
-        }
+    def __init__(
+        self,
+        dag,
+        name="run-isolated-workflow",
+        env_vars={},
+        execution_timeout=execution_timeout,
+        **kwargs,
+    ):
+        envs = {"TASK_TYPE": name}
         env_vars.update(envs)
 
         super().__init__(
@@ -23,5 +27,5 @@ class RunAlgoOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            **kwargs
+            **kwargs,
         )

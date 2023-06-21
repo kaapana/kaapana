@@ -21,7 +21,7 @@ ui_forms = {
                 "description": "Specify the port of the DICOM receiver.",
                 "type": "string",
                 "required": True,
-                "enum": ["platipy", "totalsegmentator"],
+                "enum": ["totalsegmentator"],
             },
             "single_execution": {
                 "title": "single execution",

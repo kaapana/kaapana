@@ -16,6 +16,9 @@ from advanced_collect_metadata.LocalExtractSegMetadataOperator import (
 from advanced_collect_metadata.LocalMergeBranchesOperator import (
     LocalMergeBranchesOperator,
 )
+from advanced_collect_metadata.LocalFedPackagingOperator import (
+    LocalFedPackagingOperator,
+)
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
@@ -61,7 +64,9 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag)
 
 anonymizer = LocalDcmAnonymizerOperator(
-    dag=dag, input_operator=get_input, single_slice=True
+    dag=dag,
+    input_operator=get_input,
+    single_slice=True,
 )
 
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer)
@@ -107,18 +112,26 @@ concat_metadata = LocalConcatJsonOperator(
     dag=dag,
     name="concatenated-metadata",
     input_operator=merge_branches,
-    # trigger_rule=TriggerRule.ALL_DONE,
+)
+
+packaging = LocalFedPackagingOperator(
+    dag=dag,
+    input_operator=concat_metadata,
+    level="batch",
 )
 
 put_to_minio = LocalMinioOperator(
     dag=dag,
     action="put",
-    action_operators=[concat_metadata],
+    action_operators=[packaging],
     bucket_name="downloads",
     zip_files=True,
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(
+    dag=dag,
+    clean_workflow_dir=True,
+)
 
 (
     get_input
@@ -128,6 +141,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
     >> extract_img_intensities
     >> merge_branches
     >> concat_metadata
+    >> packaging
     >> put_to_minio
     >> clean
 )

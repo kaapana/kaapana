@@ -28,8 +28,8 @@ remote_dag_id = "advanced-collect-metadata"  # name of DAG which should be execu
 # skip_operators are operators which are skipped during a round of the remote_dag
 skip_operators = []
 
-# federated_operators are operators which are executed during a round of the remot_dag
-federated_operators = ["concat_metadata"]
+# federated_operators are operators which are executed during a round of the remote_dag
+federated_operators = ["fed-packaging-operator"]
 
 # UI forms
 ui_forms = {

@@ -234,6 +234,7 @@
         <Dashboard
           v-else
           :seriesInstanceUIDs="identifiersOfInterest"
+          :fields="dashboardFields"
           @dataPointSelection="(d) => addFilterToSearch(d)"
         />
         <!--      </ErrorBoundary>-->
@@ -285,7 +286,7 @@
         <WorkflowExecution
           :identifiers="identifiersOfInterest"
           :onlyLocal="true"
-          :isDialog=true
+          :isDialog="true"
           kind_of_dags="dataset"
           @successful="() => (this.workflowDialog = false)"
           @cancel="() => (this.workflowDialog = false)"
@@ -602,6 +603,11 @@ export default {
     },
     mainPaneWidth() {
       return this.$refs.mainPane.style.width;
+    },
+    dashboardFields() {
+      return this.settings.datasets.props
+        .filter((i) => i.dashboard)
+        .map((i) => i.name);
     },
   },
 };

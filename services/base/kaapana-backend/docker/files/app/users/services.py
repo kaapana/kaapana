@@ -170,3 +170,11 @@ class UserService:
 
         logger.debug(f"{new_group=}")
         return KaapanaGroup(idx=new_group, name=groupname)
+
+    def group_user_add(self, user_id: str, group_id: str) -> None:
+        self._login()
+        return self.keycloak_admin.group_user_add(user_id, group_id)
+
+    def assign_realm_roles(self, user_id: str, roles: list) -> None:
+        self._login()
+        return self.keycloak_admin.assign_realm_roles(user_id, roles)

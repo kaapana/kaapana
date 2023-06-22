@@ -72,7 +72,7 @@ async def get_user_groups(idx: str, us=Depends(get_user_service)):
     return us.get_groups(user_id=idx)
 
 
-@router.post("/user", response_model=KaapanaUser)
+@router.post("/", response_model=KaapanaUser)
 async def post_user(
     username: str,
     email="",
@@ -90,7 +90,7 @@ async def post_user(
         raise HTTPException(status_code=409, detail="Username already exists.")
 
 
-@router.post("/group", response_model=KaapanaGroup)
+@router.post("/groups", response_model=KaapanaGroup)
 async def post_user(
     groupname: str,
     us=Depends(get_user_service),
@@ -100,3 +100,42 @@ async def post_user(
         return us.post_group(groupname=groupname)
     except KeycloakPostError as e:
         raise HTTPException(status_code=409, detail="Group already exists.")
+
+
+@router.put("/groups/{idx}/users", response_model=None)
+async def add_users_to_group(
+    idx: str,
+    users: List[str],
+    us=Depends(get_user_service),
+):
+    """Add users to group by id"""
+    try:
+        for user_idx in users:
+            us.group_user_add(user_idx, idx)
+    except Exception as e:
+        raise e
+
+
+@router.put("/{idx}/groups", response_model=None)
+async def add_users_to_group(
+    idx: str,
+    groups: List[str],
+    us=Depends(get_user_service),
+):
+    """Add user to multiple groups by id"""
+    try:
+        for group_idx in groups:
+            us.group_user_add(idx, group_idx)
+    except Exception as e:
+        raise e
+
+
+@router.put("/{idx}/roles", response_model=None)
+async def assign_user_to_roles(
+    idx: str, roles: List[str], us=Depends(get_user_service)
+):
+    """Assign realm roles to user"""
+    try:
+        us.assign_realm_roles(idx, roles)
+    except Exception as e:
+        raise e

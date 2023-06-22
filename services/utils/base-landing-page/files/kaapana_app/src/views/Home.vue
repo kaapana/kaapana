@@ -36,7 +36,7 @@
               v-flex(sm4)
                 <iframe src="/grafana/d-solo/adadsdasd/kubernetes?orgId=1&panelId=44" width="100%" height="auto" frameborder="0"></iframe>
           v-flex(sm3)
-            Dashboard(:seriesInstanceUIDs="seriesInstanceUIDs")
+            Dashboard(:seriesInstanceUIDs="seriesInstanceUIDs" :fields="this.settings.landingPage")
       div(v-else)
         v-layout(align-center justify-center row fill-height)
           v-flex(sm12)
@@ -79,6 +79,7 @@ export default Vue.extend({
     ]),
   },
   created() {
+    this.settings = JSON.parse(localStorage["settings"]);
     loadPatients({
         structured: false,
         query: {"bool":{"must":["",{"query_string":{"query":"*"}}]}},

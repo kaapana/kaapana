@@ -94,8 +94,7 @@ ui_forms = {
                 "title": "Single execution",
                 "description": "Whether your report is execute in single mode or not",
                 "default": False,
-                "readOnly": True,
-                "required": True,
+                "readOnly": True
             },
         },
     }

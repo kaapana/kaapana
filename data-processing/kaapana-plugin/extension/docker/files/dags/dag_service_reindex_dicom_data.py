@@ -85,7 +85,7 @@ reindex_pacs = PythonOperator(
     task_id="reindex-pacs",
     provide_context=True,
     pool="default_pool",
-    executor_config={"cpu_millicores": 100, "ram_mem_mb": 50, "gpu_mem_mb": 0},
+    executor_config={"cpu_millicores": 100, "ram_mem_mb": 50},
     python_callable=start_reindexing,
     dag=dag,
 )

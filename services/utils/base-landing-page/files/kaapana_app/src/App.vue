@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <v-app id="inspire">
-      <notifications position="bottom right" width="20%" />
+      <notifications position="bottom right" width="20%" :duration="5000" />
       <v-navigation-drawer clipped v-model="drawer" app mobile-breakpoint="0">
         <v-list dense>
           <v-list-item :to="'/'">

@@ -46,7 +46,6 @@
 <script>
 import VueApexCharts from "vue-apexcharts";
 import { loadDashboard } from "@/common/api.service";
-import { settings } from "@/static/defaultUIConfig";
 
 export default {
   name: "MetaData",
@@ -58,20 +57,16 @@ export default {
       type: Array,
       default: () => [],
     },
+    fields: {
+      type: Array,
+      default: () => [],
+    },
   },
   data() {
     return {
       histograms: {},
-      metrics: {},
-      fields: [],
-      settings: settings,
+      metrics: {}
     };
-  },
-  created() {
-    this.settings = JSON.parse(localStorage["settings"]);
-    this.fields = this.settings.datasets.props
-      .filter((i) => i.dashboard)
-      .map((i) => i.name);
   },
   watch: {
     seriesInstanceUIDs() {

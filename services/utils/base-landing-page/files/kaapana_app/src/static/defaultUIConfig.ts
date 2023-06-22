@@ -2,6 +2,7 @@
 const settings = {
     darkMode: true,
     navigationMode: false,
+    landingPage: ['Patient Sex', 'Modality'],
     datasets: {
         structured: false,
         cols: 'auto',

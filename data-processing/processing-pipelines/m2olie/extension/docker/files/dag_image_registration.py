@@ -102,10 +102,13 @@ dcm_send_result = DcmSendOperator(
     ae_title="REGISTRATION",
     pacs_host="x.x.x.x",
     pacs_port="11112",
-    level="element",
     enable_proxy=True,
     no_proxy=".svc,.svc.cluster,.svc.cluster.local",
 )
+dcm_send_result_local_pacs = DcmSendOperator(
+    dag=dag, name="local-dcm-send", input_operator=convert_nifti
+)
+
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
@@ -121,4 +124,5 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> dcm_send_result
     >> clean
 )
+convert_nifti >> dcm_send_result_local_pacs >> clean
 registration >> m2olie_callback_funktion >> clean

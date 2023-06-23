@@ -213,6 +213,10 @@ export default {
         this.mapping[key] = res.data;
       });
     },
+    async reloadDataset(){
+      this.dataset =
+        this.datasetName && (await loadDatasetByName(this.datasetName));
+    },
     async initSearch(onMount = false) {
       this.filters = [];
       this.dataset =

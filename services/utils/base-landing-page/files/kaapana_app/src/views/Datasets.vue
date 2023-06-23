@@ -366,7 +366,7 @@ export default {
   async created() {
     this.settings = JSON.parse(localStorage["settings"]);
     // this.datasetName = JSON.parse(localStorage['Dataset.search.datasetName'] || '')
-    loadDatasets().then((_datasetNames) => (this.datasetNames = _datasetNames));
+    this.updateDatasetNames();
   },
   mounted() {
     window.addEventListener("keydown", (event) =>
@@ -461,6 +461,9 @@ export default {
           this.isLoading = false;
         });
     },
+    updateDatasetNames() {
+      loadDatasets().then((_datasetNames) => (this.datasetNames = _datasetNames));
+    },
     async updateDataset(name, identifiers, action = "UPDATE") {
       try {
         const body = {
@@ -530,6 +533,9 @@ export default {
         (series) => !this.identifiersOfInterest.includes(series)
       );
 
+      // This manual update of the dataset inside the search component is required, 
+      // because only the identifiers have changed but not the dataset name itself.
+      this.$refs.search.reloadDataset();
       this.selectedSeriesInstanceUIDs = [];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
 
@@ -556,9 +562,7 @@ export default {
           text: `Successfully new dataset ${name}.`,
           type: "success",
         });
-        loadDatasets().then(
-          (_datasetNames) => (this.datasetNames = _datasetNames)
-        );
+        updateDatasetNames()
         return true;
       } catch (error) {
         this.$notify({

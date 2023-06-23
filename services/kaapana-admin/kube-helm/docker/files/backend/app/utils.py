@@ -164,7 +164,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
 
     for name, payload in image_dict.items():
         release_name = f"pull-docker-chart-{secrets.token_hex(10)}"
-        success, stdout, helm_result_dict = pull_docker_image(
+        success, helm_result_dict = pull_docker_image(
             release_name, blocking=True, **payload
         )
         if success:

@@ -49,7 +49,11 @@ def get_images_series(studyUid: str):
         series_list = []
         for item in data:
             seriesUID = item["0020000E"]["Value"][0]
-            series_description = item["0008103E"]["Value"][0]
+            series_description = (
+                item["0008103E"]["Value"][0]
+                if "0008103E" in item and "Value" in item["0008103E"]
+                else "NA"
+            )
             series_dict = {
                 "seriesUID": seriesUID,
                 "seriesDescription": series_description,

@@ -22,8 +22,9 @@ from advanced_collect_metadata_federated.AdvancedCollectMetatdataFederatedOperat
 
 log = LoggingMixin().log
 
-# FL releated
-remote_dag_id = "advanced-collect-metadata"  # name of DAG which should be executed in a federated way
+# FL related
+# name of DAG which should be executed in a federated way
+remote_dag_id = "advanced-collect-metadata"
 
 # skip_operators are operators which are skipped during a round of the remote_dag
 skip_operators = []
@@ -91,7 +92,8 @@ dag = DAG(
 
 acmd_federated = AdvancedCollectMetatdataFederatedOperator(
     dag=dag,
-    dev_server="code-server",
+    # dev_server='code-server',
+    image_pull_policy="Always",
 )
 
 put_to_minio = LocalMinioOperator(

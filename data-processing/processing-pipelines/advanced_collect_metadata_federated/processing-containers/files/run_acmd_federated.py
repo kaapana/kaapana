@@ -21,16 +21,13 @@ class AdvancedCollectMetadataFederatedTraining(KaapanaFederatedTrainingBase):
     def __init__(self, workflow_dir=None, use_minio_mount=None):
         super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
 
-        # new:
         self.run_in_parallel = False
 
     def tensorboard_logs(self, federated_round):
         pass
 
     @timeit
-    def update_data(
-        self, federated_round, tmp_central_site_info
-    ):  # is called by KaapanaFederatedTrainingBase's central_steps() method ; method overwrites empty update_data() method of KaapanaFederatedTrainingBase
+    def update_data(self, federated_round, tmp_central_site_info):
         print(Path(os.path.join(self.fl_working_dir, str(federated_round))))
 
         print("Training mode")
@@ -38,23 +35,6 @@ class AdvancedCollectMetadataFederatedTraining(KaapanaFederatedTrainingBase):
         current_federated_round_dir = Path(
             os.path.join(self.fl_working_dir, str(federated_round))
         )
-        print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
-
-        print("Loading averaged checkpoints")
-        for idx, fname in enumerate(
-            current_federated_round_dir.rglob("model_final_checkpoint.model")
-        ):
-            print(fname)
-            # _sum_state_dicts(fname, idx)
-            print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
-
-        print("Saving averaged checkpoints")
-        for idx, fname in enumerate(
-            current_federated_round_dir.rglob("model_final_checkpoint.model")
-        ):
-            print(fname)
-            # _save_state_dict(fname, averaged_state_dict)
-            print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
         # in the last federated round save final model to minio
         if (
@@ -79,8 +59,6 @@ class AdvancedCollectMetadataFederatedTraining(KaapanaFederatedTrainingBase):
 
     @timeit
     def on_wait_for_jobs_end(self, federated_round):
-        print("DEF ON_WAIT_FOR_JOBS_END()")
-
         self.remote_conf_data["workflow_form"]["train_continue"] = True
         self.run_in_parallel = True
 
@@ -97,4 +75,5 @@ if __name__ == "__main__":
     # actual FL training
     kaapana_ft.train()  # calls train method of KaapanaFederatedTrainingBase
 
-    kaapana_ft.clean_up_minio()  # calls clean_up_minio method of KaapanaFederatedTrainingBase
+    # don't clean Minio up, since we want to have the results there!
+    # kaapana_ft.clean_up_minio()  # calls clean_up_minio method of KaapanaFederatedTrainingBase

@@ -26,7 +26,6 @@ class AdvancedCollectMetatdataFederatedOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
             ram_mem_mb_lmt=None,
-            image_pull_policy="Always",
             *args,
             **kwargs,
         )

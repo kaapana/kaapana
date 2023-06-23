@@ -103,6 +103,7 @@ final_status = PythonOperator(
     >> run_isolated_workflow
     >> fetch_results
     >> trusted_post_etl
+    >> upload_results
     >> delete_iso_inst
     >> clean
     >> final_status

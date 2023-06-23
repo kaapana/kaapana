@@ -6,7 +6,6 @@ LABEL CI_IGNORE="False"
 
 ARG http_proxy
 ARG https_proxy
-
 ENV http_proxy=$http_proxy
 ENV https_proxy=$https_proxy
 
@@ -16,12 +15,10 @@ RUN mkdir -p /root/.ssh
 RUN touch /root/.ssh/config
 RUN echo "StrictHostKeyChecking=accept-new" > /root/.ssh/config
 
-## TODO Remove Skopeo from this image if not needed
 RUN apt-get update -q -y &&  apt-get dist-upgrade -q -y
 RUN apt-get update -q -y && apt-get install -y --no-install-recommends \
         openssh-client \
         vim \
-        skopeo \
     && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt /

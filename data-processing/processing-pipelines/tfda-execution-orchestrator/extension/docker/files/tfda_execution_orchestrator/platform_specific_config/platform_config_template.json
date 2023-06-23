@@ -62,15 +62,14 @@
           "base_image_url": "",
           "base_image_sha": "",
           "libvirt_pool_dir": "",
-          "vm_config_path": "",
-          "vm_config_filename": "",
+          "vm_config_filepath": "",
           "vm_vcpus": "",
           "vm_ram_mb": "",
+          "vm_net": "",
           "remote_username": "",
           "vm_root_pass": "",
           "ssh_key_path": "",
           "ssh_key_name": "",
-          "vault_text_file": "",
           "cleanup_download": "",
           "cleanup_libvirt": ""
         }

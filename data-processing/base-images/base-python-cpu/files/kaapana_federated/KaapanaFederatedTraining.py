@@ -7,6 +7,9 @@ import json
 import os
 import uuid
 import shutil
+import collections
+from collections import OrderedDict
+import torch
 import tarfile
 import functools
 from minio import Minio
@@ -445,6 +448,84 @@ class KaapanaFederatedTrainingBase(ABC):
     @timeit
     def update_data(self, federated_round, tmp_central_site_info):
         pass
+
+    # @timeit
+    def load_state_dicts(self, current_federated_round_dir):
+        """
+        Load checkpoints and return as dict.
+        """
+        print("Load checkpoints and return as dict.")
+        site_statedict_dict = collections.OrderedDict()
+        for idx, fname in enumerate(
+            current_federated_round_dir.rglob("model_final_checkpoint.model")
+        ):
+            print(f"Loading state_dict from: {fname}")
+            checkpoint = torch.load(fname, map_location=torch.device("cpu"))
+
+            # retrieve site_name from current_federated_round_dir
+            modified_fname = str(fname).replace(str(current_federated_round_dir), "")
+            site_name = modified_fname.split("/")[1]
+
+            site_statedict_dict[site_name] = checkpoint["state_dict"]
+        return site_statedict_dict
+
+    # @timeit
+    def fed_avg(self, site_statedict_dict):
+        """
+        Sum state_dicts up.
+        Divide summed state_dict by num_sites.
+        Return a site_statedict_dict with always the same statedict per site.
+        """
+        # sum state_dicts up
+        # site_statedict_dict = {"<siteA>": <state_dict_0> , "<siteA>": <state_dict_1>, ...}
+        sum_state_dict = collections.OrderedDict()
+        for site_key, site_value in site_statedict_dict.items():
+            for key, value in site_value.items():
+                if key not in sum_state_dict:
+                    sum_state_dict[key] = value
+                else:
+                    sum_state_dict[key] = sum_state_dict[key] + value
+
+        num_sites = len(site_statedict_dict)
+        # average state_dicts
+        averaged_state_dict = collections.OrderedDict()
+        for key, value in sum_state_dict.items():
+            averaged_state_dict[key] = sum_state_dict[key] / num_sites
+
+        # return site_statedict_dict with same averaged model per site
+        return_statedict_dict = collections.OrderedDict()
+        for site in site_statedict_dict.keys():
+            return_statedict_dict[site] = averaged_state_dict
+
+        return return_statedict_dict
+
+    # @timeit
+    def _save_state_dict(self, fname, state_dict):
+        """
+        Saves state_dict to checkpoint in fname.
+        """
+        checkpoint = torch.load(str(fname), map_location=torch.device("cpu"))
+        checkpoint["state_dict"] = state_dict
+        torch.save(checkpoint, str(fname))
+
+    # @timeit
+    def save_state_dicts(
+        self, current_federated_round_dir, processed_site_statedict_dict
+    ):
+        """
+        Save processed model to site-corresponding minio folders.
+        """
+        print("Saving processed model checkpoints")
+        for idx, fname in enumerate(
+            current_federated_round_dir.rglob("model_final_checkpoint.model")
+        ):
+            # retrieve site_name from current_federated_round_dir
+            modified_fname = str(fname).replace(str(current_federated_round_dir), "")
+            site_name = modified_fname.split("/")[1]
+
+            print(f"Save centrally processed model to {site_name}")
+
+            self._save_state_dict(str(fname), processed_site_statedict_dict[site_name])
 
     @timeit
     def upload_workflow_dir_to_minio_object(

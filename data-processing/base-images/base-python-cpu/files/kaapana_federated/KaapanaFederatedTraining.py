@@ -10,6 +10,7 @@ import shutil
 import collections
 from collections import OrderedDict
 import torch
+import random
 import tarfile
 import functools
 from minio import Minio
@@ -267,12 +268,25 @@ class KaapanaFederatedTrainingBase(ABC):
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.remote_sites = r.json()
 
+        # instantiate Minio client
         self.minioClient = Minio(
             minio_host + ":" + minio_port,
             access_key=access_key,
             secret_key=secret_key,
             secure=False,
         )
+
+        # FL aggregation strategy
+        self.aggregation_strategy = self.remote_conf_data["federated_form"][
+            "aggregation_strategy"
+        ][0]
+        if self.aggregation_strategy == "feddc":
+            self.agg_rate = self.remote_conf_data["federated_form"][
+                "feddc_aggregation_rate"
+            ]
+            self.dc_rate = self.remote_conf_data["federated_form"][
+                "feddc_daisychaining_rate"
+            ]
 
     @timeit
     def distribute_jobs(self, federated_round):
@@ -450,7 +464,7 @@ class KaapanaFederatedTrainingBase(ABC):
         pass
 
     # @timeit
-    def load_state_dicts(self, current_federated_round_dir):
+    def load_state_dicts(self, current_federated_round_dir=None):
         """
         Load checkpoints and return as dict.
         """
@@ -470,8 +484,9 @@ class KaapanaFederatedTrainingBase(ABC):
         return site_statedict_dict
 
     # @timeit
-    def fed_avg(self, site_statedict_dict):
+    def fed_avg(self, site_statedict_dict=None):
         """
+        FedAvg: Communication-efficient Learning of Deep networks from Decentralized Data (https://arxiv.org/abs/1602.05629)
         Sum state_dicts up.
         Divide summed state_dict by num_sites.
         Return a site_statedict_dict with always the same statedict per site.
@@ -500,7 +515,48 @@ class KaapanaFederatedTrainingBase(ABC):
         return return_statedict_dict
 
     # @timeit
-    def _save_state_dict(self, fname, state_dict):
+    def fed_dc(
+        self,
+        site_statedict_dict=None,
+        federated_round=None,
+    ):
+        """
+        FedDC: Federated Learning from Small Datasets (https://arxiv.org/abs/2110.03469)
+        Daisy chaining if (federated_round % dc_rate) == (dc_rate - 1).
+        Aggregate local models if (federated_round % agg_rate) == (agg_rate - 1).
+
+        Input:
+        * site_statedict_dict: site_statedict_dict = {"<siteA>": <state_dict_0> , "<siteA>": <state_dict_1>, ...}
+        * federated_round: current federated communication round
+        * agg_rate: aggregation rate; defines how often local model weights are aggregated (avereaged)
+        * dc_rate: daisy chaining rate; defines how often local models are randomly sent to other site
+
+        Output:
+        * return_statedict_dict: with eiter just randomly permuted site keys or aggregated state_dicts.
+        """
+
+        # start with aggregation condition otherwise, for dc_rate=1, we will never aggregate since dc is always true
+        if (federated_round % self.agg_rate) == (self.agg_rate - 1):
+            # aggregation via FedAvg
+            return_statedict_dict = self.fed_avg(site_statedict_dict)
+        elif (federated_round % self.dc_rate) == (self.dc_rate - 1):
+            # daisy chaining
+            site_keys = list(site_statedict_dict.keys())
+            shuffled_site_keys = random.sample(site_keys, len(site_keys))
+            return_statedict_dict = dict(
+                zip(
+                    shuffled_site_keys,
+                    [site_statedict_dict[key] for key in shuffled_site_keys],
+                )
+            )
+        else:
+            raise ValueError(
+                "Error while FedDC: Neither Daisy Chaining nor Aggregation was computed!"
+            )
+        return return_statedict_dict
+
+    # @timeit
+    def _save_state_dict(self, fname=None, state_dict=None):
         """
         Saves state_dict to checkpoint in fname.
         """
@@ -510,7 +566,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
     # @timeit
     def save_state_dicts(
-        self, current_federated_round_dir, processed_site_statedict_dict
+        self, current_federated_round_dir=None, processed_site_statedict_dict=None
     ):
         """
         Save processed model to site-corresponding minio folders.

@@ -276,8 +276,23 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             ### NEW ###
             # load state_dicts
             site_statedict_dict = self.load_state_dicts(current_federated_round_dir)
-            # FedAvg state_dicts
-            processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
+            # process state_dicts according to aggregation method
+            if self.aggregation_strategy == "fedavg":
+                # FedAvg
+                processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
+            elif self.aggregation_strategy == "feddc":
+                if federated_round == -1:
+                    # average in fl_round=-1 to initialize everywhere w/ same model
+                    processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
+                else:
+                    # FedDC
+                    processed_site_statedict_dict = self.fed_dc(
+                        site_statedict_dict, federated_round
+                    )
+            else:
+                raise ValueError(
+                    "No Federated Learning method is given. Choose between 'fedavg', 'feddc'."
+                )
             # save state_dicts to server's minio
             self.save_state_dicts(
                 current_federated_round_dir, processed_site_statedict_dict

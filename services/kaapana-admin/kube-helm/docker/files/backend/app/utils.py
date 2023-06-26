@@ -112,6 +112,8 @@ def collect_helm_deployments(helm_namespace=settings.helm_namespace):
 
 
 def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
+    # pull docker image (helm install --dry-run) for all extensons. For dags, install and delete charts
+    
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
     regex = r"image: (.*)\/([\w\-\.]+):([\w\-\.]+)"
     logger.debug("in function: helm_prefetch_extension_docker")
@@ -172,6 +174,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
         else:
             helm_delete(release_name=release_name, release_version=chart["version"])
 
+    logger.debug(f"prefetch dags list {dags}")
     for dag in dags:
         logger.info(f'Prefetching {dag["name"]}')
         dag["sets"] = {"action": "prefetch"}
@@ -418,7 +421,11 @@ def helm_install(
         for item in helm_helper.global_extensions_list:
             if item["releaseName"] == release_name and item["version"] == version:
                 item["successful"] = KUBE_STATUS_PENDING
-        helm_result_dict = json.loads(stdout)
+        if len(stdout.splitlines()) > 1:
+            logger.warning("std output has multiple lines, more than one helm command is run")
+            helm_result_dict = json.loads(stdout.splitlines()[0])
+        else:
+            helm_result_dict = json.loads(stdout.splitlines()[0])
 
     if success and update_state and version is not None:
         helm_helper.update_extension_state(

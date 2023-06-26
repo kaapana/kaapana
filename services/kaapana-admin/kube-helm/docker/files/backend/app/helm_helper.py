@@ -121,10 +121,10 @@ def execute_shell_command(
         # TODO: add to a process queue, run p.communicate() & fetch returncode
         return True, ""
 
-    if (not skip_check) and ";" in command:
-        err = f"Detected ';' in blocking command {command} -> cancel request!"
-        logger.error(err)
-        return False, err
+    # if (not skip_check) and ";" in command:
+    #     err = f"Detected ';' in blocking command {command} -> cancel request!"
+    #     logger.error(err)
+    #     return False, err
     logger.debug(f"executing blocking shell command: {command}")
     logger.debug(f"{shell=} , {timeout=}")
     if "--timeout" in command:

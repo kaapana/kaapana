@@ -27,8 +27,13 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "container_name_version": {
-                "title": "Enter container name:version",
+            "container_registry_url": {
+                "title": "Enter container registry URL",
+                "type": "string",
+                "required": True,
+            },
+            "container_registry_user": {
+                "title": "Enter container registry username",
                 "type": "string",
                 "required": True,
             },
@@ -39,13 +44,8 @@ ui_forms = {
                 "readOnly": False,
                 "required": True,
             },
-            "container_registry_user": {
-                "title": "Enter container registry username",
-                "type": "string",
-                "required": True,
-            },
-            "container_registry_url": {
-                "title": "Enter container registry URL",
+            "container_name_version": {
+                "title": "Enter container name:version",
                 "type": "string",
                 "required": True,
             },

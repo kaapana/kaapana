@@ -188,6 +188,7 @@ export default {
       const settings = JSON.parse(localStorage["settings"]);
       settings.datasets.tagBar.tags = this.tags;
       localStorage["settings"] = JSON.stringify(settings);
+      this.onChangeSelection();
     },
   },
 };

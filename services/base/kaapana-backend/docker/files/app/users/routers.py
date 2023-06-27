@@ -132,7 +132,7 @@ async def add_users_to_group(
 
 @router.put("/{idx}/roles", response_model=None)
 async def assign_user_to_roles(
-    idx: str, roles: List[str], us=Depends(get_user_service)
+    idx: str, roles: List[dict], us=Depends(get_user_service)
 ):
     """Assign realm roles to user"""
     try:

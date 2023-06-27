@@ -121,10 +121,10 @@ def execute_shell_command(
         # TODO: add to a process queue, run p.communicate() & fetch returncode
         return True, ""
 
-    if (not skip_check) and ";" in command:
-        err = f"Detected ';' in blocking command {command} -> cancel request!"
-        logger.error(err)
-        return False, err
+    # if (not skip_check) and ";" in command:
+    #     err = f"Detected ';' in blocking command {command} -> cancel request!"
+    #     logger.error(err)
+    #     return False, err
     logger.debug(f"executing blocking shell command: {command}")
     logger.debug(f"{shell=} , {timeout=}")
     if "--timeout" in command:
@@ -152,7 +152,12 @@ def execute_shell_command(
         logger.debug(f"{stdout=}")
         logger.debug(f"{stderr=}")
         return success, stdout
-
+    elif command[3] == "status":
+        logger.debug(f"Ignoring error, since we just wanted to check if chart is installed {command}")
+        logger.debug(f"{return_code=}")
+        logger.debug(f"{stdout=}")
+        logger.debug(f"{stderr=}")
+        return success, stderr
     else:
         logger.error("ERROR while executing command: ")
         logger.error(f"COMMAND: {command}")

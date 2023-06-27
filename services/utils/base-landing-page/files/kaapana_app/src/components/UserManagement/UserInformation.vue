@@ -14,7 +14,7 @@
       :items="available_groups"
       item-text="name"
       item-value="idx"
-      label="Select a group"
+      label="Select groups"
       multiple
     >
     </v-select>
@@ -31,6 +31,28 @@
         Add user to groups
       </v-btn>
     </v-card-actions>
+    <v-select
+      v-model="new_roles_for_user"
+      :items="available_roles"
+      label="Select roles"
+      item-text="name"
+      multiple
+      return-object
+    >
+    </v-select>
+    <v-card-actions>
+      <v-spacer></v-spacer>
+      <v-btn
+        color="primary"
+        text
+        @click="
+          $emit('assign-roles-to-user', new_roles_for_user, userInformation);
+          new_roles_for_user = [];
+        "
+      >
+        Assign roles to user
+      </v-btn>
+    </v-card-actions>
   </v-card>
 </template>
 
@@ -40,11 +62,19 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 export default {
   name: "UserInformation",
 
-  props: ["userInformation", "userGroups", "userRoles", "title", "available_groups"],
+  props: [
+    "userInformation",
+    "userGroups",
+    "userRoles",
+    "title",
+    "available_groups",
+    "available_roles",
+  ],
 
   data() {
     return {
       new_groups_for_user: [],
+      new_roles_for_user: [],
     };
   },
 };

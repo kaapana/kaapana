@@ -30,7 +30,10 @@
           :userRoles="userRoles"
           :available_groups="groupList"
           :new_groups_for_user="new_groups_for_user"
+          :available_roles="roleList"
+          :new_roles_for_user="new_roles_for_user"
           @add-user-to-groups="add_user_to_groups"
+          @assign-roles-to-user="assign_roles_to_user"
           @select-groups-for-user="onGroupsSelected"
         >
         </UserInformation>
@@ -97,6 +100,7 @@ export default {
   data() {
     return {
       new_groups_for_user: "",
+      new_roles_for_user: "",
       userId: "",
       userInformation: {
         username: "",
@@ -135,6 +139,7 @@ export default {
       },
       userList: [],
       groupList: [],
+      roleList: [],
       createUserFields: [
         { name: "username", label: "Username" },
         { name: "firstName", label: "First Name" },
@@ -157,7 +162,7 @@ export default {
   },
 
   mounted() {
-    this.get_users(), this.get_groups();
+    this.get_users(), this.get_groups(), this.get_available_realm_roles();
   },
 
   computed: {
@@ -166,6 +171,9 @@ export default {
     },
     computedUserList() {
       return [...this.userList];
+    },
+    computedRoleList() {
+      return [...this.roleList];
     },
   },
 
@@ -191,6 +199,16 @@ export default {
         })
         .catch((error) => {
           console.error("Error fetching user list:", error);
+        });
+    },
+    get_available_realm_roles() {
+      kaapanaApiService
+        .kaapanaApiGet("users/roles")
+        .then((response) => {
+          this.roleList = response.data;
+        })
+        .catch((error) => {
+          console.error("Error fetching roles list:", error);
         });
     },
     open_user_info(idx) {
@@ -300,6 +318,24 @@ export default {
         })
         .catch((error) => {
           console.log("Error adding user to groups", error);
+        });
+    },
+    assign_roles_to_user(new_roles_for_user, userInformation) {
+      console.log(new_roles_for_user);
+      console.log(userInformation);
+      let idx = userInformation.idx;
+      // let payload = [{ id: new_roles_for_user }];
+      let payload = new_roles_for_user.map((item) => {
+        const { idx, ...rest } = item;
+        return { id: idx, ...rest };
+      });
+      kaapanaApiService
+        .kaapanaApiPut("users/" + idx + "/roles", (payload = payload))
+        .then((response) => {
+          this.get_groups();
+        })
+        .catch((error) => {
+          console.log("Error assigning roles to user", error);
         });
     },
   },

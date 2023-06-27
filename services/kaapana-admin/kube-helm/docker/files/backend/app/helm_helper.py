@@ -152,7 +152,12 @@ def execute_shell_command(
         logger.debug(f"{stdout=}")
         logger.debug(f"{stderr=}")
         return success, stdout
-
+    elif command[3] == "status":
+        logger.debug(f"Ignoring error, since we just wanted to check if chart is installed {command}")
+        logger.debug(f"{return_code=}")
+        logger.debug(f"{stdout=}")
+        logger.debug(f"{stderr=}")
+        return success, stderr
     else:
         logger.error("ERROR while executing command: ")
         logger.error(f"COMMAND: {command}")

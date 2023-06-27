@@ -88,7 +88,7 @@ def helm_status(release_name, helm_namespace=settings.helm_namespace):
     if success:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
     else:
-        logger.error(f"WARNING: Could not fetch helm status for: {release_name}")
+        logger.warning(f"Could not fetch helm status for: {release_name}")
         return []
 
 
@@ -115,7 +115,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     # pull docker image (helm install --dry-run) for all extensons. For dags, install and delete charts
 
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
-    regex = r"image: (.*)\/([\w\-\.]+):([\w\-\.]+)"
+    regex = r"image:[\s|\"|']+(.*)\/([\w\-\.]+):([\w\-\.]+)"
     logger.debug("in function: helm_prefetch_extension_docker")
     extensions = helm_search_repo(
         keywords_filter=["kaapanaapplication", "kaapanaint", "kaapanaworkflow"]
@@ -135,7 +135,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             "name": chart["name"],
             "version": chart["version"],
             "keywords": chart["keywords"],
-            "release_name": f"p-{chart_name}",
+            "release_name":  f"prefetch-dag-chart-{secrets.token_hex(10)}"#, f"p-{chart_name}",
         }
 
         if "kaapanaworkflow" in chart["keywords"]:
@@ -153,7 +153,6 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             if matches:
                 for match in matches:
                     docker_registry_url = match[0]
-                    docker_registry_url = docker_registry_url[1:]
                     docker_image = match[1]
                     docker_version = match[2]
                     image_dict.update(
@@ -302,20 +301,25 @@ def helm_install(
     logger.debug("Using default sets")
     logger.debug(json.dumps(default_sets, indent=4, sort_keys=True))
 
-    # get chart's values
-    values = helm_helper.helm_show_values(
-        name=name, version=version, platforms=platforms
-    )
-    if "keywords" not in payload:
-        chart = helm_helper.helm_show_chart(
+    # get chart's values and keywords
+    if name in ["pull-docker-chart", "update-collections-chart"]:
+        logger.debug(payload)
+        values = {}
+        keywords = payload["keywords"] if "keywords" in payload else []
+    else:
+        values = helm_helper.helm_show_values(
             name=name, version=version, platforms=platforms
         )
-        if "keywords" in chart:
-            keywords = chart["keywords"]
+        if "keywords" not in payload:
+            chart = helm_helper.helm_show_chart(
+                name=name, version=version, platforms=platforms
+            )
+            if "keywords" in chart:
+                keywords = chart["keywords"]
+            else:
+                keywords = []
         else:
-            keywords = []
-    else:
-        keywords = payload["keywords"]
+            keywords = payload["keywords"]
 
     if "global" in values:
         for key, value in values["global"].items():

@@ -45,7 +45,6 @@ def get_seg_info(input_nifti):
         print("-meta.json identified ...")
         if len(json_files_found) == 1:
             assert "-meta.json" in json_files_found[0]
-            meta_info_json_path = json_files_found[0]
         else:
             print("No single meta-json found -> search for specific config...")
             model_id_search_string = f"--{model_id.lower()}-meta.json"
@@ -55,7 +54,7 @@ def get_seg_info(input_nifti):
             ]
             print(json_files_found)
             assert len(json_files_found) == 1
-            meta_info_json_path = 1[0]
+        meta_info_json_path = json_files_found[0]
 
         seg_id = input_nifti.split("--")[-2]
         label_int = None
@@ -988,7 +987,7 @@ for key in sorted(
     for batch_element_with_files, info_dict in batch_elements_with_files.items():
         if multi:
             segs_to_merge["batch_elements_to_remove"].append(batch_element_with_files)
-        if "--" not in info_dict["seg_files"][0]:
+        if not isinstance(info_dict["seg_files"][0].split("--")[-2], int):
             for seg_element_file in sorted(info_dict["seg_files"], reverse=False):
                 segs_to_merge["seg_files"].append(seg_element_file)
         else:

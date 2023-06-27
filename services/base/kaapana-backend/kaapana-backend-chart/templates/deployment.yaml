@@ -43,8 +43,6 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         # command: ["tail"]
         # args: ["-f", "/dev/null"] 
-        command: ["/bin/sh"]
-        args: ["/kaapana/app/boot.sh"] 
         env: # Environment variables
         - name: SECRET_KEY
           value: kaapana-secret

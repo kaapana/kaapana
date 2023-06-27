@@ -3,16 +3,16 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: p-{{ .Values.global.image }}
+  name: get-{{ .Values.global.image }}
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
     matchLabels:
-      app-name: p-{{ .Values.global.image }}-{{ .Values.global.version }}
+      app-name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
   template:
     metadata:
       labels:
-        app-name: p-{{ .Values.global.image }}-{{ .Values.global.version }}
+        app-name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
     spec:
       initContainers:
         - name: init

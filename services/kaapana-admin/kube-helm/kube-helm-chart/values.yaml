@@ -6,6 +6,7 @@ global:
   home_dir: /root
   hostname: ""
   namespace: "{{ .Values.global.admin_namespace }}"
+  dev_files: false
   dynamicVolumes:
   - name: extensions
     host_path: /extensions

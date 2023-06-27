@@ -41,4 +41,5 @@ ENV RECENT_UPDATE_CACHE="true"
 ENV CONTAINERD_SOCK="/kaapana/mounted/containerd.sock"
 
 EXPOSE 5000
-CMD ["gunicorn","main:app","--chdir","/kaapana/app/backend/app","--workers","1","--worker-class","uvicorn.workers.UvicornWorker","--bind","0.0.0.0:5000","--access-logfile","-","--error-logfile","-"]
+
+CMD ["/bin/sh", "/kaapana/app/backend/boot.sh"]

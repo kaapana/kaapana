@@ -53,6 +53,10 @@ spec:
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:
+{{- if .Values.global.dev_files }}
+          - name: kaapana-dev-files
+            mountPath: /kaapana/app
+{{- end }}
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
           - name: helmplatforms
@@ -70,6 +74,11 @@ spec:
         hostPath:
           path: "{{ $.Values.global.fast_data_dir }}/platforms"
           type: DirectoryOrCreate
+{{- if .Values.global.dev_files }}
+      - name: kaapana-dev-files
+        persistentVolumeClaim:
+          claimName: kh-dev-pv-claim
+{{- end }}
       serviceAccountName: kaapana-kube-admin
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

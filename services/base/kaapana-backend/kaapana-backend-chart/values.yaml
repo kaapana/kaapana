@@ -1,6 +1,6 @@
 ---
 global:
-  dev_files: false
+  dev_files: /home/ubuntu/backend-files/files
   dynamicVolumes:
   - name: backend
     host_path: /postgres-backend

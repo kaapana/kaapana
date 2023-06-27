@@ -84,13 +84,14 @@ class TrivyUtils:
 
         os.makedirs(self.reports_path, exist_ok=True)
 
-        if self.cache:
-            self.load_cache()
-
         self.database_timestamp = self.get_database_next_update_timestamp()
         
 
     def create_vulnerability_reports(self, list_of_images):
+
+        if self.cache:
+            self.load_cache()
+
         try:
             with self.threadpool as threadpool:
                 with alive_bar(
@@ -349,27 +350,6 @@ class TrivyUtils:
                 + "Inspect the issue using the trivy --debug flag.",
             }
             return image, issue
-
-        # read the SBOM file
-        with open(os.path.join(self.reports_path, image_name + "_sbom.json"), "r") as f:
-            sbom = json.load(f)
-
-        # Remove the image from the list of running containers
-        self.semaphore_running_containers.acquire()
-        try:
-            self.list_of_running_containers.remove(image_name + "_sbom")
-        finally:
-            self.semaphore_running_containers.release()
-
-        self.semaphore_sboms.acquire()
-        try:
-            # add the SBOM to the dictionary
-            self.sboms[image] = sbom
-        finally:
-            self.semaphore_sboms.release()
-
-        # Remove the SBOM file
-        os.remove(os.path.join(self.reports_path, image_name + "_sbom.json"))
 
         return image, issue
 
@@ -698,6 +678,8 @@ class TrivyUtils:
         ) as f:
             json.dump(self.compressed_vulnerability_reports, f)
 
+        self.extract_individual_cves()
+
     def safe_sboms(self):
         # save the SBOMs to the security-reports directory
         with open(os.path.join(self.reports_path, self.tag + "_sboms.json"), "w") as f:
@@ -814,6 +796,51 @@ class TrivyUtils:
         # Ignore the under second part of the timestamp
         return output.stdout.split("NextUpdate: ")[1].split(".")[0]
         # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+
+    def extract_individual_cves(self):
+        # load report
+        report_path = os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json")
+
+        if not os.path.exists(report_path):
+            BuildUtils.logger.error(f"Report {report_path} does not exist")
+            exit(1)
+
+        with open(report_path, "r") as f:
+            reports = json.load(f)
+
+        cves = {}
+
+        BuildUtils.logger.info(f"Found {len(reports)} reports: ")
+        for module in reports:
+            if 'Results' in reports[module]:
+                for issue in reports[module]['Results']:
+                    if 'Vulnerabilities' in issue:
+                        for vulnerability in issue['Vulnerabilities']:
+                            if vulnerability['Severity'] in BuildUtils.vulnerability_severity_level:
+                                if not vulnerability['VulnerabilityID'] in cves:
+                                    
+                                    cves[vulnerability['VulnerabilityID']] = {
+                                        "Class": issue['Class'] if 'Class' in issue else None,
+                                        "Type": issue['Type'] if 'Type' in issue else None,
+                                        "Title": vulnerability['Title'] if 'Title' in vulnerability else None,
+                                        "PkgName": vulnerability['PkgName'],
+                                        "PublishedDate": vulnerability['PublishedDate'] if 'PublishedDate' in vulnerability else None,
+                                        "LastModifiedDate": vulnerability['LastModifiedDate'] if 'LastModifiedDate' in vulnerability else None,
+                                        "InstalledVersion": vulnerability['InstalledVersion'],
+                                        "FixedVersion": vulnerability['FixedVersion'] if 'FixedVersion' in vulnerability else None,
+                                        "Severity": vulnerability['Severity'],
+                                        "SeveritySource": vulnerability['SeveritySource'] if 'SeveritySource' in vulnerability else None,
+                                        "Target": issue['Type'] if issue['Type'] in issue['Target'] else issue['Target'],
+                                        "Modules": [module],
+                                    }
+                                else:
+                                    if not module in cves[vulnerability['VulnerabilityID']]['Modules']:
+                                        cves[vulnerability['VulnerabilityID']]['Modules'].append(module)
+
+        BuildUtils.logger.info(f"Found {len(cves)} individual vulnerabilities")
+
+        with open(os.path.join(self.reports_path, self.tag + "_cves.json"), "w") as f:
+            json.dump(cves, f, indent=4)
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

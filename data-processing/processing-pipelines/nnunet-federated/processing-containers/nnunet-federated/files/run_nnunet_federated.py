@@ -294,7 +294,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                     "No Federated Learning method is given. Choose between 'fedavg', 'feddc'."
                 )
             # save state_dicts to server's minio
-            self.save_state_dicts(
+            fname = self.save_state_dicts(
                 current_federated_round_dir, processed_site_statedict_dict
             )
 

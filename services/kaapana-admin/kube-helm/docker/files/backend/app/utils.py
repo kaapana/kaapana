@@ -432,9 +432,7 @@ def helm_install(
             logger.warning(
                 "std output has multiple lines, more than one helm command is run"
             )
-            helm_result_dict = json.loads(stdout.splitlines()[0])
-        else:
-            helm_result_dict = json.loads(stdout.splitlines()[0])
+        helm_result_dict = json.loads(stdout.splitlines()[0])
 
     if success and update_state and version is not None:
         helm_helper.update_extension_state(

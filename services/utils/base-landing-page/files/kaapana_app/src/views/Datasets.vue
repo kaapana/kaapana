@@ -462,7 +462,9 @@ export default {
         });
     },
     updateDatasetNames() {
-      loadDatasets().then((_datasetNames) => (this.datasetNames = _datasetNames));
+      loadDatasets().then(
+        (_datasetNames) => (this.datasetNames = _datasetNames)
+      );
     },
     async updateDataset(name, identifiers, action = "UPDATE") {
       try {
@@ -533,7 +535,7 @@ export default {
         (series) => !this.identifiersOfInterest.includes(series)
       );
 
-      // This manual update of the dataset inside the search component is required, 
+      // This manual update of the dataset inside the search component is required,
       // because only the identifiers have changed but not the dataset name itself.
       this.$refs.search.reloadDataset();
       this.selectedSeriesInstanceUIDs = [];
@@ -562,7 +564,7 @@ export default {
           text: `Successfully new dataset ${name}.`,
           type: "success",
         });
-        updateDatasetNames()
+        this.updateDatasetNames();
         return true;
       } catch (error) {
         this.$notify({

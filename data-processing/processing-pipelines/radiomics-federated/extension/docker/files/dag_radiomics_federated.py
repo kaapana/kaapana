@@ -10,16 +10,15 @@ from airflow.utils.trigger_rule import TriggerRule
 
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from radiomics_federated.LocalRadiomicsFederatedOperator import (
-    LocalRadiomicsFederatedOperator,
-)
+
 from radiomics_federated.RadiomicsReportingOperator import RadiomicsReportingOperator
+from radiomics_federated.RadiomicsFederatedOperator import RadiomicsFederatedOperator
 
 log = LoggingMixin().log
 
-remote_dag_id = "radiomics-federated-node"
+remote_dag_id = "radiomics-dcmseg"
 skip_operators = ["workflow-cleaner"]
-federated_operators = ["radiomics-packaging-operator"]
+federated_operators = ["fed-packaging-operator"]
 ui_forms = {
     "data_form": {},
     "external_schema_federated_form": {
@@ -83,7 +82,11 @@ dag = DAG(
     schedule_interval=None,
 )
 
-radiomics_federated_central = LocalRadiomicsFederatedOperator(dag=dag)
+radiomics_federated_central = RadiomicsFederatedOperator(
+    dag=dag,
+    dev_server="code-server",
+)
+
 put_radiomics_to_minio = LocalMinioOperator(
     dag=dag, action="put", action_operators=[radiomics_federated_central]
 )

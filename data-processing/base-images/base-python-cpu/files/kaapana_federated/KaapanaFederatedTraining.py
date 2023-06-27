@@ -535,11 +535,8 @@ class KaapanaFederatedTrainingBase(ABC):
         * return_statedict_dict: with eiter just randomly permuted site keys or aggregated state_dicts.
         """
 
-        # start with aggregation condition otherwise, for dc_rate=1, we will never aggregate since dc is always true
-        if (federated_round % self.agg_rate) == (self.agg_rate - 1):
-            # aggregation via FedAvg
-            return_statedict_dict = self.fed_avg(site_statedict_dict)
-        elif (federated_round % self.dc_rate) == (self.dc_rate - 1):
+        # do either daisy-chaining or aggregation
+        if (federated_round % self.dc_rate) == (self.dc_rate - 1):
             # daisy chaining
             site_keys = list(site_statedict_dict.keys())
             shuffled_site_keys = random.sample(site_keys, len(site_keys))
@@ -549,7 +546,12 @@ class KaapanaFederatedTrainingBase(ABC):
                     [site_statedict_dict[key] for key in shuffled_site_keys],
                 )
             )
-        else:
+        if (federated_round % self.agg_rate) == (self.agg_rate - 1):
+            # aggregation via FedAvg
+            return_statedict_dict = self.fed_avg(site_statedict_dict)
+        if ((federated_round % self.agg_rate) != (self.agg_rate - 1)) and (
+            (federated_round % self.dc_rate) != (self.dc_rate - 1)
+        ):
             raise ValueError(
                 "Error while FedDC: Neither Daisy Chaining nor Aggregation was computed!"
             )
@@ -582,6 +584,8 @@ class KaapanaFederatedTrainingBase(ABC):
             print(f"Save centrally processed model to {site_name}")
 
             self._save_state_dict(str(fname), processed_site_statedict_dict[site_name])
+
+        return str(fname)
 
     @timeit
     def upload_workflow_dir_to_minio_object(

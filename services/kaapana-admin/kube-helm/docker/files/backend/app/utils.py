@@ -113,7 +113,7 @@ def collect_helm_deployments(helm_namespace=settings.helm_namespace):
 
 def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     # pull docker image (helm install --dry-run) for all extensons. For dags, install and delete charts
-    
+
     # regex = r'image: ([\w\-\.]+)(\/[\w\-\.]+|)\/([\w\-\.]+):([\w\-\.]+)'
     regex = r"image: (.*)\/([\w\-\.]+):([\w\-\.]+)"
     logger.debug("in function: helm_prefetch_extension_docker")
@@ -123,6 +123,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
     installed_release_names = []
     dags = []
     image_dict = {}
+    logger.debug(f"helm_search_repo returned {extensions=}")
     for chart_name, chart in extensions.items():
         if (
             os.path.isfile(f"{settings.helm_extensions_cache}/{chart_name}.tgz")
@@ -134,13 +135,13 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             "name": chart["name"],
             "version": chart["version"],
             "keywords": chart["keywords"],
-            "release_name": f"prefetch-{chart_name}",
+            "release_name": f"p-{chart_name}",
         }
 
         if "kaapanaworkflow" in chart["keywords"]:
             dags.append(payload)
         else:
-            logger.info(f"Prefetching {chart_name}")
+            logger.info(f"Prefetching app {chart_name}")
             if helm_status(payload["name"]):
                 logger.info(f'Skipping {payload["name"]} since it is already installed')
                 continue
@@ -152,6 +153,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             if matches:
                 for match in matches:
                     docker_registry_url = match[0]
+                    docker_registry_url = docker_registry_url[1:]
                     docker_image = match[1]
                     docker_version = match[2]
                     image_dict.update(
@@ -164,6 +166,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
                         }
                     )
 
+    logger.debug(f"{image_dict=}")
     for name, payload in image_dict.items():
         release_name = f"pull-docker-chart-{secrets.token_hex(10)}"
         success, helm_result_dict = pull_docker_image(
@@ -176,7 +179,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
 
     logger.debug(f"prefetch dags list {dags}")
     for dag in dags:
-        logger.info(f'Prefetching {dag["name"]}')
+        logger.info(f'Prefetching DAG {dag["name"]}')
         dag["sets"] = {"action": "prefetch"}
         if helm_status(dag["name"]):
             logger.info(f'Skipping {dag["name"]} since it is already installed')
@@ -422,7 +425,9 @@ def helm_install(
             if item["releaseName"] == release_name and item["version"] == version:
                 item["successful"] = KUBE_STATUS_PENDING
         if len(stdout.splitlines()) > 1:
-            logger.warning("std output has multiple lines, more than one helm command is run")
+            logger.warning(
+                "std output has multiple lines, more than one helm command is run"
+            )
             helm_result_dict = json.loads(stdout.splitlines()[0])
         else:
             helm_result_dict = json.loads(stdout.splitlines()[0])

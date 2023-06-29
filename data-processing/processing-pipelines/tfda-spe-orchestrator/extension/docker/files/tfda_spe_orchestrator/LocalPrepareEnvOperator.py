@@ -7,7 +7,7 @@ from airflow.exceptions import AirflowFailException
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
-class LocalTFDAPrepareEnvOperator(KaapanaPythonBaseOperator):
+class LocalPrepareEnvOperator(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         logging.info("Prepare the Secure Processing Environment (SPE)...")
         operator_dir = os.path.dirname(os.path.abspath(__file__))

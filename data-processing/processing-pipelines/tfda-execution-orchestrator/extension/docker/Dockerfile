@@ -1,6 +1,6 @@
 FROM local-only/base-installer:latest
 
-LABEL IMAGE="dag-tfda-execution-orchestrator"
+LABEL IMAGE="dag-tfda-spe-orchestrator"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 

@@ -14,7 +14,7 @@ class LocalTriggerContainerIsolationOperator(KaapanaPythonBaseOperator):
         return dag_runs[0] if dag_runs else None
 
     def start(self, ds, ti, **kwargs):
-        self.trigger_dag_id = "dag-tfda-execution-orchestrator"
+        self.trigger_dag_id = "dag-tfda-spe-orchestrator"
         dag_run_id = generate_run_id(self.trigger_dag_id)
         logging.info("Triggering isolated execution orchestrator...")
         dag_config = kwargs["dag_run"].conf

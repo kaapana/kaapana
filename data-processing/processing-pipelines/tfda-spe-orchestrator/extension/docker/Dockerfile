@@ -4,6 +4,6 @@ LABEL IMAGE="dag-tfda-spe-orchestrator"
 LABEL VERSION="0.1.0"
 LABEL CI_IGNORE="False"
 
-COPY files/dag_tfda_execution_orchestrator.py /kaapana/tmp/dags/
+COPY files/dag_tfda_spe_orchestrator.py /kaapana/tmp/dags/
 COPY files/dag_isolated_container_execution.py /kaapana/tmp/dags/
-COPY files/tfda_execution_orchestrator /kaapana/tmp/dags/tfda_execution_orchestrator
+COPY files/tfda_spe_orchestrator /kaapana/tmp/dags/tfda_spe_orchestrator

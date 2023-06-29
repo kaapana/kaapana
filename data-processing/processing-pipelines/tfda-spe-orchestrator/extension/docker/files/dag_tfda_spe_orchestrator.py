@@ -2,19 +2,19 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from tfda_execution_orchestrator.LocalLoadPlatformConfigOperator import (
+from tfda_spe_orchestrator.LocalLoadPlatformConfigOperator import (
     LocalLoadPlatformConfigOperator,
 )
-from tfda_execution_orchestrator.ManageIsoInstanceOperator import (
+from tfda_spe_orchestrator.ManageIsoInstanceOperator import (
     ManageIsoInstanceOperator,
 )
-from tfda_execution_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
-from tfda_execution_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
-from tfda_execution_orchestrator.RunAlgoOperator import RunAlgoOperator
+from tfda_spe_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
+from tfda_spe_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
+from tfda_spe_orchestrator.RunAlgoOperator import RunAlgoOperator
 
-# from tfda_execution_orchestrator.LocalTFDAPrepareEnvOperator import LocalTFDAPrepareEnvOperator
-from tfda_execution_orchestrator.FetchResultsOperator import FetchResultsOperator
-from tfda_execution_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
+# from tfda_spe_orchestrator.LocalPrepareEnvOperator import LocalTFDAPrepareEnvOperator
+from tfda_spe_orchestrator.FetchResultsOperator import FetchResultsOperator
+from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from airflow.operators.python_operator import PythonOperator
@@ -47,7 +47,7 @@ load_platform_config = LocalLoadPlatformConfigOperator(
 create_iso_env = ManageIsoInstanceOperator(
     dag=dag, instanceState="present", taskName="create-iso-inst"
 )
-# prepare_env = LocalTFDAPrepareEnvOperator(dag=dag)
+# prepare_env = LocalPrepareEnvOperator(dag=dag)
 trusted_pre_etl = TrustedPreETLOperator(dag=dag)
 get_minio_bucket = LocalMinioOperator(
     action="get",

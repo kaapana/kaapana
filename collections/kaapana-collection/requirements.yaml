@@ -68,5 +68,5 @@ dependencies:
   #   version: 0.0.0
   # - name: podman-chart # lives here before build script can handle the code-server as dependency
   #   version: 0.0.0
-  - name: tfda-execution-orchestrator-workflow
-    version: 0.0.0
+  - name: tfda-spe-orchestrator-workflow
+    version: 0.1.0

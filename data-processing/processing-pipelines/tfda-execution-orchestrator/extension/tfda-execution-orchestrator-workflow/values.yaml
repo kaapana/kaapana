@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-tfda-execution-orchestrator"
+    image: "dag-tfda-spe-orchestrator"
     action: "copy"

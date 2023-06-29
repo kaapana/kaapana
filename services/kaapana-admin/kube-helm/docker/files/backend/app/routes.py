@@ -175,6 +175,7 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
         res, msg = await file_handler.run_containerd_import(
             filename, platforms=platforms
         )
+        logger.info(f"Successfully imported {filename}")
         logger.debug(f"returned {res=}, {msg=}")
         if not res:
             logger.error(f"/import-container failed {msg}")

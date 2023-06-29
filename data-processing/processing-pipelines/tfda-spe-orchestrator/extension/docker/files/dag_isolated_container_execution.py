@@ -1,7 +1,7 @@
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
-from tfda_execution_orchestrator.LocalTriggerContainerIsolationOperator import (
+from tfda_spe_orchestrator.LocalTriggerContainerIsolationOperator import (
     LocalTriggerContainerIsolationOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator

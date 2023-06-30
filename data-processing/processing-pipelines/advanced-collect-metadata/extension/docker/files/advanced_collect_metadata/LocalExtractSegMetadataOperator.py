@@ -64,27 +64,43 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
             else:
                 json_data = {}
 
-            # load batch-element's nifti image form input_operator's dir
+            # load batch-element's SEG nifti image form input_operator's dir
             batch_element_in_dir = os.path.join(batch_element_dir, self.input_operator)
-            nifti_fnames = glob.glob(
+            seg_nifti_fnames = glob.glob(
                 os.path.join(batch_element_in_dir, "*.nii.gz"), recursive=True
             )
+            # load batch-element's CT/MR nifti image form input_operator's dir
+            batch_element_img_in_dir = os.path.join(
+                batch_element_dir, self.img_operator
+            )
+            img_nifti_fnames = glob.glob(
+                os.path.join(batch_element_img_in_dir, "*.nii.gz"), recursive=True
+            )
+            img_nifti = nib.load(img_nifti_fnames[0])
+            # compute volume of 1 voxel in mm³
+            spacing = img_nifti.header.get_zooms()
+            vox_vol = spacing[0] * spacing[1] * spacing[2]
 
-            class_counts = {}
-            for nifti_fname in nifti_fnames:
-                print(f"{nifti_fname=}")
-                nifti_img = nib.load(nifti_fname)
-                data = np.array(nifti_img.dataobj)
-                # Get the unique labels/classes in the data
-                unique_labels = np.unique(data)
+            label_volume_info = {}
+            for seg_nifti_fname in seg_nifti_fnames:
+                print(f"{seg_nifti_fname=}")
 
-                # Count the number of voxels per class
-                for label in unique_labels:
-                    # if label == 0:  # Skip background class
-                    #     continue
-                    class_counts[basename(nifti_fname)] = int(np.sum(data == label))
-            print(f"{class_counts=}")
-            json_data.update({"seg_voxels_per_class": class_counts})
+                # get pixel data from SEG
+                seg_pixel_data = nib.load(seg_nifti_fname).get_fdata()
+
+                # compute volume per class
+                voxels_per_class = seg_pixel_data.sum()
+                vol_per_class = seg_pixel_data.sum() * vox_vol
+
+                label_volume_info[basename(seg_nifti_fname)] = {
+                    "voxels_per_class": f"{voxels_per_class}",
+                    "voxel_volume": f"{vox_vol}",
+                    "volume_per_class": f"{vol_per_class}",
+                }
+
+            print(f"{label_volume_info=}")
+            json_data.update({"volume_per_class": label_volume_info})
+            print(f"{json_data=}")
 
             # save to out_dir
             with open(
@@ -100,9 +116,11 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
         name="extract-voxels-per-class",
         input_operator=None,
         json_operator=None,
+        img_operator=None,
         **kwargs,
     ):
         self.input_operator = input_operator.name
         self.json_operator = json_operator.name
+        self.img_operator = img_operator.name
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

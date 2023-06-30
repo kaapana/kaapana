@@ -175,21 +175,9 @@ class Nifti2DcmConverter:
                     "0010|0020"
                 ]  # Fallback
             if "0020|000d" not in series_tag_values:  # Study Instance UID
-                series_tag_values["0020|000d"] = generate_uid(
-                    entropy_srcs=[
-                        series_tag_values["0020|0010"],
-                        series_tag_values["0008|1070"],
-                        self.seed,
-                    ]
-                )
+                series_tag_values["0020|000d"] = generate_uid()
             if "0020|000e" not in series_tag_values:  # Series Instance UID
-                series_tag_values["0020|000e"] = generate_uid(
-                    entropy_srcs=[
-                        series_tag_values["0020|000d"],
-                        str(case[0].name),
-                        self.seed,
-                    ]
-                )
+                series_tag_values["0020|000e"] = generate_uid()
 
             self.convert_series(
                 case_path, series_tag_values=series_tag_values, segmentation=case[1]

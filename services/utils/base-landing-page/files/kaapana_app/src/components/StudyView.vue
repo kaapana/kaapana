@@ -1,7 +1,7 @@
 <template>
   <v-card elevation="5" style="margin-bottom: 10px">
     <v-card-title style="padding: 10px">
-      <v-container>
+      <v-container v-if="Object.entries(studyProps).length > 0">
         <v-row>
           <v-col
             v-for="prop in studyProps"
@@ -21,7 +21,7 @@
         </v-row>
       </v-container>
     </v-card-title>
-    <v-divider></v-divider>
+    <v-divider v-if="Object.entries(studyProps).length > 0"></v-divider>
     <v-card-text style="padding: 10px">
       <Gallery :seriesInstanceUIDs="seriesInstanceUIDs" />
     </v-card-text>

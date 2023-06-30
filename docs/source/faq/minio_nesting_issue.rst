@@ -1,7 +1,7 @@
 MinIO visualizes the landingpage inside the iframe
 ----------------------------------------------------
 
-.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/mg/minio_error_nested.png
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/minio_error_nested.png
 
 
 This issue occasionally arises when using Firefox as your browser. 

@@ -47,7 +47,7 @@
                   </v-card-title>
                   <v-card-text>
                     <h3>Upload of DICOM data</h3>
-                    <p>DICOM data should be uploaded in a single compressed zip-file containing folder(s) with DICOM files. The default expected file-extension for DICOMs is `.dcm`, but can be configured when triggering the ´import-dicoms-in-zip-to-internal-pacs´ workflow.</p>
+                    <p>DICOM data should be uploaded in a single compressed zip-file containing folder(s) with DICOM files.</p>
                     <h3>Upload NIfTI data</h3>
                     <p>Since the platform works with the DICOM standard, NIfTI data is converted to DICOMs by triggering the workflow `convert-nifitis-to-dicoms-and-import-to-pacs`. If you have only NIfTI files without segmentations, the files with file endings `.nii.gz` or `.nii` can be uploaded either in a compressed zip-file or directly in a folder.
                     </p>

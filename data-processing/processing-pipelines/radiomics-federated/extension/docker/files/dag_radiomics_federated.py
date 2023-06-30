@@ -18,7 +18,7 @@ log = LoggingMixin().log
 
 remote_dag_id = "radiomics-dcmseg"
 skip_operators = ["workflow-cleaner"]
-federated_operators = ["fed-packaging-operator"]
+federated_operators = ["radiomics"]
 ui_forms = {
     "data_form": {},
     "external_schema_federated_form": {
@@ -83,8 +83,7 @@ dag = DAG(
 )
 
 radiomics_federated_central = RadiomicsFederatedOperator(
-    dag=dag,
-    dev_server="code-server",
+    dag=dag
 )
 
 put_radiomics_to_minio = LocalMinioOperator(
@@ -93,7 +92,17 @@ put_radiomics_to_minio = LocalMinioOperator(
 radiomics_reporting = RadiomicsReportingOperator(
     dag=dag, input_operator=radiomics_federated_central
 )
+
+put_report_to_minio = LocalMinioOperator(
+    dag=dag,
+    name="upload-staticwebsiteresults",
+    bucket_name="staticwebsiteresults",
+    action="put",
+    action_operators=[radiomics_reporting],
+    file_white_tuples=(".html", ".pdf"),
+)
+
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 radiomics_federated_central >> put_radiomics_to_minio >> clean
-radiomics_federated_central >> radiomics_reporting >> clean
+radiomics_federated_central >> radiomics_reporting >> put_report_to_minio >> clean

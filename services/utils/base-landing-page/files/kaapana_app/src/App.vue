@@ -15,7 +15,7 @@
           <!-- top navigation -->
           <v-list-item
             v-if="settings.navigationMode && isAuthenticated"
-            :to="'/workflows'"
+            :to="'/datasets'"
           >
             <v-list-item-action>
               <v-icon>mdi-gamepad-variant</v-icon>

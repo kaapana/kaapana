@@ -98,6 +98,8 @@ def filepond_init_upload(form: Form) -> str:
         with open(dict_fpath, "r") as fp:
             filepond_dict = json.load(fp)
     filepond_dict.update({patch: json.loads(form["filepond"])["filepath"]})
+    with open(dict_fpath, "w") as fp:
+        json.dump(filepond_dict, fp)
     return patch
 
 

@@ -34,34 +34,27 @@ class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):
         print(kwargs)
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
+        if self.level == "element":
+            dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
+        elif self.level == "batch":
+            dirs = [run_dir]
 
-        for batch_element_dir in batch_dirs:
-            # create batch-element out dir
-            batch_element_out_dir = os.path.join(
-                batch_element_dir, self.operator_out_dir
-            )
-            Path(batch_element_out_dir).mkdir(exist_ok=True)
+        for dir_ in dirs:
+            # create out_dir on given level
+            out_dir_ = os.path.join(dir_, self.operator_out_dir)
+            Path(out_dir_).mkdir(exist_ok=True)
 
-            first_batch_element_in_dir = os.path.join(
-                batch_element_dir, self.first_input_operator
-            )
-            frist_fnames = glob.glob(
-                os.path.join(first_batch_element_in_dir, "*"), recursive=True
-            )
+            first_in_dir_ = os.path.join(dir_, self.first_input_operator)
+            frist_fnames = glob.glob(os.path.join(first_in_dir_, "*"), recursive=True)
             print(f"{frist_fnames=}")
-            second_batch_element_in_dir = os.path.join(
-                batch_element_dir, self.second_input_operator
-            )
-            second_fnames = glob.glob(
-                os.path.join(second_batch_element_in_dir, "*"), recursive=True
-            )
+            second_in_dir_ = os.path.join(dir_, self.second_input_operator)
+            second_fnames = glob.glob(os.path.join(second_in_dir_, "*"), recursive=True)
             print(f"{second_fnames=}")
             fnames = frist_fnames + second_fnames
 
             for idx, fname in enumerate(fnames):
                 src = os.path.join(fname)
-                dst = os.path.join(batch_element_out_dir, f"{idx}-{basename(fname)}")
+                dst = os.path.join(out_dir_, f"{idx}-{basename(fname)}")
                 print(f"Source: {src}")
                 print(f"Destination: {dst}")
                 shutil.copy(src, dst)
@@ -72,9 +65,11 @@ class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):
         name="merge_2branches",
         first_input_operator=None,
         second_input_operator=None,
+        level="element",
         **kwargs,
     ):
         self.first_input_operator = first_input_operator.name
         self.second_input_operator = second_input_operator.name
+        self.level = level
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

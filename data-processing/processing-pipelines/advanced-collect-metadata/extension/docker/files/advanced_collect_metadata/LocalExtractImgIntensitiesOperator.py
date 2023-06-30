@@ -36,13 +36,12 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
 
-        for batch_element_dir in batch_dirs:
-            # create batch-element out dir
-            batch_element_out_dir = os.path.join(
-                batch_element_dir, self.operator_out_dir
-            )
-            Path(batch_element_out_dir).mkdir(exist_ok=True)
+        # create out_dir on batch level
+        batch_out_dir = os.path.join(run_dir, self.operator_out_dir)
+        Path(batch_out_dir).mkdir(exist_ok=True)
 
+        histo_dict = {}
+        for batch_element_dir in batch_dirs:
             # check if json_operator is defined; if yes load existing json file from json_operator's dir
             if self.json_operator:
                 batch_element_json_in_dir = os.path.join(
@@ -70,18 +69,24 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
             pixel_data = nifti.get_fdata()
             unique_values, counts = np.unique(pixel_data, return_counts=True)
-            histo_dict = {
+            histo_dict_el = {
                 f"{value}": f"{count}" for value, count in zip(unique_values, counts)
             }
+            for key, value in histo_dict_el.items():
+                if key not in histo_dict:
+                    histo_dict[key] = int(value)
+                else:
+                    histo_dict[key] = int(histo_dict[key]) + int(value)
+            print(f"{histo_dict=}")
             json_data["pixel_intensities_n_freq"] = histo_dict
 
-            # save to out_dir
-            with open(
-                os.path.join(batch_element_out_dir, "metadata_n_histodata.json"),
-                "w",
-                encoding="utf-8",
-            ) as fp:
-                json.dump(json_data, fp, indent=4, sort_keys=False, ensure_ascii=False)
+        # save to out_dir
+        with open(
+            os.path.join(batch_out_dir, "histodata.json"),
+            "w",
+            encoding="utf-8",
+        ) as fp:
+            json.dump(histo_dict, fp, indent=4, sort_keys=False, ensure_ascii=False)
 
     def __init__(
         self,

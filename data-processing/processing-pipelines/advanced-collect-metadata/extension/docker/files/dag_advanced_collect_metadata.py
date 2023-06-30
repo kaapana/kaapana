@@ -16,9 +16,6 @@ from advanced_collect_metadata.LocalExtractSegMetadataOperator import (
 from advanced_collect_metadata.LocalMergeBranchesOperator import (
     LocalMergeBranchesOperator,
 )
-from advanced_collect_metadata.LocalFedPackagingOperator import (
-    LocalFedPackagingOperator,
-)
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
@@ -98,32 +95,29 @@ extract_seg_metadata = LocalExtractSegMetadataOperator(
     dag=dag,
     input_operator=dcm2nifti_seg,
     json_operator=extract_metadata,
-)
-
-### COMMON ###
-merge_branches = LocalMergeBranchesOperator(
-    dag=dag,
-    first_input_operator=extract_img_intensities,
-    second_input_operator=extract_seg_metadata,
-    trigger_rule=TriggerRule.ALL_DONE,
+    img_operator=dcm2nifti_ct,
 )
 
 concat_metadata = LocalConcatJsonOperator(
     dag=dag,
-    name="concatenated-metadata",
-    input_operator=merge_branches,
+    name="concatenate-seg-metadata",
+    input_operator=extract_seg_metadata,
 )
 
-packaging = LocalFedPackagingOperator(
+### COMMON ###
+
+merge_branches = LocalMergeBranchesOperator(
     dag=dag,
-    input_operator=concat_metadata,
+    first_input_operator=extract_img_intensities,
+    second_input_operator=concat_metadata,
     level="batch",
+    trigger_rule=TriggerRule.ALL_DONE,
 )
 
 put_to_minio = LocalMinioOperator(
     dag=dag,
     action="put",
-    action_operators=[packaging],
+    action_operators=[merge_branches],
     bucket_name="downloads",
     zip_files=True,
 )
@@ -140,9 +134,13 @@ clean = LocalWorkflowCleanerOperator(
     >> dcm2nifti_ct
     >> extract_img_intensities
     >> merge_branches
-    >> concat_metadata
-    >> packaging
     >> put_to_minio
     >> clean
 )
-extract_metadata >> dcm2nifti_seg >> extract_seg_metadata >> merge_branches
+(
+    extract_metadata
+    >> dcm2nifti_seg
+    >> extract_seg_metadata
+    >> concat_metadata
+    >> merge_branches
+)

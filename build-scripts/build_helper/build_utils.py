@@ -5,6 +5,7 @@ import networkx as nx
 from os.path import join, dirname, basename, exists
 from git import Repo
 
+
 class BuildUtils:
     max_build_rounds = 5
     container_images_available = None

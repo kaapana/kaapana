@@ -37,7 +37,9 @@ UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
 def remove_outdated_tmp_files(search_dir):
     max_hours_tmp_files = 24
     files_grabbed = (
-        p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".tmppatch", ".tmpfile"}
+        p.resolve()
+        for p in Path(search_dir).glob("*")
+        if p.suffix in {".tmppatch", ".tmpfile"}
     )
 
     for file_found in files_grabbed:

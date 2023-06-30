@@ -22,13 +22,16 @@ class RadiomicsFederatedTraining(KaapanaFederatedTrainingBase):
         super().__init__()
 
     @timeit
-    def upload_workflow_dir_to_minio_object(self, federated_round, tmp_central_site_info):
+    def upload_workflow_dir_to_minio_object(
+        self, federated_round, tmp_central_site_info
+    ):
         # Overwrite base function since no upload back to minio is needed
         pass
 
     @timeit
     def update_data(self, federated_round, tmp_central_site_info):
         pass
+
 
 if __name__ == "__main__":
     # instantiate FederatedTraining class

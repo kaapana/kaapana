@@ -59,6 +59,7 @@ from pathlib import Path
 
 schedule_lockfile = Path("/kaapana/mounted/schedule_stop.lock")
 
+
 class PodStatus(object):
     PENDING = "pending"
     RUNNING = "running"

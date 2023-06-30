@@ -645,7 +645,11 @@ if __name__ == "__main__":
     BuildUtils.enable_image_stats = enable_image_stats
     BuildUtils.create_sboms = create_sboms
 
-    if BuildUtils.vulnerability_scan or BuildUtils.create_sboms or BuildUtils.configuration_check:
+    if (
+        BuildUtils.vulnerability_scan
+        or BuildUtils.create_sboms
+        or BuildUtils.configuration_check
+    ):
         BuildUtils.logger.info("Initializing Trivy.")
         BuildUtils.trivy_utils = TrivyUtils(tag="no_tag_yet")
 

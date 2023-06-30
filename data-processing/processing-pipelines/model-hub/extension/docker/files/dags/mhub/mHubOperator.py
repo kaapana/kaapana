@@ -26,7 +26,9 @@ class mHubOperator(KaapanaBaseOperator):
             raise ValueError("You need to select a mhub_model!")
 
         # Tricking the CI to not check of image_name but still building all mhubai docker containers
-        image_name = f"{DEFAULT_REGISTRY}/mhubai-{image}-{self.tag}:{KAAPANA_BUILD_VERSION}"
+        image_name = (
+            f"{DEFAULT_REGISTRY}/mhubai-{image}-{self.tag}:{KAAPANA_BUILD_VERSION}"
+        )
         # self.image=f"{DEFAULT_REGISTRY}/mhubai-totalsegmentator-cuda:{KAAPANA_BUILD_VERSION}"
         # self.image=f"{DEFAULT_REGISTRY}/mhubai-totalsegmentator-nocuda:{KAAPANA_BUILD_VERSION}"
         self.image = image_name
@@ -64,7 +66,10 @@ class mHubOperator(KaapanaBaseOperator):
             name=name,
             image_pull_secrets=["registry-secret"],
             cmds=["bash"],
-            arguments=["/kaapana/mounted/workflows/mounted_scripts/mhub/mhub.sh", self.tag],
+            arguments=[
+                "/kaapana/mounted/workflows/mounted_scripts/mhub/mhub.sh",
+                self.tag,
+            ],
             ram_mem_mb=ram_mem_mb,
             ram_mem_mb_lmt=ram_mem_mb_lmt,
             gpu_mem_mb=gpu_mem_mb,

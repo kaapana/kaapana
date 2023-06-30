@@ -82,9 +82,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-radiomics_federated_central = RadiomicsFederatedOperator(
-    dag=dag
-)
+radiomics_federated_central = RadiomicsFederatedOperator(dag=dag)
 
 put_radiomics_to_minio = LocalMinioOperator(
     dag=dag, action="put", action_operators=[radiomics_federated_central]

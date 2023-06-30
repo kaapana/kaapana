@@ -14,6 +14,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
+
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     """
     This operater pushes JSON data to OpenSearch.

@@ -18,6 +18,7 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
     * expired_period: Clean items that have expired since a certain period.
 
     """
+
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
 
@@ -49,7 +50,7 @@ class LocalCleanUpExpiredWorkflowDataOperator(KaapanaPythonBaseOperator):
         :param dag: DAG in which the operator has to be executed.
         :param expired_period: Clean items that have expired since in day(s), default: 60 days
         """
-        
+
         self.expired_period = expired_period
 
         super().__init__(

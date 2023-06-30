@@ -135,7 +135,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
             "name": chart["name"],
             "version": chart["version"],
             "keywords": chart["keywords"],
-            "release_name":  f"prefetch-dag-chart-{secrets.token_hex(10)}"#, f"p-{chart_name}",
+            "release_name": f"prefetch-dag-chart-{secrets.token_hex(10)}",  # , f"p-{chart_name}",
         }
 
         if "kaapanaworkflow" in chart["keywords"]:

@@ -111,10 +111,10 @@ class Pod:
         # spec
         pod_spec = kubernetes.client.V1PodSpec(containers=[])
         pod_spec.restart_policy = self.restart_policy
-        
+
         if self.priority_class_name is not None:
             pod_spec.priority_class_name = self.priority_class_name
-            
+
         if self.priority is not None:
             pod_spec.priority = self.priority
 

@@ -39,7 +39,7 @@ def periodically_get_remote_updates():
     # From: https://github.com/dmontagu/fastapi-utils/issues/230
     # In the future also think about integrating celery, this might help with the issue of repeated execution: https://testdriven.io/blog/fastapi-and-celery/
     parent_process = psutil.Process(os.getppid())
-    children = parent_process.children(recursive=True) # List of all child processes
+    children = parent_process.children(recursive=True)  # List of all child processes
     if children[0].pid == os.getpid():
         with SessionLocal() as db:
             try:
@@ -57,7 +57,7 @@ def periodically_sync_states_from_airflow():
     # From: https://github.com/dmontagu/fastapi-utils/issues/230
     # In the future also think about integrating celery, this might help with the issue of repeated execution: https://testdriven.io/blog/fastapi-and-celery/
     parent_process = psutil.Process(os.getppid())
-    children = parent_process.children(recursive=True) # List of all child processes
+    children = parent_process.children(recursive=True)  # List of all child processes
     if children[0].pid == os.getpid():
         with SessionLocal() as db:
             try:

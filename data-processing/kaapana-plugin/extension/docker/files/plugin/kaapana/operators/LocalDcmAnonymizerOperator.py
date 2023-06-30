@@ -28,19 +28,8 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
             print("DCMDICTPATH not found...")
             raise ValueError("ERROR")
 
-        anonymize_dict_path = (
-            os.path.dirname(os.path.realpath(__file__)) + "/anonymize-tags.json"
-        )
-
-        with open(anonymize_dict_path) as data_file:
-            anonymize_tags = json.load(data_file)
-            if "source" in anonymize_tags:
-                del anonymize_tags["source"]
-
-        print("Anonymize tag loaded...")
-
         erase_tags = ""
-        for tag in list(anonymize_tags.keys()):  # [:15]:
+        for tag in list(self.anonymize_tags.keys()):  # [:15]:
             erase_tags += ' --erase-all "(%s)"' % tag
 
         run_dir = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
@@ -81,17 +70,27 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
                 if self.single_slice:
                     break
 
-    def __init__(self, dag, bulk=False, overwrite=True, single_slice=False, **kwargs):
+    def __init__(
+        self,
+        dag,
+        bulk=False,
+        overwrite=True,
+        single_slice=False,
+        anonymize_tags=None,
+        **kwargs,
+    ):
         """
         :param bulk: process all files of a series or only the first one (default: False).
         :param overwrite: should overwrite or not (default: True).
         :param single_slice: only single slice to be processed or not (default: False).
+        :param anonymize_tags: tags to be anonymized (default: None).
         """
 
         self.dcmodify_path = "dcmodify"
         self.bulk = bulk
         self.overwrite = overwrite
         self.single_slice = single_slice
+        self.anonymize_tags = anonymize_tags
 
         if "DCMDICTPATH" in os.environ and "DICT_PATH" in os.environ:
             # DCMDICTPATH is used by dcmtk / dcmodify
@@ -103,6 +102,18 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
             print("dict_path: {}".format(os.getenv("DICT_PATH")))
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             raise ValueError("ERROR")
+
+        if not self.anonymize_tags:
+            anonymize_dict_path = (
+                os.path.dirname(os.path.realpath(__file__)) + "/anonymize-tags.json"
+            )
+
+            with open(anonymize_dict_path) as data_file:
+                self.anonymize_tags = json.load(data_file)
+                if "source" in self.anonymize_tags:
+                    del self.anonymize_tags["source"]
+
+            print("Anonymize tag loaded...")
 
         super().__init__(
             dag=dag, name="dcm-anonymizer", python_callable=self.start, **kwargs

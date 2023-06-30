@@ -30,6 +30,9 @@
       <template v-slot:item.time_updated="{ item }">
         {{ new Date(item.time_updated).toLocaleString() }}
       </template>
+      <template v-slot:item.time_created="{ item }">
+        {{ new Date(item.time_created).toLocaleString() }}
+      </template>
         <template v-slot:bottom>
           <div class="text-center pt-2">
             <v-pagination

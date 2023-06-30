@@ -66,7 +66,7 @@ function radiomics {
             echo "# json_filepath: $json_filepath"
             echo "#"
 
-            install -Dv / "$xml_filepath"
+            # install -Dv / "$xml_filepath"
             echo "###"
             echo "### COMMAND: /kaapana/app/MitkCLGlobalImageFeatures.sh -i $file -o $csv_filepath -x $xml_filepath -m $maskfile -rm 1 -sp 1 -head 1 -fl-head 1 $PARAMETERS"
             echo "###"

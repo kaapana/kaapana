@@ -65,7 +65,6 @@ if __name__ == "__main__":
         help="Ignore unfixed vulnerabilities",
     )
 
-    
     args = parser.parse_args()
 
     tag = args.tag
@@ -79,7 +78,7 @@ if __name__ == "__main__":
     if java_reports and python_reports:
         logger.error("Cannot analyze java and python reports at the same time")
         exit(1)
-    
+
     if java_reports and os_reports:
         logger.error("Cannot analyze java and os reports at the same time")
         exit(1)
@@ -91,7 +90,9 @@ if __name__ == "__main__":
     logger.info(f"Analyzing reports for tag {tag} with severity {severity}")
 
     # load report
-    report_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), tag + "_vulnerability_reports.json")
+    report_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), tag + "_vulnerability_reports.json"
+    )
 
     if not os.path.exists(report_path):
         logger.error(f"Report {report_path} does not exist")
@@ -104,43 +105,73 @@ if __name__ == "__main__":
 
     logger.info(f"Found {len(reports)} reports: ")
     for module in reports:
-        if 'Results' in reports[module]:
-            for issue in reports[module]['Results']:
-                if 'Vulnerabilities' in issue:
-                    for vulnerability in issue['Vulnerabilities']:
-                        if vulnerability['Severity'] in severity:
-                            if not vulnerability['VulnerabilityID'] in cves:
+        if "Results" in reports[module]:
+            for issue in reports[module]["Results"]:
+                if "Vulnerabilities" in issue:
+                    for vulnerability in issue["Vulnerabilities"]:
+                        if vulnerability["Severity"] in severity:
+                            if not vulnerability["VulnerabilityID"] in cves:
+                                if java_reports and issue["Target"] != "Java":
+                                    continue
+                                if python_reports and issue["Target"] != "Python":
+                                    continue
+                                if os_reports and issue["Class"] != "os-pkgs":
+                                    continue
+                                if (
+                                    ignore_unfixed
+                                    and not "FixedVersion" in vulnerability
+                                ):
+                                    continue
 
-                                if java_reports and issue['Target'] != "Java":
-                                    continue
-                                if python_reports and issue['Target'] != "Python":
-                                    continue
-                                if os_reports and issue['Class'] != "os-pkgs":
-                                    continue
-                                if ignore_unfixed and not 'FixedVersion' in vulnerability:
-                                    continue
-                                
-                                cves[vulnerability['VulnerabilityID']] = {
-                                    "Class": issue['Class'] if 'Class' in issue else None,
-                                    "Type": issue['Type'] if 'Type' in issue else None,
-                                    "Title": vulnerability['Title'] if 'Title' in vulnerability else None,
-                                    "PkgName": vulnerability['PkgName'],
-                                    "PublishedDate": vulnerability['PublishedDate'] if 'PublishedDate' in vulnerability else None,
-                                    "LastModifiedDate": vulnerability['LastModifiedDate'] if 'LastModifiedDate' in vulnerability else None,
-                                    "InstalledVersion": vulnerability['InstalledVersion'],
-                                    "FixedVersion": vulnerability['FixedVersion'] if 'FixedVersion' in vulnerability else None,
-                                    "Severity": vulnerability['Severity'],
-                                    "SeveritySource": vulnerability['SeveritySource'] if 'SeveritySource' in vulnerability else None,
-                                    "Target": issue['Type'] if issue['Type'] in issue['Target'] else issue['Target'],
+                                cves[vulnerability["VulnerabilityID"]] = {
+                                    "Class": issue["Class"]
+                                    if "Class" in issue
+                                    else None,
+                                    "Type": issue["Type"] if "Type" in issue else None,
+                                    "Title": vulnerability["Title"]
+                                    if "Title" in vulnerability
+                                    else None,
+                                    "PkgName": vulnerability["PkgName"],
+                                    "PublishedDate": vulnerability["PublishedDate"]
+                                    if "PublishedDate" in vulnerability
+                                    else None,
+                                    "LastModifiedDate": vulnerability[
+                                        "LastModifiedDate"
+                                    ]
+                                    if "LastModifiedDate" in vulnerability
+                                    else None,
+                                    "InstalledVersion": vulnerability[
+                                        "InstalledVersion"
+                                    ],
+                                    "FixedVersion": vulnerability["FixedVersion"]
+                                    if "FixedVersion" in vulnerability
+                                    else None,
+                                    "Severity": vulnerability["Severity"],
+                                    "SeveritySource": vulnerability["SeveritySource"]
+                                    if "SeveritySource" in vulnerability
+                                    else None,
+                                    "Target": issue["Type"]
+                                    if issue["Type"] in issue["Target"]
+                                    else issue["Target"],
                                     "Modules": [module],
                                 }
                             else:
-                                if not module in cves[vulnerability['VulnerabilityID']]['Modules']:
-                                    cves[vulnerability['VulnerabilityID']]['Modules'].append(module)
+                                if (
+                                    not module
+                                    in cves[vulnerability["VulnerabilityID"]]["Modules"]
+                                ):
+                                    cves[vulnerability["VulnerabilityID"]][
+                                        "Modules"
+                                    ].append(module)
 
     logger.info(f"Found {len(cves)} vulnerabilities: ")
 
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), tag + "_cves.json"), "w") as f:
+    with open(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), tag + "_cves.json"),
+        "w",
+    ) as f:
         json.dump(cves, f, indent=4)
 
-    logger.info(f"Saved to {os.path.join(os.path.dirname(os.path.abspath(__file__)), tag + '_cvess.json')}")
+    logger.info(
+        f"Saved to {os.path.join(os.path.dirname(os.path.abspath(__file__)), tag + '_cvess.json')}"
+    )

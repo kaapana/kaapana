@@ -11,6 +11,7 @@ import datetime
 
 suite_tag = "security"
 
+
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:
@@ -45,7 +46,7 @@ class TrivyUtils:
                     msg="Trivy is not installed",
                     level="ERROR",
                 )
-                
+
         # Check if severity level is set (enable all vulnerabily severity levels if not set)
         if (
             BuildUtils.vulnerability_severity_level == ""
@@ -85,10 +86,8 @@ class TrivyUtils:
         os.makedirs(self.reports_path, exist_ok=True)
 
         self.database_timestamp = self.get_database_next_update_timestamp()
-        
 
     def create_vulnerability_reports(self, list_of_images):
-
         if self.cache:
             self.load_cache()
 
@@ -300,7 +299,7 @@ class TrivyUtils:
                                 compressed_vulnerability_report[target["Target"]][
                                     "FixedVersion"
                                 ] = vulnerability["FixedVersion"]
-                                
+
                             compressed_vulnerability_report[target["Target"]][
                                 "Severity"
                             ] = vulnerability["Severity"]
@@ -513,7 +512,10 @@ class TrivyUtils:
             "-f",
             "json",
             "-o",
-            os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_chart_report.json"),
+            os.path.join(
+                self.reports_path,
+                f"{BuildUtils.platform_repo_version}_chart_report.json",
+            ),
             "--severity",
             BuildUtils.configuration_check_severity_level,
             path_to_chart,
@@ -523,7 +525,7 @@ class TrivyUtils:
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,
-            timeout=self.timeout*2,
+            timeout=self.timeout * 2,
         )
 
         if output.returncode != 0:
@@ -537,7 +539,13 @@ class TrivyUtils:
             )
 
         # read the chart report file
-        with open(os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_chart_report.json"), "r") as f:
+        with open(
+            os.path.join(
+                self.reports_path,
+                f"{BuildUtils.platform_repo_version}_chart_report.json",
+            ),
+            "r",
+        ) as f:
             chart_report = json.load(f)
 
         compressed_chart_report = {}
@@ -575,7 +583,11 @@ class TrivyUtils:
                 "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
             )
             with open(
-                os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_compressed_chart_report.json"), "w"
+                os.path.join(
+                    self.reports_path,
+                    f"{BuildUtils.platform_repo_version}_compressed_chart_report.json",
+                ),
+                "w",
             ) as f:
                 json.dump(compressed_chart_report, f)
 
@@ -585,15 +597,34 @@ class TrivyUtils:
                 "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
             )
             with open(
-                os.path.join(self.reports_path, f"{BuildUtils.platform_repo_version}_compressed_dockerfile_report.json"), "w"
+                os.path.join(
+                    self.reports_path,
+                    f"{BuildUtils.platform_repo_version}_compressed_dockerfile_report.json",
+                ),
+                "w",
             ) as f:
                 json.dump(self.compressed_dockerfile_report, f)
 
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
-
-        command = ['trivy', 'config', '-f', 'json', '-o', os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), '--severity', BuildUtils.configuration_check_severity_level, path_to_dockerfile]
-        output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=self.timeout)
+        command = [
+            "trivy",
+            "config",
+            "-f",
+            "json",
+            "-o",
+            os.path.join(BuildUtils.build_dir, "dockerfile_report.json"),
+            "--severity",
+            BuildUtils.configuration_check_severity_level,
+            path_to_dockerfile,
+        ]
+        output = run(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=self.timeout,
+        )
 
         if output.returncode != 0:
             BuildUtils.logger.error("Failed to check Dockerfile")
@@ -606,7 +637,9 @@ class TrivyUtils:
             )
 
         # Log the dockerfile report
-        with open(os.path.join(BuildUtils.build_dir, 'dockerfile_report.json'), 'r') as f:
+        with open(
+            os.path.join(BuildUtils.build_dir, "dockerfile_report.json"), "r"
+        ) as f:
             dockerfile_report = json.load(f)
 
         # Check if the report contains any results -> weird if it doesn't e.g. when the Dockerfile is empty
@@ -799,7 +832,9 @@ class TrivyUtils:
 
     def extract_individual_cves(self):
         # load report
-        report_path = os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json")
+        report_path = os.path.join(
+            self.reports_path, self.tag + "_vulnerability_reports.json"
+        )
 
         if not os.path.exists(report_path):
             BuildUtils.logger.error(f"Report {report_path} does not exist")
@@ -812,35 +847,67 @@ class TrivyUtils:
 
         BuildUtils.logger.info(f"Found {len(reports)} reports: ")
         for module in reports:
-            if 'Results' in reports[module]:
-                for issue in reports[module]['Results']:
-                    if 'Vulnerabilities' in issue:
-                        for vulnerability in issue['Vulnerabilities']:
-                            if vulnerability['Severity'] in BuildUtils.vulnerability_severity_level:
-                                if not vulnerability['VulnerabilityID'] in cves:
-                                    
-                                    cves[vulnerability['VulnerabilityID']] = {
-                                        "Class": issue['Class'] if 'Class' in issue else None,
-                                        "Type": issue['Type'] if 'Type' in issue else None,
-                                        "Title": vulnerability['Title'] if 'Title' in vulnerability else None,
-                                        "PkgName": vulnerability['PkgName'],
-                                        "PublishedDate": vulnerability['PublishedDate'] if 'PublishedDate' in vulnerability else None,
-                                        "LastModifiedDate": vulnerability['LastModifiedDate'] if 'LastModifiedDate' in vulnerability else None,
-                                        "InstalledVersion": vulnerability['InstalledVersion'],
-                                        "FixedVersion": vulnerability['FixedVersion'] if 'FixedVersion' in vulnerability else None,
-                                        "Severity": vulnerability['Severity'],
-                                        "SeveritySource": vulnerability['SeveritySource'] if 'SeveritySource' in vulnerability else None,
-                                        "Target": issue['Type'] if issue['Type'] in issue['Target'] else issue['Target'],
+            if "Results" in reports[module]:
+                for issue in reports[module]["Results"]:
+                    if "Vulnerabilities" in issue:
+                        for vulnerability in issue["Vulnerabilities"]:
+                            if (
+                                vulnerability["Severity"]
+                                in BuildUtils.vulnerability_severity_level
+                            ):
+                                if not vulnerability["VulnerabilityID"] in cves:
+                                    cves[vulnerability["VulnerabilityID"]] = {
+                                        "Class": issue["Class"]
+                                        if "Class" in issue
+                                        else None,
+                                        "Type": issue["Type"]
+                                        if "Type" in issue
+                                        else None,
+                                        "Title": vulnerability["Title"]
+                                        if "Title" in vulnerability
+                                        else None,
+                                        "PkgName": vulnerability["PkgName"],
+                                        "PublishedDate": vulnerability["PublishedDate"]
+                                        if "PublishedDate" in vulnerability
+                                        else None,
+                                        "LastModifiedDate": vulnerability[
+                                            "LastModifiedDate"
+                                        ]
+                                        if "LastModifiedDate" in vulnerability
+                                        else None,
+                                        "InstalledVersion": vulnerability[
+                                            "InstalledVersion"
+                                        ],
+                                        "FixedVersion": vulnerability["FixedVersion"]
+                                        if "FixedVersion" in vulnerability
+                                        else None,
+                                        "Severity": vulnerability["Severity"],
+                                        "SeveritySource": vulnerability[
+                                            "SeveritySource"
+                                        ]
+                                        if "SeveritySource" in vulnerability
+                                        else None,
+                                        "Target": issue["Type"]
+                                        if issue["Type"] in issue["Target"]
+                                        else issue["Target"],
                                         "Modules": [module],
                                     }
                                 else:
-                                    if not module in cves[vulnerability['VulnerabilityID']]['Modules']:
-                                        cves[vulnerability['VulnerabilityID']]['Modules'].append(module)
+                                    if (
+                                        not module
+                                        in cves[vulnerability["VulnerabilityID"]][
+                                            "Modules"
+                                        ]
+                                    ):
+                                        cves[vulnerability["VulnerabilityID"]][
+                                            "Modules"
+                                        ].append(module)
 
         BuildUtils.logger.info(f"Found {len(cves)} individual vulnerabilities")
 
         with open(os.path.join(self.reports_path, self.tag + "_cves.json"), "w") as f:
             json.dump(cves, f, indent=4)
+
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

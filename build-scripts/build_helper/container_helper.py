@@ -469,8 +469,12 @@ class Container:
 
                 hours, rem = divmod(time() - startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
-                BuildUtils.logger.debug(f"{self.build_tag}: Build-time: {duration_time_text}")
+                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(
+                    int(hours), int(minutes), seconds
+                )
+                BuildUtils.logger.debug(
+                    f"{self.build_tag}: Build-time: {duration_time_text}"
+                )
                 return issue, duration_time_text
 
             else:
@@ -606,7 +610,9 @@ class Container:
                 )
                 hours, rem = divmod(time() - startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
+                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(
+                    int(hours), int(minutes), seconds
+                )
                 if output.returncode == 0 or "configured as immutable" in output.stderr:
                     break
             if output.returncode == 0:

@@ -141,19 +141,25 @@ Radiomics (radiomics-dcmseg)
 MITK Flow
 ---------
 | **What's going on?**
-| 1) A MITK instance is started in a noVNC application.
-| 2) The noVNC application with MITK running can be accessed via the *Pending applications* page.
-| 3) After finishing manual interaction newly created segmentations are uploaed to the PACS.
+| 1) A MITK instance is launched within a noVNC application.
+| 2) Access the noVNC application with MITK running through the Pending applications page.
+| 3) In MITK, load the first task from the Kaapana Task List **Load task 1/x**.
+| 4) Modify or create segmentations.
+| 5) Accept the segmentations by clicking **Accept segmentation**. Only accepted segmentations will be stored.
+| 6) Load the next task.
+| 7) After completing manual interactions, click **Finish Manual Interaction** on the Pending applications page. Newly created segmentations will be uploaded to the PACS.
 
 | **Notes:**
-| The *mitk-flow* workflow is intended to generate segmentations with MITK tools.
-  Inside the initialized MITK application only a single series is available.
-  If your work with this series is finished, save the project and exit the MITK application.
-  Within noVNC MITK will automatically be restarted with the next series available.
-  After finishing the manual interaction all created segmentations will be send to the PACS.
-  In the Kibana-Dashboard the segmentations are tagged as "MITK-flow".
-  If no segmentations were created or no project was saved, 
-  **the workflow will fail** because the :code:`DcmSendOperator` fails when no data was send.
+| The *mitk-flow* workflow aims to generate segmentations using MITK tools.
+| Inside the initialized MITK application, a task list is created, containing all series selected in the workflow. Depending on the input data, there are two possibilities to create new segmentations:
+
+| 1) If the input data is an image series, a new segmentation can be directly created.
+| 2) If a segmentation is selected as input data, the corresponding image and segmentation are preloaded. The modified segmentation is then stored as a new segmentation in the PACS.
+
+| Once you have completed your work with all series (all tasks are done), all accepted segmentations will be sent to the PACS upon finishing the manual interaction.
+| In the datasets view, the segmentations are tagged as "MITK-flow".
+| If no segmentations were created or no project was saved, the **workflow will fail** because the :code:`DcmSendOperator` fails when no data is sent.
+
 
 | **Input data:**  
 | DICOMs
@@ -195,7 +201,8 @@ Jupyter lab
 MITK Workbench
 --------------
 | **What's going on?**
-| The MITK Workbench is an instance of MITK to watch image data.
+| The MITK Workbench is an instance of `MITK <https://www.mitk.org>`__ running in a pod.
+
 
 | **Mount point:**  
 | <slow_data_dir>/minio

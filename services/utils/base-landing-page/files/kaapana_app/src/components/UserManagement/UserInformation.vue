@@ -3,11 +3,40 @@
     <v-card-title class="d-flex justify-space-between">
       {{ title }}
     </v-card-title>
-    <v-card-text> UserInformation: {{ userInformation }} </v-card-text>
+    <v-card-text> Username: {{ userInformation.name }} </v-card-text>
+    <v-card-text> ID: {{ userInformation.idx }} </v-card-text>
+    <v-card-text> First name: {{ userInformation.firstName }} </v-card-text>
+    <v-card-text> Last name: {{ userInformation.lastName }} </v-card-text>
+    <v-card-text> Email: {{ userInformation.email }} </v-card-text>
+    <v-card-text> Attributes: {{ userInformation.attributes }} </v-card-text>
     <v-divider></v-divider>
-    <v-card-text> Groups: {{ userGroups }} </v-card-text>
+    <table class="table">
+      <thead>
+        <th align="left">Groupname</th>
+        <th align="left">GroupID</th>
+      </thead>
+      <tbody>
+        <tr v-for="group in userGroups" :key="group.name">
+          <td>{{ group.name }}</td>
+          <td>{{ group.idx }}</td>
+        </tr>
+      </tbody>
+    </table>
     <v-divider></v-divider>
-    <v-card-text> Roles: {{ userRoles }} </v-card-text>
+    <table class="table">
+      <thead>
+        <th align="left">Rolename</th>
+        <th align="left">RoleID</th>
+        <th align="left">Description</th>
+      </thead>
+      <tbody>
+        <tr v-for="role in userRoles" :key="role.name">
+          <td>{{ role.name }}</td>
+          <td>{{ role.idx }}</td>
+          <td>{{ role.description }}</td>
+        </tr>
+      </tbody>
+    </table>
     <v-divider></v-divider>
     <v-select
       v-model="new_groups_for_user"

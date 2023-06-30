@@ -1,8 +1,7 @@
-import os
 from os import getenv
-from os.path import join, exists, dirname, basename
-from glob import glob
 from pathlib import Path
+import shutil
+import pydicom
 
 # For shell-execution
 from subprocess import PIPE, run
@@ -88,10 +87,6 @@ assert dcm_tags_to_modify is not None
 
 dcm_tags_to_modify = dcm_tags_to_modify.split(";")
 
-
-# File-extension to search for in the input-dir
-input_file_extension = "*.dcm"
-
 # How many processes should be started?
 parallel_processes = 3
 
@@ -113,17 +108,18 @@ print("#")
 print("##################################################")
 print("#")
 
+
 # Loop for every batch-element (usually series)
-batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
+batch_folders = sorted(list(Path("/", workflow_dir, batch_name).glob("*")))
 for batch_element_dir in batch_folders:
     print("#")
     print(f"# Processing batch-element {batch_element_dir}")
     print("#")
-    element_input_dir = join(batch_element_dir, operator_in_dir)
-    element_output_dir = join(batch_element_dir, operator_out_dir)
+    element_input_dir = batch_element_dir / operator_in_dir
+    element_output_dir = batch_element_dir / operator_out_dir
 
     # check if input dir present
-    if not exists(element_input_dir):
+    if not element_input_dir.exists():
         print("#")
         print(f"# Input-dir: {element_input_dir} does not exists!")
         print("# -> skipping")
@@ -131,16 +127,26 @@ for batch_element_dir in batch_folders:
         continue
 
     # creating output dir
-    Path(element_output_dir).mkdir(parents=True, exist_ok=True)
+    element_output_dir.mkdir(parents=True, exist_ok=True)
 
-    # creating output dir
-    input_files = glob(join(element_input_dir, input_file_extension), recursive=True)
+    # create a list of input files
+    input_files = list(
+        [
+            p
+            for p in (element_input_dir).rglob("*")
+            if p.is_file() and pydicom.misc.is_dicom(p)
+        ]
+    )
     print(f"# Found {len(input_files)} input-files!")
 
+    # copy input files to the output directory before processing
+    output_files = [
+        shutil.copy(input_file, element_output_dir) for input_file in input_files
+    ]
     # Single process:
-    # Loop for every input-file found with extension 'input_file_extension'
-    for input_file in input_files:
-        result, input_file = process_input_file(filepath=input_file)
+    # Loop for every input-file found
+    for output_file in output_files:
+        result, output_file = process_input_file(filepath=output_file)
 
 
 print("#")
@@ -161,21 +167,25 @@ if processed_count == 0:
     print("##################################################")
     print("#")
 
-    batch_input_dir = join("/", workflow_dir, operator_in_dir)
-    batch_output_dir = join("/", workflow_dir, operator_in_dir)
+    batch_input_dir = Path("/", workflow_dir, operator_in_dir)
+    batch_output_dir = Path("/", workflow_dir, operator_in_dir)
 
     # check if input dir present
-    if not exists(batch_input_dir):
+    if not batch_input_dir.exists():
         print("#")
         print(f"# Input-dir: {batch_input_dir} does not exists!")
         print("# -> skipping")
         print("#")
     else:
         # creating output dir
-        Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
+        batch_output_dir.mkdir(parents=True, exist_ok=True)
 
         # creating output dir
-        input_files = glob(join(batch_input_dir, input_file_extension), recursive=True)
+        input_files = [
+            f
+            for f in (batch_input_dir).rglob("*")
+            if f.is_file() and pydicom.misc.is_dicom(f)
+        ]
         print(f"# Found {len(input_files)} input-files!")
 
         # Single process:

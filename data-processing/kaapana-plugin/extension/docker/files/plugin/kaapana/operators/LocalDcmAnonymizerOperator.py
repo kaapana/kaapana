@@ -1,10 +1,9 @@
+from pathlib import Path
 import subprocess
 import os
-import errno
-import glob
 import json
 import shutil
-
+import pydicom
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -44,34 +43,36 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
         for tag in list(anonymize_tags.keys()):  # [:15]:
             erase_tags += ' --erase-all "(%s)"' % tag
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
+        run_dir = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
+        batch_dirs = list((run_dir / self.batch_name).glob("*"))
 
-        print("Found {} batch elements.".format(len(batch_dirs)))
+        print(f"Found {len(batch_dirs)} batch elements.")
 
         anon_command = "dcmodify --no-backup --ignore-missing-tags " + erase_tags + " "
 
         for batch_element_dir in batch_dirs:
-            batch_element_out_dir = os.path.join(
-                batch_element_dir, self.operator_out_dir
-            )
-            dcm_files = sorted(
-                glob.glob(
-                    os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"),
-                    recursive=True,
-                )
-            )
-            for dcm_file in dcm_files:
-                output_filepath = os.path.join(
-                    batch_element_out_dir, os.path.basename(dcm_file)
-                )
-                if not os.path.exists(os.path.dirname(output_filepath)):
-                    os.makedirs(os.path.dirname(output_filepath))
+            batch_element_out_dir = batch_element_dir / self.operator_out_dir
 
-                if not os.path.isfile(output_filepath) or self.overwrite:
+            dcm_files = sorted(
+                [
+                    p
+                    for p in (batch_element_dir / self.operator_in_dir).rglob("*")
+                    if p.is_file() and pydicom.misc.is_dicom(p)
+                ]
+            )
+
+            print(f"Found {len(dcm_files)} in {batch_element_dir}")
+
+            for dcm_file in dcm_files:
+                output_filepath = batch_element_out_dir / dcm_file.name
+
+                if not output_filepath.parent.exists():
+                    output_filepath.parent.mkdir(parents=True)
+
+                if not output_filepath.is_file() or self.overwrite:
                     shutil.copyfile(dcm_file, output_filepath)
 
-                file_command = anon_command + output_filepath
+                file_command = anon_command + str(output_filepath)
                 ret = subprocess.call([file_command], shell=True)
                 if ret != 0:
                     print("Something went wrong with dcmodify...")

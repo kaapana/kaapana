@@ -53,8 +53,9 @@
         color="primary"
         text
         @click="
-          $emit('add-user-to-groups', new_groups_for_user, userInformation);
+          add_user_to_groups(new_groups_for_user, userInformation);
           new_groups_for_user = [];
+          get_user_groups;
         "
       >
         Add user to groups
@@ -75,8 +76,10 @@
         color="primary"
         text
         @click="
-          $emit('assign-roles-to-user', new_roles_for_user, userInformation);
+          assign_roles_to_user(new_roles_for_user, userInformation);
           new_roles_for_user = [];
+          get_user_roles;
+          get_available_roles;
         "
       >
         Assign roles to user
@@ -91,20 +94,134 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 export default {
   name: "UserInformation",
 
-  props: [
-    "userInformation",
-    "userGroups",
-    "userRoles",
-    "title",
-    "available_groups",
-    "available_roles",
-  ],
+  props: ["title", "userId", "roleList", "groupList"],
 
   data() {
     return {
       new_groups_for_user: [],
       new_roles_for_user: [],
+      available_groups: [],
+      available_roles: [],
+      userGroups: [],
+      userRoles: [],
+      userInformation: {
+        username: "",
+        email: "",
+        firstName: "",
+        lastName: "",
+        attributes: {},
+      },
     };
+  },
+
+  watch: {
+    userId() {
+      this.get_user_groups();
+      this.get_user_roles();
+      this.get_user_information();
+    },
+    userRoles() {
+      this.get_available_roles();
+    },
+    userGroups() {
+      this.get_available_groups();
+    },
+  },
+
+  mounted() {
+    this.get_user_information(),
+      this.get_available_groups(),
+      this.get_user_groups(),
+      this.get_available_roles(),
+      this.get_user_roles();
+  },
+
+  computed: {
+    computedAvailableGroups() {
+      return [...this.available_groups];
+    },
+    computedUserGroups() {
+      return [...this.userGroups];
+    },
+    computedAvailableRoles() {
+      return [...this.available_roles];
+    },
+    computedUserRoles() {
+      return [...this.userRoles];
+    },
+  },
+
+  methods: {
+    get_user_information() {
+      self = this;
+      kaapanaApiService
+        .kaapanaApiGet("users/" + self.userId)
+        .then((response) => {
+          this.userInformation = response.data;
+        })
+        .catch((error) => {
+          console.error("Error fetching user information:", error);
+        });
+    },
+    add_user_to_groups(new_groups_for_user, userInformation) {
+      let idx = userInformation.idx;
+      let payload = new_groups_for_user;
+      kaapanaApiService
+        .kaapanaApiPut("users/" + idx + "/groups", (payload = payload))
+        .then((response) => {
+          this.get_user_groups();
+        })
+        .catch((error) => {
+          console.log("Error adding user to groups", error);
+        });
+    },
+    get_available_groups() {
+      this.available_groups = this.groupList.filter((group) => {
+        return !this.userGroups.some((userGroup) => userGroup.idx === group.idx);
+      });
+    },
+    get_user_groups() {
+      let self = this;
+      kaapanaApiService
+        .kaapanaApiGet("users/" + self.userId + "/groups")
+        .then((response) => {
+          this.userGroups = response.data;
+        })
+        .catch((error) => {
+          console.error("Error fetching group information about user:", error);
+        });
+    },
+    assign_roles_to_user(new_roles_for_user, userInformation) {
+      let idx = userInformation.idx;
+      let payload = new_roles_for_user.map((item) => {
+        const { idx, ...rest } = item;
+        return { id: idx, ...rest };
+      });
+      kaapanaApiService
+        .kaapanaApiPut("users/" + idx + "/roles", (payload = payload))
+        .then((response) => {
+          this.get_user_roles();
+        })
+        .catch((error) => {
+          console.log("Error assigning roles to user", error);
+        });
+    },
+    get_available_roles() {
+      this.available_roles = this.roleList.filter((role) => {
+        return !this.userRoles.some((userRole) => userRole.idx === role.idx);
+      });
+    },
+    get_user_roles() {
+      let self = this;
+      kaapanaApiService
+        .kaapanaApiGet("users/" + self.userId + "/roles")
+        .then((response) => {
+          this.userRoles = response.data;
+        })
+        .catch((error) => {
+          console.error("Error fetching roles of user:", error);
+        });
+    },
   },
 };
 </script>

@@ -178,3 +178,7 @@ class UserService:
     def assign_realm_roles(self, user_id: str, roles: list) -> None:
         self._login()
         return self.keycloak_admin.assign_realm_roles(user_id, roles)
+
+    def assign_group_realm_roles(self, group_id: str, roles: list) -> None:
+        self._login()
+        return self.keycloak_admin.assign_group_realm_roles(group_id, roles)

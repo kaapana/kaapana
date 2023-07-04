@@ -108,7 +108,7 @@ async def add_users_to_group(
     users: List[str],
     us=Depends(get_user_service),
 ):
-    """Add users to group by id"""
+    """Add multiple users to group by id"""
     try:
         for user_idx in users:
             us.group_user_add(user_idx, idx)
@@ -116,8 +116,21 @@ async def add_users_to_group(
         raise e
 
 
+@router.put("/groups/{idx}/roles", response_model=None)
+async def assign_roles_to_group(
+    idx: str,
+    roles: List[dict],
+    us=Depends(get_user_service),
+):
+    """Assign realm roles to group"""
+    try:
+        us.assign_group_realm_roles(idx, roles)
+    except Exception as e:
+        raise e
+
+
 @router.put("/{idx}/groups", response_model=None)
-async def add_users_to_group(
+async def add_user_to_groups(
     idx: str,
     groups: List[str],
     us=Depends(get_user_service),
@@ -131,7 +144,7 @@ async def add_users_to_group(
 
 
 @router.put("/{idx}/roles", response_model=None)
-async def assign_user_to_roles(
+async def assign_role_to_user(
     idx: str, roles: List[dict], us=Depends(get_user_service)
 ):
     """Assign realm roles to user"""

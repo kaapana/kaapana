@@ -35,7 +35,9 @@ The section :ref:`workflow_dev_guide` also explains how to write and add your ow
 Uploading Extensions to the Platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Kaapana also provides an upload component for extensions. This allows users to upload both Docker containers and the Helm charts to the platform. Currently, this component only accepts two file types: ".tar" for exported containers and ".tgz" for Helm charts.
+Kaapana also provides an experimental upload component for extensions. This allows users to upload both Docker images and the Helm charts to the platform. Currently, this component only accepts two file types: ".tar" for exported images and ".tgz" for Helm charts.
+
+This feature is intended to be used by **developers who have knowledge about configuring Helm charts and Kubernetes resources**. It is strongly recommended to read the following sections before uploading anything to platform: :ref:`helm_charts` and :ref:`how_to_dockerfile`
 
 **Chart Upload:**
 
@@ -47,10 +49,21 @@ Kaapana also provides an upload component for extensions. This allows users to u
   helm dep up
   helm package .
 
-**Container Upload:**
+.. hint::
+  
+  * If the build step is already completed, all the chart tgz files -and their respective folders- should be available under `kaapana/build/kaapana-admin-chart/kaapana-extension-collection/charts`. The structure should be the same with the DAGs and services already available there.
+  * For any Kubernetes resource yaml inside the templates folder (i.e. deployment, job), the image tag should be referenced correctly (`example field that needs to be changed <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/services/hello-world/hello-world-chart/templates/deployment.yaml#L23>`_).
 
-* Uploaded containers are automatically imported into the microk8s ctr environment (for details see the `images import command here <https://microk8s.io/docs/command-reference#heading--microk8s-ctr>`_) . 
+
+
+**Image Upload:**
+
 * To save an image as a .tar file, use `docker <https://docs.docker.com/engine/reference/commandline/save/>`_ or `podman <https://docs.podman.io/en/latest/markdown/podman-save.1.html>`_.
+* Uploaded images are automatically imported into the microk8s ctr environment (for details see the `images import command here <https://microk8s.io/docs/command-reference#heading--microk8s-ctr>`_) . 
+* A useful command to check if the image is imported with the correct tag into the container runtime is :code:`microk8s ctr images ls | grep <image-tag>`
+
+.. hint::
+    Since the images uploaded via this component are not already available in a registry, the imagePullPolicy field in the corresponding Kubernetes resource yaml files (`example value to be changed <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/services/hello-world/hello-world-chart/templates/deployment.yaml#L24>`_) should be changed to :code:`IfNotPresent`.
 
 
 Extension Parameters

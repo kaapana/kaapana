@@ -24,6 +24,7 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Values.global.services_namespace }}-slim-upgrade-insecure-requests@kubernetescrd
 spec:
   rules:
   - host:
@@ -36,3 +37,12 @@ spec:
             name: slim-service
             port:
               name: slim-http
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware  
+metadata:
+  name: slim-upgrade-insecure-requests
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  headers:
+    contentSecurityPolicy: "upgrade-insecure-requests"

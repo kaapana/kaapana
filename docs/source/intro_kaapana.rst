@@ -14,6 +14,8 @@ Following this federated concept, the goal of Kaapana is to provide a framework 
 
 By adhering to established standards and by adopting widely used open technologies for private cloud development and containerized data processing, Kaapana integrates seamlessly with the existing clinical IT infrastructure, such as the Picture Archiving and Communication System (PACS), and ensures modularity and easy extensibility.
 
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-files/kaapana-v0.2.0-showcase-fps30-1920p.gif
+   :alt: Kaapana v0.2.0
 
 Kaapana is constantly developing and currently includes the following key-features:
     * Large-scale image processing with SOTA deep learning algorithms, such as `nnU-Net <https://github.com/MIC-DKFZ/nnunet/>`_ image segmentation.

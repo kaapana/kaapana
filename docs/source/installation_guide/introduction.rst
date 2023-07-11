@@ -18,4 +18,5 @@ Refer to the flowchart below for deciding which section of the installation guid
         a2-->|Yes| c1
         a2-->|No| b1
         b1(Build Kaapana) --> c1
-        c1(Platform Deployment)
+        c1(Server Installation) --> c2
+        c2(Platform Deployment)

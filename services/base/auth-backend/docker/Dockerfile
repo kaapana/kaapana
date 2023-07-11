@@ -12,4 +12,4 @@ RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build
 COPY ./files/*.py /kaapana/app/
 COPY ./files/*.html /kaapana/app/
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--log-level", "warning"]

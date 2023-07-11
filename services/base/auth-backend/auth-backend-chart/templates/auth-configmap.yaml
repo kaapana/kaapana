@@ -2,83 +2,83 @@
 apiVersion: v1
 data:
   auth_role_mapping.json: |
-{
-    "roles_to_access_unkown_resources": [
+    {
+      "roles_to_access_unkown_resources": [
         "admin",
         "user"
-    ],
-    "role_mapping": {
+      ],
+      "role_mapping": {
         "^/oauth2/metrics": [
-            "whitelisted"
+          "whitelisted"
         ],
         "^/auth/realms/kaapana": [
-            "whitelisted"
+          "whitelisted"
         ],
         "^/auth/resources": [
-            "whitelisted"
+          "whitelisted"
         ],
         "^/kaapana-backend/remote/": [
-            "whitelisted"
+          "whitelisted"
         ],
         "^/meta": [
-            "guest",
-            "user",
-            "admin"
+          "guest",
+          "user",
+          "admin"
         ],
         "^/dcm4chee-arc": [
-            "user",
-            "admin"
+          "user",
+          "admin"
         ],
         "^/flow": [
-            "guest",
-            "user",
-            "admin"
+          "guest",
+          "user",
+          "admin"
         ],
         "^/ohif": [
-            "guest",
-            "user",
-            "admin"
+          "guest",
+          "user",
+          "admin"
         ],
         "^/workflowdata": [
-            "admin"
+          "admin"
         ],
         "^/web-ide": [
-            "user",
-            "admin"
+          "user",
+          "admin"
         ],
         "^/minio-console": [
-            "user",
-            "admin"
+          "user",
+          "admin"
         ],
         "^/jupyterlab": [
-            "user",
-            "admin"
+          "user",
+          "admin"
         ],
         "^/qpsma": [
-            "user",
-            "admin"
+          "user",
+          "admin"
         ],
         "^/doccano": [
-            "user",
-            "admin"
+          "user",
+          "admin"
         ],
         "^/kubernetes": [
-            "admin"
+          "admin"
         ],
         "^/traefik": [
-            "admin"
+          "admin"
         ],
         "^/grafana": [
-            "guest",
-            "user",
-            "admin"
+          "guest",
+          "user",
+          "admin"
         ],
         "^/prometheus": [
-            "user",
-            "admin"
+          "user",
+          "admin"
         ]
+      }
     }
-}
 kind: ConfigMap
 metadata:
   name: auth-check-config

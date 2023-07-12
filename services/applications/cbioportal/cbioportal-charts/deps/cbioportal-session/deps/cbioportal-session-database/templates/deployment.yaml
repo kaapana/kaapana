@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: cbioportal-session-database
-        image: "{{ .Values.global.registry_url }}/mongo-4.2:{{ .Values.global.kaapana_build_version  }}"
+        image: "{{ .Values.global.registry_url }}/mongo-4.2:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy: Always
         env: # Environment variables
         - name: MONGO_INITDB_DATABASE

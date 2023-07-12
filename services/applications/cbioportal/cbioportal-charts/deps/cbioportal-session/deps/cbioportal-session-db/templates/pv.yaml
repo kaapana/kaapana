@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cbio-pv-volume
+  namespace: "services"
+  labels:
+    type: local
+spec:
+  storageClassName: "host-dir"
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  hostPath:
+    path: "/mnt/cbio-session-mongo"

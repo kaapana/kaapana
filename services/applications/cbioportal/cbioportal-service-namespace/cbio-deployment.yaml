@@ -1,0 +1,139 @@
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: cbioportal-deployment
+#   namespace: "services"
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app-name: cbioportal
+#   template:
+#     metadata:
+#       labels:
+#         app-name: cbioportal
+#     spec:
+#       containers:
+#         - name: cbioportal
+#           image: cbioportal/cbioportal:5.3.7
+#           ports:
+#             - containerPort: 8080
+#           command: ["/bin/sh"]
+#           # args: ["-c", "--", "while true; do sleep 30; done;"]
+#           args: ["-c", "java -Xms2g -Xmx4g -Dauthenticate=noauthsessionservice -Dsession.service.url=http://cbioportal-session-service.services.svc:5000/api/sessions/my_portal/ -jar webapp-runner.jar -AmaxHttpHeaderSize=16384 -AconnectionTimeout=20000 --enable-compression /cbioportal-webapp"]
+#           volumeMounts:
+#           - name: study-data # key of volume moment
+#             mountPath: "/study/" # path in container
+#           - name: portal-properties
+#             mountPath: "/cbioportal/portal.properties" 
+#           resources:
+#             requests:
+#               memory: "4Gi"
+#             limits:
+#               memory: "8Gi" 
+
+#       volumes:
+#       - name: study-data
+#         hostPath:
+#           path: "/home/kaapana/cbioportal/study/"
+#           type: Directory
+#       - name: portal-properties
+#         hostPath:
+#           path: "/home/kaapana/cbioportal/config/portal.properties"
+#           type: File
+
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: cbioportal-service
+#   namespace: "services"
+#   labels:
+#     app-name: cbioportal
+
+# spec:
+#   selector:
+#     app-name: cbioportal
+#   ports:
+#     - protocol: TCP
+#       name: cbio-http
+#       port: 8080
+#       targetPort: 8080
+#       # nodePort: 8081 # only for development!
+
+#   type: ClusterIP
+#   # type: NodePort
+
+# ---
+# apiVersion: traefik.containo.us/v1alpha1
+# kind: Middleware
+# metadata:
+#   name: strip-prefix-cbioportal
+#   namespace: "services"
+# spec:
+#   stripPrefix:
+#     prefixes:
+#     - /cbioportal-webapp
+#     forceSlash: false
+# ---
+# apiVersion: networking.k8s.io/v1 
+# kind: Ingress
+# metadata:
+#   name: cbioportal-ingress
+#   namespace: "services"
+#   annotations:
+#     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+#     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+#     traefik.ingress.kubernetes.io/router.middlewares: services-strip-prefix-cbioportal@kubernetescrd
+
+# spec:
+#   rules:
+#   - host:
+#     http:
+#       paths:
+#       - path: /cbioportal-webapp
+#         pathType: ImplementationSpecific
+#         backend:
+#           service:
+#             name: cbioportal-service
+#             port:
+#               number: 8080
+---
+
+# metadata:
+#   namespace: "services"
+#   #namespace: "{{ .Values.global.services_namespace }}"
+#   labels:
+#     app-name: hello-world
+# spec:
+#   selector:
+#     app-name: hello-world
+#   ports:
+#     - name: hw-http
+#       port: 5000 
+#       targetPort: 5000
+#       nodePort: 5000 # only for development!
+#   type: NodePort # only for development!
+# ---
+# apiVersion: networking.k8s.io/v1 
+# kind: Ingress
+# metadata:
+#   name: hello-world-ingress
+#   namespace: "services"
+#   #namespace: "{{ .Values.global.services_namespace }}"
+#   annotations:
+#     traefik.ingress.kubernetes.io/router.entrypoints: websecure
+#     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+# spec:
+#   rules:
+#   - host:
+#     http:
+#       paths:
+#       - path: /hello-world
+#         pathType: ImplementationSpecific
+#         backend:
+#           service:
+#             name: hello-world-service
+#             port:
+#               number: 5000
+# ---

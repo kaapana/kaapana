@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # This name uniquely identifies the Deployment
+  name: cbioportal-session-deployment
+  namespace: "services"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: cbioportal-session
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: cbioportal-session
+    spec:
+      containers:
+      - name: cbioportal-session-container
+        image: "cbioportal/session-service:0.6.1"
+        imagePullPolicy: Always
+        env: # Environment variables
+        - name: SERVER_PORT
+          value: "5000"
+        - name: JAVA_OPTS
+          value: -Dspring.data.mongodb.uri=mongodb://cbioportal-session-database-service.services.svc:27017/session-service
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "100Mi"

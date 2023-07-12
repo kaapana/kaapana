@@ -1,0 +1,9 @@
+apiVersion: v1
+appVersion: "0.2.0"
+description: Helm chart for the cBioPortal webapplication
+name: cbioportal-chart
+version: "0.0.0"
+keywords:
+  - "kaapanapplication"
+  - "kaapanaexperimental"
+  

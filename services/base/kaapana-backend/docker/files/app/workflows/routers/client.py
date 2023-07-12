@@ -241,10 +241,17 @@ def get_jobs(
     workflow_name: str = None,
     status: str = None,
     limit: int = None,
+    username: str = None,
     db: Session = Depends(get_db),
 ):
     return crud.get_jobs(
-        db, instance_name, workflow_name, status, remote=False, limit=limit
+        db,
+        instance_name,
+        workflow_name,
+        status,
+        remote=False,
+        limit=limit,
+        username=username,
     )
 
 

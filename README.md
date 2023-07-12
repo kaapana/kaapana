@@ -3,7 +3,7 @@
 
 ## What is Kaapana?
 
-![KAAPANA v0.2.0](https://www.kaapana.ai/kaapana-downloads/kaapana-files/kaapana-v0.2.0-showcase-fps30-1920p.gif)
+<img src="/utils/kaapana-v0.2.0-showcase-fps30-1920p.gif" width="1080px">
 
 Kaapana (from the hawaiian word kaʻāpana, meaning "distributor" or "part") is an open source toolkit for state of the art platform provisioning in the field of medical data analysis. The applications comprise  AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. 
 

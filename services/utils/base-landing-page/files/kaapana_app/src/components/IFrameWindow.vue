@@ -1,7 +1,8 @@
 
 <template lang="pug"> 
 div(:class="fullSize ? (navigationMode ? 'kaapana-iframe-container-side-navigation' : 'kaapana-iframe-container-top-navigation') : ''")
-  iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="fullSize ? (navigationMode ? 'kapaana-side-navigation' : 'kapaana-top-navigation') : ''" class="no-border" :src="iFrameUrl" @load="setIframeUrl(this)")
+  v-progress-circular(:class="cycleClass" :style="customStyle" indeterminate color="primary")
+  iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="[isLoading? opacity : '', fullSize ? (navigationMode ? 'kapaana-side-navigation' : 'kapaana-top-navigation') : '']" class="no-border" :src="iFrameUrl" @load="setIframeUrl(this)")
 </template>
 
 <script>
@@ -10,7 +11,9 @@ export default {
   data: function () {
     return {
       trackedUrl: '',
-      navigationMode: false
+      navigationMode: false,
+      isLoading: true,
+      cycleClass: 'cycle-bar',
     }
   },
   props: {
@@ -33,6 +36,18 @@ export default {
     customStyle: {
       type: String,
       default: ''
+    }
+  },
+  watch: {
+    iFrameUrl () {
+      console.log('watch')
+      this.cycleClass = "cycle-bar"
+    }
+  },
+  mounted() {
+      this.$refs.iframe.onload = () => {
+        this.isLoading = false
+        this.cycleClass = "hide-cycle-bar"
     }
   },
   methods:{
@@ -58,4 +73,21 @@ export default {
   border: none;
 }
 
+.opacity {
+  opacity: 0.2;
+}
+
+.cycle-bar {
+  position: fixed;
+  margin: auto;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  z-index: 1000000;
+}
+
+.hide-cycle-bar {
+  display: none;
+}
 </style>

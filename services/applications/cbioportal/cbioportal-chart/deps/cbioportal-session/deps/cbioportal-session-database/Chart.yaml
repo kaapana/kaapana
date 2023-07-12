@@ -1,9 +1,0 @@
-apiVersion: v1
-appVersion: "0.2.0"
-description: Helm chart rolling out a mongo db for the session management for the cBioPortal webapplication.
-name: cbioportal-session-database
-version: "0.0.0"
-keywords:
-  - "kaapanapplication"
-  - "kaapanaexperimental"
-  

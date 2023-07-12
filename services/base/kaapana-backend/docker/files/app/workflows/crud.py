@@ -462,6 +462,7 @@ def get_jobs(
     status: str = None,
     remote: bool = True,
     limit=None,
+    username: str = None,
 ):
     if instance_name is not None and status is not None:
         return (
@@ -505,6 +506,15 @@ def get_jobs(
         return (
             db.query(models.Job)
             .filter_by(status=status)
+            .join(models.Job.kaapana_instance, aliased=True)
+            .order_by(desc(models.Job.time_updated))
+            .limit(limit)
+            .all()
+        )  # same as org but w/o filtering by remote
+    elif username is not None:
+        return (
+            db.query(models.Job)
+            .filter_by(username=username)
             .join(models.Job.kaapana_instance, aliased=True)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cbioportal-session-database-service
+  namespace: "services"
+  labels:
+    app-name: cbioportal-session-database
+spec:
+  selector:
+    app-name: cbioportal-session-database
+  ports:
+    - port: 27017
+      targetPort: 27017

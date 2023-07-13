@@ -73,6 +73,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
     def __init__(
         self,
         dag,
+        name="dcm-anonymizer",
         bulk=False,
         overwrite=True,
         single_slice=False,
@@ -115,6 +116,4 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
 
             print("Anonymize tag loaded...")
 
-        super().__init__(
-            dag=dag, name="dcm-anonymizer", python_callable=self.start, **kwargs
-        )
+        super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

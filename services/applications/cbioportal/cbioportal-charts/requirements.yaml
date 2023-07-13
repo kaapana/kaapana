@@ -7,5 +7,3 @@ dependencies:
 - name: cbioportal-session
   version: 0.0.0
   repository: file://deps/cbioportal-session
-- name: kaapana-library-chart
-  version: 0.0.0

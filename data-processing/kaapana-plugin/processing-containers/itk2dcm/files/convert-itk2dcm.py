@@ -422,8 +422,10 @@ class nnUNetDatasetParser:
                     .rstrip("".join(case_path.suffixes))
                 )
                 target_tags = {
-                    "0020|0010": study_id, # Study ID Attribute
-                    "0020|000d": generate_uid(prefix=PYDICOM_ROOT_UID, entropy_srcs=[study_id]) # Study Instance UID Attribute
+                    "0020|0010": study_id,  # Study ID Attribute
+                    "0020|000d": generate_uid(
+                        prefix=PYDICOM_ROOT_UID, entropy_srcs=[study_id]
+                    ),  # Study Instance UID Attribute
                 }
 
                 for channel, v in dataset_json["channel_names"].items():

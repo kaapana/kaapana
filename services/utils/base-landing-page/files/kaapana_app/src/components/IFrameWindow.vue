@@ -1,7 +1,7 @@
 
 <template lang="pug"> 
 div(:class="fullSize ? (navigationMode ? 'kaapana-iframe-container-side-navigation' : 'kaapana-iframe-container-top-navigation') : ''")
-  v-progress-circular(:class="cycleClass" :style="customStyle" indeterminate color="primary")
+  v-progress-circular(:class="cycleClass" :style="customStyle" indeterminate color="#0088cc")
   iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="[isLoading? opacity : '', fullSize ? (navigationMode ? 'kapaana-side-navigation' : 'kapaana-top-navigation') : '']" class="no-border" :src="iFrameUrl" @load="setIframeUrl(this)")
 </template>
 

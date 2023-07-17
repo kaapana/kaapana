@@ -10,7 +10,7 @@ from pathlib import Path
 class LocalLoadPlatformConfigOperator(KaapanaPythonBaseOperator):
     def start(self, ds, ti, **kwargs):
         logging.info("Load platform specific configuration for the DAG run...")
-        dag_run_id = kwargs["run_id"]
+        dag_run_id = kwargs["dag_run"].run_id
         operator_dir = os.path.dirname(os.path.abspath(__file__))
         platform_config_path = os.path.join(
             operator_dir, "platform_specific_config", self.platform_config_file

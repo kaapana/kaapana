@@ -34,7 +34,7 @@ if settings.offline_mode is False and settings.prefetch_extensions is True:
             "Could not prefetch the docker containers, please check the logs!"
         )
 
-    for _ in range(7200):
+    for _ in range(36000):
         releases_installed = {
             release_name: False for release_name in installed_release_names
         }

@@ -16,6 +16,8 @@ from psycopg2.errors import UniqueViolation
 from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
+from sqlalchemy import func, cast, String, JSON
+
 from urllib3.util import Timeout
 
 from app.config import settings
@@ -107,9 +109,9 @@ def get_kaapana_instances(
         return (
             db.query(models.KaapanaInstance)
             .filter(
-                models.KaapanaInstance.allowed_dags.contains(
+                cast(models.KaapanaInstance.allowed_dags, String).contains(
                     filter_kaapana_instances.dag_id
-                ),
+                )
             )
             .all()
         )
@@ -130,7 +132,7 @@ def get_kaapana_instances(
         return (
             db.query(models.KaapanaInstance)
             .filter(
-                models.KaapanaInstance.allowed_dags.contains(
+                cast(models.KaapanaInstance.allowed_dags, String).contains(
                     filter_kaapana_instances.dag_id
                 ),
                 models.KaapanaInstance.instance_name.in_(

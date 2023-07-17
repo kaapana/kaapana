@@ -183,7 +183,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
         if helm_status(dag["name"]):
             logger.info(f'Skipping {dag["name"]} since it is already installed')
             continue
-        helm_command_suffix = f'--wait --atomic --timeout=120m0s; sleep 10; {settings.helm_path} -n {helm_namespace} delete --no-hooks {dag["release_name"]}'
+        helm_command_suffix = f'--wait --atomic --timeout=120m0s; sleep 10; {settings.helm_path} -n {helm_namespace} delete {dag["release_name"]}'
         success, stdout, helm_result_dict, release_name, _ = helm_install(
             dag, helm_command_suffix=helm_command_suffix, shell=True
         )

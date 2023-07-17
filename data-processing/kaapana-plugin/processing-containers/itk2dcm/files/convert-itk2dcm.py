@@ -134,7 +134,7 @@ class Nifti2DcmConverter:
         def _update_tag(series_tag_values, pattern, k, v):
             if not pattern.match(k):
                 raise Exception(
-                    r"Not a valid dicom tag! Needs to fullfil the followinr regex ^([a-f0-9]{4})\|([a-f0-9]{4})$"
+                    r"Not a valid dicom tag! Needs to fullfil the followinr regex ^([a-fA-F0-9]{4})\|([a-fA-F0-9]{4})$"
                 )
             print(f"Setting {k}={v}")
             series_tag_values[k] = v

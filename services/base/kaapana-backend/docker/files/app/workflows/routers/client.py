@@ -301,9 +301,7 @@ def get_dags(
     for instance_name in filter_kaapana_instances.instance_names:
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if db_kaapana_instance.remote:
-            remote_allowed_dags = list(
-                json.loads(db_kaapana_instance.allowed_dags).keys()
-            )
+            remote_allowed_dags = list(db_kaapana_instance.allowed_dags.keys())
             dags[db_kaapana_instance.instance_name] = remote_allowed_dags
         else:
             dags[db_kaapana_instance.instance_name] = get_dag_list(
@@ -346,9 +344,8 @@ def ui_form_schemas(
                 only_dag_names=False
             )  # get dags incl. its meta information (not only dag_name)
         else:
-            allowed_dags = json.loads(
-                db_kaapana_instance.allowed_dags
-            )  # w/o .keys() --> get dags incl. its meta information (not only dag_name)
+            allowed_dags = db_kaapana_instance.allowed_dags
+            # w/o .keys() --> get dags incl. its meta information (not only dag_name)
         dags[db_kaapana_instance.instance_name] = allowed_dags
         just_all_dags = {**just_all_dags, **allowed_dags}
     if (
@@ -393,11 +390,11 @@ def ui_form_schemas(
             dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
         else:
             allowed_dataset = list(
-                ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)
+                ds["name"] for ds in db_kaapana_instance.allowed_datasets
             )
             dataset_size = {
                 ds["name"]: len(ds["identifiers"])
-                for ds in json.loads(db_kaapana_instance.allowed_datasets)
+                for ds in db_kaapana_instance.allowed_datasets
             }
         datasets[db_kaapana_instance.instance_name] = allowed_dataset
 

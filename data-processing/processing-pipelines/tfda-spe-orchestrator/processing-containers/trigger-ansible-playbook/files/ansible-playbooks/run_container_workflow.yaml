@@ -3,8 +3,11 @@
   gather_facts: no
   vars:
     - target: "{{ target_host }}"
-      default: "10.128.128.218"
   tasks:
+    - name: Fail if Target IP is empty or undefined
+      fail:
+        msg: "Target IP is empty or undefined"
+      when: target is not defined or target | length == 0
     - add_host:
         name: "{{ target }}"
         groups: os_server

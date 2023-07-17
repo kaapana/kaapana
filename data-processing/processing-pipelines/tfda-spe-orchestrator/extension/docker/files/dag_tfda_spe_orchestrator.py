@@ -11,8 +11,6 @@ from tfda_spe_orchestrator.ManageIsoInstanceOperator import (
 from tfda_spe_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
 from tfda_spe_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
 from tfda_spe_orchestrator.RunAlgoOperator import RunAlgoOperator
-
-# from tfda_spe_orchestrator.LocalPrepareEnvOperator import LocalTFDAPrepareEnvOperator
 from tfda_spe_orchestrator.FetchResultsOperator import FetchResultsOperator
 from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -47,7 +45,6 @@ load_platform_config = LocalLoadPlatformConfigOperator(
 create_iso_env = ManageIsoInstanceOperator(
     dag=dag, instanceState="present", taskName="create-iso-inst"
 )
-# prepare_env = LocalPrepareEnvOperator(dag=dag)
 trusted_pre_etl = TrustedPreETLOperator(dag=dag)
 get_minio_bucket = LocalMinioOperator(
     action="get",

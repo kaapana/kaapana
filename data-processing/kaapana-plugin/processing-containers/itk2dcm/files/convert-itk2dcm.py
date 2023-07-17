@@ -9,7 +9,7 @@ import warnings
 import SimpleITK as sitk
 
 from pathlib import Path
-from pydicom.uid import generate_uid
+from pydicom.uid import generate_uid, PYDICOM_ROOT_UID
 
 # http://dicomlookup.com/modalities.asp
 VALID_MODALITIES = [
@@ -134,7 +134,7 @@ class Nifti2DcmConverter:
         def _update_tag(series_tag_values, pattern, k, v):
             if not pattern.match(k):
                 raise Exception(
-                    r"Not a valid dicom tag! Needs to fullfil the followinr regex ^([a-f0-9]{4})\|([a-f0-9]{4})$"
+                    r"Not a valid dicom tag! Needs to fullfil the followinr regex ^([a-fA-F0-9]{4})\|([a-fA-F0-9]{4})$"
                 )
             print(f"Setting {k}={v}")
             series_tag_values[k] = v
@@ -155,7 +155,7 @@ class Nifti2DcmConverter:
                 ),  # Study ID Attribute
             }
 
-            pattern = re.compile(r"^([a-f0-9]{4})\|([a-f0-9]{4})$")
+            pattern = re.compile(r"^([a-fA-F0-9]{4})\|([a-fA-F0-9]{4})$")
 
             for k, v in meta_data.get("global_tags", {}).items():
                 _update_tag(series_tag_values, pattern, k, v)
@@ -421,7 +421,13 @@ class nnUNetDatasetParser:
                     .replace(matches[0], ".")
                     .rstrip("".join(case_path.suffixes))
                 )
-                target_tags = {"0020|0010": study_id}  # Study ID Attribute
+                target_tags = {
+                    "0020|0010": study_id,  # Study ID Attribute
+                    "0020|000d": generate_uid(
+                        prefix=PYDICOM_ROOT_UID, entropy_srcs=[study_id]
+                    ),  # Study Instance UID Attribute
+                }
+
                 for channel, v in dataset_json["channel_names"].items():
                     if channel_identifier.endswith(channel):
                         v = v.replace("MRI", "MR").replace("MRT", "MR")
@@ -429,7 +435,7 @@ class nnUNetDatasetParser:
                             target_tags["0008|0060"] = v
                         else:
                             target_tags["0008|0060"] = "MR"
-                            target_tags["0018|1030"] = v
+                            target_tags["0008|103E"] = v
                         if case_path.name in series_tags:
                             raise Exception("You do not want to overwrite me")
                         series_tags[case_path.name] = target_tags

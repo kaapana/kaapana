@@ -88,13 +88,15 @@ Workflows
 
 .. _extensions_nnunet:
 
-nnUNet (nnunet-predict)
+nnU-Net (nnunet-predict)
 -----------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
 
 | **What's going on?**
+| A nnU-Net inference is executed.
+
 | 1) Model is downloaded
 | 2) DICOM will be converted to .nrrd files
 | 3) Selected task is applied on input image
@@ -103,11 +105,80 @@ nnUNet (nnunet-predict)
 
 | **Input data:**  
 | Depending on the Task see for more information on `Github <https://github.com/MIC-DKFZ/nnUNet>`_
-|
-| **Start processing:**
-| Select  *nnunet* + *START*, make sure *single execution* on the configuration popup is set to True and then click *START* again.
+
+nnU-Net (nnunet-training)
+------------------------
+| **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
+| **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
+| **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
+
+| **What's going on?**
+| A nnU-Net training is executed.
+
+| 1) Segmentation objects are downloaded
+| 2) Referenced DICOM objects are downloaded
+| 3) Segmentation objects will be converted to .nifti files
+| 4) DICOM will be converted to .nifti files
+| 5) The segmentation objects are evaluated for overlapping segmentations and in case of an overlap to a certain threshold, the segmentation object will be removed from the training data. 
+| 6) nnU-Net training is planned and training data is preprocessed
+| 7) The actual training is executed
+| 8) The trained model is zipped
+| 9) The zipped model is converted to a DICOM object
+| 10) The DICOM object is sent to the internal platform PACS
+| 11) A training report is generated
+| 12) The model and training logs are uploaded to Minio
+| 13) The training report is uploaded to a location, where it can be rendered by a static website
+| 14) The training report is converted to a DICOM object 
+| 15) The DICOM object is sent to the internal platform PACS
+
+| **Input data:**  
+| Segmentation objects. Please avoid overlapping segmentations and specify the segmentation labels that you want to use for the training in the *SEG* field.
+
+nnU-Net (nnunet-ensemble)
+------------------------
+| **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
+| **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
+| **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
+
+| **What's going on?**
+| The workflow allows to evaluate the performance of multiple trained nnU-Net models on a given dataset. It could also be used to only evaluate one model. The *seg-check-ensemble* operator will throw an error but the execution is still successful!
+
+| 1) Segmentation objects used as reference segmentations are downloaded
+| 2) Sorting of segmentation objects
+| 2) Referenced DICOM objects are downloaded
+| 3) Segmentation objects will be converted to .nifti files
+| 4) DICOM will be converted to .nifti files
+| 5) The reference segmentation objects are evaluated for overlapping segmentations and in case of an overlap to a certain threshold, the segmentation object will be removed for the evaluation. 
+| 6) Models to be evaluated are downloaded
+| 7) Models are extracted from DIOCM objects
+| 8) Models are unzipped
+| 9) Models are applied to the input DICOM data
+| 10) Model predictions are ensembled
+| 11) The predicted segmentations are restructured
+| 12) The ensembled segmentations are restructured
+| 13) The predicted segmentation objects are evaluated for overlapping segmentations and in case of an overlap to a certain threshold, the segmentation object will be removed for the evaluation.
+| 14) The ensembled segmentation objects are evaluated for overlapping segmentations and in case of an overlap to a certain threshold, the segmentation object will be removed for the evaluation.
+| 15) DICE scores between the reference and predicted (ensembled) segmentations are calculated
+| 16) A report containing the DICE Scores is created
+| 17) The results of the evaluation are uploaded to Minio
+| 18) A report is uploaded to a location, where it can be rendered by a static website
+
+| **Input data:**  
+| Segmentation objects. Please avoid overlapping segmentations. In addition, models to be used for the evaluation are expected. Make sure that the models actually predict the labels from the inputted segmentation objects.
 
 
+nnU-Net (nnunet-model-management)
+--------------------------------
+| **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
+| **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
+| **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
+
+| **What's going on?**
+| Models that are stored as DICOM files in the internal PACS can be extracted into the *models* directory of Kaapana to be used by the nnunet-predict workflow. The workflow also allows to remove installed tasks.
+
+| 1) Models are downloaded
+| 2) Models are extracted from DIOCM objects
+| 3) Models are moved to the *models* directory of Kaapana
 
 .. _extensions_organseg:
 
@@ -126,9 +197,6 @@ Automatic organ segmentation (shapemodel-organ-seg)
 
 | **Input data:**  
 | Filter for **abdominal CT** scans within the meta dashboard. 
-|
-| **Start processing:**
-| Select  *organ-segmentation* + *START*, make sure *single execution* on the configuration popup is set to True and then click *START* again.
 
 
 .. _extensions_radiomics:
@@ -145,9 +213,6 @@ Radiomics (radiomics-dcmseg)
 
 | **Input data:**  
 | DICOM Segmentations 
-|
-| **Start processing:**
-| Select  *radiomics* + *START*, *single execution* on the configuration popup can be set to True or False and then click *START* again.
 
 .. _extensions_mitk_flow:
 
@@ -176,9 +241,6 @@ MITK Flow
 
 | **Input data:**  
 | DICOMs
-
-| **Start processing:**
-| Select *mitk-flow* + *START*, make sure *single execution* on the configuration popup is set to False and then click *START* again.
 
 .. _extensions_applications:
 

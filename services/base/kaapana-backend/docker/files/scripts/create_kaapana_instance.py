@@ -20,8 +20,6 @@ with SessionLocal() as db:
                     "automatic_update": False,
                     "automatic_workflow_execution": True,
                     "fernet_encrypted": False,
-                    "allowed_dags": [],
-                    "allowed_datasets": [],
                 }
             )
             db_client_kaapana_instance = create_and_update_client_kaapana_instance(

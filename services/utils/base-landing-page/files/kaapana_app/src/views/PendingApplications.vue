@@ -1,6 +1,6 @@
 <template lang="pug">
   .workflow-applications
-    v-container(grid-list-lg text-left)
+    v-container(grid-list-lg text-left fluid)
       v-card
         v-card-title
           | List of applications started in a workflow &nbsp;

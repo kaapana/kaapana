@@ -67,6 +67,10 @@ Extension Upload / Data Upload mechanism
 * Importing container .tar files directly into the microk8s container runtime
 
 
+Results page
+------------
+* A new results page has been introduced which allows users to explore results of their workflows by visualizing HTMLs 
+
 MISC:
 -----
 
@@ -95,6 +99,8 @@ New Workflows
 
 * `TotalSegmentator <https://github.com/wasserth/TotalSegmentator>`_ incl. all sub-tasks
 * RTSTRUCT support for nnUNet training
+* nnU-Net federated
+* Radiomics federated
 
 Updated Components
 ------------------
@@ -122,12 +128,12 @@ New Extensions
 * 3D Slicer
 * Model-Hub
 * RateMe
-* Radiomics-federated
+
 
 Upcoming
 --------
 
-* Maintenance UI for Ui-based platform management and maintenance 
+* Maintenance UI for UI-based platform management and maintenance 
 * Multi Instance support for different Kaapana deployments within a single K8S Cluster
 * New persistence layer for Kapaana
 

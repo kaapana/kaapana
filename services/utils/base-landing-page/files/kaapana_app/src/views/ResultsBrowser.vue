@@ -1,6 +1,6 @@
 
 <template lang="pug">
-  v-container(text-left)
+  v-container(text-left fluid)
     v-row
       v-col(cols="3")
         v-card

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: cbioportal
-          image: "{{ .Values.global.registry_url }}/cbioportal-5.3.7:{{ .Values.global.kaapana_build_version }}"
+          image: "{{ .Values.global.registry_url }}/cbioportal:{{ .Values.global.kaapana_build_version }}"
           ports:
             - containerPort: 8080
           command: ["/bin/sh"]
@@ -31,6 +31,8 @@ spec:
               memory: "4Gi"
             limits:
               memory: "8Gi" 
+      imagePullSecrets:
+        - name: registry-secret
 
       volumes:
       - name: study-data
@@ -38,6 +40,6 @@ spec:
           path: "/home/kaapana/cbioportal/study/"
           type: Directory
       - name: portal-properties
-        hostPath:
-          path: "/home/kaapana/cbioportal/config/portal.properties"
-          type: File
+        configMap: 
+          name: portal-config
+ 

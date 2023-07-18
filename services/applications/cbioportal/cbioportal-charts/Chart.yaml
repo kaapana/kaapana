@@ -4,5 +4,5 @@ description: Helm chart for the cBioPortal webapplication
 name: cbioportal-chart
 version: "0.0.0"
 keywords:
-  - "kaapanapplication"
-  - "kaapanaexperimental"
+- kaapanaapplication
+- kaapanaexperimental

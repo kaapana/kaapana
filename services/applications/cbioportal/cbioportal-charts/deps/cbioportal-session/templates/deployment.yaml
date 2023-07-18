@@ -30,3 +30,5 @@ spec:
             memory: "5Gi"
           requests:
             memory: "100Mi"
+      imagePullSecrets:
+        - name: registry-secret

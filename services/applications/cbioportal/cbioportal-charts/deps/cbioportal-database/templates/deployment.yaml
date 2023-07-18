@@ -54,3 +54,5 @@ spec:
           hostPath:
             path: "/home/kaapana/cbioportal/data"
             type: Directory
+      imagePullSecrets:
+        - name: registry-secret

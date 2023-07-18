@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: portal-config
+  namespace: "services" #{{ .Values.global.services_namespace }}"
+data:
+  portal.properties: |
+    app.name=cbioportal
+    db.user=cbio_user
+    db.password=somepassword
+    db.host=cbioportal-database:3306
+    db.portal_db_name=cbioportal
+    db.driver=com.mysql.jdbc.Driver
+    db.connection_string=jdbc:mysql://cbioportal-database:3306/
+    db.suppress_schema_version_mismatch_errors=false
+    db.use_ssl=false
+
+    skin.title=cBioPortal for Cancer Genomics
+    skin.email_contact=cbioportal at googlegroups dot com
+    skin.authorization_message=Access to this portal is only available to authorized users at Memorial Sloan Kettering Cancer Center.  [<a href="http://bit.ly/ZevaHa">Request Access</a>].
+    skin.example_study_queries=tcga\ntcga -provisional\ntcga -moratorium\ntcga OR icgc\n-"cell line"\nprostate mskcc\nesophageal OR stomach\nserous\nbreast
+    skin.data_sets_header=The portal currently contains data from the following cancer genomics studies.  The table below lists the number of available samples per data type and tumor.
+    skin.data_sets_footer=Data sets of TCGA studies were downloaded from Broad Firehose (http://gdac.broadinstitute.org) and updated monthly. In some studies, data sets were from the TCGA working groups directly.
+
+    skin.documentation.baseurl=https://raw.githubusercontent.com/cBioPortal/cbioportal/master/docs/
+    skin.documentation.markdown=true
+    skin.documentation.faq=user-guide/faq.md
+    skin.documentation.about=About-Us.md
+    skin.documentation.news=News.md
+    skin.documentation.oql=Onco-Query-Language.md
+    skin.documentation.dat=Authenticating-Users-via-Tokens.md
+
+    skin.right_logo=
+    skin.tag_line_image=tag_line.png
+
+    skin.show_news_tab=true
+    skin.show_data_tab=true
+    skin.show_web_api_tab=true
+    skin.show_r_matlab_tab=true
+    skin.show_tutorials_tab=true
+    skin.show_faqs_tab=true
+    skin.show_tools_tab=true
+    skin.show_about_tab=true
+    skin.right_nav.whats_new_blurb=<p> &bull;<a href="news.jsp"> <b>New data and features released</b></a><br/> &bull;<a href="tools.jsp"> <b>New tools released</b></a> </p> <form action="https://groups.google.com/group/cbioportal-news/boxsubscribe"> &nbsp;&nbsp;&nbsp;&nbsp;<b>Sign up for low-volume email news alerts:</b></br> &nbsp;&nbsp;&nbsp;&nbsp;<input type="text" name="email"> <input type="submit" name="sub" value="Subscribe"> </form> &nbsp;&nbsp;&nbsp;&nbsp;<b>Or follow us <a href="http://www.twitter.com/cbioportal"><i>@cbioportal</i></a> on Twitter</b>
+    skin.blurb=The cBioPortal for Cancer Genomics provides <b>visualization</b>, <b>analysis</b> and <b>download</b> of large-scale cancer genomics data sets.  <p>Please adhere to <u><a href="http://cancergenome.nih.gov/abouttcga/policies/publicationguidelines"> the TCGA publication guidelines</a></u> when using TCGA data in your publications.</p> <p><b>Please cite</b> <a href="http://www.ncbi.nlm.nih.gov/pubmed/23550210">Gao et al. <i>Sci. Signal.</i> 2013</a> &amp;  <a href="http://cancerdiscovery.aacrjournals.org/content/2/5/401.abstract">Cerami et al. <i>Cancer Discov.</i> 2012</a> when publishing results based on cBioPortal.</p>
+    skin.footer= | <a href="http://www.mskcc.org/mskcc/html/44.cfm">MSKCC</a> | <a href="http://cancergenome.nih.gov/">TCGA</a>
+    skin.login.contact_html=If you think you have received this message in error, please contact us at <a style="color:#FF0000" href="mailto:cbioportal-access@cbio.mskcc.org">cbioportal-access@cbio.mskcc.org</a>
+    skin.login.saml.registration_html=Sign in with MSK
+    skin.right_nav.show_data_sets=true
+    skin.right_nav.show_examples=true
+    skin.right_nav.show_testimonials=true
+    skin.right_nav.show_whats_new=true
+    skin.study_view.link_text=To build your own case set, try out our enhanced Study View.
+    filter_groups_by_appname=true
+    googleplus.consumer.key=
+    googleplus.consumer.secret=
+    microsoftlive.consumer.key=
+    microsoftlive.consumer.secret=
+    saml.sp.metadata.entityid=
+    saml.sp.metadata.entitybaseurl=#{null}
+    saml.idp.metadata.location=
+    saml.idp.metadata.entityid=
+    saml.keystore.location=
+    saml.keystore.password=
+    saml.keystore.private-key.key=
+    saml.keystore.private-key.password=
+    saml.keystore.default-key=
+    saml.idp.comm.binding.settings=defaultBinding
+    saml.idp.comm.binding.type=
+    saml.idp.comm.binding.force-auth-n=false
+    saml.custom.userservice.class=org.cbioportal.security.spring.authentication.saml.SAMLUserDetailsServiceImpl
+    saml.logout.url=/login.jsp?logout_success=true
+    dat.unauth_users=
+    dat.method=none
+    dat.ttl_seconds=2592000
+    dat.uuid.max_number_per_user=1
+    dat.jwt.secret_key=
+    multithread.core_pool_size=16
+    always_show_study_group=
+    patient_view_placeholder=false
+    digitalslidearchive.iframe.url=http://cancer.digitalslidearchive.net/index_mskcc.php?slide_name=
+    digitalslidearchive.meta.url=http://cancer.digitalslidearchive.net/local_php/get_slide_list_from_db_groupid_not_needed.php?slide_name_filter=
+    tumor_image.url=http://cbio.mskcc.org/cancergenomics/tcga-tumor-images/
+    tcga_path_report.url=https://github.com/cbioportal/datahub/raw/master/tcga/pathology_reports/pathology_reports.txt
+    segfile.url=http://cbio.mskcc.org/cancergenomics/gdac-portal/seg/
+    show.oncokb=true
+    oncokb.public_api.url=https://public.api.oncokb.org/api/v1
+    oncokb.token=
+    show.cbioportal=true
+    show.cosmic=true
+    show.hotspot=true
+    show.civic=false
+    mycancergenome.show=true
+    igv.bam.linking=
+    igv.bam.linking.studies=
+    openssl.binary=
+    signature.key=
+    encryption.key=
+    broad.bam.url=
+    broad.bam.checking.url=
+    include_networks=true
+    pathway_commons.url=http://www.pathwaycommons.org/pc2
+    bitly.access.token=
+    google_analytics_profile_id=
+    genomespace=true
+    session.service.url=
+    disabled_tabs=
+    priority_studies=
+    species=human
+    ncbi.build=37
+    ucsc.build=hg19
+    oncoprint.defaultview=patient
+    oncoprint.oncokb.default=true
+    oncoprint.hotspots.default=true
+    persistence.cache_type=no-cache
+---

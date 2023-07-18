@@ -4,6 +4,5 @@ description: Helm chart rolling out a mongo db for the session management for th
 name: cbioportal-session-database
 version: "0.0.0"
 keywords:
-  - "kaapanapplication"
-  - "kaapanaexperimental"
-  
+- kaapanaapplication
+- kaapanaexperimental

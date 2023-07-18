@@ -37,5 +37,5 @@ spec:
       - name: cbioportal-mongo-data # key of volume mount
         persistentVolumeClaim:
           claimName: cbio-pv-claim
-      # imagePullSecrets:
-      #   - name: registry-secret
+      imagePullSecrets:
+        - name: registry-secret

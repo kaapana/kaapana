@@ -27,7 +27,7 @@ Perform these steps on the build-machine! Recommended operating system is Ubuntu
   | 75GB will be needed additionally if you enable the generation of an offline-installation-tarball (build-config: create_offline_installation).
   |
 
-Before you get started you should be familiar with the basic concepts and components of Kaapana see :ref:`about_kaapana`.
+Before you get started you should be familiar with the basic concepts and components of Kaapana (see :ref:`about_kaapana`).
 You should also have the following packages installed on your build-system.
 
 #. Dependencies 

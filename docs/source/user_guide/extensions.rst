@@ -89,7 +89,7 @@ Workflows
 .. _extensions_nnunet:
 
 nnU-Net (nnunet-predict)
------------------------
+------------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
@@ -107,7 +107,7 @@ nnU-Net (nnunet-predict)
 | Depending on the Task see for more information on `Github <https://github.com/MIC-DKFZ/nnUNet>`_
 
 nnU-Net (nnunet-training)
-------------------------
+-------------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
@@ -135,7 +135,7 @@ nnU-Net (nnunet-training)
 | Segmentation objects. Please avoid overlapping segmentations and specify the segmentation labels that you want to use for the training in the *SEG* field.
 
 nnU-Net (nnunet-ensemble)
-------------------------
+-------------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
@@ -168,7 +168,7 @@ nnU-Net (nnunet-ensemble)
 
 
 nnU-Net (nnunet-model-management)
---------------------------------
+---------------------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
@@ -179,6 +179,24 @@ nnU-Net (nnunet-model-management)
 | 1) Models are downloaded
 | 2) Models are extracted from DIOCM objects
 | 3) Models are moved to the *models* directory of Kaapana
+
+TotalSegmentator
+----------------
+| **Method:** "TotalSegmentator: robust segmentation of 104 anatomical structures in CT images"
+| **Authors:**  Wasserthal J., Meyer M., Breit H., Cyriac J., Yang S., Segeroth M.
+| **DOI:** `10.48550/arXiv.2208.05868 <https://arxiv.org/abs/2208.05868>`_
+| **Code:** `https://github.com/wasserth/TotalSegmentator <https://github.com/wasserth/TotalSegmentator>`_
+
+| **What's going on?**
+| 1) Model is downloaded
+| 2) DICOM will be converted to .nrrd files
+| 3) TotalSegmentator with all its subtasks is applied to the input data
+| 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
+| 5) DICOM SEGs will be sent to the internal platform PACS
+
+| **Input data:**  
+| Any **CT** scans. 
+
 
 .. _extensions_organseg:
 

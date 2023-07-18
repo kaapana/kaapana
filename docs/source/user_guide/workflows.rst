@@ -1,4 +1,4 @@
-.. _wms start:
+.. _wms_start:
 
 
 Workflows
@@ -18,36 +18,6 @@ The workflow object semantically binds together multiple jobs, their processing 
 and the orchestrating- and runner-instances of those jobs. 
 In order to manage these workflows, the WMS comes with three components:
 :ref:`workflow_execution`, :ref:`workflow_list` and :ref:`instance_overview`.
-
-
-.. TODO: use sth of that? 
-
-.. Data uploaded to the platform is processed within *Workflows*. The execution of this workflows is managed by a workflow management system which in Kaapana is Airflow. In Airflow a workflow is called a DAG (directed acyclic graph) and it consists of operators which perform the actual work. Airflow takes care that the operators of a workflow are executed in the correct order and allows scheduling and error handling necessary to process images at scale. Operators can also be shared between workflows and therefore provide building-blocks for reoccurring tasks in workflows (the :ref:`operators` provides an overview of the available operators).
-
-.. .. hint::
-..   Airflow operators are in general implement as containers which are executed in the underlying Kubernetes cluster. When Airflow executes an operator within Kaapana it creates a Kubernetes Job object which then executes the actual container. The Job objects performing the actual processing on the Kubernetes cluster are grouped within the ``jobs`` namespace.
-
-.. A detailed overview of the concepts of Airflow can be found `in their documentation <https://airflow.apache.org/docs/stable/concepts.html>`_.
-
-.. If you are more interested in the technologies, you can get started here:
-
-.. * `Airflow <https://airflow.apache.org/docs/stable/tutorial.html>`_
-.. * `Kubernetes <https://kubernetes.io/docs/concepts/>`_
-
-
-.. Execute workflows
-.. ^^^^^^^^^^^^^^^^^
-
-.. Workflows are executed on dataset which contain the data the workflow should process.
-.. Datasets can be created using the *Datasets View* or the Meta-Dashboard (see :ref:`creating-datasets`).
-.. A workflow can then be executed either directly via the *Dataset View* or via the *Workflow Execution* dialog in the *Workflows* menu.
-.. After a workflow is selected in the *Workflow Execution* dialog the user the dialog automatically extends and asks all the parameters necessary to run the workflow including the dataset.
-.. After clicking the *Start Workflow* button on the end the workflow is triggered within Airflow and it appears in the *Workflow List* within the *Workflows* menu.
-.. Here the execution of the workflow can be monitored. If things are not working as expected the *Workflow List* provides links to jump directly into the Airflow Web Interface where the issue can be investigated in more detail.
-
-.. .. hint::
-..   | Check out the difference between :term:`single file and batch processing` 
-
 
 
 .. _data_upload:
@@ -304,53 +274,43 @@ If you want to import data with multiple channels per case, such as MRI data wit
         ├── ...
 
 
-
-
-
 .. _datasets:
 
 Datasets
 ^^^^^^^^
 
-Datasets is the central component to organize and manage the data on the platform. 
+Datasets form the core component for managing and organizing data on the platform. The features include:
 
-* Intuitive Gallery-style view visualizing thumbnails and (configurable) metadata of DICOM Series
-* Multiselect which allows performing actions on multiple series at once including add/removing to/from a dataset, executing workflows on individual series or creating new datasets based on the selection
-* Configurable side panel metadata dashboard allowing the exploration of metadata distributions (based on selections)
-* Intuitive shortcut based tagging functionality allowing fast and convenient annotation and categorization of the data
-* (Full-text) search to filter for items based on metadata
-* Open a series in a side panel visualizing the DICOM using (an adjusted) OHIF Viewer-v3 next to all Metadata of the specific series.
+* An intuitive Gallery-style view for visualizing DICOM Series thumbnails and metadata (configurable).
+* Multiselect function for performing operations on multiple series simultaneously such as adding/removing to/from a dataset, executing workflows, or creating new datasets.
+* A configurable side-panel metadata dashboard for exploring metadata distributions.
+* Shortcut-based tagging functionality for quick and effective data annotation and categorization.
+* Full-text search for filtering items based on metadata.
+* A side panel series viewer using an adjusted OHIF Viewer-v3 to display DICOM next to the series metadata.
 
-In the following chapters, we are going to explore the functionalities.
+In the following sections, we delve into these functionalities.
 
 
-(Structured) Gallery View
-"""""""""""""""""""""""""
-Dealing with thousands of DICOMs can be tedious. However, in the recent years, photo gallery apps have established great concepts for those interactions. 
-Since DICOMs are not that different from classical images, we got inspired and handel this interaction in similar ways. We call it the Gallery View. 
-An item in the Gallery View consists of a thumbnail of the series and its metadata. Everything is completely configurable in :ref:`settings`.
-Items are loaded on demand to ensure scalability.
+Gallery View
+""""""""""""
+With numerous DICOMs, managing them can be challenging. Taking cues from recent photo gallery apps, we've created a similar interaction model called the "Gallery View". It displays a thumbnail of the series and its metadata, all of which is configurable via :ref:`settings`. The Gallery View loads items on-demand to ensure scalability.
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/gallery_view.gif
    :alt: Scrolling through the gallery view
 
-
-
-Sometimes it is of interest to structure the data by patient and study. The Structured Gallery View can be enabled in :ref:`settings`.
+In some scenarios, you may wish to structure data by patient and study. This can be achieved through the Structured Gallery View, which can be enabled in :ref:`settings`.
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/structured_gallery_view.gif
    :alt: Scrolling through the structured gallery view
 
-The (Structured) Gallery View enables easy and intuitive interactions with the data on the platform by offering a multi-select functionality. 
-Either you select multiple individual series by holding CTRL (CMD on MacOS) and click on the individual series or you make use of the dragging functionality.
+The Gallery View offers straightforward and intuitive data interaction via multi-select functionality. You can select multiple individual series by holding CTRL (CMD on MacOS) and clicking the desired series, or by using the dragging functionality.
 
-Once selected, there are multiple options which are indicated right above the Gallery View. 
+After selecting, you have several options:
 
-* Create a dataset from the selected data. 
-* Add selected data to an existing dataset.
-* If a dataset is selected (top row), delete the selected items from the currently selected dataset. This only removes the data from the dataset, but does not delete the data from the platform. 
-* Execute a workflow with the selected data. Note: While in :ref:`workflow_execution` the dataset is linked to the workflow, triggering a workflow here, will just be a collection of data, i.e. there is no explicit linkage to a dataset.
-
+* Create a new dataset from the selected data. 
+* Add the selected data to an existing dataset.
+* If a dataset is selected, remove the selected items from the currently selected dataset (this will not delete the data from the platform).
+* Execute a workflow with the selected data. Note that in this scenario, unlike in :ref:`workflow_execution`, there is no explicit linkage to a dataset.
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/save_dataset.gif
    :alt: Saving a dataset
@@ -365,118 +325,92 @@ Once selected, there are multiple options which are indicated right above the Ga
    :class: half-width-gif
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/workflow.gif
-   :alt: Starting a worklfow
+   :alt: Starting a workflow
    :class: half-width-gif
 
 .. note::
-  Without an active selection, everything is selected. The 'Items Selected' shows on how many items an action will be performed on.
+  Without an active selection, all items are selected. The 'Items Selected' indicator shows the number of items an action will be performed on.
 
-
-Dataset management and Workflow Execution
+Dataset Management and Workflow Execution
 """""""""""""""""""""""""""""""""""""""""
-The actions to interact with the (Structured) Gallery View are above it. 
-The first row is for selecting and managing the datasets. 
-Selecting a dataset will instantly update the (Structured) Gallery View.
-Next to the selection, there is a button to open the dataset managment dialog which gives an overview of the datasets on the platform but also allows deleting datasets which are not of need anymore.
+Interaction actions for the Gallery View are located above it. The first row is dedicated to selecting and managing datasets. Once a dataset is selected, the Gallery View will automatically update. A dataset management dialog, accessible from the same row, provides an overview of the platform's datasets and enables deletion of unnecessary datasets.
 
 .. note::
-  Deleting a dataset, does *not* delete its containing data form the platform. 
+   Deleting a dataset does *not* erase its contained data from the platform.
 
-The next row is for filtering and searching. We offer a lucene-based full-text search. 
+The second row is dedicated to filtering and searching. We offer a Lucene-based full-text search. 
 
 .. note::
-  Some useful commands: 
+   Useful commands: 
 
-  * Use `*` for Wildcarding, e.g. `LUNG1-*`. This will show all series where at least on field in the metadata starts with `LUNG1-`.
-  * Use `-` for excluding, e.g. `-CHEST`. This will exclude all series where at least on field in the metadata contains `CHEST`.
-  * Checkout the `OpenSearch Documentation <https://opensearch.org/docs/latest/query-dsl/full-text/>`__ .
+   * Use `*` for wildcarding, e.g., `LUNG1-*` shows all series with metadata starting with `LUNG1-`.
+   * Use `-` for excluding, e.g., `-CHEST` excludes all series with metadata containing `CHEST`.
+   * For more information, check the `OpenSearch Documentation <https://opensearch.org/docs/latest/query-dsl/full-text/>`__.
 
-Additional filters can be added which allow for filtering for specific DICOM tags. It comes with a very convenient autocomplete functionality.
+You can add additional filters for specific DICOM tags, with an autocomplete feature for convenience.
 
 .. note:: 
-  Individual filters are combined by `AND`, while the different values within a filter are combined by `OR`.
+   Individual filters are combined with `AND`, while the different values within a filter are combined with `OR`.
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/search.gif
    :alt: Filtering
 
-The next row is responsible for tagging, which is a very convenient way to structure the data. 
-Tags are free-text, but the autocomplete functionality allows reusing already existing tags. 
-First put all tags of interest and save them. 
-To tag a series, first activate the tag(s) by clicking on them, and then clicking on the series will tag it. 
-The switch next to the tags definition allows enabling multiple tags at once. 
+The following row handles tagging, a convenient way to structure data. Tags are free-text, but an autocomplete feature allows reusing existing tags. To tag a series, activate the tag(s) and then click on the series. The switch next to the tags enables tagging with multiple tags at once.
 
 .. note::
-  * Tags can be activated by shortcuts. Pressing `1` (de-)activates the first tag, pressing `2` the second and so on.
-  * If a series is already tagged with the current active tag, clicking on the series again, will remove it. This is also the case in multiple tags mode.
-  * Another way to remove tags is to click on the `X` next to the tag. (Note: If the tag distribution is visualized in the :ref:`meta_dashboard` on the righthand side, removing a tag this way will not update the dashboard)
-
+   * Activate tags using shortcuts. Press `1` to toggle the first tag, `2` for the second, and so on.
+   * If a series already has the currently active tag, clicking the series again will remove it. This also applies in multiple tags mode.
+   * Remove tags by clicking the `X` next to the tag. (Note: Removing a tag this way will not update the :ref:`meta_dashboard` dashboard if it's visualized there)
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/tagging.gif
    :alt: Tagging items in the gallery view
-
 
 .. _meta_dashboard:
 
 Metadata Dashboard
 """"""""""""""""""
-Next to the (Structured) Gallery View is the Metadata Dashboard. It is also configurable in the :ref:`settings`.
-It visualizes the Metadata of the currently selected items in the (Structured) Gallery View. 
+Next to the Gallery View is the Metadata Dashboard (configurable in :ref:`settings`). This dashboard displays the metadata of the currently selected items in the Gallery View.
 
 .. note::
-  Clicking on a bar in a bar chart will set the selected value as a filter. Only clicking on search will fire the query.
+  Clicking on a bar in a bar chart will set the selected value as a filter. Click 'search' to execute the query.
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/dashboard.gif
-   :alt: Metadata Dashboard and how to interact with it
+   :alt: Interacting with the Metadata Dashboard
 
 Detail View
 """""""""""
-Sometimes a thumbnail of a series is not enough. 
-Therefore, by double-clicking on a series card or clicking on the eye in the top-right of the thumbnail will open the detail view in the side panel.
-The detail view consists of an (adjusted) OHIF-v3 viewer which allows fast and convenient investigation of the whole series. 
-Underneath there is the searchable metadata table with all the metadata for the selected series. 
+For a more detailed look at a series, double-click a series card or click the eye icon at the top-right of the thumbnail to open the detail view in the side panel. This view comprises an OHIF-v3 viewer and a searchable metadata table for the selected series.
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/detail_view.gif
-   :alt: Detail view with OHIF viewer and metadata table. 
-
+   :alt: Detail view with OHIF viewer and metadata table
 
 .. _settings:
 
 Settings
-"""""""""
-.. todo: should we rename it to UI Configurations? 
+""""""""
+Settings can be found by clicking on the user icon in the top-right corner and then selecting 'Settings'. A dialog will open.
 
+The Dataset view is highly configurable. You can choose between the Gallery View and Structured Gallery View, decide how many items to display in one row, and determine whether to show just thumbnails or also series metadata. 
 
-.. note::
-  It might be confusing that settings is mentioned here, but since the Dataset view is so far the only component which makes use of it, we decided to put it here.
+For each field in the metadata, the following options are available: 
 
-Settings can be found by clicking on the user icon on the top right and on then on Settings. A dialog will open.
-As mentioned several times before, the Dataset view is very configurable. 
-It is not only possible to choose between the Gallery View and Structured Gallery View but its also possible to decide how many items should be visualized in one row. 
+* Dashboard: Display aggregated metadata in the Metadata Dashboard
+* Patient View: Display values in the patient card (if the Structured Gallery View is enabled)
+* Study View: Display values in the series card (if the Structured Gallery View is enabled)
+* Series Card: Display values in the Series Card
+* Truncate: Limit values in the Series Card to a single line for visual alignment across series
 
-It's also configurable if only the thumbnails or also the metadata of a series should be shown.
-Furthermore, for each field in the metadata, there are the following options: 
-
-* Dashboard: Visualize the aggregated metadata the Metadata Dashboard
-* Patient View: If the Structured Gallery View is enabled, visualize the values in the patient card
-* Study View: If the Structured Gallery View is enabled, visualize the values in the series card
-* Series Card: Visualize values in the Series Card
-* Truncate: If the values in the Series Card should be truncated to a single line. This allows visually aligning the values to easier compare them across series.
-
-Clicking on save will update the configuration and reload the page. 
+Saving the settings will update the configuration and reload the page.
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/settings.gif
    :alt: Opening the settings window and adjusting the configuration.
 
 .. note::
-  For now, the configuration of Settings is only stored in the browsers localstorage. 
-  This has the following implications:
+  For now, the configuration of Settings is only stored in the browser's local storage. Implications:
 
-  * Deleting the browser cache will restore the default settings
-  * Logging in with a different user from the same computer accesses the same settings
-  * Logging in with the same user on a different computer will load the default settings
-
-
-
+  * Clearing the browser cache will restore the default settings
+  * Different users logging in from the same computer will access the same settings
+  * Logging in with the same user on different computers will load the default settings
 
 
 

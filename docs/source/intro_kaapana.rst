@@ -1,7 +1,19 @@
 .. _about_kaapana:
 
-KAAPANA
-#######
+
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/kaapana_logo_2.png
+   :alt: Kaapana logo
+   :class: logo
+   :align: center
+
+
+.. raw:: html
+
+    <br />
+    <br />
+    <br />
+
+
 
 What is Kaapana?
 ----------------
@@ -14,17 +26,40 @@ Following this federated concept, the goal of Kaapana is to provide a framework 
 
 By adhering to established standards and by adopting widely used open technologies for private cloud development and containerized data processing, Kaapana integrates seamlessly with the existing clinical IT infrastructure, such as the Picture Archiving and Communication System (PACS), and ensures modularity and easy extensibility.
 
+
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/kaapana-v0.2.0-showcase-fps30-1920p.gif
    :alt: Kaapana v0.2.0
 
-Kaapana is constantly developing and currently includes the following key-features:
-    * Large-scale image processing with SOTA deep learning algorithms, such as `nnU-Net <https://github.com/MIC-DKFZ/nnunet/>`_ image segmentation.
-    * Analysing, evaluation and viewing of processed images and data
-    * Simple integration of new, customized algorithms and applications into the framework
-    * System monitoring
-    * User management
 
-Currently the most widely used platform realized using Kaapana is the Joint Imaging Platform (JIP) of the German Cancer Consortium (DKTK). The JIP is currently being deployed at all 36 german university hospitals with the objective of distributed radiological image analysis and quantification.
+Core components of Kaapana:
 
-For more information, please also take a look at our publication of the Kaapana-based `Joint Imaging Platform in JCO Clinical Cancer Informatics <https://ascopubs.org/doi/full/10.1200/CCI.20.00045>`_.
+* :ref:`wms_start`: Large-scale image processing with SOTA deep learning algorithms, such as `nnU-Net <https://github.com/MIC-DKFZ/nnunet>`_ image segmentation and `TotalSegmentator <https://github.com/wasserth/TotalSegmentator>`_
+* :ref:`datasets`: Exploration, visualization and curation of medical images
+* :ref:`extensions`: Simple integration of new, customized algorithms and applications
+* :ref:`storage`: An integrated PACS system and Minio for other types of data
+* :ref:`monitoring`: Extensive resource and system monitoring for administrators
+* :ref:`user_management`: Simple user management via `Keycloak <https://www.keycloak.org/>`_
 
+Core technologies used in Kaapana:
+
+* `Kubernetes <https://kubernetes.io/>`_: Container orchestration system
+* `Airflow <https://airflow.apache.org/>`_: Workflow management system enabling complex and flexible data processing workflows
+* `OpenSearch <https://opensearch.org/>`_: Search engine for DICOM metadata based searches
+* `dcm4chee <https://www.dcm4che.org/>`_: Open source PACS system serving as a central DICOM data storage
+* `Prometheus <https://github.com/prometheus/prometheus>`_: Collecting metrics for system monitoring
+* `Grafana <https://github.com/grafana/grafana>`_: Visualization for monitoring metrics
+* `Keycloak <https://www.keycloak.org/>`_: User authentication
+
+Currently the most widely used platform realized using Kaapana is the Joint Imaging Platform (JIP) of the German Cancer Consortium (DKTK). The `JIP <https://jip.dktk.dkfz.de/jiphomepage/>`_ is currently being deployed at all 36 german university hospitals with the objective of distributed radiological image analysis and quantification.
+
+For more information, please also take a look at our recent publication of the Kaapana-based `Joint Imaging Platform in JCO Clinical Cancer Informatics <https://ascopubs.org/doi/full/10.1200/CCI.20.00045>`_.
+
+
+
+.. raw:: html
+
+   <style>
+   .logo {
+       width: 30%;
+   }
+   </style>

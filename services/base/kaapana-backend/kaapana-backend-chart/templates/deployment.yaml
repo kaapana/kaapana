@@ -96,21 +96,22 @@ spec:
           value: {{ .Values.global.credentials_keycloak_backend_password }}
         ports:
           - containerPort: 5000
-        volumeMounts:
-{{- if .Values.global.dev_files }}
-        - name: kaapana-dev-files
-          mountPath: /kaapana/app
         resources:
+{{- if .Values.global.dev_files }}
           limits:
             memory: "2Gi"
           requests:
             memory: "2Gi"
 {{- else }}
-        resources:
           limits:
             memory: "5Gi"
           requests:
             memory: "4Gi"
+{{- end }}
+        volumeMounts:
+{{- if .Values.global.dev_files }}
+        - name: kaapana-dev-files
+          mountPath: /kaapana/app
 {{- end }}
         - name: alembic
           mountPath: /kaapana/app/alembic

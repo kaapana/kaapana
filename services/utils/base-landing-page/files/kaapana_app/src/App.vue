@@ -354,6 +354,16 @@ export default Vue.extend({
   min-height: calc(100vh - 81px - 56px);
 }
 
+.v-item-group.v-bottom-navigation {
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: rgba(0,0,0,.12);
+  -moz-box-shadow: none!important;
+  -webkit-box-shadow: none!important;
+  box-shadow: none!important;
+  
+}
+
 @media (min-width: 2100px)
 {
   .container--fluid {

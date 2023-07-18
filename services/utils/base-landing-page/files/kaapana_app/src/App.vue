@@ -157,72 +157,66 @@
         </v-menu>
       </v-app-bar>
       <v-main id="v-main-content">
-        <v-container class="router-container pa-0" fluid fill-height>
-          <v-layout align-start="align-start">
-            <v-flex text-xs="text-xs">
-              <div v-if="settings.navigationMode">
-                <v-bottom-navigation
-                  v-if="workflowNavigation && drawer"
-                  color="primary"
-                  :elevation="0"
-                  inset
-                  mode="shift"
+        <div v-if="settings.navigationMode">
+          <v-bottom-navigation
+            v-if="workflowNavigation && drawer"
+            color="primary"
+            :elevation="0"
+            inset
+            mode="shift"
+          >
+            <v-btn
+              v-for="([title, icon, to], i) in workflowsList"
+              :key="i"
+              :to="to"
+              :value="to"
+            >
+              <v-icon>{{ icon }}</v-icon>
+              {{ title }}
+            </v-btn>
+          </v-bottom-navigation>
+          <v-bottom-navigation
+            v-if="advancedNavigation && drawer"
+            color="primary"
+            :elevation="0"
+            inset
+            mode="shift"
+          >
+            <v-menu
+              offset-y
+              v-for="(section, sectionKey) in externalWebpages"
+              :key="section.id"
+            >
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on">
+                  <v-icon>{{ section.icon }}</v-icon>
+                  {{ section.label }}
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item
+                  v-for="(
+                    subSection, subSectionKey
+                  ) in section.subSections"
+                  :key="subSection.id"
+                  :value="subSection.id"
+                  :to="{
+                    name: 'ew-section-view',
+                    params: {
+                      ewSection: sectionKey,
+                      ewSubSection: subSectionKey,
+                    },
+                  }"
                 >
-                  <v-btn
-                    v-for="([title, icon, to], i) in workflowsList"
-                    :key="i"
-                    :to="to"
-                    :value="to"
-                  >
-                    <v-icon>{{ icon }}</v-icon>
-                    {{ title }}
-                  </v-btn>
-                </v-bottom-navigation>
-                <v-bottom-navigation
-                  v-if="advancedNavigation && drawer"
-                  color="primary"
-                  :elevation="0"
-                  inset
-                  mode="shift"
-                >
-                  <v-menu
-                    offset-y
-                    v-for="(section, sectionKey) in externalWebpages"
-                    :key="section.id"
-                  >
-                    <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on">
-                        <v-icon>{{ section.icon }}</v-icon>
-                        {{ section.label }}
-                      </v-btn>
-                    </template>
-                    <v-list>
-                      <v-list-item
-                        v-for="(
-                          subSection, subSectionKey
-                        ) in section.subSections"
-                        :key="subSection.id"
-                        :value="subSection.id"
-                        :to="{
-                          name: 'ew-section-view',
-                          params: {
-                            ewSection: sectionKey,
-                            ewSubSection: subSectionKey,
-                          },
-                        }"
-                      >
-                        <v-list-item-title>{{
-                          subSection.label
-                        }}</v-list-item-title>
-                      </v-list-item>
-                    </v-list>
-                  </v-menu>
-                </v-bottom-navigation>
-              </div>
-              <router-view></router-view>
-            </v-flex>
-          </v-layout>
-        </v-container>
+                  <v-list-item-title>{{
+                    subSection.label
+                  }}</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </v-bottom-navigation>
+        </div>
+        <router-view></router-view>
       </v-main>
       <v-footer color="primary" app inset>
         <span class="white--text">
@@ -363,7 +357,7 @@ export default Vue.extend({
 @media (min-width: 2100px)
 {
   .container--fluid {
-    max-width: 2100px;
+    max-width: 2100px!important;
   }
 }
 

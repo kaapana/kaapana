@@ -1,6 +1,6 @@
 <template lang="pug">
   .kaapana-intro-header
-    v-container(grid-list-lg text-xs-center)
+    v-container(grid-list-lg text-xs-center fluid)
       div(v-if="isAuthenticated")
         v-layout(row='')
           v-flex(sm9)

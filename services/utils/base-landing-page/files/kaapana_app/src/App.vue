@@ -359,4 +359,12 @@ export default Vue.extend({
 .kapaana-top-navigation {
   min-height: calc(100vh - 81px - 56px);
 }
+
+@media (min-width: 2100px)
+{
+  .container--fluid {
+    max-width: 2100px;
+  }
+}
+
 </style>

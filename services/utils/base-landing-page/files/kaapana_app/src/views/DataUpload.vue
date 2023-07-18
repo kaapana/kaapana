@@ -1,6 +1,6 @@
 <template>
   <div class="dropzone">
-    <v-container grid-list-lg text-left >
+    <v-container grid-list-lg text-left fluid>
       <h1>Data upload</h1> 
       <v-row dense>
         <v-col cols="12">

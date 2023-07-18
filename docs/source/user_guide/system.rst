@@ -17,9 +17,10 @@ To find out more about the technologies checkout:
 * `Traefik <https://doc.traefik.io/traefik/>`_
 * `Keycloak <https://www.keycloak.org/documentation.html>`_
 
+.. _user_management:
 
-Keycloak
-^^^^^^^^
+User management
+^^^^^^^^^^^^^^^
 
 Keycloak is an open source identity and access management solution that we integrated in our platform to manage authentication and different user roles. 
 It can be accessed via *System* menu in the web interface.
@@ -34,6 +35,7 @@ Here two examples how user management can be done with Keycloak:
 * **Connecting an Active Directory**: In order to connect to an active directory go to the tap **User Federation**. Depending on your needs select *ldap* or *kerberos*. The necessary configuration you should be able to get from your institution. If everything is configured correctly you are able to login with the credentials from the Active Directory.
 
 
+.. _monitoring:
 
 Monitoring
 ^^^^^^^^^^

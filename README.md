@@ -21,7 +21,7 @@ By adhering to established standards and by adopting widely used open technologi
 
 Core components of Kaapana:
 * **Workflow management:** Large-scale image processing with SOTA deep learning algorithms, such as [nnU-Net](https://github.com/MIC-DKFZ/nnunet) image segmentation and [TotalSegmentator](https://github.com/wasserth/TotalSegmentator)
-* **Gallery View:** Analysis, navigation and curation of medical images
+* **Datasets:** Exploration, visualization and curation of medical images
 * **Extensions:** Simple integration of new, customized algorithms and applications into the framework
 * **Storage:** An integrated PACS system and Minio for other types of data
 * **System monitoring:** Extensive resource and system monitoring for administrators
@@ -29,15 +29,14 @@ Core components of Kaapana:
 
 Core technologies used in Kaapana:
 * [Kubernetes](https://kubernetes.io/): Container orchestration system
-* [Airflow](https://airflow.apache.org/): Workflow management system that enables complex and flexible data processing workflows in Kaapana via container chaining
-* [OpenSearch](https://opensearch.org/): Search engine used to make the DICOM data searchable via their tags and meta information
-* [OpenSearch Dashboards](https://opensearch.org/docs/latest/dashboards/index/): Visualization dashboard enabling the interactive exploration of the DICOM data stored in Kaapana and indexed by OpenSearch
-* [dcm4chee](https://www.dcm4che.org/): Open source PACS system serving as a central DICOM data storage in Kaapana
+* [Airflow](https://airflow.apache.org/): Workflow management system enabling complex and flexible data processing workflows
+* [OpenSearch](https://opensearch.org/): Search engine for DICOM metadata based searches
+* [dcm4chee](https://www.dcm4che.org/): Open source PACS system serving as a central DICOM data storage
 * [Prometheus](https://github.com/prometheus/prometheus): Collecting metrics for system monitoring
 * [Grafana](https://github.com/grafana/grafana): Visualization for monitoring metrics
 * [Keycloak](https://www.keycloak.org/): User authentication
 
-
+ 
 Currently the most widely used platform realized using Kaapana is the Joint Imaging Platform (JIP) of the German Cancer Consortium (DKTK). The [JIP](https://jip.dktk.dkfz.de/jiphomepage/) is currently being deployed at all 36 german university hospitals with the objective of distributed radiological image analysis and quantification.
 
 For more information, please also take a look at our recent publication of the Kaapana-based [Joint Imaging Platform in JCO Clinical Cancer Informatics](https://ascopubs.org/doi/full/10.1200/CCI.20.00045).

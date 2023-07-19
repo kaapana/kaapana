@@ -103,6 +103,9 @@ Besides a few required software packages, mainly Microk8s is installed, to setup
 Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server. 
 To do this, you can use the :term:`server-installation-script`, located at :code:`kaapana/server-installation/server_installation.sh`, by following the steps listed below.
 
+.. hint:: 
+   | If you don't want to clone the Kaapana repository, you can copy the :code:`server_installation.sh` script from `Github <https://github.com/kaapana/kaapana/blob/master/server-installation/server_installation.sh>`_.
+
 1. Copy the script to your target-system (server)
 2. Make it executable:
 

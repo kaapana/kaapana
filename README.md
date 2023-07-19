@@ -55,7 +55,7 @@ As of Kaapana 0.2.0 we follow strict [SemVer](https://semver.org/) approach to v
 ## Citations
 Please [cite](https://ascopubs.org/action/showCitFormats?doi=10.1200/CCI.20.00045) the [following paper](https://ascopubs.org/doi/full/10.1200/CCI.20.00045) when using Kaapana:
 
-    Jonas Scherer, Marco Nolden, Jens Kleesiek, Jasmin Metzger, Klaus Kades, Verena Schneider, Michael Bach, Oliver Sedlaczek, Andreas M. Bucher, Thomas J. Vogl, ...Klaus Maier-Hein. Joint Imaging Platform for Federated Clinical Data Analytics. JCO Clinical Cancer Informatics, 4:10271038, November 2020. doi: 10.1200/CCI.20.00045. URL https://ascopubs.org/doi/full/10.1200/CCI.20.00045
+    Jonas Scherer, Marco Nolden, Jens Kleesiek, Jasmin Metzger, Klaus Kades, Verena Schneider, Michael Bach, Oliver Sedlaczek, Andreas M. Bucher, Thomas J. Vogl, ...Klaus Maier-Hein. Joint Imaging Platform for Federated Clinical Data Analytics. JCO Clinical Cancer Informatics, 4:10271038, November 2020. doi: 10.1200/CCI.20.00045. URL https://ascopubs.org/doi/full/10.1200/CCI.20.00045.
 
 When using Kapaana for federated learning please also [cite](https://link.springer.com/chapter/10.1007/978-3-031-18523-6_13#citeas) the [following paper](https://link.springer.com/book/10.1007/978-3-031-18523-6):
 

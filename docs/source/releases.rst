@@ -15,15 +15,17 @@ July 19, 2023
 
 -------------------------
 
-New Features
+New features
 ------------
+
 * Major restructuring and update of the documentation
 * Added experimental persistent layer as extension for data management
 * Updated landing page layout
 * RTStruct and segmentation support in Gallary View
 
-Bug-fixes
+Bug fixes
 ---------
+
 * Redirect for Minio and Keycloak
 * Update of constraints file
 * Fix of TypeError: cannot pickle '_thread.lock' object in Airflow
@@ -40,6 +42,12 @@ Bug-fixes
 * Fix of nnU-Net ensemble workflow
 * Fix of radiomics federated workflow
 
+Upcoming
+--------
+
+* Maintenance UI for UI-based platform management and maintenance 
+* Multi Instance support for different Kaapana deployments within a single K8S Cluster
+* New persistence layer for Kapaana
 
 .. _release-0.2.0:
 

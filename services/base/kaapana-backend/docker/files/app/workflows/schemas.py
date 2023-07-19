@@ -1,5 +1,6 @@
 from asyncio import streams
-from typing import Optional, List
+from typing import Optional, List, Any
+from sqlalchemy_json import NestedMutableDict, NestedMutableList
 import json
 import datetime
 from pydantic import BaseModel, validator, root_validator
@@ -13,8 +14,8 @@ class KaapanaInstanceBase(BaseModel):
 
 class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
     fernet_encrypted: bool
-    allowed_dags: list
-    allowed_datasets: list
+    allowed_dags: list = []
+    allowed_datasets: list = []
 
 
 class RemoteKaapanaInstanceCreate(KaapanaInstanceBase):
@@ -45,20 +46,15 @@ class KaapanaInstance(KaapanaInstanceBase):
     fernet_key: str
     encryption_key: str
     remote: bool
-    allowed_dags: Optional[str]
-    allowed_datasets: Optional[str]
+    allowed_dags: Optional[NestedMutableDict] = ...
+    allowed_datasets: Optional[NestedMutableList] = ...
     time_created: datetime.datetime
     time_updated: datetime.datetime
     workflow_in_which_involved: Optional[str]
 
     @validator("allowed_dags")
     def convert_allowed_dags(cls, v):
-        return sorted(json.loads(v))
-        # print(sorted(json.loads(v).keys()))
-
-    @validator("allowed_datasets")
-    def convert_allowed_datasets(cls, v):
-        return json.loads(v)
+        return sorted(v)
 
     @validator("time_created")
     def convert_time_created(cls, v):
@@ -91,7 +87,7 @@ class JobBase(BaseModel):
 
 class Job(JobBase):
     id: int
-    conf_data: str
+    conf_data: Optional[NestedMutableDict] = ...
     username: str = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
@@ -112,10 +108,6 @@ class Job(JobBase):
                 f'status must be on of the following values: {", ".join(allowed_states)}'
             )
         return v
-
-    @validator("conf_data")
-    def convert_conf_data(cls, v):
-        return json.loads(v)
 
     @validator("time_created")
     def convert_time_created(cls, v):
@@ -299,8 +291,8 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                 continue
             if "data_form" in job.conf_data and job.service_job == False:
                 dataset_name = (
-                    json.loads(job.conf_data)["data_form"]["dataset_name"]
-                    if "dataset_name" in json.loads(job.conf_data)["data_form"]
+                    job.conf_data["data_form"]["dataset_name"]
+                    if "dataset_name" in job.conf_data["data_form"]
                     else None
                 )
                 values["dataset_name"] = dataset_name

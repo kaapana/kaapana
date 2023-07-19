@@ -53,9 +53,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 print("")
                 print("check_dag_modality failed!")
                 print(
-                    "DAG modality vs input modality: {} vs {}".format(
-                        dag_modalities, input_modality
-                    )
+                    f"DAG modality vs input modality: {dag_modalities} vs {input_modality}"
                 )
                 print("Wrong modality for this DAG!")
                 print("ABORT")

@@ -211,7 +211,7 @@ ui_forms = {
                 "default": "SEG,RTSTRUCT",
                 "description": "Expected input modality.",
                 "type": "string",
-                "readOnly": False,
+                "readOnly": True,
                 "required": True,
             },
             "single_execution": {

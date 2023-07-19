@@ -1,6 +1,7 @@
 import os
 import glob
 import time
+from typing import List
 import warnings
 from subprocess import PIPE, run
 import pydicom
@@ -13,7 +14,6 @@ HTTP_PORT = os.getenv("HTTP_PORT", "8080")
 AETITLE = os.getenv("AETITLE", "NONE")
 AETITLE = None if AETITLE == "NONE" else AETITLE
 LEVEL = os.getenv("LEVEL", "element")
-DICOM_GLOB_FILE_EXTENSION = os.getenv("DICOM_GLOB_FILE_EXTENSION", "*.dcm")
 
 check_arrival = os.getenv("CHECK_ARRIVAL", "False")
 check_arrival = True if check_arrival.lower() == "true" else False
@@ -62,28 +62,26 @@ def send_dicom_data(send_dir, aetitle=AETITLE, check_arrival=False, timeout=60):
         else:
             return True
 
-    if (
-        len(
-            list(
-                filter(
-                    lambda f: f.is_file(),
-                    Path(send_dir).rglob(DICOM_GLOB_FILE_EXTENSION),
-                )
-            )
-        )
-        == 0
-    ):
+    dicom_list: List[Path] = sorted(
+        [
+            f
+            for f in Path(send_dir).rglob("*")
+            if f.is_file() and pydicom.misc.is_dicom(f)
+        ]
+    )
+
+    if len(dicom_list) == 0:
         print(send_dir)
         print("############### No dicoms found...! Skipping to next Batch.")
         # raise FileNotFoundError # Not very elegant, but it still fails if nothing is processed. Maybe would be better if the dag would specify an "allow partial fail" parameter.
         return
 
     for dicom_dir, _, _ in os.walk(send_dir):
-        dicom_list = list(
-            filter(
-                lambda f: f.is_file(), Path(dicom_dir).glob(DICOM_GLOB_FILE_EXTENSION)
-            )
-        )
+        dicom_list = [
+            f
+            for f in Path(dicom_dir).glob("*")
+            if f.is_file() and pydicom.misc.is_dicom(f)
+        ]
 
         if len(dicom_list) == 0:
             continue

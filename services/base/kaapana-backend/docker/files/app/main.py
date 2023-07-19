@@ -3,6 +3,8 @@ import urllib3
 import os
 import logging
 import traceback
+import psutil
+
 from fastapi import Depends, FastAPI, Request
 
 from .admin import routers as admin
@@ -28,35 +30,45 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logging.getLogger().setLevel(logging.INFO)
 
-app = FastAPI(openapi_prefix="/kaapana-backend")
+app = FastAPI(root_path="/kaapana-backend")
 
 
 @app.on_event("startup")
 @repeat_every(seconds=float(os.getenv("REMOTE_SYNC_INTERVAL", 2.5)))
 def periodically_get_remote_updates():
-    with SessionLocal() as db:
-        try:
-            get_remote_updates(db, periodically=True)
-        except Exception as e:
-            logging.warning(
-                "Something went wrong updating in crud.get_remote_updates()"
-            )
-            logging.warning(traceback.format_exc())
+    # From: https://github.com/dmontagu/fastapi-utils/issues/230
+    # In the future also think about integrating celery, this might help with the issue of repeated execution: https://testdriven.io/blog/fastapi-and-celery/
+    parent_process = psutil.Process(os.getppid())
+    children = parent_process.children(recursive=True)  # List of all child processes
+    if children[0].pid == os.getpid():
+        with SessionLocal() as db:
+            try:
+                get_remote_updates(db, periodically=True)
+            except Exception as e:
+                logging.warning(
+                    "Something went wrong updating in crud.get_remote_updates()"
+                )
+                logging.warning(traceback.format_exc())
 
 
 @app.on_event("startup")
 @repeat_every(seconds=float(os.getenv("AIRFLOW_SYNC_INTERVAL", 10.0)))
 def periodically_sync_states_from_airflow():
-    with SessionLocal() as db:
-        try:
-            sync_states_from_airflow(db, status="queued", periodically=True)
-            sync_states_from_airflow(db, status="scheduled", periodically=True)
-            sync_states_from_airflow(db, status="running", periodically=True)
-        except Exception as e:
-            logging.warning(
-                "Something went wrong updating in crud.sync_states_from_airflow()"
-            )
-            logging.warning(traceback.format_exc())
+    # From: https://github.com/dmontagu/fastapi-utils/issues/230
+    # In the future also think about integrating celery, this might help with the issue of repeated execution: https://testdriven.io/blog/fastapi-and-celery/
+    parent_process = psutil.Process(os.getppid())
+    children = parent_process.children(recursive=True)  # List of all child processes
+    if children[0].pid == os.getpid():
+        with SessionLocal() as db:
+            try:
+                sync_states_from_airflow(db, status="queued", periodically=True)
+                sync_states_from_airflow(db, status="scheduled", periodically=True)
+                sync_states_from_airflow(db, status="running", periodically=True)
+            except Exception as e:
+                logging.warning(
+                    "Something went wrong updating in crud.sync_states_from_airflow()"
+                )
+                logging.warning(traceback.format_exc())
 
 
 # @app.on_event("startup")

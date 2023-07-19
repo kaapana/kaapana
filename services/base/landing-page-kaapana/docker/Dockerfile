@@ -1,7 +1,7 @@
 FROM local-only/base-landing-page:latest as build-stage
 
 LABEL IMAGE="landing-page-kaapana"
-LABEL VERSION="0.2.0"
+LABEL VERSION="0.2.1"
 LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
@@ -11,7 +11,7 @@ RUN npm run build
 ###############################
 ######### Production ##########
 ###############################
-FROM docker.io/nginx:1.19.3-alpine
+FROM docker.io/nginx:1.23.3-alpine
 
 WORKDIR /kaapana/app
 

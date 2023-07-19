@@ -1,4 +1,4 @@
-FROM docker.io/alpine:3.12
+FROM docker.io/alpine:3.17.2
 
 LABEL IMAGE="cert-init"
 LABEL VERSION="0.0.1"

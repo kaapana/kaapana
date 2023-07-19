@@ -121,10 +121,10 @@ def execute_shell_command(
         # TODO: add to a process queue, run p.communicate() & fetch returncode
         return True, ""
 
-    if (not skip_check) and ";" in command:
-        err = f"Detected ';' in blocking command {command} -> cancel request!"
-        logger.error(err)
-        return False, err
+    # if (not skip_check) and ";" in command:
+    #     err = f"Detected ';' in blocking command {command} -> cancel request!"
+    #     logger.error(err)
+    #     return False, err
     logger.debug(f"executing blocking shell command: {command}")
     logger.debug(f"{shell=} , {timeout=}")
     if "--timeout" in command:
@@ -152,7 +152,14 @@ def execute_shell_command(
         logger.debug(f"{stdout=}")
         logger.debug(f"{stderr=}")
         return success, stdout
-
+    elif command[3] == "status":
+        logger.debug(
+            f"Ignoring error, since we just wanted to check if chart is installed {command}"
+        )
+        logger.debug(f"{return_code=}")
+        logger.debug(f"{stdout=}")
+        logger.debug(f"{stderr=}")
+        return success, stderr
     else:
         logger.error("ERROR while executing command: ")
         logger.error(f"COMMAND: {command}")
@@ -335,6 +342,7 @@ def add_info_from_deployments(
                     chart_template.successful = "yes" if deployment.ready else "pending"
                     chart_template.helmStatus = deployment.helm_status.capitalize()
                     chart_template.kubeStatus = None
+                    # TODO: rm "kaapanaint" workaround
                     chart_template.links = deployment.links
                     chart_template.version = version
                     chart_template.latest_version = version
@@ -352,7 +360,10 @@ def add_info_from_deployments(
                 extension_info.successful = ""
             else:
                 for deployment in version_content.deployments:
-                    extension_info.links = deployment.links
+                    # TODO: /pending-applications does not use this function so it's fine to exclude "kaapanaint", but definitely a workaround for now
+                    extension_info.links.extend(
+                        [link for link in deployment.links if "kaapanaint" not in link]
+                    )
                 extension_info.installed = "yes"
         else:
             # no deployments

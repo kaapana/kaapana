@@ -8,13 +8,24 @@ from datetime import timedelta
 
 class GenerateThumbnailOperator(KaapanaBaseOperator):
     """
-    TODO!
+    Operator which generates a thumbnail from a DICOM-SEG or -RTStruct file.
+
+    Given the DICOM-SEG or -RTStruct file, this operator generates a
+    thumbnail image of the segmentation overlayed of the original image.
+
+    **Inputs:**
+
+    * DICOM-SEG or -RTStruct file.
+    * Original image operator directory.
+
+    **Outputs:**
+
+    * Thumbnail: Segmentation overlayed on original image.
     """
 
     def __init__(self, dag, orig_image_operator, env_vars=None, **kwargs):
         """
-        :param target_filename: Only for packing. The created file.
-        TODO
+        :param orig_image_operator: Operator of the original image, usually CT or MRI.
         """
 
         if env_vars is None:

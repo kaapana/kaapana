@@ -109,7 +109,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
                     target_dir = join(target_batch_element, self.operator_out_dir)
                 Path(target_dir).mkdir(parents=True, exist_ok=True)
 
-                file_id = basename(nifti_file).replace(".nii.gz", f"-{model_id}")
+                file_id = basename(nifti_file).replace(".nii.gz", f"--{model_id}")
                 target_file_path = join(target_dir, f"{file_id}.nii.gz")
                 print(f"# copy NIFTI: {nifti_file} -> {target_file_path}")
                 shutil.copy2(nifti_file, target_file_path)

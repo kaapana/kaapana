@@ -31,86 +31,86 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 router = APIRouter(tags=["client"])
 
-global minio_upload_mapping_dict
-minio_upload_mapping_dict = dict()
-
 UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
 
 
 def remove_outdated_tmp_files(search_dir):
     max_hours_tmp_files = 24
-    files_grabbed = (p.resolve() for p in Path(search_dir).glob("*") if p.suffix in {".json", ".tmp"})
+    files_grabbed = (
+        p.resolve()
+        for p in Path(search_dir).glob("*")
+        if p.suffix in {".tmppatch", ".tmpfile"}
+    )
 
     for file_found in files_grabbed:
-        hours_since_creation = int((datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))).total_seconds() / 3600)
+        hours_since_creation = int(
+            (
+                datetime.now() - datetime.fromtimestamp(os.path.getmtime(file_found))
+            ).total_seconds()
+            / 3600
+        )
         if hours_since_creation > max_hours_tmp_files:
             logging.warning(f"File {file_found} outdated -> delete")
             try:
                 os.remove(file_found)
                 pass
             except Exception as e:
-                logging.warning(f"Something went wrong with the removal of {file_found} .. ")
+                logging.warning(
+                    f"Something went wrong with the removal of {file_found} .. "
+                )
 
 
 @router.post("/minio-file-upload")
 async def post_minio_file_upload(request: Request):
-    global minio_upload_mapping_dict
     form = await request.form()
     patch = str(uuid.uuid4())
-    dict_fpath = Path(UPLOAD_DIR) / "minio_upload_mapping_dict.json"
     remove_outdated_tmp_files(UPLOAD_DIR)
+    filepath = json.loads(form["filepond"])["filepath"]
 
-    if dict_fpath.exists():
-        # if the file is not removed (i.e. recent), read it into the dict
-        with open(dict_fpath, "r") as fp:
-            minio_upload_mapping_dict = json.load(fp)
-    minio_upload_mapping_dict.update({patch: json.loads(form["filepond"])["filepath"]})
-
-    # write it back
-    with open(dict_fpath, "w") as fp:
-        json.dump(minio_upload_mapping_dict, fp)
+    patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
+    with open(patch_fpath, "w") as fp:
+        fp.write(filepath)
 
     logging.debug(f"post_minio_file_upload returns {patch=}")
-    logging.debug(f"{minio_upload_mapping_dict=}")
+    logging.debug(f"{filepath=}")
     return Response(content=patch)
 
 
 @router.patch("/minio-file-upload")
 async def post_minio_file_upload(request: Request, patch: str):
-    global minio_upload_mapping_dict
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
     with open(fpath, "ab") as f:
         async for chunk in request.stream():
             f.write(chunk)
-    if ulength == str(fpath.stat().st_size):
+    if fpath.is_file() and ulength == str(fpath.stat().st_size):
+        patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
         logging.info(f"filepond upload completed {fpath}")
         try:
-            dict_fpath = Path(UPLOAD_DIR) / "minio_upload_mapping_dict.json"
-            if dict_fpath.exists():
-                with open(dict_fpath, "r") as fp:
-                    minio_upload_mapping_dict = json.load(fp)
+            if patch_fpath.exists():
+                with open(patch_fpath, "r") as fp:
+                    filename = fp.read()
             else:
-                logging.error(f"upload mapping dictionary file {dict_fpath} does not exist, using the global variable (not thread-safe)")
-            logging.info(f"{patch=}, {minio_upload_mapping_dict=}")
-            object_name = minio_upload_mapping_dict[patch]
-            target_path = Path(UPLOAD_DIR) / object_name.strip("/")
+                logging.error(
+                    f"upload mapping dictionary file {patch_fpath} does not exist"
+                )
+            logging.info(f"{patch=}, {filename=}")
+            target_path = Path(UPLOAD_DIR) / filename.strip("/")
             target_path.parents[0].mkdir(parents=True, exist_ok=True)
             logging.info(f"Moving file {fpath} to {target_path}")
             shutil.move(fpath, target_path)
+            patch_fpath.unlink()
             # Todo check if fput_objects also needs a long time... if not Minio file mount can be removed and UPLOAD_DIR might be /tmp
-            # HelperMinio.minioClient.fput_object("uploads", minio_upload_mapping_dict[patch], fpath)
             logging.info(f"Successfully saved file {uname} to Minio")
-            # fpath.unlink()
-            filename = minio_upload_mapping_dict.pop(patch, "already deleted")
             return Response(f"Upload of {filename} succesful!")
         except Exception as e:
-            logging.error(f"Failed to upload to Minio: {e}")
+            logging.error(f"Upload failed: {e}")
             if fpath.is_file():
                 fpath.unlink()
-            filename = minio_upload_mapping_dict.pop(patch, "already deleted")
+            if patch_fpath.is_file():
+                patch_fpath.unlink()
             raise HTTPException(
                 status_code=500, detail=f"Failed to upload {filename} to Minio: {e}"
             )
@@ -122,7 +122,7 @@ def head_minio_file_upload(request: Request, patch: str):
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
     if fpath.is_file():
         offset = int(ulength) - fpath.stat().st_size
     else:
@@ -134,11 +134,14 @@ def head_minio_file_upload(request: Request, patch: str):
 async def delete_minio_file_upload(request: Request):
     body = await request.body()
     patch = body.decode("utf-8")
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmp"
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
+    patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
+    # Delete the .tmppatch file if uploaded file is deleted
+    if patch_fpath.is_file():
+        patch_fpath.unlink()
     if fpath.is_file():
         fpath.unlink()
-        filename = minio_upload_mapping_dict.pop(patch, "already deleted")
-        return Response(f"Deleted {filename} succesfully!")
+        return Response(f"Deleted {fpath} succesfully!")
     else:
         return Response(
             "Only removing file in frontend. The file in the target location was already successfully uploaded"
@@ -298,9 +301,7 @@ def get_dags(
     for instance_name in filter_kaapana_instances.instance_names:
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if db_kaapana_instance.remote:
-            remote_allowed_dags = list(
-                json.loads(db_kaapana_instance.allowed_dags).keys()
-            )
+            remote_allowed_dags = list(db_kaapana_instance.allowed_dags.keys())
             dags[db_kaapana_instance.instance_name] = remote_allowed_dags
         else:
             dags[db_kaapana_instance.instance_name] = get_dag_list(
@@ -343,9 +344,8 @@ def ui_form_schemas(
                 only_dag_names=False
             )  # get dags incl. its meta information (not only dag_name)
         else:
-            allowed_dags = json.loads(
-                db_kaapana_instance.allowed_dags
-            )  # w/o .keys() --> get dags incl. its meta information (not only dag_name)
+            allowed_dags = db_kaapana_instance.allowed_dags
+            # w/o .keys() --> get dags incl. its meta information (not only dag_name)
         dags[db_kaapana_instance.instance_name] = allowed_dags
         just_all_dags = {**just_all_dags, **allowed_dags}
     if (
@@ -384,15 +384,18 @@ def ui_form_schemas(
         # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if not db_kaapana_instance.remote:
-            client_datasets = crud.get_datasets(
-                db, username=username
-            )  # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
+            # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
+            client_datasets = crud.get_datasets(db, username=username)
             allowed_dataset = [ds.name for ds in client_datasets]
             dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
         else:
             allowed_dataset = list(
-                ds["name"] for ds in json.loads(db_kaapana_instance.allowed_datasets)
+                ds["name"] for ds in db_kaapana_instance.allowed_datasets
             )
+            dataset_size = {
+                ds["name"]: len(ds["identifiers"])
+                for ds in db_kaapana_instance.allowed_datasets
+            }
         datasets[db_kaapana_instance.instance_name] = allowed_dataset
 
     if len(datasets) > 1:
@@ -582,7 +585,7 @@ def create_workflow(
     characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
     workflow_id = "".join(random.choices(characters, k=6))
     # append workflow_id to workflow_name
-    workflow_name = workflow_id + "-" + json_schema_data.workflow_name
+    workflow_name = json_schema_data.workflow_name + "-" + workflow_id
 
     # TODO adapt involed instances per job?
     if json_schema_data.federated:  # == True ;-)
@@ -626,18 +629,22 @@ def create_workflow(
     #     crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
     #     )
 
+    # all sync
+    # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+
+    # thread async w/ db session in thread
     if (
         db_client_kaapana.instance_name
         not in json_schema_data.conf_data["workflow_form"]["involved_instances"]
         or len(json_schema_data.conf_data["workflow_form"]["involved_instances"]) > 1
     ):
         # sync solution for remote or any federated workflows
-        crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+        crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data)
     else:
         # solution in additional thread for purely local workflows (these are probably also the only one which are conducted at large scale)
         Thread(
             target=crud.queue_generate_jobs_and_add_to_workflow,
-            args=(db, db_workflow, json_schema_data),
+            args=(db_workflow, json_schema_data),
         ).start()
 
     # directly return created db_workflow for fast feedback
@@ -719,7 +726,7 @@ def put_workflow_jobs(
     db: Session = Depends(get_db),
 ):
     db_workflow = crud.get_workflow(db, workflow_id=json_schema_data.workflow_id)
-    r = crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
+    r = crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, db)
     resp = r["jobs"]
     return resp
 

@@ -36,6 +36,8 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
         study_description=None,
         patient_id=None,
         patient_name=None,
+        manufacturer=None,
+        sop_class_uid=None,
         env_vars=None,
         execution_timeout=timedelta(minutes=10),
         **kwargs,
@@ -48,6 +50,8 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
         :study_description: DICOM meta information.
         :patient_id: DICOM meta information.
         :patient_name: DICOM meta information.
+        :manufacturer: DICOM meta information.
+        :sop_class_uid: DICOM meta information.
         :env_vars: Dictionary to store environmental variables.
         :execution_timeout:
         """
@@ -61,6 +65,8 @@ class Pdf2DcmOperator(KaapanaBaseOperator):
             "STUDY_DES": str(study_description),
             "PAT_ID": str(patient_id),
             "PAT_NAME": str(patient_name),
+            "MANUFACTURER": str(manufacturer),
+            "SOP_CLASS_UID": str(sop_class_uid),
             "PDF_TITLE": str(pdf_title),
             "DICOM_IN_DIR": str(dicom_operator.operator_out_dir)
             if dicom_operator is not None

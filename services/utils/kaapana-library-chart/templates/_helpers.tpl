@@ -61,7 +61,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath: 
-    path: {{ regexMatch "^(/minio|/dcm4che/dicom_data)" $volume.host_path | ternary $.Values.global.slow_data_dir $.Values.global.fast_data_dir }}{{ $volume.host_path }}
+    path: {{ regexMatch "^(/minio|/dcm4che/dicom_data|/dcm4che/server_data)" $volume.host_path | ternary $.Values.global.slow_data_dir $.Values.global.fast_data_dir }}{{ $volume.host_path }}
 {{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:

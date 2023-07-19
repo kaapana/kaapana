@@ -4,7 +4,6 @@ import shutil
 import yaml
 import os
 import re
-from datetime import datetime
 from treelib import Tree
 from subprocess import PIPE, run, DEVNULL
 from os.path import join, dirname, exists, isfile
@@ -15,10 +14,11 @@ from multiprocessing.pool import ThreadPool
 import networkx as nx
 from alive_progress import alive_bar
 from build_helper.container_helper import get_image_stats
-from build_helper.security_utils import TrivyUtils
 from build_helper.offline_installer_helper import OfflineInstallerHelper
 import threading
 import signal
+from datetime import datetime
+from timeit import default_timer as timer
 
 suite_tag = "Charts"
 os.environ["HELM_EXPERIMENTAL_OCI"] = "1"
@@ -28,8 +28,10 @@ successful_built_containers = []
 
 def parallel_execute(container_object):
     queue_id, container_object = container_object
-    done = True
+    waiting = None
     issue = None
+    build_time_needed = ""
+    push_time_needed = ""
 
     for base_container in container_object.base_images:
         semaphore_successful_built_containers.acquire()
@@ -38,21 +40,36 @@ def parallel_execute(container_object):
                 base_container.local_image
                 and base_container.tag not in successful_built_containers
             ):
-                done = False
-                return queue_id, container_object, issue, done
+                waiting = base_container.name
+                return (
+                    queue_id,
+                    container_object,
+                    issue,
+                    waiting,
+                    build_time_needed,
+                    push_time_needed,
+                )
         finally:
             semaphore_successful_built_containers.release()
 
-    issue = container_object.build()
+    issue, build_time_needed = container_object.build()
+
     if issue == None:
         semaphore_successful_built_containers.acquire()
         try:
             successful_built_containers.append(container_object.build_tag)
         finally:
             semaphore_successful_built_containers.release()
-        issue = container_object.push()
+        issue, push_time_needed = container_object.push()
 
-    return queue_id, container_object, issue, done
+    return (
+        queue_id,
+        container_object,
+        issue,
+        waiting,
+        build_time_needed,
+        push_time_needed,
+    )
 
 
 def generate_deployment_script(platform_chart):
@@ -1341,18 +1358,31 @@ class HelmChart:
                     and build_rounds <= BuildUtils.max_build_rounds
                 ):
                     build_rounds += 1
+                    BuildUtils.logger.info("")
+                    BuildUtils.logger.info(f"Build round: {build_rounds}")
+                    BuildUtils.logger.info("")
                     tmp_waiting_containers_to_built = []
                     result_containers = threadpool.imap_unordered(
                         parallel_execute, waiting_containers_to_built
                     )
-                    for queue_id, result_container, issue, done in result_containers:
-                        if not done:
+                    for (
+                        queue_id,
+                        result_container,
+                        issue,
+                        waiting,
+                        build_time_needed,
+                        push_time_needed,
+                    ) in result_containers:
+                        if waiting != None:
                             BuildUtils.logger.info(
-                                f"{result_container.build_tag}: Base image not ready yet -> waiting list"
+                                f"{result_container.build_tag}: Base image {waiting} not ready yet -> waiting list"
                             )
                             tmp_waiting_containers_to_built.append(result_container)
                         else:
                             bar()
+                            BuildUtils.logger.info(
+                                f"{result_container.build_tag} - build: {build_time_needed} - push {push_time_needed} : DONE"
+                            )
                             if issue != None:
                                 # Close threadpool if error is fatal
                                 if (
@@ -1382,7 +1412,10 @@ class HelmChart:
                     ]
                     waiting_containers_to_built = tmp_waiting_containers_to_built.copy()
 
-        if build_rounds == BuildUtils.max_build_rounds:
+        if (
+            build_rounds == BuildUtils.max_build_rounds
+            and len(waiting_containers_to_built) > 0
+        ):
             BuildUtils.generate_issue(
                 component=suite_tag,
                 name="container_build",
@@ -1395,7 +1428,8 @@ class HelmChart:
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
         if BuildUtils.vulnerability_scan or BuildUtils.create_sboms:
-            trivy_utils = TrivyUtils()
+            trivy_utils = BuildUtils.trivy_utils
+            trivy_utils.tag = build_version
 
             def handler(signum, frame):
                 BuildUtils.logger.info("Exiting...")
@@ -1406,7 +1440,6 @@ class HelmChart:
                     if trivy_utils.threadpool is not None:
                         trivy_utils.threadpool.terminate()
                         trivy_utils.threadpool = None
-
                 trivy_utils.error_clean_up()
 
                 if BuildUtils.create_sboms:
@@ -1424,7 +1457,6 @@ class HelmChart:
         # Scan for vulnerabilities if enabled
         if BuildUtils.vulnerability_scan:
             trivy_utils.create_vulnerability_reports(successful_built_containers)
-
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()
             images_tarball_path = join(

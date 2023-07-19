@@ -34,16 +34,16 @@ dependencies:
     version: 0.0.0
   - name: shapemodel-workflow
     version: 0.0.0
-  - name: rateme-workflow
-    version: 0.0.0
-  - name: rateme-chart
-    version: 0.0.0
+  # - name: rateme-workflow
+  #   version: 0.0.0
+  # - name: rateme-chart
+  #   version: 0.0.0
   - name: tensorboard-chart
     version: 0.0.0
   - name: kaapana-persistence-chart
     version: 0.0.0
-  - name: mhub-models-workflow
-    version: 0.0.0
+  # - name: mhub-models-workflow
+  #   version: 0.0.0
   - name: debug-container-chart
     version: 0.0.0
   # - name: openedc-chart

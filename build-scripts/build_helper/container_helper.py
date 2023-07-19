@@ -6,7 +6,6 @@ from time import time
 from shutil import which
 from build_helper.build_utils import BuildUtils
 from alive_progress import alive_bar
-from build_helper.security_utils import TrivyUtils
 import json
 
 suite_tag = "Container"
@@ -401,12 +400,13 @@ class Container:
 
     def build(self):
         issue = None
+        duration_time_text = ""
         if Container.enable_build:
             BuildUtils.logger.debug(f"{self.build_tag}: start building ...")
 
             if self.container_push_status == "pushed":
                 BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
-                return issue
+                return issue, duration_time_text
 
             if self.ci_ignore:
                 BuildUtils.logger.warning(
@@ -419,7 +419,7 @@ class Container:
                     "level": "WARING",
                     "path": self.container_dir,
                 }
-                return issue
+                return issue, duration_time_text
 
             startTime = time()
             if BuildUtils.http_proxy is not None:
@@ -469,12 +469,13 @@ class Container:
 
                 hours, rem = divmod(time() - startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                BuildUtils.logger.debug(
-                    "{}: Build-time: {:0>2}:{:0>2}:{:05.2f}".format(
-                        self.build_tag, int(hours), int(minutes), seconds
-                    )
+                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(
+                    int(hours), int(minutes), seconds
                 )
-                return issue
+                BuildUtils.logger.debug(
+                    f"{self.build_tag}: Build-time: {duration_time_text}"
+                )
+                return issue, duration_time_text
 
             else:
                 self.container_build_status = "failed"
@@ -487,14 +488,15 @@ class Container:
                     "output": output,
                     "path": self.container_dir,
                 }
-                return issue
+                return issue, duration_time_text
         else:
             BuildUtils.logger.debug(f"{self.build_tag}: build disabled")
             self.container_build_status = "disabled"
-            return issue
+            return issue, duration_time_text
 
     def push(self, retry=True):
         issue = None
+        duration_time_text = ""
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
         if self.ci_ignore:
             BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
@@ -505,14 +507,14 @@ class Container:
                 "level": "WARING",
                 "path": self.container_dir,
             }
-            return issue
+            return issue, duration_time_text
 
         if BuildUtils.push_to_microk8s is True:
             if self.build_tag.startswith("local-only"):
                 BuildUtils.logger.info(
                     f"Skipping: Pushing {self.build_tag} to microk8s, due to local-only"
                 )
-                return issue
+                return issue, duration_time_text
             BuildUtils.logger.debug(f"{self.build_tag}: push_to_microk8s")
 
             BuildUtils.logger.info(f"Pushing {self.build_tag} to microk8s")
@@ -535,7 +537,7 @@ class Container:
                     "msg": f"Docker save failed {output.stderr}!",
                     "level": "ERROR",
                 }
-                return issue
+                return issue, duration_time_text
 
             command = ["microk8s", "ctr", "image", "import", parking_file]
             output = run(
@@ -551,7 +553,7 @@ class Container:
                     "msg": f"Microk8s image push failed {output.stderr}!",
                     "level": "ERROR",
                 }
-                return issue
+                return issue, duration_time_text
 
             BuildUtils.logger.debug(f"Sucessfully pushed {self.build_tag} to microk8s")
 
@@ -569,7 +571,7 @@ class Container:
 
             if self.container_push_status == "pushed":
                 BuildUtils.logger.info(f"{self.build_tag}: Already pushed -> skip")
-                return
+                return issue, duration_time_text
 
             elif self.container_build_status != "built":
                 BuildUtils.logger.warning(
@@ -585,18 +587,19 @@ class Container:
                     "level": "WARNING",
                     "path": self.container_dir,
                 }
-                return issue
+                return issue, duration_time_text
 
             elif self.local_image:
                 BuildUtils.logger.debug(
                     f"{self.build_tag}: Skipping push: local image! "
                 )
-                return
+                return issue, duration_time_text
 
             BuildUtils.logger.debug(f"{self.build_tag}: start pushing! ")
             retries = 0
             command = [Container.container_engine, "push", self.build_tag]
             while retries < max_retries:
+                startTime = time()
                 retries += 1
                 output = run(
                     command,
@@ -605,9 +608,13 @@ class Container:
                     universal_newlines=True,
                     timeout=9000,
                 )
+                hours, rem = divmod(time() - startTime, 3600)
+                minutes, seconds = divmod(rem, 60)
+                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(
+                    int(hours), int(minutes), seconds
+                )
                 if output.returncode == 0 or "configured as immutable" in output.stderr:
                     break
-
             if output.returncode == 0:
                 self.container_push_status = "pushed"
 
@@ -618,7 +625,7 @@ class Container:
                         f"{self.build_tag}: pushed -> success but nothing was changed!"
                     )
 
-                return issue
+                return issue, duration_time_text
 
             else:
                 self.container_push_status = "not_pushed"
@@ -672,12 +679,12 @@ class Container:
                         "path": self.container_dir,
                     }
 
-                return issue
+                return issue, duration_time_text
 
         else:
             BuildUtils.logger.info(f"{self.build_tag}: push disabled")
             self.container_push_status = "disabled"
-            return issue
+            return issue, duration_time_text
 
     def check_if_dag(self):
         self.operator_containers = []
@@ -765,7 +772,7 @@ class Container:
 
         # Init Trivy if configuration check is enabled
         if BuildUtils.configuration_check:
-            trivy_utils = TrivyUtils()
+            trivy_utils = BuildUtils.trivy_utils
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 

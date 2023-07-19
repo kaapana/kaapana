@@ -64,10 +64,11 @@ def process_file(input_file, output_dir, input_dir=None, timeout=20):
             print("#")
             print("# Error while reading DICOM metadata!")
             print(e)
-            print("abort.")
+            # print("abort.")
+            print("DICOM metadata not available!")
             print("#")
             print("##################################################")
-            exit(1)
+            # exit(1)
 
     additional_keys = []
     if aetitle != None:

@@ -74,6 +74,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
         delete_output_on_start=True,
         batch_name=None,
         airflow_workflow_dir=None,
+        priority_class_name=None,
         **kwargs
     ):
         KaapanaBaseOperator.set_defaults(
@@ -101,6 +102,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             airflow_workflow_dir=airflow_workflow_dir,
             delete_input_on_success=delete_input_on_success,
             delete_output_on_start=delete_output_on_start,
+            priority_class_name=priority_class_name,
         )
 
         super().__init__(

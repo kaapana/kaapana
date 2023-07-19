@@ -44,3 +44,8 @@ This work was partially supported by the HiGHmed Consortium, funded by the Germa
 
 Website: https://highmed.org/
 
+Innovation Campus Health + Life Science Alliance Heidelberg Mannheim
+=========================================================================
+This work was supported through state funds approved by the State Parliament of Baden-Württemberg for the Innovation Campus Health + Life Science Alliance Heidelberg Mannheim.
+
+Website: https://www.aih-cluster.ai/

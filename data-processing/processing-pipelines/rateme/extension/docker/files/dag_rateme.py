@@ -24,7 +24,6 @@ ui_forms = {
                 "type": "boolean",
                 "default": False,
                 "readOnly": True,
-                "required": True,
             },
             "annotator": {
                 "title": "User ID",

@@ -18,6 +18,7 @@ from kaapana.blueprints.kaapana_utils import (
     requests_retry_session,
     trying_request_action,
 )
+from kaapana.blueprints.kaapana_global_variables import BATCH_NAME
 
 MINIO_CLIENT_URL = (
     f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
@@ -123,9 +124,9 @@ def apply_minio_presigned_url_action(
     if action == "put":
         src_dir = os.path.join(root_dir, operator_out_dir)
         if not os.path.isdir(src_dir):
-            raise ValueError(
-                f"{src_dir} does not exist, you most probably try to push results on a batch-element level, however, so far only bach level output is supported for federated learning!"
-            )
+            src_dir = os.path.join(
+                root_dir, BATCH_NAME
+            )  # TODO should be passed from parents, because batch_name could be individual in some workflows
         print(f"Tar {filename}")
         apply_tar_action(filename, src_dir, whitelist_federated_learning)
         print(f"Encrypting {filename}")

@@ -1,6 +1,6 @@
-FROM couchdb:3.3.1
+FROM mongo:6.0
 
-LABEL IMAGE="kaapana-persistence-couchdb"
-LABEL VERSION="3.3.1"
+LABEL IMAGE="kaapana-persistence-mongodb"
+LABEL VERSION="6.0"
 LABEL CI_IGNORE="False"
 

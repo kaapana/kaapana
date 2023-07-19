@@ -76,19 +76,10 @@ spec:
         volumeMounts:
         - name: kaapana-persistence-cas
           mountPath: /cas
-{{- if .Values.global.dev_mode }}
-        - name: kaapana-persistence-dev-files
-          mountPath: /app
-{{- end }}
       imagePullSecrets:
         - name: registry-secret
       volumes:
       - name: kaapana-persistence-cas
         persistentVolumeClaim:
           claimName: kaapana-persistence-cas-pv-claim
-{{- if .Values.global.dev_mode }}
-      - name: kaapana-persistence-dev-files
-        persistentVolumeClaim:
-          claimName: kaapana-persistence-dev-pv-claim
-{{- end }}
 ---

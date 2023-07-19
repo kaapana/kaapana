@@ -26,7 +26,7 @@ class RadiomicsReportingOperator(KaapanaBaseOperator):
             cmds=["/bin/bash"],
             arguments=[
                 "-c",
-                f"jupyter nbconvert --to html --execute --no-input /minio/{minio_path}  --output-dir /minio/staticwebsiteresults/$DAG_ID --output $RUN_ID-report.html",
+                f"jupyter nbconvert --to html --execute --no-input /minio/{minio_path}  --output-dir /$WORKFLOW_DIR/$OPERATOR_OUT_DIR --output $RUN_ID-report.html",
             ],
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,

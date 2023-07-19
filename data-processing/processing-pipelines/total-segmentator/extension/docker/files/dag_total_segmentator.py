@@ -14,7 +14,6 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.CombineMasksOperator import CombineMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
-from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 max_active_runs = 10
@@ -65,7 +64,7 @@ ui_forms = {
             },
             "preview": {
                 "title": "--preview",
-                "description": "Generate a png preview of segmentation.",
+                "description": "Generate a png preview for the segmentation.",
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,
@@ -74,14 +73,14 @@ ui_forms = {
                 "title": "--statistics",
                 "description": "Calc volume (in mm3) and mean intensity. Results will be in statistics.json.",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
             "radiomics": {
                 "title": "--radiomics",
                 "description": "Calc radiomics features. Requires pyradiomics. Results will be in statistics_radiomics.json.",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
             "verbose": {
@@ -116,7 +115,7 @@ ui_forms = {
                 "title": "enable lung_vessels",
                 "description": "Add segmentations for lung_vessels and lung_trachea_bronchia.",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
             "cerebral_bleed": {
@@ -144,14 +143,14 @@ ui_forms = {
                 "title": "enable body",
                 "description": "Add segmentations for body, body_trunc, body_extremities, skin",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
             "pleural_pericard_effusion": {
                 "title": "enable pleural_pericard_effusion",
                 "description": "Add segmentations for pleural_effusion and pericardial_effusion.",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
             "nr_thr_resamp": {

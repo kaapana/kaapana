@@ -21,7 +21,7 @@ ui_forms = {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
             "input": {
@@ -60,17 +60,43 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
-dcmseg2nrrd = Mask2nifitiOperator(dag=dag, input_operator=get_input, output_type="nrrd")
-get_dicom = LocalGetRefSeriesOperator(dag=dag, input_operator=get_input)
-dcm2nrrd = DcmConverterOperator(dag=dag, input_operator=get_dicom, output_format="nrrd")
+
+dcmseg2nrrd = Mask2nifitiOperator(
+    dag=dag,
+    input_operator=get_input,
+    output_type="nrrd",
+)
+
+get_dicom = LocalGetRefSeriesOperator(
+    dag=dag,
+    input_operator=get_input,
+)
+
+dcm2nrrd = DcmConverterOperator(
+    dag=dag,
+    input_operator=get_dicom,
+    output_format="nrrd",
+)
+
 radiomics = RadiomicsOperator(
-    dag=dag, mask_operator=dcmseg2nrrd, input_operator=dcm2nrrd
+    dag=dag,
+    mask_operator=dcmseg2nrrd,
+    input_operator=dcm2nrrd,
+    allow_federated_learning=True,
+    whitelist_federated_learning=["radiomics.csv", "radiomics.json", "radiomics.xml"],
 )
 
 put_radiomics_to_minio = LocalMinioOperator(
-    dag=dag, action="put", action_operators=[radiomics], file_white_tuples=(".xml")
+    dag=dag,
+    action="put",
+    action_operators=[radiomics],
+    file_white_tuples=(".xml"),
 )
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+
+clean = LocalWorkflowCleanerOperator(
+    dag=dag,
+    clean_workflow_dir=True,
+)
 
 get_input >> dcmseg2nrrd >> radiomics
 get_input >> get_dicom >> dcm2nrrd >> radiomics >> put_radiomics_to_minio >> clean

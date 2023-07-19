@@ -9,7 +9,7 @@
 ## What is Kaapana?
 
 <p>
-  <a href="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/kaapana-v0.2.0-showcase.mp4" target="_blank">
+  <a href="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/kaapana-v0.2.1-showcase.mp4" target="_blank">
     <img src="https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/thumbnail_kaapana_vid.png" />
   </a>
 </p>

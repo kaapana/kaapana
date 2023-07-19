@@ -530,4 +530,4 @@ Operator errors during execution
 After you resolved the bug in the operator, you can either restart the whole workflow or you can click on the operator in the 'Graph View', select 'Clear' in the pop-up dialog and confirm the next dialog.
 This will restart the operator.
 
-.. _templates_and_examples: https://github.com/kaapana/kaapana/tree/0.2.0/templates_and_examples/examples/processing-pipelines/otsus-method
+.. _templates_and_examples: https://github.com/kaapana/kaapana/tree/0.2.1/templates_and_examples/examples/processing-pipelines/otsus-method

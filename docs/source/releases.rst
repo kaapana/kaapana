@@ -3,6 +3,44 @@
 Changelog
 #########
 
+.. _release-0.2.1:
+
+-------------------------
+
+********************
+Release Notes v0.2.1
+********************
+
+July 19, 2023
+
+-------------------------
+
+New Features
+------------
+* Major restructuring and update of the documentation
+* Added experimental persistent layer as extension for data management
+* Updated landing page layout
+* RTStruct and segmentation support in Gallary View
+
+Bug-fixes
+---------
+* Redirect for Minio and Keycloak
+* Update of constraints file
+* Fix of TypeError: cannot pickle '_thread.lock' object in Airflow
+* Muliplte fixes in Kaapana-Backend
+* Fixes in Trivy vulnerability scanner
+* Fixes in the server_installation.sh
+* Muliplte fixes in Kube-Helm backend
+* Introducing a smaller GPU base image
+* Fixes in scheduling of workflows
+* Fix of Prometheus and Grafana error
+* Fix in data upload
+* Removal of not ready extensions from collections chart
+* Fix of Tensorboard logs
+* Fix of nnU-Net ensemble workflow
+* Fix of radiomics federated workflow
+
+
 .. _release-0.2.0:
 
 -------------------------

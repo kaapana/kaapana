@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
-from .schemas import KaapanaRole, KaapanaGroup, KaapanaUser
-from app.dependencies import get_user_service
+from .schemas import KaapanaRole, KaapanaGroup, KaapanaUser, KaapanaProject
+from app.dependencies import get_user_service, get_db
 from keycloak.exceptions import KeycloakGetError, KeycloakPostError
-
+from sqlalchemy.orm import Session
+from app.users import crud, models
 
 router = APIRouter(tags=["users"])
 
@@ -91,7 +92,7 @@ async def post_user(
 
 
 @router.post("/groups", response_model=KaapanaGroup)
-async def post_user(
+async def post_group(
     groupname: str,
     us=Depends(get_user_service),
 ):
@@ -123,8 +124,14 @@ async def assign_roles_to_group(
     us=Depends(get_user_service),
 ):
     """Assign realm roles to group"""
+    kaapana_roles = [
+        KaapanaRole(
+            idx=r.get("idx"), name=r.get("name"), description=r.get("description")
+        )
+        for r in roles
+    ]
     try:
-        us.assign_group_realm_roles(idx, roles)
+        us.assign_group_realm_roles(idx, kaapana_roles)
     except Exception as e:
         raise e
 
@@ -148,7 +155,99 @@ async def assign_role_to_user(
     idx: str, roles: List[dict], us=Depends(get_user_service)
 ):
     """Assign realm roles to user"""
+    kaapana_roles = [
+        KaapanaRole(
+            idx=r.get("idx"), name=r.get("name"), description=r.get("description")
+        )
+        for r in roles
+    ]
     try:
-        us.assign_realm_roles(idx, roles)
+        us.assign_realm_roles(idx, kaapana_roles)
     except Exception as e:
         raise e
+
+
+@router.get("/roles/{name}", response_model=KaapanaRole)
+async def get_realm_role_by_name(name: str, us=Depends(get_user_service)):
+    """Get realm information by name"""
+    try:
+        return us.get_realm_role_by_name(name)
+    except Exception as e:
+        raise e
+
+
+@router.post("/roles/{name}", response_model=KaapanaRole)
+async def post_realm_role(
+    name: str, description: str = "", us=Depends(get_user_service)
+):
+    """Create a new realm role"""
+    payload = {"name": name, "description": description}
+    try:
+        return us.create_realm_role(payload)
+    except Exception as e:
+        raise e
+
+
+@router.get("/projects/", response_model=List[KaapanaProject])
+async def get_project(name: str = "", db: Session = Depends(get_db)):
+    return crud.get_project(db, name)
+
+
+@router.delete("/projects/{name}", response_model=None)
+async def delete_project(
+    name: str, us=Depends(get_user_service), db: Session = Depends(get_db)
+):
+    pass
+
+
+@router.post("/projects/{name}", response_model=KaapanaProject)
+async def post_project(
+    name: str, us=Depends(get_user_service), db: Session = Depends(get_db)
+):
+    """
+    Create a new project.
+
+    Creates keycloak group and roles for the project.
+    Creates a database object for the project in the kaapana-backend database.
+    """
+    project_group = us.post_group(name)
+    roles2idx = {"role_admin": None, "role_member": None}
+    for role_name in roles2idx.keys():
+        payload = {
+            "name": name + "_" + role_name,
+            "description": f"{role_name} for {name}",
+        }
+        realm_role = us.create_realm_role(payload)
+        roles2idx[role_name] = realm_role.idx
+
+        if role_name == "role_member":
+            payload["idx"] = realm_role.idx
+            roles = [payload]
+            us.assign_group_realm_roles(project_group.idx, roles)
+
+    kaapana_project = KaapanaProject(
+        name=name,
+        role_admin_idx=roles2idx.get("role_admin"),
+        role_member_idx=roles2idx.get("role_member"),
+        group_idx=project_group.idx,
+    )
+
+    return crud.create_project(db=db, kaapana_project=kaapana_project)
+
+
+@router.put("/projects/{name}/users/", response_model=KaapanaProject)
+async def put_project(
+    name: str,
+    users: List[str],
+    us=Depends(get_user_service),
+    db: Session = Depends(get_db),
+):
+    """
+    Add members to a project.
+
+    Add members to project group
+    """
+    kaapana_project = crud.get_project(db, name)
+
+    for user in users:
+        us.add_user_group(kaapana_project.group_idx, user)

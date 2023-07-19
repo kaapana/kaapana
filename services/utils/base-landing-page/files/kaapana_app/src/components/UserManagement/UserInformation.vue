@@ -193,10 +193,7 @@ export default {
     },
     assign_roles_to_user(new_roles_for_user, userInformation) {
       let idx = userInformation.idx;
-      let payload = new_roles_for_user.map((item) => {
-        const { idx, ...rest } = item;
-        return { id: idx, ...rest };
-      });
+      let payload = new_roles_for_user;
       kaapanaApiService
         .kaapanaApiPut("users/" + idx + "/roles", (payload = payload))
         .then((response) => {

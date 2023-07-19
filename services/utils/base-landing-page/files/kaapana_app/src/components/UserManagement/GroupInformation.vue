@@ -189,10 +189,7 @@ export default {
       console.log(new_roles_for_group);
       console.log(groupInformation);
       let idx = groupInformation.idx;
-      let payload = new_roles_for_group.map((item) => {
-        const { idx, ...rest } = item;
-        return { id: idx, ...rest };
-      });
+      let payload = new_roles_for_group;
       kaapanaApiService
         .kaapanaApiPut("users/groups/" + idx + "/roles", (payload = payload))
         .then((response) => {

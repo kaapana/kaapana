@@ -13,6 +13,7 @@ from .workflows.routers import remote, client
 from .monitoring import routers as monitoring
 from .storage import routers as storage
 from .users import routers as users
+from .users import models as user_models
 
 from .dependencies import get_query_token, get_token_header
 from .database import SessionLocal, engine
@@ -25,6 +26,8 @@ from .workflows.crud import (
 )
 
 models.Base.metadata.create_all(bind=engine)
+
+user_models.Base.metadata.create_all(bind=engine)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 

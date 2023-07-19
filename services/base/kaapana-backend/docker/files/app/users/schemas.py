@@ -1,8 +1,13 @@
-from pydantic.dataclasses import dataclass
+from typing import Optional, List, Any
+from pydantic import BaseModel, validator, root_validator
 
 
-@dataclass
-class KaapanaUser:
+class MyBaseModel(BaseModel):
+    class Config:
+        orm_mode = True
+
+
+class KaapanaUser(MyBaseModel):
     idx: str
     name: str
     attributes: dict
@@ -11,14 +16,19 @@ class KaapanaUser:
     email: str
 
 
-@dataclass
-class KaapanaGroup:
+class KaapanaGroup(MyBaseModel):
     idx: str
     name: str
 
 
-@dataclass
-class KaapanaRole:
+class KaapanaRole(MyBaseModel):
     idx: str
     name: str
-    description: str
+    description: str = ""
+
+
+class KaapanaProject(MyBaseModel):
+    name: str
+    role_admin_idx: str
+    role_member_idx: str
+    group_idx: str

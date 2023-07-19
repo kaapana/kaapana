@@ -124,6 +124,15 @@ class UserService:
             for r in result
         ]
 
+    def get_realm_role_by_name(self, role_name: str) -> KaapanaRole:
+        self._login()
+        result = self.keycloak_admin.get_realm_role(role_name)
+        return KaapanaRole(
+            idx=result.get("id"),
+            name=result.get("name"),
+            description=result.get("description", ""),
+        )
+
     def post_user(
         self,
         username: str,
@@ -175,10 +184,23 @@ class UserService:
         self._login()
         return self.keycloak_admin.group_user_add(user_id, group_id)
 
-    def assign_realm_roles(self, user_id: str, roles: list) -> None:
+    def assign_realm_roles(self, user_id: str, roles: List[KaapanaRole]) -> None:
         self._login()
+        roles = [
+            {"id": r.idx, "name": r.name, "description": r.description} for r in roles
+        ]
         return self.keycloak_admin.assign_realm_roles(user_id, roles)
 
-    def assign_group_realm_roles(self, group_id: str, roles: list) -> None:
+    def assign_group_realm_roles(self, group_id: str, roles: List[KaapanaRole]) -> None:
         self._login()
+        roles = [
+            {"id": r.idx, "name": r.name, "description": r.description} for r in roles
+        ]
         return self.keycloak_admin.assign_group_realm_roles(group_id, roles)
+
+    def create_realm_role(self, payload: dict) -> KaapanaRole:
+        self._login()
+        realm_role_name = self.keycloak_admin.create_realm_role(
+            payload, skip_exists=False
+        )
+        return self.get_realm_role_by_name(realm_role_name)

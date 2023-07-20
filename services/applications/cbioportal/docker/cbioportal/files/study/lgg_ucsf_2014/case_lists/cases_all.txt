@@ -1,0 +1,6 @@
+cancer_study_identifier: lgg_ucsf_2014
+stable_id: lgg_ucsf_2014_all
+case_list_name: All samples
+case_list_description: All samples (61 samples)
+case_list_category: all_cases_in_study
+case_list_ids: P17_Pri_B	P17_Pri_C	P28_Rec	P17_Pri_A	P13_Rec	P07_Rec	P26_Pri_B	P26_Pri_A	P18_Pri_A	P18_Pri_C	P18_Pri_B	P18_Pri_D	P02_Pri	P16_Rec	P11_Rec	P01_Pri	P26_Rec1_B	P26_Rec1_A	P24_Rec2	P05_Pri	P08_Pri	P27_Pri_A	P24_Rec1	P12_Rec	P25_Pri	P29_Pri	P07_Pri	P06_Rec	P15_Pri	P27_Rec1_A	P11_Pri	P17_Rec1_A	P28_Pri	P04_Rec1	P04_Pri	P04_Rec3	P04_Rec2	P09_Rec	P10_Rec	P24_Pri	P25_Rec	P21_Rec	P27_Rec1_B	P29_Rec	P05_Rec	P02_Rec	P13_Pri	P18_Rec	P08_Rec	P16_Pri	P12_Pri	P09_Pri	P21_Pri	P01_Rec	P10_Pri	P27_Pri_B	P17_Rec1_C	P17_Rec1_B	P15_Rec	P06_Pri	P17_Rec1_D

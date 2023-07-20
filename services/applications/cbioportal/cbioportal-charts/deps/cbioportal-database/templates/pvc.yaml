@@ -1,16 +1,13 @@
----
 apiVersion: v1
-kind: PersistentVolume
+kind: PersistentVolumeClaim
 metadata:
-  name: cbioportal-pv-volume
+  name: cbio-mysql-pv-claim
   namespace: "services"
-  labels:
-    type: local
 spec:
-  storageClassName: "host-dir"
-  capacity:
-    storage: 10Gi
+  storageClassName: "host-dir" 
+  volumeName: cbio-mysql-pv-volume
   accessModes:
     - ReadWriteMany
-  hostPath:
-    path: "/mnt/cbio-db-mysql/"
+  resources:
+    requests:
+      storage: "10Gi"

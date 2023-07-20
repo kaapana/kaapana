@@ -1,0 +1,8 @@
+type_of_cancer: difg
+cancer_study_identifier: lgg_ucsf_2014
+name: Low-Grade Gliomas (UCSF, Science 2014)
+description: Whole exome sequencing of 23 grade II glioma tumor/normal pairs.
+citation: Johnson et al. Science 2014
+pmid: 24336570
+groups: PUBLIC
+short_name: Glioma (UCSF)

@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: cbioportal
-          image: "{{ .Values.global.registry_url }}/cbioportal:{{ .Values.global.kaapana_build_version }}"
+          # image: "{{ .Values.global.registry_url }}/cbioportal:{{ .Values.global.kaapana_build_version }}"
+          image: "registry.hzdr.de/jens.beyermann/jens-dev/cbioportal:0.2.0-202-g78aba2f5c"
           ports:
             - containerPort: 8080
           command: ["/bin/sh"]
@@ -35,11 +36,9 @@ spec:
         - name: registry-secret
 
       volumes:
-      - name: study-data
-        hostPath:
-          path: "/home/kaapana/cbioportal/study/"
-          type: Directory
       - name: portal-properties
         configMap: 
           name: portal-config
- 
+      - name: study-data
+        persistentVolumeClaim:
+          claimName: study-data-pv-claim

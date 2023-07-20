@@ -1,0 +1,28 @@
+#Patient Identifier	Sex	Diagnosis Age	Overall Survival (Months)	Overall Survival Status
+#Identifier to uniquely specify a patient.	Sex	Age at which a condition or disease was first diagnosed.	Overall survival in months since initial diagonosis.	Overall patient survival status.
+#STRING	STRING	NUMBER	NUMBER	STRING
+#1	1	1	1	9
+PATIENT_ID	SEX	AGE	OS_MONTHS	OS_STATUS
+P01	Male	28	58	1:DECEASED
+P02	Female	26	5	
+P04	Male	22	61	1:DECEASED
+P05	Female	39	74	1:DECEASED
+P06	Male	22	87	1:DECEASED
+P07	Male	30	148	1:DECEASED
+P08	Male	44	103	1:DECEASED
+P09	Male	28	45	1:DECEASED
+P10	Female	41	44	1:DECEASED
+P11	Female	30	186	1:DECEASED
+P12	Male	35	82	0:LIVING
+P13	Male	24	106	1:DECEASED
+P15	Female	38	143	0:LIVING
+P16	Female	35	38	1:DECEASED
+P17	Male	27	59	0:LIVING
+P18	Male	49	106	0:LIVING
+P21	Male	27	35	1:DECEASED
+P24	Male	34	109	1:DECEASED
+P25	Male	39	42	0:LIVING
+P26	Female	36	47	0:LIVING
+P27	Male	56	54	0:LIVING
+P28	Male	30	137	0:LIVING
+P29	Male	52	109	1:DECEASED

@@ -1,0 +1,21 @@
+PATIENT_ID	START_DATE	STOP_DATE	EVENT_TYPE	TREATMENT_TYPE	SUBTYPE	AGENT
+P01	611	977	Treatment	Medical Therapy	Chemotherapy	TMZ
+P01	977	1007	Treatment	Medical Therapy		TMZ + accutane
+P01	1007	1038	Treatment	Medical Therapy		TMZ + thalidomide
+P01	1088	1132	Treatment	Radiation Therapy	XRT	
+P01	1160	1342	Treatment	Medical Therapy		CCNU + thalidomide
+P04	488	518	Treatment	Radiation Therapy	XRT	
+P04	488	700	Treatment	Medical Therapy	Chemotherapy	TMZ
+P04	1111	1279	Treatment	Medical Therapy	Chemotherapy	TMZ
+P05	562	928	Treatment	Medical Therapy	Chemotherapy	TMZ
+P06	0	176	Treatment	Medical Therapy	Chemotherapy	TMZ
+P07	47	86	Treatment	Radiation Therapy	XRT	
+P09	34	77	Treatment	Radiation Therapy	XRT	
+P10	0	273	Treatment	Medical Therapy	Chemotherapy	TMZ
+P11	29	71	Treatment	Radiation Therapy	XRT	
+P11	3038	3810	Treatment	Medical Therapy	Chemotherapy	TMZ
+P17	333	698	Treatment	Medical Therapy	Chemotherapy	TMZ
+P18	0	323	Treatment	Medical Therapy	Chemotherapy	TMZ
+P21	119	484	Treatment	Medical Therapy	Chemotherapy	TMZ
+P24	30	61	Treatment	Radiation Therapy	XRT	
+P24	2650	3007	Treatment	Medical Therapy	Chemotherapy	TMZ

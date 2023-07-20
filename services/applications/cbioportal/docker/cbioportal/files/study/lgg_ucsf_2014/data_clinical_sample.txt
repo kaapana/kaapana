@@ -1,0 +1,66 @@
+#Patient Identifier	Sample Identifier	Sample Type	Oncotree Code	Neoplasm Histologic Grade	MGMT Status	IDH1 Mutation	1p/19q Status	Non-silent mutations in TP53, ATRX, CIC, FUBP1	Note	Cancer Type	Cancer Type Detailed	Somatic Status	TMB (nonsynonymous)
+#Identifier to uniquely specify a patient.	A unique sample identifier.	The type of sample (i.e., normal, primary, met, recurrence).	Oncotree Code	Numeric value to express the degree of abnormality of cancer cells, a measure of differentiation and aggressiveness.	MGMT Status	IDH1 mutation is present	1p/19q Status	Non-silent mutations in TP53, ATRX, CIC, FUBP1	Note.	Cancer Type	Cancer Type Detailed	Somatic Status	TMB (nonsynonymous)
+#STRING	STRING	STRING	STRING	STRING	STRING	STRING	STRING	STRING	STRING	STRING	STRING	STRING	NUMBER
+#1	1	9	1	1	1	1	1	1	1	1	1	1	1
+PATIENT_ID	SAMPLE_ID	SAMPLE_TYPE	ONCOTREE_CODE	GRADE	MGMT_STATUS	IDH1_MUTATION	STATUS_1P_19Q	NON_SILENT_MUT_TP53_ATRX_CIC_FUBP1	NOTE	CANCER_TYPE	CANCER_TYPE_DETAILED	SOMATIC_STATUS	TMB_NONSYNONYMOUS
+P01	P01_Pri	Primary	ASTR	II	Unmethylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	1.3
+P01	P01_Rec	Recurrence	GB	IV	Methylated	R132H	19q deletion	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	40.8666666667
+P02	P02_Pri	Primary	OAST	II	Methylated	R132H	19q deletion	TP53	Patient lost follow up	Glioma	Oligoastrocytoma	Matched	0.8
+P02	P02_Rec	Recurrence	AASTR	III	Unmethylated	R132H	19q deletion	TP53	Patient lost follow up	Glioma	Anaplastic Astrocytoma	Matched	0.7
+P04	P04_Pri	Primary	ASTR	II	Unknown	R132C	Intact	TP53	NA	Glioma	Astrocytoma	Matched	0.4
+P04	P04_Rec1	Recurrence	AASTR	III	Unknown	R132C	Intact	TP53	NA	Glioma	Anaplastic Astrocytoma	Matched	0.933333333333
+P04	P04_Rec2	Recurrence	AASTR	III	Unknown	R132C	Intact	TP53	NA	Glioma	Anaplastic Astrocytoma	Matched	0.6
+P04	P04_Rec3	Recurrence	AASTR	III	Unknown	R132C	Intact	TP53	NA	Glioma	Anaplastic Astrocytoma	Matched	1.83333333333
+P05	P05_Pri	Primary	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.966666666667
+P05	P05_Rec	Recurrence	GB	IV	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	46.1
+P06	P06_Pri	Primary	ASTR	II	Unmethylated	R132H	Intact	NA	NA	Glioma	Astrocytoma	Matched	0.0333333333333
+P06	P06_Rec	Recurrence	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.666666666667
+P07	P07_Pri	Primary	ASTR	II	Unknown	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	3.36666666667
+P07	P07_Rec	Recurrence	ASTR	II	Unknown	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	4.16666666667
+P08	P08_Pri	Primary	OAST	II	Unknown	R132H	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	0.666666666667
+P08	P08_Rec	Recurrence	GB	IV	Unknown	R132H	19q deletion	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	1.66666666667
+P09	P09_Pri	Primary	ASTR	II	Methylated	R132H	Intact	TP53	NA	Glioma	Astrocytoma	Matched	0.166666666667
+P09	P09_Rec	Recurrence	GB	IV	Methylated	R132H	Intact	TP53	NA	Glioma	Glioblastoma	Matched	1.1
+P10	P10_Pri	Primary	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.9
+P10	P10_Rec	Recurrence	GB	IV	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	62.9666666667
+P11	P11_Pri	Primary	OAST	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	0.633333333333
+P11	P11_Rec	Recurrence	OAST	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	0.866666666667
+P12	P12_Pri	Primary	ASTR	II	Unknown	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.533333333333
+P12	P12_Rec	Recurrence	AASTR	III	Unknown	R132H	Intact	TP53, ATRX	NA	Glioma	Anaplastic Astrocytoma	Matched	0.633333333333
+P13	P13_Pri	Primary	OAST	II	Unmethylated	R132G	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	0.866666666667
+P13	P13_Rec	Recurrence	OAST	II	Unmethylated	R132G	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	0.9
+P15	P15_Pri	Primary	OAST	II	Unknown	R132H	Co-deletion	NA	NA	Glioma	Oligoastrocytoma	Matched	0.666666666667
+P15	P15_Rec	Recurrence	OAST	II	Unknown	R132H	Co-deletion	CIC	NA	Glioma	Oligoastrocytoma	Matched	0.766666666667
+P16	P16_Pri	Primary	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.933333333333
+P16	P16_Rec	Recurrence	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	1.0
+P17	P17_Pri_A	Primary	ODG	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligodendroglioma	Matched	0.533333333333
+P17	P17_Pri_B	Primary	ODG	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligodendroglioma	Matched	0.4
+P17	P17_Pri_C	Primary	ODG	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligodendroglioma	Matched	0.4
+P17	P17_Rec1_A	Recurrence	GB	IV	Unmethylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	0.966666666667
+P17	P17_Rec1_B	Recurrence	GB	IV	Unmethylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	1.2
+P17	P17_Rec1_C	Recurrence	GB	IV	Unmethylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	0.866666666667
+P17	P17_Rec1_D	Recurrence	GB	IV	Unmethylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	1.26666666667
+P18	P18_Pri_A	Primary	OAST	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	1.66666666667
+P18	P18_Pri_B	Primary	OAST	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	1.5
+P18	P18_Pri_C	Primary	OAST	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	1.86666666667
+P18	P18_Pri_D	Primary	OAST	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	1.63333333333
+P18	P18_Rec	Recurrence	GB	IV	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	57.0666666667
+P21	P21_Pri	Primary	OAST	II	Methylated	R132H	19q deletion	TP53, ATRX	NA	Glioma	Oligoastrocytoma	Matched	0.766666666667
+P21	P21_Rec	Recurrence	GB	IV	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	21.4666666667
+P24	P24_Pri	Primary	ASTR	II	Unmethylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.4
+P24	P24_Rec1	Recurrence	ASTR	II	Unmethylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.6
+P24	P24_Rec2	Recurrence	GB	IV	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Glioblastoma	Matched	54.4333333333
+P25	P25_Pri	Primary	ASTR	II	Methylated	R132H	Intact	ATRX	NA	Glioma	Astrocytoma	Matched	1.2
+P25	P25_Rec	Recurrence	GB	IV	Methylated	R132H	Intact	ATRX	NA	Glioma	Glioblastoma	Matched	2.83333333333
+P26	P26_Pri_A	Primary	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.666666666667
+P26	P26_Pri_B	Primary	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.833333333333
+P26	P26_Rec1_A	Recurrence	AASTR	III	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Anaplastic Astrocytoma	Matched	1.0
+P26	P26_Rec1_B	Recurrence	AASTR	III	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Anaplastic Astrocytoma	Matched	0.766666666667
+P27	P27_Pri_A	Primary	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.8
+P27	P27_Pri_B	Primary	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	1.0
+P27	P27_Rec1_A	Recurrence	AASTR	III	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Anaplastic Astrocytoma	Matched	1.06666666667
+P27	P27_Rec1_B	Recurrence	AASTR	III	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Anaplastic Astrocytoma	Matched	0.966666666667
+P28	P28_Pri	Primary	ASTR	II	Methylated	R132H	19q deletion	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	0.533333333333
+P28	P28_Rec	Recurrence	AASTR	III	Methylated	R132H	19q deletion	TP53, ATRX	NA	Glioma	Anaplastic Astrocytoma	Matched	0.733333333333
+P29	P29_Pri	Primary	ASTR	II	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Astrocytoma	Matched	1.13333333333
+P29	P29_Rec	Recurrence	AASTR	III	Methylated	R132H	Intact	TP53, ATRX	NA	Glioma	Anaplastic Astrocytoma	Matched	1.16666666667

@@ -1,0 +1,6 @@
+cancer_study_identifier: lgg_ucsf_2014
+stable_id: lgg_ucsf_2014_sequenced
+case_list_name: Samples with mutation data
+case_list_description: Samples with mutation data (61 samples)
+case_list_category: all_cases_with_mutation_data
+case_list_ids: P17_Pri_B	P17_Pri_C	P17_Pri_A	P09_Pri	P21_Rec	P26_Pri_B	P26_Pri_A	P18_Pri_A	P18_Pri_C	P18_Pri_B	P18_Pri_D	P02_Pri	P16_Rec	P11_Rec	P17_Rec1_B	P01_Pri	P26_Rec1_B	P26_Rec1_A	P01_Rec	P05_Pri	P08_Pri	P27_Pri_A	P10_Pri	P05_Rec	P12_Rec	P25_Pri	P02_Rec	P07_Pri	P06_Rec	P15_Pri	P28_Pri	P04_Rec1	P04_Pri	P04_Rec3	P04_Rec2	P09_Rec	P07_Rec	P10_Rec	P21_Pri	P24_Pri	P15_Rec	P25_Rec	P11_Pri	P08_Rec	P29_Rec	P27_Rec1_B	P29_Pri	P13_Pri	P18_Rec	P12_Pri	P16_Pri	P13_Rec	P28_Rec	P24_Rec2	P24_Rec1	P27_Pri_B	P17_Rec1_C	P27_Rec1_A	P17_Rec1_A	P06_Pri	P17_Rec1_D

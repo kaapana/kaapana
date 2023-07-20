@@ -1,0 +1,55 @@
+PATIENT_ID	START_DATE	STOP_DATE	EVENT_TYPE	EVENT_TYPE_DETAILED
+P01	0		Surgery	Astro II biopsy
+P01	124		Surgery	Astro II Initial
+P01	1063		Surgery	GBM Recurrence1
+P01	1391		Surgery	GBM Recurrence2
+P02	0		Surgery	OA II Initial
+P02	2226		Surgery	AA III Recurrence1
+P04	0		Surgery	Astro II Initial
+P04	461		Surgery	AA III Recurrence1
+P04	1075		Surgery	AA III Recurrence2
+P04	1343		Surgery	AA III Recurrence3
+P05	0		Surgery	Astro II Initial
+P05	1687		Surgery	GBM Recurrence1
+P06	0		Surgery	Astro II biopsy
+P06	574		Surgery	Astro II Initial
+P06	1545		Surgery	Astro II Recurrence1
+P07	0		Surgery	Astro II Initial
+P07	3134		Surgery	Astro II Recurrence1
+P08	0		Surgery	Astro II unknown
+P08	1368		Surgery	OA II Initial
+P08	2565		Surgery	GBM Recurrence1
+P09	0		Surgery	Astro II Initial
+P09	1062		Surgery	GBM Recurrence1
+P10	0		Surgery	Astro II Initial
+P10	758		Surgery	GBM Recurrence1
+P11	0		Surgery	OA II Initial
+P11	3954		Surgery	Oligo II Recurrence1
+P12	0		Surgery	Astro II Initial
+P12	504		Surgery	AA III Recurrence1
+P13	3		Surgery	OA II Initial
+P13	622		Surgery	OA II Recurrence1
+P15	0		Surgery	OA II Initial
+P15	3564		Surgery	OA II Recurrence1
+P16	0		Surgery	Astro II Initial
+P16	150		Surgery	Astro II Recurrence1
+P17	0		Surgery	OA II biopsy
+P17	311		Surgery	Oligo II Initial
+P17	1214		Surgery	GBM Recurrence1
+P18	0		Surgery	OA II Initial
+P18	2829		Surgery	GBM Recurrence1
+P21	0		Surgery	Astro II Initial
+P21	628		Surgery	GBM Recurrence1
+P24	0		Surgery	Astro II Initial
+P24	2630		Surgery	Astro II Recurrence1
+P24	3045		Surgery	GBM Recurrence2
+P25	0		Surgery	Astro II Initial
+P25	420		Surgery	GBM Recurrence1
+P26	0		Surgery	Astro II Initial
+P26	490		Surgery	AA III Recurrence1
+P27	0		Surgery	Astro II Initial
+P27	345		Surgery	AA III Recurrence1
+P28	0		Surgery	Astro II Initial
+P28	2553		Surgery	AA III Recurrence1
+P29	0		Surgery	Astro II Initial
+P29	1703		Surgery	AA III Recurrence1

@@ -7,6 +7,6 @@ conf_data:
     input: "SEG"
     single_execution: false
   data_form:
-    dataset_name: testSEG
+    dataset_name: test-SEG
 remote: false
 username: "kaapana"

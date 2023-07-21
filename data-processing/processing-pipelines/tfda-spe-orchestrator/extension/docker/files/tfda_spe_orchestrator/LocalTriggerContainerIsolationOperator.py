@@ -8,6 +8,21 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalTriggerContainerIsolationOperator(KaapanaPythonBaseOperator):
+    """
+    Custom operator for triggering an containerized workflow in a Secure Processing Environment (SPE).
+
+    This operator extends the KaapanaPythonBaseOperator and is designed to trigger a separate DAG
+    (dag-tfda-spe-orchestrator) that executes a containerized workflow in an SPE. It leverages
+    the Airflow API to trigger the specified DAG with a custom configuration, waits for the DAG
+    to complete execution, and checks the final state of the isolated workflow.
+
+    Notes:
+        1. This operator triggers the 'dag-tfda-spe-orchestrator' DAG with a custom configuration.
+        2. The 'start' method handles the triggering, monitoring, and checking of the isolated workflow's state.
+        3. If the isolated workflow execution fails, the operator raises an AirflowFailException.
+        4. Ensure that the 'dag-tfda-spe-orchestrator' DAG exists and is correctly configured before using this operator.
+    """
+
     def get_most_recent_dag_run(self, dag_id):
         dag_runs = DagRun.find(dag_id=dag_id)
         dag_runs.sort(key=lambda x: x.execution_date, reverse=True)

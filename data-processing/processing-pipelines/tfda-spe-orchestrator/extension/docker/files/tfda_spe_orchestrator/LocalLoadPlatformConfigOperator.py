@@ -8,6 +8,25 @@ from pathlib import Path
 
 
 class LocalLoadPlatformConfigOperator(KaapanaPythonBaseOperator):
+    """
+    Custom operator for loading platform-specific configuration for a Secure Processing Environment (SPE).
+
+    This operator extends the KaapanaPythonBaseOperator and is designed to handle the task of loading platform-specific
+    configuration files for an SPE. It copies the specified platform configuration file from the operator's
+    directory to the DAG run's directory so that it can be used further in the pipeline.
+
+    Parameters:
+        platform_config_file (str, optional): The name of the platform-specific configuration file to be loaded.
+                                              This file should be present in the 'platform_specific_config'
+                                              subdirectory relative to the directory where this operator is defined.
+                                              The default value is 'platform_config.json'.
+
+    Notes:
+        1. The 'platform_config_file' should be a valid JSON file containing platform-specific configuration data.
+        2. Ensure that the 'platform_specific_config' subdirectory exists relative to the directory where this operator
+           is defined, and it contains the specified 'platform_config_file'.
+    """
+
     def start(self, ds, ti, **kwargs):
         logging.info("Load platform specific configuration for the DAG run...")
         dag_run_id = kwargs["dag_run"].run_id

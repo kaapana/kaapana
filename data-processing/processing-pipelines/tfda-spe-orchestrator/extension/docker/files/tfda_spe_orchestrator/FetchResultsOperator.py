@@ -7,6 +7,14 @@ from datetime import timedelta
 
 
 class FetchResultsOperator(KaapanaBaseOperator):
+    """
+    Fetches results from the Secure Processing Environment (SPE).
+
+    This operator extends the KaapanaBaseOperator and allows fetching of the analysis results from the
+    SPE for further processing by triggering the respective processing container. It is intended to be
+    used within the Kaapana platform and makes use of specific Kaapana variables and configurations.
+    """
+
     execution_timeout = timedelta(hours=10)
 
     def __init__(

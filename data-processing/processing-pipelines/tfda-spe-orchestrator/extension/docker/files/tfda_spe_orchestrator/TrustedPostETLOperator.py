@@ -7,6 +7,17 @@ from datetime import timedelta
 
 
 class TrustedPostETLOperator(KaapanaBaseOperator):
+    """
+    Operator for running post-processing on the results of the execution of workflows inside the Secure Processing Environment (SPE).
+
+    This operator is currently only a placeholder and in future will support post-processing security
+    measures on the results of the workflows that were run inside the SPE. It is intended to be used
+    within the Kaapana platform and makes use of specific Kaapana variables and configurations.
+
+    Notes:
+        1. Ensure that the environment variable called "TASK_TYPE" is passed on with the name of the operator task.
+    """
+
     execution_timeout = timedelta(hours=10)
 
     def __init__(

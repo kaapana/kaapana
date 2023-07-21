@@ -7,6 +7,18 @@ from datetime import timedelta
 
 
 class CopyDataAndAlgoOperator(KaapanaBaseOperator):
+    """
+    Operator for copying data and algorithm files into the Secure Processing Environment (SPE).
+
+    This operator extends the KaapanaBaseOperator and is designed to facilitate the copying of user
+    selected data and algorithm files into the Secure Processing Environment (SPE) by triggering the respective
+    processing container. It is intended to be used within the Kaapana platform and makes use of specific
+    Kaapana variables and configurations.
+
+    Notes:
+        1. Ensure that the environment variable called "TASK_TYPE" is passed on with the name of the operator task.
+    """
+
     execution_timeout = timedelta(hours=10)
 
     def __init__(

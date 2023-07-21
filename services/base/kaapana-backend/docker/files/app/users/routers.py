@@ -221,8 +221,13 @@ async def post_project(
         roles2idx[role_name] = realm_role.idx
 
         if role_name == "role_member":
-            payload["idx"] = realm_role.idx
-            roles = [payload]
+            roles = [
+                KaapanaRole(
+                    idx=realm_role.idx,
+                    name=payload.get("name"),
+                    description=payload.get("description"),
+                )
+            ]
             us.assign_group_realm_roles(project_group.idx, roles)
 
     kaapana_project = KaapanaProject(

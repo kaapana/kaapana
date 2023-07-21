@@ -6,6 +6,7 @@
         title="Users"
         :rows="computedUserList"
         :columns="userColumns"
+        identifier="idx"
         @open-settings="open_user_info"
         @refresh="get_users"
         @add-button="createUserDialog = true"
@@ -16,9 +17,20 @@
         title="Groups"
         :rows="computedGroupList"
         :columns="groupColumns"
+        identifier="idx"
         @open-settings="open_group_info"
         @refresh="get_groups"
         @add-button="createGroupDialog = true"
+      >
+      </UserTable>
+
+      <UserTable
+        title="Projects"
+        :rows="computedProjectList"
+        :columns="projectColumns"
+        identifier="name"
+        @open-settings="open_project_info"
+        @add-button="createProjectDialog = true"
       >
       </UserTable>
 
@@ -42,6 +54,11 @@
         </GroupInformation>
       </v-dialog>
 
+      <v-dialog v-model="projectInformationField" width="500">
+        <ProjectInformation title="Project details" :projectName="projectName">
+        </ProjectInformation>
+      </v-dialog>
+
       <v-dialog v-model="createUserDialog" width="500">
         <CreateUser
           title="Create user"
@@ -61,6 +78,16 @@
         >
         </CreateUser>
       </v-dialog>
+
+      <v-dialog v-model="createProjectDialog" width="500">
+        <CreateUser
+          title="Create project"
+          :newObject="newProject"
+          :fields="createProjectFields"
+          @create-object="post_project"
+        >
+        </CreateUser>
+      </v-dialog>
     </v-card>
   </div>
 </template>
@@ -76,6 +103,7 @@ import UserTable from "@/components/UserManagement/UserTable.vue";
 import CreateUser from "@/components/UserManagement/CreateUser.vue";
 import UserInformation from "@/components/UserManagement/UserInformation.vue";
 import GroupInformation from "@/components/UserManagement/GroupInformation.vue";
+import ProjectInformation from "@/components/UserManagement/ProjectInformation.vue";
 
 export default {
   name: "iframe-view",
@@ -85,6 +113,7 @@ export default {
     CreateUser,
     UserInformation,
     GroupInformation,
+    ProjectInformation,
   },
   data() {
     return {
@@ -93,9 +122,11 @@ export default {
       userRoles: [],
       createUserDialog: false,
       createGroupDialog: false,
+      createProjectDialog: false,
       addToGroupDialog: false,
       userInformationField: false,
       groupInformationField: false,
+      projectInformationField: false,
 
       groupId: "",
       groupUsers: [],
@@ -103,6 +134,11 @@ export default {
 
       newGroup: {
         groupname: "",
+      },
+
+      projectName: "",
+      newProject: {
+        name: "",
       },
 
       newUser: {
@@ -115,6 +151,7 @@ export default {
       userList: [],
       groupList: [],
       roleList: [],
+      projectList: [],
       createUserFields: [
         { name: "username", label: "Username" },
         { name: "firstName", label: "First Name" },
@@ -122,6 +159,7 @@ export default {
         { name: "email", label: "Email" },
       ],
       createGroupFields: [{ name: "groupname", label: "Groupname" }],
+      createProjectFields: [{ name: "name", label: "Projectname" }],
       userColumns: [
         { name: "name", title: "Username" },
         { name: "idx", title: "User-ID" },
@@ -133,11 +171,15 @@ export default {
         { name: "name", title: "Groupname" },
         { name: "idx", title: "Group-ID" },
       ],
+      projectColumns: [{ name: "name", title: "Project name" }],
     };
   },
 
   mounted() {
-    this.get_users(), this.get_groups(), this.get_available_realm_roles();
+    this.get_users(),
+      this.get_groups(),
+      this.get_available_realm_roles(),
+      this.get_projects();
   },
 
   computed: {
@@ -149,6 +191,9 @@ export default {
     },
     computedRoleList() {
       return [...this.roleList];
+    },
+    computedProjectList() {
+      return [...this.projectList];
     },
   },
 
@@ -183,11 +228,26 @@ export default {
           console.error("Error fetching roles list:", error);
         });
     },
+    get_projects() {
+      kaapanaApiService
+        .kaapanaApiGet("users/projects/")
+        .then((response) => {
+          this.projectList = response.data;
+        })
+        .catch((error) => {
+          console.error("Error fetching project list:", error);
+        });
+      console.log(this.projectList);
+    },
     open_user_info(idx) {
       (this.userInformationField = true), (this.userId = idx);
     },
     open_group_info(idx) {
       (this.groupInformationField = true), (this.groupId = idx);
+    },
+    open_project_info(name) {
+      console.log(name);
+      (this.projectInformationField = true), (this.projectName = name);
     },
     post_user() {
       let params = this.newUser;
@@ -213,6 +273,19 @@ export default {
         .catch((error) => {
           console.log("Error creating user", error);
           this.createGroupDialog = false;
+        });
+    },
+    post_project() {
+      let params = this.newProject;
+      kaapanaApiService
+        .kaapanaApiPost("users/projects/" + this.newProject.name)
+        .then((response) => {
+          this.createProjectDialog = false;
+          this.get_projects();
+        })
+        .catch((error) => {
+          console.log("Error creating project", error);
+          this.createProjectDialog = false;
         });
     },
   },

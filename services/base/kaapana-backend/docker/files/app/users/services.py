@@ -193,10 +193,11 @@ class UserService:
 
     def assign_group_realm_roles(self, group_id: str, roles: List[KaapanaRole]) -> None:
         self._login()
-        roles = [
+        print(roles)
+        kaapana_roles = [
             {"id": r.idx, "name": r.name, "description": r.description} for r in roles
         ]
-        return self.keycloak_admin.assign_group_realm_roles(group_id, roles)
+        return self.keycloak_admin.assign_group_realm_roles(group_id, kaapana_roles)
 
     def create_realm_role(self, payload: dict) -> KaapanaRole:
         self._login()

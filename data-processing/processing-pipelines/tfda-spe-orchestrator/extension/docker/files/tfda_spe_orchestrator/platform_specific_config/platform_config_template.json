@@ -1,33 +1,14 @@
 {
   "default_platform": {
-    "shell_workflow": "qemu_kvm",
     "container_workflow": "openstack"
   },
   "platforms": {
     "openstack": {
       "default_flavor": {
-        "shell_workflow": "flavor_1",
-        "container_workflow": "flavor_2"
+        "container_workflow": "flavor_1"
       },
       "platform_flavors": {
         "flavor_1": {
-          "username": "",
-          "password": "",
-          "os_user_domain": "",
-          "os_project_name": "",
-          "os_project_id": "",
-          "os_network_id": "",
-          "os_floating_ip_pools": "",
-          "os_auth_url": "",
-          "ssh_key_path": "",
-          "ssh_key_name": "",
-          "os_image": "",
-          "os_volume_size": "",
-          "os_instance_flavor": "",
-          "remote_username": "",
-          "os_security_groups": ""
-        },
-        "flavor_2": {
           "username": "",
           "password": "",
           "os_user_domain": "",
@@ -48,8 +29,7 @@
     },
     "qemu_kvm": {
       "default_flavor": {
-        "shell_workflow": "flavor_1",
-        "container_workflow": "flavor_2"
+        "container_workflow": "flavor_1"
       },
       "platform_flavors": {
         "flavor_1": {
@@ -74,10 +54,6 @@
           "cleanup_libvirt": ""
         }
       }
-    },
-    "vmware": {
-      "default_flavor": {},
-      "platform_flavors": {}
     }
   }
 }

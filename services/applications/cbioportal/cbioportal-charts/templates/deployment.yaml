@@ -23,10 +23,10 @@ spec:
           # args: ["-c", "--", "while true; do sleep 30; done;"]
           args: ["-c", "java -Xms2g -Xmx4g -Dauthenticate=noauthsessionservice -Dsession.service.url=http://cbioportal-session-service.services.svc:5000/api/sessions/my_portal/ -jar webapp-runner.jar -AmaxHttpHeaderSize=16384 -AconnectionTimeout=20000 --enable-compression /cbioportal-webapp"]
           volumeMounts:
-          - name: study-data # key of volume moment
+          - name: cbio-study-data # key of volume moment
             mountPath: "/study/" # path in container
           - name: portal-properties
-            mountPath: "/cbioportal/portal.properties" 
+            mountPath: "/cbioportal/" 
           resources:
             requests:
               memory: "4Gi"
@@ -39,6 +39,6 @@ spec:
       - name: portal-properties
         configMap: 
           name: portal-config
-      - name: study-data
+      - name: cbio-study-data
         persistentVolumeClaim:
-          claimName: study-data-pv-claim
+          claimName: cbio-study-data-pv-claim

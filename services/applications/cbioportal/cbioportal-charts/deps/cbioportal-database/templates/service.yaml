@@ -11,13 +11,6 @@ spec:
   ports:
     - port: 3306
       targetPort: 3306
-# spec:
-#   selector:
-#     app-name: cbioportal-database
-#   ports:
-#     - port: 3306
-#       targetPort: 33060
-#       nodePort: 3306 # only for development!
 
   type: ClusterIP
   # type: NodePort

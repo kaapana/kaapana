@@ -2,7 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: cbioportal-database
-  namespace: "{{ .Values.global.services_namespace }}"
+  # namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "services"
 spec:
   replicas: 1
   selector:
@@ -17,8 +18,10 @@ spec:
     spec:
       containers:
       - name: cbioportal-database-container
-        image: "{{ .Values.global.registry_url }}/mysql-5.7:{{ .Values.global.kaapana_build_version }}"
-        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        # image: "{{ .Values.global.registry_url }}/mysql-5.7:{{ .Values.global.kaapana_build_version }}"
+        image: registry.hzdr.de/jens.beyermann/jens-dev/mysql-5.7:0.2.0-204-gc1863f6c9
+        # imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        imagePullPolicy: Always
         env: # Environment variables
         - name: MYSQL_DATABASE
           value: "cbioportal"
@@ -38,21 +41,21 @@ spec:
           requests:
             memory: "300Mi"
         volumeMounts:
-          - name: cbioportal-mysql-data # key of volume mount
+          - name: cbio-mysql-data # key of volume mount
             mountPath: "/var/lib/mysql" # path in container
-          - name: cbioportal-mysql
-            mountPath: "/docker-entrypoint-initdb.d/cgds.sql"
-            subPath: "cgds.sql"
-          - name: cbioportal-mysql
-            mountPath: "/docker-entrypoint-initdb.d/seed.sql.gz" 
-            subPath: "seed.sql.gz"
+          # - name: cbioportal-mysql
+          #   mountPath: "/docker-entrypoint-initdb.d/cgds.sql"
+          #   subPath: "cgds.sql"
+          # - name: cbioportal-mysql
+          #   mountPath: "/docker-entrypoint-initdb.d/seed.sql.gz" 
+          #   subPath: "seed.sql.gz"
       volumes:
-        - name: cbioportal-mysql-data 
+        - name: cbio-mysql-data 
           persistentVolumeClaim: # named volume without specific host path. Not 100% sure how to realise this in k8s but thiss seems reasonable.
-            claimName: cbioportal-pv-claim
-        - name: cbioportal-mysql
-          hostPath:
-            path: "/home/kaapana/cbioportal/data"
-            type: Directory
+            claimName: cbio-mysql-data-pv-claim
+        # - name: cbioportal-mysql
+        #   hostPath:
+        #     path: "/home/kaapana/cbioportal/data"
+        #     type: Directory
       imagePullSecrets:
         - name: registry-secret

@@ -6,12 +6,12 @@ metadata:
 data:
   portal.properties: |
     app.name=cbioportal
-    db.user=cbio_user
+    db.user=cbiouser
     db.password=somepassword
     db.host=cbioportal-database:3306
     db.portal_db_name=cbioportal
     db.driver=com.mysql.jdbc.Driver
-    db.connection_string=jdbc:mysql://cbioportal-database:3306/
+    db.connection_string=jdbc:mysql://cbioportal-database.services.svc:3306/
     db.suppress_schema_version_mismatch_errors=false
     db.use_ssl=false
 

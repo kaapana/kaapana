@@ -13,8 +13,8 @@ spec:
     - protocol: TCP
       name: cbio-http
       port: 8080
-      targetPort: 8080
-      # nodePort: 8081 # only for development!
+      # targetPort: 8080
+      nodePort: 8080 # only for development!
 
-  type: ClusterIP
-  # type: NodePort
+  # type: ClusterIP
+  type: NodePort

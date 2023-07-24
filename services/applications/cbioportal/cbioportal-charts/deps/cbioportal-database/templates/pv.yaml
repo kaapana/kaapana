@@ -1,16 +1,16 @@
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: cbio-mysql-pv-volume
-  namespace: "services"
-  labels:
-    type: local
-spec:
-  storageClassName: "host-dir"
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteMany
-  hostPath:
-    path: "/mnt/cbio-db-mysql/"
+# ---
+# apiVersion: v1
+# kind: PersistentVolume
+# metadata:
+#   name: cbio-mysql-pv-volume
+#   namespace: "services"
+#   labels:
+#     type: local
+# spec:
+#   storageClassName: "host-dir"
+#   capacity:
+#     storage: 10Gi
+#   accessModes:
+#     - ReadWriteMany
+#   hostPath:
+#     path: "/mnt/cbio-db-mysql/"

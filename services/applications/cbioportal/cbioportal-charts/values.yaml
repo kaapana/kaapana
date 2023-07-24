@@ -3,5 +3,8 @@ global:
   fast_data_dir: /home/kaapana
   slow_data_dir: /home/kaapana
   dynamicVolumes:
-  - name: study-data
+  - name: cbio-study-data
     host_path: /cbioportal/study
+  - name: cbio-mysql-data
+    host_path: /cbioportal/db-mysql
+

@@ -1,0 +1,4 @@
+---
+global:
+    image: "create-classification-dataset-workflow"
+    action: "copy"

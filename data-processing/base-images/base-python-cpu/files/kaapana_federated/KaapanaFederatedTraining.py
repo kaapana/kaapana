@@ -277,16 +277,17 @@ class KaapanaFederatedTrainingBase(ABC):
         )
 
         # FL aggregation strategy
-        self.aggregation_strategy = self.remote_conf_data["federated_form"][
-            "aggregation_strategy"
-        ][0]
-        if self.aggregation_strategy == "feddc":
-            self.agg_rate = self.remote_conf_data["federated_form"][
-                "feddc_aggregation_rate"
-            ]
-            self.dc_rate = self.remote_conf_data["federated_form"][
-                "feddc_daisychaining_rate"
-            ]
+        if "aggregation_strategy" in self.remote_conf_data["federated_form"]:
+            self.aggregation_strategy = self.remote_conf_data["federated_form"][
+                "aggregation_strategy"
+            ][0]
+            if self.aggregation_strategy == "feddc":
+                self.agg_rate = self.remote_conf_data["federated_form"][
+                    "feddc_aggregation_rate"
+                ]
+                self.dc_rate = self.remote_conf_data["federated_form"][
+                    "feddc_daisychaining_rate"
+                ]
 
     @timeit
     def distribute_jobs(self, federated_round):

@@ -10,6 +10,7 @@ import shutil
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperFederated import federated_sharing_decorator
 
 
 class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):
@@ -30,6 +31,7 @@ class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):
     """
 
     @cache_operator_output
+    @federated_sharing_decorator
     def start(self, ds, **kwargs):
         print("Starting module LocalMergeBranchesOperator...")
         print(kwargs)
@@ -63,7 +65,7 @@ class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):
     def __init__(
         self,
         dag,
-        name="merge_2branches",
+        name="merge_branches",
         first_input_operator=None,
         second_input_operator=None,
         level="element",

@@ -30,7 +30,7 @@ remote_dag_id = "advanced-collect-metadata"
 skip_operators = []
 
 # federated_operators are operators which are executed during a round of the remote_dag
-federated_operators = ["fed-packaging-operator"]
+federated_operators = ["merge_branches"]
 
 # UI forms
 ui_forms = {
@@ -38,7 +38,13 @@ ui_forms = {
     "external_schema_federated_form": {
         "type": "object",
         "properties": {
-            **properties_external_federated_form(["federated_total_rounds"]),
+            "federated_total_rounds": {
+                "type": "integer",
+                # "title": "Rounds",
+                "default": 1,
+                "readOnly": True,
+                "required": True,
+            },
             "remote_dag_id": {
                 "type": "string",
                 "title": "Remote dag id",
@@ -92,7 +98,7 @@ dag = DAG(
 
 acmd_federated = AdvancedCollectMetatdataFederatedOperator(
     dag=dag,
-    # dev_server='code-server',
+    # dev_server="code-server",
     image_pull_policy="Always",
 )
 

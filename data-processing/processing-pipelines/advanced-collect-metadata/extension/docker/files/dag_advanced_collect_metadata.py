@@ -112,6 +112,7 @@ merge_branches = LocalMergeBranchesOperator(
     second_input_operator=concat_metadata,
     level="batch",
     trigger_rule=TriggerRule.ALL_DONE,
+    allow_federated_learning=True,
 )
 
 put_to_minio = LocalMinioOperator(

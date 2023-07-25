@@ -34,7 +34,7 @@ ui_forms = {
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": False,
-                "readOnly": False,
+                "readOnly": True,
             }
         },
     }

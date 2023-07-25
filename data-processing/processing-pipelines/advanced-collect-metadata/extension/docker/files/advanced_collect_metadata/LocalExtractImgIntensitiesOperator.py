@@ -5,6 +5,7 @@ import datetime
 from pathlib import Path
 import nibabel as nib
 import numpy as np
+from os.path import basename
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -41,6 +42,7 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
         Path(batch_out_dir).mkdir(exist_ok=True)
 
         histo_dict = {}
+        concat_json_data = {}
         for batch_element_dir in batch_dirs:
             # check if json_operator is defined; if yes load existing json file from json_operator's dir
             if self.json_operator:
@@ -67,6 +69,7 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
             )[0]
             nifti = nib.load(nifti_fname)
 
+            # retrieve grayscale histo values and add to histo_dict
             pixel_data = nifti.get_fdata()
             unique_values, counts = np.unique(pixel_data, return_counts=True)
             histo_dict_el = {
@@ -78,15 +81,22 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
                 else:
                     histo_dict[key] = int(histo_dict[key]) + int(value)
             print(f"{histo_dict=}")
-            json_data["pixel_intensities_n_freq"] = histo_dict
+
+            # append metadata to concat_json_data dict
+            concat_json_data[basename(batch_element_dir)] = json_data
+
+        # merge concat_json_data and histo_dict dicts
+        concat_json_data.update(histo_dict)
 
         # save to out_dir
         with open(
-            os.path.join(batch_out_dir, "histodata.json"),
+            os.path.join(batch_out_dir, "metadata_n_mergedhisto.json"),
             "w",
             encoding="utf-8",
         ) as fp:
-            json.dump(histo_dict, fp, indent=4, sort_keys=False, ensure_ascii=False)
+            json.dump(
+                concat_json_data, fp, indent=4, sort_keys=False, ensure_ascii=False
+            )
 
     def __init__(
         self,

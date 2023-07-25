@@ -21,6 +21,7 @@ class LocalMergeBranchesOperator(KaapanaPythonBaseOperator):
 
         * first_input_operator: First operator of which results should be merged.
         * second_input_operator: Second operator of which results should be merged.
+        * level: "batch" or "element" level specifying the level where the out_dirs of the 2 input_operators exist.
 
     **Outputs**
 

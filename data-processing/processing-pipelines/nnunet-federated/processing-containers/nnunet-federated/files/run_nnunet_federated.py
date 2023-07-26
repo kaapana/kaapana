@@ -269,11 +269,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             )
             print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
-            #######################################################################
-            ### WHERE THE MAGIC HAPPENS ###
-            #######################################################################
-
-            ### NEW ###
+            ### FL Aggregation during training ###
             # load state_dicts
             site_statedict_dict = self.load_state_dicts(current_federated_round_dir)
             # process state_dicts according to aggregation method
@@ -297,10 +293,6 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             fname = self.save_state_dicts(
                 current_federated_round_dir, processed_site_statedict_dict
             )
-
-            #######################################################################
-            ### WHERE THE MAGIC HAPPENS ###
-            #######################################################################
 
             # last fl_round
             if (

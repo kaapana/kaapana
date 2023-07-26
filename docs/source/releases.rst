@@ -3,6 +3,24 @@
 Changelog
 #########
 
+.. _release-0.2.2:
+
+-------------------------
+
+********************
+Release Notes v0.2.2
+********************
+
+July 26, 2023
+
+-------------------------
+
+Bug fixes
+---------
+
+* Installation of certificates
+* Access to Traefik routes for users with no admin rights
+
 .. _release-0.2.1:
 
 -------------------------

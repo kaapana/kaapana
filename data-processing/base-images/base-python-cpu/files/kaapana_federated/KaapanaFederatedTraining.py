@@ -278,9 +278,11 @@ class KaapanaFederatedTrainingBase(ABC):
 
         # FL aggregation strategy
         if "aggregation_strategy" in self.remote_conf_data["federated_form"]:
+            # get defined FL aggregation strategy
             self.aggregation_strategy = self.remote_conf_data["federated_form"][
                 "aggregation_strategy"
             ]["agg_strategy_method"]
+            # special params for FedDC
             if self.aggregation_strategy == "feddc":
                 self.agg_rate = self.remote_conf_data["federated_form"][
                     "aggregation_strategy"

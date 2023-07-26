@@ -54,8 +54,6 @@ ui_forms = {
                 [
                     "federated_total_rounds",
                     "aggregation_strategy",
-                    "feddc_aggregation_rate",
-                    "feddc_daisychaining_rate",
                 ]
             ),
             "remote_dag_id": {
@@ -109,7 +107,10 @@ dag = DAG(
     schedule_interval=None,
 )
 
-nnunet_federated = nnUNetFederatedOperator(dag=dag, dev_server="code-server")
+nnunet_federated = nnUNetFederatedOperator(
+    dag=dag,
+    # dev_server="code-server"
+)
 
 zip_model = ZipUnzipOperator(
     dag=dag,

@@ -489,6 +489,11 @@ function check_credentials {
 }
 
 function install_certs {
+    if [ "$EUID" -ne 0 ]
+    then echo -e "The installation of certs requires root privileges!";
+        exit 1
+    fi
+
     if [ ! -f ./tls.key ] || [ ! -f ./tls.crt ]; then
         echo -e "${RED}tls.key or tls.crt could not been found in this directory.${NC}"
         echo -e "${RED}Please rename and copy the files first!${NC}"
@@ -496,11 +501,12 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n $SERVICES_NAMESPACE
-        microk8s.kubectl create secret tls certificate --namespace $SERVICES_NAMESPACE --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n $SERVICES_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n $ADMIN_NAMESPACE
+        microk8s.kubectl create secret tls certificate --namespace $ADMIN_NAMESPACE --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n $ADMIN_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n $SERVICES_NAMESPACE delete pod $auth_proxy_pod
+        microk8s.kubectl -n $ADMIN_NAMESPACE delete pod $auth_proxy_pod
+        cp ./tls.key ./tls.crt $FAST_DATA_DIR/tls/
     fi
 
     echo -e "${GREEN}DONE${NC}"

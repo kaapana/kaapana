@@ -15,7 +15,7 @@ ui_forms = {
             "tag_to_class_mapping_json": {
                 "title": "Tag to class mapping json",
                 "description": 'Specify the respective classes of the tags in json format. E.g.: {"tag0": 0, "tag1": 1}',
-                "default": '{"CT": 0, "MR": 1}',
+                "default": "{'CT': 0, 'MR': 1}",
                 "type": "string",
                 "required": True,
             },

@@ -4,11 +4,11 @@ import nrrd
 import json
 from skimage.transform import resize
 from statistics import median
+import SimpleITK as sitk
 
 class Normalizer:
     def normalize(self, image):
         raise NotImplementedError
-
 
 class ZScoreNormalizer(Normalizer):
     def normalize(self, image, mask=None):
@@ -19,30 +19,17 @@ class ZScoreNormalizer(Normalizer):
         else:
             return (image - np.mean(image)) / np.std(image)
 
-
-class CTNormalizer(Normalizer):
-    def normalize(self, image, lower, upper):
-        image = np.clip(image, lower, upper)
-        return (image - lower) / (upper - lower)
-
-
 class NoNormalizer(Normalizer):
     def normalize(self, image, target_dtype=np.float32):
         return image.astype(target_dtype)
-
 
 class RescaleTo01Normalizer(Normalizer):
     def normalize(self, image):
         return (image - np.min(image)) / (np.max(image) - np.min(image))
 
-
 class RGBTo01Normalizer(Normalizer):
     def normalize(self, image):
         return image / 255.0
-
-def load_nrrd(file_path):
-    data, header = nrrd.read(file_path)
-    return data, header
 
 def compute_statistics(data):
     stats = {}
@@ -55,10 +42,6 @@ def compute_statistics(data):
     stats['percentile_99_5'] = float(np.percentile(data, 99.5))
     stats['percentile_00_5'] = float(np.percentile(data, 0.5))
     return stats
-
-def compute_spacing(header):
-    spacings = np.diag(header['space directions']).tolist() 
-    return [abs(i) for i in np.diag(header['space directions']).tolist()]
 
 def compute_new_shape(old_shape, old_spacing, new_spacing):
     new_shape = np.array([int(round(i / j * k)) for i, j, k in zip(old_spacing, new_spacing, old_shape)])
@@ -107,45 +90,29 @@ def get_target_spacing(spacings, target, target_size, anisotropy_threshold=3.0):
 def select_normalization_method(dataset_stats):
     selected_normalization_methods = {}
 
-    # Extracting relevant statistics
-    max_pixel_intensity = dataset_stats['max']
-    min_pixel_intensity = dataset_stats['min']
     std_dev = dataset_stats['std']
     dimensions = dataset_stats['dimensions']
 
-    # 1. If the dataset has a wide range of pixel values, use CTNormalizer
-    if max_pixel_intensity - min_pixel_intensity > 255:
-        return CTNormalizer
-
-    # 2. If the dataset has high standard deviation, use ZScoreNormalizer
-    elif std_dev > 1:
+    # If the dataset has high standard deviation, use ZScoreNormalizer
+    if std_dev > 1:
         return ZScoreNormalizer
 
-    # 3. If the dataset has a normal range of pixel values (0-255), use RescaleTo01Normalizer
+    # If the dataset has a normal range of pixel values (0-255), use RescaleTo01Normalizer
     elif 0 <= min_pixel_intensity and max_pixel_intensity <= 255:
         return RescaleTo01Normalizer
 
-    # 4. If none of the above conditions are met, don't apply normalization
+    # If none of the above conditions are met, don't apply normalization
     else:
         return NoNormalizer
 
 
-def process_dataset(dataset_folder, target_spacing):
-    results = {}
-    spacings_list = []
-    for patient_folder in os.listdir(dataset_folder):
-        patient_path = os.path.join(dataset_folder, patient_folder, "dcm-converter")
-        for file_name in os.listdir(patient_path):
-            if file_name.endswith('.nrrd'):
-                file_path = os.path.join(patient_path, file_name)
-                data, header = load_nrrd(file_path)
-                spacings = compute_spacing(header)
-                spacings_list.append(spacings)
-                stats = compute_statistics(data)
-                stats['spacings'] = spacings
-                target_spacing = get_target_spacing(spacings_list, target_spacing, data.shape)
-                stats['spacing_after_resampling'] = target_spacing
-                results[file_name] = stats
+def process_dataset(batch, median_spacing, spacings):
+    
+    stats = {}
+
+    for patient in batch.keys():
+        target_spacing = get_target_spacing(spacings, list(median_spacing), batch[patient]['image'].GetSize())
+        stats['spacing_after_resampling'] = target_spacing
 
     lower_percentiles = [stats['percentile_00_5'] for stats in results.values()]
     upper_percentiles = [stats['percentile_99_5'] for stats in results.values()]
@@ -181,14 +148,41 @@ def process_dataset(dataset_folder, target_spacing):
 
     return results
 
-training = os.listdir("/kaapana/mounted/data")[0]
-dataset_folder = os.path.join("/kaapana/mounted/data", training, "batch")
-median_spacings = get_medians(dataset_folder)
-new_spacing = [median(median_spacings)] * 3
+if __name__ == "__main__":
 
-dataset_stats = process_dataset(dataset_folder, new_spacing)
+    training = os.listdir("/kaapana/mounted/data")[0]
+    dataset_folder = os.path.join("/kaapana/mounted/data", training, "batch")
 
-# To save results in a file
-with open(os.path.join("mounted/data", training, "conf",'dataset_stats.json'), 'w') as outfile:
-    json.dump(dataset_stats, outfile)
+    batch = {}
 
+    spacings  = []
+    spacing_x = []
+    spacing_y = []
+    spacing_z = []
+
+    for patient in os.listdir(dataset_folder):
+        patient_dict = {}
+
+        patient_dict["image"] = sitk.ReadImage(os.path.join(dataset_folder, patient, "dcm-converter", patient + ".nrrd"))
+
+        spacing_x.append(patient_dict["image"].GetSpacing()[0])
+        spacing_y.append(patient_dict["image"].GetSpacing()[1])
+        spacing_z.append(patient_dict["image"].GetSpacing()[2])
+
+        spacings.append(patient_dict["image"].GetSpacing())
+
+        if len(patient_dict["image"].GetSpacing()) > 3:
+            raise ValueError("Not covering the scope of n-dimensional arrays: E.g. 2 images in one")
+
+        patient_dict["stats"] = compute_statistics(sitk.GetArrayFromImage(patient_dict["image"]))
+        
+        batch[patient] = patient_dict
+
+    
+    median_spacing = (np.median(np.array(spacing_x)), np.median(np.array(spacing_y)), np.median(np.array(spacing_z)))
+
+    dataset_stats = process_dataset(batch, median_spacing, spacings)
+
+    # To save results in a file
+    #with open(os.path.join("mounted/data", training, "conf",'dataset_stats.json'), 'w') as outfile:
+        #json.dump(dataset_stats, outfile)

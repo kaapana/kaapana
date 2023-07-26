@@ -58,6 +58,8 @@ spec:
           value: "http://prometheus-service.{{  .Values.global.services_namespace  }}.svc:9090/prometheus"
         - name: KEYCLOAK_URL
           value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
+        - name: TRAEFIK_URL
+          value: "http://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.admin_namespace }}.svc:8080"
         - name: MINIO_USERNAME
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD

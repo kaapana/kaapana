@@ -21,13 +21,6 @@ Bug fixes
 * Installation of certificates
 * Access to Traefik routes for users with no admin rights
 
-Upcoming
---------
-
-* Maintenance UI for UI-based platform management and maintenance 
-* Multi-instance support for different Kaapana deployments within a single K8S Cluster
-* New persistence layer for Kapaana
-
 .. _release-0.2.1:
 
 -------------------------

@@ -295,7 +295,7 @@ export default Vue.extend({
     this.settings = JSON.parse(localStorage["settings"]);
     this.$vuetify.theme.dark = this.settings["darkMode"];
     request
-      .get("/traefik/api/http/routers")
+      .get("/kaapana-backend/get-traefik-routes")
       .then((response: { data: {} }) => {
         this.federatedBackendAvailable = kaapanaApiService.checkUrl(
           response.data,

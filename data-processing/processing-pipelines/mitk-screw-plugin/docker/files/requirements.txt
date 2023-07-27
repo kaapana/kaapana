@@ -1,0 +1,11 @@
+nnunet
+nibabel
+numpy
+pandas
+SimpleITK
+scikit-image
+DateTime
+scikit-learn
+torch
+argparse
+matplotlib

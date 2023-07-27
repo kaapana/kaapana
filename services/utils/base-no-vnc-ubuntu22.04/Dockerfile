@@ -1,0 +1,19 @@
+FROM tiryoh/ubuntu-desktop-lxde-vnc:jammy-20230122T1831
+#FROM dorowu/ubuntu-desktop-lxde-vnc:focal
+
+LABEL REGISTRY="local-only"
+LABEL IMAGE="no-vnc-base-ubuntu22.04"
+LABEL VERSION="latest"
+LABEL CI_IGNORE="False"
+
+#RUN sed -i 's#mirror://mirrors.ubuntu.com/mirrors.txt#http://archive.ubuntu.com/ubuntu/#' /etc/apt/sources.list;
+
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+
+COPY files/requirements.system /kaapana/app/
+RUN apt-get update -y && cat /kaapana/app/requirements.system | xargs apt-get install -y --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY files/startup.sh /startup.sh
+
+RUN chmod +x /startup.sh

@@ -226,4 +226,36 @@ def properties_external_federated_form(filter_keys: list = None):
             "type": "integer",
             "title": "Federated total rounds",
         },
+        "aggregation_strategy": {
+            "type": "object",
+            "title": "FL Aggregation Strategy",
+            "description": "Choose one FL aggregation strategy.",
+            "oneOf": [
+                {
+                    "title": "FedAvg",
+                    "properties": {
+                        "agg_strategy_method": {"type": "string", "const": "fedavg"},
+                    },
+                },
+                {
+                    "title": "FedDC",
+                    "properties": {
+                        "agg_strategy_method": {"type": "string", "const": "feddc"},
+                        "feddc_aggregation_rate": {
+                            "type": "integer",
+                            "title": "Aggregation rate",
+                            "description": "Number of FL communication reounds before aggregation.",
+                            "default": 1,
+                        },
+                        "feddc_daisychaining_rate": {
+                            "type": "integer",
+                            "title": "Daisy chaining rate",
+                            "description": "Number of FL communication reounds before daisy chaining.",
+                            "default": 1,
+                            "readOnly": True,
+                        },
+                    },
+                },
+            ],
+        },
     }

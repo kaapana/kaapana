@@ -9,11 +9,11 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 
 
-class nnUNetFederatedOperator(KaapanaBaseOperator):
+class AdvancedCollectMetatdataFederatedOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
-        name="nnunet-federated",
+        name="advanced-collect-metadata-federated",
         execution_timeout=timedelta(days=5),
         *args,
         **kwargs,
@@ -21,11 +21,11 @@ class nnUNetFederatedOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{DEFAULT_REGISTRY}/nnunet-federated:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/advanced-collect-metadata-federated:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
-            ram_mem_mb_lmt=10000,
+            ram_mem_mb_lmt=None,
             *args,
             **kwargs,
         )

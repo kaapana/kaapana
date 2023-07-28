@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-advanced-collect-metadata"
+    action: "copy"

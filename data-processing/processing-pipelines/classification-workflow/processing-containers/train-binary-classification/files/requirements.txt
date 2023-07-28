@@ -1,0 +1,9 @@
+torch~=1.11.0
+batchgenerators
+tqdm
+torchvision
+monai
+torchmetrics
+tensorboard
+matplotlib
+numpy

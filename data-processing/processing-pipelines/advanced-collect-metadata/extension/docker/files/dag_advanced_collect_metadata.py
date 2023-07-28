@@ -88,7 +88,6 @@ dcm2nifti_seg = Mask2nifitiOperator(
     dicom_operator=get_input,
     exit_on_error=False,
     retries=0,
-    image_pull_policy="Always",
 )
 
 extract_seg_metadata = LocalExtractSegMetadataOperator(

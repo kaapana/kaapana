@@ -1,9 +1,6 @@
 import os
 import numpy as np
-import nrrd
-import json
 from skimage.transform import resize
-from statistics import median
 import SimpleITK as sitk
 
 class Normalizer:
@@ -94,6 +91,8 @@ if __name__ == "__main__":
         target_spacing = get_target_spacing(spacings, median_spacing, batch[patient]['image'].GetSize())
         batch[patient]['stats']['spacing_after_resampling'] = target_spacing
         
+        #TODO clipping
+
         # Resample
         data_resampled = resample_image(batch[patient])
 

@@ -1,4 +1,4 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     quido_base_url: str = "http://dcm4chee-service.services.svc:8080/dcm4chee-arc/aets"
     wado_base_url: str = "http://dcm4chee-service.services.svc:8080/dcm4chee-arc/aets"
     stow_root_url: str = "http://dcm4chee-service.services.svc:8080/dcm4chee-arc/aets"
-    ohif_viewer: str = None  # "https://vm-128-212.cloud.dkfz-heidelberg.de/ohif/viewer"
+    ohif_viewer: str = ""  # "https://vm-128-212.cloud.dkfz-heidelberg.de/ohif/viewer"
     cas_root_path: str
     dev: bool = False
     base_url: str = "http://localhost:8000"

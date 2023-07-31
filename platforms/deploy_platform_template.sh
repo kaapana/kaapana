@@ -303,7 +303,7 @@ function deploy_chart {
 
     get_domain
     
-    if [ -z "$INSTANCE_NAME"]; then
+    if [ -z "$INSTANCE_NAME" ]; then
         INSTANCE_NAME=$DOMAIN
         echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
     fi

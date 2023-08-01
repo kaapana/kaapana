@@ -1,6 +1,6 @@
-FROM local-only/base-python-cpu:latest
+FROM local-only/base-python-gpu:latest
 
-LABEL IMAGE="create-classification-dataset"
+LABEL IMAGE="classification-training"
 LABEL VERSION="0.2.1"
 LABEL CI_IGNORE="False"
 
@@ -11,4 +11,4 @@ RUN pip3 install --upgrade pip && pip install -c https://raw.githubusercontent.c
 
 COPY files/* /kaapana/
 
-CMD ["python3","-u","/kaapana/create_classification_dataset.py"]
+CMD ["python3","-u","/kaapana/training.py"]

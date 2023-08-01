@@ -2,8 +2,8 @@
 apiVersion: v1
 appVersion: "0.1.0"
 description: Train a classification cnn on 3D images
-name: create-classification-dataset-workflow
-version: "0.0.3"
+name: classification-training-workflow
+version: "0.0.8"
 keywords:
 - kaapanaworkflow
 - kaapanaexperimental

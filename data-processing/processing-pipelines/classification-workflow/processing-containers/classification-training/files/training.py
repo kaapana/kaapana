@@ -516,11 +516,17 @@ if __name__ == "__main__":
     logger.debug('Main of trainer_v2 started')
     logger.debug('Set config values')
 
-    logger.debug('Set task from minio if is not set')
+    config.BATCH_SIZE = int(os.environ['BATCH_SIZE'])
+    config.NUM_EPOCHS = int(os.environ['NUM_EPOCH'])
+    config.FOLD = int(os.environ['FOLD'])
 
-    config.TASK = secrets.token_hex(16)
+    logger.debug(f"Set task: {os.environ['RUN_ID']}")
 
-    logger.debug('Train dir set to: %s' % config.TRAIN_DIR)
+    config.TASK = os.environ['RUN_ID']
+
+    logger.debug('Train dir set to: %s' % os.environ['BATCHES_INPUT_DIR'])
+
+    config.TRAIN_DIR = os.environ['BATCHES_INPUT_DIR']
 
     config.RESULTS_DIR = Path(config.PATH_TO_RESULTS, config.TASK)
     logger.debug('Results dir set to: %s' % config.RESULTS_DIR)
@@ -528,9 +534,11 @@ if __name__ == "__main__":
     os.makedirs(config.RESULTS_DIR, exist_ok=True)
 
     # set patch size
+    tuple_from_string = ast.literal_eval(os.environ['PATCH_SIZE'])
+    patch_size = np.array(tuple_from_string)
 
-    config.PATCH_SIZE = np.load(os.path.join(config.TRAIN_DIR, "classification_001.npy")).shape
-    logger.debug('Patchsize set to: (%s)', ",".join(str(i) for i in config.PATCH_SIZE))
+    config.PATCH_SIZE = patch_size
+    logger.debug(f"Patchsize set to: {patch_size}")
     # choose model based on config
 
     model_name = ModelChoices(config.MODEL)
@@ -556,7 +564,9 @@ if __name__ == "__main__":
 
     logger.debug('Get model: %s' % str(model_name.value))
 
-    model = model.cuda()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = model.to(device)
 
     logger.debug('Load model on gpu')
 

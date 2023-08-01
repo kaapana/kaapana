@@ -6,7 +6,8 @@ from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from create_classification_dataset.CreateRawDatasetOperator import CreateRawDatasetOperator
+from classification_training_workflow.PreprocessingOperator import PreprocessingOperator
+from classification_training_workflow.TrainingOperator import TrainingOperator
 
 ui_forms = {
     "workflow_form": {
@@ -19,14 +20,42 @@ ui_forms = {
                 "type": "string",
                 "required": True,
             },
+            "fold": {
+                "title": "Which fold should be trained",
+                "description": 'Specify the fold which should be trained for 5-fold cross validation (0-4)',
+                "default": "0",
+                "type": "string",
+                "required": True,
+            },
+            "patch_size": {
+                "title": "Patch size",
+                "description": 'Specify the patch size used for training',
+                "default": "(128, 128, 128)",
+                "type": "string",
+                "required": True,
+            },
+            "batch_size": {
+                "title": "Batch size",
+                "description": 'Specify the batch size used for training',
+                "default": "1",
+                "type": "string",
+                "required": True,
+            },
+            "num_epochs": {
+                "title": "Number of epochs",
+                "description": 'Specify the number of epochs used for training',
+                "default": "10",
+                "type": "string",
+                "required": True,
+            },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,
-            },
-        },
+            }
+        }
     }
 }
 
@@ -42,16 +71,21 @@ args = {
 }
 
 dag = DAG(
-    dag_id='create-classification-dataset',
+    dag_id='classification-workflow',
     default_args=args,
     schedule_interval=None
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
 convert = DcmConverterOperator(dag=dag, input_operator=get_input)
-create_raw_dataset = CreateRawDatasetOperator(dag=dag, input_operator=convert,
+preprocessing = PreprocessingOperator(dag=dag, input_operator=convert,
                                 # dev_server='code-server'
                                 )
+
+training = TrainingOperator(dag=dag, input_operator=preprocessing,
+                                dev_server='code-server'
+                                )
+
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> convert >> create_raw_dataset >> clean
+get_input >> convert >> preprocessing >> training >> clean

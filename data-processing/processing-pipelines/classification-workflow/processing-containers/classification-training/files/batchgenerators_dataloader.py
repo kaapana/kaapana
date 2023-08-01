@@ -34,7 +34,7 @@ class FolderFilenameStructuredClassificationDataset(DataLoader):
         seg = np.zeros((self.batch_size, 1), dtype="int16")
 
         for i, j in enumerate(patients_for_batch):
-            input_image_path = os.path.join(config.TRAIN_DIR, j)
+            input_image_path = os.path.join(config.TRAIN_DIR, j, os.environ['OPERATOR_IN_DIR'], j + '.npy')
             input_image = np.load(input_image_path, mmap_mode="r")
 
             output_image = 1

@@ -5,11 +5,11 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 from datetime import timedelta
 
-class CreateRawDatasetOperator(KaapanaBaseOperator):
+class TrainingOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
-        name="create-classification-dataset",
+        name="classification-training",
         execution_timeout=timedelta(minutes=20),
         *args,
         **kwargs,
@@ -17,9 +17,11 @@ class CreateRawDatasetOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{DEFAULT_REGISTRY}/create-classification-dataset:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/classification-training:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
+            ram_mem_mb = 16000,
+            gpu_mem_mb = 11000,
             *args,
-            **kwargs,
+            **kwargs
         )

@@ -2,6 +2,7 @@ import os
 import numpy as np
 from skimage.transform import resize
 import SimpleITK as sitk
+import ast
 
 class Normalizer:
     def normalize(self, image):
@@ -24,15 +25,18 @@ def compute_statistics(data):
     return stats
 
 def resample_image(patient, order=3):
-    assert len(patient['stats']['dimensions']) in [2, 3], "data must be 2D (x, y) or 3D (x, y, z)"
+    #assert len(patient['stats']['dimensions']) in [2, 3], "data must be 2D (x, y) or 3D (x, y, z)"
 
-    old_shape = np.array(patient['stats']['dimensions'])
-    old_spacing = np.array(patient['stats']['spacing'])
-    new_spacing = np.array(patient['stats']['spacing_after_resampling'])
+    #old_shape = np.array(patient['stats']['dimensions'])
+    #old_spacing = np.array(patient['stats']['spacing'])
+    #new_spacing = np.array(patient['stats']['spacing_after_resampling'])
     
-    new_shape = np.array([int(round(i / j * k)) for i, j, k in zip(old_spacing, new_spacing, old_shape)])
+    #new_shape = np.array([int(round(i / j * k)) for i, j, k in zip(old_spacing, new_spacing, old_shape)])
     
     # Resize using skimage
+    
+    tuple_from_string = ast.literal_eval(os.environ['PATCH_SIZE'])
+    new_shape = np.array(tuple_from_string)
     resized = resize(sitk.GetArrayFromImage(patient['image']), new_shape, order=order, mode='edge', anti_aliasing=False, preserve_range=True)
     return resized
 
@@ -100,6 +104,6 @@ if __name__ == "__main__":
         normalizer = ZScoreNormalizer()
         data_normalized = normalizer.normalize(data_resampled)
 
-        target_dir = os.path.join(os.environ['BATCHES_INPUT_DIR'], patient, "classification-training")
+        target_dir = os.path.join(os.environ['BATCHES_INPUT_DIR'], patient, os.environ['OPERATOR_OUT_DIR'])
         os.makedirs(target_dir, exist_ok=True)
         np.save(os.path.join(target_dir, patient + ".npy"), data_normalized)

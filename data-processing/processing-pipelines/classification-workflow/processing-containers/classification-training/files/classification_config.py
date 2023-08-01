@@ -10,11 +10,9 @@ PATCH_SIZE = (128, 128, 128)
 NUM_INPUT_CHANNELS = 1
 
 # Training details
-MODEL = "smpl_resnet_18"
 BATCH_SIZE = 1
 NUM_WORKERS = 4
-NUM_EPOCHS = 10 #1600
-SCHEDULER_ENTRY = 200
+NUM_EPOCHS = 1000
 SAVE_MODEL_START_STEP = 0
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -27,3 +25,4 @@ RESULTS_DIR = ""
 # Important names
 CHECKPOINT = "model.pth.tar"
 CHECKPOINT_BEST = "model_best.pth.tar"
+TENSORBOARD_PATH = "/kaapana/mounted/tb-logs"

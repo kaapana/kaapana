@@ -1,10 +1,10 @@
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-prefix-cbioportal
-  namespace: "services"
-spec:
-  stripPrefix:
-    prefixes:
-    - /cbioportal-webapp
-    forceSlash: false
+# apiVersion: traefik.containo.us/v1alpha1
+# kind: Middleware
+# metadata:
+#   name: add-prefix-cbioportal
+#   namespace: "services"
+# spec:
+#   addPrefix:
+#     prefixes:
+#     - /cbioportal-webapp
+#     forceSlash: false

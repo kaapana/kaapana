@@ -20,8 +20,17 @@ spec:
           ports:
             - containerPort: 8080
           command: ["/bin/sh"]
-          # args: ["-c", "--", "while true; do sleep 30; done;"]
-          args: ["-c", "java -Xms2g -Xmx4g -Dauthenticate=noauthsessionservice -Dsession.service.url=http://cbioportal-session-service.services.svc:5000/api/sessions/my_portal/ -jar webapp-runner.jar -AmaxHttpHeaderSize=16384 -AconnectionTimeout=20000 --enable-compression /cbioportal-webapp"]
+          args: ["-c", "--", "while true; do sleep 30; done;"]
+          # args: ["-c", "java -Xms2g -Xmx4g -Dauthenticate=noauthsessionservice -Dsession.service.url=http://cbioportal-session-service.services.svc:5000/api/sessions/my_portal/ -jar webapp-runner.jar -AmaxHttpHeaderSize=16384 -AconnectionTimeout=20000 --enable-compression /cbioportal-webapp"]
+          env:
+          - name: PROXY
+            value: "{{ .Values.global.http_proxy }}"
+          - name: http_proxy
+            value: {{ .Values.global.http_proxy }}
+          - name: https_proxy
+            value: {{ .Values.global.http_proxy }}
+          - name: no_proxy
+            value: ".svc,.svc.cluster,.svc.cluster.local"
           volumeMounts:
           - name: cbio-study-data # key of volume moment
             mountPath: "/study/" # path in container

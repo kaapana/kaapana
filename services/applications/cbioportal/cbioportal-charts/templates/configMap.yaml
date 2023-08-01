@@ -15,6 +15,12 @@ data:
     db.suppress_schema_version_mismatch_errors=false
     db.use_ssl=false
 
+    server.servlet.context-path=/cbioportal-webapp
+    server.servlet.contextPath=/cbioportal-webapp
+    spring.webflux.base-path=/cbioportal-webapp
+    spring.webglux.basePath=cbioportal-webapp
+
+
     skin.title=cBioPortal for Cancer Genomics
     skin.email_contact=cbioportal at googlegroups dot com
     skin.authorization_message=Access to this portal is only available to authorized users at Memorial Sloan Kettering Cancer Center.  [<a href="http://bit.ly/ZevaHa">Request Access</a>].

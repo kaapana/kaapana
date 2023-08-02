@@ -17,7 +17,6 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 from torchmetrics import F1Score
 
-import classification_config as config
 import resnet as resnet
 from batchgenerators_dataloader import ClassificationDataset
 from batchgenerators.dataloading.multi_threaded_augmenter import MultiThreadedAugmenter
@@ -27,6 +26,9 @@ from batchgenerators.transforms.sample_normalization_transforms import (
 )
 from opensearch_helper import OpenSearchHelper
 
+RESULTS_DIR = Path("/models", os.environ['DAG_ID'], os.environ['RUN_ID'])
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
 # Create a custom logger
 logging.getLogger().setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -34,11 +36,17 @@ logger = logging.getLogger(__name__)
 c_handler = logging.StreamHandler()
 c_handler.setLevel(logging.DEBUG)
 
-c_format = logging.Formatter('%(levelname)s - %(message)s')
+f_handler = logging.FileHandler(Path(RESULTS_DIR, "training.log"))
+f_handler.setLevel(logging.DEBUG)
+
+c_format = logging.Formatter("%(levelname)s - %(message)s")
+f_format = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 c_handler.setFormatter(c_format)
+f_handler.setFormatter(f_format)
 
 # Add handlers to the logger
 logger.addHandler(c_handler)
+logger.addHandler(f_handler)
 
 TAG_TO_CLASS_MAPPING = ast.literal_eval(os.environ['TAG_TO_CLASS_MAPPING_JSON'])
 
@@ -49,16 +57,9 @@ elif len(TAG_TO_CLASS_MAPPING) == 2:
 else:
     f1_score = F1Score(task="multiclass", num_classes=len(TAG_TO_CLASS_MAPPING))
 
-steps_of_val = []
-all_f1 = []
-all_vloss = []
-all_lr = []
-
-all_steps = []
-all_tloss = []
-epochs_steps = {}
-model_best = 0
-step = 0
+NUM_WORKERS = 4
+NUM_INPUT_CHANNELS = 1
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
@@ -71,7 +72,7 @@ def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
 
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
     print("=> Loading checkpoint")
-    checkpoint = torch.load(checkpoint_file, map_location=config.DEVICE)
+    checkpoint = torch.load(checkpoint_file, map_location=DEVICE)
     model.load_state_dict(checkpoint["state_dict"], strict=False)
     optimizer.load_state_dict(checkpoint["optimizer"])
 
@@ -81,18 +82,11 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
         param_group["lr"] = lr
 
 def train_fn(model, criterion, mt_train, optimizer, scheduler, epoch):
-    # loop = tqdm(mt_train, total=len(mt_train.data_loader.indices), leave=True)
-    # loop.set_description("Training Epoch Nr.: " + str(epoch))
-    # random.seed(epoch)
 
-    global step
     losses_batches = []
     for batch_idx, batch in enumerate(mt_train):
-        x = torch.from_numpy(batch["data"]).to(config.DEVICE)
-        y = torch.from_numpy(batch["class"]).to(config.DEVICE)
-
-        # img_grid = torchvision.utils.make_grid(x[:, :, 8, :, :])
-        # writer.add_image("batchgenerators", img_grid)
+        x = torch.from_numpy(batch["data"]).to(DEVICE)
+        y = torch.from_numpy(batch["class"]).to(DEVICE)
 
         with torch.cuda.amp.autocast():
             # zero the parameter gradients
@@ -105,9 +99,6 @@ def train_fn(model, criterion, mt_train, optimizer, scheduler, epoch):
             optimizer.step()
             detached_loss = loss.detach().cpu().numpy()
             losses_batches.append(detached_loss)
-        step = step + 1
-        all_steps.append(step)
-        all_tloss.append(detached_loss)
     
     scheduler.step()
 
@@ -121,8 +112,8 @@ def evaluate(model, epoch, mt_val, train_loss):
     corrects = []
     losses_batches = []
     for batch_idx, batch in enumerate(mt_val):
-        x = torch.from_numpy(batch["data"]).to(config.DEVICE)
-        y = torch.from_numpy(batch["class"]).to(config.DEVICE)
+        x = torch.from_numpy(batch["data"]).to(DEVICE)
+        y = torch.from_numpy(batch["class"]).to(DEVICE)
 
         with torch.no_grad():
             outputs = model(x)
@@ -144,89 +135,23 @@ def evaluate(model, epoch, mt_val, train_loss):
         (all_outputs > 0).type(torch.int),
     )
 
-    steps_of_val.append(step)
-    all_vloss.append(np.mean(losses_batches))
-    all_f1.append(f_1)
-    all_lr.append(optimizer.param_groups[0]["lr"])
-
     model.train()
 
     return np.mean(losses_batches), np.sum(corrects) / all_y.shape[0], f_1
 
-
-def set_task():
-    config.TASK = sorted(os.listdir(Path(config.PATH_TO_TASKS)))[-1]
-    logger.debug('Task set to: %s' % config.TASK)
-
-
 if __name__ == "__main__":
 
-    logger.debug('Main of trainer_v2 started')
-    logger.debug('Set config values')
-
-    config.BATCH_SIZE = int(os.environ['BATCH_SIZE'])
-    config.NUM_EPOCHS = 1000#int(os.environ['NUM_EPOCHS'])
-    config.FOLD = int(os.environ['FOLD'])
+    logger.debug('Main of trainer_v3 started')
 
     logger.debug(f"Set task: {os.environ['RUN_ID']}")
-
-    config.TASK = os.environ['RUN_ID']
-
     logger.debug('Train dir set to: %s' % os.environ['BATCHES_INPUT_DIR'])
-
-    config.TRAIN_DIR = os.environ['BATCHES_INPUT_DIR']
-
-    config.RESULTS_DIR = Path(config.PATH_TO_RESULTS, config.TASK)
-    logger.debug('Results dir set to: %s' % config.RESULTS_DIR)
-
-    os.makedirs(config.RESULTS_DIR, exist_ok=True)
+    logger.debug('Results dir set to: %s' % RESULTS_DIR)
 
     # set patch size
     tuple_from_string = ast.literal_eval(os.environ['PATCH_SIZE'])
     patch_size = np.array(tuple_from_string)
 
-    config.PATCH_SIZE = patch_size
     logger.debug(f"Patchsize set to: {patch_size}")
-
-    # set and create checkpoint path
-
-    config.CHECKPOINT_PATH = os.path.join(
-        config.RESULTS_DIR, "resnet_18"
-    )
-
-    logger.debug('Create directories for results')
-
-    os.makedirs(config.CHECKPOINT_PATH, exist_ok=True)
-    os.makedirs(
-        os.path.join(config.CHECKPOINT_PATH, "fold_%d" % config.FOLD), exist_ok=True
-    )
-
-    logger.debug('Directories created: %s' % config.CHECKPOINT_PATH)
-
-    # load model
-
-    model = resnet.generate_model(
-            model_depth=18,
-            n_classes=len(TAG_TO_CLASS_MAPPING) - 1,
-            n_input_channels=config.NUM_INPUT_CHANNELS,
-            shortcut_type="B",
-            conv1_t_size=3,
-            conv1_t_stride=1,
-            no_max_pool=True,
-            widen_factor=1.0,
-        )
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    model = model.to(device)
-
-    logger.debug('Load model on gpu')
-
-    model.train()
-
-    logger.debug('Get train/val split and load batchgenerators')
-
-    train_samples, val_samples = ClassificationDataset.get_split()
 
     # class to uid mapping
 
@@ -239,41 +164,67 @@ if __name__ == "__main__":
 
     uid_to_tag_mapping = {uid: TAG_TO_CLASS_MAPPING[tag] for tag, uids in tag_to_uid_mapping.items() for uid in uids}
 
-    transform = ClassificationDataset.get_train_transform(config.PATCH_SIZE)
+    # load model
+
+    model = resnet.generate_model(
+            model_depth=18,
+            n_classes=len(TAG_TO_CLASS_MAPPING) - 1,
+            n_input_channels=NUM_INPUT_CHANNELS,
+            shortcut_type="B",
+            conv1_t_size=3,
+            conv1_t_stride=1,
+            no_max_pool=True,
+            widen_factor=1.0,
+        )
+
+    model = model.to(DEVICE)
+
+    logger.debug('Load model on gpu')
+
+    model.train()
+
+    # Get train/val split and load batchgenerators
+
+    logger.debug('Get train/val split and load batchgenerators')
+    train_samples, val_samples = ClassificationDataset.get_split(int(os.environ['FOLD']))
+
+    transform = ClassificationDataset.get_train_transform(patch_size)
 
     dl_train = ClassificationDataset(
-        train_samples,
-        config.BATCH_SIZE,
-        config.PATCH_SIZE,
-        config.NUM_WORKERS,
-        seed_for_shuffle=config.FOLD,
+        data=train_samples,
+        batch_size=int(os.environ['BATCH_SIZE']),
+        patch_size=patch_size,
+        num_threads_in_multithreaded=NUM_WORKERS,
+        seed_for_shuffle=int(os.environ['FOLD']),
         return_incomplete=False,
         shuffle=True,
         uid_to_tag_mapping=uid_to_tag_mapping,
+        num_modalities=NUM_INPUT_CHANNELS
     )
 
     mt_train = MultiThreadedAugmenter(
         data_loader=dl_train,
         transform=transform,
-        num_processes=config.NUM_WORKERS,
+        num_processes=NUM_WORKERS,
         num_cached_per_queue=4,
         pin_memory=True,
     )
 
     dl_val = ClassificationDataset(
-        val_samples,
-        config.BATCH_SIZE,
-        config.PATCH_SIZE,
-        config.NUM_WORKERS,
+        data=val_samples,
+        batch_size=int(os.environ['BATCH_SIZE']),
+        patch_size=patch_size,
+        num_threads_in_multithreaded=NUM_WORKERS,
         return_incomplete=False,
         shuffle=False,
         uid_to_tag_mapping=uid_to_tag_mapping,
+        num_modalities=NUM_INPUT_CHANNELS
     )
 
     mt_val = MultiThreadedAugmenter(
         data_loader=dl_val,
         transform=Compose([ZeroMeanUnitVarianceTransform()]),
-        num_processes=config.NUM_WORKERS,
+        num_processes=NUM_WORKERS,
         num_cached_per_queue=4,
         pin_memory=True,
     )
@@ -287,7 +238,7 @@ if __name__ == "__main__":
         model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=config.NUM_EPOCHS, eta_min=1e-10
+        optimizer, T_max=int(os.environ['NUM_EPOCHS']), eta_min=1e-10
     )
     scaler = torch.cuda.amp.GradScaler()
 
@@ -297,14 +248,12 @@ if __name__ == "__main__":
 
     writer = SummaryWriter(
         os.path.join(
-            config.CHECKPOINT_PATH,
-            "fold_%d" % config.FOLD,
-            "track_stats",
+            "/tensorboard",
+            os.environ['RUN_ID']
         )
     )
 
     val_acc_history = []
-    best_model_wts = copy.deepcopy(model.state_dict())
     best_ema_f1 = 0
     ema_f1 = None
     gamma = 0.1
@@ -316,9 +265,9 @@ if __name__ == "__main__":
     mt_train._start()
     mt_val._start()
 
-    for epoch in range(0, config.NUM_EPOCHS):
+    for epoch in range(0, int(os.environ['NUM_EPOCHS'])):
 
-        logger.debug('Current epoch: %s' % str(epoch))
+        logger.debug('\nCurrent epoch: %s' % str(epoch))
 
         train_loss = train_fn(model, criterion, mt_train, optimizer, scheduler, epoch)
 
@@ -341,10 +290,8 @@ if __name__ == "__main__":
             "learning_rate", optimizer.param_groups[0]["lr"], global_step=epoch
         )
 
-        if ema_f1 > best_ema_f1 and len(all_steps) > config.SAVE_MODEL_START_STEP:
+        if ema_f1 > best_ema_f1:
             best_ema_f1 = ema_f1
-            model_best = epoch
-            best_model_wts = copy.deepcopy(model.state_dict())
 
             logger.debug('Save checkpoint')
 
@@ -352,9 +299,8 @@ if __name__ == "__main__":
                 model,
                 optimizer,
                 os.path.join(
-                    config.CHECKPOINT_PATH,
-                    "fold_%d" % config.FOLD,
-                    "model_best.pth.tar",
+                    RESULTS_DIR,
+                    f"model_best_epoch_{epoch}.pth.tar",
                 ),
             )
 
@@ -364,10 +310,10 @@ if __name__ == "__main__":
         model,
         optimizer,
         os.path.join(
-            config.CHECKPOINT_PATH, "fold_%d" % config.FOLD, "model_end.pth.tar"
+            RESULTS_DIR, 
+            "model_end.pth.tar"
         ),
     )
-    model.load_state_dict(best_model_wts)
 
     mt_train._finish()
     mt_val._finish()

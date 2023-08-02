@@ -44,7 +44,7 @@ ui_forms = {
             "num_epochs": {
                 "title": "Number of epochs",
                 "description": 'Specify the number of epochs used for training',
-                "default": "10",
+                "default": "1600",
                 "type": "string",
                 "required": True,
             },

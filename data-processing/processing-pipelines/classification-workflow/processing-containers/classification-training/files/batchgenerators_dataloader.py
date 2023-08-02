@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 import os
 import random
-
 import numpy as np
+
 from batchgenerators.dataloading.data_loader import DataLoader
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.spatial_transforms import SpatialTransform_2
-
-import classification_config as config
-from skimage.transform import resize
 
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.color_transforms import (
@@ -25,20 +22,20 @@ from batchgenerators.transforms.sample_normalization_transforms import (
 from batchgenerators.transforms.spatial_transforms import (
     SpatialTransform_2,
     MirrorTransform,
-    Rot90Transform,
 )
 
 class ClassificationDataset(DataLoader):
 
     def __init__(self, data, batch_size, patch_size, num_threads_in_multithreaded, seed_for_shuffle=1234,
-                 return_incomplete=False, shuffle=True, uid_to_tag_mapping=None):
+                 return_incomplete=False, shuffle=True, uid_to_tag_mapping=None, num_modalities=1):
         super().__init__(data, batch_size, num_threads_in_multithreaded, seed_for_shuffle, return_incomplete, shuffle,
                          False)
 
         self.patch_size = patch_size
-        self.num_modalities = config.NUM_INPUT_CHANNELS
+        self.num_modalities = num_modalities
         self.indices = list(range(len(self._data)))
         self.uid_to_tag_mapping = uid_to_tag_mapping
+        self.seed_for_shuffle = seed_for_shuffle
 
     def __len__(self):
         return len(self._data)
@@ -52,7 +49,7 @@ class ClassificationDataset(DataLoader):
         seg = np.zeros((self.batch_size, 1), dtype="int16")
 
         for i, j in enumerate(patients_for_batch):
-            input_image_path = os.path.join(config.TRAIN_DIR, j, os.environ['OPERATOR_IN_DIR'], j + '.npy')
+            input_image_path = os.path.join(os.environ['BATCHES_INPUT_DIR'], j, os.environ['OPERATOR_IN_DIR'], j + '.npy')
             input_image = np.load(input_image_path, mmap_mode="r")
 
             output_image = self.uid_to_tag_mapping[j]
@@ -155,14 +152,13 @@ class ClassificationDataset(DataLoader):
         return tr_transforms
 
     @staticmethod
-    def get_split():
-        random.seed(config.FOLD)
+    def get_split(random_seed):
+        random.seed(random_seed)
 
-        all_samples = os.listdir(config.TRAIN_DIR)
+        all_samples = os.listdir(os.environ['BATCHES_INPUT_DIR'])
 
         if len(all_samples) == 0:
-            logger.error('No images in path: %s' % config.TRAIN_DIR)
-            exit()
+            raise ValueError('No images in path: %s' % os.environ['BATCHES_INPUT_DIR'])
 
         percentage_val_samples = 15
         # 15% val. data

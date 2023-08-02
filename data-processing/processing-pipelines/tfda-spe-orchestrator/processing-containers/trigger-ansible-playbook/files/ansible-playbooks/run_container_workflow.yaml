@@ -1,0 +1,56 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+  tasks:
+    - name: Fail if Target IP is empty or undefined
+      fail:
+        msg: "Target IP is empty or undefined"
+      when: target is not defined or target | length == 0
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Run container workflow on data in isolated environment
+  hosts: os_server
+  strategy: free
+  gather_facts: yes
+  remote_user: "{{ remote_username }}"
+  vars:
+    ansible_ssh_private_key_file: "{{ ssh_key_operator_path }}/{{ ssh_key_name }}"
+    dst_results_dir: "{{ ansible_env.HOME }}/results"
+  environment:
+    PATH: '{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}'
+
+  tasks:
+    - name: Check if all required variables are passed using --extra-vars
+      fail:
+        msg: "Variable {{ item }} not defined"
+      when: item is not defined
+      with_items:
+        - "{{ ssh_key_name }}"
+
+    - name: Create results directory if it doesn't exist
+      file:
+        path: "{{ dst_results_dir }}"
+        state: directory
+        recurse: yes
+
+    - name: Load container via Docker
+      community.docker.docker_image_load:
+        path: "{{ ansible_env.HOME }}/algorithm_files/{{ user_experiment_name }}/{{ user_experiment_name }}.tar"
+      register: result
+
+    - name: Print the loaded image names
+      ansible.builtin.debug:
+        msg: "Loaded the following images: {{ result.image_names | join(', ') }}"
+    
+    - name: Run the loaded docker container
+      command: "docker run -v {{ ansible_env.HOME }}/{{ user_selected_data }}:/input -v {{ dst_results_dir }}:/output {{ user_experiment_name }}"
+      register: docker_run
+
+    - debug:
+        var: docker_run
+
+

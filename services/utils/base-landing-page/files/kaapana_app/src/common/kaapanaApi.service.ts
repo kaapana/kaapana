@@ -242,6 +242,17 @@ import AuthService from '@/common/auth.service'
     })
   }
 
+  const kaapanaApiDelete = (subUrl: any, params: any = null) => {
+    return new Promise((resolve, reject) => {
+      request.delete('/kaapana-backend/' + subUrl, { params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.data)
+        reject(error)
+      })
+    })
+  }
+
   const kaapanaApiPut = (subUrl: any, payload:any = null, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
       request.defaults.timeout = timeout
@@ -286,7 +297,8 @@ import AuthService from '@/common/auth.service'
     kaapanaApiGet,
     syncRemoteInstances,
     kaapanaApiPost,
-    kaapanaApiPut
+    kaapanaApiPut,
+    kaapanaApiDelete
   }
 
 export default kaapanaApiService

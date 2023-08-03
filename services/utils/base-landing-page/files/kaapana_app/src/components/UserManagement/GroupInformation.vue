@@ -4,7 +4,7 @@
       {{ title }}
     </v-card-title>
     <v-card-text> Groupname: {{ groupInformation.name }} </v-card-text>
-    <v-card-text> GroupID: {{ groupInformation.idx }} </v-card-text>
+    <v-card-text> GroupID: {{ groupInformation.id }} </v-card-text>
     <v-divider></v-divider>
     <table class="table">
       <thead>
@@ -14,7 +14,7 @@
       <tbody>
         <tr v-for="user in groupUsers" :key="user.name">
           <td>{{ user.name }}</td>
-          <td>{{ user.idx }}</td>
+          <td>{{ user.id }}</td>
         </tr>
       </tbody>
     </table>
@@ -28,7 +28,7 @@
       <tbody>
         <tr v-for="role in groupRoles" :key="role.name">
           <td>{{ role.name }}</td>
-          <td>{{ role.idx }}</td>
+          <td>{{ role.id }}</td>
           <td>{{ role.description }}</td>
         </tr>
       </tbody>
@@ -95,7 +95,7 @@ export default {
       available_roles: [],
       available_users: [],
       groupInformation: {
-        idx: "",
+        id: "",
         name: "",
       },
     };
@@ -166,7 +166,7 @@ export default {
     },
     get_available_users() {
       this.available_users = this.userList.filter((user) => {
-        return !this.groupUsers.some((groupUser) => groupUser.idx === user.idx);
+        return !this.groupUsers.some((groupUser) => groupUser.id === user.id);
       });
     },
     get_group_roles() {
@@ -182,16 +182,16 @@ export default {
     },
     get_available_roles() {
       this.available_roles = this.roleList.filter((role) => {
-        return !this.groupRoles.some((groupRole) => groupRole.idx === role.idx);
+        return !this.groupRoles.some((groupRole) => groupRole.id === role.id);
       });
     },
     assign_roles_to_group(new_roles_for_group, groupInformation) {
       console.log(new_roles_for_group);
       console.log(groupInformation);
-      let idx = groupInformation.idx;
+      let id = groupInformation.id;
       let payload = new_roles_for_group;
       kaapanaApiService
-        .kaapanaApiPut("users/groups/" + idx + "/roles", (payload = payload))
+        .kaapanaApiPut("users/groups/" + id + "/roles", (payload = payload))
         .then((response) => {
           this.get_group_roles();
         })
@@ -200,10 +200,10 @@ export default {
         });
     },
     add_users_to_group(new_users_for_group, groupInformation) {
-      let payload = new_users_for_group.map((user) => user.idx);
-      let idx = groupInformation.idx;
+      let payload = new_users_for_group.map((user) => user.id);
+      let id = groupInformation.id;
       kaapanaApiService
-        .kaapanaApiPut("users/groups/" + idx + "/users", (payload = payload))
+        .kaapanaApiPut("users/groups/" + id + "/users", (payload = payload))
         .then((response) => {
           this.get_group_users();
         })

@@ -13,22 +13,14 @@
         </v-btn>
       </v-col>
     </v-card-title>
-    <table class="table">
-      <thead>
-        <th v-for="col in columns" align="left" :key="col.name">{{ col.title }}</th>
-        <th align="left">Details</th>
-      </thead>
-      <tbody>
-        <tr v-for="(row, index) in rows" :key="index">
-          <td v-for="col in columns">{{ row[col.name] }}</td>
-          <td>
-            <v-btn @click="$emit('open-settings', row[identifier])">
-              <v-icon color="primary" dark small> mdi-account-cog </v-icon>
-            </v-btn>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+
+    <v-data-table :headers="columns" :items="rows" item-text="name">
+      <template v-slot:item.details="{ item }">
+        <v-btn @click="$emit('open-settings', item[identifier])">
+          <v-icon color="primary" dark small> mdi-account-cog </v-icon>
+        </v-btn>
+      </template>
+    </v-data-table>
   </v-card>
 </template>
 

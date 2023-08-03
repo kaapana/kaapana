@@ -8,7 +8,7 @@ class MyBaseModel(BaseModel):
 
 
 class KaapanaUser(MyBaseModel):
-    idx: str
+    id: str
     name: str
     attributes: dict
     firstName: str
@@ -17,18 +17,25 @@ class KaapanaUser(MyBaseModel):
 
 
 class KaapanaGroup(MyBaseModel):
-    idx: str
+    id: str
     name: str
 
 
 class KaapanaRole(MyBaseModel):
-    idx: str
+    id: str
     name: str
     description: str = ""
 
 
+class ProjectRole(KaapanaRole):
+    project_role_name: str
+
+
+class ProjectUser(KaapanaUser):
+    projectRole: ProjectRole
+
+
 class KaapanaProject(MyBaseModel):
     name: str
-    role_admin_idx: str
-    role_member_idx: str
-    group_idx: str
+    group_id: str
+    project_roles: list

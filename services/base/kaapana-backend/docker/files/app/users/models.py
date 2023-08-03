@@ -12,6 +12,5 @@ from app.database import Base
 class Project(Base):
     __tablename__ = "projects"
     name = Column(String(32), primary_key=True)
-    role_admin_idx = Column(String(37), unique=True)
-    role_member_idx = Column(String(37), unique=True)
-    group_idx = Column(String(37), unique=True)
+    group_id = Column(String(37), unique=True)
+    project_roles = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])

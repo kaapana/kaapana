@@ -4,7 +4,7 @@
       {{ title }}
     </v-card-title>
     <v-card-text> Username: {{ userInformation.name }} </v-card-text>
-    <v-card-text> ID: {{ userInformation.idx }} </v-card-text>
+    <v-card-text> ID: {{ userInformation.id }} </v-card-text>
     <v-card-text> First name: {{ userInformation.firstName }} </v-card-text>
     <v-card-text> Last name: {{ userInformation.lastName }} </v-card-text>
     <v-card-text> Email: {{ userInformation.email }} </v-card-text>
@@ -18,7 +18,7 @@
       <tbody>
         <tr v-for="group in userGroups" :key="group.name">
           <td>{{ group.name }}</td>
-          <td>{{ group.idx }}</td>
+          <td>{{ group.id }}</td>
         </tr>
       </tbody>
     </table>
@@ -32,7 +32,7 @@
       <tbody>
         <tr v-for="role in userRoles" :key="role.name">
           <td>{{ role.name }}</td>
-          <td>{{ role.idx }}</td>
+          <td>{{ role.id }}</td>
           <td>{{ role.description }}</td>
         </tr>
       </tbody>
@@ -42,7 +42,7 @@
       v-model="new_groups_for_user"
       :items="available_groups"
       item-text="name"
-      item-value="idx"
+      item-value="id"
       label="Select groups"
       multiple
     >
@@ -164,10 +164,10 @@ export default {
         });
     },
     add_user_to_groups(new_groups_for_user, userInformation) {
-      let idx = userInformation.idx;
+      let id = userInformation.id;
       let payload = new_groups_for_user;
       kaapanaApiService
-        .kaapanaApiPut("users/" + idx + "/groups", (payload = payload))
+        .kaapanaApiPut("users/" + id + "/groups", (payload = payload))
         .then((response) => {
           this.get_user_groups();
         })
@@ -177,7 +177,7 @@ export default {
     },
     get_available_groups() {
       this.available_groups = this.groupList.filter((group) => {
-        return !this.userGroups.some((userGroup) => userGroup.idx === group.idx);
+        return !this.userGroups.some((userGroup) => userGroup.id === group.id);
       });
     },
     get_user_groups() {
@@ -192,10 +192,10 @@ export default {
         });
     },
     assign_roles_to_user(new_roles_for_user, userInformation) {
-      let idx = userInformation.idx;
+      let id = userInformation.id;
       let payload = new_roles_for_user;
       kaapanaApiService
-        .kaapanaApiPut("users/" + idx + "/roles", (payload = payload))
+        .kaapanaApiPut("users/" + id + "/roles", (payload = payload))
         .then((response) => {
           this.get_user_roles();
         })
@@ -205,7 +205,7 @@ export default {
     },
     get_available_roles() {
       this.available_roles = this.roleList.filter((role) => {
-        return !this.userRoles.some((userRole) => userRole.idx === role.idx);
+        return !this.userRoles.some((userRole) => userRole.id === role.id);
       });
     },
     get_user_roles() {

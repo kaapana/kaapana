@@ -64,7 +64,7 @@ class UserService:
         return [
             KaapanaUser(
                 name=r["username"],
-                idx=r["id"],
+                id=r["id"],
                 attributes=r.get("attributes", {}),
                 email=r.get("email", ""),
                 firstName=r.get("firstName", ""),
@@ -73,15 +73,15 @@ class UserService:
             for r in result
         ]
 
-    def get_user(self, idx: str) -> KaapanaUser:
+    def get_user(self, id: str) -> KaapanaUser:
         self._login()
         try:
-            r = self.keycloak_admin.get_user(idx)
+            r = self.keycloak_admin.get_user(id)
         except KeycloakGetError as e:
             raise e
         return KaapanaUser(
             name=r["username"],
-            idx=r["id"],
+            id=r["id"],
             attributes=r.get("attributes", []),
             email=r.get("email", ""),
             firstName=r.get("firstName", ""),
@@ -95,16 +95,16 @@ class UserService:
         else:
             result = self.keycloak_admin.get_groups()
 
-        return [KaapanaGroup(name=r["name"], idx=r["id"]) for r in result]
+        return [KaapanaGroup(name=r["name"], id=r["id"]) for r in result]
 
-    def get_group(self, idx: str = None) -> KaapanaGroup:
+    def get_group(self, id: str = None) -> KaapanaGroup:
         self._login()
         try:
-            r = self.keycloak_admin.get_group(group_id=idx)
+            r = self.keycloak_admin.get_group(group_id=id)
         except KeycloakGetError:
             # Group not found
             return None
-        return KaapanaGroup(name=r["name"], idx=r["id"])
+        return KaapanaGroup(name=r["name"], id=r["id"])
 
     def _refresh_token_if_necessary(self):
         pass
@@ -112,14 +112,14 @@ class UserService:
     def get_roles(self, user_id: str = None, group_id: str = None) -> List[KaapanaRole]:
         self._login()
         if user_id:
-            result = self.keycloak_admin.get_realm_roles_of_user(user_id)
+            result = self.keycloak_admin.get_composite_realm_roles_of_user(user_id)
         elif group_id:
             result = self.keycloak_admin.get_group_realm_roles(group_id)
         else:
             result = self.keycloak_admin.get_realm_roles()
         return [
             KaapanaRole(
-                idx=r["id"], name=r["name"], description=r.get("description", "")
+                id=r["id"], name=r["name"], description=r.get("description", "")
             )
             for r in result
         ]
@@ -128,7 +128,7 @@ class UserService:
         self._login()
         result = self.keycloak_admin.get_realm_role(role_name)
         return KaapanaRole(
-            idx=result.get("id"),
+            id=result.get("id"),
             name=result.get("name"),
             description=result.get("description", ""),
         )
@@ -158,7 +158,7 @@ class UserService:
 
         logger.debug(f"{new_user=}")
         return KaapanaUser(
-            idx=new_user,
+            id=new_user,
             name=username,
             email=email,
             firstName=firstName,
@@ -178,16 +178,24 @@ class UserService:
             raise e
 
         logger.debug(f"{new_group=}")
-        return KaapanaGroup(idx=new_group, name=groupname)
+        return KaapanaGroup(id=new_group, name=groupname)
+
+    def delete_group(self, group_id: str) -> None:
+        self._login()
+        self.keycloak_admin.delete_group(group_id)
 
     def group_user_add(self, user_id: str, group_id: str) -> None:
         self._login()
         return self.keycloak_admin.group_user_add(user_id, group_id)
 
+    def group_user_remove(self, user_id: str, group_id: str) -> None:
+        self._login()
+        return self.keycloak_admin.group_user_remove(user_id, group_id)
+
     def assign_realm_roles(self, user_id: str, roles: List[KaapanaRole]) -> None:
         self._login()
         roles = [
-            {"id": r.idx, "name": r.name, "description": r.description} for r in roles
+            {"id": r.id, "name": r.name, "description": r.description} for r in roles
         ]
         return self.keycloak_admin.assign_realm_roles(user_id, roles)
 
@@ -195,7 +203,7 @@ class UserService:
         self._login()
         print(roles)
         kaapana_roles = [
-            {"id": r.idx, "name": r.name, "description": r.description} for r in roles
+            {"id": r.id, "name": r.name, "description": r.description} for r in roles
         ]
         return self.keycloak_admin.assign_group_realm_roles(group_id, kaapana_roles)
 
@@ -205,3 +213,18 @@ class UserService:
             payload, skip_exists=False
         )
         return self.get_realm_role_by_name(realm_role_name)
+
+    def delete_realm_role(self, role_name: str) -> None:
+        self._login()
+        self.keycloak_admin.delete_realm_role(role_name)
+
+    def delete_realm_roles_of_user(self, user_id: str, roles: List[str]):
+        self._login()
+        kaapana_roles = [self.get_realm_role_by_name(role_name) for role_name in roles]
+
+        payload = [
+            {"name": role.name, "description": role.description, "id": role.id}
+            for role in kaapana_roles
+        ]
+
+        self.keycloak_admin.delete_realm_roles_of_user(user_id, payload)

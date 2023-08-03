@@ -2,11 +2,44 @@
   <div>
     <v-card>
       <v-card-title class="d-flex justify-space-between"> User Management </v-card-title>
+
+      <UserTable
+        title="Projects"
+        :rows="computedProjectList"
+        :columns="projectColumns"
+        identifier="name"
+        @open-settings="open_project_info"
+        @refresh="get_projects"
+        @add-button="createProjectDialog = true"
+      >
+      </UserTable>
+
+      <v-dialog v-model="projectInformationField" width="500">
+        <ProjectInformation
+          title="Project details"
+          :projectName="projectName"
+          :userList="userList"
+        >
+        </ProjectInformation>
+      </v-dialog>
+
+      <v-dialog v-model="createProjectDialog" width="500">
+        <CreateUser
+          title="Create project"
+          :newObject="newProject"
+          :fields="createProjectFields"
+          @create-object="post_project"
+        >
+        </CreateUser>
+      </v-dialog>
+
+      <v-divider></v-divider>
+
       <UserTable
         title="Users"
         :rows="computedUserList"
         :columns="userColumns"
-        identifier="idx"
+        identifier="id"
         @open-settings="open_user_info"
         @refresh="get_users"
         @add-button="createUserDialog = true"
@@ -17,20 +50,10 @@
         title="Groups"
         :rows="computedGroupList"
         :columns="groupColumns"
-        identifier="idx"
+        identifier="id"
         @open-settings="open_group_info"
         @refresh="get_groups"
         @add-button="createGroupDialog = true"
-      >
-      </UserTable>
-
-      <UserTable
-        title="Projects"
-        :rows="computedProjectList"
-        :columns="projectColumns"
-        identifier="name"
-        @open-settings="open_project_info"
-        @add-button="createProjectDialog = true"
       >
       </UserTable>
 
@@ -54,11 +77,6 @@
         </GroupInformation>
       </v-dialog>
 
-      <v-dialog v-model="projectInformationField" width="500">
-        <ProjectInformation title="Project details" :projectName="projectName">
-        </ProjectInformation>
-      </v-dialog>
-
       <v-dialog v-model="createUserDialog" width="500">
         <CreateUser
           title="Create user"
@@ -75,16 +93,6 @@
           :newObject="newGroup"
           :fields="createGroupFields"
           @create-object="post_group"
-        >
-        </CreateUser>
-      </v-dialog>
-
-      <v-dialog v-model="createProjectDialog" width="500">
-        <CreateUser
-          title="Create project"
-          :newObject="newProject"
-          :fields="createProjectFields"
-          @create-object="post_project"
         >
         </CreateUser>
       </v-dialog>
@@ -161,17 +169,22 @@ export default {
       createGroupFields: [{ name: "groupname", label: "Groupname" }],
       createProjectFields: [{ name: "name", label: "Projectname" }],
       userColumns: [
-        { name: "name", title: "Username" },
-        { name: "idx", title: "User-ID" },
-        { name: "firstName", title: "First Name" },
-        { name: "lastName", title: "Last Name" },
-        { name: "email", title: "Email" },
+        { value: "name", text: "Username" },
+        { value: "id", text: "User-ID" },
+        { value: "firstName", text: "First Name" },
+        { value: "lastName", text: "Last Name" },
+        { value: "email", text: "Email" },
+        { value: "details", text: "Details" },
       ],
       groupColumns: [
-        { name: "name", title: "Groupname" },
-        { name: "idx", title: "Group-ID" },
+        { value: "name", text: "Groupname" },
+        { value: "id", text: "Group-ID" },
+        { value: "details", text: "Details" },
       ],
-      projectColumns: [{ name: "name", title: "Project name" }],
+      projectColumns: [
+        { value: "name", text: "Project name" },
+        { value: "details", text: "Details" },
+      ],
     };
   },
 
@@ -239,14 +252,13 @@ export default {
         });
       console.log(this.projectList);
     },
-    open_user_info(idx) {
-      (this.userInformationField = true), (this.userId = idx);
+    open_user_info(id) {
+      (this.userInformationField = true), (this.userId = id);
     },
-    open_group_info(idx) {
-      (this.groupInformationField = true), (this.groupId = idx);
+    open_group_info(id) {
+      (this.groupInformationField = true), (this.groupId = id);
     },
     open_project_info(name) {
-      console.log(name);
       (this.projectInformationField = true), (this.projectName = name);
     },
     post_user() {

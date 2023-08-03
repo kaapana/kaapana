@@ -6,7 +6,7 @@ import subprocess
 
 chart_name = "gpu-operator"
 chart_version = "v22.9.2"
-chart_path = "/home/kaapana/installation-scipts/gpu-operator.tgz"
+chart_path = "/home/kaapana/installation-scripts/gpu-operator.tgz"
 
 try:
     subprocess.check_call(["nvidia-smi", "-L"])

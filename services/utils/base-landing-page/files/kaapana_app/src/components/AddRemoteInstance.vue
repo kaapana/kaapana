@@ -34,6 +34,9 @@
                 <v-checkbox v-model="remotePost.ssl_check" label="Verify SSL" required=""></v-checkbox>
               </v-col>
             </v-row>
+            <v-row>
+              <v-textarea v-model="pasteRemote" label="Paste remote instance definition" outlined></v-textarea>
+            </v-row>
           </v-container>
         </v-card-text>
         <v-card-actions>
@@ -56,6 +59,19 @@ export default {
     return this.initialState();
   },
 
+  watch: {
+    pasteRemote() {
+      // read pasted json string and transfer values
+      let jsonData = JSON.parse(this.pasteRemote)
+      this.remotePost.instance_name = jsonData["instance_name"]
+      this.remotePost.host = jsonData["host"]
+      this.remotePost.port = jsonData["port"]
+      this.remotePost.token = jsonData["token"]
+      this.remotePost.fernet_key = jsonData["fernet_key"]
+      this.remotePost.ssl_check = jsonData["ssl_check"]
+    }
+  },
+
   methods: {
     initialState () {
       return {
@@ -71,6 +87,7 @@ export default {
           port: 443,
           fernet_key: 'deactivated',
         },
+        pasteRemote: '',
       }
     },
     resetForm () {

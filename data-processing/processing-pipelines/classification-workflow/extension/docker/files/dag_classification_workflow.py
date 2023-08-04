@@ -101,7 +101,7 @@ preprocessing = PreprocessingOperator(dag=dag, input_operator=convert,
                                 )
 
 training = TrainingOperator(dag=dag, input_operator=preprocessing,
-                                dev_server='code-server'
+                                # dev_server='code-server'
                                 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

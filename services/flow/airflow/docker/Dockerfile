@@ -21,5 +21,6 @@ COPY files/bootstrap.sh /kaapana/app/bootstrap.sh
 RUN chmod +x /kaapana/app/bootstrap.sh
 
 COPY files/scheduler_job.py /usr/local/lib/python3.9/site-packages/airflow/jobs/
+COPY files/task_command.py /usr/local/lib/python3.9/site-packages/airflow/cli/commands/
 
 ENTRYPOINT ["/kaapana/app/bootstrap.sh"]

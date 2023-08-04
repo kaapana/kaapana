@@ -5,6 +5,8 @@ dependencies:
     version: 0.0.0
   - name: kaapana-backend-chart
     version: 0.0.0
+  - name: static-website-chart
+    version: 0.0.0
 # MONITORING
   - name: prometheus-chart
     version: 0.0.0
@@ -25,6 +27,8 @@ dependencies:
   - name: dcm4chee-chart
     version: 0.0.0
   - name: ohif-chart
+    version: 0.0.0
+  - name: ohif-chart-v3
     version: 0.0.0
   - name: minio-chart
     version: 0.0.0

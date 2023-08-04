@@ -15,7 +15,6 @@
 </template>
 
 <script>
-/* eslint-disable */
 import {stringToColour} from "@/utils/utils.js";
 
 export default {

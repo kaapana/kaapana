@@ -1,12 +1,13 @@
 from threading import Timer
 
+
 class RepeatedTimer(object):
     def __init__(self, interval, function, *args, **kwargs):
-        self._timer     = None
-        self.interval   = interval
-        self.function   = function
-        self.args       = args
-        self.kwargs     = kwargs
+        self._timer = None
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
         self.is_running = False
         self.start()
 
@@ -25,7 +26,7 @@ class RepeatedTimer(object):
         self._timer.cancel()
         self.is_running = False
 
-    def set_interval(self,interval):
+    def set_interval(self, interval):
         if self.is_running:
             self.stop()
 

@@ -1,13 +1,12 @@
 
 <template lang="pug">
-  .kaapana-iframe-container(v-if="hasLoadedData")
+  div(v-if="hasLoadedData")
     IFrameWindow(ref="foo" :iFrameUrl="getUrl" width="100%" height="100%")
     #overlay
       a(@click="refreshIFrame()")
         v-icon(color="white") mdi-refresh
       a(@click="openExternalPage()")
         v-icon(color="white") mdi-open-in-new
-  
 </template>
 
 

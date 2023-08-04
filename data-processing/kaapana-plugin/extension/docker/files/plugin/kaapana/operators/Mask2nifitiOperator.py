@@ -1,5 +1,8 @@
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
 from datetime import timedelta
 
 
@@ -22,8 +25,9 @@ class Mask2nifitiOperator(KaapanaBaseOperator):
         dicom_operator=None,
         output_type="nii.gz",
         seg_filter=None,
+        exit_on_error=True,
         env_vars=None,
-        execution_timeout=timedelta(minutes=90),
+        execution_timeout=timedelta(days=5),
         **kwargs,
     ):
         """
@@ -36,9 +40,12 @@ class Mask2nifitiOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "BASE_DICOM_DIR": str(dicom_operator.operator_out_dir) if dicom_operator is not None else str(None),
+            "BASE_DICOM_DIR": str(dicom_operator.operator_out_dir)
+            if dicom_operator is not None
+            else str(None),
             "OUTPUT_TYPE": output_type,
-            "SEG_FILTER": seg_filter or "",  # a bash list i.e.: 'liver,aorta'
+            "SEG_FILTER": seg_filter or "",  # a bash list i.e.: 'liver,aorta',
+            "EXIT_ON_ISSUE": str(exit_on_error),
         }
 
         env_vars.update(envs)

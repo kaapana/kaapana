@@ -25,7 +25,12 @@ from collections import OrderedDict
 
 
 class DatasetAnalyzer(object):
-    def __init__(self, folder_with_cropped_data, overwrite=True, num_processes=default_num_threads):
+    def __init__(
+        self,
+        folder_with_cropped_data,
+        overwrite=True,
+        num_processes=default_num_threads,
+    ):
         """
         :param folder_with_cropped_data:
         :param overwrite: If True then precomputed values will not be used and instead recomputed from the data.
@@ -36,14 +41,23 @@ class DatasetAnalyzer(object):
         self.overwrite = overwrite
         self.folder_with_cropped_data = folder_with_cropped_data
         self.sizes = self.spacings = None
-        self.patient_identifiers = get_patient_identifiers_from_cropped_files(self.folder_with_cropped_data)
-        assert isfile(join(self.folder_with_cropped_data, "dataset.json")), \
-            "dataset.json needs to be in folder_with_cropped_data"
-        self.props_per_case_file = join(self.folder_with_cropped_data, "props_per_case.pkl")
-        self.intensityproperties_file = join(self.folder_with_cropped_data, "intensityproperties.pkl")
+        self.patient_identifiers = get_patient_identifiers_from_cropped_files(
+            self.folder_with_cropped_data
+        )
+        assert isfile(
+            join(self.folder_with_cropped_data, "dataset.json")
+        ), "dataset.json needs to be in folder_with_cropped_data"
+        self.props_per_case_file = join(
+            self.folder_with_cropped_data, "props_per_case.pkl"
+        )
+        self.intensityproperties_file = join(
+            self.folder_with_cropped_data, "intensityproperties.pkl"
+        )
 
     def load_properties_of_cropped(self, case_identifier):
-        with open(join(self.folder_with_cropped_data, "%s.pkl" % case_identifier), 'rb') as f:
+        with open(
+            join(self.folder_with_cropped_data, "%s.pkl" % case_identifier), "rb"
+        ) as f:
             properties = pickle.load(f)
         return properties
 
@@ -74,7 +88,9 @@ class DatasetAnalyzer(object):
         return volume_per_class, region_volume_per_class
 
     def _get_unique_labels(self, patient_identifier):
-        seg = np.load(join(self.folder_with_cropped_data, patient_identifier) + ".npz")['data'][-1]
+        seg = np.load(join(self.folder_with_cropped_data, patient_identifier) + ".npz")[
+            "data"
+        ][-1]
         unique_classes = np.unique(seg)
         return unique_classes
 
@@ -86,9 +102,13 @@ class DatasetAnalyzer(object):
         4) check if all in one region
         :return:
         """
-        seg = np.load(join(self.folder_with_cropped_data, patient_identifier) + ".npz")['data'][-1]
-        pkl = load_pickle(join(self.folder_with_cropped_data, patient_identifier) + ".pkl")
-        vol_per_voxel = np.prod(pkl['itk_spacing'])
+        seg = np.load(join(self.folder_with_cropped_data, patient_identifier) + ".npz")[
+            "data"
+        ][-1]
+        pkl = load_pickle(
+            join(self.folder_with_cropped_data, patient_identifier) + ".pkl"
+        )
+        vol_per_voxel = np.prod(pkl["itk_spacing"])
 
         # ad 1)
         unique_classes = np.unique(seg)
@@ -97,18 +117,20 @@ class DatasetAnalyzer(object):
         regions = list()
         regions.append(list(all_classes))
         for c in all_classes:
-            regions.append((c, ))
+            regions.append((c,))
 
         all_in_one_region = self._check_if_all_in_one_region(seg, regions)
 
         # 2 & 3) region sizes
-        volume_per_class, region_sizes = self._collect_class_and_region_sizes(seg, all_classes, vol_per_voxel)
+        volume_per_class, region_sizes = self._collect_class_and_region_sizes(
+            seg, all_classes, vol_per_voxel
+        )
 
         return unique_classes, all_in_one_region, volume_per_class, region_sizes
 
     def get_classes(self):
         datasetjson = load_json(join(self.folder_with_cropped_data, "dataset.json"))
-        return datasetjson['labels']
+        return datasetjson["labels"]
 
     def analyse_segmentations(self):
         class_dct = self.get_classes()
@@ -120,10 +142,9 @@ class DatasetAnalyzer(object):
             p.join()
 
             props_per_patient = OrderedDict()
-            for p, unique_classes in \
-                            zip(self.patient_identifiers, res):
+            for p, unique_classes in zip(self.patient_identifiers, res):
                 props = dict()
-                props['has_classes'] = unique_classes
+                props["has_classes"] = unique_classes
                 props_per_patient[p] = props
 
             save_pickle(props_per_patient, self.props_per_case_file)
@@ -153,16 +174,18 @@ class DatasetAnalyzer(object):
         for p in self.patient_identifiers:
             props = self.load_properties_of_cropped(p)
             shape_before_crop = props["original_size_of_raw_data"]
-            shape_after_crop = props['size_after_cropping']
+            shape_after_crop = props["size_after_cropping"]
             size_red = np.prod(shape_after_crop) / np.prod(shape_before_crop)
             size_reduction[p] = size_red
         return size_reduction
 
     def _get_voxels_in_foreground(self, patient_identifier, modality_id):
-        all_data = np.load(join(self.folder_with_cropped_data, patient_identifier) + ".npz")['data']
+        all_data = np.load(
+            join(self.folder_with_cropped_data, patient_identifier) + ".npz"
+        )["data"]
         modality = all_data[modality_id]
         mask = all_data[-1] > 0
-        voxels = list(modality[mask][::10]) # no need to take every voxel
+        voxels = list(modality[mask][::10])  # no need to take every voxel
         return voxels
 
     @staticmethod
@@ -185,37 +208,50 @@ class DatasetAnalyzer(object):
             results = OrderedDict()
             for mod_id in range(num_modalities):
                 results[mod_id] = OrderedDict()
-                v = p.starmap(self._get_voxels_in_foreground, zip(self.patient_identifiers,
-                                                              [mod_id] * len(self.patient_identifiers)))
+                v = p.starmap(
+                    self._get_voxels_in_foreground,
+                    zip(
+                        self.patient_identifiers,
+                        [mod_id] * len(self.patient_identifiers),
+                    ),
+                )
 
-                results[mod_id]['v'] = v
+                results[mod_id]["v"] = v
 
                 w = []
                 for iv in v:
                     w += iv
 
-                median, mean, sd, mn, mx, percentile_99_5, percentile_00_5 = self._compute_stats(w)
+                (
+                    median,
+                    mean,
+                    sd,
+                    mn,
+                    mx,
+                    percentile_99_5,
+                    percentile_00_5,
+                ) = self._compute_stats(w)
 
                 local_props = p.map(self._compute_stats, v)
                 props_per_case = OrderedDict()
                 for i, pat in enumerate(self.patient_identifiers):
                     props_per_case[pat] = OrderedDict()
-                    props_per_case[pat]['median'] = local_props[i][0]
-                    props_per_case[pat]['mean'] = local_props[i][1]
-                    props_per_case[pat]['sd'] = local_props[i][2]
-                    props_per_case[pat]['mn'] = local_props[i][3]
-                    props_per_case[pat]['mx'] = local_props[i][4]
-                    props_per_case[pat]['percentile_99_5'] = local_props[i][5]
-                    props_per_case[pat]['percentile_00_5'] = local_props[i][6]
+                    props_per_case[pat]["median"] = local_props[i][0]
+                    props_per_case[pat]["mean"] = local_props[i][1]
+                    props_per_case[pat]["sd"] = local_props[i][2]
+                    props_per_case[pat]["mn"] = local_props[i][3]
+                    props_per_case[pat]["mx"] = local_props[i][4]
+                    props_per_case[pat]["percentile_99_5"] = local_props[i][5]
+                    props_per_case[pat]["percentile_00_5"] = local_props[i][6]
 
-                results[mod_id]['local_props'] = props_per_case
-                results[mod_id]['median'] = median
-                results[mod_id]['mean'] = mean
-                results[mod_id]['sd'] = sd
-                results[mod_id]['mn'] = mn
-                results[mod_id]['mx'] = mx
-                results[mod_id]['percentile_99_5'] = percentile_99_5
-                results[mod_id]['percentile_00_5'] = percentile_00_5
+                results[mod_id]["local_props"] = props_per_case
+                results[mod_id]["median"] = median
+                results[mod_id]["mean"] = mean
+                results[mod_id]["sd"] = sd
+                results[mod_id]["mn"] = mn
+                results[mod_id]["mx"] = mx
+                results[mod_id]["percentile_99_5"] = percentile_99_5
+                results[mod_id]["percentile_00_5"] = percentile_00_5
 
             p.close()
             p.join()
@@ -247,12 +283,17 @@ class DatasetAnalyzer(object):
         size_reductions = self.get_size_reduction_by_cropping()
 
         dataset_properties = dict()
-        dataset_properties['all_sizes'] = sizes
-        dataset_properties['all_spacings'] = spacings
-        dataset_properties['all_classes'] = all_classes
-        dataset_properties['modalities'] = modalities  # {idx: modality name}
-        dataset_properties['intensityproperties'] = intensityproperties
-        dataset_properties['size_reductions'] = size_reductions  # {patient_id: size_reduction}
+        dataset_properties["all_sizes"] = sizes
+        dataset_properties["all_spacings"] = spacings
+        dataset_properties["all_classes"] = all_classes
+        dataset_properties["modalities"] = modalities  # {idx: modality name}
+        dataset_properties["intensityproperties"] = intensityproperties
+        dataset_properties[
+            "size_reductions"
+        ] = size_reductions  # {patient_id: size_reduction}
 
-        save_pickle(dataset_properties, join(self.folder_with_cropped_data, "dataset_properties.pkl"))
+        save_pickle(
+            dataset_properties,
+            join(self.folder_with_cropped_data, "dataset_properties.pkl"),
+        )
         return dataset_properties

@@ -4,9 +4,14 @@ Development Guide
 #################
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
 
     development_guide/general_dev_guide
-    development_guide/processing_dev_guide
-    development_guide/service_dev_guide
+    development_guide/workflow_dev_guide
+    development_guide/application_dev_guide
+    development_guide/operators
+    development_guide/helm_charts
+    development_guide/how_to_Dockerfile
+
+
     

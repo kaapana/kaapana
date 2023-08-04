@@ -1,0 +1,315 @@
+{
+    "$defs": {
+        "Workflow": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "airflow_dag_id": {
+                    "description": "The id of the Airflow DAG for this workflow",
+                    "type": "string"
+                }
+            },
+            "title": "Workflow",
+            "type": "object"
+        },
+        "WorkflowExecution": {
+            "additionalProperties": false,
+            "description": "Representation of the execution of a Workflow",
+            "properties": {
+                "airflow_run_id": {
+                    "type": "string"
+                },
+                "airflow_status": {
+                    "type": "string"
+                },
+                "configuration": {
+                    "description": "Job configuration",
+                    "type": "string"
+                },
+                "workflow": {
+                    "$ref": "#/$defs/Workflow"
+                }
+            },
+            "title": "WorkflowExecution",
+            "type": "object"
+        },
+        "Group": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "display_name": {
+                    "type": "string"
+                }
+            },
+            "title": "Group",
+            "type": "object"
+        },
+        "User": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "User",
+            "type": "object"
+        },
+        "Dataset": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "createdOn": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "group": {
+                    "$ref": "#/$defs/Group"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instance": {
+                    "type": "string"
+                },
+                "items": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "updatedOn": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Dataset",
+            "type": "object"
+        },
+        "Experiment": {
+            "additionalProperties": false,
+            "description": "Archetype tying up methods, their parameterization and the used dataset accross Instances",
+            "properties": {
+                "createdOn": {
+                    "type": "string"
+                },
+                "data": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "federation": {
+                    "description": "Kaapana instances which are involved in this experiment either as owner or runner instance",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "group": {
+                    "$ref": "#/$defs/Group"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instance": {
+                    "description": "The Kaapana instance owning this experiment",
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "updatedOn": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Experiment",
+            "type": "object"
+        },
+        "Instance": {
+            "additionalProperties": false,
+            "description": "Representation of a Kaapana instance",
+            "properties": {
+                "allowed_datasets": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "allowed_workflows": {
+                    "items": {
+                        "$ref": "#/$defs/Workflow"
+                    },
+                    "type": "array"
+                },
+                "automatic_update": {
+                    "type": "string"
+                },
+                "createdOn": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "endpoint": {
+                    "description": "The endpoint where the federation api is available",
+                    "type": "string"
+                },
+                "fernet_key": {
+                    "type": "string"
+                },
+                "group": {
+                    "$ref": "#/$defs/Group"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "owner": {
+                    "type": "string"
+                },
+                "ssl_check": {
+                    "type": "string"
+                },
+                "token": {
+                    "description": "The Authenfication token to access the federation api",
+                    "type": "string"
+                },
+                "updatedOn": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Instance",
+            "type": "object"
+        },
+        "Job": {
+            "additionalProperties": false,
+            "description": "A Job is derived from an experiment to be executed with a certain configuration on a certain platform at a certain time.",
+            "properties": {
+                "createdOn": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "execution": {
+                    "$ref": "#/$defs/WorkflowExecution"
+                },
+                "experiment": {
+                    "description": "Experiment from which this Job was created",
+                    "type": "string"
+                },
+                "external_job_id": {
+                    "description": "Id if job is executed on a remote instance",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "instance": {
+                    "type": "string"
+                },
+                "owner_instance": {
+                    "description": "Instance which owens the experiment in which the job is running",
+                    "type": "string"
+                },
+                "updatedOn": {
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Name of the user who created that job (same as username of the experiment)",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "id"
+            ],
+            "title": "Job",
+            "type": "object"
+        },
+        "Location": {
+            "additionalProperties": false,
+            "description": "",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "lat": {
+                    "type": "string"
+                },
+                "lon": {
+                    "type": "string"
+                }
+            },
+            "title": "Location",
+            "type": "object"
+        }
+    },
+    "$id": "urn:kaapana:Job",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "additionalProperties": true,
+    "metamodel_version": "1.7.0",
+    "properties": {
+        "createdOn": {
+            "type": "string"
+        },
+        "description": {
+            "type": "string"
+        },
+        "execution": {
+            "$ref": "#/$defs/WorkflowExecution"
+        },
+        "experiment": {
+            "description": "Experiment from which this Job was created",
+            "type": "string"
+        },
+        "external_job_id": {
+            "description": "Id if job is executed on a remote instance",
+            "type": "string"
+        },
+        "id": {
+            "type": "string"
+        },
+        "instance": {
+            "type": "string"
+        },
+        "owner_instance": {
+            "description": "Instance which owens the experiment in which the job is running",
+            "type": "string"
+        },
+        "updatedOn": {
+            "type": "string"
+        },
+        "username": {
+            "description": "Name of the user who created that job (same as username of the experiment)",
+            "type": "string"
+        }
+    },
+    "required": [
+        "id"
+    ],
+    "title": "Kaapana-Objects",
+    "type": "object",
+    "version": "0.0.1"
+}

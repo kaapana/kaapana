@@ -13,7 +13,7 @@ if [ -n "$X11VNC_ARGS" ]; then
 fi
 
 if [ -n "$OPENBOX_ARGS" ]; then
-    sed -i "s#^command=/usr/bin/openbox.*#& ${OPENBOX_ARGS}#" /etc/supervisor/conf.d/supervisord.conf
+    sed -i "s#^command=/usr/bin/openbox\$#& ${OPENBOX_ARGS}#" /etc/supervisor/conf.d/supervisord.conf
 fi
 
 if [ -n "$RESOLUTION" ]; then
@@ -31,7 +31,7 @@ if [ "$USER" != "root" ]; then
     fi
     HOME=/home/$USER
     echo "$USER:$PASSWORD" | chpasswd
-    cp -r /root/{.config,.gtkrc-2.0,.asoundrc} ${HOME}
+    cp -r /root/{.config,.gtkrc-2.0,.asoundrc} ${HOME} 2>/dev/null
     chown -R $USER:$USER ${HOME}
     [ -d "/dev/snd" ] && chgrp -R adm /dev/snd
 fi

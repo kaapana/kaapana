@@ -14,8 +14,10 @@ from airflow.executors.base_executor import BaseExecutor
 from kaapana.blueprints.kaapana_api import kaapanaApi
 from kaapana import operators
 
+
 class PluginHook(BaseHook):
     pass
+
 
 # Will show up under airflow.operators.test_plugin.PluginOperator
 
@@ -33,17 +35,19 @@ class PluginSensorOperator(BaseSensorOperator):
 class PluginExecutor(BaseExecutor):
     pass
 
+
 # Will show up under airflow.macros.test_plugin.plugin_macro
 
 
 def plugin_macro():
     pass
 
+
 # Creating a flask admin BaseView
 
 
 class TestView(BaseView):
-    @expose('/')
+    @expose("/")
     def test(self):
         # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
         return self.render("kaapana/home.html", content="Hello galaxy!")
@@ -73,10 +77,12 @@ class TestView(BaseView):
 #                         "view": jip_dags_appbuilder_view}
 
 # Creating a flask appbuilder Menu Item
-appbuilder_mitem = {"name": "Google",
-                    "category": "Search",
-                    "category_icon": "fa-th",
-                    "href": "https://www.google.com"}
+appbuilder_mitem = {
+    "name": "Google",
+    "category": "Search",
+    "category_icon": "fa-th",
+    "href": "https://www.google.com",
+}
 
 jip_operators = [
     PluginOperator,

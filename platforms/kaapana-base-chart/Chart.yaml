@@ -1,7 +1,0 @@
----
-apiVersion: v1
-version: "0.0.0"
-appVersion: "0.1.4"
-name: kaapana-base-chart
-description: Kaapana Base Platform
-kaapana_type: "platform"

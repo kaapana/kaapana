@@ -19,9 +19,9 @@ export class WorkflowTriggerPlugin
 
     const config: BaseVisTypeOptions = {
       name: PLUGIN_NAME,
-      title: 'Create Cohort',
+      title: 'Create Dataset',
       icon: 'logstashIf',
-      description: 'To manage cohort queries',
+      description: 'To manage dataset queries',
       visualization: getWorkflowTriggerVisController(data, core.getStartServices, opensearchQuery.buildOpenSearchQuery),
     };
   

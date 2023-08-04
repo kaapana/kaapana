@@ -34,10 +34,17 @@ JOBS_NAMESPACE="{{ jobs_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 
+OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
+
 INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
+if [ "$DEV_MODE" == "true" ]; then
+    KAAPANA_INIT_PASSWORD="kaapana"
+else
+    KAAPANA_INIT_PASSWORD="Kaapana2020!"
+fi
 
 CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
 CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
@@ -46,7 +53,7 @@ GRAFANA_USERNAME="{{ credentials_grafana_username|default('admin', true) }}"
 GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
 
 KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
-KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}"
+KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
 
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
@@ -58,6 +65,8 @@ DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 VERSION_IMAGE_COUNT="20"
 DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
+
+INSTANCE_NAME="{{ instance_name|default('') }}"
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
@@ -206,7 +215,10 @@ function get_domain {
 
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
-    helm -n $HELM_NAMESPACE ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $HELM_NAMESPACE uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+    for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+        helm -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+    done
+
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
     WAIT_UNINSTALL_COUNT=100
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
@@ -222,10 +234,21 @@ function delete_deployment {
             echo -e "${YELLOW}Waiting for $TERMINATING_PODS $DEPLOYED_NAMESPACES ${NC}"
         fi
     done
+    if [ ! "$QUIET" = "true" ];then
+        while true; do
+            read -e -p "Do you also want to remove all Persistent Volumes in the cluster (kubectl delete pv --all)?" -i " yes" yn
+            case $yn in
+                [Yy]* ) echo -e "${GREEN}Removing all pvs from cluster ...${NC}" && microk8s.kubectl delete pv --all; break;;
+                [Nn]* ) echo -e "${YELLOW}Skipping pv removal ...{NC}"; break;;
+                * ) echo "Please answer yes or no.";;
+            esac
+        done
+    else
+        echo -e "${YELLOW}QUIET-MODE active!${NC}"
+        echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
+        microk8s.kubectl delete pv --all
+    fi
     
-    # echo -e "${YELLOW}Removing namespace $HELM_NAMESPACE ...${NC}"
-    # microk8s.kubectl delete namespace $HELM_NAMESPACE --ignore-not-found=true
-
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
@@ -280,6 +303,11 @@ function deploy_chart {
 
     get_domain
     
+    if [ -z "$INSTANCE_NAME" ]; then
+        INSTANCE_NAME=$DOMAIN
+        echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
+    fi
+
     if [ "$GPU_SUPPORT" = "true" ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
@@ -304,9 +332,16 @@ function deploy_chart {
             echo -e "-> gpu-operator chart already exists"
         else
             if [ "$OFFLINE_MODE" = "true" ];then
+                SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
                 OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/offline_enable_gpu.py
                 [ -f $OFFLINE_ENABLE_GPU_PATH ] && echo "${GREEN}$OFFLINE_ENABLE_GPU_PATH exists ... ${NC}" || (echo "${RED}$OFFLINE_ENABLE_GPU_PATH does not exist -> exit ${NC}" && exit 1)
                 python3 $OFFLINE_ENABLE_GPU_PATH
+                if [ $? -eq 0 ]; then
+                    echo "Offline GPU enabled!"
+                else
+                    echo "Offline GPU deployment failed!"
+                    exit 1
+                fi
             else
                 microk8s.enable gpu
             fi
@@ -393,6 +428,7 @@ function deploy_chart {
     --set-string global.gpu_support="$GPU_SUPPORT" \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
     --set global.enable_nfs=$ENABLE_NFS \
+    --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
     --set global.include_reverse_proxy=$INCLUDE_REVERSE_PROXY \
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
@@ -411,11 +447,14 @@ function deploy_chart {
     --set-string global.mount_points_to_monitor="$MOUNT_POINTS_TO_MONITOR" \
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
+    --set-string global.instance_name="$INSTANCE_NAME" \
+    --set-string global.dev_mode="$DEV_MODE" \
+    --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
-    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.1.3
+    # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
     fi
@@ -457,6 +496,11 @@ function check_credentials {
 }
 
 function install_certs {
+    if [ "$EUID" -ne 0 ]
+    then echo -e "The installation of certs requires root privileges!";
+        exit 1
+    fi
+
     if [ ! -f ./tls.key ] || [ ! -f ./tls.crt ]; then
         echo -e "${RED}tls.key or tls.crt could not been found in this directory.${NC}"
         echo -e "${RED}Please rename and copy the files first!${NC}"
@@ -464,11 +508,12 @@ function install_certs {
     else
         echo -e "files found!"
         echo -e "Creating cluster secret ..."
-        microk8s.kubectl delete secret certificate -n $SERVICES_NAMESPACE
-        microk8s.kubectl create secret tls certificate --namespace $SERVICES_NAMESPACE --key ./tls.key --cert ./tls.crt
-        auth_proxy_pod=$(microk8s.kubectl get pods -n $SERVICES_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
+        microk8s.kubectl delete secret certificate -n $ADMIN_NAMESPACE
+        microk8s.kubectl create secret tls certificate --namespace $ADMIN_NAMESPACE --key ./tls.key --cert ./tls.crt
+        auth_proxy_pod=$(microk8s.kubectl get pods -n $ADMIN_NAMESPACE |grep oauth2-proxy  | awk '{print $1;}')
         echo "auth_proxy_pod pod: $auth_proxy_pod"
-        microk8s.kubectl -n $SERVICES_NAMESPACE delete pod $auth_proxy_pod
+        microk8s.kubectl -n $ADMIN_NAMESPACE delete pod $auth_proxy_pod
+        cp ./tls.key ./tls.crt $FAST_DATA_DIR/tls/
     fi
 
     echo -e "${GREEN}DONE${NC}"
@@ -486,7 +531,7 @@ function print_deployment_done {
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
         echo -e "username: kaapana"
-        echo -e "password: kaapana ${NC}"
+        echo -e "password: ${KAAPANA_INIT_PASSWORD} ${NC}"
     fi
 }
 

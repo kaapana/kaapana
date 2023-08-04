@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+appVersion: "0.1.1"
+description: A federated version of the Radiomics Airflow Dag
+name: radiomics-federated-workflow
+version: "0.0.0"
+keywords:
+- kaapanaworkflow
+- kaapanaexperimental

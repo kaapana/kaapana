@@ -18,14 +18,14 @@ ui_forms = {
                 "description": "Give your project a name for doccano.",
                 "type": "string",
                 "readOnly": False,
-                "required": True
+                "required": True,
             },
             "description": {
                 "title": "Description",
                 "description": "Give some infos about your project.",
                 "type": "string",
                 "readOnly": False,
-                "required": True
+                "required": True,
             },
             "project_type": {
                 "title": "Project type",
@@ -34,7 +34,7 @@ ui_forms = {
                 "enum": ["DocumentClassification", "Seq2seq"],
                 "type": "string",
                 "readOnly": False,
-                "required": True
+                "required": True,
             },
             "single_execution": {
                 "type": "boolean",
@@ -42,30 +42,31 @@ ui_forms = {
                 "description": "Whether your report is execute in single mode or not",
                 "default": False,
                 "readOnly": True,
-                "required": True
-            }
-        }
+                "required": True,
+            },
+        },
     }
 }
 
 args = {
-    'ui_visible': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=60)
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=60),
 }
 
-dag = DAG(
-    dag_id='study-ids-to-doccano',
-    default_args=args,
-    schedule_interval=None)
+dag = DAG(dag_id="study-ids-to-doccano", default_args=args, schedule_interval=None)
 
 
-get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir='get-input-data', data_type='json')
+get_input = LocalGetInputDataOperator(
+    dag=dag, operator_out_dir="get-input-data", data_type="json"
+)
 create_doccano_json = LocalCreateStudyIDJsonOperator(dag=dag, input_operator=get_input)
-doccano_upload = LocalDoccanoUploadDatasetOperator(dag=dag, input_operator=create_doccano_json)
+doccano_upload = LocalDoccanoUploadDatasetOperator(
+    dag=dag, input_operator=create_doccano_json
+)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> create_doccano_json >> doccano_upload >>  clean
+get_input >> create_doccano_json >> doccano_upload >> clean

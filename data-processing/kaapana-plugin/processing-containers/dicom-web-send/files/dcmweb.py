@@ -5,23 +5,25 @@ from dicomweb_client.api import DICOMwebClient
 import pydicom
 import glob
 
+
 def downloadObject(studyUID, seriesUID, objectUID, downloadDir):
     global client
     payload = {
-        'requestType': 'WADO',
-        'studyUID': studyUID,
-        'seriesUID': seriesUID,
-        'objectUID': objectUID,
-        'contentType': 'application/dicom'
+        "requestType": "WADO",
+        "studyUID": studyUID,
+        "seriesUID": seriesUID,
+        "objectUID": objectUID,
+        "contentType": "application/dicom",
     }
     url = pacsURL + "/wado"
     response = requests.get(url, params=payload)
-    fileName = objectUID+".dcm"
+    fileName = objectUID + ".dcm"
     filePath = os.path.join(downloadDir, fileName)
     print("Writing file {0} to {1} ...".format(fileName, downloadDir))
     with open(filePath, "wb") as f:
         f.write(response.content)
     return filePath
+
 
 def downloadSeries(studyUID, seriesUID, baseDir):
     global client
@@ -30,10 +32,7 @@ def downloadSeries(studyUID, seriesUID, baseDir):
     downloadDir = os.path.join(baseDir, uuidFolder)
     os.mkdir(downloadDir)
 
-    payload = {
-        'StudyInstanceUID': studyUID,
-        'SeriesInstanceUID': seriesUID
-    }
+    payload = {"StudyInstanceUID": studyUID, "SeriesInstanceUID": seriesUID}
     url = pacsURL + "/rs/instances"
     httpResponse = requests.get(url, params=payload)
     print(payload)
@@ -65,7 +64,7 @@ def uploadDicomObject(pathToFile):
 def init(pacs_origin, port, aetitle):
     global client
 
-    pacsURL = pacs_origin+":"+port+"/dcm4chee-arc/aets/"+aetitle.upper()
+    pacsURL = pacs_origin + ":" + port + "/dcm4chee-arc/aets/" + aetitle.upper()
 
     client = DICOMwebClient(
         url=pacsURL, qido_url_prefix="rs", wado_url_prefix="rs", stow_url_prefix="rs"
@@ -73,20 +72,35 @@ def init(pacs_origin, port, aetitle):
 
 
 if __name__ == "__main__":
-
     print("DICOMweb send started..")
 
-    batch_input_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['OPERATOR_IN_DIR'])
+    batch_input_dir = os.path.join(
+        "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
+    )
 
-    file_list = sorted(glob.glob(os.path.join(batch_input_dir, "**/*.dcm*"), recursive=True))
+    file_list = sorted(
+        glob.glob(os.path.join(batch_input_dir, "**/*.dcm*"), recursive=True)
+    )
 
     # todo, check if also runs with multiple images...
-    batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+    batch_folders = sorted(
+        [
+            f
+            for f in glob.glob(
+                os.path.join(
+                    "/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"
+                )
+            )
+        ]
+    )
 
     for batch_element_dir in batch_folders:
-
-        element_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
-        file_list += sorted(glob.glob(os.path.join(element_input_dir, "**/*.dcm*"), recursive=True))
+        element_input_dir = os.path.join(
+            batch_element_dir, os.environ["OPERATOR_IN_DIR"]
+        )
+        file_list += sorted(
+            glob.glob(os.path.join(element_input_dir, "**/*.dcm*"), recursive=True)
+        )
 
     file_list = sorted(file_list)
 

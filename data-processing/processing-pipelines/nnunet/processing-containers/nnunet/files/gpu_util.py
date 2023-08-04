@@ -1,10 +1,12 @@
 import os
 from pynvml import *
 
-def bytesto(bytes, to, bsize=1024): 
-    a = {'k' : 1, 'm': 2, 'g' : 3, 't' : 4, 'p' : 5, 'e' : 6 }
+
+def bytesto(bytes, to, bsize=1024):
+    a = {"k": 1, "m": 2, "g": 3, "t": 4, "p": 5, "e": 6}
     r = float(bytes)
     return bytes / (bsize ** a[to])
+
 
 gpu_mem_needed = os.getenv("GPU_MEM_NEEDED", None)
 print("# ")
@@ -28,9 +30,9 @@ if gpu_mem_needed != None:
             handle = nvmlDeviceGetHandleByIndex(i)
             gpu_name = nvmlDeviceGetName(handle)
             info = nvmlDeviceGetMemoryInfo(handle)
-            free = bytesto(info.free,"m")
-            used = bytesto(info.used,"m")
-            total = bytesto(info.total,"m")
+            free = bytesto(info.free, "m")
+            used = bytesto(info.used, "m")
+            total = bytesto(info.total, "m")
             print(f"# GPU: {gpu_name}")
             print(f"# total: {total}")
             print(f"# free:  {free}")

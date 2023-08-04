@@ -86,6 +86,11 @@ function install_cert {
 }
 
 function remove_cert {
+    if ! kubectl get namespace $SECRET_NAMESPACE; then
+        echo "Namespace $SECRET_NAMESPACE does not exist... skipping deletion"
+        return
+    fi
+
     kubectl -n $SECRET_NAMESPACE get secret $SECRET_NAME 
     if [ $? -eq 0 ]; then
         echo "Secret $SECRET_NAME not present in namespace $SECRET_NAMESPACE... skipping deletion"

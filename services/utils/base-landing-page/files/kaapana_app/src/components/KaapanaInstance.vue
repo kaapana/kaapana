@@ -332,12 +332,12 @@
       },
       copyInstanceDefToClipboard() {
         const copyInstance = `{\n \
-           instance_name: ${this.instance.instance_name},\n \
-           host: ${this.instance.host},\n \
-           port: ${this.instance.port},\n \
-           token: ${this.instance.token},\n \
-           fernet_key: ${this.instance.fernet_key},\n \
-           ssl_check: ${this.instance.ssl_check},
+           "instance_name": "${this.instance.instance_name}",\n \
+           "host": "${this.instance.host}",\n \
+           "port": "${this.instance.port}",\n \
+           "token": "${this.instance.token}",\n \
+           "fernet_key": "${this.instance.fernet_key}",\n \
+           "ssl_check": ${this.instance.ssl_check}\n \
           }`
         const textarea = document.createElement("textarea");
         textarea.value = copyInstance;

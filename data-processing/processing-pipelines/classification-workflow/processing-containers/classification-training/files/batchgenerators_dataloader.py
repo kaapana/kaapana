@@ -27,7 +27,7 @@ from batchgenerators.transforms.spatial_transforms import (
 class ClassificationDataset(DataLoader):
 
     def __init__(self, data, batch_size, patch_size, num_threads_in_multithreaded, seed_for_shuffle=1234,
-                 return_incomplete=False, shuffle=True, uid_to_tag_mapping=None, num_modalities=1):
+                 return_incomplete=False, shuffle=True, uid_to_tag_mapping=None, num_modalities=1, num_classes=1):
         super().__init__(data, batch_size, num_threads_in_multithreaded, seed_for_shuffle, return_incomplete, shuffle,
                          False)
 
@@ -36,6 +36,7 @@ class ClassificationDataset(DataLoader):
         self.indices = list(range(len(self._data)))
         self.uid_to_tag_mapping = uid_to_tag_mapping
         self.seed_for_shuffle = seed_for_shuffle
+        self.num_classes = num_classes
 
     def __len__(self):
         return len(self._data)
@@ -46,16 +47,24 @@ class ClassificationDataset(DataLoader):
 
         # initialize empty array for data and seg
         data = np.zeros((self.batch_size, self.num_modalities, *self.patch_size), dtype=np.float32)
-        seg = np.zeros((self.batch_size, 1), dtype="int16")
+        seg = np.zeros((self.batch_size, self.num_classes), dtype="int16")
 
         for i, j in enumerate(patients_for_batch):
             input_image_path = os.path.join(os.environ['BATCHES_INPUT_DIR'], j, os.environ['OPERATOR_IN_DIR'], j + '.npy')
             input_image = np.load(input_image_path, mmap_mode="r")
 
-            output_image = self.uid_to_tag_mapping[j]
+            if os.environ['TASK'] == "binary":
+                seg[i] = np.array(self.uid_to_tag_mapping[j])
+            else:
+                # Convert to one-hot encoding
+                one_hot_np = np.eye(self.num_classes)[np.array(self.uid_to_tag_mapping[j])]  # Assuming 3 classes
+
+                # Apply logical OR operation along the first dimension
+                combined_one_hot = one_hot_np.any(axis=0).astype(int)
+                seg[i] = combined_one_hot
 
             data[i] = input_image
-            seg[i] = output_image
+            
         
         return {'data': data, 'class': seg, "sample": j}
 

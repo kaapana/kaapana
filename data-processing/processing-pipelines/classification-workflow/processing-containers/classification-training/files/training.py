@@ -1,30 +1,26 @@
 #!/usr/bin/env python3
-import copy
 import os
-import random
 import logging
-import secrets
-from enum import Enum
 from pathlib import Path
 import ast
-
-import monai
 import numpy as np
+
 import torch
-import torchvision.models as models
-
-from torch import nn
 from torch.utils.tensorboard import SummaryWriter
-from torchmetrics import F1Score
 
-import resnet as resnet
-from batchgenerators_dataloader import ClassificationDataset
+from torchmetrics import F1Score
+from torchmetrics import Accuracy
+
+from monai.networks.nets import resnet18
+
 from batchgenerators.dataloading.multi_threaded_augmenter import MultiThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.sample_normalization_transforms import (
     ZeroMeanUnitVarianceTransform,
 )
+
 from opensearch_helper import OpenSearchHelper
+from batchgenerators_dataloader import ClassificationDataset
 
 RESULTS_DIR = Path("/models", os.environ['DAG_ID'], os.environ['RUN_ID'])
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -50,16 +46,17 @@ logger.addHandler(f_handler)
 
 TAG_TO_CLASS_MAPPING = ast.literal_eval(os.environ['TAG_TO_CLASS_MAPPING_JSON'])
 
-if len(TAG_TO_CLASS_MAPPING) < 2:
-    raise ValueError(f"Some issue with the class mapping json: {TAG_TO_CLASS_MAPPING}")
-elif len(TAG_TO_CLASS_MAPPING) == 2:
-    f1_score = F1Score(task="binary", num_classes=2)
-else:
-    f1_score = F1Score(task="multiclass", num_classes=len(TAG_TO_CLASS_MAPPING))
-
+NUM_CLASSES = 1 if os.environ['TASK'] == "binary" else len(TAG_TO_CLASS_MAPPING)
 NUM_WORKERS = 4
 NUM_INPUT_CHANNELS = 1
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+if os.environ['TASK'] == "multilabel":
+    f1_metric = F1Score(task=os.environ['TASK'], num_labels=NUM_CLASSES).to(DEVICE)
+    accuracy_metric = Accuracy(task=os.environ['TASK'], num_labels=NUM_CLASSES).to(DEVICE)
+else:
+    f1_metric = F1Score(task=os.environ['TASK'], num_classes=NUM_CLASSES+1).to(DEVICE)
+    accuracy_metric = Accuracy(task=os.environ['TASK'], num_classes=NUM_CLASSES+1).to(DEVICE)
 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
@@ -107,10 +104,8 @@ def train_fn(model, criterion, mt_train, optimizer, scheduler, epoch):
 
 def evaluate(model, epoch, mt_val, train_loss):
     model.eval()
-    all_outputs = torch.Tensor()
-    all_y = torch.Tensor()
-    corrects = []
     losses_batches = []
+
     for batch_idx, batch in enumerate(mt_val):
         x = torch.from_numpy(batch["data"]).to(DEVICE)
         y = torch.from_numpy(batch["class"]).to(DEVICE)
@@ -119,25 +114,22 @@ def evaluate(model, epoch, mt_val, train_loss):
             outputs = model(x)
             loss = criterion(outputs.type(torch.float32), y.type(torch.float32))
 
-            corrects.append(
-                torch.sum(torch.round(torch.sigmoid(outputs)) == y)
-                    .detach()
-                    .to("cpu")
-                    .numpy()
-                    .min()
-            )
-            all_outputs = torch.cat([all_outputs, outputs.detach().to("cpu")])
-            all_y = torch.cat([all_y, y.detach().to("cpu")])
+            predictions = torch.round(torch.sigmoid(outputs))
+
+            # Update F1Score metric
+            f1_metric(predictions, y)
+            accuracy_metric(predictions, y)
+
             losses_batches.append(loss.item())
 
-    f_1 = f1_score(
-        all_y.type(torch.int),
-        (all_outputs > 0).type(torch.int),
-    )
+    # Compute final F1 score
+    f_1 = f1_metric.compute()
+    accuracy = accuracy_metric.compute()
 
     model.train()
 
-    return np.mean(losses_batches), np.sum(corrects) / all_y.shape[0], f_1
+    return np.mean(losses_batches), accuracy, f_1
+
 
 if __name__ == "__main__":
 
@@ -162,19 +154,25 @@ if __name__ == "__main__":
 
     # uids to class mapping
 
-    uid_to_tag_mapping = {uid: TAG_TO_CLASS_MAPPING[tag] for tag, uids in tag_to_uid_mapping.items() for uid in uids}
+    uid_to_tag_mapping = {}
+
+    for tag, uids in tag_to_uid_mapping.items():
+        for uid in uids:
+            if uid in uid_to_tag_mapping:
+                uid_to_tag_mapping[uid].append(TAG_TO_CLASS_MAPPING[tag])
+            else:
+                uid_to_tag_mapping[uid] = [TAG_TO_CLASS_MAPPING[tag]]
 
     # load model
 
-    model = resnet.generate_model(
-            model_depth=18,
-            n_classes=len(TAG_TO_CLASS_MAPPING) - 1,
-            n_input_channels=NUM_INPUT_CHANNELS,
-            shortcut_type="B",
-            conv1_t_size=3,
-            conv1_t_stride=1,
-            no_max_pool=True,
-            widen_factor=1.0,
+    spatial_dims = int(os.environ['DIMENSIONS'][0])
+
+    model = resnet18(
+        pretrained=False, 
+        progress=True, 
+        spatial_dims=spatial_dims, 
+        n_input_channels=NUM_INPUT_CHANNELS, 
+        num_classes=NUM_CLASSES
         )
 
     model = model.to(DEVICE)
@@ -199,7 +197,8 @@ if __name__ == "__main__":
         return_incomplete=False,
         shuffle=True,
         uid_to_tag_mapping=uid_to_tag_mapping,
-        num_modalities=NUM_INPUT_CHANNELS
+        num_modalities=NUM_INPUT_CHANNELS,
+        num_classes=NUM_CLASSES
     )
 
     mt_train = MultiThreadedAugmenter(
@@ -218,7 +217,8 @@ if __name__ == "__main__":
         return_incomplete=False,
         shuffle=False,
         uid_to_tag_mapping=uid_to_tag_mapping,
-        num_modalities=NUM_INPUT_CHANNELS
+        num_modalities=NUM_INPUT_CHANNELS,
+        num_classes=NUM_CLASSES
     )
 
     mt_val = MultiThreadedAugmenter(
@@ -233,7 +233,11 @@ if __name__ == "__main__":
 
     logger.debug('Set hyperparameters')
 
-    criterion = torch.nn.BCEWithLogitsLoss()
+    if os.environ['TASK'] == "multiclass":
+        criterion = torch.nn.CrossEntropyLoss()
+    else:
+        criterion = torch.nn.BCEWithLogitsLoss()
+
     optimizer = torch.optim.SGD(
         model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4
     )
@@ -253,7 +257,6 @@ if __name__ == "__main__":
         )
     )
 
-    val_acc_history = []
     best_ema_f1 = 0
     ema_f1 = None
     gamma = 0.1

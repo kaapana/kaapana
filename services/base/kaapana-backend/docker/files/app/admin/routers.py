@@ -16,8 +16,11 @@ from opensearchpy import OpenSearch
 from sqlalchemy.orm import Session
 
 import uuid
-from app.workflows import schemas
-from app.workflows.utils import HelperMinio
+from app.workflows.utils import (
+    HelperMinio,
+    raise_kaapana_connection_error,
+    requests_retry_session,
+)
 from app.config import settings
 
 router = APIRouter()
@@ -101,3 +104,17 @@ def get_os_dashboards():
     hits = res["hits"]["hits"]
     dashboards = list(sorted([hit["_source"]["dashboard"]["title"] for hit in hits]))
     return {"dashboards": dashboards}
+
+
+@router.get("/get-traefik-routes")
+def get_traefik_routes():
+    try:
+        with requests.Session() as s:
+            r = requests_retry_session(session=s).get(
+                f"{settings.traefik_url}/api/http/routers"
+            )
+        raise_kaapana_connection_error(r)
+        return r.json()
+    except Exception as e:
+        print("ERROR in getting traefik routes!")
+        return {"Error message": str(e)}, 500

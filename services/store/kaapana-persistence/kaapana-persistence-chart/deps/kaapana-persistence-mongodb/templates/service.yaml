@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kaapana-persistence-mongodb-service
+  namespace: "services" # "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: kaapana-persistence-mongodb
+spec:
+  selector:
+    app-name: kaapana-persistence-mongodb
+  ports:
+    - port: 27017 
+      targetPort: 27017

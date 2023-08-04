@@ -1,60 +1,116 @@
 <template lang="pug">
   .kaapana-intro-header
-    .kaapana-intro-image
-      v-container(grid-list-lg text-xs-center)
-        div(v-if="isAuthenticated")
-          v-layout(row='', wrap='')
-            v-flex(sm12)
-              KaapanaWelcome
-            v-flex(sm12)
-              v-layout(row='', wrap='')
-                v-flex.text-left(v-if='section.roles.indexOf(currentUser.role) > -1' v-for='(section, sectionKey) in this.externalWebpages', :key='section.id', d-flex, v-bind:class="{ sm8: sectionKey=='system', sm4: sectionKey!='system'}")
-                  v-card.kaapana-opacity-card
-                    v-card-title.kaapana-card-prop
-                      span.kaapana-headline {{section.label}}
-                      v-spacer
-                      v-icon(size='35px') {{section.icon}}
-                    v-card-text.kaapana-card-prop
-                      p {{section.description}}
-                      v-chip.kaapana-chips(v-for='(subSection, subSectionKey) in section.subSections', :key='subSection.id' color="jipgreen" small, style="margin: 5px")
-                        router-link.kaapana-page-link(:to="{ name: 'ew-section-view', params: { ewSection: sectionKey, ewSubSection: subSectionKey }}") {{subSection.label}}
-        div(v-else)
-          v-layout(align-center justify-center row fill-height)
-            v-flex(sm12)
-              v-card.kaapana-opacity-card
-                v-card-text.text-xs-left
-                  h1 Thank you for visiting us. We hope to see you again!
-                  p
-                    | In order to log in again, please reload the page or 
-                    a(@click="reloadPage()") click here
-                    | .
+    v-container(grid-list-lg text-xs-center fluid)
+      div(v-if="isAuthenticated")
+        v-layout(row='')
+          v-flex(sm9)
+            v-layout(row='')
+              v-flex(sm12)
+                KaapanaWelcome
+              v-flex(sm12)
+                v-layout(row='', wrap='')
+                  v-flex(d-flex, class="sm12")
+                    v-card(width='100%')
+                      v-card-title
+                        //- span.kaapana-headline Workflows&nbsp;
+                        //- v-icon(large) mdi-gamepad-variant
+                      v-card-text
+                        v-layout(row='', wrap='')
+                          v-flex.justify-center(v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to")
+                            v-card(:to="to" elevation=0)
+                              v-card-title.justify-center
+                                v-icon(x-large) {{ icon }}
+                              v-card-text
+                                span {{ title }}
+                          v-flex
+                            v-card(to="/extensions" elevation=0)
+                              v-card-title.justify-center
+                                v-icon(x-large) mdi-puzzle
+                              v-card-text
+                                span Extensions
+            v-layout(v-if='currentUser.role === "admin"') 
+              v-flex(sm4)
+                <iframe src="/grafana/d-solo/adadsdasd/kubernetes?orgId=1&panelId=72" width="100%" height="auto" frameborder="0"></iframe>
+              v-flex(sm4)
+                <iframe src="/grafana/d-solo/adadsdasd/kubernetes?orgId=1&panelId=55" width="100%" height="auto" frameborder="0"></iframe>
+              v-flex(sm4)
+                <iframe src="/grafana/d-solo/adadsdasd/kubernetes?orgId=1&panelId=44" width="100%" height="auto" frameborder="0"></iframe>
+          v-flex(sm3)
+            Dashboard(:seriesInstanceUIDs="seriesInstanceUIDs" :fields="this.settings.landingPage")
+      div(v-else)
+        v-layout(align-center justify-center row fill-height)
+          v-flex(sm12)
+            v-card
+              v-card-text.text-xs-left
+                h1 Thank you for visiting us. We hope to see you again!
+                p
+                  | In order to log in again, please reload the page or 
+                  a(@click="reloadPage()") click here
+                  | .
 </template>
 
-
-
-
-<script lang="ts">
-
-import { Component, Vue } from 'vue-property-decorator';
+<script>
+import { Component, Vue } from "vue-property-decorator";
 import { mapGetters } from "vuex";
 import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
+import Dashboard from "@/components/Dashboard.vue";
+import {
+  loadPatients,
+} from "../common/api.service";
 
-@Component({
+
+export default Vue.extend({
+  data() {
+    return {
+      seriesInstanceUIDs: []
+    }
+  },
   components: {
-    KaapanaWelcome
+    KaapanaWelcome,
+    Dashboard,
   },
   computed: {
-    ...mapGetters(["currentUser", "isAuthenticated", "externalWebpages",  "commonData"])
+    ...mapGetters([
+      "currentUser",
+      "isAuthenticated",
+      "externalWebpages",
+      "workflowsList",
+      "commonData",
+    ]),
+  },
+  created() {
+    this.settings = JSON.parse(localStorage["settings"]);
+    loadPatients({
+        structured: false,
+        query: {"bool":{"must":["",{"query_string":{"query":"*"}}]}},
+      }).then((data) => {
+          this.seriesInstanceUIDs = data;
+      })
+      .catch((e) => {
+        this.message = e;
+      });
   },
   methods: {
     reloadPage() {
-      window.location.reload()
-    }
-  }
+      window.location.reload();
+    },
+  },
 })
-
-export default class Home extends Vue {}
 </script>
 
 <style lang="scss">
+.kaapana-page-link {
+  color: black;
+  text-decoration: none;
+}
+
+.kaapana-headline {
+  font-size: 24px;
+  font-weight: 300px;
+}
+
+.kaapana-intro-header {
+  text-align: center;
+  background-size: cover;
+}
 </style>

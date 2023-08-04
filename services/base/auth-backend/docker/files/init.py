@@ -8,10 +8,12 @@ error_page_path = "/kaapana/app/403.html"
 
 logger = logging.getLogger("gunicorn.access")
 
+
 def load_error_page():
     global error_page
-    with open(error_page_path, "r", encoding='utf-8') as f:
-        error_page= f.read()
+    with open(error_page_path, "r", encoding="utf-8") as f:
+        error_page = f.read()
+
 
 def load_auth_config():
     global auth_role_mapping_dict
@@ -34,6 +36,7 @@ def load_auth_config():
     logger.warn("")
     logger.warn(json.dumps(auth_role_mapping_dict, indent=4))
     logger.warn("")
+
 
 load_auth_config()
 load_error_page()

@@ -42,21 +42,21 @@ spec:
             value: "meta-index"
           - name: DASHBOARDS_URL
             value: "http://os-dashboards-service.{{  .Values.global.services_namespace  }}.svc:5601/meta"
-          - name: DASHBOARDS_JSON
-            value: "/dashboards/dashboard_import.json"
+          - name: EXPORT_NDJSON
+            value: "/dashboards/export.ndjson"
         volumeMounts:
-          - name: dashboard-file
-            mountPath: /dashboards/dashboard_import.json
-            subPath: dashboard_import.json
+          - name: os-export-file
+            mountPath: /dashboards/export.ndjson
+            subPath: export.ndjson
       # Do not restart containers after they exit
       restartPolicy: Never
       volumes:
-      - name: dashboard-file
+      - name: os-export-file
         configMap:
-          name: dashboard-import
+          name: os-export
           items:
-          - key: dashboard_import.json
-            path: dashboard_import.json
+          - key: export.ndjson
+            path: export.ndjson
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 10

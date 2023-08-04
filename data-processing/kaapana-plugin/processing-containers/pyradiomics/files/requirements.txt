@@ -1,0 +1,2 @@
+pyradiomics==3.0.1
+p_tqdm==1.4.0

@@ -16,34 +16,31 @@
 </template>
 
 <script>
-/* eslint-disable */
-import {stringToColour} from "@/utils/utils";
+import { stringToColour } from "@/utils/utils";
 
 export default {
   name: "TagChip",
-  emits: ['deleteTag'],
+  emits: ["deleteTag"],
   props: {
     items: {
       type: Array,
-      default: []
-    }
+      default: [],
+    },
   },
   computed: {
     _items() {
-      return this.items.sort()
-    }
+      return this.items.sort();
+    },
   },
   methods: {
     _stringToColour(str) {
-      return stringToColour(str)
-    }
+      return stringToColour(str);
+    },
   },
   data() {
-    return {}
-  }
-}
+    return {};
+  },
+};
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

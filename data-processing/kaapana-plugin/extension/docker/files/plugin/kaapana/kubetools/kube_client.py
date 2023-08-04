@@ -20,19 +20,20 @@ from six import PY2
 
 def _load_kube_config(in_cluster, cluster_context, config_file):
     from kubernetes import config, client
+
     if in_cluster:
         config.load_incluster_config()
     else:
-        config.load_kube_config(config_file=config_file,
-                                context=cluster_context)
+        config.load_kube_config(config_file=config_file, context=cluster_context)
     if PY2:
         # For connect_get_namespaced_pod_exec
         from kubernetes.client import Configuration
+
         configuration = Configuration()
         configuration.assert_hostname = False
         Configuration.set_default(configuration)
     return client.CoreV1Api(), client.BatchV1Api(), client.NetworkingV1Api()
 
 
-def get_kube_client(in_cluster='in_cluster',cluster_context=None,config_file=None):
+def get_kube_client(in_cluster="in_cluster", cluster_context=None, config_file=None):
     return _load_kube_config(in_cluster, cluster_context, config_file)

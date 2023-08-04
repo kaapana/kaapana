@@ -301,25 +301,25 @@ function dns_check {
 
         set +e
         echo "${GREEN}Get DNS settings nmcli ...${NC}"
-        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
-        echo "${YELLOW}Identified DNS: $DNS ${NC}"
+        DNS=$(( nmcli dev list || nmcli dev show ) 2>/dev/null | grep DNS |awk -F ' ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
         if [ -z "$DNS" ]; then
             echo "${RED}FAILED -> Get DNS settings resolvectl status ...${NC}"
-            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
-            echo "${YELLOW}Identified DNS: $DNS ${NC}"
+            DNS=$(resolvectl status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
             if [ -z "$DNS" ]; then
                 echo "${RED}FAILED -> Get DNS settings systemd-resolve ...${NC}"
-                DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\n' ',' | sed 's/,$/\n/')
-                echo "${YELLOW}Identified DNS: $DNS ${NC}"
-                if [[ -z $DNS ]]; then
-                    if [ "$OFFLINE_SNAPS" = "true" ];then
-                        DNS="8.8.8.8,8.8.4.4"
-                    else
-                        echo "${RED}DNS lookup failed.${NC}"
-                        exit 1
-                    fi
+                DNS=$(systemd-resolve --status |grep 'DNS Servers' | awk -F ': ' '{print $2}' | tr '\ ' ',' | sed 's/,$/\n/')
+                if [[ -z $DNS ]] && [ "$OFFLINE_SNAPS" = "true" ]; then
+                    DNS="8.8.8.8,8.8.4.4"
                 fi
             fi
+        fi
+        if [ -z "${DNS}" ]; then
+            echo "${RED}DNS lookup failed.${NC}"
+            exit 1
+        else
+            ## Format DNS to be a comma separated list of IP addresses without spaces and newlines
+            DNS=$(echo -e $DNS | tr -s ' \n,' ',' | sed 's/,$/\n/')
+            echo "${YELLOW}Identified DNS: $DNS ${NC}"
         fi
         set -e
     fi
@@ -372,13 +372,15 @@ function install_microk8s {
         echo "${YELLOW}Disable insecure port ...${NC}";
         insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
         
-        echo "${YELLOW}Set limit of completed pods to 200 ...${NC}";
-        insert_text "--terminated-pod-gc-threshold=200" /var/snap/microk8s/current/args/kube-controller-manager
+        echo "${YELLOW}Set limit of completed pods to 50 ...${NC}";
+        insert_text "--terminated-pod-gc-threshold=50" /var/snap/microk8s/current/args/kube-controller-manager
         set -e
 
         echo "${YELLOW}Set vm.max_map_count=262144${NC}"
         sysctl -w vm.max_map_count=262144
-        sh -c "echo 'vm.max_map_count=262144' >> /etc/sysctl.conf"
+        set +e
+        insert_text "vm.max_map_count=262144" /etc/sysctl.conf
+        set -e
         
         echo "${YELLOW}Reload systemct daemon ...${NC}"
         systemctl daemon-reload

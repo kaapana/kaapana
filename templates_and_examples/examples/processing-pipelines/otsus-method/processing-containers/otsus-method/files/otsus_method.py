@@ -9,18 +9,25 @@ import glob
 # os.environ["OPERATOR_OUT_DIR"] = "output"
 
 ### From the template
-batch_folders = sorted([f for f in glob.glob(os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ['BATCH_NAME'], '*'))])
+batch_folders = sorted(
+    [
+        f
+        for f in glob.glob(
+            os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
+        )
+    ]
+)
 
 for batch_element_dir in batch_folders:
-
-    element_input_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_IN_DIR'])
-    element_output_dir = os.path.join(batch_element_dir, os.environ['OPERATOR_OUT_DIR'])
+    element_input_dir = os.path.join(batch_element_dir, os.environ["OPERATOR_IN_DIR"])
+    element_output_dir = os.path.join(batch_element_dir, os.environ["OPERATOR_OUT_DIR"])
 
     if not os.path.exists(element_output_dir):
         os.makedirs(element_output_dir)
 
-
-    nddr_files = sorted(glob.glob(os.path.join(element_input_dir, "*.nrrd"), recursive=True))
+    nddr_files = sorted(
+        glob.glob(os.path.join(element_input_dir, "*.nrrd"), recursive=True)
+    )
 
     if len(nddr_files) == 0:
         print("No nrrd file found!")
@@ -36,5 +43,8 @@ for batch_element_dir in batch_folders:
             seg = sitk.OtsuThreshold(img, 0, 1)
 
             ### Save the segmentation as .nrrd file
-            output_file = os.path.join(element_output_dir, "{}.nrrd".format(os.path.basename(batch_element_dir)))
+            output_file = os.path.join(
+                element_output_dir,
+                "{}.nrrd".format(os.path.basename(batch_element_dir)),
+            )
             sitk.WriteImage(seg, output_file, useCompression=True)

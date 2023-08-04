@@ -1,0 +1,13 @@
+---
+global:
+  dev_mode: False
+  dynamicVolumes:
+  - name: kaapana-persistence-mongodb
+    host_path: /persistence/mongodb
+  - name: kaapana-persistence-cas
+    host_path: /persistence/cas
+
+couchdb:
+  user: kaapanauser
+  password: kaapanapassword
+

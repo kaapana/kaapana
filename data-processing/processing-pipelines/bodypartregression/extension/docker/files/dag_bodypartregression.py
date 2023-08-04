@@ -27,50 +27,40 @@ ui_forms = {
                 "type": "boolean",
                 "default": True,
                 "readOnly": False,
-            }
-        }
+            },
+        },
     }
 }
 
 args = {
-    'ui_visible': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=60)
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=60),
 }
 
 dag = DAG(
-    dag_id='bodypart-regression',
+    dag_id="bodypart-regression",
     default_args=args,
     concurrency=10,
     max_active_runs=max_active_runs,
-    schedule_interval=None
+    schedule_interval=None,
 )
 
 get_input = LocalGetInputDataOperator(
-    dag=dag,
-    parallel_downloads=5,
-    check_modality=True
+    dag=dag, parallel_downloads=5, check_modality=True
 )
 
 dcm2nifti = DcmConverterOperator(
-    dag=dag,
-    input_operator=get_input,
-    output_format='nii.gz'
+    dag=dag, input_operator=get_input, output_format="nii.gz"
 )
 
-bodypartregression = BprOperator(
-    dag=dag,
-    stringify_json=True,
-    input_operator=dcm2nifti
-)
+bodypartregression = BprOperator(dag=dag, stringify_json=True, input_operator=dcm2nifti)
 
 push_json = LocalJson2MetaOperator(
-    dag=dag,
-    dicom_operator=get_input,
-    json_operator=bodypartregression
+    dag=dag, dicom_operator=get_input, json_operator=bodypartregression
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

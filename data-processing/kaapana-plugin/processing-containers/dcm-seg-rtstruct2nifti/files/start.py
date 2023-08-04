@@ -75,13 +75,15 @@ operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
 assert operator_out_dir is not None
 
+exit_on_issue = getenv("EXIT_ON_ISSUE", "True")
+exit_on_issue = False if exit_on_issue.lower() != "true" else True
+
 
 # File-extension to search for in the input-dir
 input_file_extension = "*.dcm"
 
 # How many processes should be started?
 parallel_processes = 3
-exit_on_issue = True
 
 logger.info("##################################################")
 logger.info("#")
@@ -110,32 +112,48 @@ for batch_element_dir in batch_folders:
     logger.info(f"# Processing batch-element {batch_element_dir}")
     logger.info("#")
     element_mask_dicom_dir = join(batch_element_dir, operator_in_dir)
-    element_base_dicom_in_dir = join(batch_element_dir, base_dicom_in_dir)
     element_output_dir = join(batch_element_dir, operator_out_dir)
 
     if not exists(element_mask_dicom_dir):
         logger.error("#")
-        logger.error(f"# element_mask_dicom_dir: {element_mask_dicom_dir} does not exists!")
+        logger.error(
+            f"# element_mask_dicom_dir: {element_mask_dicom_dir} does not exists!"
+        )
         logger.error("#")
         exit(1)
 
-    if not exists(element_base_dicom_in_dir):
-        logger.error("#")
-        logger.error(f"# element_base_dicom_in_dir: {element_base_dicom_in_dir} does not exists!")
-        logger.error("#")
-        exit(1)
+    if base_dicom_in_dir is not None:
+        element_base_dicom_in_dir = join(batch_element_dir, base_dicom_in_dir)
+        if not exists(element_base_dicom_in_dir):
+            logger.error("#")
+            logger.error(
+                f"# element_base_dicom_in_dir: {element_base_dicom_in_dir} does not exists!"
+            )
+            logger.error("#")
+            exit(1)
+    else:
+        element_base_dicom_in_dir = None
 
     # creating output dir
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
 
     # creating output dir
-    element_mask_dicoms = glob(join(element_mask_dicom_dir, input_file_extension), recursive=False)
+    element_mask_dicoms = glob(
+        join(element_mask_dicom_dir, input_file_extension), recursive=False
+    )
     logger.info(f"# Found {len(element_mask_dicoms)} mask-dcm-files!")
 
     # Single process:
     # Loop for every input-file found with extension 'input_file_extension'
     for element_mask_dicom in element_mask_dicoms:
-        todo_list.append((element_mask_dicom, element_base_dicom_in_dir, element_output_dir, seg_filter))
+        todo_list.append(
+            (
+                element_mask_dicom,
+                element_base_dicom_in_dir,
+                element_output_dir,
+                seg_filter,
+            )
+        )
 
 logger.info(f"# Got {len(todo_list)} jobs in the todo-list!")
 with ThreadPool(parallel_processes) as threadpool:
@@ -179,11 +197,20 @@ if processed_count == 0:
         Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
 
         # creating output dir
-        batch_mask_dicoms = glob(join(batch_input_dir, input_file_extension), recursive=False)
+        batch_mask_dicoms = glob(
+            join(batch_input_dir, input_file_extension), recursive=False
+        )
         logger.info(f"# Found {len(batch_mask_dicoms)} batch_mask_dicoms-files!")
 
         for batch_mask_dicom in batch_mask_dicoms:
-            success, input_file = process_input_file((batch_mask_dicom,batch_base_dicom_in_dir,batch_output_dir,seg_filter))
+            success, input_file = process_input_file(
+                (
+                    batch_mask_dicom,
+                    batch_base_dicom_in_dir,
+                    batch_output_dir,
+                    seg_filter,
+                )
+            )
             if not success and exit_on_issue:
                 logger.error("# An issue occurred! -> exit")
                 exit(1)

@@ -4,7 +4,6 @@ function organ_segmentation {
     log="segmentation.log"
     echo "Organ segmentation - STARTED..."
     mkdir -p $OUTPUTDIR
-    BATCH=false
 
     dir=""
     loop_counter=0
@@ -205,25 +204,10 @@ function organ_segmentation {
                 fi
             ;;
         esac
-        
-        if ! $BATCH ;
-        then
-            echo "No BATCH-mode - breaking loop..."
-            break ;
-        fi
-        
     done
 
     rm -rf $OUTPUTDIR/tmp/
 
-    if [ "$loop_counter" -gt 0 ]
-    then
-        echo "Organ segmentation done!";
-        exit 0;
-    else
-        echo "No inputfile found!";
-        exit 1;
-    fi
 }
 
 for dir in /$WORKFLOW_DIR/$BATCH_NAME/*    # list directories in the form "/tmp/dirname/"
@@ -236,3 +220,12 @@ do
         echo ${SPLEENDIR}
         organ_segmentation
 done
+
+if [ "$loop_counter" -gt 0 ]
+then
+    echo "Organ segmentation done!";
+    exit 0;
+else
+    echo "No inputfile found!";
+    exit 1;
+fi

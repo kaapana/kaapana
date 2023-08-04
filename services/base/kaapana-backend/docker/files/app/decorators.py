@@ -9,7 +9,10 @@ from starlette.concurrency import run_in_threadpool
 
 NoArgsNoReturnFuncT = Callable[[], None]
 NoArgsNoReturnAsyncFuncT = Callable[[], Coroutine[Any, Any, None]]
-NoArgsNoReturnDecorator = Callable[[Union[NoArgsNoReturnFuncT, NoArgsNoReturnAsyncFuncT]], NoArgsNoReturnAsyncFuncT]
+NoArgsNoReturnDecorator = Callable[
+    [Union[NoArgsNoReturnFuncT, NoArgsNoReturnAsyncFuncT]], NoArgsNoReturnAsyncFuncT
+]
+
 
 # Source: https://github.com/dmontagu/fastapi-utils/blob/master/fastapi_utils/tasks.py
 # Docu: https://fastapi-utils.davidmontague.xyz/user-guide/repeated-tasks/
@@ -43,7 +46,9 @@ def repeat_every(
         The maximum number of times to call the repeated function. If `None`, the function is repeated forever.
     """
 
-    def decorator(func: Union[NoArgsNoReturnAsyncFuncT, NoArgsNoReturnFuncT]) -> NoArgsNoReturnAsyncFuncT:
+    def decorator(
+        func: Union[NoArgsNoReturnAsyncFuncT, NoArgsNoReturnFuncT]
+    ) -> NoArgsNoReturnAsyncFuncT:
         """
         Converts the decorated function into a repeated, periodically-called version of itself.
         """
@@ -66,7 +71,9 @@ def repeat_every(
                         repetitions += 1
                     except Exception as exc:
                         if logger is not None:
-                            formatted_exception = "".join(format_exception(type(exc), exc, exc.__traceback__))
+                            formatted_exception = "".join(
+                                format_exception(type(exc), exc, exc.__traceback__)
+                            )
                             logger.error(formatted_exception)
                         if raise_exceptions:
                             raise exc

@@ -1,0 +1,59 @@
+{
+  "default_platform": {
+    "container_workflow": "openstack"
+  },
+  "platforms": {
+    "openstack": {
+      "default_flavor": {
+        "container_workflow": "flavor_1"
+      },
+      "platform_flavors": {
+        "flavor_1": {
+          "username": "",
+          "password": "",
+          "os_user_domain": "",
+          "os_project_name": "",
+          "os_project_id": "",
+          "os_network_id": "",
+          "os_floating_ip_pools": "",
+          "os_auth_url": "",
+          "ssh_key_path": "",
+          "ssh_key_name": "",
+          "os_image": "",
+          "os_volume_size": "",
+          "os_instance_flavor": "",
+          "remote_username": "",
+          "os_security_groups": ""
+        }
+      }
+    },
+    "qemu_kvm": {
+      "default_flavor": {
+        "container_workflow": "flavor_1"
+      },
+      "platform_flavors": {
+        "flavor_1": {
+          "baremetal_hostname": "",
+          "baremetal_user": "",
+          "offline_image_source": "",
+          "selinux_enabled_os": "",
+          "base_image_name": "",
+          "base_image_path": "",
+          "base_image_url": "",
+          "base_image_sha": "",
+          "libvirt_pool_dir": "",
+          "vm_config_filepath": "",
+          "vm_vcpus": "",
+          "vm_ram_mb": "",
+          "vm_net": "",
+          "remote_username": "",
+          "vm_root_pass": "",
+          "ssh_key_path": "",
+          "ssh_key_name": "",
+          "cleanup_download": "",
+          "cleanup_libvirt": ""
+        }
+      }
+    }
+  }
+}

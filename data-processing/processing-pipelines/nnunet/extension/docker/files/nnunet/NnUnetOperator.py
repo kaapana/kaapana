@@ -2,7 +2,10 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.resources import Resources as PodResources
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import DEFAULT_REGISTRY, KAAPANA_BUILD_VERSION
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
 from datetime import timedelta
 
 
@@ -10,57 +13,62 @@ class NnUnetOperator(KaapanaBaseOperator):
     execution_timeout = timedelta(days=5)
     task_dict = {}
 
-    def __init__(self,
-                 dag,
-                 mode,  # preprocess, training, inference,export-model,install-model
-                 input_modality_operators=[],
-                 prep_processes_low=8,
-                 prep_processes_full=6,
-                 prep_label_operators=[],
-                 prep_modalities=[],
-                 prep_preprocess=True,
-                 prep_check_integrity=True,
-                 prep_use_nifti_labels=True,
-                 prep_copy_data=False,
-                 prep_exit_on_issue=True,
-                 prep_min_combination=None,
-                 prep_increment_step='all',
-                 train_fold=None,
-                 model="3d_lowres",
-                 train_network_trainer="nnUNetTrainerV2",
-                 train_continue=False,
-                 interpolation_order="default",
-                 train_npz=False,
-                 train_disable_post=True,
-                 train_strict=True,
-                 train_max_epochs=1000,
-                 mixed_precision=True,
-                 test_time_augmentation=False,
-                 inf_batch_dataset=False,
-                 inf_threads_prep=1,
-                 inf_threads_nifti=1,
-                 inf_softmax=False,
-                 inf_seg_filter=None,
-                 inf_remove_if_empty=True,
-                 protocols=None,
-                 body_part=None,
-                 instance_name="N/A",
-                 models_dir="/models",
-                 allow_federated_learning=False,
-                 whitelist_federated_learning=None,
-                 env_vars={},
-                 parallel_id=None,
-                 execution_timeout=execution_timeout,
-                 dev_server=None,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        dag,
+        mode,  # preprocess, training, inference,export-model,install-model
+        input_modality_operators=[],
+        prep_processes_low=8,
+        prep_processes_full=6,
+        prep_label_operators=[],
+        prep_modalities=[],
+        prep_preprocess=True,
+        prep_check_integrity=True,
+        prep_use_nifti_labels=True,
+        prep_copy_data=False,
+        prep_exit_on_issue=True,
+        prep_min_combination=None,
+        prep_increment_step="all",
+        train_fold=None,
+        model="3d_lowres",
+        train_network_trainer="nnUNetTrainerV2",
+        train_continue=False,
+        interpolation_order="default",
+        train_npz=False,
+        train_disable_post=True,
+        train_strict=True,
+        train_max_epochs=1000,
+        mixed_precision=True,
+        test_time_augmentation=False,
+        inf_batch_dataset=False,
+        inf_threads_prep=1,
+        inf_threads_nifti=1,
+        inf_softmax=False,
+        inf_seg_filter=None,
+        inf_remove_if_empty=True,
+        protocols=None,
+        body_part=None,
+        instance_name="N/A",
+        models_dir="/models",
+        allow_federated_learning=False,
+        whitelist_federated_learning=None,
+        env_vars={},
+        parallel_id=None,
+        execution_timeout=execution_timeout,
+        dev_server=None,
+        **kwargs,
+    ):
         envs = {
             "MODE": str(mode),
             "MODELS_DIR": str(models_dir),
-            "INPUT_MODALITY_DIRS": ",".join(str(operator.operator_out_dir) for operator in input_modality_operators),
+            "INPUT_MODALITY_DIRS": ",".join(
+                str(operator.operator_out_dir) for operator in input_modality_operators
+            ),
             "PREP_TL": str(prep_processes_low),
             "PREP_TF": str(prep_processes_full),
-            "PREP_LABEL_DIRS": ",".join(str(operator.operator_out_dir) for operator in prep_label_operators),
+            "PREP_LABEL_DIRS": ",".join(
+                str(operator.operator_out_dir) for operator in prep_label_operators
+            ),
             "PREP_MODALITIES": ",".join(str(modality) for modality in prep_modalities),
             "PREP_PREPROCESS": str(prep_preprocess),
             "PREP_CHECK_INTEGRITY": str(prep_check_integrity),
@@ -89,7 +97,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             "INF_SEG_FILTER": str(inf_seg_filter),
             "INF_REMOVE_IF_EMPTY": str(inf_remove_if_empty),
             "INSTANCE_NAME": str(instance_name),
-            "TENSORBOARD_DIR": '/tensorboard',
+            "TENSORBOARD_DIR": "/tensorboard",
         }
         env_vars.update(envs)
 
@@ -122,5 +130,5 @@ class NnUnetOperator(KaapanaBaseOperator):
             gpu_mem_mb=gpu_mem_mb,
             env_vars=env_vars,
             dev_server=dev_server,
-            **kwargs
+            **kwargs,
         )

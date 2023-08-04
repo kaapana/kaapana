@@ -9,3 +9,15 @@ global:
   dynamicVolumes:
   - name: minio
     mount_path: /kaapana/mounted/minio
+  nodePortMITKWorkbench: 22223
+
+extension_params:
+    service_type: 
+        definition: "Service type"
+        type: "list_single"
+        value: [
+           "ClusterIP",
+            "NodePort"
+        ]
+        default: "ClusterIP"
+        

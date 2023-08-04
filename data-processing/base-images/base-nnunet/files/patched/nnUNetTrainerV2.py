@@ -18,14 +18,19 @@ from typing import Tuple
 
 import numpy as np
 import torch
-from nnunet.training.data_augmentation.data_augmentation_moreDA import get_moreDA_augmentation
+from nnunet.training.data_augmentation.data_augmentation_moreDA import (
+    get_moreDA_augmentation,
+)
 from nnunet.training.loss_functions.deep_supervision import MultipleOutputLoss2
 from nnunet.utilities.to_torch import maybe_to_torch, to_cuda
 from nnunet.network_architecture.generic_UNet import Generic_UNet
 from nnunet.network_architecture.initialization import InitWeights_He
 from nnunet.network_architecture.neural_network import SegmentationNetwork
-from nnunet.training.data_augmentation.default_data_augmentation import default_2D_augmentation_params, \
-    get_patch_size, default_3D_augmentation_params
+from nnunet.training.data_augmentation.default_data_augmentation import (
+    default_2D_augmentation_params,
+    get_patch_size,
+    default_3D_augmentation_params,
+)
 from nnunet.training.dataloading.dataset_loading import unpack_dataset
 from nnunet.training.network_training.nnUNetTrainer import nnUNetTrainer
 from nnunet.utilities.nd_softmax import softmax_helper
@@ -42,29 +47,28 @@ from pathlib import Path
 
 
 class JsonWriter(object):
-
     @staticmethod
     def _write_json(filename, data):
-        with open(filename, 'w') as json_file:
+        with open(filename, "w") as json_file:
             json.dump(data, json_file)
-            
+
     @staticmethod
     def _load_json(filename):
         try:
             with open(filename) as json_file:
-                exp_data = json.load(json_file)
+                workflow_data = json.load(json_file)
         except FileNotFoundError:
-            exp_data = []
-        return exp_data
+            workflow_data = []
+        return workflow_data
 
     def __init__(self, log_dir) -> None:
-        self.filename = os.path.join(log_dir, 'experiment_results.json')
+        self.filename = os.path.join(log_dir, "experiment_results.json")
         # not accumulating anything because this leads to a decrease in speed over many epochs!
 
     def append_data_dict(self, data_dict):
-        exp_data = JsonWriter._load_json(self.filename)
-        exp_data.append(data_dict)
-        JsonWriter._write_json(self.filename, exp_data)
+        workflow_data = JsonWriter._load_json(self.filename)
+        workflow_data.append(data_dict)
+        JsonWriter._write_json(self.filename, workflow_data)
 
 
 class nnUNetTrainerV2(nnUNetTrainer):
@@ -72,47 +76,110 @@ class nnUNetTrainerV2(nnUNetTrainer):
     Info for Fabian: same as internal nnUNetTrainerV2_2
     """
 
-    def __init__(self, plans_file, fold, output_folder=None, dataset_directory=None, batch_dice=True, stage=None,
-                 unpack_data=True, deterministic=True, fp16=False):
-        super().__init__(plans_file, fold, output_folder, dataset_directory, batch_dice, stage, unpack_data,
-                         deterministic, fp16)
+    def __init__(
+        self,
+        plans_file,
+        fold,
+        output_folder=None,
+        dataset_directory=None,
+        batch_dice=True,
+        stage=None,
+        unpack_data=True,
+        deterministic=True,
+        fp16=False,
+    ):
+        super().__init__(
+            plans_file,
+            fold,
+            output_folder,
+            dataset_directory,
+            batch_dice,
+            stage,
+            unpack_data,
+            deterministic,
+            fp16,
+        )
 
-        ################################## Adapted for Kaapana ##################################           
+        ################################## Adapted for Kaapana ##################################
         # self.save_best_checkpoint = False  # whether or not to save the best checkpoint according to self.best_val_eval_criterion_MA
 
         # This is maybe a little bit ugly...
-        tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', os.getenv('RUN_ID'), os.getenv('OPERATOR_OUT_DIR')))
-        with open(os.path.join('/', os.getenv('WORKFLOW_DIR'), 'conf', 'conf.json'), 'r') as f:
+        tensorboard_log_dir = Path(
+            os.path.join(
+                "/minio",
+                "tensorboard",
+                os.getenv("RUN_ID"),
+                os.getenv("OPERATOR_OUT_DIR"),
+            )
+        )
+        with open(
+            os.path.join("/", os.getenv("WORKFLOW_DIR"), "conf", "conf.json"), "r"
+        ) as f:
             conf_data = json.load(f)
-        if 'federated_form'in conf_data and 'from_previous_dag_run' in conf_data['federated_form'] and conf_data['federated_form']['from_previous_dag_run'] is not None:
-            previous_tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', conf_data['federated_form']['from_previous_dag_run'], os.getenv('OPERATOR_OUT_DIR')))
-            if previous_tensorboard_log_dir.is_dir() and not tensorboard_log_dir.is_dir():
-                print('Removing log from previous round!')
+        if (
+            "federated_form" in conf_data
+            and "from_previous_dag_run" in conf_data["federated_form"]
+            and conf_data["federated_form"]["from_previous_dag_run"] is not None
+        ):
+            previous_tensorboard_log_dir = Path(
+                os.path.join(
+                    "/minio",
+                    "tensorboard",
+                    conf_data["federated_form"]["from_previous_dag_run"],
+                    os.getenv("OPERATOR_OUT_DIR"),
+                )
+            )
+            if (
+                previous_tensorboard_log_dir.is_dir()
+                and not tensorboard_log_dir.is_dir()
+            ):
+                print("Removing log from previous round!")
                 shutil.copytree(previous_tensorboard_log_dir, tensorboard_log_dir)
         else:
             tensorboard_log_dir.mkdir(exist_ok=True, parents=True)
-        if 'federated_form'in conf_data and 'before_previous_dag_run' in conf_data['federated_form'] and conf_data['federated_form']['before_previous_dag_run'] is not None:
-            before_previous_tensorboard_log_dir = Path(os.path.join('/minio', 'tensorboard', conf_data['federated_form']['before_previous_dag_run'], os.getenv('OPERATOR_OUT_DIR')))
+        if (
+            "federated_form" in conf_data
+            and "before_previous_dag_run" in conf_data["federated_form"]
+            and conf_data["federated_form"]["before_previous_dag_run"] is not None
+        ):
+            before_previous_tensorboard_log_dir = Path(
+                os.path.join(
+                    "/minio",
+                    "tensorboard",
+                    conf_data["federated_form"]["before_previous_dag_run"],
+                    os.getenv("OPERATOR_OUT_DIR"),
+                )
+            )
             if before_previous_tensorboard_log_dir.is_dir():
-                print('Removing log from previous round!')
+                print("Removing log from previous round!")
                 shutil.rmtree(before_previous_tensorboard_log_dir)
 
-
-        if os.getenv('MODE') == 'training':
+        if os.getenv("MODE") == "training":
             self.writer = SummaryWriter(log_dir=tensorboard_log_dir)
-            dataset_info_preprocessing_path = os.path.join('/', os.getenv('WORKFLOW_DIR'), os.getenv('OPERATOR_IN_DIR'), 'nnUNet_raw_data', os.getenv('TASK'), 'dataset.json')
-            dataset_info_path = os.path.join(self.output_folder, 'dataset.json')
-            print(f'Copying dataset.json from {dataset_info_preprocessing_path}  to {dataset_info_path}')
+            dataset_info_preprocessing_path = os.path.join(
+                "/",
+                os.getenv("WORKFLOW_DIR"),
+                os.getenv("OPERATOR_IN_DIR"),
+                "nnUNet_raw_data",
+                os.getenv("TASK"),
+                "dataset.json",
+            )
+            dataset_info_path = os.path.join(self.output_folder, "dataset.json")
+            print(
+                f"Copying dataset.json from {dataset_info_preprocessing_path}  to {dataset_info_path}"
+            )
             os.makedirs(os.path.dirname(dataset_info_path), exist_ok=True)
             shutil.copyfile(dataset_info_preprocessing_path, dataset_info_path)
-            with open(dataset_info_path, "r", encoding='utf-8') as jsonData:
+            with open(dataset_info_path, "r", encoding="utf-8") as jsonData:
                 dataset = json.load(jsonData)
-            self.dataset_labels = dataset['labels']
-        
-        json_log_dir = Path(os.path.join('/', os.getenv('WORKFLOW_DIR'), os.getenv('OPERATOR_OUT_DIR')))
+            self.dataset_labels = dataset["labels"]
+
+        json_log_dir = Path(
+            os.path.join("/", os.getenv("WORKFLOW_DIR"), os.getenv("OPERATOR_OUT_DIR"))
+        )
         # if json_log_dir.is_dir():
         #     print(f'Cleaning log dir {json_log_dir}, in case there was something running before')
-        #     shutil.rmtree(json_log_dir)     
+        #     shutil.rmtree(json_log_dir)
         self.json_writer = JsonWriter(log_dir=json_log_dir)
         # #########################################################################################
 
@@ -148,10 +215,16 @@ class nnUNetTrainerV2(nnUNetTrainer):
 
             # we give each output a weight which decreases exponentially (division by 2) as the resolution decreases
             # this gives higher resolution outputs more weight in the loss
-            weights = np.array([1 / (2 ** i) for i in range(net_numpool)])
+            weights = np.array([1 / (2**i) for i in range(net_numpool)])
 
             # we don't use the lowest 2 outputs. Normalize weights so that they sum to 1
-            mask = np.array([True] + [True if i < net_numpool - 1 else False for i in range(1, net_numpool)])
+            mask = np.array(
+                [True]
+                + [
+                    True if i < net_numpool - 1 else False
+                    for i in range(1, net_numpool)
+                ]
+            )
             weights[~mask] = 0
             weights = weights / weights.sum()
             self.ds_loss_weights = weights
@@ -159,8 +232,10 @@ class nnUNetTrainerV2(nnUNetTrainer):
             self.loss = MultipleOutputLoss2(self.loss, self.ds_loss_weights)
             ################# END ###################
 
-            self.folder_with_preprocessed_data = join(self.dataset_directory, self.plans['data_identifier'] +
-                                                      "_stage%d" % self.stage)
+            self.folder_with_preprocessed_data = join(
+                self.dataset_directory,
+                self.plans["data_identifier"] + "_stage%d" % self.stage,
+            )
             if training:
                 self.dl_tr, self.dl_val = self.get_basic_generators()
                 if self.unpack_data:
@@ -170,21 +245,26 @@ class nnUNetTrainerV2(nnUNetTrainer):
                 else:
                     print(
                         "INFO: Not unpacking data! Training may be slow due to that. Pray you are not using 2d or you "
-                        "will wait all winter for your model to finish!")
+                        "will wait all winter for your model to finish!"
+                    )
 
                 self.tr_gen, self.val_gen = get_moreDA_augmentation(
-                    self.dl_tr, self.dl_val,
-                    self.data_aug_params[
-                        'patch_size_for_spatialtransform'],
+                    self.dl_tr,
+                    self.dl_val,
+                    self.data_aug_params["patch_size_for_spatialtransform"],
                     self.data_aug_params,
                     deep_supervision_scales=self.deep_supervision_scales,
                     pin_memory=self.pin_memory,
-                    use_nondetMultiThreadedAugmenter=False
+                    use_nondetMultiThreadedAugmenter=False,
                 )
-                self.print_to_log_file("TRAINING KEYS:\n %s" % (str(self.dataset_tr.keys())),
-                                       also_print_to_console=False)
-                self.print_to_log_file("VALIDATION KEYS:\n %s" % (str(self.dataset_val.keys())),
-                                       also_print_to_console=False)
+                self.print_to_log_file(
+                    "TRAINING KEYS:\n %s" % (str(self.dataset_tr.keys())),
+                    also_print_to_console=False,
+                )
+                self.print_to_log_file(
+                    "VALIDATION KEYS:\n %s" % (str(self.dataset_val.keys())),
+                    also_print_to_console=False,
+                )
             else:
                 pass
 
@@ -193,7 +273,9 @@ class nnUNetTrainerV2(nnUNetTrainer):
 
             assert isinstance(self.network, (SegmentationNetwork, nn.DataParallel))
         else:
-            self.print_to_log_file('self.was_initialized is True, not running self.initialize again')
+            self.print_to_log_file(
+                "self.was_initialized is True, not running self.initialize again"
+            )
         self.was_initialized = True
 
     def initialize_network(self):
@@ -217,24 +299,47 @@ class nnUNetTrainerV2(nnUNetTrainer):
             dropout_op = nn.Dropout2d
             norm_op = nn.InstanceNorm2d
 
-        norm_op_kwargs = {'eps': 1e-5, 'affine': True}
-        dropout_op_kwargs = {'p': 0, 'inplace': True}
+        norm_op_kwargs = {"eps": 1e-5, "affine": True}
+        dropout_op_kwargs = {"p": 0, "inplace": True}
         net_nonlin = nn.LeakyReLU
-        net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
-        self.network = Generic_UNet(self.num_input_channels, self.base_num_features, self.num_classes,
-                                    len(self.net_num_pool_op_kernel_sizes),
-                                    self.conv_per_stage, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
-                                    dropout_op_kwargs,
-                                    net_nonlin, net_nonlin_kwargs, True, False, lambda x: x, InitWeights_He(1e-2),
-                                    self.net_num_pool_op_kernel_sizes, self.net_conv_kernel_sizes, False, True, True)
+        net_nonlin_kwargs = {"negative_slope": 1e-2, "inplace": True}
+        self.network = Generic_UNet(
+            self.num_input_channels,
+            self.base_num_features,
+            self.num_classes,
+            len(self.net_num_pool_op_kernel_sizes),
+            self.conv_per_stage,
+            2,
+            conv_op,
+            norm_op,
+            norm_op_kwargs,
+            dropout_op,
+            dropout_op_kwargs,
+            net_nonlin,
+            net_nonlin_kwargs,
+            True,
+            False,
+            lambda x: x,
+            InitWeights_He(1e-2),
+            self.net_num_pool_op_kernel_sizes,
+            self.net_conv_kernel_sizes,
+            False,
+            True,
+            True,
+        )
         if torch.cuda.is_available():
             self.network.cuda()
         self.network.inference_apply_nonlin = softmax_helper
 
     def initialize_optimizer_and_scheduler(self):
         assert self.network is not None, "self.initialize_network must be called first"
-        self.optimizer = torch.optim.SGD(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay,
-                                         momentum=0.99, nesterov=True)
+        self.optimizer = torch.optim.SGD(
+            self.network.parameters(),
+            self.initial_lr,
+            weight_decay=self.weight_decay,
+            momentum=0.99,
+            nesterov=True,
+        )
         self.lr_scheduler = None
 
     def run_online_evaluation(self, output, target):
@@ -249,48 +354,80 @@ class nnUNetTrainerV2(nnUNetTrainer):
         output = output[0]
         return super().run_online_evaluation(output, target)
 
-    def validate(self, do_mirroring: bool = True, use_sliding_window: bool = True,
-                 step_size: float = 0.5, save_softmax: bool = True, use_gaussian: bool = True, overwrite: bool = True,
-                 validation_folder_name: str = 'validation_raw', debug: bool = False, all_in_gpu: bool = False,
-                 segmentation_export_kwargs: dict = None, run_postprocessing_on_folds: bool = True):
+    def validate(
+        self,
+        do_mirroring: bool = True,
+        use_sliding_window: bool = True,
+        step_size: float = 0.5,
+        save_softmax: bool = True,
+        use_gaussian: bool = True,
+        overwrite: bool = True,
+        validation_folder_name: str = "validation_raw",
+        debug: bool = False,
+        all_in_gpu: bool = False,
+        segmentation_export_kwargs: dict = None,
+        run_postprocessing_on_folds: bool = True,
+    ):
         """
         We need to wrap this because we need to enforce self.network.do_ds = False for prediction
         """
         ds = self.network.do_ds
         self.network.do_ds = False
-        ret = super().validate(do_mirroring=do_mirroring, use_sliding_window=use_sliding_window, step_size=step_size,
-                               save_softmax=save_softmax, use_gaussian=use_gaussian,
-                               overwrite=overwrite, validation_folder_name=validation_folder_name, debug=debug,
-                               all_in_gpu=all_in_gpu, segmentation_export_kwargs=segmentation_export_kwargs,
-                               run_postprocessing_on_folds=run_postprocessing_on_folds)
+        ret = super().validate(
+            do_mirroring=do_mirroring,
+            use_sliding_window=use_sliding_window,
+            step_size=step_size,
+            save_softmax=save_softmax,
+            use_gaussian=use_gaussian,
+            overwrite=overwrite,
+            validation_folder_name=validation_folder_name,
+            debug=debug,
+            all_in_gpu=all_in_gpu,
+            segmentation_export_kwargs=segmentation_export_kwargs,
+            run_postprocessing_on_folds=run_postprocessing_on_folds,
+        )
 
         self.network.do_ds = ds
         return ret
 
-    def predict_preprocessed_data_return_seg_and_softmax(self, data: np.ndarray, do_mirroring: bool = True,
-                                                         mirror_axes: Tuple[int] = None,
-                                                         use_sliding_window: bool = True, step_size: float = 0.5,
-                                                         use_gaussian: bool = True, pad_border_mode: str = 'constant',
-                                                         pad_kwargs: dict = None, all_in_gpu: bool = False,
-                                                         verbose: bool = True, mixed_precision=True) -> Tuple[np.ndarray, np.ndarray]:
+    def predict_preprocessed_data_return_seg_and_softmax(
+        self,
+        data: np.ndarray,
+        do_mirroring: bool = True,
+        mirror_axes: Tuple[int] = None,
+        use_sliding_window: bool = True,
+        step_size: float = 0.5,
+        use_gaussian: bool = True,
+        pad_border_mode: str = "constant",
+        pad_kwargs: dict = None,
+        all_in_gpu: bool = False,
+        verbose: bool = True,
+        mixed_precision=True,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         We need to wrap this because we need to enforce self.network.do_ds = False for prediction
         """
         ds = self.network.do_ds
         self.network.do_ds = False
-        ret = super().predict_preprocessed_data_return_seg_and_softmax(data,
-                                                                       do_mirroring=do_mirroring,
-                                                                       mirror_axes=mirror_axes,
-                                                                       use_sliding_window=use_sliding_window,
-                                                                       step_size=step_size, use_gaussian=use_gaussian,
-                                                                       pad_border_mode=pad_border_mode,
-                                                                       pad_kwargs=pad_kwargs, all_in_gpu=all_in_gpu,
-                                                                       verbose=verbose,
-                                                                       mixed_precision=mixed_precision)
+        ret = super().predict_preprocessed_data_return_seg_and_softmax(
+            data,
+            do_mirroring=do_mirroring,
+            mirror_axes=mirror_axes,
+            use_sliding_window=use_sliding_window,
+            step_size=step_size,
+            use_gaussian=use_gaussian,
+            pad_border_mode=pad_border_mode,
+            pad_kwargs=pad_kwargs,
+            all_in_gpu=all_in_gpu,
+            verbose=verbose,
+            mixed_precision=mixed_precision,
+        )
         self.network.do_ds = ds
         return ret
 
-    def run_iteration(self, data_generator, do_backprop=True, run_online_evaluation=False):
+    def run_iteration(
+        self, data_generator, do_backprop=True, run_online_evaluation=False
+    ):
         """
         gradient clipping improves training stability
 
@@ -300,8 +437,8 @@ class nnUNetTrainerV2(nnUNetTrainer):
         :return:
         """
         data_dict = next(data_generator)
-        data = data_dict['data']
-        target = data_dict['target']
+        data = data_dict["data"]
+        target = data_dict["target"]
 
         data = maybe_to_torch(data)
         target = maybe_to_torch(target)
@@ -368,25 +505,33 @@ class nnUNetTrainerV2(nnUNetTrainer):
                     train_keys = np.array(all_keys_sorted)[train_idx]
                     test_keys = np.array(all_keys_sorted)[test_idx]
                     splits.append(OrderedDict())
-                    splits[-1]['train'] = train_keys
-                    splits[-1]['val'] = test_keys
+                    splits[-1]["train"] = train_keys
+                    splits[-1]["val"] = test_keys
                 save_pickle(splits, splits_file)
 
             else:
-                self.print_to_log_file("Using splits from existing split file:", splits_file)
+                self.print_to_log_file(
+                    "Using splits from existing split file:", splits_file
+                )
                 splits = load_pickle(splits_file)
-                self.print_to_log_file("The split file contains %d splits." % len(splits))
+                self.print_to_log_file(
+                    "The split file contains %d splits." % len(splits)
+                )
 
             self.print_to_log_file("Desired fold for training: %d" % self.fold)
             if self.fold < len(splits):
-                tr_keys = splits[self.fold]['train']
-                val_keys = splits[self.fold]['val']
-                self.print_to_log_file("This split has %d training and %d validation cases."
-                                       % (len(tr_keys), len(val_keys)))
+                tr_keys = splits[self.fold]["train"]
+                val_keys = splits[self.fold]["val"]
+                self.print_to_log_file(
+                    "This split has %d training and %d validation cases."
+                    % (len(tr_keys), len(val_keys))
+                )
             else:
-                self.print_to_log_file("INFO: You requested fold %d for training but splits "
-                                       "contain only %d folds. I am now creating a "
-                                       "random (but seeded) 80:20 split!" % (self.fold, len(splits)))
+                self.print_to_log_file(
+                    "INFO: You requested fold %d for training but splits "
+                    "contain only %d folds. I am now creating a "
+                    "random (but seeded) 80:20 split!" % (self.fold, len(splits))
+                )
                 # if we request a fold that is not in the split file, create a random 80:20 split
                 rnd = np.random.RandomState(seed=12345 + self.fold)
                 keys = np.sort(list(self.dataset.keys()))
@@ -394,8 +539,10 @@ class nnUNetTrainerV2(nnUNetTrainer):
                 idx_val = [i for i in range(len(keys)) if i not in idx_tr]
                 tr_keys = [keys[i] for i in idx_tr]
                 val_keys = [keys[i] for i in idx_val]
-                self.print_to_log_file("This random 80:20 split has %d training and %d validation cases."
-                                       % (len(tr_keys), len(val_keys)))
+                self.print_to_log_file(
+                    "This random 80:20 split has %d training and %d validation cases."
+                    % (len(tr_keys), len(val_keys))
+                )
 
         tr_keys.sort()
         val_keys.sort()
@@ -415,46 +562,72 @@ class nnUNetTrainerV2(nnUNetTrainer):
         :return:
         """
 
-        self.deep_supervision_scales = [[1, 1, 1]] + list(list(i) for i in 1 / np.cumprod(
-            np.vstack(self.net_num_pool_op_kernel_sizes), axis=0))[:-1]
+        self.deep_supervision_scales = [[1, 1, 1]] + list(
+            list(i)
+            for i in 1
+            / np.cumprod(np.vstack(self.net_num_pool_op_kernel_sizes), axis=0)
+        )[:-1]
 
         if self.threeD:
             self.data_aug_params = default_3D_augmentation_params
-            self.data_aug_params['rotation_x'] = (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi)
-            self.data_aug_params['rotation_y'] = (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi)
-            self.data_aug_params['rotation_z'] = (-30. / 360 * 2. * np.pi, 30. / 360 * 2. * np.pi)
+            self.data_aug_params["rotation_x"] = (
+                -30.0 / 360 * 2.0 * np.pi,
+                30.0 / 360 * 2.0 * np.pi,
+            )
+            self.data_aug_params["rotation_y"] = (
+                -30.0 / 360 * 2.0 * np.pi,
+                30.0 / 360 * 2.0 * np.pi,
+            )
+            self.data_aug_params["rotation_z"] = (
+                -30.0 / 360 * 2.0 * np.pi,
+                30.0 / 360 * 2.0 * np.pi,
+            )
             if self.do_dummy_2D_aug:
                 self.data_aug_params["dummy_2D"] = True
                 self.print_to_log_file("Using dummy2d data augmentation")
-                self.data_aug_params["elastic_deform_alpha"] = \
-                    default_2D_augmentation_params["elastic_deform_alpha"]
-                self.data_aug_params["elastic_deform_sigma"] = \
-                    default_2D_augmentation_params["elastic_deform_sigma"]
-                self.data_aug_params["rotation_x"] = default_2D_augmentation_params["rotation_x"]
+                self.data_aug_params[
+                    "elastic_deform_alpha"
+                ] = default_2D_augmentation_params["elastic_deform_alpha"]
+                self.data_aug_params[
+                    "elastic_deform_sigma"
+                ] = default_2D_augmentation_params["elastic_deform_sigma"]
+                self.data_aug_params["rotation_x"] = default_2D_augmentation_params[
+                    "rotation_x"
+                ]
         else:
             self.do_dummy_2D_aug = False
             if max(self.patch_size) / min(self.patch_size) > 1.5:
-                default_2D_augmentation_params['rotation_x'] = (-15. / 360 * 2. * np.pi, 15. / 360 * 2. * np.pi)
+                default_2D_augmentation_params["rotation_x"] = (
+                    -15.0 / 360 * 2.0 * np.pi,
+                    15.0 / 360 * 2.0 * np.pi,
+                )
             self.data_aug_params = default_2D_augmentation_params
         self.data_aug_params["mask_was_used_for_normalization"] = self.use_mask_for_norm
 
         if self.do_dummy_2D_aug:
-            self.basic_generator_patch_size = get_patch_size(self.patch_size[1:],
-                                                             self.data_aug_params['rotation_x'],
-                                                             self.data_aug_params['rotation_y'],
-                                                             self.data_aug_params['rotation_z'],
-                                                             self.data_aug_params['scale_range'])
-            self.basic_generator_patch_size = np.array([self.patch_size[0]] + list(self.basic_generator_patch_size))
+            self.basic_generator_patch_size = get_patch_size(
+                self.patch_size[1:],
+                self.data_aug_params["rotation_x"],
+                self.data_aug_params["rotation_y"],
+                self.data_aug_params["rotation_z"],
+                self.data_aug_params["scale_range"],
+            )
+            self.basic_generator_patch_size = np.array(
+                [self.patch_size[0]] + list(self.basic_generator_patch_size)
+            )
         else:
-            self.basic_generator_patch_size = get_patch_size(self.patch_size, self.data_aug_params['rotation_x'],
-                                                             self.data_aug_params['rotation_y'],
-                                                             self.data_aug_params['rotation_z'],
-                                                             self.data_aug_params['scale_range'])
+            self.basic_generator_patch_size = get_patch_size(
+                self.patch_size,
+                self.data_aug_params["rotation_x"],
+                self.data_aug_params["rotation_y"],
+                self.data_aug_params["rotation_z"],
+                self.data_aug_params["scale_range"],
+            )
 
         self.data_aug_params["scale_range"] = (0.7, 1.4)
         self.data_aug_params["do_elastic"] = False
-        self.data_aug_params['selected_seg_channels'] = [0]
-        self.data_aug_params['patch_size_for_spatialtransform'] = self.patch_size
+        self.data_aug_params["selected_seg_channels"] = [0]
+        self.data_aug_params["patch_size_for_spatialtransform"] = self.patch_size
 
         self.data_aug_params["num_cached_per_thread"] = 2
 
@@ -472,8 +645,12 @@ class nnUNetTrainerV2(nnUNetTrainer):
             ep = self.epoch + 1
         else:
             ep = epoch
-        self.optimizer.param_groups[0]['lr'] = poly_lr(ep, self.max_num_epochs, self.initial_lr, 0.9)
-        self.print_to_log_file("lr:", np.round(self.optimizer.param_groups[0]['lr'], decimals=6))
+        self.optimizer.param_groups[0]["lr"] = poly_lr(
+            ep, self.max_num_epochs, self.initial_lr, 0.9
+        )
+        self.print_to_log_file(
+            "lr:", np.round(self.optimizer.param_groups[0]["lr"], decimals=6)
+        )
 
     def on_epoch_end(self):
         """
@@ -489,17 +666,23 @@ class nnUNetTrainerV2(nnUNetTrainer):
             if self.all_val_eval_metrics[-1] == 0:
                 self.optimizer.param_groups[0]["momentum"] = 0.95
                 self.network.apply(InitWeights_He(1e-2))
-                self.print_to_log_file("At epoch 100, the mean foreground Dice was 0. This can be caused by a too "
-                                       "high momentum. High momentum (0.99) is good for datasets where it works, but "
-                                       "sometimes causes issues such as this one. Momentum has now been reduced to "
-                                       "0.95 and network weights have been reinitialized")
+                self.print_to_log_file(
+                    "At epoch 100, the mean foreground Dice was 0. This can be caused by a too "
+                    "high momentum. High momentum (0.99) is good for datasets where it works, but "
+                    "sometimes causes issues such as this one. Momentum has now been reduced to "
+                    "0.95 and network weights have been reinitialized"
+                )
 
         ################################## Adapted for Kaapana ##################################
         #########################################################################################
-        print('Epoch', self.epoch, self.epochs_per_round)
-        if ((self.epoch+1) % self.epochs_per_round == 0) and ((self.epoch+1) != self.max_num_epochs):
-            print('Interrupting training ')
-            self.print_to_log_file(f"Interrupting training due to epochs_per_round={self.epochs_per_round}")
+        print("Epoch", self.epoch, self.epochs_per_round)
+        if ((self.epoch + 1) % self.epochs_per_round == 0) and (
+            (self.epoch + 1) != self.max_num_epochs
+        ):
+            print("Interrupting training ")
+            self.print_to_log_file(
+                f"Interrupting training due to epochs_per_round={self.epochs_per_round}"
+            )
             return False
         print(continue_training)
         return continue_training
@@ -513,7 +696,9 @@ class nnUNetTrainerV2(nnUNetTrainer):
         we also need to make sure deep supervision in the network is enabled for training, thus the wrapper
         :return:
         """
-        self.maybe_update_lr(self.epoch)  # if we dont overwrite epoch then self.epoch+1 is used which is not what we
+        self.maybe_update_lr(
+            self.epoch
+        )  # if we dont overwrite epoch then self.epoch+1 is used which is not what we
         # want at the start of the training
         ds = self.network.do_ds
         self.network.do_ds = True

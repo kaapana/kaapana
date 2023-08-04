@@ -1,4 +1,4 @@
-FROM dktk-jip-registry.dkfz.de/kaapana-public/multiorgansegmentation:v0.9
+FROM registry.hzdr.de/kaapana/public/multiorgansegmentation:v0.9
 
 LABEL IMAGE="shape-organseg"
 LABEL VERSION="0.1.1"

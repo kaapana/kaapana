@@ -11,10 +11,10 @@ import datetime
 
 suite_tag = "security"
 
+
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:
-
     sboms = {}
     vulnerability_reports = {}
     compressed_vulnerability_reports = {}
@@ -28,24 +28,25 @@ class TrivyUtils:
     tag = None
 
     def __init__(self, cache=True, tag=None):
-
         if tag is None:
             raise Exception("Please provide a tag")
 
         self.tag = tag
         self.cache = cache
 
-        # Check if trivy is installed
-        if which("trivy") is None:
-            BuildUtils.logger.error(
-                "Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.38/getting-started/installation/ for installation instructions. You must install Trivy version 0.38.1, higher is not supported yet."
-            )
-            BuildUtils.generate_issue(
-                component=suite_tag,
-                name="Check if Trivy is installed",
-                msg="Trivy is not installed",
-                level="ERROR",
-            )
+        if BuildUtils.configuration_check:
+            # Check if trivy is installed
+            if which("trivy") is None:
+                BuildUtils.logger.error(
+                    "Trivy is not installed, please visit https://aquasecurity.github.io/trivy/v0.38/getting-started/installation/ for installation instructions. You must install Trivy version 0.38.1, higher is not supported yet."
+                )
+                BuildUtils.generate_issue(
+                    component=suite_tag,
+                    name="Check if Trivy is installed",
+                    msg="Trivy is not installed",
+                    level="ERROR",
+                )
+
         # Check if severity level is set (enable all vulnerabily severity levels if not set)
         if (
             BuildUtils.vulnerability_severity_level == ""
@@ -84,12 +85,12 @@ class TrivyUtils:
 
         os.makedirs(self.reports_path, exist_ok=True)
 
-        if self.cache:
-            self.load_cache()
-
         self.database_timestamp = self.get_database_next_update_timestamp()
 
     def create_vulnerability_reports(self, list_of_images):
+        if self.cache:
+            self.load_cache()
+
         try:
             with self.threadpool as threadpool:
                 with alive_bar(
@@ -120,7 +121,6 @@ class TrivyUtils:
 
     # Function to check for vulnerabilities in a given image
     def create_vulnerability_report(self, image):
-
         issue = None
 
         if self.cache:
@@ -152,11 +152,38 @@ class TrivyUtils:
             BuildUtils.vulnerability_severity_level,
             "--format",
             "json",
-            "--ignore-unfixed",
             "--skip-dirs",
             "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
             "--skip-dirs",
+            "usr/local/lib/python3.8/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.9/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
             "usr/local/lib/python3.9/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.10/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.10/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.11/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.11/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.8/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.8/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.9/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.9/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.10/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.10/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.11/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.11/site-packages/nibabel/tests/data",
             "--quiet",
             "--timeout",
             str(self.timeout) + "s",
@@ -180,7 +207,6 @@ class TrivyUtils:
                 "description": "Vulnerability scan was interrupted.",
             }
             return image, issue
-
         elif output.returncode != 0:
             BuildUtils.logger.error(
                 "Failed to create vulnerability report for image: "
@@ -268,9 +294,12 @@ class TrivyUtils:
                             compressed_vulnerability_report[target["Target"]][
                                 "InstalledVersion"
                             ] = vulnerability["InstalledVersion"]
-                            compressed_vulnerability_report[target["Target"]][
-                                "FixedVersion"
-                            ] = vulnerability["FixedVersion"]
+
+                            if "FixedVersion" in vulnerability:
+                                compressed_vulnerability_report[target["Target"]][
+                                    "FixedVersion"
+                                ] = vulnerability["FixedVersion"]
+
                             compressed_vulnerability_report[target["Target"]][
                                 "Severity"
                             ] = vulnerability["Severity"]
@@ -295,10 +324,35 @@ class TrivyUtils:
             os.path.join(self.reports_path, image_name + "_vulnerability_report.json")
         )
 
+        if self.kill_flag:
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "SBOM creation was interrupted",
+            }
+            return image, issue
+
+        elif output.returncode != 0:
+            BuildUtils.logger.error(
+                "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag."
+            )
+            BuildUtils.logger.error(output.stderr)
+            issue = {
+                "component": image,
+                "level": "FATAL",
+                "description": "Failed to create SBOM for image: "
+                + image
+                + "."
+                + "Inspect the issue using the trivy --debug flag.",
+            }
+            return image, issue
+
         return image, issue
 
     def create_sboms(self, list_of_images):
-
         try:
             with self.threadpool as threadpool:
                 with alive_bar(
@@ -329,7 +383,6 @@ class TrivyUtils:
 
     # Function to create SBOM for a given image
     def create_sbom(self, image):
-
         issue = None
         # convert image name to a valid SBOM name
         image_name = image.replace("/", "_").replace(":", "_")
@@ -358,7 +411,35 @@ class TrivyUtils:
             "--skip-dirs",
             "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
             "--skip-dirs",
+            "usr/local/lib/python3.8/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.9/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
             "usr/local/lib/python3.9/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.10/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.10/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.11/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "usr/local/lib/python3.11/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.8/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.8/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.9/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.9/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.10/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.10/site-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.11/dist-packages/nibabel/tests/data",
+            "--skip-dirs",
+            "opt/conda/lib/python3.11/site-packages/nibabel/tests/data",
             "--quiet",
             "--timeout",
             str(self.timeout) + "s",
@@ -431,7 +512,10 @@ class TrivyUtils:
             "-f",
             "json",
             "-o",
-            os.path.join(self.reports_path, "chart_report.json"),
+            os.path.join(
+                self.reports_path,
+                f"{BuildUtils.platform_repo_version}_chart_report.json",
+            ),
             "--severity",
             BuildUtils.configuration_check_severity_level,
             path_to_chart,
@@ -441,7 +525,7 @@ class TrivyUtils:
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,
-            timeout=self.timeout,
+            timeout=self.timeout * 2,
         )
 
         if output.returncode != 0:
@@ -455,7 +539,13 @@ class TrivyUtils:
             )
 
         # read the chart report file
-        with open(os.path.join(self.reports_path, "chart_report.json"), "r") as f:
+        with open(
+            os.path.join(
+                self.reports_path,
+                f"{BuildUtils.platform_repo_version}_chart_report.json",
+            ),
+            "r",
+        ) as f:
             chart_report = json.load(f)
 
         compressed_chart_report = {}
@@ -487,26 +577,43 @@ class TrivyUtils:
                         "Severity"
                     ] = misconfiguration["Severity"]
 
-        # Safe the chart report to the build directory if there are any errors
+        # Safe the chart report to the security-reports directory if there are any errors
         if not compressed_chart_report == {}:
             BuildUtils.logger.error(
                 "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
             )
             with open(
-                os.path.join(self.reports_path, "compressed_chart_report.json"), "w"
+                os.path.join(
+                    self.reports_path,
+                    f"{BuildUtils.platform_repo_version}_compressed_chart_report.json",
+                ),
+                "w",
             ) as f:
                 json.dump(compressed_chart_report, f)
 
+        # Safe the dockerfile report to the security-reports directory if there are any errors
+        if not self.compressed_dockerfile_report == {}:
+            BuildUtils.logger.error(
+                "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
+            )
+            with open(
+                os.path.join(
+                    self.reports_path,
+                    f"{BuildUtils.platform_repo_version}_compressed_dockerfile_report.json",
+                ),
+                "w",
+            ) as f:
+                json.dump(self.compressed_dockerfile_report, f)
+
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
-
         command = [
             "trivy",
             "config",
             "-f",
             "json",
             "-o",
-            os.path.join(self.reports_path, "dockerfile_report.json"),
+            os.path.join(BuildUtils.build_dir, "dockerfile_report.json"),
             "--severity",
             BuildUtils.configuration_check_severity_level,
             path_to_dockerfile,
@@ -530,7 +637,9 @@ class TrivyUtils:
             )
 
         # Log the dockerfile report
-        with open(os.path.join(self.reports_path, "dockerfile_report.json"), "r") as f:
+        with open(
+            os.path.join(BuildUtils.build_dir, "dockerfile_report.json"), "r"
+        ) as f:
             dockerfile_report = json.load(f)
 
         # Check if the report contains any results -> weird if it doesn't e.g. when the Dockerfile is empty
@@ -581,23 +690,31 @@ class TrivyUtils:
                     ]["Severity"] = misconfiguration["Severity"]
 
         # Delete the dockerfile report file
-        os.remove(os.path.join(self.reports_path, "dockerfile_report.json"))
+        try:
+            os.remove(os.path.join(self.reports_path, "dockerfile_report.json"))
+        except OSError:
+            pass
 
     def safe_vulnerability_reports(self):
-        # save the vulnerability reports to the build directory
+        # save the vulnerability reports to the security-reports directory
         with open(
-            os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"), "w"
+            os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"),
+            "w",
         ) as f:
             json.dump(self.vulnerability_reports, f)
 
         with open(
-            os.path.join(self.reports_path, self.tag + "_compressed_vulnerability_report.json"),
+            os.path.join(
+                self.reports_path, self.tag + "_compressed_vulnerability_report.json"
+            ),
             "w",
         ) as f:
             json.dump(self.compressed_vulnerability_reports, f)
 
+        self.extract_individual_cves()
+
     def safe_sboms(self):
-        # save the SBOMs to the build directory
+        # save the SBOMs to the security-reports directory
         with open(os.path.join(self.reports_path, self.tag + "_sboms.json"), "w") as f:
             json.dump(self.sboms, f)
 
@@ -606,7 +723,6 @@ class TrivyUtils:
         self.semaphore_running_containers.acquire()
         try:
             for container in self.list_of_running_containers:
-
                 command = ["docker", "kill", container]
                 run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
 
@@ -619,10 +735,15 @@ class TrivyUtils:
     def load_cache(self):
         # load cache
         if os.path.exists(
-            os.path.join(self.reports_path, self.tag + "_compressed_vulnerability_report.json")
+            os.path.join(
+                self.reports_path, self.tag + "_compressed_vulnerability_report.json"
+            )
         ):
             with open(
-                os.path.join(self.reports_path, self.tag + "_compressed_vulnerability_report.json"),
+                os.path.join(
+                    self.reports_path,
+                    self.tag + "_compressed_vulnerability_report.json",
+                ),
                 "r",
             ) as f:
                 self.compressed_vulnerability_reports = json.load(f)
@@ -631,7 +752,10 @@ class TrivyUtils:
             os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json")
         ):
             with open(
-                os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"), "r"
+                os.path.join(
+                    self.reports_path, self.tag + "_vulnerability_reports.json"
+                ),
+                "r",
             ) as f:
                 self.vulnerability_reports = json.load(f)
 
@@ -683,14 +807,11 @@ class TrivyUtils:
 
     # docker run --rm aquasec/trivy:0.38.3 image --quiet --download-db-only && trivy --version
     def get_database_next_update_timestamp(self):
-
         command = " ".join(
             [
-                "docker run --rm",
+                "docker run --rm --entrypoint /bin/sh",
                 self.trivy_image,
-                "image --quiet --download-db-only",
-                "&&",
-                "trivy --version",
+                '-c "trivy image --quiet --download-db-only; trivy --version"',
             ]
         )
 
@@ -704,10 +825,89 @@ class TrivyUtils:
             )
             raise Exception(output.stderr)
 
-        # Get the timestamp of the last database download 
+        # Get the timestamp of the last database download
         # Ignore the under second part of the timestamp
         return output.stdout.split("NextUpdate: ")[1].split(".")[0]
-        #timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+
+    def extract_individual_cves(self):
+        # load report
+        report_path = os.path.join(
+            self.reports_path, self.tag + "_vulnerability_reports.json"
+        )
+
+        if not os.path.exists(report_path):
+            BuildUtils.logger.error(f"Report {report_path} does not exist")
+            exit(1)
+
+        with open(report_path, "r") as f:
+            reports = json.load(f)
+
+        cves = {}
+
+        BuildUtils.logger.info(f"Found {len(reports)} reports: ")
+        for module in reports:
+            if "Results" in reports[module]:
+                for issue in reports[module]["Results"]:
+                    if "Vulnerabilities" in issue:
+                        for vulnerability in issue["Vulnerabilities"]:
+                            if (
+                                vulnerability["Severity"]
+                                in BuildUtils.vulnerability_severity_level
+                            ):
+                                if not vulnerability["VulnerabilityID"] in cves:
+                                    cves[vulnerability["VulnerabilityID"]] = {
+                                        "Class": issue["Class"]
+                                        if "Class" in issue
+                                        else None,
+                                        "Type": issue["Type"]
+                                        if "Type" in issue
+                                        else None,
+                                        "Title": vulnerability["Title"]
+                                        if "Title" in vulnerability
+                                        else None,
+                                        "PkgName": vulnerability["PkgName"],
+                                        "PublishedDate": vulnerability["PublishedDate"]
+                                        if "PublishedDate" in vulnerability
+                                        else None,
+                                        "LastModifiedDate": vulnerability[
+                                            "LastModifiedDate"
+                                        ]
+                                        if "LastModifiedDate" in vulnerability
+                                        else None,
+                                        "InstalledVersion": vulnerability[
+                                            "InstalledVersion"
+                                        ],
+                                        "FixedVersion": vulnerability["FixedVersion"]
+                                        if "FixedVersion" in vulnerability
+                                        else None,
+                                        "Severity": vulnerability["Severity"],
+                                        "SeveritySource": vulnerability[
+                                            "SeveritySource"
+                                        ]
+                                        if "SeveritySource" in vulnerability
+                                        else None,
+                                        "Target": issue["Type"]
+                                        if issue["Type"] in issue["Target"]
+                                        else issue["Target"],
+                                        "Modules": [module],
+                                    }
+                                else:
+                                    if (
+                                        not module
+                                        in cves[vulnerability["VulnerabilityID"]][
+                                            "Modules"
+                                        ]
+                                    ):
+                                        cves[vulnerability["VulnerabilityID"]][
+                                            "Modules"
+                                        ].append(module)
+
+        BuildUtils.logger.info(f"Found {len(cves)} individual vulnerabilities")
+
+        with open(os.path.join(self.reports_path, self.tag + "_cves.json"), "w") as f:
+            json.dump(cves, f, indent=4)
+
 
 if __name__ == "__main__":
     print("Please use the 'start_build.py' script to launch the build-process.")

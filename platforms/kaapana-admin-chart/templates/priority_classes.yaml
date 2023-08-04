@@ -1,0 +1,18 @@
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: kaapana-high-priority
+value: 1000000
+preemptionPolicy: PreemptLowerPriority
+globalDefault: false
+description: "This priority class will cause other pods to be preempted."
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: kaapana-low-priority
+value: 1000
+preemptionPolicy: Never
+globalDefault: false
+description: "This priority class will never cause other pods to be preempted."
+---

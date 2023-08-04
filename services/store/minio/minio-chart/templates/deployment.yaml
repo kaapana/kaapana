@@ -45,7 +45,7 @@ spec:
         - name: MINIO_IDENTITY_OPENID_CLIENT_ID
           value: "kaapana"
         - name: MINIO_IDENTITY_OPENID_CLIENT_SECRET
-          value: "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R"
+          value: "{{ .Values.global.oidc_client_secret }}"
         - name: MINIO_IDENTITY_OPENID_CLAIM_NAME
           value: "policy"
         - name: MINIO_IDENTITY_OPENID_REDIRECT_URI

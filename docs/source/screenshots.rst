@@ -1,4 +1,0 @@
-.. _screenshots:
-
-Screenshots
-===========

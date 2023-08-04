@@ -24,30 +24,38 @@ ui_forms = {
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,
-            }
-        }
+            },
+        },
     }
 }
 
 args = {
-    'ui_visible': True,
-    'ui_forms': ui_forms,
-    'owner': 'kaapana',
-    'start_date': days_ago(0),
-    'retries': 0,
-    'retry_delay': timedelta(seconds=30)
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 1,
+    "retry_delay": timedelta(seconds=30),
 }
 
 dag = DAG(
-    dag_id='download-selected-files',
+    dag_id="download-selected-files",
     default_args=args,
     concurrency=10,
     max_active_runs=10,
-    schedule_interval=None
+    schedule_interval=None,
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
-put_to_minio = LocalMinioOperator(dag=dag, input_operator=get_input, action='put', action_operator_dirs=[get_input.operator_out_dir], bucket_name="downloads", file_white_tuples=('.zip', '.dcm'), zip_files=True)
+put_to_minio = LocalMinioOperator(
+    dag=dag,
+    input_operator=get_input,
+    action="put",
+    action_operator_dirs=[get_input.operator_out_dir],
+    bucket_name="downloads",
+    file_white_tuples=(".zip", ".dcm"),
+    zip_files=True,
+)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> put_to_minio >> clean

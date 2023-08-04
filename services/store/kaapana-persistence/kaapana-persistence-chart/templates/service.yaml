@@ -1,0 +1,98 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-kaapana-persistence
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /persistence
+    forceSlash: true
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-kaapana-persistence-api
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /persistence/api
+    forceSlash: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kaapana-persistence-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: kaapana-persistence
+spec:
+  selector:
+    app-name: kaapana-persistence
+  ports:
+    - name: persistence-backend-service
+      port: 8080
+      targetPort: backend-http
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kaapana-persistence-frontend-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: kaapana-persistence
+spec:
+  selector:
+    app-name: kaapana-persistence
+  ports:
+    - name: persistence-frontend-service
+      port: 80
+      targetPort: frontend-http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kaapana-persistence-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-kaapana-persistence-api@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /persistence/api
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: kaapana-persistence-service
+            port: 
+              number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kaapana-persistence-frontend-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-kaapana-persistence@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /persistence
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: kaapana-persistence-frontend-service
+            port: 
+              number: 80

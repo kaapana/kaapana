@@ -15,13 +15,13 @@ spec:
     spec:
       containers:
         - name: cbioportal
-          # image: "{{ .Values.global.registry_url }}/cbioportal:{{ .Values.global.kaapana_build_version }}"
-          image: "registry.hzdr.de/jens.beyermann/jens-dev/cbioportal:0.2.0-202-g78aba2f5c"
+          image: "{{ .Values.global.registry_url }}/cbioportal:{{ .Values.global.kaapana_build_version }}"
+          # image: "registry.hzdr.de/jens.beyermann/jens-dev/cbioportal:0.2.0-202-g78aba2f5c"
           ports:
             - containerPort: 8080
           command: ["/bin/sh"]
           args: ["-c", "--", "while true; do sleep 30; done;"]
-          # args: ["-c", "java -Xms2g -Xmx4g -Dauthenticate=noauthsessionservice -Dsession.service.url=http://cbioportal-session-service.services.svc:5000/api/sessions/my_portal/ -jar webapp-runner.jar -AmaxHttpHeaderSize=16384 -AconnectionTimeout=20000 --enable-compression /cbioportal-webapp"]
+          # args: ["-c", "  "]
           env:
           - name: PROXY
             value: "{{ .Values.global.http_proxy }}"

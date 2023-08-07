@@ -16,9 +16,9 @@ data:
     db.use_ssl=false
 
     server.servlet.context-path=/cbioportal-webapp
-    server.servlet.contextPath=/cbioportal-webapp
-    spring.webflux.base-path=/cbioportal-webapp
-    spring.webglux.basePath=cbioportal-webapp
+    # server.servlet.contextPath=/cbioportal-webapp
+    # spring.webflux.base-path=/cbioportal-webapp
+    # spring.webflux.basePath=/cbioportal-webapp
 
 
     skin.title=cBioPortal for Cancer Genomics

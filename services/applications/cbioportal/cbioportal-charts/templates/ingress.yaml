@@ -8,6 +8,8 @@ metadata:
     traefik.ingress.kubernetes.io/preserve-host: "true"
     # kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
     # traefik.ingress.kubernetes.io/router.middlewares: services-add-prefix-cbioportal@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: services-strip-prefix-cbioportal@kubernetescrd
+
 
 spec:
   rules:

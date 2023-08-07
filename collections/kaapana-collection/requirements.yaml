@@ -22,6 +22,8 @@ dependencies:
     version: 0.0.0
   - name: bodypartregression-workflow
     version: 0.0.0
+  - name: wsiconv-workflow
+    version: 0.0.0
   - name: nnunet-workflow
     version: 0.0.0
   - name: total-segmentator-workflow

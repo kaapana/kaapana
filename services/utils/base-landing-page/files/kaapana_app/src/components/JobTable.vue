@@ -52,32 +52,29 @@
             ></v-text-field>
           </div>
         </template>
-
         <template v-slot:item.conf_data="{ item }">
           <v-icon color="secondary" dark="" @click="openConfData(item.conf_data)">
               mdi-email
           </v-icon>
         </template>
         <template v-slot:item.status="{ item }">
-          <v-chip
-            :color="getStatusColor(item.status, $vuetify.theme.dark)"
-            class="my-chip"
-            dark=""
-            dense
-            outlined
-          >
-            {{ item.status }}
-          </v-chip>
-        </template>
-        <template v-slot:item.airflow="{ item }">
-          <!-- <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
+          <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_graph(item)' small icon>
-                <v-icon color="secondary" dark>mdi-chart-timeline-variant</v-icon>
+              <v-btn 
+               v-bind="attrs" 
+               v-on="on"
+               :color="getStatusColor(item.status, $vuetify.theme.dark)"
+               rounded
+               outlined
+               small
+              >
+                {{ item.status }}
               </v-btn>
             </template>
-            <span>airflow's dag_run graph view</span>
-          </v-tooltip> -->
+            <span>{{ item.description }}</span>
+          </v-tooltip>
+        </template>
+        <template v-slot:item.airflow="{ item }">
           <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
             <template v-slot:activator="{ on, attrs }">
               <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_grid_details(item)' small icon>
@@ -198,6 +195,7 @@
 
     computed: {
       filteredJobs() {
+        console.log("jobs: ", this.jobs)
         if (this.jobs !== null) {
           return this.jobs.filter((i) => {
             let statusFilter = false;
@@ -264,6 +262,7 @@
         this.dialogConfData = false
       },
       getStatusColor(status, darkTheme) {
+        console.log("job status: ", status)
         if (status == 'queued') {
           return 'grey'
         } else if (status == 'pending') {

@@ -954,13 +954,6 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
             airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
                 airflow_job_in_state["dag_id"], airflow_job_in_state["run_id"]
             )
-            print(
-                f"CRUD def sync_states_from_airflow() {airflow_dagrun_operator_details=}"
-            )
-
-            print(
-                f"CRUD def sync_states_from_airflow() {airflow_dagrun_operator_details.ok=}"
-            )
             if airflow_dagrun_operator_details.ok:
                 # extract operator state details from airflow response
                 airflow_dagrun_operator_details_text = json.loads(
@@ -971,7 +964,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 job_update = schemas.JobUpdate(
                     **{
                         "job_id": db_job.id,
-                        "description": airflow_dagrun_operator_details_text,
+                        "description": f"{airflow_dagrun_operator_details_text}",
                     }
                 )
                 update_job(db, job_update, remote=False)

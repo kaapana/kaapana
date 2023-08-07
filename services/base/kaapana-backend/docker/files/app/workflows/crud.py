@@ -615,23 +615,18 @@ def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
 
 def get_job_taskinstances(db: Session, job_id: int = None):
-    db_job = get_job(db, job_id)  # query job by job_id
-    response = get_dagrun_tasks_airflow(
-        db_job.dag_id, db_job.run_id
-    )  # get task_instances w/ states via dag_id and run_id
+    # query job by job_id
+    db_job = get_job(db, job_id)
+    # get task_instances w/ states via dag_id and run_id
+    response = get_dagrun_tasks_airflow(db_job.dag_id, db_job.run_id)
 
     # parse received response
     response_text = json.loads(response.text)
-    ti_state_dict = eval(
-        response_text["message"][0]
-    )  # convert dict-like strings to dicts
-    ti_exdate_dict = eval(response_text["message"][1])
 
     # compose dict in style {"task_instance": ["execution_time", "state"]}
     tis_n_state = {}
-    for key in ti_state_dict:
-        time_n_state = [ti_exdate_dict[key], ti_state_dict[key]]
-        tis_n_state[key] = time_n_state
+    for key, value in response_text.items():
+        tis_n_state[key] = [value["execution_date"], value["state"]]
 
     return tis_n_state
 
@@ -948,6 +943,38 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         pass  # airflow and db in sync :)
     else:
         logging.error("Error while syncing kaapana-backend with Airflow")
+
+    # check operator details for jobs in status="running"
+    if status == "running":
+        for airflow_job_in_state in airflow_jobs_in_state:
+            # get corresponding db_job object from db
+            db_job = get_job(db, run_id=airflow_job_in_state["run_id"])
+
+            # get operator states of current job from airflow
+            airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
+                airflow_job_in_state["dag_id"], airflow_job_in_state["run_id"]
+            )
+            print(
+                f"CRUD def sync_states_from_airflow() {airflow_dagrun_operator_details=}"
+            )
+
+            print(
+                f"CRUD def sync_states_from_airflow() {airflow_dagrun_operator_details.ok=}"
+            )
+            if airflow_dagrun_operator_details.ok:
+                # extract operator state details from airflow response
+                airflow_dagrun_operator_details_text = json.loads(
+                    airflow_dagrun_operator_details.text
+                )
+
+                # update job object with operator's state as description
+                job_update = schemas.JobUpdate(
+                    **{
+                        "job_id": db_job.id,
+                        "description": airflow_dagrun_operator_details_text,
+                    }
+                )
+                update_job(db, job_update, remote=False)
 
 
 global_service_jobs = {}

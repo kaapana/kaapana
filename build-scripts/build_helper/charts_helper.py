@@ -843,13 +843,9 @@ class HelmChart:
                                     path=self.chart_dir,
                                 )
 
-                            assert (
-                                len(container_tag.split("/")) == 4
-                                and len(container_tag.split(":")) == 2
-                            )
-                            container_version = container_tag.split(":")[-1]
-                            container_name = container_tag.split(":")[0].split("/")[-1]
-                            default_registry = "/".join(container_tag.split("/")[:3])
+                            default_registry = "/".join(container_tag.split("/")[:-1])
+                            container_version = container_tag.split("/")[-1].split(":")[-1]
+                            container_name = container_tag.split("/")[-1].split(":")[0]
                             self.add_container_by_tag(
                                 container_registry=default_registry,
                                 container_name=container_name,

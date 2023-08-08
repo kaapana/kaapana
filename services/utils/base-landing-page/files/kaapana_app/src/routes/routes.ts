@@ -72,6 +72,15 @@ const routes = [
         },
     },
     {
+        name: 'spe-admin',
+        path: '/spe-admin',
+        component: () => import('@/views/SPEAdmin.vue'),
+        title: 'Secure Processing Environment Admin Page',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'data-upload',
         path: '/data-upload',
         component: () => import('@/views/DataUpload.vue'),

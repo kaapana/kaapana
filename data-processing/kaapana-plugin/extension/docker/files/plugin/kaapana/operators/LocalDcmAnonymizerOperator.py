@@ -9,6 +9,18 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 
 class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to anonymize  sensitive information.
+
+    **Inputs:**
+
+    * Input data which should be anonymized is given via input parameter: input_operator
+
+    **Outputs:**
+
+    * Dicom file: Anonymized .dcm file(s)
+    """
+
     def start(self, ds, **kwargs):
         print("Starting module LocalDcmAnonymizerOperator...")
         print(kwargs)
@@ -69,6 +81,12 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
                     break
 
     def __init__(self, dag, bulk=False, overwrite=True, single_slice=False, **kwargs):
+        """
+        :param bulk: process all files of a series or only the first one (default: False).
+        :param overwrite: should overwrite or not (default: True).
+        :param single_slice: only single slice to be processed or not (default: False).
+        """
+
         self.dcmodify_path = "dcmodify"
         self.bulk = bulk
         self.overwrite = overwrite

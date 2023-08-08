@@ -476,9 +476,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             63,
         )  # actually 63, but because of helm set to 53, maybe...
 
-        
         if "gpu_device" in context["task_instance"].executor_config:
-            self.env_vars.update({"CUDA_VISIBLE_DEVICES": str(context["task_instance"].executor_config["gpu_device"]["gpu_id"])})
+            self.env_vars.update(
+                {
+                    "CUDA_VISIBLE_DEVICES": str(
+                        context["task_instance"].executor_config["gpu_device"]["gpu_id"]
+                    )
+                }
+            )
         else:
             self.env_vars.update({"CUDA_VISIBLE_DEVICES": ""})
 

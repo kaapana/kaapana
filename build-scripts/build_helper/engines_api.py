@@ -3,9 +3,10 @@ import os
 from importlib import import_module
 from os.path import dirname, basename, exists, join
 
+
 class Docker:
     def __init__(self, tag):
-        docker = import_module('docker')
+        docker = import_module("docker")
         client = docker.from_env()
 
     def build(self):

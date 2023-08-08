@@ -125,6 +125,7 @@ export default {
     window.removeEventListener("keypress", (event) =>
       this.keypressListener(event)
     );
+    this.$store.commit("setActiveTags", []);
   },
   methods: {
     onChangeSelection(e) {
@@ -187,6 +188,7 @@ export default {
       const settings = JSON.parse(localStorage["settings"]);
       settings.datasets.tagBar.tags = this.tags;
       localStorage["settings"] = JSON.stringify(settings);
+      this.onChangeSelection();
     },
   },
 };

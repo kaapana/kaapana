@@ -52,14 +52,7 @@ import AuthService from '@/common/auth.service'
           }
         }
 
-        let traefikUrl = ''
-        if (Vue.config.productionTip === true) {
-          traefikUrl = '/traefik/api/http/routers'
-        } else {
-          traefikUrl = '/jsons/testingTraefikResponse.json'
-        }
-
-        request.get(traefikUrl).then((response: { data: {} }) => {
+        request.get('/kaapana-backend/get-traefik-routes').then((response: { data: {} }) => {
           trainingJson = response.data
 
           for (const key1 in externalWebpages) {

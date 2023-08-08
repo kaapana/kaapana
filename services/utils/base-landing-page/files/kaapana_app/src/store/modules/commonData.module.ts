@@ -37,7 +37,18 @@ const getters = {
   },
   securityProviders(state: StoreState) {
     return state.securityProviders
-  }
+  },
+  workflowsList(state: any) {
+    return [
+      ["Data Upload", "mdi-cloud-upload", "/data-upload"],
+      ["Datasets", "mdi-view-gallery-outline", "/datasets"],
+      ["Workflow Execution", "mdi-play", "/workflow-execution"],
+      ["Workflow List", "mdi-clipboard-text-outline", "/workflows"],
+      ["Workflow Results", "mdi-chart-bar-stacked", "/results-browser"],
+      ["Instance Overview", "mdi-vector-triangle", "/runner-instances"],
+      ["Pending Applications", "mdi-timer-sand", "/pending-applications"],
+    ]
+  },
 }
 
 const actions = {

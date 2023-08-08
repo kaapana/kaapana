@@ -175,16 +175,16 @@ def check_dag_id_and_dataset(
         owner_kaapana_instance_name is not None
         and db_client_kaapana.instance_name != owner_kaapana_instance_name
     ):
-        if dag_id not in json.loads(db_client_kaapana.allowed_dags):
+        if dag_id not in db_client_kaapana.allowed_dags:
             return f"Dag {dag_id} is not allowed to be triggered from remote!"
         if "data_form" in conf_data:
             pass
             # ToDo adapt!
             # queried_data = crud.get_datasets(conf_data["opensearch_form"])
-            # if not queried_data or (not all([bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets))) for d in queried_data])):
+            # if not queried_data or (not all([bool(set(d) & set(db_client_kaapana.allowed_datasets)) for d in queried_data])):
             #     return f"Queried series with tags " \
             #         f"{', '.join(sorted(list(set([d for item in queried_data for d in item]))))} are not all part of allowed datasets:" \
-            #         f"{', '.join(json.loads(db_client_kaapana.allowed_datasets))}!"
+            #         f"{', '.join(db_client_kaapana.allowed_datasets)}!"
     return None
 
 

@@ -44,7 +44,7 @@ Glossary
     dag
       A DAG (Directed Acyclic Graph) is an Airflow pipeline that is defined in a python script. 
       It links multiple :term:`operators<operator>` (output to input) to realize a multi-step processing workflow, typically starting with an operator that collects that data and ending with an operator that pushes the processing results back to some data storage. 
-      An instance of a running DAG is called `DAG-run.
+      An instance of a running DAG is called DAG-run.
     
     operator
       An Airflow operator is a Python class that represents a single task within a :term:`DAG<dag>`. 

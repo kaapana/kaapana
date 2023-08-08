@@ -6,7 +6,6 @@ from time import time
 from shutil import which
 from build_helper.build_utils import BuildUtils
 from alive_progress import alive_bar
-from build_helper.security_utils import TrivyUtils
 import json
 
 suite_tag = "Container"
@@ -470,8 +469,12 @@ class Container:
 
                 hours, rem = divmod(time() - startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
-                BuildUtils.logger.debug(f"{self.build_tag}: Build-time: {duration_time_text}")
+                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(
+                    int(hours), int(minutes), seconds
+                )
+                BuildUtils.logger.debug(
+                    f"{self.build_tag}: Build-time: {duration_time_text}"
+                )
                 return issue, duration_time_text
 
             else:
@@ -607,7 +610,9 @@ class Container:
                 )
                 hours, rem = divmod(time() - startTime, 3600)
                 minutes, seconds = divmod(rem, 60)
-                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds)
+                duration_time_text = "{:0>2}:{:0>2}:{:05.2f}".format(
+                    int(hours), int(minutes), seconds
+                )
                 if output.returncode == 0 or "configured as immutable" in output.stderr:
                     break
             if output.returncode == 0:
@@ -767,7 +772,7 @@ class Container:
 
         # Init Trivy if configuration check is enabled
         if BuildUtils.configuration_check:
-            trivy_utils = TrivyUtils()
+            trivy_utils = BuildUtils.trivy_utils
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 

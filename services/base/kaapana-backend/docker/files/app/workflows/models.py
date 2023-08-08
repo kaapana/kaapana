@@ -1,6 +1,9 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Table
 from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.schema import UniqueConstraint, Index
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy_json import mutable_json_type
+
 from typing import List
 
 from app.database import Base
@@ -54,8 +57,8 @@ class KaapanaInstance(Base):
     ssl_check = Column(Boolean(), index=True)
     fernet_key = Column(String(100))
     encryption_key = Column(String(100), default="")
-    allowed_dags = Column(String(102400), default="[]")
-    allowed_datasets = Column(String(102400), default="[]")  # , index=True)
+    allowed_dags = Column(mutable_json_type(dbtype=JSONB, nested=True), default={})
+    allowed_datasets = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
@@ -117,7 +120,7 @@ class Job(Base):
     dag_id = Column(String(64))
     external_job_id = Column(Integer)
     owner_kaapana_instance_name = Column(String(64))
-    conf_data = Column(String(102400))
+    conf_data = Column(mutable_json_type(dbtype=JSONB, nested=True))
     status = Column(String(64), index=True)
     run_id = Column(String(64), index=True)
     description = Column(String(1024), index=True)

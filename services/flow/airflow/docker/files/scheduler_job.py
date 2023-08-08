@@ -533,7 +533,7 @@ class SchedulerJob(BaseJob):
                 ) = UtilService.check_operator_scheduling(
                     task_instance=task_instance, logger=self.log
                 )
-                
+
                 if gpu_device is not None:
                     self.log.info("-> setting gpu_device in executor_config ...")
                     new_config = dict(task_instance.executor_config)
@@ -542,16 +542,26 @@ class SchedulerJob(BaseJob):
                     session.merge(task_instance)
                     session.flush()
 
-                if "gpu_mem_mb" in task_instance.executor_config and task_instance.executor_config["gpu_mem_mb"] != None and "gpu_device" not in task_instance.executor_config:
-                    self.log.error("###########################################################################")
+                if (
+                    "gpu_mem_mb" in task_instance.executor_config
+                    and task_instance.executor_config["gpu_mem_mb"] != None
+                    and "gpu_device" not in task_instance.executor_config
+                ):
+                    self.log.error(
+                        "###########################################################################"
+                    )
                     self.log.error("")
                     self.log.error("")
-                    self.log.error(f"# {task_instance.task_id=} -> GPU requirement found - but no device set!")
+                    self.log.error(
+                        f"# {task_instance.task_id=} -> GPU requirement found - but no device set!"
+                    )
                     self.log.error("")
                     self.log.error(f"{task_instance.executor_config=}")
                     self.log.error("")
-                    self.log.error("###########################################################################")
-                    util_service_success= False
+                    self.log.error(
+                        "###########################################################################"
+                    )
+                    util_service_success = False
 
                 if not util_service_success:
                     starved_tasks.add((task_instance.dag_id, task_instance.task_id))

@@ -7,7 +7,6 @@ from build_helper.container_helper import Container, pull_container_image
 from alive_progress import alive_bar
 from shutil import copyfile
 
-
 class OfflineInstallerHelper:
     SNAP_DOWNLOAD_TIMEOUT = 120
     HELM_DOWNLOAD_TIMEOUT = 10

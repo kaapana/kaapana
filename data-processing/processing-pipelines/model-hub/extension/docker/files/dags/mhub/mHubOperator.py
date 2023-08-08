@@ -25,14 +25,10 @@ class mHubOperator(KaapanaBaseOperator):
         else:
             raise ValueError("You need to select a mhub_model!")
 
-        if GPU_SUPPORT:
-            tag = "cuda"
-        else:
-            tag = "nocuda"
         # Tricking the CI to not check of image_name but still building all mhubai docker containers
-        image_name = f"{DEFAULT_REGISTRY}/mhubai-{image}-{tag}:{KAAPANA_BUILD_VERSION}"
-        # self.image=f"{DEFAULT_REGISTRY}/mhubai-platipy-cuda:{KAAPANA_BUILD_VERSION}"
-        # self.image=f"{DEFAULT_REGISTRY}/mhubai-platipy-nocuda:{KAAPANA_BUILD_VERSION}"
+        image_name = (
+            f"{DEFAULT_REGISTRY}/mhubai-{image}-{self.tag}:{KAAPANA_BUILD_VERSION}"
+        )
         # self.image=f"{DEFAULT_REGISTRY}/mhubai-totalsegmentator-cuda:{KAAPANA_BUILD_VERSION}"
         # self.image=f"{DEFAULT_REGISTRY}/mhubai-totalsegmentator-nocuda:{KAAPANA_BUILD_VERSION}"
         self.image = image_name
@@ -50,8 +46,6 @@ class mHubOperator(KaapanaBaseOperator):
         self,
         dag,
         name="mhub-operator",
-        cmds=["bash"],
-        arguments=["/kaapana/mounted/workflows/mounted_scripts/mhub/mhub.sh"],
         execution_timeout=timedelta(minutes=300),
         gpu_mem_mb=None,
         *args,
@@ -60,6 +54,9 @@ class mHubOperator(KaapanaBaseOperator):
         if GPU_SUPPORT:
             gpu_mem_mb = 11000
             execution_timeout = timedelta(minutes=60)
+            self.tag = "cuda"
+        else:
+            self.tag = "nocuda"
 
         ram_mem_mb = 16000
         ram_mem_mb_lmt = 45000
@@ -68,8 +65,11 @@ class mHubOperator(KaapanaBaseOperator):
             dag=dag,
             name=name,
             image_pull_secrets=["registry-secret"],
-            cmds=cmds,
-            arguments=arguments,
+            cmds=["bash"],
+            arguments=[
+                "/kaapana/mounted/workflows/mounted_scripts/mhub/mhub.sh",
+                self.tag,
+            ],
             ram_mem_mb=ram_mem_mb,
             ram_mem_mb_lmt=ram_mem_mb_lmt,
             gpu_mem_mb=gpu_mem_mb,

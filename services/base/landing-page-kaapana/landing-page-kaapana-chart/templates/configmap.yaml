@@ -22,25 +22,20 @@ data:
             "endpoint": "/dcm4chee-arc",
             "linkTo": "/dcm4chee-arc/ui2/"
           },
-          "xnat": {
-            "label": "XNAT",
-            "endpoint": "/xnat",
-            "linkTo": "/xnat/app/template/Login.vm"
-          },
           "ohif": {
             "label": "OHIF",
             "endpoint": "/ohif",
             "linkTo": "/ohif/"
           },
+          "slim": {
+            "label": "SLIM",
+            "endpoint": "/slim",
+            "linkTo": "/slim/"
+          },
           "minio": {
             "label": "Minio",
             "endpoint": "/minio-console",
             "linkTo": "/minio-console"
-          },
-          "doccano": {
-            "label": "Doccano",
-            "endpoint": "/doccano/",
-            "linkTo": "/doccano/"
           },
           "persistence": {
             "label": "Persistence Layer",
@@ -91,11 +86,6 @@ data:
             "endpoint": "/workflowdata",
             "linkTo": "/workflowdata/"
           },
-          "webide": {
-            "label": "Airflow Development",
-            "endpoint": "/web-ide",
-            "linkTo": "/web-ide/"
-          },
           "jupyterlab": {
             "label": "Jupyterlab",
             "endpoint": "/jupyterlab",
@@ -109,7 +99,7 @@ data:
           "grafana": {
             "label": "Grafana",
             "endpoint": "/grafana",
-            "linkTo": "/grafana/d/k8s_views_global/kubernetes-views-global?theme=dark&kiosk&orgId=1"
+            "linkTo": "/grafana/dashboards"
           }
         }
       }

@@ -3,6 +3,70 @@
 Changelog
 #########
 
+.. _release-0.2.2:
+
+-------------------------
+
+********************
+Release Notes v0.2.2
+********************
+
+July 26, 2023
+
+-------------------------
+
+Bug fixes
+---------
+
+* Installation of certificates
+* Access to Traefik routes for users with no admin rights
+
+.. _release-0.2.1:
+
+-------------------------
+
+********************
+Release Notes v0.2.1
+********************
+
+July 19, 2023
+
+-------------------------
+
+New features
+------------
+
+* Major restructuring and update of the documentation
+* Added experimental persistent layer as extension for data management
+* Updated landing page layout
+* RTStruct and segmentation support in Gallary View
+
+Bug fixes
+---------
+
+* Redirect for Minio and Keycloak
+* Update of constraints file
+* Fix of TypeError: cannot pickle '_thread.lock' object in Airflow
+* Muliplte fixes in Kaapana-Backend
+* Fixes in Trivy vulnerability scanner
+* Fixes in the server_installation.sh
+* Muliplte fixes in Kube-Helm backend
+* Introducing a smaller GPU base image
+* Fixes in scheduling of workflows
+* Fix of Prometheus and Grafana error
+* Fix in data upload
+* Removal of not ready extensions from collections chart
+* Fix of Tensorboard logs
+* Fix of nnU-Net ensemble workflow
+* Fix of radiomics federated workflow
+
+Upcoming
+--------
+
+* Maintenance UI for UI-based platform management and maintenance 
+* Multi Instance support for different Kaapana deployments within a single K8S Cluster
+* New persistence layer for Kapaana
+
 .. _release-0.2.0:
 
 -------------------------
@@ -18,9 +82,8 @@ May 18, 2023
 New Features
 ============
 
-.. figure:: _static/img/datasets.png
+.. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/datasets.png
    :align: center
-   :scale: 30 %
    :alt: New Dataset UI
 
 
@@ -68,6 +131,10 @@ Extension Upload / Data Upload mechanism
 * Importing container .tar files directly into the microk8s container runtime
 
 
+Results page
+------------
+* A new results page has been introduced which allows users to explore results of their workflows by visualizing HTMLs 
+
 MISC:
 -----
 
@@ -96,6 +163,8 @@ New Workflows
 
 * `TotalSegmentator <https://github.com/wasserth/TotalSegmentator>`_ incl. all sub-tasks
 * RTSTRUCT support for nnUNet training
+* nnU-Net federated
+* Radiomics federated
 
 Updated Components
 ------------------
@@ -123,12 +192,12 @@ New Extensions
 * 3D Slicer
 * Model-Hub
 * RateMe
-* Radiomics-federated
+
 
 Upcoming
 --------
 
-* Maintenance UI for Ui-based platform management and maintenance 
+* Maintenance UI for UI-based platform management and maintenance 
 * Multi Instance support for different Kaapana deployments within a single K8S Cluster
 * New persistence layer for Kapaana
 

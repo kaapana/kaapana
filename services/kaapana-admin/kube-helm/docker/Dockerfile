@@ -23,7 +23,7 @@ RUN cp bin/ctr /usr/local/bin/ctr && chmod +x /usr/local/bin/ctr
 RUN rm -rf containerd* bin/
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.0/build-scripts/constraints-0.2.0.txt --upgrade setuptools pip && pip3 install -r /kaapana/app/requirements.txt
+RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --upgrade setuptools pip && pip3 install -r /kaapana/app/requirements.txt
 
 COPY files/backend /kaapana/app/backend
 
@@ -41,4 +41,5 @@ ENV RECENT_UPDATE_CACHE="true"
 ENV CONTAINERD_SOCK="/kaapana/mounted/containerd.sock"
 
 EXPOSE 5000
-CMD ["gunicorn","main:app","--chdir","/kaapana/app/backend/app","--workers","1","--worker-class","uvicorn.workers.UvicornWorker","--bind","0.0.0.0:5000","--access-logfile","-","--error-logfile","-"]
+
+CMD ["/bin/sh", "/kaapana/app/backend/boot.sh"]

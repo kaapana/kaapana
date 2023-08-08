@@ -42,7 +42,7 @@ class WorkflowService:
     def trigger_workflow(
         self, db_client_kaapana: Any, conf_data: dict, dry_run: str = True
     ) -> Tuple[Any, HTTPException]:
-        if conf_data["conf"]["dag"] not in json.loads(db_client_kaapana.allowed_dags):
+        if conf_data["conf"]["dag"] not in db_client_kaapana.allowed_dags:
             return (
                 None,
                 HTTPException(
@@ -57,7 +57,7 @@ class WorkflowService:
 
         if not all(
             [
-                bool(set(d) & set(json.loads(db_client_kaapana.allowed_datasets)))
+                bool(set(d) & set(db_client_kaapana.allowed_datasets))
                 for d in queried_data
             ]
         ):
@@ -67,7 +67,7 @@ class WorkflowService:
                     status_code=403,
                     detail=f"Your query outputed data with the tags: "
                     f"{''.join(sorted(list(set([d for datasets in queried_data for d in datasets]))))}, "
-                    f"but only the following tags are allowed to be used from remote: {','.join(json.loads(db_client_kaapana.allowed_datasets))} !",
+                    f"but only the following tags are allowed to be used from remote: {','.join(db_client_kaapana.allowed_datasets)} !",
                 ),
             )
         if dry_run is True:

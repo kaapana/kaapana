@@ -13,6 +13,10 @@ make html  -> generate html docs
 make pdf   -> generate pdf
 make clean -> clean build dir
 
+## Deploy
+'''
+python3 -m http.server 9000
+'''
 ## Headings
 
 ##################

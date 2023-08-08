@@ -12,8 +12,14 @@ do
 
         mv $ELEMENT_INPUT_DIR/* /app/data/input_data
         { # try
-
-            python3 /app/mhub/models/$MHUB_MODEL/scripts/run.py &&
+        # ToDo Remove, when the execution is standarized...
+            echo $1 
+            if [ "$1" = "cuda" ]; then
+                python3 -m mhubio.run --config /app/models/$MHUB_MODEL/config/config.yml
+            else
+                python3 /app/models/$MHUB_MODEL/scripts/run.py
+            fi
+            
             mv /app/data/output_data/* $ELEMENT_OUTPUT_DIR
             mv /app/data/input_data/* $ELEMENT_INPUT_DIR
         } || { # catch

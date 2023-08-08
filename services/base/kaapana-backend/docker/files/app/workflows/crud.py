@@ -16,6 +16,8 @@ from psycopg2.errors import UniqueViolation
 from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
+from sqlalchemy import func, cast, String, JSON
+
 from urllib3.util import Timeout
 
 from app.config import settings
@@ -107,9 +109,9 @@ def get_kaapana_instances(
         return (
             db.query(models.KaapanaInstance)
             .filter(
-                models.KaapanaInstance.allowed_dags.contains(
+                cast(models.KaapanaInstance.allowed_dags, String).contains(
                     filter_kaapana_instances.dag_id
-                ),
+                )
             )
             .all()
         )
@@ -130,7 +132,7 @@ def get_kaapana_instances(
         return (
             db.query(models.KaapanaInstance)
             .filter(
-                models.KaapanaInstance.allowed_dags.contains(
+                cast(models.KaapanaInstance.allowed_dags, String).contains(
                     filter_kaapana_instances.dag_id
                 ),
                 models.KaapanaInstance.instance_name.in_(
@@ -193,11 +195,9 @@ def create_and_update_client_kaapana_instance(
             or False,
         )
     elif action == "update":
-        allowed_dags = json.dumps(
-            get_dag_list(
-                only_dag_names=False,
-                filter_allowed_dags=client_kaapana_instance.allowed_dags,
-            )
+        allowed_dags = get_dag_list(
+            only_dag_names=False,
+            filter_allowed_dags=client_kaapana_instance.allowed_dags,
         )
 
         fernet = Fernet(db_client_kaapana_instance.encryption_key)
@@ -215,7 +215,6 @@ def create_and_update_client_kaapana_instance(
                         for identifier in dataset["identifiers"]
                     ]
                 allowed_datasets.append(dataset)
-        allowed_datasets = json.dumps(allowed_datasets)
 
         db_client_kaapana_instance.instance_name = (settings.instance_name,)
         db_client_kaapana_instance.time_updated = utc_timestamp
@@ -300,10 +299,10 @@ def create_and_update_remote_kaapana_instance(
             f"Externally updating with db_remote_kaapana_instance: {db_remote_kaapana_instance}"
         )
         if db_remote_kaapana_instance:
-            db_remote_kaapana_instance.allowed_dags = json.dumps(
+            db_remote_kaapana_instance.allowed_dags = (
                 remote_kaapana_instance.allowed_dags
             )
-            db_remote_kaapana_instance.allowed_datasets = json.dumps(
+            db_remote_kaapana_instance.allowed_datasets = (
                 remote_kaapana_instance.allowed_datasets
             )
             db_remote_kaapana_instance.automatic_update = (
@@ -355,7 +354,7 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
 
     db_job = models.Job(
         # id = job.id,    # not sure if this shouldn't be set automatically
-        conf_data=json.dumps(job.conf_data),
+        conf_data=job.conf_data,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         external_job_id=job.external_job_id,
@@ -534,7 +533,7 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
 
     if job.status == "scheduled" and db_job.kaapana_instance.remote == False:
         # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
-        conf_data = json.loads(db_job.conf_data)
+        conf_data = db_job.conf_data
         conf_data["client_job_id"] = db_job.id
         dag_id_and_dataset = check_dag_id_and_dataset(
             db_job.kaapana_instance,
@@ -680,8 +679,8 @@ def sync_client_remote(
 
     update_remote_instance_payload = {
         "instance_name": db_client_kaapana.instance_name,
-        "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
-        "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
+        "allowed_dags": db_client_kaapana.allowed_dags,
+        "allowed_datasets": db_client_kaapana.allowed_datasets,
         "automatic_update": db_client_kaapana.automatic_update,
         "automatic_workflow_execution": db_client_kaapana.automatic_workflow_execution,
     }
@@ -774,8 +773,8 @@ def get_remote_updates(db: Session, periodically=False):
             continue
         update_remote_instance_payload = {
             "instance_name": db_client_kaapana.instance_name,
-            "allowed_dags": json.loads(db_client_kaapana.allowed_dags),
-            "allowed_datasets": json.loads(db_client_kaapana.allowed_datasets),
+            "allowed_dags": db_client_kaapana.allowed_dags,
+            "allowed_datasets": db_client_kaapana.allowed_datasets,
             "automatic_update": db_client_kaapana.automatic_update,
             "automatic_workflow_execution": db_client_kaapana.automatic_workflow_execution,
         }
@@ -1389,8 +1388,7 @@ def queue_generate_jobs_and_add_to_workflow(
                 db_dataset = get_dataset(db, dataset_name)
                 identifiers = [idx.id for idx in db_dataset.identifiers]
             else:
-                allowed_datasets = json.loads(db_kaapana_instance.allowed_datasets)
-                for dataset_info in allowed_datasets:
+                for dataset_info in db_kaapana_instance.allowed_datasets:
                     if dataset_info["name"] == dataset_name:
                         identifiers = (
                             dataset_info["identifiers"]

@@ -38,7 +38,7 @@ index 8d56f400d..e5afc92b5 100644
                SpacingBetweenSlices !== undefined
                  ? `${SpacingBetweenSlices.toFixed(2)}mm`
 diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
-index fc2ad3626..f865285c7 100644
+index 7d64064fe..10abdd4ee 100644
 --- a/extensions/default/src/ViewerLayout/index.tsx
 +++ b/extensions/default/src/ViewerLayout/index.tsx
 @@ -218,37 +218,14 @@ function ViewerLayout({

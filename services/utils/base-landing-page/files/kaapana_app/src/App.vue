@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <v-app id="inspire">
-      <notifications position="bottom right" width="20%" />
+      <notifications position="bottom right" width="20%" :duration="5000" />
       <v-navigation-drawer clipped v-model="drawer" app mobile-breakpoint="0">
         <v-list dense>
           <v-list-item :to="'/'">
@@ -15,7 +15,7 @@
           <!-- top navigation -->
           <v-list-item
             v-if="settings.navigationMode && isAuthenticated"
-            :to="'/workflows'"
+            :to="'/datasets'"
           >
             <v-list-item-action>
               <v-icon>mdi-gamepad-variant</v-icon>
@@ -89,7 +89,11 @@
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
             <template v-if="section.label.toLowerCase() === 'monitoring'">
-              <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id">
+              <v-list-item
+                v-for="provider of securityProviders"
+                :key="provider.id"
+                :to="'/security/' + provider.id"
+              >
                 <v-list-item-action></v-list-item-action>
                 <v-list-item-title v-text="provider.name"></v-list-item-title>
               </v-list-item>
@@ -146,7 +150,7 @@
               </v-list-item>
               <v-list-item>
                 <v-switch
-                  label="Navigation"
+                  label="Top navigation"
                   hide-details
                   v-model="settings.navigationMode"
                   @change="(v) => changeNavigation(v)"
@@ -163,77 +167,62 @@
         </v-menu>
       </v-app-bar>
       <v-main id="v-main-content">
-        <v-container class="router-container pa-0" fluid fill-height>
-          <v-layout align-start="align-start">
-            <v-flex text-xs="text-xs">
-              <div v-if="settings.navigationMode">
-                <v-bottom-navigation
-                  v-if="workflowNavigation && drawer"
-                  color="primary"
-                  :elevation="0"
-                  inset
-                  mode="shift"
+        <div v-if="settings.navigationMode">
+          <v-bottom-navigation
+            v-if="workflowNavigation && drawer"
+            color="primary"
+            :elevation="0"
+            inset
+            mode="shift"
+          >
+            <v-btn
+              v-for="([title, icon, to], i) in workflowsList"
+              :key="i"
+              :to="to"
+              :value="to"
+            >
+              <v-icon>{{ icon }}</v-icon>
+              {{ title }}
+            </v-btn>
+          </v-bottom-navigation>
+          <v-bottom-navigation
+            v-if="advancedNavigation && drawer"
+            color="primary"
+            :elevation="0"
+            inset
+            mode="shift"
+          >
+            <v-menu
+              offset-y
+              v-for="(section, sectionKey) in externalWebpages"
+              :key="section.id"
+            >
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn v-bind="attrs" v-on="on">
+                  <v-icon>{{ section.icon }}</v-icon>
+                  {{ section.label }}
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item
+                  v-for="(subSection, subSectionKey) in section.subSections"
+                  :key="subSection.id"
+                  :value="subSection.id"
+                  :to="{
+                    name: 'ew-section-view',
+                    params: {
+                      ewSection: sectionKey,
+                      ewSubSection: subSectionKey,
+                    },
+                  }"
                 >
-                  <v-btn
-                    v-for="([title, icon, to], i) in workflowsList"
-                    :key="i"
-                    :to="to"
-                    :value="to"
-                  >
-                    <v-icon>{{ icon }}</v-icon>
-                    {{ title }}
-                  </v-btn>
-                </v-bottom-navigation>
-                <v-bottom-navigation
-                  v-if="advancedNavigation && drawer"
-                  color="primary"
-                  :elevation="0"
-                  inset
-                  mode="shift"
-                >
-                  <v-menu
-                    offset-y
-                    v-for="(section, sectionKey) in externalWebpages"
-                    :key="section.id"
-                  >
-                    <template v-slot:activator="{ on, attrs }">
-                      <v-btn v-bind="attrs" v-on="on">
-                        <v-icon>{{ section.icon }}</v-icon>
-                        {{ section.label }}
-                      </v-btn>
-                    </template>
-                    <v-list>
-                      <v-list-item
-                        v-for="(
-                          subSection, subSectionKey
-                        ) in section.subSections"
-                        :key="subSection.id"
-                        :value="subSection.id"
-                        :to="{
-                          name: 'ew-section-view',
-                          params: {
-                            ewSection: sectionKey,
-                            ewSubSection: subSectionKey,
-                          },
-                        }"
-                      >
-                        <v-list-item-title>{{
-                          subSection.label
-                        }}</v-list-item-title>
-                      </v-list-item>
-                      <template v-if="section.label.toLowerCase() === 'monitoring'">
-                        <v-list-item v-for="provider of securityProviders" :key="provider.id" :to="'/security/' + provider.id">
-                          <v-list-item-title v-text="provider.name"></v-list-item-title>
-                        </v-list-item>
-                      </template>
-                    </v-list>
-                  </v-menu>
-                </v-bottom-navigation>
-              </div>
-              <router-view></router-view>
-            </v-flex>
-          </v-layout>
-        </v-container>
+                  <v-list-item-title>{{ subSection.label }}</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </v-bottom-navigation>
+        </div>
+        <router-view></router-view>
       </v-main>
       <v-footer color="primary" app inset>
         <span class="white--text">
@@ -254,11 +243,15 @@ import { LOGIN, LOGOUT, CHECK_AUTH } from "@/store/actions.type";
 import {
   CHECK_AVAILABLE_WEBSITES,
   LOAD_COMMON_DATA,
-  CHECK_SECURITY_PROVIDERS
+  CHECK_SECURITY_PROVIDERS,
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
 import { settings } from "@/static/defaultUIConfig";
-import { DARK_MODE_ACTIVE, DARK_MODE_NOT_ACTIVE, QUERY_DARK_MODE } from './store/messages.type';
+import {
+  DARK_MODE_ACTIVE,
+  DARK_MODE_NOT_ACTIVE,
+  QUERY_DARK_MODE,
+} from "./store/messages.type";
 
 export default Vue.extend({
   name: "App",
@@ -267,37 +260,24 @@ export default Vue.extend({
     drawer: true,
     federatedBackendAvailable: false,
     settings: settings,
-    workflowsList: [
-      ["Data Upload", "mdi-cloud-upload", "/data-upload"],
-      ["Datasets", "mdi-view-gallery-outline", "/datasets"],
-      ["Workflow Execution", "mdi-play", "/workflow-execution"],
-      ["Workflow List", "mdi-clipboard-text-outline", "/workflows"],
-      ["Workflow Results", "mdi-chart-bar-stacked", "/results-browser"],
-      ["Instance Overview", "mdi-vector-triangle", "/runner-instances"],
-      ["Pending Applications", "mdi-timer-sand", "/pending-applications"],
-    ],
   }),
   computed: {
     ...mapGetters([
       "currentUser",
       "isAuthenticated",
       "externalWebpages",
+      "workflowsList",
       "commonData",
-      "securityProviders"
+      "securityProviders",
     ]),
     workflowNavigation() {
-      let routerPath = [];
-      for (const workflow of this.workflowsList) {
-        routerPath.push(workflow[2]);
-      }
-      return routerPath.includes(this.$route.path);
+      let routerPath = ["/", "/extensions"];
+      return (
+        !this.$route.path.startsWith("/web/") && !routerPath.includes(this.$route.path)
+      );
     },
     advancedNavigation() {
-      let routerPath = ["/", "/data-upload", "/extensions"];
-      for (const workflow of this.workflowsList) {
-        routerPath.push(workflow[2]);
-      }
-      return !routerPath.includes(this.$route.path);
+      return this.$route.path.startsWith("/web/");
     },
   },
   methods: {
@@ -312,14 +292,12 @@ export default Vue.extend({
       localStorage["settings"] = JSON.stringify(this.settings);
     },
     login() {
-      this.$store
-        .dispatch(LOGIN)
-        .then(() => this.$router.push({ name: "home" }));
+      this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "home" }));
     },
     logout() {
       this.$store.dispatch(LOGOUT);
     },
-    receiveMessage (event: MessageEvent) {
+    receiveMessage(event: MessageEvent) {
       console.log(event);
 
       // only process our own messages
@@ -329,7 +307,7 @@ export default Vue.extend({
       if (event.data.message === QUERY_DARK_MODE) {
         sendModeToIFrame(this.settings["darkMode"]);
       }
-    }
+    },
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
@@ -349,7 +327,7 @@ export default Vue.extend({
     this.settings = JSON.parse(localStorage["settings"]);
     this.$vuetify.theme.dark = this.settings["darkMode"];
     request
-      .get("/traefik/api/http/routers")
+      .get("/kaapana-backend/get-traefik-routes")
       .then((response: { data: {} }) => {
         this.federatedBackendAvailable = kaapanaApiService.checkUrl(
           response.data,
@@ -384,9 +362,9 @@ const sendModeToIFrame = (darkMode: boolean) => {
     return;
   }
   if (darkMode) {
-    iframe_element.contentWindow?.postMessage({message: DARK_MODE_ACTIVE}, "*");
+    iframe_element.contentWindow?.postMessage({ message: DARK_MODE_ACTIVE }, "*");
   } else {
-    iframe_element.contentWindow?.postMessage({message: DARK_MODE_NOT_ACTIVE}, "*");
+    iframe_element.contentWindow?.postMessage({ message: DARK_MODE_NOT_ACTIVE }, "*");
   }
 };
 </script>
@@ -418,5 +396,20 @@ const sendModeToIFrame = (darkMode: boolean) => {
 
 .kapaana-top-navigation {
   min-height: calc(100vh - 81px - 56px);
+}
+
+.v-item-group.v-bottom-navigation {
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: rgba(0, 0, 0, 0.12);
+  -moz-box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+@media (min-width: 2100px) {
+  .container--fluid {
+    max-width: 2100px !important;
+  }
 }
 </style>

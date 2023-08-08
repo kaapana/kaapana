@@ -398,7 +398,7 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
             **{
                 "job_id": db_job.id,
                 "status": "scheduled",
-                "description": "The workflow was triggered!",
+                # "description": "The workflow was triggered!",
             }
         )
         update_job(db, job, remote=False)
@@ -939,6 +939,40 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 }
             )
             update_job(db, job_update, remote=False)
+
+            # Added
+            if status == "running":
+                airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
+                    db_job.dag_id, db_job.run_id
+                )
+                if airflow_dagrun_operator_details.ok:
+                    # extract operator state details from airflow response
+                    airflow_dagrun_operator_details_text = json.loads(
+                        airflow_dagrun_operator_details.text
+                    )
+
+                    # convert None values in dict to empty strings
+                    def replace_none_with_empty(d):
+                        for key, value in d.items():
+                            if isinstance(value, dict):
+                                replace_none_with_empty(value)
+                            elif value is None or value == "None":
+                                d[key] = ""
+                        return d
+
+                    airflow_dagrun_operator_details_text = replace_none_with_empty(
+                        airflow_dagrun_operator_details_text
+                    )
+
+                    # update job object with operator's state as description
+                    job_update = schemas.JobUpdate(
+                        **{
+                            "job_id": db_job.id,
+                            "description": f"{airflow_dagrun_operator_details_text}",
+                        }
+                    )
+                    update_job(db, job_update, remote=False)
+
     elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
         pass  # airflow and db in sync :)
     else:
@@ -951,8 +985,11 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
             db_job = get_job(db, run_id=airflow_job_in_state["run_id"])
 
             # get operator states of current job from airflow
+            # airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
+            #     airflow_job_in_state["dag_id"], airflow_job_in_state["run_id"]
+            # )
             airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
-                airflow_job_in_state["dag_id"], airflow_job_in_state["run_id"]
+                db_job.dag_id, db_job.run_id
             )
             if airflow_dagrun_operator_details.ok:
                 # extract operator state details from airflow response
@@ -963,8 +1000,6 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 # convert None values in dict to empty strings
                 def replace_none_with_empty(d):
                     for key, value in d.items():
-                        print(f"{key=}")
-                        print(f"{value=}")
                         if isinstance(value, dict):
                             replace_none_with_empty(value)
                         elif value is None or value == "None":
@@ -1597,7 +1632,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                     **{
                         "job_id": db_workflow_current_job.id,
                         "status": "scheduled",
-                        "description": "The worklow was triggered!",
+                        # "description": "The worklow was triggered!",
                     }
                 )
                 # def update_job() expects job of class schemas.JobUpdate

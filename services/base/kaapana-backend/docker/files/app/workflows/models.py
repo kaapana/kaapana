@@ -123,7 +123,7 @@ class Job(Base):
     conf_data = Column(mutable_json_type(dbtype=JSONB, nested=True))
     status = Column(String(64), index=True)
     run_id = Column(String(64), index=True)
-    description = Column(String(1024), index=True)
+    description = Column(String(1024000), index=True)
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))

@@ -33,6 +33,7 @@ const getters = {
       ["Workflow Results", "mdi-chart-bar-stacked", "/results-browser"],
       ["Instance Overview", "mdi-vector-triangle", "/runner-instances"],
       ["Pending Applications", "mdi-timer-sand", "/pending-applications"],
+      ["Pending Applications", "mdi-account-secure-outline", "/spe-admin"],
     ]
   },
   policyData(state: any) {

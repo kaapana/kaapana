@@ -22,9 +22,9 @@ opensearch_security.openid.connect_url: "http://keycloak-external-service.admin.
 # The ID of the OpenID Connect client in your IdP
 opensearch_security.openid.client_id: "kaapana"
 # The client secret of the OpenID Connect client
-opensearch_security.openid.client_secret: "uQBJzc2YDzjRfj2OCT79JDShojeqAK2R"
+opensearch_security.openid.client_secret: "${OIDC_CLIENT_SECRET}"
 # The base of the redirect URL that will be sent to your IdP. Optional. Only necessary when OpenSearch Dashboards is behind a reverse proxy, in which case it should be different than server.host and server.port in opensearch_dashboards.yml.
-opensearch_security.openid.base_redirect_url: "https://vm-128-206.cloud.dkfz-heidelberg.de:443/security-wazuh"
+opensearch_security.openid.base_redirect_url: ${REDIRECT_URI}
 EOF
 
 API_USER=`cat /wazuh_api_secret/username`

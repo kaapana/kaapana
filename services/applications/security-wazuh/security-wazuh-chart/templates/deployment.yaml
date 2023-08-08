@@ -27,6 +27,11 @@ spec:
           image: "{{ .Values.global.registry_url }}/security-wazuh-init:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: {{ .Values.global.pull_policy_jobs }}
           resources: {}
+          env:
+            - name: REDIRECT_URI
+              value: https://{{ .Values.global.hostname }}:443/{{ .Values.ingress_path }}
+            - name: OIDC_CLIENT_SECRET
+              value: "{{ .Values.global.oidc_client_secret }}"
           volumeMounts:
             - mountPath: /wazuh-config
               name: security-wazuh-volume

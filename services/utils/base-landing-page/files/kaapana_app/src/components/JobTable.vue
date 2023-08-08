@@ -282,13 +282,18 @@
       formatJson(jsonString) {
         // translate to valid json string
         const validjsonString = jsonString.replace(/'/g, '"');
-        
+
         try {
           const jsonObject = JSON.parse(validjsonString);
 
           // sort by start_date
           const sortedEntries = Object.entries(jsonObject).sort((a, b) => {
-            return new Date(a[1].start_date).getTime() - new Date(b[1].start_date).getTime();
+            const dateA = a[1].start_date;
+            const dateB = b[1].start_date;
+            if (!dateA && !dateB) return 0; // Keep the order unchanged for both empty start_date entries
+            if (!dateA) return 1; // Move entry with empty start_date to the end
+            if (!dateB) return -1; // Move entry with empty start_date to the end
+            return new Date(dateA).getTime() - new Date(dateB).getTime();
           });
           const sortedData = Object.fromEntries(sortedEntries);
 

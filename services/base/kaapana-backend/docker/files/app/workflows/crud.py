@@ -960,6 +960,21 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                     airflow_dagrun_operator_details.text
                 )
 
+                # convert None values in dict to empty strings
+                def replace_none_with_empty(d):
+                    for key, value in d.items():
+                        print(f"{key=}")
+                        print(f"{value=}")
+                        if isinstance(value, dict):
+                            replace_none_with_empty(value)
+                        elif value is None or value == "None":
+                            d[key] = ""
+                    return d
+
+                airflow_dagrun_operator_details_text = replace_none_with_empty(
+                    airflow_dagrun_operator_details_text
+                )
+
                 # update job object with operator's state as description
                 job_update = schemas.JobUpdate(
                     **{

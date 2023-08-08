@@ -71,7 +71,7 @@
                 {{ item.status }}
               </v-btn>
             </template>
-            <span>{{ item.description }}</span>
+            <pre class="custom-tooltip-content">{{ formatJson(item.description) }}</pre>
           </v-tooltip>
         </template>
         <template v-slot:item.airflow="{ item }">
@@ -279,6 +279,22 @@
           return 'red'
         }
       },
+      formatJson(jsonString) {
+        const validjsonString = jsonString.replace(/'/g, '"');
+        try {
+          const jsonObject = JSON.parse(validjsonString);
+          const formattedJson = JSON.stringify(jsonObject, null, 2)
+            .replace(/:/g, ': ')
+            .replace(/,/g, ',\n')
+            .replace(/{/g, '{\n')
+            .replace(/}/g, '\n}');
+          
+          return formattedJson
+        } catch (error) {
+          console.error('Invalid JSON:', error);
+          return jsonString; // Return original JSON string if parsing fails
+        }
+      },
       abortJob(item) {
           this.abortID = item.id
           console.log("Abort Job:", this.abortID, "Item:", item)
@@ -387,5 +403,10 @@
 <style scoped lang="scss">
 .my-chip {
   border-width: 3px;
+}
+
+.custom-tooltip-content {
+  line-height: 0.5; /* Adjust line height as needed */
+  padding: 4px; /* Adjust padding value as needed */
 }
 </style>

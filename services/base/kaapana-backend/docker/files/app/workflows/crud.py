@@ -940,38 +940,9 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
             )
             update_job(db, job_update, remote=False)
 
-            # Added
             if status == "running":
-                airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
-                    db_job.dag_id, db_job.run_id
-                )
-                if airflow_dagrun_operator_details.ok:
-                    # extract operator state details from airflow response
-                    airflow_dagrun_operator_details_text = json.loads(
-                        airflow_dagrun_operator_details.text
-                    )
-
-                    # convert None values in dict to empty strings
-                    def replace_none_with_empty(d):
-                        for key, value in d.items():
-                            if isinstance(value, dict):
-                                replace_none_with_empty(value)
-                            elif value is None or value == "None":
-                                d[key] = ""
-                        return d
-
-                    airflow_dagrun_operator_details_text = replace_none_with_empty(
-                        airflow_dagrun_operator_details_text
-                    )
-
-                    # update job object with operator's state as description
-                    job_update = schemas.JobUpdate(
-                        **{
-                            "job_id": db_job.id,
-                            "description": f"{airflow_dagrun_operator_details_text}",
-                        }
-                    )
-                    update_job(db, job_update, remote=False)
+                # update running job's operator states
+                update_running_jobs_operator(db, diff_db_job)
 
     elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
         pass  # airflow and db in sync :)
@@ -984,40 +955,42 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
             # get corresponding db_job object from db
             db_job = get_job(db, run_id=airflow_job_in_state["run_id"])
 
-            # get operator states of current job from airflow
-            # airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
-            #     airflow_job_in_state["dag_id"], airflow_job_in_state["run_id"]
-            # )
-            airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
-                db_job.dag_id, db_job.run_id
-            )
-            if airflow_dagrun_operator_details.ok:
-                # extract operator state details from airflow response
-                airflow_dagrun_operator_details_text = json.loads(
-                    airflow_dagrun_operator_details.text
-                )
+            # update running job's operator states
+            update_running_jobs_operator(db, db_job)
 
-                # convert None values in dict to empty strings
-                def replace_none_with_empty(d):
-                    for key, value in d.items():
-                        if isinstance(value, dict):
-                            replace_none_with_empty(value)
-                        elif value is None or value == "None":
-                            d[key] = ""
-                    return d
 
-                airflow_dagrun_operator_details_text = replace_none_with_empty(
-                    airflow_dagrun_operator_details_text
-                )
+def update_running_jobs_operator(db: Session, db_job: models.Job):
+    # get operator states of current job from airflow
+    airflow_dagrun_operator_details = get_dagrun_tasks_airflow(
+        db_job.dag_id, db_job.run_id
+    )
+    if airflow_dagrun_operator_details.ok:
+        # extract operator state details from airflow response
+        airflow_dagrun_operator_details_text = json.loads(
+            airflow_dagrun_operator_details.text
+        )
 
-                # update job object with operator's state as description
-                job_update = schemas.JobUpdate(
-                    **{
-                        "job_id": db_job.id,
-                        "description": f"{airflow_dagrun_operator_details_text}",
-                    }
-                )
-                update_job(db, job_update, remote=False)
+        # convert None values in dict to empty strings
+        def replace_none_with_empty(d):
+            for key, value in d.items():
+                if isinstance(value, dict):
+                    replace_none_with_empty(value)
+                elif value is None or value == "None":
+                    d[key] = ""
+            return d
+
+        airflow_dagrun_operator_details_text = replace_none_with_empty(
+            airflow_dagrun_operator_details_text
+        )
+
+        # update job object with operator's state as description
+        job_update = schemas.JobUpdate(
+            **{
+                "job_id": db_job.id,
+                "description": f"{airflow_dagrun_operator_details_text}",
+            }
+        )
+        update_job(db, job_update, remote=False)
 
 
 global_service_jobs = {}

@@ -694,7 +694,7 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
                     **{
                         "job_id": db_job.id,
                         "status": "abort",
-                        "description": "The job was aborted by the user!",
+                        # "description": "The job was aborted by the user!",
                     }
                 )
                 # put_job(job, db)  # would be easier but doesn't work, so let's do it manually

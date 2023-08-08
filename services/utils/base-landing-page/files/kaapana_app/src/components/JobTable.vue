@@ -280,10 +280,20 @@
         }
       },
       formatJson(jsonString) {
+        // translate to valid json string
         const validjsonString = jsonString.replace(/'/g, '"');
+        
         try {
           const jsonObject = JSON.parse(validjsonString);
-          const formattedJson = JSON.stringify(jsonObject, null, 2)
+
+          // sort by start_date
+          const sortedEntries = Object.entries(jsonObject).sort((a, b) => {
+            return new Date(a[1].start_date).getTime() - new Date(b[1].start_date).getTime();
+          });
+          const sortedData = Object.fromEntries(sortedEntries);
+
+          // reformat to json with linebreaks
+          const formattedJson = JSON.stringify(sortedData, null, 2)
             .replace(/:/g, ': ')
             .replace(/,/g, ',\n')
             .replace(/{/g, '{\n')

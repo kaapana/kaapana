@@ -124,6 +124,7 @@ def get_dagrun_tasks(dag_id, run_id):
             "state": ti.state,
             "execution_date": str(ti.execution_date),
             "duration": str(ti.duration),
+            "start_date": str(ti.start_date),
         }
 
     return ti_dict

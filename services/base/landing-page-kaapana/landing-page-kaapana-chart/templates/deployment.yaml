@@ -82,7 +82,7 @@ spec:
         resources:
 {{- if .Values.global.dev_files }}
           requests:
-            memory: 10Gi
+            memory: 1Gi
           limits:
             memory: 10Gi
  {{- else }}

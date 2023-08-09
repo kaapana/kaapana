@@ -1,8 +1,0 @@
----
-global:
-  dev_files: false
-  dynamicVolumes:
-  - name: backend
-    host_path: /postgres-backend
-  - name: alembic
-    host_path: /alembic

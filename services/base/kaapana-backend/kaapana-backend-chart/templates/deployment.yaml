@@ -100,7 +100,7 @@ spec:
           limits:
             memory: "5Gi"
           requests:
-            memory: "4Gi"
+            memory: "1Gi"
         volumeMounts:
 {{- if .Values.global.dev_files }}
         - name: kaapana-dev-files

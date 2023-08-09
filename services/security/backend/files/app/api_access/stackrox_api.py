@@ -539,9 +539,7 @@ class StackRoxAPIWrapper:
 
         result.raise_for_status()
 
-        logger.debug(
-            f"result from '/v1/dauthProviders': {result} - {trimContent(result.content)}"
-        )
+        logger.debug(f"result from '/v1/authProviders': {result} - {result.content}")
 
         available_auth_providers = result.json()["authProviders"]
 
@@ -559,7 +557,6 @@ class StackRoxAPIWrapper:
     @function_logger_factory(logger)
     def post_oidc_auth_provider(self, ui_url: str):
         parsed_url = urlparse(ui_url)
-
         data = {
             "id": "",
             "name": "Kaapana",
@@ -571,11 +568,10 @@ class StackRoxAPIWrapper:
                 "client_id": "kaapana",
                 "issuer": f"https+insecure://{parsed_url.hostname}/auth/realms/kaapana",
             },
-            "uiEndpoint": ui_url,
+            "uiEndpoint": ui_url.strip("https://"),
             "enabled": True,
             "traits": {"mutabilityMode": "ALLOW_MUTATE"},
         }
-
         result = httpx.post(
             f"{self.__api_endpoint}/v1/authProviders",
             verify=False,
@@ -584,12 +580,45 @@ class StackRoxAPIWrapper:
             },
             json=data,
         )
-
         result.raise_for_status()
-
         logger.debug(
-            f"result from '/v1/dauthProviders': {result} - {trimContent(result.content)}"
+            f"result from '/v1/authProviders': {result} - {trimContent(result.content)}"
         )
+
+        ### Set rule to give users in \all_data group Admin rights in Stackrox
+        logger.debug(f"Set rule for auth Provider")
+        resultJson = result.json()
+        authProviderId = resultJson.get("id", None)
+        data = {
+            "previous_groups": [],
+            "required_groups": [
+                {
+                    "roleName": "Admin",
+                    "props": {
+                        "authProviderId": authProviderId,
+                        "key": "groups",
+                        "value": "/all_data",
+                        "id": "",
+                    },
+                },
+                {
+                    "props": {"authProviderId": authProviderId},
+                    "roleName": "None",
+                },
+            ],
+        }
+        result = httpx.post(
+            f"{self.__api_endpoint}/v1/groupsbatch",
+            verify=False,
+            headers={
+                "Authorization": self.__stackrox_authentication.get_bearer_token()
+            },
+            json=data,
+        )
+        logger.debug(
+            f"result from '/v1/groupsbatch': {result} - {trimContent(result.content)}"
+        )
+        result.raise_for_status()
 
     @retry_on_unauthorized
     @function_logger_factory(logger)

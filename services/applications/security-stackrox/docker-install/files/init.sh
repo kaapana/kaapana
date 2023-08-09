@@ -1,6 +1,5 @@
 #!/bin/bash
 
-HTTP_PROXY="http://www-int2.dkfz-heidelberg.de:80"
 ADMIN_USER=`cat /stackrox_api_secret/username`
 ADMIN_PASSWORD=`cat /stackrox_api_secret/password`
 CLUSTER_NAME="stackrox-secured-cluster"

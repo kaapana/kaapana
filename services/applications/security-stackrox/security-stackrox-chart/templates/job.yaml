@@ -15,6 +15,9 @@ spec:
       - name: security-stackrox
         image: "{{ .Values.global.registry_url }}/security-stackrox-install:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env:
+          - name: HTTP_PROXY
+            value: {{ .Values.global.http_proxy }}
         resources:
           limits:
             memory: "1Gi"

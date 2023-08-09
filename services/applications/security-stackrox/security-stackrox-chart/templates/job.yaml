@@ -11,6 +11,13 @@ spec:
     metadata:
       name: security-stackrox
     spec:
+      initContainers:
+      - name: security-stackrox-init
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+        command: ["sh", "-c", "chmod -R 777 /stackrox"]
+        volumeMounts:
+        - mountPath: /stackrox
+          name: security-stackrox-volume
       containers:
       - name: security-stackrox
         image: "{{ .Values.global.registry_url }}/security-stackrox-install:{{ .Values.global.kaapana_build_version  }}"
@@ -43,3 +50,6 @@ spec:
       - name: api-credentials-secret
         secret:
           secretName: stackrox-api-credentials
+      - name: security-stackrox-volume
+        persistentVolumeClaim:
+          claimName: security-stackrox-volume-claim

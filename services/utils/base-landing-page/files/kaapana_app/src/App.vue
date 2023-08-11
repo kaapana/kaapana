@@ -88,16 +88,6 @@
               <v-list-item-action></v-list-item-action>
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
-            <template v-if="section.label.toLowerCase() === 'monitoring'">
-              <v-list-item
-                v-for="provider of securityProviders"
-                :key="provider.id"
-                :to="'/security/' + provider.id"
-              >
-                <v-list-item-action></v-list-item-action>
-                <v-list-item-title v-text="provider.name"></v-list-item-title>
-              </v-list-item>
-            </template>
           </v-list-group>
           <v-list-item :to="'/extensions'" v-if="isAuthenticated">
             <v-list-item-action>
@@ -205,7 +195,9 @@
               </template>
               <v-list>
                 <v-list-item
-                  v-for="(subSection, subSectionKey) in section.subSections"
+                  v-for="(
+                    subSection, subSectionKey
+                  ) in section.subSections"
                   :key="subSection.id"
                   :value="subSection.id"
                   :to="{
@@ -216,7 +208,9 @@
                     },
                   }"
                 >
-                  <v-list-item-title>{{ subSection.label }}</v-list-item-title>
+                  <v-list-item-title>{{
+                    subSection.label
+                  }}</v-list-item-title>
                 </v-list-item>
               </v-list>
             </v-menu>
@@ -243,15 +237,9 @@ import { LOGIN, LOGOUT, CHECK_AUTH } from "@/store/actions.type";
 import {
   CHECK_AVAILABLE_WEBSITES,
   LOAD_COMMON_DATA,
-  CHECK_SECURITY_PROVIDERS,
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
 import { settings } from "@/static/defaultUIConfig";
-import {
-  DARK_MODE_ACTIVE,
-  DARK_MODE_NOT_ACTIVE,
-  QUERY_DARK_MODE,
-} from "./store/messages.type";
 
 export default Vue.extend({
   name: "App",
@@ -268,13 +256,10 @@ export default Vue.extend({
       "externalWebpages",
       "workflowsList",
       "commonData",
-      "securityProviders",
     ]),
     workflowNavigation() {
-      let routerPath = ["/", "/extensions"];
-      return (
-        !this.$route.path.startsWith("/web/") && !routerPath.includes(this.$route.path)
-      );
+      let routerPath = ["/", "/extensions"]
+      return !this.$route.path.startsWith("/web/") && !routerPath.includes(this.$route.path);
     },
     advancedNavigation() {
       return this.$route.path.startsWith("/web/");
@@ -285,43 +270,26 @@ export default Vue.extend({
       this.settings["darkMode"] = v;
       localStorage["settings"] = JSON.stringify(this.settings);
       this.$vuetify.theme.dark = v;
-      sendModeToIFrame(v);
     },
     changeNavigation(v: boolean) {
       this.settings["navigationMode"] = v;
       localStorage["settings"] = JSON.stringify(this.settings);
     },
     login() {
-      this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "home" }));
+      this.$store
+        .dispatch(LOGIN)
+        .then(() => this.$router.push({ name: "home" }));
     },
     logout() {
       this.$store.dispatch(LOGOUT);
-    },
-    receiveMessage(event: MessageEvent) {
-      console.log(event);
-
-      // only process our own messages
-      if (event.origin !== window.location.origin || !("message" in event.data)) {
-        return;
-      }
-      if (event.data.message === QUERY_DARK_MODE) {
-        sendModeToIFrame(this.settings["darkMode"]);
-      }
     },
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
     this.$store.dispatch(LOAD_COMMON_DATA);
-    this.$store.dispatch(CHECK_SECURITY_PROVIDERS);
     if (!localStorage["settings"]) {
       localStorage["settings"] = JSON.stringify(settings);
     }
-  },
-  created() {
-    window.addEventListener("message", this.receiveMessage);
-  },
-  beforeDestroy() {
-    window.removeEventListener("message", this.receiveMessage);
   },
   mounted() {
     this.settings = JSON.parse(localStorage["settings"]);
@@ -355,18 +323,6 @@ export default Vue.extend({
       });
   },
 });
-
-const sendModeToIFrame = (darkMode: boolean) => {
-  const iframe_element = window.document.querySelector("iframe");
-  if (!iframe_element) {
-    return;
-  }
-  if (darkMode) {
-    iframe_element.contentWindow?.postMessage({ message: DARK_MODE_ACTIVE }, "*");
-  } else {
-    iframe_element.contentWindow?.postMessage({ message: DARK_MODE_NOT_ACTIVE }, "*");
-  }
-};
 </script>
 
 <style lang="scss">
@@ -401,15 +357,18 @@ const sendModeToIFrame = (darkMode: boolean) => {
 .v-item-group.v-bottom-navigation {
   border-bottom-width: 1px;
   border-bottom-style: solid;
-  border-bottom-color: rgba(0, 0, 0, 0.12);
-  -moz-box-shadow: none !important;
-  -webkit-box-shadow: none !important;
-  box-shadow: none !important;
+  border-bottom-color: rgba(0,0,0,.12);
+  -moz-box-shadow: none!important;
+  -webkit-box-shadow: none!important;
+  box-shadow: none!important;
+  
 }
 
-@media (min-width: 2100px) {
+@media (min-width: 2100px)
+{
   .container--fluid {
-    max-width: 2100px !important;
+    max-width: 2100px!important;
   }
 }
+
 </style>

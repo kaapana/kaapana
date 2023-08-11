@@ -1,6 +1,13 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
+  pull_policy_pods: "IfNotPresent"
+  dynamicVolumes:
+  - name: security-wazuh
+    host_path: /security/wazuh
+    storage: 4Gi
+  - name: security-wazuh-api
+    host_path: /security/api_credentials
+    storage: 10Mi
 
 ingress_path: "security-wazuh"
 service_name: "security-wazuh-service"

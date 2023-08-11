@@ -1,3 +1,10 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
+  pull_policy_pods: "IfNotPresent"
+  dynamicVolumes:
+  - name: security-pages
+    host_path: /security/dashboard
+    storage: 25Mi
+  - name: security-pages-api
+    host_path: /security/api_credentials
+    storage: 10Mi

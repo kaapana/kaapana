@@ -1,5 +1,12 @@
 ---
 global:
-    pull_policy_pods: "IfNotPresent"
+  pull_policy_pods: "IfNotPresent"
+  dynamicVolumes:
+  - name: security-stackrox-api
+    host_path: /security/api_credentials
+    storage: 10Mi
+  - name: security-stackrox
+    host_path: /security/stackrox
+    storage: 1Mi
 
 service_name: "security-stackrox-service"

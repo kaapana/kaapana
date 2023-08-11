@@ -46,10 +46,10 @@ spec:
       volumes:
       - name: security-stackrox-api-volume
         persistentVolumeClaim:
-          claimName: security-stackrox-api-persistent-volume-claim
+          claimName: security-stackrox-api-pv-claim ##-persistent-volume-claim
       - name: api-credentials-secret
         secret:
           secretName: stackrox-api-credentials
       - name: security-stackrox-volume
         persistentVolumeClaim:
-          claimName: security-stackrox-volume-claim
+          claimName: security-stackrox-pv-claim ##volume-claim

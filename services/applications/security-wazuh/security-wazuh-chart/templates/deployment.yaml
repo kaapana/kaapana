@@ -216,10 +216,10 @@ spec:
       volumes:
         - name: security-wazuh-volume
           persistentVolumeClaim:
-            claimName: security-wazuh-persistent-volume-claim
+            claimName: security-wazuh-pv-claim
         - name: security-wazuh-api-volume
           persistentVolumeClaim:
-            claimName: security-wazuh-api-persistent-volume-claim
+            claimName: security-wazuh-api-pv-claim
         - name: api-credentials-secret
           secret:
             secretName: wazuh-api-credentials

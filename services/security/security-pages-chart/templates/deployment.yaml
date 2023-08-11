@@ -43,9 +43,9 @@ spec:
       volumes:
       - name: security-pages-persistence
         persistentVolumeClaim:
-          claimName: security-pages-persistence-volume-claim
+          claimName: security-pages-pv-claim
       - name: security-pages-api-credentials
         persistentVolumeClaim:
-          claimName: security-pages-api-persistent-volume-claim
+          claimName: security-pages-api-pv-claim
       imagePullSecrets:
       - name: registry-secret

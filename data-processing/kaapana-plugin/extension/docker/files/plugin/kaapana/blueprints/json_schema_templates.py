@@ -1,8 +1,6 @@
 import functools
 from pathlib import Path
 
-from kaapana.operators.HelperMinio import HelperMinio
-
 
 def properties_filter(func):
     @functools.wraps(func)
@@ -70,6 +68,8 @@ def schema_minio_form(
     if select_options not in ["both", "files", "folders"]:
         raise Exception("select_options has to be either both, files or folders")
     try:
+        from kaapana.operators.HelperMinio import HelperMinio
+
         objects = HelperMinio.list_objects(
             HelperMinio.minioClient,
             "uploads",

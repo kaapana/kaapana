@@ -3,6 +3,28 @@
 Changelog
 #########
 
+
+.. _release-0.2.3:
+
+-------------------------
+
+********************
+Release Notes v0.2.3
+********************
+
+August 15, 2023
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fix of circular import in Airflow
+* Fixes in charts_helper.py
+* Fixes in offline installation of microk8s
+* Fix in deploy_platform.sh script
+* Fix in gallery view
+
 .. _release-0.2.2:
 
 -------------------------

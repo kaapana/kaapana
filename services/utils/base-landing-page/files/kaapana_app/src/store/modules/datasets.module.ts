@@ -2,7 +2,7 @@ const defaults = {
   activeTags: [],
   multiSelectKeyPressed: false,
   selectedItems: [],
-  detailViewItem: null
+  detailViewItem: null,
 };
 
 const state = Object.assign({}, defaults);
@@ -31,13 +31,13 @@ const mutations = {
 
 const actions = {
   resetDetailViewItem(context: any) {
-    context.commit('setDetailViewItem', null)
-  }
-}
+    context.commit("setDetailViewItem", null);
+  },
+};
 
 export default {
   state,
-   actions,
+  actions,
   mutations,
   getters,
 };

@@ -140,13 +140,8 @@ export default {
       let request_body = [];
 
       const activeTags = this.$store.getters.activeTags;
-
-      if (activeTags.length === 0) {
-        // this.$notify({
-        //   type: 'hint',
-        //   title: 'No label selected',
-        //   text: 'There was no label selected. First select a label and then click on the respective Item to assign it.',
-        // })
+      if (activeTags.length === 0 || activeTags[0] === undefined) {
+        // no tags selected => do nothing
         return;
       }
 

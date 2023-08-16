@@ -1,7 +1,7 @@
 <template>
   <div>
-    <button @click="accept">Accept</button>
-    <button @click="reject">Reject</button>
+    <v-btn @click="accept">Accept</v-btn>
+    <v-btn @click="reject">Reject</v-btn>
   </div>
 </template>
 

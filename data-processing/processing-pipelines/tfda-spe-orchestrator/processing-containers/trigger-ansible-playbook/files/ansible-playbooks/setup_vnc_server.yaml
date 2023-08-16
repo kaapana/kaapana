@@ -1,0 +1,77 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    - target: "{{ target_host }}"
+  tasks:
+    - name: Fail if Target IP is empty or undefined
+      fail:
+        msg: "Target IP is empty or undefined"
+      when: target is not defined or target | length == 0
+    - add_host:
+        name: "{{ target }}"
+        groups: os_server
+
+- name: Setup VNC server on isolated execution environment
+  hosts: os_server
+  strategy: free
+  gather_facts: yes
+  remote_user: "{{ remote_username }}"
+  vars:
+    ansible_ssh_private_key_file: "{{ ssh_key_operator_path }}/{{ ssh_key_name }}"
+    vm_results_dir: "{{ ansible_env.HOME }}/results"
+  environment:
+    PATH: '{{ ansible_env.HOME }}/.local/bin:{{ ansible_env.PATH }}'
+
+  tasks:
+    - name: Check if all required variables are passed using --extra-vars
+      fail:
+        msg: "Variable {{ item }} not defined"
+      when: item is not defined
+      with_items:
+        - "{{ ssh_key_name }}"
+    
+    - name: Install TigerVNC server and XFCE desktop environment
+      apt:
+        name:
+          - xfce4
+          - xfce4-goodies
+          - tigervnc-standalone-server
+          - tigervnc-common 
+          - tigervnc-xorg-extension
+        state: present
+
+    - name: Configure VNC server
+      template:
+        src: vncserver@.service.j2
+        dest: /etc/systemd/system/vncserver@.service
+      notify: Start TigerVNC server
+
+    - name: Set VNC password for user
+      shell: |
+        mkdir -p /home/{{ ansible_user }}/.vnc
+        echo "{{ vnc_password }}" | vncpasswd -f > {{ ansible_env.HOME }}/.vnc/passwd
+        chmod 600 /home/{{ ansible_user }}/.vnc/passwd
+      vars:
+        vnc_password: your_vnc_password
+
+    - name: Edit xstartup configuration file
+      blockinfile:
+        path: /home/{{ ansible_user }}/.vnc/xstartup
+        block: |
+          #!/bin/sh
+          # Start up the standard system desktop
+          unset SESSION_MANAGER
+          unset DBUS_SESSION_BUS_ADDRESS
+          /usr/bin/startxfce4
+          [ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup
+          [ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources
+          x-window-manager &
+      notify: Start TigerVNC server
+
+  handlers:
+    - name: Start TigerVNC server
+      systemd:
+        name: vncserver@:1
+        state: started
+        enabled: yes

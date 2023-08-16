@@ -4,6 +4,7 @@
       credits="false"
       :label-idle='labelIdle'
       label-tap-to-undo="Remove from list"
+      :labelFileProcessingComplete='labelFileProcessingComplete'
       :accepted-file-types='acceptedFileTypes'
     )
 </template>
@@ -19,6 +20,7 @@ export default {
   name: 'upload',
   props: {
     labelIdle: String,
+    labelFileProcessingComplete: String,
     acceptedFileTypes: Array,
     onProcessFileStart: Function,
     onProcessFile: Function,

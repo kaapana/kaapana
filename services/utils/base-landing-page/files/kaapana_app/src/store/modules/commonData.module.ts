@@ -34,6 +34,7 @@ const getters = {
       ["Workflow List", "mdi-clipboard-text-outline", "/workflows"],
       ["Workflow Results", "mdi-chart-bar-stacked", "/results-browser"],
       ["Instance Overview", "mdi-vector-triangle", "/runner-instances"],
+      ["Federations", "mdi-bomb", "/instances_n_federations"],
       ["Pending Applications", "mdi-timer-sand", "/pending-applications"],
     ]
   }

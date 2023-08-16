@@ -3,6 +3,8 @@ import os
 import requests
 import logging
 import functools
+import string
+import random
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from requests_cache import CachedSession
@@ -285,3 +287,10 @@ def raise_kaapana_connection_error(r):
         raise HTTPException(
             f"Something was not okay with your request code {r}: {r.text}!"
         )
+
+
+def random_uuid(length: int = 6):
+    # generate random and unique UUID
+    characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
+    uuid = "".join(random.choices(characters, k=length))
+    return uuid

@@ -45,6 +45,51 @@ class Dataset(Base):
     kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
 
 
+# class KaapanaInstance(Base):
+#     __tablename__ = "kaapana_instance"
+#     id = Column(Integer, primary_key=True)
+#     instance_name = Column(String(64))
+#     token = Column(String(100))
+#     remote = Column(Boolean(), index=True)
+#     protocol = Column(String(64), index=True)
+#     host = Column(String(64), index=True)
+#     port = Column(Integer(), index=True)
+#     ssl_check = Column(Boolean(), index=True)
+#     fernet_key = Column(String(100))
+#     encryption_key = Column(String(100), default="")
+#     allowed_dags = Column(mutable_json_type(dbtype=JSONB, nested=True), default={})
+#     allowed_datasets = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
+#     time_created = Column(DateTime(timezone=True))
+#     time_updated = Column(DateTime(timezone=True))
+#     automatic_update = Column(Boolean(), default=False, index=True)
+#     automatic_workflow_execution = Column(Boolean(), default=False, index=True)
+
+#     # one-to-many relationships
+#     workflows = relationship(
+#         "Workflow", back_populates="kaapana_instance", cascade="all, delete"
+#     )
+#     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
+#     datasets = relationship(
+#         "Dataset", back_populates="kaapana_instance", cascade="all, delete"
+#     )
+#     # many-to-one relationships
+#     workflow_in_which_involved = Column(
+#         String(64), index=True
+#     )  # save information in string instead of sqlalchemy relationship - not ideal --> change it in future!
+
+#     # #https://stackoverflow.com/questions/5033547/sqlalchemy-cascade-delete
+#     # jobs = relationship("Job", back_populates="kaapana_instance", passive_deletes=True)
+
+#     __table_args__ = (
+#         UniqueConstraint("instance_name", "remote", name="_instance_name_remote"),
+#     )
+
+#     def __repr__(self):
+#         return "<KaapanaInstance {}://{}:{}>".format(
+#             self.protocol, self.host, self.port
+#         )
+
+
 class KaapanaInstance(Base):
     __tablename__ = "kaapana_instance"
     id = Column(Integer, primary_key=True)
@@ -57,12 +102,18 @@ class KaapanaInstance(Base):
     ssl_check = Column(Boolean(), index=True)
     fernet_key = Column(String(100))
     encryption_key = Column(String(100), default="")
-    allowed_dags = Column(mutable_json_type(dbtype=JSONB, nested=True), default={})
-    allowed_datasets = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
+    allowed_dags = Column(
+        mutable_json_type(dbtype=JSONB, nested=True), default={}
+    )  # TODO: rm
+    allowed_datasets = Column(
+        mutable_json_type(dbtype=JSONB, nested=True), default=[]
+    )  # TODO: rm
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
-    automatic_update = Column(Boolean(), default=False, index=True)
-    automatic_workflow_execution = Column(Boolean(), default=False, index=True)
+    automatic_update = Column(Boolean(), default=False, index=True)  # TODO: rm
+    automatic_workflow_execution = Column(
+        Boolean(), default=False, index=True
+    )  # TODO: rm
 
     # one-to-many relationships
     workflows = relationship(
@@ -71,6 +122,11 @@ class KaapanaInstance(Base):
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
     datasets = relationship(
         "Dataset", back_populates="kaapana_instance", cascade="all, delete"
+    )
+    federated_permission_profiles = relationship(
+        "FederatedPermissionProfile",
+        back_populates="kaapana_instance",
+        cascade="all, delete",
     )
     # many-to-one relationships
     workflow_in_which_involved = Column(
@@ -146,4 +202,47 @@ class Job(Base):
             unique=True,
             postgresql_where=(external_job_id.isnot(None)),
         ),  # The condition
+    )
+
+
+class Federation(Base):
+    __tablename__ = "federation"
+    federation_id = Column(String(64), primary_key=True)
+    federation_name = Column(String(64))
+    username = Column(String(64))
+    time_created = Column(DateTime(timezone=True))
+    time_updated = Column(DateTime(timezone=True))
+    # remote per default true and only manually set to false if federation is created from local KaapanaInstance via UI
+    remote = Column(Boolean(), default=True, index=True)
+    # non-sqlalchemy one-to-one relationship
+    owner_federated_permission_profile_id = Column(String(64))
+
+    # one-to-may relationship
+    participating_federated_permission_profiles = relationship(
+        "FederatedPermissionProfile", back_populates="federation", cascade="all, delete"
+    )
+
+
+class FederatedPermissionProfile(Base):
+    __tablename__ = "federated_permission_profile"
+    federated_permission_profile_id = Column(String(64), primary_key=True)
+    role = Column(String(64))
+    federation_acception = Column(Boolean(), default=False, index=True)
+    username = Column(String(64))
+    time_created = Column(DateTime(timezone=True))
+    time_updated = Column(DateTime(timezone=True))
+    # permissions moved from KaapanaInstance to FederatedPermissionProfile
+    automatic_update = Column(Boolean(), default=False, index=True)
+    automatic_workflow_execution = Column(Boolean(), default=False, index=True)
+    allowed_dags = Column(mutable_json_type(dbtype=JSONB, nested=True), default={})
+    allowed_datasets = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
+
+    # many-to-one relationship
+    kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
+    kaapana_instance = relationship(
+        "KaapanaInstance", back_populates="federated_permission_profiles"
+    )
+    federation_id = Column(String, ForeignKey("federation.federation_id"))
+    federation = relationship(
+        "Federation", back_populates="participating_federated_permission_profiles"
     )

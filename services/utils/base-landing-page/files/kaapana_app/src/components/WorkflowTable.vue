@@ -2,7 +2,7 @@
   <v-card>
     <v-card-title>
       <v-col cols="4">
-        <p class="mx-4 my-2">Workflow List</p>
+        <p class="mx-4 my-2">Workflow Listtttttttttttttttttttt</p>
       </v-col>
       <v-col cols="4" align="right">
         <v-tooltip bottom>

@@ -63,6 +63,15 @@ const routes = [
         },
     },
     {
+        name: 'instances_n_federations',
+        path: '/instances_n_federations',
+        component: () => import('@/views/Instances_n_Federations.vue'),
+        title: 'Instances n Federations',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'results-browser',
         path: '/results-browser',
         component: () => import('@/views/ResultsBrowser.vue'),

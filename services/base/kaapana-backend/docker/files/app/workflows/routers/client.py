@@ -19,7 +19,7 @@ from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
 from app.workflows.utils import HelperMinio
-from app.workflows.utils import get_dag_list
+from app.workflows.utils import get_dag_list, random_uuid
 from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
 from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
@@ -581,9 +581,8 @@ def create_workflow(
 
     # conf_data = json_schema_data.conf_data
 
-    # generate random and unique workflow id
-    characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
-    workflow_id = "".join(random.choices(characters, k=6))
+    # create workflow_id
+    workflow_id = random_uuid(length=6)
     # append workflow_id to workflow_name
     workflow_name = json_schema_data.workflow_name + "-" + workflow_id
 
@@ -741,3 +740,69 @@ def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
 @router.delete("/workflows")
 def delete_workflows(db: Session = Depends(get_db)):
     return crud.delete_workflows(db)
+
+
+# create federation
+@router.post("/federation", response_model=schemas.Federation)
+def create_federation(
+    request: Request,
+    federation: schemas.FederationCreate,
+    db: Session = Depends(get_db),
+):
+    # get local kaapana instance
+    db_local_kaapana_instance = crud.get_kaapana_instance(db)
+    # get username and add to federation object
+    username = request.headers["x-forwarded-preferred-username"]
+    federation.username = username
+
+    print(f"CLIENT def create_federation() {federation=}")
+
+    # create db_federation
+    db_federation = crud.create_federation(db=db, federation=federation)
+
+    # create FederatedPermissionProfile for local KaapanaInstance
+    federated_permission_profile = schemas.FederatedPermissionProfileCreate(
+        **{
+            "username": db_federation.username,
+            "kaapana_instance": db_local_kaapana_instance,
+            "federation_id": db_federation.federation_id,
+        }
+    )
+    db_federated_permission_profile = crud.create_federated_permission_profile(
+        db, federated_permission_profile
+    )
+
+    print(f"CLIENT def create_federation() {db_federation.federation_id=}")
+    # if locally (from user) created federation, ...
+    if not db_federation.remote:
+        # add db_federation_permission_profile as owner of federation
+        federation = schemas.FederationUpdate(
+            **{
+                "federation_id": db_federation.federation_id,
+                "owner_federated_permission_profile_id": db_federated_permission_profile.federated_permission_profile_id,
+            }
+        )
+        db_federation = crud.update_federation(db=db, federation=federation)
+
+    print(f"CLIENT def create_federation() {db_federation=}")
+
+    return db_federation
+
+
+# get federation
+@router.get("/federation", response_model=schemas.Federation)
+def get_federation(
+    federation_id: str = None,
+    db: Session = Depends(get_db),
+):
+    return crud.get_federation(db, federation_id)
+
+
+# get federations
+@router.get("/federations", response_model=List[schemas.Federation])
+def get_federations(
+    request: Request,
+    limit: int = None,
+    db: Session = Depends(get_db),
+):
+    return crud.get_federations(db, limit=limit)

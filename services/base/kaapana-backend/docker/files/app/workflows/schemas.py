@@ -310,3 +310,60 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                 workflow_job_states.append(db_job.status)
         values["workflow_jobs"] = workflow_job_states
         return values
+
+
+class FederationBase(BaseModel):
+    federation_id: str = None
+
+
+class FederationCreate(FederationBase):
+    federation_name: str = None
+    remote: bool = True
+    username: str = None
+
+
+class Federation(FederationBase):
+    federation_name: str = None
+    username: str = None
+    remote: bool = True
+    owner_federated_permission_profile_id: str = None
+    participating_federated_permission_profiles: List = []
+
+    class Config:  # makes Pydantic model compatible with sqlalchemy ORMs
+        orm_mode = True
+
+
+class FederationUpdate(FederationBase):
+    federation_name: str = None
+    owner_federated_permission_profile_id: str = None
+
+
+class FederatedPermissionProfileBase(BaseModel):
+    federated_permission_profile_id: str = None
+
+
+class FederatedPermissionProfileCreate(FederatedPermissionProfileBase):
+    kaapana_instance: KaapanaInstance = None
+    username: str = None
+    federation_id: str = None
+
+
+class FederatedPermissionProfileUpdate(FederatedPermissionProfileBase):
+    role: str = None
+    federation_acception: bool = False
+    automatic_update: bool = False
+    automatic_workflow_execution: bool = False
+    allowed_dags: List[str]
+    allowed_datasets: List[str]
+
+
+class FederatedPermissionProfile(FederatedPermissionProfileBase):
+    username: str = None
+    role: str = None
+    federation_acception: bool = False
+    automatic_update: bool = False
+    automatic_workflow_execution: bool = False
+    allowed_dags: List[str]
+    allowed_datasets: List[str]
+    kaapana_instance: KaapanaInstance = None
+    federation: Federation = None

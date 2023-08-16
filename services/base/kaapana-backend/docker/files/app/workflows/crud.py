@@ -36,6 +36,7 @@ from .utils import (
     get_dag_list,
     raise_kaapana_connection_error,
     requests_retry_session,
+    random_uuid,
 )
 
 logging.getLogger().setLevel(logging.INFO)
@@ -1733,3 +1734,119 @@ def delete_workflows(db: Session):
     db.query(models.Workflow).delete()
     db.commit()
     return {"ok": True}
+
+
+def create_federation(db: Session, federation: schemas.FederationCreate):
+    print(f"CRUD def create_federation() {federation=}")
+
+    # get current time
+    utc_timestamp = get_utc_timestamp()
+
+    # add federation to db
+    db_federation = models.Federation(
+        federation_id=random_uuid(length=6),
+        federation_name=federation.federation_name,
+        username=federation.username,
+        remote=federation.remote,
+        time_created=utc_timestamp,
+        time_updated=utc_timestamp,
+        # owner_federated_permission_profile_id = db_federated_permission_profile.id if not federation.remote else None
+    )
+
+    db.add(db_federation)
+    db.commit()
+    db.refresh(db_federation)
+
+    return db_federation
+
+
+def get_federation(db: Session, federation_id: str = None):
+    print(f"CRUD def get_federation() {federation_id=}")
+    if federation_id is not None:
+        return (
+            db.query(models.Federation).filter_by(federation_id=federation_id).first()
+        )
+    else:
+        raise HTTPException(status_code=404, detail="Federation not found")
+
+
+def get_federations(
+    db: Session,
+    limit=None,
+):
+    return (
+        db.query(models.Federation)
+        .order_by(desc(models.Federation.time_updated))
+        .limit(limit)
+        .all()
+    )
+
+
+def update_federation(db: Session, federation: schemas.FederationUpdate):
+    print(f"CRUD def update_federation() {federation=}")
+
+    # get db_federation
+    db_federation = get_federation(db, federation.federation_id)
+
+    # add owner_federated_permission_profile_id to db_federation object
+    db_federation.owner_federated_permission_profile_id = (
+        federation.owner_federated_permission_profile_id
+    )
+
+    db.commit()
+    db.refresh(db_federation)
+
+    return db_federation
+
+
+def delete_federation(db: Session, federation_id: str = None):
+    print(f"CRUD def delete_federation() {federation_id=}")
+    pass
+
+
+def create_federated_permission_profile(
+    db: Session, federated_permission_profile: schemas.FederatedPermissionProfileCreate
+):
+    print(
+        f"CRUD def create_federated_permission_profile() {federated_permission_profile=}"
+    )
+
+    # get current time
+    utc_timestamp = get_utc_timestamp()
+
+    db_federated_permission_profile = models.FederatedPermissionProfile(
+        federated_permission_profile_id=random_uuid(length=6),
+        role="node",  # by default weakest possible role
+        username=federated_permission_profile.username,
+        kaapana_id=federated_permission_profile.kaapana_instance.id,
+        federation_id=federated_permission_profile.federation_id,
+        time_created=utc_timestamp,
+        time_updated=utc_timestamp,
+    )
+
+    db.add(db_federated_permission_profile)
+    db.commit()
+    db.refresh(db_federated_permission_profile)
+
+    return db_federated_permission_profile
+
+
+def get_federated_permission_profile(
+    db: Session, federated_permission_profile_id: str = None
+):
+    print(f"CRUD def get_federation() {federated_permission_profile_id=}")
+    pass
+
+
+def update_federated_permission_profile(
+    db: Session, federated_permission_profile: schemas.FederatedPermissionProfileUpdate
+):
+    print(f"CRUD def update_federation() {federated_permission_profile=}")
+    pass
+
+
+def delete_federated_permission_profile(
+    db: Session, federated_permission_profile_id: str = None
+):
+    print(f"CRUD def delete_federation() {federated_permission_profile_id=}")
+    pass

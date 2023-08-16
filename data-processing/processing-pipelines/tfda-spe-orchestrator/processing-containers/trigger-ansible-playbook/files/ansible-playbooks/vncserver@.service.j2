@@ -1,0 +1,17 @@
+[Unit]
+Description=TigerVNC server on display %i
+After=syslog.target network.target
+
+[Service]
+Type=forking
+User={{ ansible_user }}
+Group={{ ansible_user }}
+WorkingDirectory=/home/{{ ansible_user }}
+
+PIDFile=/home/{{ ansible_user }}/.vnc/%H%i.pid
+ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1 || :
+ExecStart=/usr/bin/vncserver -localhost
+ExecStop=/usr/bin/vncserver -kill :%i
+
+[Install]
+WantedBy=multi-user.target

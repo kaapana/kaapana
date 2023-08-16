@@ -17,7 +17,6 @@
                   v-for="instance in remoteInstances" 
                   :key="instance.id"
                   cols="6"
-                  align="left"
                 >
                   <!-- former old KaapanaInstance-->
                   <KaapanaInstance 
@@ -37,8 +36,23 @@
         <v-card>
           <v-card-title>
             <p class="mx-4 my-2">Federations</p>
-            <create-federation class="mx-4"></create-federation>
+            <create-federation class="mx-4" @refreshFederationFromCreating="getFederations()"></create-federation>
           </v-card-title>
+          <v-card-text>
+            <v-container fluid="">
+              <v-row  
+                v-for="federation in federations" 
+                :key="federation.federation_id"
+              >
+                <v-col cols="12">
+                  <Federation
+                    :federation="federation"
+                  ></Federation>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-card-text>
+          <v-card-actions></v-card-actions>
         </v-card>
       </v-col>
     </v-row>
@@ -52,20 +66,24 @@
   import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
   import KaapanaInstance  from "@/components/KaapanaInstance.vue";
   import CreateFederation from "@/components/CreateFederation.vue";
+  import Federation from "@/components/Federation.vue";
 
   export default Vue.extend({
     components: {
       AddRemoteInstance,
       CreateFederation,
       KaapanaInstance,
+      Federation,
     },
     data: () => ({
       polling: 0,
       remoteInstances: {},
+      federations: {},
     }),
 
     mounted () {
       this.getKaapanaInstances();
+      this.getFederations();
       this.startExtensionsInterval()
     },
 
@@ -85,6 +103,16 @@
         kaapanaApiService.syncRemoteInstances().then(successful => {
           this.getKaapanaInstances()
         })
+      },
+      getFederations() {
+        kaapanaApiService
+          .federatedClientApiGet("/federations")
+          .then((response) => {
+            this.federations = response.data;
+          })
+          .catch((err) => {
+            console.log(err);
+          });
       },
       clearExtensionsInterval() {
         window.clearInterval(this.polling);

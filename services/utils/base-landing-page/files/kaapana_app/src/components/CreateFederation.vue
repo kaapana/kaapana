@@ -68,6 +68,7 @@ export default {
           .federatedClientApiPost("/federation", this.federationPost)
           .then((response) => {
             this.federationDialog = false
+            this.$emit('refreshFederationFromCreating')
             this.resetForm()
           })
           .catch((err) => {

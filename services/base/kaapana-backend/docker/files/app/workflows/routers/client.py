@@ -779,7 +779,7 @@ def create_federation(
         federation = schemas.FederationUpdate(
             **{
                 "federation_id": db_federation.federation_id,
-                "owner_federated_permission_profile_id": db_federated_permission_profile.federated_permission_profile_id,
+                "owner_federated_permission_profile": [db_federated_permission_profile],
             }
         )
         db_federation = crud.update_federation(db=db, federation=federation)
@@ -806,3 +806,33 @@ def get_federations(
     db: Session = Depends(get_db),
 ):
     return crud.get_federations(db, limit=limit)
+
+
+# delete federation
+@router.delete("/federation")
+def delete_federation(federation_id: str, db: Session = Depends(get_db)):
+    print(f"CLIENT def delete_federation() {federation_id=}")
+    return crud.delete_federation(db, federation_id)
+
+
+# get federation_permission_profile
+@router.get(
+    "/federation-permission-profile", response_model=schemas.FederatedPermissionProfile
+)
+def get_federation_permission_profile(
+    federated_permission_profile_id: str = None,
+    db: Session = Depends(get_db),
+):
+    return crud.get_federated_permission_profile(db, federated_permission_profile_id)
+
+
+# get federation_permission_profiles
+@router.get(
+    "/federation-permission-profiles",
+    response_model=List[schemas.FederatedPermissionProfile],
+)
+def get_federation_permission_profiles(
+    limit: int = None,
+    db: Session = Depends(get_db),
+):
+    return crud.get_federated_permission_profiles(db, limit=limit)

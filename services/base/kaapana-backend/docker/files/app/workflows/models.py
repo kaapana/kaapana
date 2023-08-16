@@ -214,12 +214,19 @@ class Federation(Base):
     time_updated = Column(DateTime(timezone=True))
     # remote per default true and only manually set to false if federation is created from local KaapanaInstance via UI
     remote = Column(Boolean(), default=True, index=True)
-    # non-sqlalchemy one-to-one relationship
-    owner_federated_permission_profile_id = Column(String(64))
+    # # non-sqlalchemy one-to-one relationship
+    # owner_federated_permission_profile_id = Column(String(64))
 
     # one-to-may relationship
     participating_federated_permission_profiles = relationship(
         "FederatedPermissionProfile", back_populates="federation", cascade="all, delete"
+    )
+    # one-to-one relationship
+    owner_federated_permission_profile = relationship(
+        "FederatedPermissionProfile",
+        # back_populates="owning_federation",
+        viewonly=True,
+        uselist=False,
     )
 
 
@@ -245,4 +252,10 @@ class FederatedPermissionProfile(Base):
     federation_id = Column(String, ForeignKey("federation.federation_id"))
     federation = relationship(
         "Federation", back_populates="participating_federated_permission_profiles"
+    )
+    # one-to-one relationship
+    owning_federation = relationship(
+        "Federation",
+        viewonly=True,
+        # back_populates="owner_federated_permission_profile"
     )

@@ -1750,7 +1750,6 @@ def create_federation(db: Session, federation: schemas.FederationCreate):
         remote=federation.remote,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
-        # owner_federated_permission_profile_id = db_federated_permission_profile.id if not federation.remote else None
     )
 
     db.add(db_federation)
@@ -1789,8 +1788,8 @@ def update_federation(db: Session, federation: schemas.FederationUpdate):
     db_federation = get_federation(db, federation.federation_id)
 
     # add owner_federated_permission_profile_id to db_federation object
-    db_federation.owner_federated_permission_profile_id = (
-        federation.owner_federated_permission_profile_id
+    db_federation.owner_federated_permission_profile = (
+        federation.owner_federated_permission_profile[0]
     )
 
     db.commit()
@@ -1800,8 +1799,42 @@ def update_federation(db: Session, federation: schemas.FederationUpdate):
 
 
 def delete_federation(db: Session, federation_id: str = None):
-    print(f"CRUD def delete_federation() {federation_id=}")
     pass
+
+
+def delete_federation(db: Session, federation_id: str = None):
+    print(f"CRUD def delete_federation() {federation_id=}")
+
+    # get db's db_workflow object
+    db_federation = get_federation(db, federation_id)
+
+    # delete owner and participating federation permission profiles
+    # owner:
+    owner_fed_profile = db_federation.owner_federated_permission_profile
+    print(f"CRUD def delete_federation() {owner_fed_profile=}")
+
+    # participating:
+    participating_fed_profiles = (
+        db_federation.participating_federated_permission_profiles
+    )
+    print(f"CRUD def delete_federation() {participating_fed_profiles=}")
+
+    participating_fed_profiles.append(owner_fed_profile)
+    print(f"CRUD def delete_federation() {participating_fed_profiles=}")
+
+    del_fed_profiles = list(set(participating_fed_profiles))
+    print(f"CRUD def delete_federation() {del_fed_profiles=}")
+
+    for del_fed_profile in del_fed_profiles:
+        delete_federated_permission_profile(
+            db, del_fed_profile.federated_permission_profile_id
+        )
+
+    print(f"CRUD def delete_federation() fed_profile deletion SUCCESSFUL!")
+
+    db.delete(db_federation)
+    db.commit()
+    return {"ok": True}
 
 
 def create_federated_permission_profile(
@@ -1834,8 +1867,26 @@ def create_federated_permission_profile(
 def get_federated_permission_profile(
     db: Session, federated_permission_profile_id: str = None
 ):
-    print(f"CRUD def get_federation() {federated_permission_profile_id=}")
-    pass
+    print(
+        f"CRUD def get_federated_permission_profile() {federated_permission_profile_id=}"
+    )
+    if federated_permission_profile_id is not None:
+        return (
+            db.query(models.FederatedPermissionProfile)
+            .filter_by(federated_permission_profile_id=federated_permission_profile_id)
+            .first()
+        )
+    else:
+        raise HTTPException(status_code=404, detail="Federation not found")
+
+
+def get_federated_permission_profiles(db: Session, limit=None):
+    return (
+        db.query(models.FederatedPermissionProfile)
+        .order_by(desc(models.FederatedPermissionProfile.time_updated))
+        .limit(limit)
+        .all()
+    )
 
 
 def update_federated_permission_profile(
@@ -1848,5 +1899,14 @@ def update_federated_permission_profile(
 def delete_federated_permission_profile(
     db: Session, federated_permission_profile_id: str = None
 ):
-    print(f"CRUD def delete_federation() {federated_permission_profile_id=}")
-    pass
+    print(
+        f"CRUD def delete_federated_permission_profile() {federated_permission_profile_id=}"
+    )
+
+    db_federated_permission_profile = get_federated_permission_profile(
+        db, federated_permission_profile_id
+    )
+
+    db.delete(db_federated_permission_profile)
+    db.commit()
+    return {"ok": True}

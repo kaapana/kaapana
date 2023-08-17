@@ -10,7 +10,7 @@ class WSIconvOperator(KaapanaBaseOperator):
     def __init__(
         self, dag, name=None, execution_timeout=timedelta(minutes=90), *args, **kwargs
     ) -> None:
-        name = name if name is not None else "wsi2dcm-converter"
+        name = name if name is not None else "PixelMed-converter"
 
         super().__init__(
             dag=dag,

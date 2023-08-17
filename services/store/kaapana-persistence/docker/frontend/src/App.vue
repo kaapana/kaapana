@@ -14,6 +14,7 @@
       <v-tab to="/object"
         ><v-icon icon="mdi-file-document-multiple"></v-icon>Objects</v-tab
       >
+      <v-tab to="/import"><v-icon icon="mdi-table-arrow-up"></v-icon>Import</v-tab>
       <v-tab to="/cas"><v-icon icon="mdi-database"></v-icon>CAS</v-tab>
       <v-tab to="/api"><v-icon icon="mdi-code-brackets"></v-icon>API</v-tab>
     </v-tabs>

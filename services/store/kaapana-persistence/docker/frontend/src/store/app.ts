@@ -5,6 +5,7 @@ import axios from "axios";
 export const useAppStore = defineStore("app", {
   state: () => ({
     api_base_path: `${location.origin}${import.meta.env.BASE_URL}api`,
+    importer_base_path: `${location.origin}${import.meta.env.BASE_URL}importer/`,
     schema_urns: [],
     schemas: new Map(),
   }),

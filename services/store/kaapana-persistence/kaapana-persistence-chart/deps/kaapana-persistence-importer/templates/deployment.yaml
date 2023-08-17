@@ -1,0 +1,31 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kaapana-persistence-importer-deployment
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: kaapana-persistence-importer 
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: kaapana-persistence-importer
+    spec:
+      containers:
+      - name: kaapana-persistence-importer
+        image: "{{ .Values.global.registry_url }}/kaapana-persistence-importer:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        ports:
+          - containerPort: 80
+        resources:
+          limits:
+            memory: "256Mi"
+          requests:
+            memory: "100Mi"
+      imagePullSecrets:
+        - name: registry-secret

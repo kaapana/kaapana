@@ -78,6 +78,18 @@ const routes = [
       },
     ],
   },
+  {
+    path: "/import",
+    component: () => import("@/views/Import.vue"),
+    children: [
+      {
+        path: "/import",
+        name: "Import",
+        component: () =>
+          import(/* webpackChunkName: "api" */ "@/views/Import.vue"),
+      },
+    ],
+  },
 ];
 
 const router = createRouter({

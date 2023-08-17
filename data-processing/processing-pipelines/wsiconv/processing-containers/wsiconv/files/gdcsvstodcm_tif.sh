@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # Usage: ./gdcsvstodcm_svs.sh projectdirname/filename.svs [outdir]
+echo "Copyright (c) 2001-2022, David A. Clunie DBA PixelMed Publishing. All rights reserved."
 
 infile="$1"
 outdir="$2"

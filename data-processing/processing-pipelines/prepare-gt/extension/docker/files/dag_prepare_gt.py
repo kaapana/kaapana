@@ -123,6 +123,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     batch_name="sorted",
     input_type="multi_label_seg",
     skip_empty_slices=True,
+    fail_on_no_segmentation_found=False,
 )
 
 dcmseg_send_multi = DcmSendOperator(

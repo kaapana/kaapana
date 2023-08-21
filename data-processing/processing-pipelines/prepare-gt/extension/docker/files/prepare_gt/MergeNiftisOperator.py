@@ -10,8 +10,6 @@ class MergeNiftisOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
-        mask_operator,
-        parameters="--all-features",
         log_level="INFO",
         env_vars=None,
         execution_timeout=timedelta(minutes=120),
@@ -28,7 +26,7 @@ class MergeNiftisOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             image=f"{DEFAULT_REGISTRY}/merge-niftis:{KAAPANA_BUILD_VERSION}",
-            name="radiomics",
+            name="merge-niftis",
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

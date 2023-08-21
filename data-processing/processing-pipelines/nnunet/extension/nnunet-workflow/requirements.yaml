@@ -2,4 +2,6 @@
 dependencies:
   - name: dag-installer-chart
     version: 0.0.0
+  - name: dag-prepare-gt
+    version: 0.0.0
     

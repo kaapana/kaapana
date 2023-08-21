@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-prepare-gt"
+    action: "copy"

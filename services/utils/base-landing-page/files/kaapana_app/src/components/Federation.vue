@@ -99,19 +99,24 @@
               mdi-close-circle-outline
             </v-icon>
           </template>
+          <!-- Allowed Dags -->
+          <template v-slot:item.allowed_dags="{ item }">
+            <v-chip v-for='dag in item.allowed_dags' small> {{ dag }} </v-chip>
+          </template>
+          <!-- Allowed Dags -->
+          <template v-slot:item.allowed_datasets="{ item }">
+            <v-chip v-for='dataset in item.allowed_datasets' small> {{ dataset.name }} </v-chip>
+          </template>
           <!-- Actions -->
           <template v-slot:item.actions="{ item }">
             <!-- local -> edit permissions as action -->
-            <v-tooltip v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile.federated_permission_profile_id" bottom=''>
-              <template v-slot:activator='{ on, attrs }'>
-                <v-btn v-bind="attrs" v-on="on" @click='editOwnerFederationPermissionProfile(item)' small icon>
-                  <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
-                    mdi-pencil
-                  </v-icon>
-                </v-btn>
-              </template>
-              <span> Edit Federated Permission Profile for local instance </span>
-            </v-tooltip>
+            <template v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile.federated_permission_profile_id" bottom=''>
+              <EditFederatedPermissionProfile
+                :federated_permission_profile = "item"
+                @refreshFederationFromEditing="callEmitRefreshFederationFromFederation()"
+                class="mx-4"
+              ></EditFederatedPermissionProfile>
+            </template>
             <!-- remote -> delete permission profile as action -->
             <v-tooltip v-if="!item.federated_permission_profile_id === federation.owner_federated_permission_profile.federated_permission_profile_id" bottom=''>
               <template v-slot:activator='{ on, attrs }'>
@@ -134,13 +139,15 @@
   
   import kaapanaApiService from "@/common/kaapanaApi.service";
   
-  import FederatedPermissionProfile from "@/components/FederatedPermissionProfile.vue";
+  // import FederatedPermissionProfile from "@/components/FederatedPermissionProfile.vue";
   import AddFederationPermissionProfile from "@/components/AddFederationPermissionProfile.vue";
+  import EditFederatedPermissionProfile from "@/components/EditFederatedPermissionProfile.vue";
   
   export default {
     components: {
-      FederatedPermissionProfile,
+      // FederatedPermissionProfile,
       AddFederationPermissionProfile,
+      EditFederatedPermissionProfile,
     },
 
     name: 'Federation',
@@ -187,6 +194,11 @@
       retrieveAllFedPermProfiles() {
         // compute set from owner and participating fed_perm_profiles of federation
         this.all_fed_perm_profiles = [...new Map([...this.federation.participating_federated_permission_profiles, this.federation.owner_federated_permission_profile].map(obj => [obj.id, obj])).values()];
+        console.log("this.all_fed_perm_profiles: ", this.all_fed_perm_profiles)
+      },
+      callEmitRefreshFederationFromFederation() {
+        // refresh list of Federations
+        this.$emit('refreshFederationFromFederation')
       },
 
       // API Calls
@@ -196,8 +208,9 @@
           .federatedClientApiDelete("/federation",{
             federation_id,
           }).then((response) => {
+            // call emit to refresh federations in parent component
             // positive notification
-            const message = `Successfully deleted federation ${delFederationID}`
+            const message = `Successfully deleted federation ${federation_id}`
             this.$notify({
               type: 'success',
               title: message,
@@ -206,14 +219,15 @@
           .catch((err) => {
             this.loading = false
             // negative notification
-            const message = `Error while deleting federation ${delFederationID}`
+            const message = `Error while deleting federation ${federation_id}`
             this.$notify({
               type: "error",
               title: message,
             })
             console.log(err);
           })
-      }
+          this.callEmitRefreshFederationFromFederation()
+      },
     }
   }
   </script>

@@ -313,6 +313,7 @@
       getDatasets() {
         loadDatasets().then(_datasetNames => {
           this.datasets = _datasetNames;
+          console.log("this.datasets: ", this.datasets, "type: ", typeof this.datasets)
         })
       },
       updateInstanceForm() {

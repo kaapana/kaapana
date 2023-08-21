@@ -47,6 +47,7 @@
                 <v-col cols="12">
                   <Federation
                     :federation="federation"
+                    @refreshFederationFromFederation="getFederations()"
                   ></Federation>
                 </v-col>
               </v-row>
@@ -105,6 +106,7 @@
         })
       },
       getFederations() {
+        console.log("GET FEDERATIONS!")
         kaapanaApiService
           .federatedClientApiGet("/federations")
           .then((response) => {

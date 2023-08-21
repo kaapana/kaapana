@@ -1792,6 +1792,7 @@ def update_federation(db: Session, federation: schemas.FederationUpdate):
         federation.owner_federated_permission_profile[0]
     )
 
+    db_federation.time_updated = get_utc_timestamp()
     db.commit()
     db.refresh(db_federation)
 
@@ -1892,8 +1893,80 @@ def get_federated_permission_profiles(db: Session, limit=None):
 def update_federated_permission_profile(
     db: Session, federated_permission_profile: schemas.FederatedPermissionProfileUpdate
 ):
-    print(f"CRUD def update_federation() {federated_permission_profile=}")
-    pass
+    print(
+        f"CRUD def update_federated_permission_profile() {federated_permission_profile=}"
+    )
+
+    # get db_federated_permission_profile
+    db_federated_permission_profile = get_federated_permission_profile(
+        db, federated_permission_profile.federated_permission_profile_id
+    )
+
+    # get allowed_dags in suitable dict format
+    allowed_dags = get_dag_list(
+        only_dag_names=False,
+        filter_allowed_dags=federated_permission_profile.allowed_dags,
+    )
+    allowed_dags = (
+        allowed_dags
+        if allowed_dags is not None
+        else db_federated_permission_profile.allowed_dags
+    )
+
+    # get allowed_datasets in suitable dict format
+    db_client_kaapana_instance = get_kaapana_instance(db)
+    fernet = Fernet(db_client_kaapana_instance.encryption_key)
+    allowed_datasets = []
+    for dataset_name in federated_permission_profile.allowed_datasets:
+        db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
+        if db_dataset:
+            dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
+            dataset["identifiers"] = [
+                identifier.id for identifier in db_dataset.identifiers
+            ]
+            if "identifiers" in dataset:
+                dataset["identifiers"] = [
+                    fernet.encrypt(identifier.encode()).decode()
+                    for identifier in dataset["identifiers"]
+                ]
+            allowed_datasets.append(dataset)
+
+    # update db_federated_permission_profile wie update object
+    db_federated_permission_profile.role = (
+        federated_permission_profile.role
+        if federated_permission_profile.role is not None
+        else db_federated_permission_profile.role
+    )
+    db_federated_permission_profile.federation_acception = (
+        federated_permission_profile.federation_acception
+        if federated_permission_profile.federation_acception is not None
+        else db_federated_permission_profile.federation_acception
+    )
+    db_federated_permission_profile.automatic_update = (
+        federated_permission_profile.automatic_update
+        if federated_permission_profile.automatic_update is not None
+        else db_federated_permission_profile.automatic_update
+    )
+    db_federated_permission_profile.automatic_workflow_execution = (
+        federated_permission_profile.automatic_workflow_execution
+        if federated_permission_profile.automatic_workflow_execution is not None
+        else db_federated_permission_profile.automatic_workflow_execution
+    )
+    print(
+        f"CRUD def update_federated_permission_profile() {federated_permission_profile.allowed_dags=} ; {type(federated_permission_profile.allowed_dags)=}"
+    )
+    print(
+        f"CRUD def update_federated_permission_profile() {db_federated_permission_profile.allowed_dags=} ; {type(db_federated_permission_profile.allowed_dags)=}"
+    )
+    db_federated_permission_profile.allowed_dags = allowed_dags
+    # db_federated_permission_profile.allowed_dags = federated_permission_profile.allowed_dags if federated_permission_profile.allowed_dags is not None else db_federated_permission_profile.allowed_dags
+    db_federated_permission_profile.allowed_datasets = allowed_datasets
+
+    db_federated_permission_profile.time_updated = get_utc_timestamp()
+    db.commit()
+    db.refresh(db_federated_permission_profile)
+
+    return db_federated_permission_profile
 
 
 def delete_federated_permission_profile(

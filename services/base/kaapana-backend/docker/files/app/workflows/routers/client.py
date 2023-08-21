@@ -815,6 +815,23 @@ def delete_federation(federation_id: str, db: Session = Depends(get_db)):
     return crud.delete_federation(db, federation_id)
 
 
+# create federation_permission_profile
+
+
+# put(update) federation_permission_profile
+@router.put(
+    "/federation-permission-profile", response_model=schemas.FederatedPermissionProfile
+)
+def put_federation_permission_profile(
+    federation_permission_profile: schemas.FederatedPermissionProfileUpdate,
+    db: Session = Depends(get_db),
+):
+    print(
+        f"CLIENT def put_federation_permission_profile() {federation_permission_profile=}"
+    )
+    return crud.update_federated_permission_profile(db, federation_permission_profile)
+
+
 # get federation_permission_profile
 @router.get(
     "/federation-permission-profile", response_model=schemas.FederatedPermissionProfile

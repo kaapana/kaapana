@@ -327,8 +327,8 @@ class FederatedPermissionProfileUpdate(FederatedPermissionProfileBase):
     federation_acception: bool = False
     automatic_update: bool = False
     automatic_workflow_execution: bool = False
-    allowed_dags: List[str]
-    allowed_datasets: List[str]
+    allowed_dags: list = []
+    allowed_datasets: list = []
 
 
 class FederatedPermissionProfile(FederatedPermissionProfileBase):
@@ -339,13 +339,17 @@ class FederatedPermissionProfile(FederatedPermissionProfileBase):
     federation_acception: bool = False
     automatic_update: bool = False
     automatic_workflow_execution: bool = False
-    allowed_dags: Optional[NestedMutableDict] = ...  # List[str] = [] # List[str]
-    allowed_datasets: Optional[NestedMutableDict] = ...  # List[str] = [] # List[str]
+    allowed_dags: Optional[NestedMutableDict] = ...
+    allowed_datasets: Optional[NestedMutableList] = ...
     kaapana_instance: KaapanaInstance = None
     # federation: Federation = None
 
     class Config:  # makes Pydantic model compatible with sqlalchemy ORMs
         orm_mode = True
+
+    @validator("allowed_dags")
+    def convert_allowed_dags(cls, v):
+        return sorted(v)
 
 
 class FederationBase(BaseModel):

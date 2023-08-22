@@ -116,8 +116,7 @@ def process_batch_element(batch_element_dir):
 
         merged_nifti_path = join(element_output_dir, "merged.nii.gz")
         logger.debug(f"Saving merged nifti @ {merged_nifti_path} ...")
-        merged_mask_nii = nib.Nifti1Image(merged_mask, affine, header)
-        nib.save(merged_mask_nii, merged_nifti_path)
+        nib.Nifti1Image(merged_mask, affine, header).to_filename(merged_nifti_path)
 
         processed_count += 1
         return basename(batch_element_dir), "success"

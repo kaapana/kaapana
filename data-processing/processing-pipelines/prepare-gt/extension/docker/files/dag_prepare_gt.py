@@ -118,7 +118,7 @@ merge_masks = MergeNiftisOperator(
 
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
-    input_operator=get_input,
+    input_operator=get_ref_ct_series_from_seg,
     segmentation_operator=merge_masks,
     batch_name="sorted",
     input_type="multi_label_seg",

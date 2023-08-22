@@ -62,10 +62,19 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
                     shutil.copyfile(dcm_file, output_filepath)
 
                 file_command = anon_command + str(output_filepath)
-                ret = subprocess.call([file_command], shell=True)
-                if ret != 0:
+                process = subprocess.Popen(
+                    file_command,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                stdout, stderr = process.communicate()
+
+                if process.returncode != 0:
                     print("Something went wrong with dcmodify...")
-                    raise ValueError("ERROR")
+                    raise ValueError(
+                        "ERROR: " + stderr.decode("utf-8", errors="ignore")
+                    )
 
                 if self.single_slice:
                     break

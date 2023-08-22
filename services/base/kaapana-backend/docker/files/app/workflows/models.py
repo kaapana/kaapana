@@ -214,20 +214,22 @@ class Federation(Base):
     time_updated = Column(DateTime(timezone=True))
     # remote per default true and only manually set to false if federation is created from local KaapanaInstance via UI
     remote = Column(Boolean(), default=True, index=True)
-    # # non-sqlalchemy one-to-one relationship
-    # owner_federated_permission_profile_id = Column(String(64))
+    # non-sqlalchemy one-to-one relationship
+    owner_federated_permission_profile_id = Column(String(64))
+    # # non-sqlalchemy one-to-many relationship
+    # participating_federated_permission_profile_ids = Column(String(51200), default="[]", index=True)
 
-    # one-to-may relationship
-    participating_federated_permission_profiles = relationship(
+    # one-to-many relationship
+    federated_permission_profiles = relationship(
         "FederatedPermissionProfile", back_populates="federation", cascade="all, delete"
     )
-    # one-to-one relationship
-    owner_federated_permission_profile = relationship(
-        "FederatedPermissionProfile",
-        # back_populates="owning_federation",
-        viewonly=True,
-        uselist=False,
-    )
+    # # one-to-one relationship
+    # owner_federated_permission_profile = relationship(
+    #     "FederatedPermissionProfile",
+    #     back_populates="owning_federation",
+    #     # viewonly=True,
+    #     # uselist=False,
+    # )
 
 
 class FederatedPermissionProfile(Base):
@@ -243,6 +245,10 @@ class FederatedPermissionProfile(Base):
     automatic_workflow_execution = Column(Boolean(), default=False, index=True)
     allowed_dags = Column(mutable_json_type(dbtype=JSONB, nested=True), default={})
     allowed_datasets = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
+    # # non-sqlalchemy many-to-one relationship
+    # participating_federation_id = Column(String(64))
+    # non-sqlalchemy one-to-one relationship
+    owning_federation_id = Column(String(64))
 
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
@@ -251,11 +257,12 @@ class FederatedPermissionProfile(Base):
     )
     federation_id = Column(String, ForeignKey("federation.federation_id"))
     federation = relationship(
-        "Federation", back_populates="participating_federated_permission_profiles"
+        "Federation", back_populates="federated_permission_profiles"
     )
-    # one-to-one relationship
-    owning_federation = relationship(
-        "Federation",
-        viewonly=True,
-        # back_populates="owner_federated_permission_profile"
-    )
+    # # one-to-one relationship
+    # owning_federation_id = Column(String, ForeignKey("federation.federation_id"))
+    # owning_federation = relationship(
+    #     "Federation",
+    #     # viewonly=True,
+    #     back_populates="owner_federated_permission_profile"
+    # )

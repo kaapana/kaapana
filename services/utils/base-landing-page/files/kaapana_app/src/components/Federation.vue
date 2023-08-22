@@ -27,7 +27,11 @@
         <p>Federation ID: {{ federation.federation_id }}</p>
       </v-col>
       <v-col >
-        <AddFederationPermissionProfile class="mx-4"></AddFederationPermissionProfile>
+        <AddFederationPermissionProfile 
+          :federation="federation" 
+          @refreshFederationFromAdding="callEmitRefreshFederationFromFederation()" 
+          class="mx-4"
+        ></AddFederationPermissionProfile>
       </v-col>
       <v-col >
         <v-tooltip v-if="!federation.remote" bottom=''>
@@ -49,13 +53,13 @@
       <v-row>
         <v-data-table
           :headers="federatedPermissionProfilesHeaders"
-          :items="all_fed_perm_profiles"
+          :items="federation.federated_permission_profiles"
           item-key="kaapana_instance.instance_name"
           class="elevation-1"
         >
           <!-- local or remote indicator -->
           <template v-slot:item.remote="{ item }">
-            <v-tooltip v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile.federated_permission_profile_id" bottom=''>
+            <v-tooltip v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
               <template v-slot:activator='{ on, attrs }'>
                 <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
                   | mdi-home
@@ -63,9 +67,9 @@
               </template>
               <span> Federated Permission Profile for local instance </span>
             </v-tooltip>
-            <v-tooltip v-if="!item.federated_permission_profile_id === federation.owner_federated_permission_profile.federated_permission_profile_id" bottom=''>
+            <v-tooltip v-if="item.federated_permission_profile_id !== federation.owner_federated_permission_profile_id" bottom=''>
               <template v-slot:activator='{ on, attrs }'>
-                <v-icon color="primary" dark='' v-bind='attrs' v-on='on'>
+                <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
                   | mdi-cloud-braces
                 </v-icon>
               </template>
@@ -110,7 +114,7 @@
           <!-- Actions -->
           <template v-slot:item.actions="{ item }">
             <!-- local -> edit permissions as action -->
-            <template v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile.federated_permission_profile_id" bottom=''>
+            <template v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
               <EditFederatedPermissionProfile
                 :federated_permission_profile = "item"
                 @refreshFederationFromEditing="callEmitRefreshFederationFromFederation()"
@@ -118,7 +122,7 @@
               ></EditFederatedPermissionProfile>
             </template>
             <!-- remote -> delete permission profile as action -->
-            <v-tooltip v-if="!item.federated_permission_profile_id === federation.owner_federated_permission_profile.federated_permission_profile_id" bottom=''>
+            <v-tooltip v-if="!item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
               <template v-slot:activator='{ on, attrs }'>
                 <v-btn v-bind="attrs" v-on="on" @click='deleteFederationPermissionProfile(item)' small icon>
                   <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
@@ -193,7 +197,8 @@
       },
       retrieveAllFedPermProfiles() {
         // compute set from owner and participating fed_perm_profiles of federation
-        this.all_fed_perm_profiles = [...new Map([...this.federation.participating_federated_permission_profiles, this.federation.owner_federated_permission_profile].map(obj => [obj.id, obj])).values()];
+        // this.all_fed_perm_profiles = [...new Map([...this.federation.participating_federated_permission_profiles, this.federation.owner_federated_permission_profile].map(obj => [obj.id, obj])).values()];
+        this.all_fed_perm_profiles = this.federation.federated_permission_profiles
         console.log("this.all_fed_perm_profiles: ", this.all_fed_perm_profiles)
       },
       callEmitRefreshFederationFromFederation() {
@@ -209,6 +214,7 @@
             federation_id,
           }).then((response) => {
             // call emit to refresh federations in parent component
+            this.callEmitRefreshFederationFromFederation()
             // positive notification
             const message = `Successfully deleted federation ${federation_id}`
             this.$notify({

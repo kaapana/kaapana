@@ -318,8 +318,9 @@ class FederatedPermissionProfileBase(BaseModel):
 
 class FederatedPermissionProfileCreate(FederatedPermissionProfileBase):
     kaapana_instance: KaapanaInstance = None
-    username: str = None
+    username: Optional[str] = None
     federation_id: str = None
+    owning_federation_id: Optional[str] = None
 
 
 class FederatedPermissionProfileUpdate(FederatedPermissionProfileBase):
@@ -343,13 +344,14 @@ class FederatedPermissionProfile(FederatedPermissionProfileBase):
     allowed_datasets: Optional[NestedMutableList] = ...
     kaapana_instance: KaapanaInstance = None
     # federation: Federation = None
-
-    class Config:  # makes Pydantic model compatible with sqlalchemy ORMs
-        orm_mode = True
+    owning_federation_id: Optional[str] = None
 
     @validator("allowed_dags")
     def convert_allowed_dags(cls, v):
         return sorted(v)
+
+    class Config:  # makes Pydantic model compatible with sqlalchemy ORMs
+        orm_mode = True
 
 
 class FederationBase(BaseModel):
@@ -368,8 +370,10 @@ class Federation(FederationBase):
     time_created: datetime.datetime = None
     time_updated: datetime.datetime = None
     remote: bool = True
-    owner_federated_permission_profile: FederatedPermissionProfile = None
-    participating_federated_permission_profiles: List = []
+    # owner_federated_permission_profile: FederatedPermissionProfile = None
+    owner_federated_permission_profile_id: str = None
+    # federated_permission_profiles: List = [] # of FederatedPermissionProfile
+    federated_permission_profiles: List[FederatedPermissionProfile] = []
 
     class Config:  # makes Pydantic model compatible with sqlalchemy ORMs
         orm_mode = True
@@ -377,4 +381,6 @@ class Federation(FederationBase):
 
 class FederationUpdate(FederationBase):
     federation_name: str = None
-    owner_federated_permission_profile: List = []
+    owner_federated_permission_profile_id: str = None
+    # federated_permission_profiles: List[FederatedPermissionProfile] = [] # List = [] # of FederatedPermissionProfile
+    federated_permission_profile: Optional[FederatedPermissionProfile]

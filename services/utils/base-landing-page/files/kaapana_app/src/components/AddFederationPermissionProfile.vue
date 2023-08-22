@@ -10,13 +10,13 @@
         <v-card-title><span class="text-h5">Add new instance to federation</span></v-card-title>
         <v-card-text>
           <v-select
-            v-model="federationPermProfilePost.remote_instance"
-            :items="remoteInstances"
+            v-model="selected_remote_instance_name"
+            :items="remoteInstanceNames"
           ></v-select>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn color="primary" @click.stop="submitFederationPermissionProfileForm" :disabled="federationPermProfilePost.remote_instance === ''">submit</v-btn>
+          <v-btn color="primary" @click.stop="submitFederationPermissionProfileForm" :disabled="federationPermProfilePost.kaapana_instance === ''">submit</v-btn>
           <v-btn @click="resetForm">clear</v-btn>
         </v-card-actions>
       </v-form>
@@ -33,6 +33,13 @@ export default {
   data() {
     return this.initialState();
   },
+
+  props: {
+      federation: {
+        type: Object,
+        required: true
+      },
+    },
 
   mounted () {
     // get all remote Kaapana instances
@@ -52,9 +59,14 @@ export default {
         federationPermProfileValid: false,
         federationPermProfileDialog: false,
         federationPermProfilePost: {
-          remote_instance: '',
+          // remote_instance_name: '',
+          kaapana_instance: {},
+          federation_id: '',
         },
+        selected_remote_instance_name: '',
         remoteInstances: [],
+        remoteInstanceNames: [],
+        
       }
     },
     resetForm () {
@@ -66,21 +78,28 @@ export default {
         kaapanaApiService
           .federatedClientApiPost("/get-kaapana-instances")
           .then((response) => {
-            this.remoteInstances = response.data;
+            this.remoteInstances = response.data
+            this.remoteInstanceNames = this.remoteInstances.map(object => object.instance_name);
             console.log("this.remoteInstances: ", this.remoteInstances)
           })
           .catch((err) => {
             console.log(err);
           });
       },
+    // Function to find an instance by instance_name
+    findInstanceByName(name) {
+      return instances.find(instance => instance.instance_name === name);
+    },
     submitFederationPermissionProfileForm () {
-      console.log("this.federationPermProfilePost.federation_name: ", this.federationPermProfilePost.federation_name)
-      if (this.federationPermProfilePost.federation_name) {
+      this.federationPermProfilePost.federation_id = this.federation.federation_id;
+      this.federationPermProfilePost.kaapana_instance = this.remoteInstances.find(instance => instance.instance_name === this.selected_remote_instance_name)
+      console.log("this.federationPermProfilePost.kaapana_instance: ", this.federationPermProfilePost.kaapana_instance)
+      if (this.federationPermProfilePost.kaapana_instance) {
         kaapanaApiService
-          .federatedClientApiPost("/federation", this.federationPermProfilePost)
+          .federatedClientApiPost("/federation-permission-profile", this.federationPermProfilePost)
           .then((response) => {
             this.federationPermProfileDialog = false
-            this.$emit('refreshFederationFromCreating')
+            this.$emit('refreshFederationFromAdding')
             this.resetForm()
           })
           .catch((err) => {
@@ -90,7 +109,7 @@ export default {
       else {
         this.$notify({
           type: "error",
-          title: "Please enter a federation name!",
+          title: "Please a connected remote instance!",
         });
       }
     },

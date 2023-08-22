@@ -15,7 +15,7 @@ from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
 from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError, NoResultFound
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, cast, String, JSON
 
 from urllib3.util import Timeout
@@ -1763,7 +1763,14 @@ def get_federation(db: Session, federation_id: str = None):
     print(f"CRUD def get_federation() {federation_id=}")
     if federation_id is not None:
         return (
-            db.query(models.Federation).filter_by(federation_id=federation_id).first()
+            db.query(models.Federation)
+            .options(
+                joinedload(models.Federation.federated_permission_profiles).joinedload(
+                    models.FederatedPermissionProfile.kaapana_instance
+                )
+            )
+            .filter_by(federation_id=federation_id)
+            .first()
         )
     else:
         raise HTTPException(status_code=404, detail="Federation not found")
@@ -1775,6 +1782,11 @@ def get_federations(
 ):
     return (
         db.query(models.Federation)
+        .options(
+            joinedload(models.Federation.federated_permission_profiles).joinedload(
+                models.FederatedPermissionProfile.kaapana_instance
+            )
+        )
         .order_by(desc(models.Federation.time_updated))
         .limit(limit)
         .all()
@@ -1787,10 +1799,21 @@ def update_federation(db: Session, federation: schemas.FederationUpdate):
     # get db_federation
     db_federation = get_federation(db, federation.federation_id)
 
-    # add owner_federated_permission_profile_id to db_federation object
-    db_federation.owner_federated_permission_profile = (
-        federation.owner_federated_permission_profile[0]
-    )
+    if federation.owner_federated_permission_profile_id:
+        # add owner_federated_permission_profile_id to db_federation object
+        print("CRUD def update_federation() WITH OWNER!")
+        db_federation.owner_federated_permission_profile_id = (
+            federation.owner_federated_permission_profile_id
+        )
+
+    elif federation.federated_permission_profile:
+        # add federated_permission_profile to db_federation object
+        db_federated_permission_profile = get_federated_permission_profile(
+            db, federation.federated_permission_profile.federated_permission_profile_id
+        )
+        db_federation.federated_permission_profiles.append(
+            db_federated_permission_profile
+        )
 
     db_federation.time_updated = get_utc_timestamp()
     db.commit()
@@ -1800,33 +1823,13 @@ def update_federation(db: Session, federation: schemas.FederationUpdate):
 
 
 def delete_federation(db: Session, federation_id: str = None):
-    pass
-
-
-def delete_federation(db: Session, federation_id: str = None):
     print(f"CRUD def delete_federation() {federation_id=}")
 
     # get db's db_workflow object
     db_federation = get_federation(db, federation_id)
 
-    # delete owner and participating federation permission profiles
-    # owner:
-    owner_fed_profile = db_federation.owner_federated_permission_profile
-    print(f"CRUD def delete_federation() {owner_fed_profile=}")
-
-    # participating:
-    participating_fed_profiles = (
-        db_federation.participating_federated_permission_profiles
-    )
-    print(f"CRUD def delete_federation() {participating_fed_profiles=}")
-
-    participating_fed_profiles.append(owner_fed_profile)
-    print(f"CRUD def delete_federation() {participating_fed_profiles=}")
-
-    del_fed_profiles = list(set(participating_fed_profiles))
-    print(f"CRUD def delete_federation() {del_fed_profiles=}")
-
-    for del_fed_profile in del_fed_profiles:
+    # delete federation permission profiles
+    for del_fed_profile in db_federation.federated_permission_profiles:
         delete_federated_permission_profile(
             db, del_fed_profile.federated_permission_profile_id
         )
@@ -1853,7 +1856,9 @@ def create_federated_permission_profile(
         role="node",  # by default weakest possible role
         username=federated_permission_profile.username,
         kaapana_id=federated_permission_profile.kaapana_instance.id,
+        # kaapana_instance=federated_permission_profile.kaapana_instance,
         federation_id=federated_permission_profile.federation_id,
+        owning_federation_id=federated_permission_profile.owning_federation_id,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
     )

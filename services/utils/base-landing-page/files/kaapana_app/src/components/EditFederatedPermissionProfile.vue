@@ -135,6 +135,7 @@ export default {
 
   methods: {
     initialState () {
+      console.log("EDIT this.federated_permission_profile: ", this.federated_permission_profile)
       this.federatedPermissionProfilePost.federated_permission_profile_id = this.federated_permission_profile.federated_permission_profile_id
       this.federatedPermissionProfilePost.federation_acception = this.federated_permission_profile.federation_acception
       this.federatedPermissionProfilePost.role = this.federated_permission_profile.role

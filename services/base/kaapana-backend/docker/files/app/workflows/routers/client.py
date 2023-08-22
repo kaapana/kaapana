@@ -766,25 +766,26 @@ def create_federation(
             "username": db_federation.username,
             "kaapana_instance": db_local_kaapana_instance,
             "federation_id": db_federation.federation_id,
+            "owning_federation_id": db_federation.federation_id,
         }
     )
     db_federated_permission_profile = crud.create_federated_permission_profile(
         db, federated_permission_profile
     )
 
-    print(f"CLIENT def create_federation() {db_federation.federation_id=}")
     # if locally (from user) created federation, ...
     if not db_federation.remote:
         # add db_federation_permission_profile as owner of federation
         federation = schemas.FederationUpdate(
             **{
                 "federation_id": db_federation.federation_id,
-                "owner_federated_permission_profile": [db_federated_permission_profile],
+                "owner_federated_permission_profile_id": db_federated_permission_profile.federated_permission_profile_id,
             }
         )
         db_federation = crud.update_federation(db=db, federation=federation)
 
-    print(f"CLIENT def create_federation() {db_federation=}")
+    # print(f"CLIENT def create_federation() {db_federation.owning_federation_id=}")
+    # print(f"CLIENT def create_federation() {db_federation.kaapana_instance.instance_name=}")
 
     return db_federation
 
@@ -816,6 +817,38 @@ def delete_federation(federation_id: str, db: Session = Depends(get_db)):
 
 
 # create federation_permission_profile
+@router.post(
+    "/federation-permission-profile", response_model=schemas.FederatedPermissionProfile
+)
+def create_federation_permission_profile(
+    federation_permission_profile: schemas.FederatedPermissionProfileCreate,
+    db: Session = Depends(get_db),
+):
+    print(
+        f"CLIENT def create_federation_permission_profile() {federation_permission_profile=}"
+    )
+    # create
+    db_federated_permission_profile = crud.create_federated_permission_profile(
+        db, federation_permission_profile
+    )
+
+    # add to federation
+    if federation_permission_profile.federation_id:
+        # get federation
+        db_federation = crud.get_federation(
+            db, federation_permission_profile.federation_id
+        )
+        # update federation
+        federation = schemas.FederationUpdate(
+            **{
+                "federation_id": db_federation.federation_id,
+                # "federated_permission_profiles": [db_federated_permission_profile.federated_permission_profile_id],
+                "federated_permission_profile": db_federated_permission_profile,
+            }
+        )
+        db_federation = crud.update_federation(db=db, federation=federation)
+
+    return db_federated_permission_profile
 
 
 # put(update) federation_permission_profile

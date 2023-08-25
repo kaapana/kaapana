@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+version: "0.0.0"
+appVersion: "0.1.0"
+name: nvflare-overseer-chart
+description: Kaapana extension for nvflare-overseer
+keywords:
+- kaapanaapplication
+- kaapanaexperimental

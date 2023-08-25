@@ -1,0 +1,8 @@
+---
+global:
+  ingress_path: "nvflare-jupyter"
+  complete_image: "{{ .Values.global.registry_url }}/nvflare-service:{{ .Values.global.kaapana_build_version  }}"
+  dynamicVolumes:
+  - name: nvflare-jupyter
+    mount_path: /kaapana/mounted/nvflare/workspace
+    host_path: /nvflare/workspace

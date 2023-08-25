@@ -28,6 +28,14 @@ dependencies:
     version: 0.0.0
   - name: nnunet-federated-workflow
     version: 0.0.0
+  - name: nvflare-server-chart
+    version: 0.0.0
+  - name: nvflare-overseer-chart
+    version: 0.0.0
+  - name: nvflare-site-1-chart
+    version: 0.0.0
+  - name: nvflare-jupyter-chart
+    version: 0.0.0
   - name: radiomics-workflow
     version: 0.0.0
   - name: radiomics-federated-workflow

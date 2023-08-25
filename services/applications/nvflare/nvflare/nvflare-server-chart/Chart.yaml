@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+version: "0.0.0"
+appVersion: "0.1.0"
+name: nvflare-server-chart
+description: Kaapana extension for nvflare-server
+keywords:
+- kaapanaapplication
+- kaapanaexperimental

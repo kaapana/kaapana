@@ -1,0 +1,37 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nvflare-overseer
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: nvflare-overseer
+  template:
+    metadata:
+      labels:
+        app-name: nvflare-overseer
+    spec:
+      containers:
+      - name: nvflare-overseer-container
+        image: "{{  .Values.global.registry_url }}/nvflare-service:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        command:
+          - /kaapana/mounted/nvflare/workspace/nvflare-overseer-service/startup/start.sh
+        resources:
+          requests:
+            memory: 20Mi
+          limits:
+            memory: 5000Mi
+        ports:
+        - name: nv-ov-https
+          containerPort: 8443
+        volumeMounts:
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
+      volumes:
+{{ include "dynamicVolumes" $ | indent 6 }}
+      imagePullSecrets:
+      - name: registry-secret
+---

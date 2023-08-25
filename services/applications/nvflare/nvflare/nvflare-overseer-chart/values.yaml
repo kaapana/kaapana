@@ -1,0 +1,6 @@
+---
+global:
+  dynamicVolumes:
+  - name: nvflare-overseer-service
+    mount_path: /kaapana/mounted/nvflare/workspace/nvflare-overseer-service
+    host_path: /nvflare/workspace/nvflare-overseer-service

@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+version: "0.0.0"
+appVersion: "0.1.0"
+name: nvflare-site-1-chart
+description: Kaapana extension for nvflare-site-1
+keywords:
+- kaapanaapplication
+- kaapanaexperimental

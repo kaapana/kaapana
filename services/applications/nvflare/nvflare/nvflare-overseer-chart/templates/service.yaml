@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nvflare-overseer-service
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    app-name: nvflare-overseer
+  ports:
+    - port: 8443
+      targetPort: 8443
+      name: nv-ov-https
+      protocol: TCP
+  type: ClusterIP
+---

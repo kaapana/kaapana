@@ -1,0 +1,9 @@
+---
+global:
+  dynamicVolumes:
+  - name: nvflare-server-service
+    mount_path: /kaapana/mounted/nvflare/workspace/nvflare-server-service
+    host_path: /nvflare/workspace/nvflare-server-service
+  - name: persist
+    mount_path: /kaapana/mounted/nvflare/persist
+    host_path: /nvflare/persist

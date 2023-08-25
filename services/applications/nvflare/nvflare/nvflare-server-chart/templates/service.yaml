@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nvflare-server-service
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    app-name: nvflare-server
+  ports:
+    - port: 8002
+      targetPort: 8002
+      nodePort: 8002
+      name: nv-fl-http
+      protocol: TCP
+    - port: 8003
+      targetPort: 8003
+      nodePort: 8003
+      name: nv-admin-http
+      protocol: TCP
+  type: NodePort
+---

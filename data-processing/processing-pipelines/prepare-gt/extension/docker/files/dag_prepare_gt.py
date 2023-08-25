@@ -15,23 +15,40 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 
 log = LoggingMixin().log
-seg_filter = ""
 ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
             "seg_filter": {
-                "title": "Seg",
-                "default": seg_filter,
-                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
-                "type": "string",
+                "title": "Segmentation Mask Filter",
+                "default": "",
+                "required": True,
+                "description": "Add labels to be kept - this list is case-insensitive!",
+                "type": "array",
+                "items": {
+                    "type": "string",
+                },
                 "readOnly": False,
             },
             "merge_segs_config": {
-                "title": "Mask merge config",
+                "title": "Configure Label Merge",
                 "default": "",
-                "description": "List labels to be merged ('label_to_merge1,label_to_merge2,...->label_to_be_merged_to'): eg 'Lung-Right,Lung-Left->lung;Lung_R,Lung_L->lung;spinal cord,Spinal-Cord->spinal-cord'",
-                "type": "string",
+                "description": "Optional possibility to merge or rename labels.",
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["merge_labels", "target_label"],
+                    "properties": {
+                        "merge_labels": {
+                            "type": "array",
+                            "title": "Labels to be merged or renamed",
+                            "items": {
+                                "type": "string",
+                            },
+                        },
+                        "target_label": {"type": "string", "title": "Target Label"},
+                    },
+                },
                 "readOnly": False,
             },
             "input": {
@@ -40,6 +57,29 @@ ui_forms = {
                 "description": "Expected input modality.",
                 "type": "string",
                 "readOnly": True,
+                "required": True,
+            },
+            "overlap_strategy": {
+                "title": "resolve overlap strategy",
+                "default": "crash",
+                "description": "Set overlap strategy",
+                "enum": [
+                    "none",
+                    "skip",
+                    "crash",
+                    "set_to_background",
+                    "follow_label_list",
+                ],
+                "type": "string",
+                "readOnly": False,
+                "required": True,
+            },
+            "overlap_threshold": {
+                "title": "Threshold for the overlap detection (%)",
+                "default": 0.01,
+                "description": "Maximum percentage of allowed overlap voxels",
+                "type": "number",
+                "readOnly": False,
                 "required": True,
             },
             "single_execution": {
@@ -96,7 +136,7 @@ dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_input,
     dicom_operator=get_ref_ct_series_from_seg,
-    seg_filter=seg_filter,
+    seg_filter="",
     batch_name="sorted",
 )
 

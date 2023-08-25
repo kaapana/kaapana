@@ -8,6 +8,7 @@ from pathlib import Path
 from logger_helper import get_logger
 import nibabel as nib
 import numpy as np
+import ast
 
 # For multiprocessing -> usually you should scale via multiple containers!
 from multiprocessing.pool import ThreadPool
@@ -18,7 +19,53 @@ execution_timeout = 10
 processed_count = 0
 
 
-# Process smth
+# Check for overlap
+def check_overlap(mask_numpy, merged_mask):
+    overlap_percentage = 0
+    overlap_mask = np.logical_and(merged_mask, mask_numpy)
+    if np.any(overlap_mask):
+        logger.warning(f"The masks have overlapping areas. {overlap_strategie=}")
+
+        if overlap_threshold != 0:
+            # Count the overlapping pixels
+            overlap_count = np.sum(overlap_mask)
+            # Calculate the total number of pixels in either mask (assuming they have the same shape)
+            total_pixels = merged_mask.size
+            # Calculate the percentage of overlapping pixels
+            overlap_percentage = (overlap_count / total_pixels) * 100
+            logger.warning(
+                f"The percentage of overlapping pixels is: {overlap_percentage:.2f}% vs a theshold: {overlap_threshold}"
+            )
+            if overlap_percentage <= overlap_threshold:
+                logger.warning(f"-> still ok -> continue.")
+                return "ok", mask_numpy, merged_mask
+
+        if overlap_strategie == "skip":
+            result = "skip"
+        elif overlap_strategie == "crash":
+            logger.error(f"Overlap identified -> {overlap_strategie=} -> exit!")
+            exit(1)
+
+        elif overlap_strategie == "set_to_background":
+            logger.warning(
+                f"Overlap identified -> {overlap_strategie=} -> setting overlapping voxels to 0 !"
+            )
+            # Create a mask where overlapping pixels are set to False
+            no_overlap_mask = np.logical_not(overlap_mask)
+            # Zero out the overlapping pixels in both masks using the no_overlap_mask
+            merged_mask[no_overlap_mask] = 0
+            mask_numpy[no_overlap_mask] = 0
+            result = "ok"
+        else:
+            result = "ok"
+    else:
+        logger.info("No overlapping areas found.")
+        result = "ok"
+
+    return result, mask_numpy, merged_mask
+
+
+# Process gt niftis for each base image
 def process_batch_element(batch_element_dir):
     global processed_count, logger, master_label_dict, input_file_extension
 
@@ -38,7 +85,7 @@ def process_batch_element(batch_element_dir):
             base_id = basename(gt_mask_nifti).replace(".nii.gz", "")
             assert len(base_id.split("--")) == 3
             integer_encoding = int(base_id.split("--")[1])
-            label_name = base_id.split("--")[2]
+            label_name = base_id.split("--")[2].lower()
             logger.debug(f"{integer_encoding=}")
             logger.debug(f"{label_name=}")
 
@@ -79,6 +126,15 @@ def process_batch_element(batch_element_dir):
                     f"Shape missmatch: {mask_numpy.shape=} vs {merged_mask.shape=}"
                 )
                 exit(1)
+            elif overlap_strategie != "none":
+                result, mask_numpy, merged_mask = check_overlap(
+                    merged_mask=merged_mask, mask_numpy=mask_numpy
+                )
+                if result == "skip":
+                    logger.warning(
+                        f"Overlap identified -> {overlap_strategie=} -> skipping mask {basename(gt_mask_nifti)} !"
+                    )
+                    continue
 
             logger.debug(
                 f"Setting target encoding: {integer_encoding} -> {target_encoding}"
@@ -126,10 +182,22 @@ def process_batch_element(batch_element_dir):
         return basename(batch_element_dir), "failed"
 
 
-# os.environ['WORKFLOW_DIR'] = '/home/jonas/test-data/prepare-gt-230821124942171287/'
-# os.environ['BATCH_NAME'] = 'sorted'
-# os.environ['OPERATOR_IN_DIR'] = 'mask2nifti'
-# os.environ['OPERATOR_OUT_DIR'] = 'merge-masks'
+# os.environ["WORKFLOW_DIR"] = "/home/jonas/test-data/prepare-gt-230821124942171287/"
+# os.environ["BATCH_NAME"] = "sorted"
+# os.environ["OPERATOR_IN_DIR"] = "mask2nifti"
+# os.environ["OPERATOR_OUT_DIR"] = "merge-masks"
+# os.environ["PARALLEL_PROCESSES"] = "1"
+# os.environ["OVERLAP_STRATEGY"] = "skip"
+# os.environ["OVERLAP_THRESHOLD"] = "0"
+# os.environ["SEG_FILTER"] = "['lung','neoplasm, primary','spinal-cord','spinal cord','spinal-cord','esophagus,heart']"
+
+overlap_strategies = [
+    "none",
+    "skip",
+    "crash",
+    "set_to_background",
+    "follow_label_list",
+]
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -147,23 +215,25 @@ operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
 assert operator_out_dir is not None
 
+overlap_strategie = getenv("OVERLAP_STRATEGY", "crash")
+
 log_level = getenv("LOG_LEVEL", "INFO")
 log_level = log_level if log_level.lower() != "none" else None
 log_level = log_level.lower()
 assert log_level is not None
 
+seg_filter = getenv("SEG_FILTER", "[]")
+seg_filter = ast.literal_eval(seg_filter)
+
+parallel_processes = int(getenv("PARALLEL_PROCESSES", "3"))
+overlap_threshold = float(getenv("OVERLAP_THRESHOLD", "0"))
+
 master_label_dict_path = join(
     workflow_dir, "get-master-label-list", "master_label_list.json"
 )
-assert exists(master_label_dict_path)
-with open(master_label_dict_path) as f:
-    master_label_dict = json.load(f)
 
 # File-extension to search for in the input-dir
 input_file_extension = "*.nii.gz"
-
-# How many processes should be started?
-parallel_processes = 3
 
 log_level_int = None
 if log_level == "debug":
@@ -188,6 +258,12 @@ print(f"# workflow_dir:     {workflow_dir}")
 print(f"# batch_name:       {batch_name}")
 print(f"# operator_in_dir:  {operator_in_dir}")
 print(f"# operator_out_dir: {operator_out_dir}")
+print(f"# overlap_strategie:  {overlap_strategie}")
+print(f"# overlap_threshold:  {overlap_threshold}")
+print(f"# parallel_processes: {parallel_processes}")
+print(f"# seg_filter:         {seg_filter}")
+print("#")
+print(f"# master_label_dict_path: {master_label_dict_path}")
 print("#")
 print("##################################################")
 print("#")
@@ -195,6 +271,16 @@ print("# Starting processing on BATCH-ELEMENT-level ...")
 print("#")
 print("##################################################")
 print("#")
+
+assert exists(master_label_dict_path)
+with open(master_label_dict_path) as f:
+    master_label_dict = json.load(f)
+
+
+if overlap_strategie not in overlap_strategies:
+    logger.error(f"Overlap strategy: {overlap_strategie} not supported!")
+    exit(1)
+
 
 batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
 

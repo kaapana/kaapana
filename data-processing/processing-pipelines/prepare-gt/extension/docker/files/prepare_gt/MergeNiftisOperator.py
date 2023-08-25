@@ -10,6 +10,8 @@ class MergeNiftisOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
+        parallel_processes=3,
+        overlap_threshold=3,
         log_level="INFO",
         env_vars=None,
         execution_timeout=timedelta(minutes=120),
@@ -20,6 +22,8 @@ class MergeNiftisOperator(KaapanaBaseOperator):
 
         envs = {
             "LOG_LEVEL": str(log_level),
+            "PARALLEL_PROCESSES": str(parallel_processes),
+            "OVERLAP_THRESHOLD": str(overlap_threshold),
         }
 
         env_vars.update(envs)

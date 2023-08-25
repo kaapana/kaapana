@@ -2,7 +2,7 @@
 apiVersion: v1
 appVersion: "0.0.0"
 description: Prepare GT segmentation dataset
-name: dag-prepare-gt
+name: prepare-gt
 version: "0.0.0"
 keywords:
 - kaapanaworkflow

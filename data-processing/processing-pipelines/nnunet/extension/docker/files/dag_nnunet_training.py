@@ -109,10 +109,13 @@ ui_forms = {
                 "readOnly": False,
             },
             "seg_filter": {
-                "title": "Seg",
-                "default": seg_filter,
-                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
-                "type": "string",
+                "title": "Segmentation Mask Filter",
+                "default": "",
+                "description": "Add labels to be kept - this list is case-insensitive!",
+                "type": "array",
+                "items": {
+                    "type": "string",
+                },
                 "readOnly": False,
             },
             "instance_name": {

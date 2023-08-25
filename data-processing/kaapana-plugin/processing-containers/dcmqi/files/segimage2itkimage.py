@@ -1,6 +1,7 @@
 import os
 import glob
 import json
+import ast
 import os
 import subprocess
 
@@ -8,12 +9,9 @@ processed_count = 0
 DCMQI = "/kaapana/app/dcmqi/bin"
 
 output_type = os.environ.get("OUTPUT_TYPE", "nrrd")
-seg_filter = os.environ.get("SEG_FILTER", "")
-if seg_filter != "":
-    seg_filter = [s.strip() for s in seg_filter.lower().split(",")]
-    print(f"Set filters: {seg_filter}")
-else:
-    seg_filter = None
+seg_filter = os.environ.get("SEG_FILTER", "[]")
+seg_filter = ast.literal_eval(seg_filter)
+print(f"Set filters: {seg_filter}")
 
 if output_type not in ["nrrd", "mhd", "mha", "nii", "nii.gz", "nifti", "hdr", "img"]:
     raise AssertionError("Output type must be <nrrd|mhd|mha|nii|nii.gz|nifti|hdr|img>")

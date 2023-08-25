@@ -32,16 +32,8 @@ class LocalGetMasterLabelListOperator(KaapanaPythonBaseOperator):
             and conf["form_data"] is not None
             and "merge_segs_config" in conf["form_data"]
         ):
-            conf_value = conf["form_data"]["merge_segs_config"]
-            self.logger.info(f"{conf_value=}")
-            self.merge_segs_config = (
-                None
-                if conf_value is None
-                or conf_value == ""
-                or conf_value.lower() == "none"
-                else conf_value
-            )
-            self.logger.info(f"{self.merge_segs_config=}")
+            self.merge_segs_config = conf["form_data"]["merge_segs_config"]
+            self.logger.info(json.dumps(self.merge_segs_config, indent=4))
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob(join(run_dir, self.batch_name, "*"))]
@@ -63,13 +55,13 @@ class LocalGetMasterLabelListOperator(KaapanaPythonBaseOperator):
                 base_id = basename(gt_mask_nifti).replace(".nii.gz", "")
                 assert len(base_id.split("--")) == 3
                 integer_encoding = base_id.split("--")[1]
-                label_name = base_id.split("--")[2]
+                label_name = base_id.split("--")[2].lower()
 
                 if label_name not in master_label_dict:
                     master_label_dict[label_name] = {
                         "count": 1,
                         "integer_encodings": {str(integer_encoding): 1},
-                        "merge_label_to": None,
+                        "target_label": None,
                     }
                 else:
                     master_label_dict[label_name]["count"] += 1
@@ -97,32 +89,24 @@ class LocalGetMasterLabelListOperator(KaapanaPythonBaseOperator):
         print(json.dumps(master_label_dict, indent=4))
 
         if self.merge_segs_config is not None:
-            for merge_config in self.merge_segs_config.split(";"):
-                if not "->" in merge_config:
-                    print(
-                        f"Issues with merge config ({merge_config}) detected! -> it needs to follow the scheme label_to_merge1,label_to_merge2,...->label_to_be_merged_to"
-                    )
-                    print(
-                        "eg: 'Lung-Right,Lung-Left->lung;Lung_R,Lung_L->lung;spinal cord,Spinal-Cord->spinal-cord'"
-                    )
-                    exit(1)
-
-                merge_to_label = merge_config.split("->")[-1]
-                for label_to_be_merged in merge_config.split("->")[0].split(","):
+            for merge_config in self.merge_segs_config:
+                labels_to_be_merged = [x.lower() for x in merge_config["merge_labels"]]
+                target_label = merge_config["target_label"]
+                for label_to_be_merged in labels_to_be_merged:
                     if label_to_be_merged in master_label_dict:
                         master_label_dict[label_to_be_merged][
-                            "merge_label_to"
-                        ] = merge_to_label
+                            "target_label"
+                        ] = target_label
 
         output_dict = {}
         encoding_index = 1
         for label, label_values in master_label_dict.items():
             if label not in output_dict:
-                if label_values["merge_label_to"] is not None:
-                    if label_values["merge_label_to"] not in output_dict:
-                        output_dict[label_values["merge_label_to"]] = encoding_index
+                if label_values["target_label"] is not None:
+                    if label_values["target_label"] not in output_dict:
+                        output_dict[label_values["target_label"]] = encoding_index
                         encoding_index += 1
-                    output_dict[label] = label_values["merge_label_to"]
+                    output_dict[label] = label_values["target_label"]
                 else:
                     output_dict[label] = encoding_index
                     encoding_index += 1

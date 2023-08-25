@@ -9,6 +9,7 @@ from dcmconverter.dcmseg2nifti import convert_dcmseg
 from dcmconverter.logger import get_logger
 import logging
 from multiprocessing.pool import ThreadPool
+import ast
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -57,12 +58,9 @@ batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
 assert batch_name is not None
 
-seg_filter = os.environ.get("SEG_FILTER", "")
-if seg_filter != "":
-    seg_filter = seg_filter.lower().replace(" ", "").split(",")
-    logger.info(f"Set filters: {seg_filter}")
-else:
-    seg_filter = None
+seg_filter = os.environ.get("SEG_FILTER", "[]")
+seg_filter = ast.literal_eval(seg_filter)
+print(f"Set filters: {seg_filter}")
 
 operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
 operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None

@@ -1,0 +1,47 @@
+## FAQ
+
+Before you file a ticket, please have a look at our [FAQ](https://kaapana.readthedocs.io/en/stable/faq_root.html). Your problem might be covered already.
+
+## Issue description
+Give a short description of your Issue.
+
+
+
+### All steps to reproduce the issue
+
+1.  
+2. 
+3. 
+
+
+### What is the expected result?
+
+-
+
+
+### What is the actual result?
+
+-
+
+
+## Additional information
+Please also add logs of the involved components, wherever possible. Think about additional information you could provide, which might be helpful to identify and solve the problem. Examples include:
+
+- Operator logs:
+- DAG logs:
+- Kubernetes pod logs:
+- Screenshot: ![Screenshot]()
+- In what component is the error triggered?
+- What other components of Kaapana are involved?
+
+## Describe the system you run Kaapana on
+First give a detailed description of your problem. To the best of your knowledge try to cover:
+- What version of Kaapana are you running?
+- What operating system are you using?
+- Does your instance have a GPU and is Kaapana utilizing it?
+- Is your instance connected to a registry or are you working with an offline installation?
+- Is your instance running behind a proxy server?
+
+
+
+Finally: Add the community-tech-meeting label to your ticket.

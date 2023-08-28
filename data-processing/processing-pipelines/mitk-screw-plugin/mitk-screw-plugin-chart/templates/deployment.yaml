@@ -24,7 +24,7 @@ spec:
             memory: "4Gi"
           limits:
             memory: "8Gi"
-            nvidia.com/gpu: '1'
+            nvidia.com/gpu: "1"
         env:
         - name: INGRESS_PATH
           value: {{ .Release.Name }}

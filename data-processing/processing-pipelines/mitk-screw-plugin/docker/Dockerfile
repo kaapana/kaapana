@@ -1,5 +1,4 @@
-FROM local-only/no-vnc-base-ubuntu22.04:latest
-#FROM local-only/base-python-gpu:latest
+FROM local-only/no-vnc-base:latest
 LABEL IMAGE="mitk-screw-plugin"
 LABEL VERSION="2023-01-24"
 LABEL CI_IGNORE="False"

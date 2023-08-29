@@ -77,7 +77,7 @@ dcm2nifti_ct = DcmConverterOperator(
 
 extract_img_intensities = LocalExtractImgIntensitiesOperator(
     dag=dag,
-    input_operator=dcm2nifti_ct,
+    input_operator=get_input,  # dcm2nifti_ct,
     json_operator=extract_metadata,
 )
 
@@ -131,7 +131,6 @@ clean = LocalWorkflowCleanerOperator(
     get_input
     >> anonymizer
     >> extract_metadata
-    >> dcm2nifti_ct
     >> extract_img_intensities
     >> merge_branches
     >> put_to_minio
@@ -144,3 +143,4 @@ clean = LocalWorkflowCleanerOperator(
     >> concat_metadata
     >> merge_branches
 )
+(get_input >> dcm2nifti_ct >> extract_seg_metadata)

@@ -109,7 +109,7 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
         )
 
         # merge concat_json_data and histo_dict dicts
-        concat_json_data.update(sorted_histo_dict)
+        concat_json_data["histo_values"] = sorted_histo_dict
         # add information of how many images in dataset
         concat_json_data["num_images"] = valid_images
 

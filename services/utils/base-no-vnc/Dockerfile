@@ -5,7 +5,7 @@
 ################################################################################
 # builder
 ################################################################################
-FROM local-only/base-python-gpu:latest as builder
+FROM ubuntu:20.04 as builder
 
 
 # RUN sed -i 's#http://archive.ubuntu.com/ubuntu/#mirror://mirrors.ubuntu.com/mirrors.txt#' /etc/apt/sources.list;
@@ -44,7 +44,7 @@ RUN sed -i 's#app/locale/#novnc/app/locale/#' /src/web/dist/static/novnc/app/ui.
 ################################################################################
 
 
-FROM local-only/base-python-gpu:latest
+FROM ubuntu:20.04
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="no-vnc-base"
@@ -74,7 +74,7 @@ RUN apt update \
 RUN apt update \
     && apt install -y --no-install-recommends \
         xvfb x11vnc \
-        vim-tiny ttf-wqy-zenhei  \
+        vim-tiny firefox ttf-ubuntu-font-family ttf-wqy-zenhei  \
     && apt autoclean -y \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
@@ -90,7 +90,7 @@ RUN apt-get update \
 
 RUN apt update \
     && apt install -y --no-install-recommends --allow-unauthenticated \
-        lightdm lxde gtk2-engines-murrine gtk2-engines-pixbuf gtk2-engines-murrine arc-theme \
+        lightdm lxde gtk2-engines-murrine gnome-themes-standard gtk2-engines-pixbuf gtk2-engines-murrine arc-theme \
     && apt autoclean -y \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
@@ -114,6 +114,7 @@ RUN apt-get update \
     && dpkg-query -W -f='${Package}\n' > /tmp/a.txt \
     && apt-get install -y python3-pip python3-dev build-essential \
 	&& pip3 install setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
     && dpkg-query -W -f='${Package}\n' > /tmp/b.txt \
     && apt-get remove -y `diff --changed-group-format='%>' --unchanged-group-format='' /tmp/a.txt /tmp/b.txt | xargs` \
     && apt-get autoclean -y \

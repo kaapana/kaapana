@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip && pip3 install --upgrade pip
 
 WORKDIR /mitk
-RUN mkdir -p /mitk
+RUN mkdir -p /mitk  
 RUN curl https://hub.dkfz.de/s/BTEY9EStfy27s2c/download/mitk.tar.gz --compressed -o /mitk/mitk.tar.gz
 RUN tar -xzf /mitk/mitk.tar.gz --strip 1 -C /mitk/ && rm -rf /mitk/mitk.tar.gz
 COPY /files/requirements.txt /

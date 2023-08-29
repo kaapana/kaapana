@@ -48,6 +48,6 @@ conf_data:
     fast: false
   data_form:
     dataset_name: test-CT
-    dataset_limit: 2
+    dataset_limit: 1
 remote: false
 username: "kaapana"

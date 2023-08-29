@@ -107,5 +107,6 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             ram_mem_mb=ram_mem_mb,
             gpu_mem_mb=gpu_mem_mb,
+            retries=3,
             **kwargs,
         )

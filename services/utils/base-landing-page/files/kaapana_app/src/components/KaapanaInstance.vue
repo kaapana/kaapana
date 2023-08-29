@@ -7,6 +7,13 @@
         p Instance name: {{ instance.instance_name }}
       v-col(align="right")
         p
+          v-tooltip(v-if="!remote" bottom='')
+            template(v-slot:activator='{ on, attrs }')
+              v-btn(@click="copyInstanceDefToClipboard()" icon small)
+                v-icon(small) mdi-content-copy 
+            span copy instance definition to clipboard
+      v-col(align="right")
+        p
           v-tooltip(bottom v-if="remote")
             template(v-slot:activator="{ on, attrs }")
               v-btn(v-bind="attrs" v-on="on" @click='deleteInstance()' small icon)
@@ -323,6 +330,26 @@
           });
 
       },
+      copyInstanceDefToClipboard() {
+        const copyInstance = `{\n \
+           "instance_name": "${this.instance.instance_name}",\n \
+           "host": "${this.instance.host}",\n \
+           "port": "${this.instance.port}",\n \
+           "token": "${this.instance.token}",\n \
+           "fernet_key": "${this.instance.fernet_key}",\n \
+           "ssl_check": ${this.instance.ssl_check}\n \
+          }`
+        const textarea = document.createElement("textarea");
+        textarea.value = copyInstance;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        this.$notify({
+          title: `Instance definition copied to clipboard!`,
+          type: "success",
+        });
+      }
     }
   }
   </script>

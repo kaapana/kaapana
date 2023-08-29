@@ -44,6 +44,7 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
         histo_dict = {}
         concat_json_data = {}
+        valid_images = 0
         for batch_element_dir in batch_dirs:
             # check if json_operator is defined; if yes load existing json file from json_operator's dir
             if self.json_operator:
@@ -62,6 +63,9 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
                     continue
             else:
                 json_data = {}
+
+            # count valid images
+            valid_images = valid_images + 1
 
             ### via DICOM ###
             # load batch-element's nifti image form input_operator's dir
@@ -106,6 +110,8 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
         # merge concat_json_data and histo_dict dicts
         concat_json_data.update(sorted_histo_dict)
+        # add information of how many images in dataset
+        concat_json_data["num_images"] = valid_images
 
         # save to out_dir
         with open(

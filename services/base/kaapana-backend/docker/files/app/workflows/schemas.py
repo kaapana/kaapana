@@ -359,6 +359,7 @@ class FederationBase(BaseModel):
 
 
 class FederationCreate(FederationBase):
+    federation_id: str = None
     federation_name: str = None
     remote: bool = True
     username: str = None
@@ -384,3 +385,8 @@ class FederationUpdate(FederationBase):
     owner_federated_permission_profile_id: str = None
     # federated_permission_profiles: List[FederatedPermissionProfile] = [] # List = [] # of FederatedPermissionProfile
     federated_permission_profile: Optional[FederatedPermissionProfile]
+
+
+class RemoteFedereatedPermissionProfileUpdateExternal(FederatedPermissionProfileUpdate):
+    federation_id: str = None
+    federation_name: str = None

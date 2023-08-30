@@ -94,6 +94,21 @@ def put_remote_kaapana_instance(
     )
 
 
+@router.put("/sync-client-remote-new")
+def put_remote_kaapana_instance_new(
+    remote_federated_permission_profile: schemas.RemoteFedereatedPermissionProfileUpdateExternal,
+    instance_name: str = None,
+    status: str = None,
+    db: Session = Depends(get_db),
+):
+    return crud.sync_client_remote_new(
+        db=db,
+        remote_federated_permission_profile=remote_federated_permission_profile,
+        instance_name=instance_name,
+        status=status,
+    )
+
+
 @router.put("/workflow", response_model=schemas.Workflow)
 def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
     return crud.update_workflow(db, workflow)

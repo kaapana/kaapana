@@ -632,6 +632,107 @@ def get_job_taskinstances(db: Session, job_id: int = None):
     return tis_n_state
 
 
+def sync_client_remote_new(
+    db: Session,
+    remote_federated_permission_profile: schemas.RemoteFedereatedPermissionProfileUpdateExternal,
+    instance_name: str = None,
+    status: str = None,
+):
+    # get local kaapana instance
+    db_client_kaapana = get_kaapana_instance(db)
+
+    # get db_federation of incoming remote_federated_permission_profile
+    db_federation = get_federation(
+        db, federation_id=remote_federated_permission_profile.federation_id
+    )
+    if db_federation is None:
+        # federation of incoming remote_federated_permission_profile is not yet in local db -> create
+        federation = schemas.FederationCreate(
+            **{
+                "federation_id": remote_federated_permission_profile.federation_id,
+                "federation_name": remote_federated_permission_profile.federation_name,
+                "remote": True,
+            }
+        )
+        db_federation = create_federation(db, federation=federation)
+
+    # get db_federated_permission_profile of incoming remote_federated_permission_profile
+    db_federated_permission_profile = get_federated_permission_profile(
+        db,
+        federated_permission_profile_id=remote_federated_permission_profile.federated_permission_profile_id,
+    )
+    # doesn't make sense to update local db_federated_permission_profile with incoming permission information from remote_federated_permission_profile
+    if db_federated_permission_profile is None:
+        # federated_permission_profile of incoming remote_federated_permission_profile is not yet in local db -> create
+        db_remote_kaapana_instance = get_kaapana_instance(
+            db, instance_name=instance_name
+        )
+        federated_permission_profile = schemas.FederatedPermissionProfileCreate(
+            **{
+                "federated_permission_profile_id": remote_federated_permission_profile.federated_permission_profile_id,
+                "kaapana_instance": db_remote_kaapana_instance,
+                "federation_id": remote_federated_permission_profile.federation_id,
+            }
+        )
+        db_federated_permission_profile = create_federated_permission_profile(
+            db, federated_permission_profile=federated_permission_profile
+        )
+        # add created db_federated_permission_profile to db_federation
+        federation = schemas.FederationUpdate(
+            **{
+                "federation_id": db_federation.federation_id,
+                "federated_permission_profile": db_federated_permission_profile,
+            }
+        )
+        db_federation = update_federation(db=db, federation=federation)
+
+    # compose outgoing_jobs and outgoing_workflows
+    # get jobs on local kaapana_instance with instance="instance_name" and status="status"
+    db_outgoing_jobs = get_jobs(
+        db, instance_name=instance_name, status=status, remote=True
+    )
+    # get workflows on client_kaapana_instance which contain outgoing_jobs
+    outgoing_jobs = []
+    outgoing_workflows = []
+    for db_outgoing_job in db_outgoing_jobs:
+        if db_outgoing_job.kaapana_instance.id == db_client_kaapana.id:
+            continue
+        outgoing_jobs.append(schemas.Job(**db_outgoing_job.__dict__).dict())
+
+        db_outgoing_workflow = get_workflows(db, workflow_job_id=db_outgoing_job.id)
+        outgoing_workflow = (
+            [
+                schemas.Workflow(**workflow.__dict__).dict()
+                for workflow in db_outgoing_workflow
+            ][0]
+            if len(db_outgoing_workflow) > 0
+            else None
+        )
+        if outgoing_workflow is not None:
+            outgoing_workflows.append(outgoing_workflow)
+
+    logging.debug(f"SYNC_CLIENT_REMOTE outgoing_jobs: {outgoing_jobs}")
+    logging.debug(f"SYNC_CLIENT_REMOTE outgoing_workflows: {outgoing_workflows}")
+
+    # compose update_remote_federated_permission_profile_payload to report back to requesting instance
+    update_remote_federated_permission_profile_payload = {
+        "federated_permission_profile_id": db_federated_permission_profile.federated_permission_profile_id,
+        "role": db_federated_permission_profile.role,
+        "federation_acception": db_federated_permission_profile.federation_acception,
+        "allowed_dags": db_federated_permission_profile.allowed_dags,
+        "allowed_datasets": db_federated_permission_profile.allowed_datasets,
+        "automatic_update": db_federated_permission_profile.automatic_update,
+        "automatic_workflow_execution": db_federated_permission_profile.automatic_workflow_execution,
+        "federation_id": db_federation.federation_id,
+        "federation_name": db_federation.federation_name,
+    }
+    return {
+        "incoming_jobs": outgoing_jobs,
+        "incoming_workflows": outgoing_workflows,
+        "update_remote_federated_permission_profile_payload": update_remote_federated_permission_profile_payload,
+    }
+
+
 def sync_client_remote(
     db: Session,
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
@@ -756,6 +857,156 @@ def update_external_job(db: Session, db_job):
             #     logging.error("Error in CRUD def update_external_job()")
             #     raise_kaapana_connection_error(r)
             #     logging.error(r.json())
+
+
+def get_remote_updates_new(db: Session, periodically=False):
+    # get local kaapana instance
+    db_client_kaapana = get_kaapana_instance(db)
+
+    # get all federations from local db and iterate over them
+    db_federations = get_federations(db)
+    for db_federation in db_federations:
+        # get all federated_permission_profiles associated with current db_federation
+        db_federated_permission_profiles = db_federation.federated_permission_profiles
+
+        # iterate over federated_permission_profiles of current db_federation
+        for db_federated_permission_profile in db_federated_permission_profiles:
+            # check if automatic_update is False for current db_federated_permission_profile
+            if (
+                periodically is True
+                and db_federated_permission_profile.automatic_update is False
+            ):
+                continue
+
+            # compose update_remote_federated_permission_profile_payload
+            update_remote_federated_permission_profile_payload = {
+                "federated_permission_profile_id": db_federated_permission_profile.federated_permission_profile_id,
+                "role": db_federated_permission_profile.role,
+                "federation_acception": db_federated_permission_profile.federation_acception,
+                "allowed_dags": db_federated_permission_profile.allowed_dags,
+                "allowed_datasets": db_federated_permission_profile.allowed_datasets,
+                "automatic_update": db_federated_permission_profile.automatic_update,
+                "automatic_workflow_execution": db_federated_permission_profile.automatic_workflow_execution,
+                "federation_id": db_federation.federation_id,
+                "federation_name": db_federation.federation_name,
+            }
+
+            # compose job_params for job and workflow syncing mechanism
+            job_params = {
+                "instance_name": db_client_kaapana.instance_name,
+                "status": "queued",
+            }
+
+            # PUT request to remote instance
+            remote_backend_url = f"{db_federated_permission_profile.kaapana_instance.protocol}://{db_federated_permission_profile.kaapana_instance.host}:{db_federated_permission_profile.kaapana_instance.port}/kaapana-backend/remote"
+            with requests.Session() as s:
+                r = requests_retry_session(session=s).put(
+                    f"{remote_backend_url}/sync-client-remote-new",
+                    params=job_params,
+                    json=update_remote_federated_permission_profile_payload,
+                    verify=db_federated_permission_profile.kaapana_instance.ssl_check,
+                    headers={
+                        "FederatedAuthorization": f"{db_federated_permission_profile.kaapana_instance.token}"
+                    },
+                    timeout=TIMEOUT,
+                )
+            if r.status_code != 200:
+                logging.warning(
+                    f"Warning!!! We could not reach the following backend {db_federated_permission_profile.kaapana_instance.host}"
+                )
+                continue
+            raise_kaapana_connection_error(r)
+
+            # process received data
+            incoming_data = r.json()
+            incoming_jobs = incoming_data["incoming_jobs"]
+            incoming_workflows = incoming_data["incoming_workflows"]
+            incoming_fed_perm_profile_update = incoming_data[
+                "update_remote_federated_permission_profile_payload"
+            ]
+
+            # update db_federated_permission_profile with incoming_fed_perm_profile_update
+            federated_permission_profile = schemas.FederatedPermissionProfileUpdate(
+                **{
+                    "federated_permission_profile_id": incoming_fed_perm_profile_update.federated_permission_profile_id,
+                    "role": incoming_fed_perm_profile_update.role,
+                    "federation_acception": incoming_fed_perm_profile_update.federation_acception,
+                    "automatic_update": incoming_fed_perm_profile_update.automatic_update,
+                    "automatic_workflow_execution": incoming_fed_perm_profile_update.automatic_workflow_execution,
+                    "allowed_dags": incoming_fed_perm_profile_update.allowed_dags,
+                    "allowed_datasets": incoming_fed_perm_profile_update.allowed_datasets,
+                }
+            )
+            db_federated_permission_profile = update_federated_permission_profile(
+                db, federated_permission_profile=federated_permission_profile
+            )
+
+            # process incoming_jobs and incoming_workflows
+            # create workflow for incoming workflow if does NOT exist yet
+            for incoming_workflow in incoming_workflows:
+                # check if incoming_workflow already exists
+                db_incoming_workflow = get_workflow(
+                    db, workflow_id=incoming_workflow["workflow_id"]
+                )
+                # db_incoming_workflow = get_workflow(db, workflow_name=incoming_workflow['workflow_name']) # rather query via workflow_name than via workflow_id
+                if db_incoming_workflow is None:
+                    # if not: create incoming workflows
+                    incoming_workflow[
+                        "kaapana_instance_id"
+                    ] = db_federated_permission_profile.kaapana_instance.id
+                    # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
+                    incoming_workflow["involved_kaapana_instances"] = incoming_workflow[
+                        "involved_kaapana_instances"
+                    ][1:-1].split(",")
+                    workflow = schemas.WorkflowCreate(**incoming_workflow)
+                    db_workflow = create_workflow(db, workflow)
+                    logging.debug(f"Created incoming remote workflow: {db_workflow}")
+
+            # create incoming jobs
+            fernet = Fernet(db_client_kaapana.encryption_key)
+            db_jobs = []
+            for incoming_job in incoming_jobs:
+                if (
+                    "conf_data" in incoming_job
+                    and "data_form" in incoming_job["conf_data"]
+                    and "identifiers" in incoming_job["conf_data"]["data_form"]
+                ):
+                    incoming_job["conf_data"]["data_form"]["identifiers"] = [
+                        fernet.decrypt(identifier.encode()).decode()
+                        for identifier in incoming_job["conf_data"]["data_form"][
+                            "identifiers"
+                        ]
+                    ]
+
+                incoming_job["kaapana_instance_id"] = db_client_kaapana.id
+                incoming_job[
+                    "owner_kaapana_instance_name"
+                ] = db_federated_permission_profile.kaapana_instance.instance_name
+                incoming_job["external_job_id"] = incoming_job["id"]
+                incoming_job["status"] = "pending"
+                job = schemas.JobCreate(**incoming_job)
+                job.automatic_execution = (
+                    db_incoming_workflow.automatic_execution
+                    if db_incoming_workflow is not None
+                    else db_workflow.automatic_execution
+                )
+                db_job = create_job(db, job)
+                db_jobs.append(db_job)
+
+            # update incoming workflows
+            for incoming_workflow in incoming_workflows:
+                workflow_update = schemas.WorkflowUpdate(
+                    **{
+                        "workflow_id": incoming_workflow["workflow_id"],
+                        # incoming_workflow["workflow_name"] instead of db_incoming_workflow.workflow_name
+                        "workflow_name": incoming_workflow["workflow_name"],
+                        # db_jobs instead of incoming_jobs
+                        "workflow_jobs": db_jobs,
+                    }
+                )
+                db_workflow = put_workflow_jobs(db, workflow_update)
+                logging.debug(f"Updated remote workflow: {db_workflow}")
+    return
 
 
 def get_remote_updates(db: Session, periodically=False):
@@ -1744,7 +1995,9 @@ def create_federation(db: Session, federation: schemas.FederationCreate):
 
     # add federation to db
     db_federation = models.Federation(
-        federation_id=random_uuid(length=6),
+        federation_id=random_uuid(length=6)
+        if federation.federation_id is None
+        else federation.federation_id,
         federation_name=federation.federation_name,
         username=federation.username,
         remote=federation.remote,
@@ -1780,6 +2033,7 @@ def get_federations(
     db: Session,
     limit=None,
 ):
+    print("CRUD def get_federations()")
     return (
         db.query(models.Federation)
         .options(
@@ -1852,7 +2106,9 @@ def create_federated_permission_profile(
     utc_timestamp = get_utc_timestamp()
 
     db_federated_permission_profile = models.FederatedPermissionProfile(
-        federated_permission_profile_id=random_uuid(length=6),
+        federated_permission_profile_id=random_uuid(length=6)
+        if federated_permission_profile.federated_permission_profile_id is None
+        else federated_permission_profile.federated_permission_profile_id,
         role="node",  # by default weakest possible role
         username=federated_permission_profile.username,
         kaapana_id=federated_permission_profile.kaapana_instance.id,

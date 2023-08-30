@@ -455,7 +455,8 @@ def ui_form_schemas(
 
 @router.get("/check-for-remote-updates")
 def check_for_remote_updates(db: Session = Depends(get_db)):
-    crud.get_remote_updates(db, periodically=False)
+    # crud.get_remote_updates(db, periodically=False)
+    crud.get_remote_updates_new(db, periodically=False)
     return {f"Federated backend is up and running!"}
 
 

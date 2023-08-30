@@ -876,6 +876,9 @@ def get_remote_updates_new(db: Session, periodically=False):
                 periodically is True
                 and db_federated_permission_profile.automatic_update is False
             ):
+                print(
+                    f"CRUD def get_remote_updates_new() ABORT SYNCING with {db_federated_permission_profile.kaapana_instance.host}!"
+                )
                 continue
 
             # compose update_remote_federated_permission_profile_payload
@@ -896,6 +899,13 @@ def get_remote_updates_new(db: Session, periodically=False):
                 "instance_name": db_client_kaapana.instance_name,
                 "status": "queued",
             }
+
+            print(
+                f"CRUD def get_remote_updates_new() SEND REQUEST TO {db_federated_permission_profile.kaapana_instance.host}"
+            )
+            print(
+                f"CRUD def get_remote_updates_new() SEND REQUEST! {update_remote_federated_permission_profile_payload=}"
+            )
 
             # PUT request to remote instance
             remote_backend_url = f"{db_federated_permission_profile.kaapana_instance.protocol}://{db_federated_permission_profile.kaapana_instance.host}:{db_federated_permission_profile.kaapana_instance.port}/kaapana-backend/remote"
@@ -924,17 +934,38 @@ def get_remote_updates_new(db: Session, periodically=False):
             incoming_fed_perm_profile_update = incoming_data[
                 "update_remote_federated_permission_profile_payload"
             ]
+            print(
+                f"CRUD def get_remote_updates_new() RECEIVE {incoming_fed_perm_profile_update=}"
+            )
 
+            print(
+                f"CRUD def get_remote_updates_new() ALLOWED_DAGS {incoming_fed_perm_profile_update['allowed_dags'].keys()=} ; {type(incoming_fed_perm_profile_update['allowed_dags'].keys())=}"
+            )
             # update db_federated_permission_profile with incoming_fed_perm_profile_update
             federated_permission_profile = schemas.FederatedPermissionProfileUpdate(
                 **{
-                    "federated_permission_profile_id": incoming_fed_perm_profile_update.federated_permission_profile_id,
-                    "role": incoming_fed_perm_profile_update.role,
-                    "federation_acception": incoming_fed_perm_profile_update.federation_acception,
-                    "automatic_update": incoming_fed_perm_profile_update.automatic_update,
-                    "automatic_workflow_execution": incoming_fed_perm_profile_update.automatic_workflow_execution,
-                    "allowed_dags": incoming_fed_perm_profile_update.allowed_dags,
-                    "allowed_datasets": incoming_fed_perm_profile_update.allowed_datasets,
+                    "federated_permission_profile_id": incoming_fed_perm_profile_update[
+                        "federated_permission_profile_id"
+                    ],
+                    "role": incoming_fed_perm_profile_update["role"],
+                    "federation_acception": incoming_fed_perm_profile_update[
+                        "federation_acception"
+                    ],
+                    "automatic_update": incoming_fed_perm_profile_update[
+                        "automatic_update"
+                    ],
+                    "automatic_workflow_execution": incoming_fed_perm_profile_update[
+                        "automatic_workflow_execution"
+                    ],
+                    "allowed_dags": list(
+                        incoming_fed_perm_profile_update["allowed_dags"].keys()
+                    ),
+                    "allowed_datasets": [
+                        allowed_ds["name"]
+                        for allowed_ds in incoming_fed_perm_profile_update[
+                            "allowed_datasets"
+                        ]
+                    ],
                 }
             )
             db_federated_permission_profile = update_federated_permission_profile(

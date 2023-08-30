@@ -388,5 +388,12 @@ class FederationUpdate(FederationBase):
 
 
 class RemoteFedereatedPermissionProfileUpdateExternal(FederatedPermissionProfileUpdate):
+    federated_permission_profile_id: str = None
+    role: str = None
+    federation_acception: bool = False
+    automatic_update: bool = False
+    automatic_workflow_execution: bool = False
+    allowed_dags: dict
+    allowed_datasets: list
     federation_id: str = None
     federation_name: str = None

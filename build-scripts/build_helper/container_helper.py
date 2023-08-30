@@ -565,7 +565,7 @@ class Container:
                     BuildUtils.logger.info(
                         f"{self.build_tag}: Image did not change -> skipping ..."
                     )
-                    return
+                    return issue, duration_time_text
                 else:
                     self.container_build_status = "built"
 

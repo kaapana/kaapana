@@ -37,17 +37,14 @@ Please also add logs of the involved components, wherever possible. Think about 
 - What other components of Kaapana are involved?
 
 ## Describe the system you run Kaapana on
-First give a detailed description of your problem. To the best of your knowledge try to cover:
+The deployment script is able to generate a general report of your system, as well as your kaapana instance including the kubernetes status. You can create this report with: 
+
+`./deploy_platform.sh --report > node_report.txt`
+
+and attach the result to your ticket. If this does not work for any reason please try to provide the following information to the
+best of your knowledge:
 - What version of Kaapana are you running?
 - What operating system are you using?
 - Does your instance have a GPU and is Kaapana utilizing it?
 - Is your instance connected to a registry or are you working with an offline installation?
 - Is your instance running behind a proxy server?
-
-## Node Reporter
-The deployment script is able to cover large portions of the "Additional informaion" and the "Describe the system" sections.
-You can create a file with extensive system informaiton with 
-
-`./deploy_platform.sh --report > node_report.txt`
-
-and attach the result to your ticket.

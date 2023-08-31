@@ -1,10 +1,9 @@
+from pathlib import Path
 import subprocess
 import os
-import errno
-import glob
 import json
 import shutil
-
+import pydicom
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -29,68 +28,79 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
             print("DCMDICTPATH not found...")
             raise ValueError("ERROR")
 
-        anonymize_dict_path = (
-            os.path.dirname(os.path.realpath(__file__)) + "/anonymize-tags.json"
-        )
-
-        with open(anonymize_dict_path) as data_file:
-            anonymize_tags = json.load(data_file)
-            if "source" in anonymize_tags:
-                del anonymize_tags["source"]
-
-        print("Anonymize tag loaded...")
-
         erase_tags = ""
-        for tag in list(anonymize_tags.keys()):  # [:15]:
+        for tag in list(self.anonymize_tags.keys()):  # [:15]:
             erase_tags += ' --erase-all "(%s)"' % tag
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
+        run_dir = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
+        batch_dirs = list((run_dir / self.batch_name).glob("*"))
 
-        print("Found {} batch elements.".format(len(batch_dirs)))
+        print(f"Found {len(batch_dirs)} batch elements.")
 
         anon_command = "dcmodify --no-backup --ignore-missing-tags " + erase_tags + " "
 
         for batch_element_dir in batch_dirs:
-            batch_element_out_dir = os.path.join(
-                batch_element_dir, self.operator_out_dir
-            )
-            dcm_files = sorted(
-                glob.glob(
-                    os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"),
-                    recursive=True,
-                )
-            )
-            for dcm_file in dcm_files:
-                output_filepath = os.path.join(
-                    batch_element_out_dir, os.path.basename(dcm_file)
-                )
-                if not os.path.exists(os.path.dirname(output_filepath)):
-                    os.makedirs(os.path.dirname(output_filepath))
+            batch_element_out_dir = batch_element_dir / self.operator_out_dir
 
-                if not os.path.isfile(output_filepath) or self.overwrite:
+            dcm_files = sorted(
+                [
+                    p
+                    for p in (batch_element_dir / self.operator_in_dir).rglob("*")
+                    if p.is_file() and pydicom.misc.is_dicom(p)
+                ]
+            )
+
+            print(f"Found {len(dcm_files)} in {batch_element_dir}")
+
+            for dcm_file in dcm_files:
+                output_filepath = batch_element_out_dir / dcm_file.name
+
+                if not output_filepath.parent.exists():
+                    output_filepath.parent.mkdir(parents=True)
+
+                if not output_filepath.is_file() or self.overwrite:
                     shutil.copyfile(dcm_file, output_filepath)
 
-                file_command = anon_command + output_filepath
-                ret = subprocess.call([file_command], shell=True)
-                if ret != 0:
+                file_command = anon_command + str(output_filepath)
+                process = subprocess.Popen(
+                    file_command,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                )
+                stdout, stderr = process.communicate()
+
+                if process.returncode != 0:
                     print("Something went wrong with dcmodify...")
-                    raise ValueError("ERROR")
+                    raise ValueError(
+                        "ERROR: " + stderr.decode("utf-8", errors="ignore")
+                    )
 
                 if self.single_slice:
                     break
 
-    def __init__(self, dag, bulk=False, overwrite=True, single_slice=False, **kwargs):
+    def __init__(
+        self,
+        dag,
+        name="dcm-anonymizer",
+        bulk=False,
+        overwrite=True,
+        single_slice=False,
+        anonymize_tags=None,
+        **kwargs,
+    ):
         """
         :param bulk: process all files of a series or only the first one (default: False).
         :param overwrite: should overwrite or not (default: True).
         :param single_slice: only single slice to be processed or not (default: False).
+        :param anonymize_tags: tags to be anonymized (default: None).
         """
 
         self.dcmodify_path = "dcmodify"
         self.bulk = bulk
         self.overwrite = overwrite
         self.single_slice = single_slice
+        self.anonymize_tags = anonymize_tags
 
         if "DCMDICTPATH" in os.environ and "DICT_PATH" in os.environ:
             # DCMDICTPATH is used by dcmtk / dcmodify
@@ -103,6 +113,16 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
             print("++++++++++++++++++++++++++++++++++++++++++++++++++++++")
             raise ValueError("ERROR")
 
-        super().__init__(
-            dag=dag, name="dcm-anonymizer", python_callable=self.start, **kwargs
-        )
+        if not self.anonymize_tags:
+            anonymize_dict_path = (
+                os.path.dirname(os.path.realpath(__file__)) + "/anonymize-tags.json"
+            )
+
+            with open(anonymize_dict_path) as data_file:
+                self.anonymize_tags = json.load(data_file)
+                if "source" in self.anonymize_tags:
+                    del self.anonymize_tags["source"]
+
+            print("Anonymize tag loaded...")
+
+        super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

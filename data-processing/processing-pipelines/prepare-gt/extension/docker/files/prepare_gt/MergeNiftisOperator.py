@@ -11,18 +11,17 @@ class MergeNiftisOperator(KaapanaBaseOperator):
         self,
         dag,
         parallel_processes=3,
-        overlap_threshold=3,
+        overlap_threshold=0.01,
+        overlap_strategy="skip",
         log_level="INFO",
-        env_vars=None,
+        env_vars={},
         execution_timeout=timedelta(minutes=120),
         **kwargs,
     ):
-        if env_vars is None:
-            env_vars = {}
-
         envs = {
             "LOG_LEVEL": str(log_level),
             "PARALLEL_PROCESSES": str(parallel_processes),
+            "OVERLAP_STRATEGY": str(overlap_strategy),
             "OVERLAP_THRESHOLD": str(overlap_threshold),
         }
 
@@ -34,6 +33,6 @@ class MergeNiftisOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb=5000,
+            ram_mem_mb=10000,
             **kwargs,
         )

@@ -17,6 +17,7 @@ class DcmWebException(Exception):
 
 
 class HelperDcmWeb:
+    max_tries = 20
     pacs_dcmweb_endpoint = (
         f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets/"
     )
@@ -47,11 +48,19 @@ class HelperDcmWeb:
     ):
         payload = {"SeriesInstanceUID": seriesUID}
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
-        httpResponse = requests.get(url, params=payload)
-        # print(f"Requesting URL: {url}")
-        # print(f"httpResponse: {httpResponse}")
-        # print(f"payload: {payload}")
-        if httpResponse.status_code == 200:
+        status_code = 0
+        tries = 0
+        while status_code != 200 and tries < HelperDcmWeb.max_tries:
+            tries += 1
+            httpResponse = requests.get(url, params=payload)
+            status_code = httpResponse.status_code
+            if status_code != 200:
+                print(
+                    f"# TRY: {tries} - Failed requesting SeriesInstanceUID {seriesUID} - waiting 5s for retry ..."
+                )
+                time.sleep(5)
+
+        if status_code == 200:
             response = httpResponse.json()
             objectUIDList = []
             for resultObject in response:
@@ -79,13 +88,24 @@ class HelperDcmWeb:
             for objectUID in objectUIDList:
                 studyUID = objectUID[0]
                 objectUID = objectUID[1]
-                result = HelperDcmWeb.downloadObject(
-                    studyUID=studyUID,
-                    seriesUID=seriesUID,
-                    objectUID=objectUID,
-                    target_dir=target_dir,
-                )
-                if not result:
+
+                tries = 0
+                success = False
+                while not success and tries < HelperDcmWeb.max_tries:
+                    tries += 1
+                    success = HelperDcmWeb.downloadObject(
+                        studyUID=studyUID,
+                        seriesUID=seriesUID,
+                        objectUID=objectUID,
+                        target_dir=target_dir,
+                    )
+                    if not success:
+                        print(
+                            f"# TRY: {tries} - Failed fetching object {objectUID} - waiting 5s for retry ..."
+                        )
+                        time.sleep(5)
+
+                if not success:
                     return False
 
             return True

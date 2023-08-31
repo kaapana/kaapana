@@ -23,42 +23,54 @@ class LocalSortGtToRefOperator(KaapanaPythonBaseOperator):
         new_batch_output_dir = join(run_dir, self.new_batch_name)
         batch_folders = [f for f in glob(os.path.join(batch_dir, "*"))]
         for batch_element_dir in batch_folders:
-            self.logger.info(f"{self.base_dcm_folder=}")
             element_base_input_dir = join(batch_element_dir, self.base_dcm_folder)
-            self.logger.info(f"{self.gt_dcm_folder=}")
             element_gt_input_dir = join(batch_element_dir, self.gt_dcm_folder)
 
+            if (
+                not exists(element_base_input_dir)
+                and not exists(element_gt_input_dir)
+                and self.move_files
+            ):
+                self.logger.info(
+                    f"Batch element {basename(batch_element_dir)} already moved -> continue"
+                )
+                continue
+
             base_dcms = glob(join(element_base_input_dir, "*"), recursive=False)
-            assert len(base_dcms) > 1
+            self.logger.info(f"{element_base_input_dir=}")
+
+            if not len(base_dcms) > 1:
+                self.logger.warning(
+                    f"Batch element {basename(batch_element_dir)} no base-image found -> continue"
+                )
+                continue
 
             base_series_uid = str(pydicom.dcmread(base_dcms[0])[0x0020, 0x000E].value)
             target_dir = join(new_batch_output_dir, base_series_uid)
-            print(f"{target_dir=}")
             Path(dirname(target_dir)).mkdir(parents=True, exist_ok=True)
 
             base_dcm_target_dir = join(target_dir, basename(element_base_input_dir))
-            print(f"{base_dcm_target_dir=}")
             gt_dcm_target_dir = join(target_dir, basename(element_gt_input_dir))
-            print(f"{gt_dcm_target_dir=}")
 
+            self.logger.info(
+                f"COPY {element_base_input_dir.replace(batch_dir,'')} -> {base_dcm_target_dir.replace(batch_dir,'')} ..."
+            )
+            shutil.copytree(
+                element_base_input_dir, base_dcm_target_dir, dirs_exist_ok=True
+            )
+            self.logger.info(
+                f"COPY   {element_gt_input_dir.replace(batch_dir,'')} -> {gt_dcm_target_dir.replace(batch_dir,'')} ..."
+            )
+            shutil.copytree(element_gt_input_dir, gt_dcm_target_dir, dirs_exist_ok=True)
             if self.move_files:
                 self.logger.info(
-                    f"Moving {element_base_input_dir.replace(batch_dir,'')} -> {base_dcm_target_dir.replace(batch_dir,'')} ..."
+                    f"Removing {element_base_input_dir.replace(batch_dir,'')} ..."
                 )
-                shutil.move(element_base_input_dir, base_dcm_target_dir)
+                shutil.rmtree(element_base_input_dir)
                 self.logger.info(
-                    f"Moving {element_gt_input_dir.replace(batch_dir,'')} -> {gt_dcm_target_dir.replace(batch_dir,'')} ..."
+                    f"Removing {element_gt_input_dir.replace(batch_dir,'')} ..."
                 )
-                shutil.move(element_gt_input_dir, gt_dcm_target_dir)
-            else:
-                self.logger.info(
-                    f"Copy {element_base_input_dir.replace(batch_dir,'')} -> {base_dcm_target_dir.replace(batch_dir,'')} ..."
-                )
-                shutil.move(element_base_input_dir, base_dcm_target_dir)
-                self.logger.info(
-                    f"Copy {element_gt_input_dir.replace(batch_dir,'')} -> {gt_dcm_target_dir.replace(batch_dir,'')} ..."
-                )
-                shutil.move(element_gt_input_dir, gt_dcm_target_dir)
+                shutil.rmtree(element_gt_input_dir)
 
     def __init__(
         self,

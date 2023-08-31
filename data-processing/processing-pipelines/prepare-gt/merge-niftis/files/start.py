@@ -25,26 +25,45 @@ def check_overlap(mask_numpy, merged_mask):
     overlap_mask = np.logical_and(merged_mask, mask_numpy)
     if np.any(overlap_mask):
         logger.warning(f"The masks have overlapping areas. {overlap_strategie=}")
+        unique_values_merge = np.unique(mask_numpy[overlap_mask], return_counts=False)
+        overlap_merge_label = [
+            k for k, v in master_label_dict.items() if v == max(unique_values_merge)
+        ]
+        assert len(overlap_merge_label)
+        overlap_merge_label = overlap_merge_label[0]
 
+        unique_values_base, counts_base = np.unique(
+            merged_mask[overlap_mask], return_counts=True
+        )
+        for index, overlap_value in enumerate(unique_values_base):
+            overlap_base_label = [
+                k for k, v in master_label_dict.items() if v == overlap_value
+            ]
+            assert len(overlap_base_label) == 1
+            logger.warning(
+                f"{counts_base[index]} overlapping voxels for label '{overlap_base_label[0]}' and '{overlap_merge_label}'"
+            )
         if overlap_threshold != 0:
-            # Count the overlapping pixels
+            # Count the overlapping voxels
             overlap_count = np.sum(overlap_mask)
             # Calculate the total number of pixels in either mask (assuming they have the same shape)
-            total_pixels = merged_mask.size
-            # Calculate the percentage of overlapping pixels
-            overlap_percentage = (overlap_count / total_pixels) * 100
+            total_voxels = merged_mask.size
+            # Calculate the percentage of overlapping voxels
+            overlap_percentage = (overlap_count / total_voxels) * 100
             logger.warning(
-                f"The percentage of overlapping pixels is: {overlap_percentage:.2f}% vs a theshold: {overlap_threshold}"
+                f"The percentage of overlapping voxels is: {overlap_percentage:.2f}% vs the theshold: {overlap_threshold}%"
             )
             if overlap_percentage <= overlap_threshold:
-                logger.warning(f"-> still ok -> continue.")
+                logger.warning(
+                    f"-> still ok -> using {overlap_merge_label} -> continue."
+                )
                 return "ok", mask_numpy, merged_mask
 
         if overlap_strategie == "skip":
             result = "skip"
         elif overlap_strategie == "crash":
             logger.error(f"Overlap identified -> {overlap_strategie=} -> exit!")
-            exit(1)
+            result = "crash"
 
         elif overlap_strategie == "set_to_background":
             logger.warning(
@@ -57,9 +76,11 @@ def check_overlap(mask_numpy, merged_mask):
             mask_numpy[no_overlap_mask] = 0
             result = "ok"
         else:
-            result = "ok"
+            logger.warning(f"Unknown overlap-strategy: {overlap_strategie} -> exit")
+            result = "crash"
+
     else:
-        logger.info("No overlapping areas found.")
+        logger.debug("No overlapping areas found.")
         result = "ok"
 
     return result, mask_numpy, merged_mask
@@ -79,6 +100,22 @@ def process_batch_element(batch_element_dir):
         gt_mask_niftis = glob(
             join(element_input_dir, input_file_extension), recursive=False
         )
+        if len(seg_order) > 0:
+            new_order_gt_mask_niftis = []
+            for sort_label in seg_order:
+                for gt_mask_nifti in gt_mask_niftis:
+                    if sort_label.lower() in basename(gt_mask_nifti).lower():
+                        new_order_gt_mask_niftis.append(gt_mask_nifti)
+                        break
+
+            if len(gt_mask_niftis) != len(new_order_gt_mask_niftis):
+                for gt_mask_nifti in gt_mask_niftis:
+                    if gt_mask_nifti not in new_order_gt_mask_niftis:
+                        new_order_gt_mask_niftis.insert(0, gt_mask_nifti)
+
+            assert len(gt_mask_niftis) == len(new_order_gt_mask_niftis)
+            gt_mask_niftis = new_order_gt_mask_niftis
+            logger.debug(f"{gt_mask_niftis=}")
 
         merged_mask = None
         for gt_mask_nifti in gt_mask_niftis:
@@ -99,7 +136,7 @@ def process_batch_element(batch_element_dir):
                 new_label_name = label_name
             else:
                 logger.error("Something went wrong.")
-                exit(1)
+                return basename(batch_element_dir), "crash"
 
             if new_label_name not in local_seg_dict:
                 local_seg_dict[new_label_name] = target_encoding
@@ -114,7 +151,15 @@ def process_batch_element(batch_element_dir):
 
             if np.max(mask_numpy) > integer_encoding:
                 logger.error(f"{np.max(mask_numpy)}")
-                exit(1)
+                return basename(batch_element_dir), "crash"
+
+            logger.debug(
+                f"Setting target encoding: {integer_encoding} -> {target_encoding}"
+            )
+            mask_numpy[mask_numpy == integer_encoding] = target_encoding
+            labels_found = list(np.unique(mask_numpy))
+            logger.debug(f"mask_numpy labels_found converted: {labels_found}")
+            assert labels_found == [0, target_encoding]
 
             if merged_mask is None:
                 logger.debug(f"Creating empty merge-mask ...")
@@ -125,7 +170,8 @@ def process_batch_element(batch_element_dir):
                 logger.error(
                     f"Shape missmatch: {mask_numpy.shape=} vs {merged_mask.shape=}"
                 )
-                exit(1)
+                continue
+                # return basename(batch_element_dir), "crash"
             elif overlap_strategie != "none":
                 result, mask_numpy, merged_mask = check_overlap(
                     merged_mask=merged_mask, mask_numpy=mask_numpy
@@ -135,17 +181,15 @@ def process_batch_element(batch_element_dir):
                         f"Overlap identified -> {overlap_strategie=} -> skipping mask {basename(gt_mask_nifti)} !"
                     )
                     continue
-
-            logger.debug(
-                f"Setting target encoding: {integer_encoding} -> {target_encoding}"
-            )
-            mask_numpy[mask_numpy == integer_encoding] = target_encoding
-            labels_found = list(np.unique(mask_numpy))
-            logger.debug(f"mask_numpy labels_found converted: {labels_found}")
-            assert labels_found == [0, target_encoding]
+                elif result == "crash":
+                    logger.error(
+                        f"Overlap identified -> {overlap_strategie=} -> exit !"
+                    )
+                    continue
+                    # return basename(batch_element_dir), "crash"
 
             logger.debug(f"Merging masks ... ")
-            mask = (merged_mask == 0) & (mask_numpy != 0)
+            mask = mask_numpy != 0
             merged_mask[mask] = mask_numpy[mask]
 
             labels_found = list(np.unique(merged_mask))
@@ -188,16 +232,12 @@ def process_batch_element(batch_element_dir):
 # os.environ["OPERATOR_OUT_DIR"] = "merge-masks"
 # os.environ["PARALLEL_PROCESSES"] = "1"
 # os.environ["OVERLAP_STRATEGY"] = "skip"
-# os.environ["OVERLAP_THRESHOLD"] = "0"
-# os.environ["SEG_FILTER"] = "['lung','neoplasm, primary','spinal-cord','spinal cord','spinal-cord','esophagus,heart']"
+# os.environ["OVERLAP_THRESHOLD"] = "0.01"
+# os.environ[
+#     "SEG_ORDER"
+# ] = "['lung','neoplasm, primary','spinal-cord','spinal cord','spinal-cord','esophagus','heart']"
 
-overlap_strategies = [
-    "none",
-    "skip",
-    "crash",
-    "set_to_background",
-    "follow_label_list",
-]
+overlap_strategies = ["none", "skip", "crash", "set_to_background"]
 
 workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
@@ -215,16 +255,16 @@ operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
 assert operator_out_dir is not None
 
-overlap_strategie = getenv("OVERLAP_STRATEGY", "crash")
 
 log_level = getenv("LOG_LEVEL", "INFO")
 log_level = log_level if log_level.lower() != "none" else None
 log_level = log_level.lower()
 assert log_level is not None
 
-seg_filter = getenv("SEG_FILTER", "[]")
-seg_filter = ast.literal_eval(seg_filter)
+seg_order = getenv("SEG_ORDER", "[]")
+seg_order = ast.literal_eval(seg_order)
 
+overlap_strategie = getenv("OVERLAP_STRATEGY", "crash").lower()
 parallel_processes = int(getenv("PARALLEL_PROCESSES", "3"))
 overlap_threshold = float(getenv("OVERLAP_THRESHOLD", "0"))
 
@@ -250,27 +290,27 @@ elif log_level == "error":
 logger = get_logger(__name__, log_level_int)
 errors = False
 
-print("##################################################")
-print("#")
-print("# Starting operator xyz:")
-print("#")
-print(f"# workflow_dir:     {workflow_dir}")
-print(f"# batch_name:       {batch_name}")
-print(f"# operator_in_dir:  {operator_in_dir}")
-print(f"# operator_out_dir: {operator_out_dir}")
-print(f"# overlap_strategie:  {overlap_strategie}")
-print(f"# overlap_threshold:  {overlap_threshold}")
-print(f"# parallel_processes: {parallel_processes}")
-print(f"# seg_filter:         {seg_filter}")
-print("#")
-print(f"# master_label_dict_path: {master_label_dict_path}")
-print("#")
-print("##################################################")
-print("#")
-print("# Starting processing on BATCH-ELEMENT-level ...")
-print("#")
-print("##################################################")
-print("#")
+logger.info("##################################################")
+logger.info("#")
+logger.info("# Starting operator mask2nifti:")
+logger.info("#")
+logger.info(f"# workflow_dir:     {workflow_dir}")
+logger.info(f"# batch_name:       {batch_name}")
+logger.info(f"# operator_in_dir:  {operator_in_dir}")
+logger.info(f"# operator_out_dir: {operator_out_dir}")
+logger.info(f"# overlap_strategie:  {overlap_strategie}")
+logger.info(f"# overlap_threshold:  {overlap_threshold}")
+logger.info(f"# parallel_processes: {parallel_processes}")
+logger.info(f"# seg_order:          {seg_order}")
+logger.info("#")
+logger.info(f"# master_label_dict_path: {master_label_dict_path}")
+logger.info("#")
+logger.info("##################################################")
+logger.info("#")
+logger.info("# Starting processing on BATCH-ELEMENT-level ...")
+logger.info("#")
+logger.info("##################################################")
+logger.info("#")
 
 assert exists(master_label_dict_path)
 with open(master_label_dict_path) as f:
@@ -283,41 +323,48 @@ if overlap_strategie not in overlap_strategies:
 
 
 batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
+batch_size = len(batch_folders)
+batch_index = 0
 
 with ThreadPool(parallel_processes) as threadpool:
     results = threadpool.imap_unordered(process_batch_element, batch_folders)
     for batch_element_dir, result in results:
-        print(f"#  {batch_element_dir}: {result}")
-        if result != "success":
+        batch_index += 1
+        logger.info(f"#  {batch_element_dir}: {result} ({batch_index}/{batch_size})")
+        if result == "crash":
+            logger.error(f"Error occurred!")
+            exit(1)
+
+        elif result != "success":
             errors = True
 
-print("#")
-print("##################################################")
-print("#")
-print("# BATCH-ELEMENT-level processing done.")
-print("#")
-print("##################################################")
-print("#")
+logger.info("#")
+logger.info("##################################################")
+logger.info("#")
+logger.info("# BATCH-ELEMENT-level processing done.")
+logger.info("#")
+logger.info("##################################################")
+logger.info("#")
 
 if processed_count == 0:
-    print("##################################################")
-    print("#")
-    print("# -> No files have been processed so far!")
-    print("#")
-    print("# Starting processing on BATCH-LEVEL ...")
-    print("#")
-    print("##################################################")
-    print("#")
+    logger.info("##################################################")
+    logger.info("#")
+    logger.info("# -> No files have been processed so far!")
+    logger.info("#")
+    logger.info("# Starting processing on BATCH-LEVEL ...")
+    logger.info("#")
+    logger.info("##################################################")
+    logger.info("#")
 
     batch_input_dir = join("/", workflow_dir, operator_in_dir)
     batch_output_dir = join("/", workflow_dir, operator_in_dir)
 
     # check if input dir present
     if not exists(batch_input_dir):
-        print("#")
-        print(f"# Input-dir: {batch_input_dir} does not exists!")
-        print("# -> skipping")
-        print("#")
+        logger.info("#")
+        logger.info(f"# Input-dir: {batch_input_dir} does not exists!")
+        logger.info("# -> skipping")
+        logger.info("#")
     else:
         # creating output dir
         Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
@@ -327,30 +374,30 @@ if processed_count == 0:
                 process_batch_element, [batch_input_dir]
             )
 
-    print("#")
-    print("##################################################")
-    print("#")
-    print("# BATCH-LEVEL-level processing done.")
-    print("#")
-    print("##################################################")
-    print("#")
+    logger.info("#")
+    logger.info("##################################################")
+    logger.info("#")
+    logger.info("# BATCH-LEVEL-level processing done.")
+    logger.info("#")
+    logger.info("##################################################")
+    logger.info("#")
 
 if processed_count == 0:
-    print("#")
-    print("##################################################")
-    print("#")
-    print("##################  ERROR  #######################")
-    print("#")
-    print("# ----> NO FILES HAVE BEEN PROCESSED!")
-    print("#")
-    print("##################################################")
-    print("#")
+    logger.info("#")
+    logger.info("##################################################")
+    logger.info("#")
+    logger.info("##################  ERROR  #######################")
+    logger.info("#")
+    logger.info("# ----> NO FILES HAVE BEEN PROCESSED!")
+    logger.info("#")
+    logger.info("##################################################")
+    logger.info("#")
     exit(1)
 else:
-    print("#")
-    print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
-    print("#")
-    print("# DONE #")
+    logger.info("#")
+    logger.info(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
+    logger.info("#")
+    logger.info("# DONE #")
 
 if errors:
     exit(1)

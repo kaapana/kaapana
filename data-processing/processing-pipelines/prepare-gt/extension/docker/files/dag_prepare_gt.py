@@ -30,6 +30,17 @@ ui_forms = {
                 },
                 "readOnly": False,
             },
+            "seg_order": {
+                "title": "Segmentation Order",
+                "default": "",
+                "required": False,
+                "description": "Add labels to specify order for overlapping labels. (The label on the right becomes the top one)",
+                "type": "array",
+                "items": {
+                    "type": "string",
+                },
+                "readOnly": False,
+            },
             "merge_segs_config": {
                 "title": "Configure Label Merge",
                 "default": "",

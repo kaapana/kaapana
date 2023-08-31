@@ -59,7 +59,7 @@ batch_name = batch_name if batch_name.lower() != "none" else None
 assert batch_name is not None
 
 seg_filter = os.environ.get("SEG_FILTER", "[]")
-seg_filter = ast.literal_eval(seg_filter)
+seg_filter = [x.lower() for x in ast.literal_eval(seg_filter)]
 print(f"Set filters: {seg_filter}")
 
 operator_in_dir = getenv("OPERATOR_IN_DIR", "None")

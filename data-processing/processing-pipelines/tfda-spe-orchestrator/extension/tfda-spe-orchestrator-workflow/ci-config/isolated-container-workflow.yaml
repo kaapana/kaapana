@@ -1,0 +1,10 @@
+dag_id: "isolated-container-workflow"
+conf_data:
+  workflow_form:
+    single_execution: false
+    container_registry_url: "registry.hub.docker.com/kaushap"
+    container_name_version: "testdock:latest"
+  data_form:
+    bucket_name: "test-site-data"
+remote: false
+username: "kaapana"

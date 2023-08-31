@@ -12,6 +12,7 @@ ENV https_proxy=$https_proxy
 WORKDIR /kaapana/app
 
 RUN mkdir -p /root/.ssh
+RUN touch /root/.ssh/known_hosts
 RUN touch /root/.ssh/config
 RUN echo "StrictHostKeyChecking=accept-new" > /root/.ssh/config
 

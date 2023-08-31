@@ -24,7 +24,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="dag-tfda-spe-orchestrator",
+    dag_id="tfda-spe-orchestrator",
     default_args=args,
     concurrency=10,
     max_active_runs=10,

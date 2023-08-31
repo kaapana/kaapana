@@ -57,16 +57,16 @@ Generating deployment scripts
 -------------------------------
 
 The next step is the creation of deployment scripts for each subdirectory of the :code:`kaapana/platforms/` directory.
-The deployment script for the starter-platform for example can be found at :code:`kaapana/platforms/starter-platform/platform-deployment/deploy_platform.sh`.
+The deployment script for the kaapana-admin-chart for example can be found after a successful build at :code:`kaapana/build/kaapana-admin-chart/deploy_platform.sh`.
 It is based on :code:`kaapana/platforms/deploy_platform_template.sh` and configured according to a config file 
-e.g. :code:`kaapana/platforms/starter-platform/platform-deployment/deployment_config.yaml`.
+e.g. :code:`kaapana/platforms/kaapana-admin-chart/deployment_config.yaml`.
 
 .. hint::
 
   **Platform charts**
   
-  Currently there are two platforms build by default i.e. the :code:`starter-platform` and the :code:`kaapana-platform`.
-  Each platform is entirely packaged as a single helm chart i.e. the :code:`starter-platform-chart` and the :code:`kaapana-platform-chart`.
+  Currently there are two platforms build by default i.e. the :code:`admin-platform` and the :code:`kaapana-platform`.
+  Each platform is entirely packaged as a single helm chart i.e. the :code:`kaapana-admin-chart` and the :code:`kaapana-platform-chart`.
   Platform charts are specified by the key-value pair :code:`kaapana_type: "platform"` in the :code:`Chart.yaml` file.
   
   A filter can be applied in order to build only a subset of platform-charts e.g. only the :code:`kaapana-platform-chart`.
@@ -91,7 +91,7 @@ For each platform-chart that should be build the following steps are proccessed:
 
     **Recursively proccessing charts**
 
-    The basic component of step 2 is the static method :code:`create_build_version(chart)` of the :code:`HelmChart` class.
+    The basic component of step 2 is the static method :code:`build_platform(chart)` of the :code:`HelmChart` class.
     The method is first called for the platform-chart and then recursively for each chart it depends on.
     This way all charts of the dependency tree are proccessed in a depth-first approach.
     It updates dependencies, packages charts and tags images.

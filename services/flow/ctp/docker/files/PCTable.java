@@ -257,7 +257,8 @@ public class PCTable extends Hashtable<String,LinkedList<String>> {
 		new PC("XRayAngiographicBiPlaneImageStorageRetired","$ts-native"),
 		new PC("XRayAngiographicImageStorage","$ts-jpeglossless,JPEGBaseline,$ts-native"),
 		new PC("XRayRadiationDoseSR","$ts-native"),
-		new PC("XRayRadiofluoroscopicImageStorage","$ts-jpeglossless,$ts-native")
+		new PC("XRayRadiofluoroscopicImageStorage","$ts-jpeglossless,$ts-native"),
+		new PC("VLWholeSlideMicroscopyImageStorage","$ts-epd,$ts-native")
 	};
 
 	//SOP Classes not in the dcm4che UID dictionary

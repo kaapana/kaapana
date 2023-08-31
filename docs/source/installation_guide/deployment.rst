@@ -122,9 +122,9 @@ If the **undeployment fails**, make sure to manually check that
 
 .. hint::
 
-   | The :code:`./deploy_platform.sh` script also has a purge flag.
-   | :code:`--purge-kube-and-helm` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forerver.
-
+   | The :code:`./deploy_platform.sh` script also has some flags that can help with failed undeployments.
+   | :code:`--no-hooks` will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
+   | :code:`--nuke-pods` will force-delete all pods of the Kaapana deployment namespaces.
 
 
 

@@ -2,6 +2,9 @@
 
 Before you file a ticket, please have a look at our [FAQ](https://kaapana.readthedocs.io/en/stable/faq_root.html). Your problem might be covered already.
 
+## Tag your ticket
+Add the community-tech-meeting label to your ticket, otherwise we can not respond to it.
+
 ## Issue description
 Give a short description of your Issue.
 
@@ -29,7 +32,6 @@ Please also add logs of the involved components, wherever possible. Think about 
 
 - Operator logs:
 - DAG logs:
-- Kubernetes pod logs:
 - Screenshot: ![Screenshot]()
 - In what component is the error triggered?
 - What other components of Kaapana are involved?
@@ -42,6 +44,10 @@ First give a detailed description of your problem. To the best of your knowledge
 - Is your instance connected to a registry or are you working with an offline installation?
 - Is your instance running behind a proxy server?
 
+## Node Reporter
+The deployment script is able to cover large portions of the "Additional informaion" and the "Describe the system" sections.
+You can create a file with extensive system informaiton with 
 
+`./deploy_platform.sh --report > node_report.txt`
 
-Finally: Add the community-tech-meeting label to your ticket.
+and attach the result to your ticket.

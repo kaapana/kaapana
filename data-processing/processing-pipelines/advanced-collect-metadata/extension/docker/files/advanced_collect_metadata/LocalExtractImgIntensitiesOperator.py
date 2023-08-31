@@ -4,6 +4,7 @@ import json
 import datetime
 from pathlib import Path
 import nibabel as nib
+import pydicom
 import numpy as np
 from os.path import basename
 
@@ -43,6 +44,7 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
         histo_dict = {}
         concat_json_data = {}
+        valid_images = 0
         for batch_element_dir in batch_dirs:
             # check if json_operator is defined; if yes load existing json file from json_operator's dir
             if self.json_operator:
@@ -62,16 +64,33 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
             else:
                 json_data = {}
 
+            # count valid images
+            valid_images = valid_images + 1
+
+            ### via DICOM ###
             # load batch-element's nifti image form input_operator's dir
             batch_element_in_dir = os.path.join(batch_element_dir, self.input_operator)
-            nifti_fname = glob.glob(
-                os.path.join(batch_element_in_dir, "*.nii.gz"), recursive=True
-            )[0]
-            nifti = nib.load(nifti_fname)
+            dcm_fnames = glob.glob(
+                os.path.join(batch_element_in_dir, "*.dcm"), recursive=True
+            )
+
+            # read slices and stack along depth axis
+            slices = [pydicom.dcmread(file).pixel_array for file in dcm_fnames]
+            volume = np.stack(slices, axis=-1)
+
+            # rescale pixel values with slope and intersect (same values for all slices of volume)
+            ds = pydicom.dcmread(dcm_fnames[0])
+            slope = ds.RescaleSlope
+            intercept = ds.RescaleIntercept
+            volume = volume * slope + intercept
+            print(f"MIN Value: {np.min(volume)} ; MAX value: {np.max(volume)}")
+            if np.max(volume) > 4095:
+                print(
+                    f"# WARNING: grayscale values of current image exceed HU value range [0; 4095] with a MAXIMUM VALUE = {np.max(volume)}"
+                )
 
             # retrieve grayscale histo values and add to histo_dict
-            pixel_data = nifti.get_fdata()
-            unique_values, counts = np.unique(pixel_data, return_counts=True)
+            unique_values, counts = np.unique(volume, return_counts=True)
             histo_dict_el = {
                 f"{value}": f"{count}" for value, count in zip(unique_values, counts)
             }
@@ -80,13 +99,19 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
                     histo_dict[key] = int(value)
                 else:
                     histo_dict[key] = int(histo_dict[key]) + int(value)
-            print(f"{histo_dict=}")
 
             # append metadata to concat_json_data dict
             concat_json_data[basename(batch_element_dir)] = json_data
 
+        # sort histo_dict with increasing grayscale values
+        sorted_histo_dict = dict(
+            sorted(histo_dict.items(), key=lambda item: float(item[0]))
+        )
+
         # merge concat_json_data and histo_dict dicts
-        concat_json_data.update(histo_dict)
+        concat_json_data["histo_values"] = sorted_histo_dict
+        # add information of how many images in dataset
+        concat_json_data["num_images"] = valid_images
 
         # save to out_dir
         with open(

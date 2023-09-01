@@ -46,8 +46,8 @@ def periodically_get_remote_updates():
 
     with SessionLocal() as db:
         try:
-            get_remote_updates(db, periodically=True)
-            # get_remote_updates_new(db, periodically=True)
+            # get_remote_updates(db, periodically=True)
+            get_remote_updates_new(db, periodically=True)
         except Exception as e:
             logging.warning(
                 "Something went wrong updating in crud.get_remote_updates()"

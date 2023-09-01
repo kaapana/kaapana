@@ -5,7 +5,10 @@ Before you file a ticket, please have a look at our [FAQ](https://kaapana.readth
 ## Log in to our gitlab project.
 You can use your github account with github as an identity provider to do so.
 Click the Helmholtz AAI button. Then search for github and select it.
-![login1](login1.png) ![login2](login2.png)
+<p float="left">
+    <img src="login1.png" width="100" />
+    <img src="login2.png" width="100" />
+</p>
 
 ## Tag your ticket
 Add the community-tech-meeting label to your ticket, otherwise we can not respond to it.

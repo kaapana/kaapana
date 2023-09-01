@@ -22,7 +22,7 @@ from batchgenerators.transforms.sample_normalization_transforms import (
 from opensearch_helper import OpenSearchHelper
 from batchgenerators_dataloader import ClassificationDataset
 
-RESULTS_DIR = Path("/models", os.environ['DAG_ID'], os.environ['RUN_ID'])
+RESULTS_DIR = Path("/models", os.environ["DAG_ID"], os.environ["RUN_ID"])
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create a custom logger
@@ -44,19 +44,24 @@ f_handler.setFormatter(f_format)
 logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
-TAG_TO_CLASS_MAPPING = ast.literal_eval(os.environ['TAG_TO_CLASS_MAPPING_JSON'])
+TAG_TO_CLASS_MAPPING = ast.literal_eval(os.environ["TAG_TO_CLASS_MAPPING_JSON"])
 
-NUM_CLASSES = 1 if os.environ['TASK'] == "binary" else len(TAG_TO_CLASS_MAPPING)
+NUM_CLASSES = 1 if os.environ["TASK"] == "binary" else len(TAG_TO_CLASS_MAPPING)
 NUM_WORKERS = 4
 NUM_INPUT_CHANNELS = 1
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-if os.environ['TASK'] == "multilabel":
-    f1_metric = F1Score(task=os.environ['TASK'], num_labels=NUM_CLASSES).to(DEVICE)
-    accuracy_metric = Accuracy(task=os.environ['TASK'], num_labels=NUM_CLASSES).to(DEVICE)
+if os.environ["TASK"] == "multilabel":
+    f1_metric = F1Score(task=os.environ["TASK"], num_labels=NUM_CLASSES).to(DEVICE)
+    accuracy_metric = Accuracy(task=os.environ["TASK"], num_labels=NUM_CLASSES).to(
+        DEVICE
+    )
 else:
-    f1_metric = F1Score(task=os.environ['TASK'], num_classes=NUM_CLASSES+1).to(DEVICE)
-    accuracy_metric = Accuracy(task=os.environ['TASK'], num_classes=NUM_CLASSES+1).to(DEVICE)
+    f1_metric = F1Score(task=os.environ["TASK"], num_classes=NUM_CLASSES + 1).to(DEVICE)
+    accuracy_metric = Accuracy(task=os.environ["TASK"], num_classes=NUM_CLASSES + 1).to(
+        DEVICE
+    )
+
 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
@@ -78,8 +83,8 @@ def load_checkpoint(checkpoint_file, model, optimizer, lr):
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
 
-def train_fn(model, criterion, mt_train, optimizer, scheduler, epoch):
 
+def train_fn(model, criterion, mt_train, optimizer, scheduler, epoch):
     losses_batches = []
     for batch_idx, batch in enumerate(mt_train):
         x = torch.from_numpy(batch["data"]).to(DEVICE)
@@ -96,7 +101,7 @@ def train_fn(model, criterion, mt_train, optimizer, scheduler, epoch):
             optimizer.step()
             detached_loss = loss.detach().cpu().numpy()
             losses_batches.append(detached_loss)
-    
+
     scheduler.step()
 
     return np.mean(losses_batches)
@@ -132,15 +137,13 @@ def evaluate(model, epoch, mt_val, train_loss):
 
 
 if __name__ == "__main__":
-
-    logger.debug('Main of trainer_v3 started')
-
+    logger.debug("Main of trainer_v3 started")
     logger.debug(f"Set task: {os.environ['RUN_ID']}")
-    logger.debug('Train dir set to: %s' % os.environ['BATCHES_INPUT_DIR'])
-    logger.debug('Results dir set to: %s' % RESULTS_DIR)
+    logger.debug("Train dir set to: %s" % os.environ["BATCHES_INPUT_DIR"])
+    logger.debug("Results dir set to: %s" % RESULTS_DIR)
 
     # set patch size
-    tuple_from_string = ast.literal_eval(os.environ['PATCH_SIZE'])
+    tuple_from_string = ast.literal_eval(os.environ["PATCH_SIZE"])
     patch_size = np.array(tuple_from_string)
 
     logger.debug(f"Patchsize set to: {patch_size}")
@@ -165,40 +168,42 @@ if __name__ == "__main__":
 
     # load model
 
-    spatial_dims = int(os.environ['DIMENSIONS'][0])
+    spatial_dims = int(os.environ["DIMENSIONS"][0])
 
     model = resnet18(
-        pretrained=False, 
-        progress=True, 
-        spatial_dims=spatial_dims, 
-        n_input_channels=NUM_INPUT_CHANNELS, 
-        num_classes=NUM_CLASSES
-        )
+        pretrained=False,
+        progress=True,
+        spatial_dims=spatial_dims,
+        n_input_channels=NUM_INPUT_CHANNELS,
+        num_classes=NUM_CLASSES,
+    )
 
     model = model.to(DEVICE)
 
-    logger.debug('Load model on gpu')
+    logger.debug("Load model on gpu")
 
     model.train()
 
     # Get train/val split and load batchgenerators
 
-    logger.debug('Get train/val split and load batchgenerators')
-    train_samples, val_samples = ClassificationDataset.get_split(int(os.environ['FOLD']))
+    logger.debug("Get train/val split and load batchgenerators")
+    train_samples, val_samples = ClassificationDataset.get_split(
+        int(os.environ["FOLD"])
+    )
 
     transform = ClassificationDataset.get_train_transform(patch_size)
 
     dl_train = ClassificationDataset(
         data=train_samples,
-        batch_size=int(os.environ['BATCH_SIZE']),
+        batch_size=int(os.environ["BATCH_SIZE"]),
         patch_size=patch_size,
         num_threads_in_multithreaded=NUM_WORKERS,
-        seed_for_shuffle=int(os.environ['FOLD']),
+        seed_for_shuffle=int(os.environ["FOLD"]),
         return_incomplete=False,
         shuffle=True,
         uid_to_tag_mapping=uid_to_tag_mapping,
         num_modalities=NUM_INPUT_CHANNELS,
-        num_classes=NUM_CLASSES
+        num_classes=NUM_CLASSES,
     )
 
     mt_train = MultiThreadedAugmenter(
@@ -211,14 +216,14 @@ if __name__ == "__main__":
 
     dl_val = ClassificationDataset(
         data=val_samples,
-        batch_size=int(os.environ['BATCH_SIZE']),
+        batch_size=int(os.environ["BATCH_SIZE"]),
         patch_size=patch_size,
         num_threads_in_multithreaded=NUM_WORKERS,
         return_incomplete=False,
         shuffle=False,
         uid_to_tag_mapping=uid_to_tag_mapping,
         num_modalities=NUM_INPUT_CHANNELS,
-        num_classes=NUM_CLASSES
+        num_classes=NUM_CLASSES,
     )
 
     mt_val = MultiThreadedAugmenter(
@@ -231,9 +236,9 @@ if __name__ == "__main__":
 
     # Hyperparameters
 
-    logger.debug('Set hyperparameters')
+    logger.debug("Set hyperparameters")
 
-    if os.environ['TASK'] == "multiclass":
+    if os.environ["TASK"] == "multiclass":
         criterion = torch.nn.CrossEntropyLoss()
     else:
         criterion = torch.nn.BCEWithLogitsLoss()
@@ -242,20 +247,15 @@ if __name__ == "__main__":
         model.parameters(), lr=1e-3, momentum=0.9, weight_decay=5e-4
     )
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=int(os.environ['NUM_EPOCHS']), eta_min=1e-10
+        optimizer, T_max=int(os.environ["NUM_EPOCHS"]), eta_min=1e-10
     )
     scaler = torch.cuda.amp.GradScaler()
 
     # Init Tensorboard
 
-    logger.debug('Init Tensorboard')
+    logger.debug("Init Tensorboard")
 
-    writer = SummaryWriter(
-        os.path.join(
-            "/tensorboard",
-            os.environ['RUN_ID']
-        )
-    )
+    writer = SummaryWriter(os.path.join("/tensorboard", os.environ["RUN_ID"]))
 
     best_ema_f1 = 0
     ema_f1 = None
@@ -263,27 +263,26 @@ if __name__ == "__main__":
 
     # Train loop
 
-    logger.debug('Train loop')
+    logger.debug("Train loop")
 
     mt_train._start()
     mt_val._start()
 
-    for epoch in range(0, int(os.environ['NUM_EPOCHS'])):
-
-        logger.debug('\nCurrent epoch: %s' % str(epoch))
+    for epoch in range(0, int(os.environ["NUM_EPOCHS"])):
+        logger.debug("\nCurrent epoch: %s" % str(epoch))
 
         train_loss = train_fn(model, criterion, mt_train, optimizer, scheduler, epoch)
 
-        logger.debug('Train Loss: %s' % str(train_loss))
+        logger.debug("Train Loss: %s" % str(train_loss))
 
         val_loss, corrects, f1 = evaluate(model, epoch, mt_val, train_loss)
 
         ema_f1 = f1 if ema_f1 is None else gamma * f1 + (1 - gamma) * ema_f1
 
-        logger.debug('Val Loss: %s' % str(val_loss))
+        logger.debug("Val Loss: %s" % str(val_loss))
 
-        logger.debug(f'EMA F1: {ema_f1}')
-        logger.debug(f'Accuracy: {corrects}')
+        logger.debug(f"EMA F1: {ema_f1}")
+        logger.debug(f"Accuracy: {corrects}")
 
         writer.add_scalar("train_loss", train_loss, global_step=epoch)
         writer.add_scalar("val_loss", val_loss, global_step=epoch)
@@ -296,7 +295,7 @@ if __name__ == "__main__":
         if ema_f1 > best_ema_f1:
             best_ema_f1 = ema_f1
 
-            logger.debug('Save checkpoint')
+            logger.debug("Save checkpoint")
 
             save_checkpoint(
                 model,
@@ -307,15 +306,12 @@ if __name__ == "__main__":
                 ),
             )
 
-    logger.debug('Finished Training')
+    logger.debug("Finished Training")
 
     save_checkpoint(
         model,
         optimizer,
-        os.path.join(
-            RESULTS_DIR, 
-            "model_end.pth.tar"
-        ),
+        os.path.join(RESULTS_DIR, "model_end.pth.tar"),
     )
 
     mt_train._finish()

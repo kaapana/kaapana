@@ -2,6 +2,13 @@
 
 Before you file a ticket, please have a look at our [FAQ](https://kaapana.readthedocs.io/en/stable/faq_root.html). Your problem might be covered already.
 
+## Log in to our gitlab project.
+You can use your github account with github as an identity provider to do so.
+Click the Helmholtz AAI button. 
+![login1](login1.png)
+Then search for github and select it.
+![login2](login2.png)
+
 ## Tag your ticket
 Add the community-tech-meeting label to your ticket, otherwise we can not respond to it.
 

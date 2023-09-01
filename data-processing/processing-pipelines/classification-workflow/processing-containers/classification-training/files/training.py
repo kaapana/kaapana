@@ -1,26 +1,21 @@
 #!/usr/bin/env python3
-import os
-import logging
-from pathlib import Path
 import ast
+import logging
+import os
+from pathlib import Path
+
 import numpy as np
-
 import torch
-from torch.utils.tensorboard import SummaryWriter
-
-from torchmetrics import F1Score
-from torchmetrics import Accuracy
-
-from monai.networks.nets import resnet18
-
-from batchgenerators.dataloading.multi_threaded_augmenter import MultiThreadedAugmenter
+from batchgenerators.dataloading.multi_threaded_augmenter import \
+    MultiThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import Compose
-from batchgenerators.transforms.sample_normalization_transforms import (
-    ZeroMeanUnitVarianceTransform,
-)
-
-from opensearch_helper import OpenSearchHelper
+from batchgenerators.transforms.sample_normalization_transforms import \
+    ZeroMeanUnitVarianceTransform
 from batchgenerators_dataloader import ClassificationDataset
+from monai.networks.nets import resnet18
+from opensearch_helper import OpenSearchHelper
+from torch.utils.tensorboard import SummaryWriter
+from torchmetrics import Accuracy, F1Score
 
 RESULTS_DIR = Path("/models", os.environ["DAG_ID"], os.environ["RUN_ID"])
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,8 +1,10 @@
-import os
-import numpy as np
-from skimage.transform import resize
-import SimpleITK as sitk
 import ast
+import os
+
+import numpy as np
+import SimpleITK as sitk
+from skimage.transform import resize
+
 
 class ZScoreNormalizer():
     def normalize(self, image, mask=None):

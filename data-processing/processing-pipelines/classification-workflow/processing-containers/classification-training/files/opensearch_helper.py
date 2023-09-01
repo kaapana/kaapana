@@ -1,6 +1,7 @@
-from opensearchpy import OpenSearch
 import os
 from typing import List
+
+from opensearchpy import OpenSearch
 
 SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]
 HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"

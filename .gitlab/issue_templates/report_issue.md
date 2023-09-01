@@ -4,7 +4,7 @@ Before you file a ticket, please have a look at our [FAQ](https://kaapana.readth
 
 ## Log in to our gitlab via github.
 Before you can create a ticket you have to log in to our gitlab. You can use your github account with github as an identity provider to do so. Go to [Sign in](https://codebase.helmholtz.cloud/users/sign_in) and click the Helmholtz AAI button. Then search for github and select it.
-<p float="center">
+<p float="left">
     <img src="login1.png" width="500" />
     <img src="login2.png" width="500" />
 </p>

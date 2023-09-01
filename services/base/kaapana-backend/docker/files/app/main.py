@@ -20,6 +20,7 @@ from .decorators import repeat_every
 from .workflows import models
 from .workflows.crud import (
     get_remote_updates,
+    get_remote_updates_new,
     sync_states_from_airflow,
     sync_n_clean_qsr_jobs_with_airflow,
 )
@@ -38,17 +39,20 @@ app = FastAPI(root_path="/kaapana-backend")
 def periodically_get_remote_updates():
     # From: https://github.com/dmontagu/fastapi-utils/issues/230
     # In the future also think about integrating celery, this might help with the issue of repeated execution: https://testdriven.io/blog/fastapi-and-celery/
-    parent_process = psutil.Process(os.getppid())
-    children = parent_process.children(recursive=True)  # List of all child processes
-    if children[0].pid == os.getpid():
-        with SessionLocal() as db:
-            try:
-                get_remote_updates(db, periodically=True)
-            except Exception as e:
-                logging.warning(
-                    "Something went wrong updating in crud.get_remote_updates()"
-                )
-                logging.warning(traceback.format_exc())
+
+    # parent_process = psutil.Process(os.getppid())
+    # children = parent_process.children(recursive=True)  # List of all child processes
+    # if children[0].pid == os.getpid():
+
+    with SessionLocal() as db:
+        try:
+            get_remote_updates(db, periodically=True)
+            # get_remote_updates_new(db, periodically=True)
+        except Exception as e:
+            logging.warning(
+                "Something went wrong updating in crud.get_remote_updates()"
+            )
+            logging.warning(traceback.format_exc())
 
 
 @app.on_event("startup")
@@ -56,19 +60,21 @@ def periodically_get_remote_updates():
 def periodically_sync_states_from_airflow():
     # From: https://github.com/dmontagu/fastapi-utils/issues/230
     # In the future also think about integrating celery, this might help with the issue of repeated execution: https://testdriven.io/blog/fastapi-and-celery/
-    parent_process = psutil.Process(os.getppid())
-    children = parent_process.children(recursive=True)  # List of all child processes
-    if children[0].pid == os.getpid():
-        with SessionLocal() as db:
-            try:
-                sync_states_from_airflow(db, status="queued", periodically=True)
-                sync_states_from_airflow(db, status="scheduled", periodically=True)
-                sync_states_from_airflow(db, status="running", periodically=True)
-            except Exception as e:
-                logging.warning(
-                    "Something went wrong updating in crud.sync_states_from_airflow()"
-                )
-                logging.warning(traceback.format_exc())
+
+    # parent_process = psutil.Process(os.getppid())
+    # children = parent_process.children(recursive=True)  # List of all child processes
+    # if children[0].pid == os.getpid():
+
+    with SessionLocal() as db:
+        try:
+            sync_states_from_airflow(db, status="queued", periodically=True)
+            sync_states_from_airflow(db, status="scheduled", periodically=True)
+            sync_states_from_airflow(db, status="running", periodically=True)
+        except Exception as e:
+            logging.warning(
+                "Something went wrong updating in crud.sync_states_from_airflow()"
+            )
+            logging.warning(traceback.format_exc())
 
 
 # @app.on_event("startup")

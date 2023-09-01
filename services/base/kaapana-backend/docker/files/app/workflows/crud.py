@@ -634,7 +634,7 @@ def get_job_taskinstances(db: Session, job_id: int = None):
 
 def sync_client_remote_new(
     db: Session,
-    remote_federated_permission_profile: schemas.RemoteFedereatedPermissionProfileUpdateExternal,
+    remote_and_owner_federated_permission_profile: schemas.RemoteAndOwnerFederatedPermissionProfileUpdateExternal,
     instance_name: str = None,
     status: str = None,
 ):
@@ -643,45 +643,103 @@ def sync_client_remote_new(
 
     # get db_federation of incoming remote_federated_permission_profile
     db_federation = get_federation(
-        db, federation_id=remote_federated_permission_profile.federation_id
+        db,
+        federation_id=remote_and_owner_federated_permission_profile.remote_federated_permission_profile.federation_id,
     )
     if db_federation is None:
         # federation of incoming remote_federated_permission_profile is not yet in local db -> create
         federation = schemas.FederationCreate(
             **{
-                "federation_id": remote_federated_permission_profile.federation_id,
-                "federation_name": remote_federated_permission_profile.federation_name,
+                "federation_id": remote_and_owner_federated_permission_profile.remote_federated_permission_profile.federation_id,
+                "federation_name": remote_and_owner_federated_permission_profile.remote_federated_permission_profile.federation_name,
                 "remote": True,
             }
         )
         db_federation = create_federation(db, federation=federation)
 
-    # get db_federated_permission_profile of incoming remote_federated_permission_profile
-    db_federated_permission_profile = get_federated_permission_profile(
-        db,
-        federated_permission_profile_id=remote_federated_permission_profile.federated_permission_profile_id,
+    print(
+        f"CRUD def sync_client_remote_new() {remote_and_owner_federated_permission_profile=}"
     )
-    # doesn't make sense to update local db_federated_permission_profile with incoming permission information from remote_federated_permission_profile
-    if db_federated_permission_profile is None:
-        # federated_permission_profile of incoming remote_federated_permission_profile is not yet in local db -> create
-        db_remote_kaapana_instance = get_kaapana_instance(
-            db, instance_name=instance_name
+    incoming_federated_permission_profiles = [
+        remote_and_owner_federated_permission_profile.remote_federated_permission_profile,
+        remote_and_owner_federated_permission_profile.owner_federated_permission_profile,
+    ]
+    for incoming_federated_permission_profile in incoming_federated_permission_profiles:
+        # get db_federated_permission_profile of incoming remote_federated_permission_profile
+        db_federated_permission_profile = get_federated_permission_profile(
+            db,
+            federated_permission_profile_id=incoming_federated_permission_profile.federated_permission_profile_id,
         )
-        federated_permission_profile = schemas.FederatedPermissionProfileCreate(
-            **{
-                "federated_permission_profile_id": remote_federated_permission_profile.federated_permission_profile_id,
-                "kaapana_instance": db_remote_kaapana_instance,
-                "federation_id": remote_federated_permission_profile.federation_id,
-            }
-        )
-        db_federated_permission_profile = create_federated_permission_profile(
-            db, federated_permission_profile=federated_permission_profile
-        )
-        # add created db_federated_permission_profile to db_federation
+        # create it if not there yet
+        if db_federated_permission_profile is None:
+            # federated_permission_profile of incoming remote_federated_permission_profile is not yet in local db -> create
+            db_incoming_kaapana_instance = get_kaapana_instance(
+                db,
+                instance_name=incoming_federated_permission_profile.kaapana_instance_name,
+            )
+            federated_permission_profile = schemas.FederatedPermissionProfileCreate(
+                **{
+                    "federated_permission_profile_id": incoming_federated_permission_profile.federated_permission_profile_id,
+                    "kaapana_instance": db_incoming_kaapana_instance,
+                    "federation_id": incoming_federated_permission_profile.federation_id,
+                    "remote": False
+                    if db_client_kaapana.instance_name
+                    == incoming_federated_permission_profile.kaapana_instance_name
+                    else True,
+                    # set owning_federation_id if current fed_perm_profile is federation's owner
+                    "owning_federation_id": incoming_federated_permission_profile.federation_id
+                    if incoming_federated_permission_profile.federated_permission_profile_id
+                    == remote_and_owner_federated_permission_profile.owner_federated_permission_profile.federated_permission_profile_id
+                    else None,
+                }
+            )
+            db_federated_permission_profile = create_federated_permission_profile(
+                db, federated_permission_profile=federated_permission_profile
+            )
+            # add created db_federated_permission_profile to db_federation
+            federation = schemas.FederationUpdate(
+                **{
+                    "federation_id": db_federation.federation_id,
+                    "federated_permission_profile": db_federated_permission_profile,
+                }
+            )
+            db_federation = update_federation(db=db, federation=federation)
+
+        # doesn't make sense to update local db_federated_permission_profile with incoming permission information from remote_federated_permission_profile ...
+        # ... but it does make sense to update incoming owner_fed_perm_profile
+        if (
+            incoming_federated_permission_profile.federated_permission_profile_id
+            == remote_and_owner_federated_permission_profile.owner_federated_permission_profile.federated_permission_profile_id
+        ):
+            # update incoming owner_fed_perm_profile
+            print(
+                f"CRUD def sync_client_remote_new() NEED TO UPDATE {incoming_federated_permission_profile=}"
+            )
+            federated_permission_profile = schemas.FederatedPermissionProfileUpdate(
+                **{
+                    "federated_permission_profile_id": incoming_federated_permission_profile.federated_permission_profile_id,
+                    "role": incoming_federated_permission_profile.role,
+                    "federation_acception": incoming_federated_permission_profile.federation_acception,
+                    "automatic_update": incoming_federated_permission_profile.automatic_update,
+                    "automatic_workflow_execution": incoming_federated_permission_profile.automatic_workflow_execution,
+                    "allowed_dags": list(
+                        incoming_federated_permission_profile.allowed_dags.keys()
+                    ),
+                    "allowed_datasets": [
+                        allowed_ds["name"]
+                        for allowed_ds in incoming_federated_permission_profile.allowed_datasets
+                    ],
+                }
+            )
+            db_federated_permission_profile = update_federated_permission_profile(
+                db, federated_permission_profile=federated_permission_profile
+            )
+    # if db_federation doesn't have an owner yet, add owner_fed_perm_profile from incoming_fed_perm_profiles
+    if db_federation.owner_federated_permission_profile_id is None:
         federation = schemas.FederationUpdate(
             **{
                 "federation_id": db_federation.federation_id,
-                "federated_permission_profile": db_federated_permission_profile,
+                "owner_federated_permission_profile_id": remote_and_owner_federated_permission_profile.owner_federated_permission_profile.federated_permission_profile_id,
             }
         )
         db_federation = update_federation(db=db, federation=federation)
@@ -714,7 +772,12 @@ def sync_client_remote_new(
     logging.debug(f"SYNC_CLIENT_REMOTE outgoing_jobs: {outgoing_jobs}")
     logging.debug(f"SYNC_CLIENT_REMOTE outgoing_workflows: {outgoing_workflows}")
 
-    # compose update_remote_federated_permission_profile_payload to report back to requesting instance
+    # get local federated_permission_profile to send back to requesting instance
+    db_federated_permission_profile = get_federated_permission_profile(
+        db,
+        federated_permission_profile_id=remote_and_owner_federated_permission_profile.remote_federated_permission_profile.federated_permission_profile_id,
+    )
+    # compose update_remote_federated_permission_profile_payload to report back to requesting instance (according to schema.RemoteFederatedPermissionProfileUpdateExternal)
     update_remote_federated_permission_profile_payload = {
         "federated_permission_profile_id": db_federated_permission_profile.federated_permission_profile_id,
         "role": db_federated_permission_profile.role,
@@ -881,7 +944,7 @@ def get_remote_updates_new(db: Session, periodically=False):
                 )
                 continue
 
-            # compose update_remote_federated_permission_profile_payload
+            # compose update_remote_federated_permission_profile_payload according to RemoteFederatedPermissionProfileUpdateExternal
             update_remote_federated_permission_profile_payload = {
                 "federated_permission_profile_id": db_federated_permission_profile.federated_permission_profile_id,
                 "role": db_federated_permission_profile.role,
@@ -890,8 +953,36 @@ def get_remote_updates_new(db: Session, periodically=False):
                 "allowed_datasets": db_federated_permission_profile.allowed_datasets,
                 "automatic_update": db_federated_permission_profile.automatic_update,
                 "automatic_workflow_execution": db_federated_permission_profile.automatic_workflow_execution,
+                "kaapana_instance_name": db_federated_permission_profile.kaapana_instance.instance_name,
                 "federation_id": db_federation.federation_id,
                 "federation_name": db_federation.federation_name,
+            }
+            # if db_federation is owned by local instance: also add owner_federated_permission_profile to payload
+            if not db_federation.remote:
+                # get owner_federated_permission_profile
+                db_owner_federated_permission_profile = get_federated_permission_profile(
+                    db,
+                    federated_permission_profile_id=db_federation.owner_federated_permission_profile_id,
+                )
+                # compose its payload according to RemoteFederatedPermissionProfileUpdateExternal
+                update_owner_federated_permission_profile_payload = {
+                    "federated_permission_profile_id": db_owner_federated_permission_profile.federated_permission_profile_id,
+                    "role": db_owner_federated_permission_profile.role,
+                    "federation_acception": db_owner_federated_permission_profile.federation_acception,
+                    "allowed_dags": db_owner_federated_permission_profile.allowed_dags,
+                    "allowed_datasets": db_owner_federated_permission_profile.allowed_datasets,
+                    "automatic_update": db_owner_federated_permission_profile.automatic_update,
+                    "automatic_workflow_execution": db_owner_federated_permission_profile.automatic_workflow_execution,
+                    "kaapana_instance_name": db_owner_federated_permission_profile.kaapana_instance.instance_name,
+                    "federation_id": db_federation.federation_id,
+                    "federation_name": db_federation.federation_name,
+                }
+            else:
+                update_owner_federated_permission_profile_payload = {}
+            # compose update_fed_perm_profile payload according to RemoteAndOwnerFederatedPermissionProfileUpdateExternal
+            update_federated_permission_profile_payload = {
+                "remote_federated_permission_profile": update_remote_federated_permission_profile_payload,
+                "owner_federated_permission_profile": update_owner_federated_permission_profile_payload,
             }
 
             # compose job_params for job and workflow syncing mechanism
@@ -904,7 +995,7 @@ def get_remote_updates_new(db: Session, periodically=False):
                 f"CRUD def get_remote_updates_new() SEND REQUEST TO {db_federated_permission_profile.kaapana_instance.host}"
             )
             print(
-                f"CRUD def get_remote_updates_new() SEND REQUEST! {update_remote_federated_permission_profile_payload=}"
+                f"CRUD def get_remote_updates_new() SEND REQUEST! {update_federated_permission_profile_payload=}"
             )
 
             # PUT request to remote instance
@@ -913,7 +1004,7 @@ def get_remote_updates_new(db: Session, periodically=False):
                 r = requests_retry_session(session=s).put(
                     f"{remote_backend_url}/sync-client-remote-new",
                     params=job_params,
-                    json=update_remote_federated_permission_profile_payload,
+                    json=update_federated_permission_profile_payload,
                     verify=db_federated_permission_profile.kaapana_instance.ssl_check,
                     headers={
                         "FederatedAuthorization": f"{db_federated_permission_profile.kaapana_instance.token}"
@@ -2093,6 +2184,9 @@ def update_federation(db: Session, federation: schemas.FederationUpdate):
 
     elif federation.federated_permission_profile:
         # add federated_permission_profile to db_federation object
+        print(
+            f"CRUD def update_federation() WITH PARTICIPANT: {federation.federated_permission_profile}"
+        )
         db_federated_permission_profile = get_federated_permission_profile(
             db, federation.federated_permission_profile.federated_permission_profile_id
         )
@@ -2143,6 +2237,7 @@ def create_federated_permission_profile(
         role="node",  # by default weakest possible role
         username=federated_permission_profile.username,
         kaapana_id=federated_permission_profile.kaapana_instance.id,
+        remote=federated_permission_profile.remote,
         # kaapana_instance=federated_permission_profile.kaapana_instance,
         federation_id=federated_permission_profile.federation_id,
         owning_federation_id=federated_permission_profile.owning_federation_id,

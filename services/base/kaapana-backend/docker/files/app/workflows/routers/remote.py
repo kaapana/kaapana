@@ -96,14 +96,14 @@ def put_remote_kaapana_instance(
 
 @router.put("/sync-client-remote-new")
 def put_remote_kaapana_instance_new(
-    remote_federated_permission_profile: schemas.RemoteFedereatedPermissionProfileUpdateExternal,
+    remote_and_owner_federated_permission_profile: schemas.RemoteAndOwnerFederatedPermissionProfileUpdateExternal,
     instance_name: str = None,
     status: str = None,
     db: Session = Depends(get_db),
 ):
     return crud.sync_client_remote_new(
         db=db,
-        remote_federated_permission_profile=remote_federated_permission_profile,
+        remote_and_owner_federated_permission_profile=remote_and_owner_federated_permission_profile,
         instance_name=instance_name,
         status=status,
     )

@@ -1,7 +1,7 @@
 <template>
   <v-dialog v-model="federationPermProfileDialog" max-width="600px">
     <template v-slot:activator="{ on, attrs }">
-      <v-btn v-bind="attrs" v-on="on" color="primary" small rounded outlined>
+      <v-btn v-if="!federation.remote" v-bind="attrs" v-on="on" color="primary" small rounded outlined>
         add instance
       </v-btn>
     </template>
@@ -62,6 +62,8 @@ export default {
           // remote_instance_name: '',
           kaapana_instance: {},
           federation_id: '',
+          // remote per default true since only remote fed_perm_profiles, i.e. with remote=True can be added via this component
+          remote: true,
         },
         selected_remote_instance_name: '',
         remoteInstances: [],

@@ -240,6 +240,7 @@ class FederatedPermissionProfile(Base):
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+    remote = Column(Boolean(), default=True, index=True)
     # permissions moved from KaapanaInstance to FederatedPermissionProfile
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_workflow_execution = Column(Boolean(), default=False, index=True)

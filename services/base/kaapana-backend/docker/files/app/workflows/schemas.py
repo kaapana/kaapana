@@ -321,6 +321,7 @@ class FederatedPermissionProfileCreate(FederatedPermissionProfileBase):
     username: Optional[str] = None
     federation_id: str = None
     owning_federation_id: Optional[str] = None
+    remote: bool = True
 
 
 class FederatedPermissionProfileUpdate(FederatedPermissionProfileBase):
@@ -337,6 +338,7 @@ class FederatedPermissionProfile(FederatedPermissionProfileBase):
     role: str = None
     time_created: datetime.datetime = None
     time_updated: datetime.datetime = None
+    remote: bool = True
     federation_acception: bool = False
     automatic_update: bool = False
     automatic_workflow_execution: bool = False
@@ -387,7 +389,7 @@ class FederationUpdate(FederationBase):
     federated_permission_profile: Optional[FederatedPermissionProfile]
 
 
-class RemoteFedereatedPermissionProfileUpdateExternal(FederatedPermissionProfileUpdate):
+class RemoteFederatedPermissionProfileUpdateExternal(BaseModel):
     federated_permission_profile_id: str = None
     role: str = None
     federation_acception: bool = False
@@ -395,5 +397,13 @@ class RemoteFedereatedPermissionProfileUpdateExternal(FederatedPermissionProfile
     automatic_workflow_execution: bool = False
     allowed_dags: dict
     allowed_datasets: list
+    kaapana_instance_name: str = None
     federation_id: str = None
     federation_name: str = None
+
+
+class RemoteAndOwnerFederatedPermissionProfileUpdateExternal(BaseModel):
+    remote_federated_permission_profile: RemoteFederatedPermissionProfileUpdateExternal
+    owner_federated_permission_profile: Optional[
+        RemoteFederatedPermissionProfileUpdateExternal
+    ]

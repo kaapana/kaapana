@@ -59,7 +59,7 @@
         >
           <!-- local or remote indicator -->
           <template v-slot:item.remote="{ item }">
-            <v-tooltip v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
+            <v-tooltip v-if="!item.remote" bottom=''>
               <template v-slot:activator='{ on, attrs }'>
                 <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
                   | mdi-home
@@ -67,13 +67,32 @@
               </template>
               <span> Federated Permission Profile for local instance </span>
             </v-tooltip>
-            <v-tooltip v-if="item.federated_permission_profile_id !== federation.owner_federated_permission_profile_id" bottom=''>
+            <v-tooltip v-if="item.remote" bottom=''>
               <template v-slot:activator='{ on, attrs }'>
                 <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
                   | mdi-cloud-braces
                 </v-icon>
               </template>
               <span> Federated Permission Profile for remote instance </span>
+            </v-tooltip>
+          </template>
+          <!-- particiant or owner indicator -->
+          <template v-slot:item.owner="{ item }">
+            <v-tooltip v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
+              <template v-slot:activator='{ on, attrs }'>
+                <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
+                  | mdi-shield-crown-outline
+                </v-icon>
+              </template>
+              <span> Federated Permission Profile for OWNER of federation </span>
+            </v-tooltip>
+            <v-tooltip v-if="item.federated_permission_profile_id !== federation.owner_federated_permission_profile_id" bottom=''>
+              <template v-slot:activator='{ on, attrs }'>
+                <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
+                  | mdi-ghost-outline
+                </v-icon>
+              </template>
+              <span> Federated Permission Profile for PARTICIPANT of federation </span>
             </v-tooltip>
           </template>
           <!-- Federation acctepted status -->
@@ -114,7 +133,7 @@
           <!-- Actions -->
           <template v-slot:item.actions="{ item }">
             <!-- local -> edit permissions as action -->
-            <template v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
+            <template v-if="!item.remote" bottom=''>
               <EditFederatedPermissionProfile
                 :federated_permission_profile = "item"
                 @refreshFederationFromEditing="callEmitRefreshFederationFromFederation()"
@@ -122,7 +141,7 @@
               ></EditFederatedPermissionProfile>
             </template>
             <!-- remote -> delete permission profile as action -->
-            <v-tooltip v-if="!item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
+            <v-tooltip v-if="item.remote" bottom=''>
               <template v-slot:activator='{ on, attrs }'>
                 <v-btn v-bind="attrs" v-on="on" @click='deleteFederationPermissionProfile(item)' small icon>
                   <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
@@ -159,6 +178,7 @@
     data: () => ({
       federatedPermissionProfilesHeaders: [
         { text: '', value: 'remote' },
+        { text: '', value: 'owner' },
         { text: 'Instance Name', align: 'start', value: 'kaapana_instance.instance_name' },
         { text: 'Instance ID', value: 'kaapana_instance.id' },
         { text: 'Permissions ID', value: 'federated_permission_profile_id' },

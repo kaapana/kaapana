@@ -768,6 +768,7 @@ def create_federation(
             "kaapana_instance": db_local_kaapana_instance,
             "federation_id": db_federation.federation_id,
             "owning_federation_id": db_federation.federation_id,
+            "remote": False,
         }
     )
     db_federated_permission_profile = crud.create_federated_permission_profile(

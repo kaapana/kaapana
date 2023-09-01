@@ -6,8 +6,8 @@ Before you file a ticket, please have a look at our [FAQ](https://kaapana.readth
 You can use your github account with github as an identity provider to do so.
 Click the Helmholtz AAI button. Then search for github and select it.
 <p float="left">
-    <img src="login1.png" width="400" />
-    <img src="login2.png" width="400" />
+    <img src="login1.png" width="600" />
+    <img src="login2.png" width="600" />
 </p>
 
 ## Tag your ticket

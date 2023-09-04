@@ -1,22 +1,12 @@
 <template>
   <v-dialog v-model="federatedPermissionProfileDialog" max-width="600px">
     <template v-slot:activator="{ on, attrs }">
-      <v-btn v-bind="attrs" v-on="on" color="secondary" small rounded outlined>
-        edit
+      <v-btn v-bind="attrs" v-on="on" color="secondary" small icon>
+        <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
+          mdi-pencil
+        </v-icon>
       </v-btn>
     </template>
-    <!-- <template v-slot:activator="{ on, attrs }">
-      <v-tooltip >
-        <template v-slot:activator='{ on, attrs }'>
-          <v-btn v-bind="attrs" v-on="on" small icon>
-            <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
-              mdi-pencil
-            </v-icon>
-          </v-btn>
-        </template>
-        <span> Edit Federated Permission Profile for local instance </span>
-      </v-tooltip>
-    </template> -->
     <v-card>
       <v-form v-model="federatedPermissionProfileValid" lazy-validation="lazy-validation">
         <v-card-title><span class="text-h5">New Federation</span></v-card-title>
@@ -94,7 +84,7 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 import {loadDatasets} from "@/common/api.service";
 
 export default {
-  name: "FederatedPermissionProfile",
+  name: "EditFederatedPermissionProfile",
   
   data: () => ({
     // return this.initialState();
@@ -152,25 +142,25 @@ export default {
 
     // API calls
     getDags() {
-        kaapanaApiService
-          .federatedClientApiPost("/get-dags", {
-            instance_names: [this.federated_permission_profile.kaapana_instance.instance_name],
-            kind_of_dags: "all"
-          })
-          .then((response) => {
-            this.available_dags = response.data;
-            console.log("this.available_dags: ", this.available_dags, "type: ", typeof this.available_dags)
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      },
-      getDatasets() {
-        loadDatasets().then(_datasetNames => {
-          this.available_datasets = _datasetNames;
-          console.log("this.available_datasets: ", this.available_datasets, "type: ", typeof this.available_datasets)
+      kaapanaApiService
+        .federatedClientApiPost("/get-dags", {
+          instance_names: [this.federated_permission_profile.kaapana_instance.instance_name],
+          kind_of_dags: "all"
         })
-      },
+        .then((response) => {
+          this.available_dags = response.data;
+          console.log("this.available_dags: ", this.available_dags, "type: ", typeof this.available_dags)
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+    getDatasets() {
+      loadDatasets().then(_datasetNames => {
+        this.available_datasets = _datasetNames;
+        console.log("this.available_datasets: ", this.available_datasets, "type: ", typeof this.available_datasets)
+      })
+    },
     submitFederatedPermissionProfileForm () {
       // add federated_permission_profile_id to this.federatedPermissionProfilePost
       this.federatedPermissionProfilePost.federated_permission_profile_id = this.federated_permission_profile.federated_permission_profile_id

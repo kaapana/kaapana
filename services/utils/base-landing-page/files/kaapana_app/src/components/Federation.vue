@@ -51,108 +51,110 @@
         <p> Federation's instances</p>
       </v-row> -->
       <v-row>
-        <v-data-table
-          :headers="federatedPermissionProfilesHeaders"
-          :items="federation.federated_permission_profiles"
-          item-key="kaapana_instance.instance_name"
-          class="elevation-1"
-        >
-          <!-- local or remote indicator -->
-          <template v-slot:item.remote="{ item }">
-            <v-tooltip v-if="!item.remote" bottom=''>
-              <template v-slot:activator='{ on, attrs }'>
-                <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
-                  | mdi-home
-                </v-icon>
-              </template>
-              <span> Federated Permission Profile for local instance </span>
-            </v-tooltip>
-            <v-tooltip v-if="item.remote" bottom=''>
-              <template v-slot:activator='{ on, attrs }'>
-                <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
-                  | mdi-cloud-braces
-                </v-icon>
-              </template>
-              <span> Federated Permission Profile for remote instance </span>
-            </v-tooltip>
-          </template>
-          <!-- particiant or owner indicator -->
-          <template v-slot:item.owner="{ item }">
-            <v-tooltip v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
-              <template v-slot:activator='{ on, attrs }'>
-                <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
-                  | mdi-shield-crown-outline
-                </v-icon>
-              </template>
-              <span> Federated Permission Profile for OWNER of federation </span>
-            </v-tooltip>
-            <v-tooltip v-if="item.federated_permission_profile_id !== federation.owner_federated_permission_profile_id" bottom=''>
-              <template v-slot:activator='{ on, attrs }'>
-                <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
-                  | mdi-ghost-outline
-                </v-icon>
-              </template>
-              <span> Federated Permission Profile for PARTICIPANT of federation </span>
-            </v-tooltip>
-          </template>
-          <!-- Federation acctepted status -->
-          <template v-slot:item.federation_acception="{ item }">
-            <v-icon v-if="item.federation_acception" color="green">
-              mdi-check-circle-outline
-            </v-icon>
-            <v-icon v-if="!item.federation_acception" color="red">
-              mdi-close-circle-outline
-            </v-icon>
-          </template>
-          <!-- Auto Updates -->
-          <template v-slot:item.automatic_update="{ item }">
-            <v-icon v-if="item.automatic_update" color="green">
-              mdi-check-circle-outline
-            </v-icon>
-            <v-icon v-if="!item.automatic_update" color="red">
-              mdi-close-circle-outline
-            </v-icon>
-          </template>
-          <!-- Auto Execution -->
-          <template v-slot:item.automatic_workflow_execution="{ item }">
-            <v-icon v-if="item.automatic_workflow_execution" color="green">
-              mdi-check-circle-outline
-            </v-icon>
-            <v-icon v-if="!item.automatic_workflow_execution" color="red">
-              mdi-close-circle-outline
-            </v-icon>
-          </template>
-          <!-- Allowed Dags -->
-          <template v-slot:item.allowed_dags="{ item }">
-            <v-chip v-for='dag in item.allowed_dags' small> {{ dag }} </v-chip>
-          </template>
-          <!-- Allowed Dags -->
-          <template v-slot:item.allowed_datasets="{ item }">
-            <v-chip v-for='dataset in item.allowed_datasets' small> {{ dataset.name }} </v-chip>
-          </template>
-          <!-- Actions -->
-          <template v-slot:item.actions="{ item }">
-            <!-- local -> edit permissions as action -->
-            <template v-if="!item.remote" bottom=''>
-              <EditFederatedPermissionProfile
-                :federated_permission_profile = "item"
-                @refreshFederationFromEditing="callEmitRefreshFederationFromFederation()"
-                class="mx-4"
-              ></EditFederatedPermissionProfile>
-            </template>
-            <!-- remote -> delete permission profile as action -->
-            <v-tooltip v-if="item.remote" bottom=''>
-              <template v-slot:activator='{ on, attrs }'>
-                <v-btn v-bind="attrs" v-on="on" @click='deleteFederationPermissionProfile(item)' small icon>
+        <div style="width: 100%;">
+          <v-data-table
+            :headers="federatedPermissionProfilesHeaders"
+            :items="federation.federated_permission_profiles"
+            item-key="kaapana_instance.instance_name"
+            
+          >
+            <!-- local or remote indicator -->
+            <template v-slot:item.remote="{ item }">
+              <v-tooltip v-if="!item.remote" bottom=''>
+                <template v-slot:activator='{ on, attrs }'>
                   <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
-                    mdi-trash-can-outline
+                    | mdi-home
                   </v-icon>
-                </v-btn>
+                </template>
+                <span> local </span>
+              </v-tooltip>
+              <v-tooltip v-if="item.remote" bottom=''>
+                <template v-slot:activator='{ on, attrs }'>
+                  <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
+                    | mdi-cloud-braces
+                  </v-icon>
+                </template>
+                <span> remote </span>
+              </v-tooltip>
+            </template>
+            <!-- particiant or owner indicator -->
+            <template v-slot:item.owner="{ item }">
+              <v-tooltip v-if="item.federated_permission_profile_id === federation.owner_federated_permission_profile_id" bottom=''>
+                <template v-slot:activator='{ on, attrs }'>
+                  <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
+                    | mdi-shield-crown-outline
+                  </v-icon>
+                </template>
+                <span> owner </span>
+              </v-tooltip>
+              <v-tooltip v-if="item.federated_permission_profile_id !== federation.owner_federated_permission_profile_id" bottom=''>
+                <template v-slot:activator='{ on, attrs }'>
+                  <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
+                    | mdi-ghost-outline
+                  </v-icon>
+                </template>
+                <span> participant </span>
+              </v-tooltip>
+            </template>
+            <!-- Federation acctepted status -->
+            <template v-slot:item.federation_acception="{ item }">
+              <v-icon v-if="item.federation_acception" color="green">
+                mdi-check-circle-outline
+              </v-icon>
+              <v-icon v-if="!item.federation_acception" color="red">
+                mdi-close-circle-outline
+              </v-icon>
+            </template>
+            <!-- Auto Updates -->
+            <template v-slot:item.automatic_update="{ item }">
+              <v-icon v-if="item.automatic_update" color="green">
+                mdi-check-circle-outline
+              </v-icon>
+              <v-icon v-if="!item.automatic_update" color="red">
+                mdi-close-circle-outline
+              </v-icon>
+            </template>
+            <!-- Auto Execution -->
+            <template v-slot:item.automatic_workflow_execution="{ item }">
+              <v-icon v-if="item.automatic_workflow_execution" color="green">
+                mdi-check-circle-outline
+              </v-icon>
+              <v-icon v-if="!item.automatic_workflow_execution" color="red">
+                mdi-close-circle-outline
+              </v-icon>
+            </template>
+            <!-- Allowed Dags -->
+            <template v-slot:item.allowed_dags="{ item }">
+              <v-chip v-for='dag in item.allowed_dags' small> {{ dag }} </v-chip>
+            </template>
+            <!-- Allowed Dags -->
+            <template v-slot:item.allowed_datasets="{ item }">
+              <v-chip v-for='dataset in item.allowed_datasets' small> {{ dataset.name }} </v-chip>
+            </template>
+            <!-- Actions -->
+            <template v-slot:item.actions="{ item }">
+              <!-- local -> edit permissions as action -->
+              <template v-if="!item.remote" bottom=''>
+                <EditFederatedPermissionProfile
+                  :federated_permission_profile = "item"
+                  @refreshFederationFromEditing="callEmitRefreshFederationFromFederation()"
+                  class="mx-4"
+                ></EditFederatedPermissionProfile>
               </template>
-              <span> Delete Federated Permission Profile for remote instance </span>
-            </v-tooltip>
-          </template>
-        </v-data-table>
+              <!-- remote -> delete permission profile as action -->
+              <v-tooltip v-if="item.remote" bottom=''>
+                <template v-slot:activator='{ on, attrs }'>
+                  <v-btn v-bind="attrs" v-on="on" @click='deleteFederationPermissionProfile(item)' small icon>
+                    <v-icon color="secondary" dark='' v-bind='attrs' v-on='on'>
+                      mdi-trash-can-outline
+                    </v-icon>
+                  </v-btn>
+                </template>
+                <span> Delete Federated Permission Profile for remote instance </span>
+              </v-tooltip>
+            </template>
+          </v-data-table>
+        </div>
       </v-row>
     </v-card-text>
   </v-card>

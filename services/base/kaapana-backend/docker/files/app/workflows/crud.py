@@ -2346,10 +2346,15 @@ def update_federated_permission_profile(
         f"CRUD def update_federated_permission_profile() {db_federated_permission_profile.allowed_dags=} ; {type(db_federated_permission_profile.allowed_dags)=}"
     )
     db_federated_permission_profile.allowed_dags = allowed_dags
-    # db_federated_permission_profile.allowed_dags = federated_permission_profile.allowed_dags if federated_permission_profile.allowed_dags is not None else db_federated_permission_profile.allowed_dags
     db_federated_permission_profile.allowed_datasets = allowed_datasets
 
+    # update db_fed_perm_profiles' time_updated timestamp
     db_federated_permission_profile.time_updated = get_utc_timestamp()
+
+    # additionally update db_fed_perm_profiles' KPI's time_updated timestamp
+    db_kaapana_instance = db_federated_permission_profile.kaapana_instance
+    db_kaapana_instance.time_updated = get_utc_timestamp()
+
     db.commit()
     db.refresh(db_federated_permission_profile)
 

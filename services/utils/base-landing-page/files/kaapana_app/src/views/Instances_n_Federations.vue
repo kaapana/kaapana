@@ -11,21 +11,22 @@
             </v-btn>
           </v-card-title>
           <v-card-text>
-            <v-container fluid="">
+            <InstanceList :instances="remoteInstances" @refreshInstancesFromInstanceList="getKaapanaInstances()">
+            </InstanceList>
+            <!-- <v-container fluid="">
               <v-row dense="">
                 <v-col 
                   v-for="instance in remoteInstances" 
                   :key="instance.id"
                   cols="6"
                 >
-                  <!-- former old KaapanaInstance-->
                   <KaapanaInstance 
                     :instance="instance"
                     @refreshView="getKaapanaInstances()" 
                   ></KaapanaInstance>
                 </v-col>
               </v-row>
-            </v-container>
+            </v-container> -->
           </v-card-text>
           <v-card-actions></v-card-actions>
         </v-card>
@@ -40,15 +41,9 @@
           </v-card-title>
           <v-card-text>
             <v-container fluid="">
-              <v-row  
-                v-for="federation in federations" 
-                :key="federation.federation_id"
-              >
+              <v-row v-for="federation in federations" :key="federation.federation_id">
                 <v-col cols="12">
-                  <Federation
-                    :federation="federation"
-                    @refreshFederationFromFederation="getFederations()"
-                  ></Federation>
+                  <Federation :federation="federation" @refreshFederationFromFederation="getFederations()"></Federation>
                 </v-col>
               </v-row>
             </v-container>
@@ -60,80 +55,81 @@
   </v-container>
 </template>
   
-  <script>
-  import Vue from "vue";
-  import kaapanaApiService from "@/common/kaapanaApi.service";
+<script>
+import Vue from "vue";
+import kaapanaApiService from "@/common/kaapanaApi.service";
 
-  import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
-  import KaapanaInstance  from "@/components/KaapanaInstance.vue";
-  import CreateFederation from "@/components/CreateFederation.vue";
-  import Federation from "@/components/Federation.vue";
+import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
+import KaapanaInstance from "@/components/KaapanaInstance.vue";
+import InstanceList from "@/components/InstanceList.vue";
+import CreateFederation from "@/components/CreateFederation.vue";
+import Federation from "@/components/Federation.vue";
 
-  export default Vue.extend({
-    components: {
-      AddRemoteInstance,
-      CreateFederation,
-      KaapanaInstance,
-      Federation,
-    },
-    data: () => ({
-      polling: 0,
-      remoteInstances: {},
-      federations: {},
-    }),
+export default Vue.extend({
+  components: {
+    AddRemoteInstance,
+    CreateFederation,
+    KaapanaInstance,
+    InstanceList,
+    Federation,
+  },
+  data: () => ({
+    polling: 0,
+    remoteInstances: [],
+    federations: {},
+  }),
 
-    mounted () {
-      this.getKaapanaInstances();
-      this.getFederations();
-      this.startExtensionsInterval()
-    },
+  mounted() {
+    this.getKaapanaInstances();
+    this.getFederations();
+    this.startExtensionsInterval()
+  },
 
-    methods: {
-      // API calls
-      getKaapanaInstances() {
-        kaapanaApiService
-          .federatedClientApiPost("/get-kaapana-instances")
-          .then((response) => {
-            this.remoteInstances = response.data;
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      },
-      checkForRemoteUpdates() {
-        kaapanaApiService.syncRemoteInstances().then(successful => {
-          this.getKaapanaInstances()
+  methods: {
+    // API calls
+    getKaapanaInstances() {
+      kaapanaApiService
+        .federatedClientApiPost("/get-kaapana-instances")
+        .then((response) => {
+          this.remoteInstances = response.data;
+          console.log("Get KPIs: ", this.remoteInstances, "type", typeof this.remoteInstances)
         })
-      },
-      getFederations() {
-        console.log("GET FEDERATIONS!")
-        kaapanaApiService
-          .federatedClientApiGet("/federations")
-          .then((response) => {
-            this.federations = response.data;
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      },
-      clearExtensionsInterval() {
-        window.clearInterval(this.polling);
-      },
-      startExtensionsInterval() {
-        this.polling = window.setInterval(() => {
-          // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
-          // if (!this.$refs.workflowexecution.dialogOpen) {
-          this.getKaapanaInstances();
-          // }
-        }, 15000);
-      }
+        .catch((err) => {
+          console.log(err);
+        });
     },
-    beforeDestroy() {
-      this.clearExtensionsInterval()
+    checkForRemoteUpdates() {
+      kaapanaApiService.syncRemoteInstances().then(successful => {
+        this.getKaapanaInstances()
+      })
     },
-  });
+    getFederations() {
+      console.log("GET FEDERATIONS!")
+      kaapanaApiService
+        .federatedClientApiGet("/federations")
+        .then((response) => {
+          this.federations = response.data;
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+    },
+    clearExtensionsInterval() {
+      window.clearInterval(this.polling);
+    },
+    startExtensionsInterval() {
+      this.polling = window.setInterval(() => {
+        // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
+        // if (!this.$refs.workflowexecution.dialogOpen) {
+        this.getKaapanaInstances();
+        // }
+      }, 15000);
+    }
+  },
+  beforeDestroy() {
+    this.clearExtensionsInterval()
+  },
+});
 </script>
-  <style lang="scss">
-  
-  </style>
+<style lang="scss"></style>
   

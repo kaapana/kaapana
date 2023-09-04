@@ -17,7 +17,7 @@ from opensearch_helper import OpenSearchHelper
 from torch.utils.tensorboard import SummaryWriter
 from torchmetrics import Accuracy, F1Score
 
-RESULTS_DIR = Path("/models", os.environ["DAG_ID"], os.environ["RUN_ID"])
+RESULTS_DIR = Path("/models", os.environ['DAG_ID'], f"{os.environ['RUN_ID']}-fold_{os.environ['FOLD']}")
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create a custom logger

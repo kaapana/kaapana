@@ -1,9 +1,25 @@
 import ast
+import json
 import os
 
 import numpy as np
 import SimpleITK as sitk
 from skimage.transform import resize
+
+if "inference" in os.environ["WORKFLOW_NAME"]:
+    WORKFLOW_ID_OF_TRAINING = os.environ["MODEL"].split("/")[0]
+
+    # Open the file for reading
+    with open(
+        os.path.join(
+            "/models/classification-training-workflow",
+            WORKFLOW_ID_OF_TRAINING,
+            "config.json",
+        ),
+        "r",
+    ) as file:
+        # Load the JSON content from the file
+        os.environ["PATCH_SIZE"] = json.load(file)["PATCH_SIZE"]
 
 
 class ZScoreNormalizer:

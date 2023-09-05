@@ -54,6 +54,17 @@ f_handler.setFormatter(f_format)
 logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
+# Log Hyperparameters
+
+logger.debug(f"TAG_TO_CLASS_MAPPING_JSON={os.environ._data[b'TAG_TO_CLASS_MAPPING_JSON']}")
+logger.debug(f"TASK={os.environ._data[b'TASK']}")
+logger.debug(f"NUM_EPOCHS={os.environ._data[b'NUM_EPOCHS']}")
+logger.debug(f"DIMENSIONS={os.environ._data[b'DIMENSIONS']}")
+logger.debug(f"PATCH_SIZE={os.environ._data[b'PATCH_SIZE']}")
+logger.debug(f"BATCH_SIZE={os.environ._data[b'BATCH_SIZE']}")
+
+# Config
+
 TAG_TO_CLASS_MAPPING = ast.literal_eval(os.environ["TAG_TO_CLASS_MAPPING_JSON"])
 
 NUM_CLASSES = 1 if os.environ["TASK"] == "binary" else len(TAG_TO_CLASS_MAPPING)

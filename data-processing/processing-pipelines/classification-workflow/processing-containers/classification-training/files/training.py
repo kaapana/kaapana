@@ -23,18 +23,6 @@ RESULTS_DIR = Path(
 )
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-try:
-    # Convert single quotes to double quotes
-    fixed_json_string = os.environ["TAG_TO_CLASS_MAPPING_JSON"].replace("'", '"')
-
-    data = json.loads(fixed_json_string)
-
-    with open(os.path.join(RESULTS_DIR, "tag_to_class_mapping.json"), "w") as f:
-        json.dump(data, f)
-
-except json.JSONDecodeError:
-    print("Error decoding JSON")
-
 # Create a custom logger
 logging.getLogger().setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -54,14 +42,32 @@ f_handler.setFormatter(f_format)
 logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
-# Log Hyperparameters
+# Log config
 
-logger.debug(f"TAG_TO_CLASS_MAPPING_JSON={os.environ._data[b'TAG_TO_CLASS_MAPPING_JSON']}")
-logger.debug(f"TASK={os.environ._data[b'TASK']}")
-logger.debug(f"NUM_EPOCHS={os.environ._data[b'NUM_EPOCHS']}")
-logger.debug(f"DIMENSIONS={os.environ._data[b'DIMENSIONS']}")
-logger.debug(f"PATCH_SIZE={os.environ._data[b'PATCH_SIZE']}")
-logger.debug(f"BATCH_SIZE={os.environ._data[b'BATCH_SIZE']}")
+logger.debug(f"TAG_TO_CLASS_MAPPING_JSON={os.environ['TAG_TO_CLASS_MAPPING_JSON']}")
+logger.debug(f"TASK={os.environ['TASK']}")
+logger.debug(f"NUM_EPOCHS={os.environ['NUM_EPOCHS']}")
+logger.debug(f"DIMENSIONS={os.environ['DIMENSIONS']}")
+logger.debug(f"PATCH_SIZE={os.environ['PATCH_SIZE']}")
+logger.debug(f"BATCH_SIZE={os.environ['BATCH_SIZE']}")
+
+# Save config for inference
+
+try:
+    data = {}
+
+    data["TAG_TO_CLASS_MAPPING_JSON"] = os.environ['TAG_TO_CLASS_MAPPING_JSON']
+    data["TASK"] = os.environ['TASK']
+    data["NUM_EPOCHS"] = os.environ['NUM_EPOCHS']
+    data["DIMENSIONS"] = os.environ['DIMENSIONS']
+    data["PATCH_SIZE"] = os.environ['PATCH_SIZE']
+    data["BATCH_SIZE"] = os.environ['BATCH_SIZE']
+
+    with open(os.path.join(RESULTS_DIR, "config.json"), "w") as f:
+        json.dump(data, f)
+
+except json.JSONDecodeError:
+    logger.error("Error decoding JSON")
 
 # Config
 

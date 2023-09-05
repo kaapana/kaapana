@@ -1,24 +1,39 @@
 #!/usr/bin/env python3
 import ast
+import json
 import logging
 import os
 from pathlib import Path
 
 import numpy as np
 import torch
-from batchgenerators.dataloading.multi_threaded_augmenter import \
-    MultiThreadedAugmenter
+from batchgenerators.dataloading.multi_threaded_augmenter import MultiThreadedAugmenter
 from batchgenerators.transforms.abstract_transforms import Compose
-from batchgenerators.transforms.sample_normalization_transforms import \
-    ZeroMeanUnitVarianceTransform
+from batchgenerators.transforms.sample_normalization_transforms import (
+    ZeroMeanUnitVarianceTransform,
+)
 from batchgenerators_dataloader import ClassificationDataset
 from monai.networks.nets import resnet18
 from opensearch_helper import OpenSearchHelper
 from torch.utils.tensorboard import SummaryWriter
 from torchmetrics import Accuracy, F1Score
 
-RESULTS_DIR = Path("/models", os.environ['DAG_ID'], f"{os.environ['RUN_ID']}-fold_{os.environ['FOLD']}")
+RESULTS_DIR = Path(
+    "/models", os.environ["DAG_ID"], f"{os.environ['RUN_ID']}-fold_{os.environ['FOLD']}"
+)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+try:
+    # Convert single quotes to double quotes
+    fixed_json_string = os.environ["TAG_TO_CLASS_MAPPING_JSON"].replace("'", '"')
+
+    data = json.loads(fixed_json_string)
+
+    with open(os.path.join(RESULTS_DIR, "tag_to_class_mapping.json"), "w") as f:
+        json.dump(data, f)
+
+except json.JSONDecodeError:
+    print("Error decoding JSON")
 
 # Create a custom logger
 logging.getLogger().setLevel(logging.DEBUG)

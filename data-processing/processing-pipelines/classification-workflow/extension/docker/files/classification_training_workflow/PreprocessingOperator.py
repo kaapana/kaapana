@@ -1,7 +1,9 @@
 from datetime import timedelta
 
-from kaapana.blueprints.kaapana_global_variables import (DEFAULT_REGISTRY,
-                                                         KAAPANA_BUILD_VERSION)
+from kaapana.blueprints.kaapana_global_variables import (
+    DEFAULT_REGISTRY,
+    KAAPANA_BUILD_VERSION,
+)
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
@@ -20,7 +22,7 @@ class PreprocessingOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/classification-preprocessing:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb = 4000,
+            ram_mem_mb=4000,
             *args,
             **kwargs,
         )

@@ -6,14 +6,22 @@ import numpy as np
 from batchgenerators.dataloading.data_loader import DataLoader
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.color_transforms import (
-    BrightnessMultiplicativeTransform, ContrastAugmentationTransform,
-    GammaTransform)
+    BrightnessMultiplicativeTransform,
+    ContrastAugmentationTransform,
+    GammaTransform,
+)
 from batchgenerators.transforms.noise_transforms import (
-    GaussianBlurTransform, GaussianNoiseTransform)
-from batchgenerators.transforms.resample_transforms import \
-    SimulateLowResolutionTransform
-from batchgenerators.transforms.spatial_transforms import (MirrorTransform,
-                                                           SpatialTransform)
+    GaussianBlurTransform,
+    GaussianNoiseTransform,
+)
+from batchgenerators.transforms.resample_transforms import (
+    SimulateLowResolutionTransform,
+)
+from batchgenerators.transforms.spatial_transforms import (
+    MirrorTransform,
+    SpatialTransform,
+)
+
 
 def configure_rotation_and_mirroring(patch_size):
     dim = len(patch_size)

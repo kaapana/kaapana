@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
     for id, tag in predictions.items():
         tag = (
-            f"{tag}-{'-'.join(os.environ['MODEL'].replace('_', '-').replace('/', '-').split('-')[3:8][0::2])}"
+            f"{tag}-{'-'.join(os.environ['MODEL'].replace('_', '-').replace('/', '-').replace('.', '-').split('-')[:-1][0::2])}"
             if TAG_POSTFIX
             else tag
         )

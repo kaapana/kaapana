@@ -22,7 +22,8 @@ class InferenceOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/classification-inference:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb=4000,
+            ram_mem_mb=16000,
+            gpu_mem_mb=11000,
             *args,
             **kwargs,
         )

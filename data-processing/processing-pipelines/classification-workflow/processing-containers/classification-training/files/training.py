@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torchmetrics import Accuracy, F1Score
 
 RESULTS_DIR = Path(
-    "/models", os.environ["DAG_ID"], f"{os.environ['RUN_ID']}-fold_{os.environ['FOLD']}"
+    "/models", os.environ["DAG_ID"], f"{os.environ['RUN_ID']}-fold-{os.environ['FOLD']}"
 )
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -331,7 +331,7 @@ if __name__ == "__main__":
                 optimizer,
                 os.path.join(
                     RESULTS_DIR,
-                    f"model_best_epoch_{epoch}.pth.tar",
+                    f"model-best-{epoch}.pth.tar",
                 ),
             )
 
@@ -340,7 +340,7 @@ if __name__ == "__main__":
     save_checkpoint(
         model,
         optimizer,
-        os.path.join(RESULTS_DIR, "model_end.pth.tar"),
+        os.path.join(RESULTS_DIR, "model-end.pth.tar"),
     )
 
     mt_train._finish()

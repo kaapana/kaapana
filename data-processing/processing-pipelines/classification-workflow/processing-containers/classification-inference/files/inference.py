@@ -62,6 +62,7 @@ PATCH_SIZE = np.array(ast.literal_eval(CONFIG["PATCH_SIZE"]))
 NUM_WORKERS = 4
 BATCH_SIZE = int(CONFIG["BATCH_SIZE"])
 os.environ['TASK'] = CONFIG["TASK"]
+TAG_POSTFIX = os.environ['TAG_POSTFIX'] == "True"
 
 # Log config
 
@@ -153,4 +154,5 @@ if __name__ == "__main__":
     # Add the tags to opensearch
 
     for id, tag in predictions.items():
+        tag = f"{tag}-{'-'.join(os.environ['MODEL'].replace('_', '-').replace('/', '-').split('-')[3:8][0::2])}" if TAG_POSTFIX else tag
         OpenSearchHelper.add_tag_to_id(id, tag)

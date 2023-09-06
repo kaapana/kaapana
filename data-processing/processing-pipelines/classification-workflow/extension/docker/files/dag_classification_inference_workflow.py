@@ -15,13 +15,20 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
+            "tag_postfix": {
+                "title": "tag postfix",
+                "description": "Give the inference tag the model ID as postfix",
+                "type": "boolean",
+                "default": False,
+                "readOnly": False,
+            },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
                 "default": False,
                 "readOnly": False,
-            }
+            },
         },
     }
 }

@@ -57,13 +57,13 @@ logger.debug(f"TASK={os.environ['TASK']}")
 try:
     data = {}
 
-    data["TAG_TO_CLASS_MAPPING_JSON"] = os.environ['TAG_TO_CLASS_MAPPING_JSON']
-    data["TASK"] = os.environ['TASK']
-    data["NUM_EPOCHS"] = os.environ['NUM_EPOCHS']
-    data["DIMENSIONS"] = os.environ['DIMENSIONS']
-    data["PATCH_SIZE"] = os.environ['PATCH_SIZE']
-    data["BATCH_SIZE"] = os.environ['BATCH_SIZE']
-    data["TASK"] = os.environ['TASK']
+    data["TAG_TO_CLASS_MAPPING_JSON"] = os.environ["TAG_TO_CLASS_MAPPING_JSON"]
+    data["TASK"] = os.environ["TASK"]
+    data["NUM_EPOCHS"] = os.environ["NUM_EPOCHS"]
+    data["DIMENSIONS"] = os.environ["DIMENSIONS"]
+    data["PATCH_SIZE"] = os.environ["PATCH_SIZE"]
+    data["BATCH_SIZE"] = os.environ["BATCH_SIZE"]
+    data["TASK"] = os.environ["TASK"]
 
     with open(os.path.join(RESULTS_DIR, "config.json"), "w") as f:
         json.dump(data, f)

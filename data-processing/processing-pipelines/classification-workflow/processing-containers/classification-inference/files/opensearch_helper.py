@@ -20,21 +20,18 @@ os_client = OpenSearch(
 
 
 class OpenSearchHelper:
-
     @staticmethod
     def add_tag_to_id(doc_id: str, tag: str) -> None:
         # Fetch the current tags of the document
-        response = os_client.get(index=INDEX, id=doc_id, _source_includes=["00000000 Tags_keyword"])
+        response = os_client.get(
+            index=INDEX, id=doc_id, _source_includes=["00000000 Tags_keyword"]
+        )
         current_tags = response["_source"].get("00000000 Tags_keyword", [])
-        
+
         # Check if the tag is not already in the list
         if tag not in current_tags:
             current_tags.append(tag)
-            update_body = {
-                "doc": {
-                    "00000000 Tags_keyword": current_tags
-                }
-            }
+            update_body = {"doc": {"00000000 Tags_keyword": current_tags}}
 
             # Execute the update
             os_client.update(index=INDEX, id=doc_id, body=update_body)

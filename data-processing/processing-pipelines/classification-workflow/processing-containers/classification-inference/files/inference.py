@@ -61,8 +61,8 @@ NUM_INPUT_CHANNELS = 1
 PATCH_SIZE = np.array(ast.literal_eval(CONFIG["PATCH_SIZE"]))
 NUM_WORKERS = 4
 BATCH_SIZE = int(CONFIG["BATCH_SIZE"])
-os.environ['TASK'] = CONFIG["TASK"]
-TAG_POSTFIX = os.environ['TAG_POSTFIX'] == "True"
+os.environ["TASK"] = CONFIG["TASK"]
+TAG_POSTFIX = os.environ["TAG_POSTFIX"] == "True"
 
 # Log config
 
@@ -73,6 +73,7 @@ logger.debug(f"DIMENSIONS={CONFIG['DIMENSIONS']}")
 logger.debug(f"PATCH_SIZE={CONFIG['PATCH_SIZE']}")
 logger.debug(f"BATCH_SIZE={CONFIG['BATCH_SIZE']}")
 logger.debug(f"TASK={CONFIG['TASK']}")
+
 
 def inference(model, mt_val):
     model.eval()
@@ -87,7 +88,9 @@ def inference(model, mt_val):
             predictions = torch.round(torch.sigmoid(outputs)).detach().cpu().numpy()
 
             for i in range(len(predictions)):
-                final_predictions[samples[i]] = CLASS_TO_TAG_MAPPING[int(predictions[i][0])]
+                final_predictions[samples[i]] = CLASS_TO_TAG_MAPPING[
+                    int(predictions[i][0])
+                ]
 
     return final_predictions
 
@@ -154,5 +157,9 @@ if __name__ == "__main__":
     # Add the tags to opensearch
 
     for id, tag in predictions.items():
-        tag = f"{tag}-{'-'.join(os.environ['MODEL'].replace('_', '-').replace('/', '-').split('-')[3:8][0::2])}" if TAG_POSTFIX else tag
+        tag = (
+            f"{tag}-{'-'.join(os.environ['MODEL'].replace('_', '-').replace('/', '-').split('-')[3:8][0::2])}"
+            if TAG_POSTFIX
+            else tag
+        )
         OpenSearchHelper.add_tag_to_id(id, tag)

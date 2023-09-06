@@ -5,8 +5,8 @@ from datetime import timedelta
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
+from classification_inference_workflow.InferenceOperator import InferenceOperator
 from classification_training_workflow.PreprocessingOperator import PreprocessingOperator
-from classification_training_workflow.TrainingOperator import TrainingOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -95,7 +95,7 @@ preprocessing = PreprocessingOperator(
     # dev_server='code-server'
 )
 
-training = TrainingOperator(
+training = InferenceOperator(
     dag=dag,
     input_operator=preprocessing,
     # dev_server='code-server'

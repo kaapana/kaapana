@@ -50,6 +50,7 @@ logger.debug(f"NUM_EPOCHS={os.environ['NUM_EPOCHS']}")
 logger.debug(f"DIMENSIONS={os.environ['DIMENSIONS']}")
 logger.debug(f"PATCH_SIZE={os.environ['PATCH_SIZE']}")
 logger.debug(f"BATCH_SIZE={os.environ['BATCH_SIZE']}")
+logger.debug(f"TASK={os.environ['TASK']}")
 
 # Save config for inference
 
@@ -62,6 +63,7 @@ try:
     data["DIMENSIONS"] = os.environ['DIMENSIONS']
     data["PATCH_SIZE"] = os.environ['PATCH_SIZE']
     data["BATCH_SIZE"] = os.environ['BATCH_SIZE']
+    data["TASK"] = os.environ['TASK']
 
     with open(os.path.join(RESULTS_DIR, "config.json"), "w") as f:
         json.dump(data, f)

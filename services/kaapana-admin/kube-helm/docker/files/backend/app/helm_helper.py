@@ -219,6 +219,9 @@ def add_extension_to_dict(
                 else "no"
             ),
             kind=extension_kind,
+            resourceRequirement="gpu"
+            if "gpurequired" in extension_dict["keywords"]
+            else "cpu",
             extension_params=ext_params,
             # "values": extension_dict["values"]
         )

@@ -75,6 +75,7 @@ class KaapanaExtension(BaseModelExtended):
     links: Union[List[str], None]
     name: str  # TODO: same as chart_name not necessary
     releaseName: str
+    resourceRequirement: str # either cpu or gpu for now
     successful: Union[str, None]  # TODO: make bool
     version: str
     versions: List[str]

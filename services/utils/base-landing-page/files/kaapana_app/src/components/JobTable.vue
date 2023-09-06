@@ -280,34 +280,40 @@
         }
       },
       formatJson(jsonString) {
-        // translate to valid json string
-        const validjsonString = jsonString.replace(/'/g, '"');
-
-        try {
-          const jsonObject = JSON.parse(validjsonString);
-
-          // sort by start_date
-          const sortedEntries = Object.entries(jsonObject).sort((a, b) => {
-            const dateA = a[1].start_date;
-            const dateB = b[1].start_date;
-            if (!dateA && !dateB) return 0; // Keep the order unchanged for both empty start_date entries
-            if (!dateA) return 1; // Move entry with empty start_date to the end
-            if (!dateB) return -1; // Move entry with empty start_date to the end
-            return new Date(dateA).getTime() - new Date(dateB).getTime();
-          });
-          const sortedData = Object.fromEntries(sortedEntries);
-
-          // reformat to json with linebreaks
-          const formattedJson = JSON.stringify(sortedData, null, 2)
-            .replace(/:/g, ': ')
-            .replace(/,/g, ',\n')
-            .replace(/{/g, '{\n')
-            .replace(/}/g, '\n}');
-          
-          return formattedJson
-        } catch (error) {
-          console.error('Invalid JSON:', error);
+        if (jsonString == null) {
+          console.error('Given JSON is NULL');
           return jsonString; // Return original JSON string if parsing fails
+        }
+        else {
+          // translate to valid json string
+          const validjsonString = jsonString.replace(/'/g, '"');
+
+          try {
+            const jsonObject = JSON.parse(validjsonString);
+
+            // sort by start_date
+            const sortedEntries = Object.entries(jsonObject).sort((a, b) => {
+              const dateA = a[1].start_date;
+              const dateB = b[1].start_date;
+              if (!dateA && !dateB) return 0; // Keep the order unchanged for both empty start_date entries
+              if (!dateA) return 1; // Move entry with empty start_date to the end
+              if (!dateB) return -1; // Move entry with empty start_date to the end
+              return new Date(dateA).getTime() - new Date(dateB).getTime();
+            });
+            const sortedData = Object.fromEntries(sortedEntries);
+
+            // reformat to json with linebreaks
+            const formattedJson = JSON.stringify(sortedData, null, 2)
+              .replace(/:/g, ': ')
+              .replace(/,/g, ',\n')
+              .replace(/{/g, '{\n')
+              .replace(/}/g, '\n}');
+            
+            return formattedJson
+          } catch (error) {
+            console.error('Invalid JSON:', error);
+            return jsonString; // Return original JSON string if parsing fails
+          }
         }
       },
       abortJob(item) {

@@ -1,10 +1,24 @@
 import ast
 import json
+import logging
 import os
 
 import numpy as np
 import SimpleITK as sitk
 from skimage.transform import resize
+
+# Create a custom logger
+logging.getLogger().setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+c_handler = logging.StreamHandler()
+c_handler.setLevel(logging.DEBUG)
+
+c_format = logging.Formatter("%(levelname)s - %(message)s")
+c_handler.setFormatter(c_format)
+
+# Add handlers to the logger
+logger.addHandler(c_handler)
 
 if "inference" in os.environ["WORKFLOW_NAME"]:
     WORKFLOW_ID_OF_TRAINING = os.environ["MODEL"].split("/")[0]
@@ -58,6 +72,10 @@ if __name__ == "__main__":
     batch = {}
 
     for patient in os.listdir(os.environ["BATCHES_INPUT_DIR"]):
+        
+        # Log
+        logger.debug(f"Preprocessing for case {patient} started")
+
         patient_dict = {}
 
         patient_dict["image"] = sitk.ReadImage(
@@ -92,3 +110,7 @@ if __name__ == "__main__":
         )
         os.makedirs(target_dir, exist_ok=True)
         np.save(os.path.join(target_dir, patient + ".npy"), data_normalized)
+
+        #Log
+        logger.debug(f"{patient} was preprocessed")
+        

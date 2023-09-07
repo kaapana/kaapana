@@ -1,7 +1,7 @@
 {
-    "description": "Kaapana release v0.2.3",
-    "title": "kaapana/kaapana: v0.2.3",
-    "version": "0.2.3",
+    "description": "Kaapana release v0.2.4",
+    "title": "kaapana/kaapana: v0.2.4",
+    "version": "0.2.4",
     "license": {
         "id": "AGPL-3.0"
     },
@@ -51,6 +51,10 @@
         {
             "affiliation": "German Cancer Research Center",
             "name": "Jens Beyermann"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Benjamin Hamm"
         },
         {
             "affiliation": "German Cancer Research Center",

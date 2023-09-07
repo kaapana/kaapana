@@ -38,13 +38,6 @@ ui_forms = {
                 "required": True,
                 "readOnly": False,
             },
-            "fold": {
-                "title": "Which fold should be trained",
-                "description": "Specify the fold which should be trained for 5-fold cross validation (0-4)",
-                "default": "0",
-                "type": "string",
-                "required": True,
-            },
             "patch_size": {
                 "title": "Patch size",
                 "description": "Specify the patch size used for training",

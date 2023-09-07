@@ -40,12 +40,10 @@ logger.addHandler(f_handler)
 
 # load config
 
-WORKFLOW_ID_OF_TRAINING = os.environ["MODEL"].split("/")[0]
-
 with open(
     os.path.join(
         "/models/classification-training-workflow",
-        WORKFLOW_ID_OF_TRAINING,
+        os.environ["MODEL"].split("/")[0],
         "config.json",
     ),
     "r",
@@ -63,6 +61,8 @@ NUM_WORKERS = 4
 BATCH_SIZE = int(CONFIG["BATCH_SIZE"])
 os.environ["TASK"] = CONFIG["TASK"]
 TAG_POSTFIX = os.environ["TAG_POSTFIX"] == "True"
+WORKFLOW_ID = CONFIG["WORKFLOW_ID"]
+FOLD = CONFIG["FOLD"]
 
 # Log config
 
@@ -73,6 +73,8 @@ logger.debug(f"DIMENSIONS={CONFIG['DIMENSIONS']}")
 logger.debug(f"PATCH_SIZE={CONFIG['PATCH_SIZE']}")
 logger.debug(f"BATCH_SIZE={CONFIG['BATCH_SIZE']}")
 logger.debug(f"TASK={CONFIG['TASK']}")
+logger.debug(f"WORKFLOW_ID of training={CONFIG['WORKFLOW_ID']}")
+logger.debug(f"FOLD={CONFIG['FOLD']}")
 
 
 def inference(model, mt_val):
@@ -158,7 +160,7 @@ if __name__ == "__main__":
 
     for id, tag in predictions.items():
         tag = (
-            f"{tag}-{'-'.join(os.environ['MODEL'].replace('_', '-').replace('/', '-').replace('.', '-').split('-')[:-1][0::2])}"
+            f"{tag}-{WORKFLOW_ID}-{FOLD}-{'end' if 'end' in os.environ['MODEL'] else 'best'}"
             if TAG_POSTFIX
             else tag
         )

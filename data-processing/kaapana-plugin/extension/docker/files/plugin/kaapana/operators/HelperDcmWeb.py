@@ -57,20 +57,36 @@ class HelperDcmWeb:
             for resultObject in response:
                 objectUIDList.append(
                     [
-                        resultObject["0020000D"]["Value"][0],
-                        resultObject["00080018"]["Value"][0],
+                        resultObject["0020000D"]["Value"][0],  # StudyInstanceUID
+                        resultObject["00080018"]["Value"][0],  # SOPInstanceUID
+                        resultObject["00280008"]["Value"][0]
+                        if "Value" in resultObject["00280008"]
+                        else None,  # NumberOfFrames
                     ]
                 )  # objectUID
 
             if include_series_dir:
                 target_dir = join(target_dir, seriesUID)
             Path(target_dir).mkdir(parents=True, exist_ok=True)
+            print(
+                f"HelperDcmWeb: {expected_object_count=} ; {len(objectUIDList)=} ; {objectUIDList=} ; {objectUIDList[0][-1]=}"
+            )
             if expected_object_count != None and expected_object_count > len(
                 objectUIDList
             ):
-                raise ValueError(
-                    f"expected_object_count {expected_object_count} > len(objectUIDList) {len(objectUIDList)} --> not all expected objects have been found -> abort"
-                )
+                if len(objectUIDList) == 1 and objectUIDList[0][-1] is not None:
+                    if expected_object_count <= objectUIDList[0][-1]:
+                        print(
+                            f"len(objectUIDList) {len(objectUIDList)} AND expected_object_count {expected_object_count} <= NumberOfFrames {objectUIDList[0][-1]} --> success!"
+                        )
+                    else:
+                        raise ValueError(
+                            f"{len(objectUIDList)=} but NumberOfFrames is {objectUIDList[0][-1]} --> unknown DICOM tag situation -> abort"
+                        )
+                else:
+                    raise ValueError(
+                        f"expected_object_count {expected_object_count} > len(objectUIDList) {len(objectUIDList)} --> not all expected objects have been found -> abort"
+                    )
             elif expected_object_count != None:
                 print(
                     f"expected_object_count {expected_object_count} <= len(objectUIDList) {len(objectUIDList)} --> success!"

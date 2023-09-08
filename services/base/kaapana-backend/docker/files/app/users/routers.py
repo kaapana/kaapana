@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Optional
 from .schemas import (
     KaapanaRole,
@@ -7,8 +7,10 @@ from .schemas import (
     KaapanaProject,
     ProjectUser,
     ProjectRole,
+    AccessTable,
+    AccessListEntree,
 )
-from app.dependencies import get_user_service, get_db
+from app.dependencies import get_user_service, get_db, my_get_db
 from keycloak.exceptions import KeycloakGetError, KeycloakPostError
 from sqlalchemy.orm import Session
 from app.users import crud, models
@@ -221,7 +223,7 @@ async def post_realm_role(name: str, us=Depends(get_user_service)):
 
 
 @router.get("/projects/", response_model=List[KaapanaProject])
-async def get_project(name: str = "", db: Session = Depends(get_db)):
+async def get_project(name: str = "", db: Session = Depends(my_get_db)):
     """
     Get information about all project or a specific project
     """
@@ -309,7 +311,10 @@ async def delete_project(
 
 @router.post("/projects/{name}", response_model=KaapanaProject)
 async def post_project(
-    name: str, us=Depends(get_user_service), db: Session = Depends(get_db)
+    request: Request,
+    name: str,
+    us=Depends(get_user_service),
+    db: Session = Depends(get_db),
 ):
     """
     Create a new project.
@@ -353,9 +358,30 @@ async def post_project(
         project_roles=[
             project_role.__dict__ for project_role in project_roles
         ],  ### I cannot use classes as ColumnType in models
+        accesstable_primary_key=name,
     )
 
-    return crud.create_project(db=db, kaapana_project=kaapana_project)
+    access_table = AccessTable(
+        object_primary_key=kaapana_project.name,
+    )
+    access_table = crud.create_access_table(db=db, accesstable=access_table)
+
+    kaapana_project = crud.create_project(db=db, kaapana_project=kaapana_project)
+
+    ### Create permissions for creator
+    if "x-forwarded-preferred-username" in request.headers:
+        user = request.headers["x-forwarded-preferred-username"]
+    else:
+        AssertionError
+
+    crud.create_access_list_entree(
+        db=db,
+        user=user,
+        permissions="rwx",
+        accesstable_primary_key=kaapana_project.name,
+    )
+
+    return kaapana_project
 
 
 @router.put("/projects/{name}/users/", response_model=KaapanaProject)

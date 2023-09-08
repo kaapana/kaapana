@@ -39,3 +39,15 @@ class KaapanaProject(MyBaseModel):
     name: str
     group_id: str
     project_roles: list
+    accesstable_primary_key: str
+
+
+class AccessListEntree(MyBaseModel):
+    id: int
+    user: str = ""
+    permissions: str = ""
+    accesstable_primary_key: str = ""
+
+
+class AccessTable(MyBaseModel):
+    object_primary_key: str = ""

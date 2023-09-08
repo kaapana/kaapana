@@ -62,7 +62,7 @@
           user_domain_name: "{{ os_user_domain }}"
           project_name: "{{ os_project_name }}"
         server: "{{ instance_name }}"
-        api_timeout: 120
+        api_timeout: 30
       register: inst_info
 
     - name: if instance not found

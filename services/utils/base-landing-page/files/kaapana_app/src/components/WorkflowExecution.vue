@@ -18,7 +18,7 @@
         <v-container>
           <v-row v-if="available_kaapana_instance_names.length > 1">
             <v-icon color="primary" class="mx-2" small>mdi-home</v-icon>
-            Local instance: {{ localKaapanaInstance }}
+            Local instance: {{ localKaapanaInstanceName }}
           </v-row>
           <v-row v-if="available_kaapana_instance_names.length > 1">
             <v-col cols="12">
@@ -32,9 +32,31 @@
               ></v-select>
             </v-col>
           </v-row>
+          <!-- Federated workflow: yes/no? -->
+          <v-row>
+            <v-col cols="12" v-if="selected_kaapana_instance_names.length === 1 && selected_kaapana_instance_names[0] === localKaapanaInstanceName">
+              <v-switch
+                v-model="federated"
+                label="Federated workflow"
+              ></v-switch>
+            </v-col>
+          </v-row>
+          <!-- Federation: federation selection if -->
+          <v-row>
+            <v-col cols="12" v-if="federated || (localKaapanaInstanceName && remoteInstanceSelected)">
+              <v-select
+                v-model="selected_federation_name"
+                :items="available_federation_names"
+                label="Federation"
+                chips
+                hint="Federation in which a federated workflow is executed."
+                required
+              ></v-select>
+            </v-col>
+          </v-row>
           <!-- DAG: select dag -->
           <v-row>
-            <v-col cols="12" v-if="available_dags.length">
+            <v-col cols="12" v-if="(available_dags.length && !federated) || (available_dags.length && federated && Object.entries(selected_federation_name).length !== 0)">
               <v-select
                 v-if="selected_kaapana_instance_names.length"
                 v-model="dag_id"
@@ -171,7 +193,7 @@ export default {
       type: Boolean,
       default: false,
     },
-    kind_of_dags: {
+    kind_of_workflows: {
       type: String,
       default: "all",
     },
@@ -179,9 +201,10 @@ export default {
   created() {},
   mounted() {
     this.refreshClient();
+    this.getFederations();
   },
   watch: {
-    // watcher for instances
+    ///// watcher for instances
     available_kaapana_instance_names(value) {
       this.selected_kaapana_instance_names = [value[0]];
     },
@@ -191,6 +214,7 @@ export default {
           this.available_kaapana_instance_names[0],
         ];
       }
+      console.log("this.selected_kaapana_instance_names: ", this.selected_kaapana_instance_names)
       this.getDags();
       this.getUiFormSchemas();
       // reset dag_id and external_dag_id if instance changes
@@ -203,18 +227,26 @@ export default {
         this.getExternalUiFormSchemas();
       }
     },
-    // watchers for dags
+    ///// watchers for dags
     dag_id(value) {
+      // ensure that this.schemas_dict is there
+      this.getUiFormSchemas();
+      // forms
       this.formData = {};
+      console.log("DAG_ID watcher value: ", value)
       if (value !== null) {
         this.workflow_name = value;
         // not directly set to this.schemas to avoid rerendering of components
         // copied to avoid changing the original schemas
+        // get the schema of the selected workflow via dag_id
+        // console.log("this.schemas_dict: ", this.schemas_dict)
         let schemas = JSON.parse(JSON.stringify(this.schemas_dict[value]));
+        // if workflow triggered w/o dataset but directly via identifiers, delete schemas["data_form"]
         if (this.identifiers.length > 0) {
           delete schemas["data_form"];
         }
         this.form_requiredFields = this.findRequiredFields(schemas);
+        // if workflow is a fl-orchestrator worklfow and triggers remotely other workflow, extract external_dag_id
         if ("external_schemas" in schemas) {
           this.external_dag_id = schemas["external_schemas"];
           delete schemas.external_schemas;
@@ -226,8 +258,10 @@ export default {
         this.schemas = {};
         this.external_dag_id = null;
       }
+      // data form
       this.datasets_available = true;
-      if (this.schemas["data_form"] !== null ) {
+      console.log("this.schemas: ", this.schemas)
+      if (this.schemas["data_form"]) {  // !== null 
         Object.entries(this.schemas["data_form"]).forEach(([key, value]) => {
           if ( key.startsWith("__emtpy__") ) {
             this.datasets_available = false;
@@ -243,7 +277,8 @@ export default {
     external_dag_id() {
       this.external_schemas = {};
       if (this.external_dag_id != null) {
-        this.getKaapanaInstancesWithExternalDagAvailable();
+        // this.getKaapanaInstancesWithExternalDagAvailable();
+        this.getFederatedPermissionProfiles(null, this.external_dag_id);
       } else {
         this.remote_instances_w_external_dag_available = [];
       }
@@ -257,24 +292,62 @@ export default {
         }
       });
     },
+    ///// other watchers
+    federated() {
+      // if (this.federated) {
+      //   // get federations
+      //   this.getFederations();
+      // }
+    },
+    selected_federation_name() {
+      // save selected federation to this.selected_federation
+      console.log("this.available_federations: ", this.available_federations)
+      console.log("this.selected_federation_name: ", this.selected_federation_name)
+      this.selected_federation = this.available_federations.find((federation) => federation.federation_name === this.selected_federation_name)
+      console.log("this.selected_federation: ", this.selected_federation)
+      // get available_federated_permission_profile_ids of selected federation
+      this.getFederatedPermissionProfiles(this.selected_federation.federation_id, null)
+    }, 
+    available_federated_permission_profile_ids() {
+      // get DAGs as soon as available_federated_permission_profile_ids are defined
+      this.getDags()
+    }
   },
   computed: {
     ...mapGetters(["currentUser", "isAuthenticated"]),
     formDataFormatted() {
       return this.formatFormData(this.formData);
     },
+    remoteInstanceSelected() {
+      // returns True if selected_kaapana_instance_names contains a remote instance name
+      return this.selected_kaapana_instance_names.some((item) => {
+        return item !== this.localKaapanaInstanceName;
+      });
+    },
+
   },
   methods: {
     initialState() {
       return {
         // UI stuff
         valid: false,
+        federated: false,
         // instances
-        localKaapanaInstance: {},
+        localKaapanaInstanceName: '',
         available_kaapana_instance_names: [],
         selected_kaapana_instance_names: [],
         selected_remote_instances_w_external_dag_available: [],
         remote_instances_w_external_dag_available: [],
+        // federations
+        available_federation_names: [],
+        selected_federation_name: '',
+        available_federations: [],
+        selected_federation: {},
+        // federated_permission_profiles
+        available_federated_permission_profile_ids: [],
+        available_federated_permission_profiles: [],
+        selected_federated_permission_profile_ids: [],
+        selected_federated_permission_profiles: [],
         // DAGs
         dag_id: null,
         available_dags: [],
@@ -413,6 +486,7 @@ export default {
         return false;
       }
     },
+    ///// GET API Calls
     getKaapanaInstances() {
       kaapanaApiService
         .federatedClientApiPost("/get-kaapana-instances")
@@ -422,11 +496,12 @@ export default {
               if (this.onlyLocal) {
                 return !instance.remote;
               }
-              return instance.allowed_dags.length !== 0 || !instance.remote;
+              // just return local and all remote instances regardless of tehir allowed_dags
+              return instance
+              // return instance.allowed_dags.length !== 0 || !instance.remote;
             })
             .map(({ instance_name }) => instance_name);
-
-          this.localKaapanaInstance = response.data
+          this.localKaapanaInstanceName = response.data
             .filter((instance) => {
               return !instance.remote;
             })
@@ -457,17 +532,78 @@ export default {
         });
     },
     getDags() {
+      // get list of dag_ids of selected_kaapana_instances
+      if (!this.selected_federation_name || this.federated) {
+        kaapanaApiService
+          .federatedClientApiPost("/get-dags-via-instances", {
+            instance_names: this.selected_kaapana_instance_names,
+            kind_of_workflows: this.kind_of_workflows,
+          })
+          .then((response) => {
+            this.available_dags = response.data;
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+      }
+      else {
+        // ... or via available_federated_permission_profile_ids of selected federation
+        console.log("GET DAGS this.available_federated_permission_profile_ids: ", this.available_federated_permission_profile_ids)
+        kaapanaApiService
+          .federatedClientApiPost("/get-dags-via-fed-perm-profiles", {
+            federated_permission_profile_ids: this.available_federated_permission_profile_ids,
+            kind_of_workflows: this.kind_of_workflows,
+          })
+          .then((response) => {
+            this.available_dags = response.data;
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+      }
+    },
+    getFederations() {
       kaapanaApiService
-        .federatedClientApiPost("/get-dags", {
-          instance_names: this.selected_kaapana_instance_names,
-          kind_of_dags: this.kind_of_dags,
-        })
+        .federatedClientApiGet("/federations")
         .then((response) => {
-          this.available_dags = response.data;
+          this.available_federation_names = response.data
+            .map(({ federation_name }) => federation_name);
+          this.available_federations = response.data;
+          console.log("this.available_federations: ", this.available_federations)
         })
         .catch((err) => {
-          console.log(err);
-        });
+          console.log(err)
+        })
+    },
+    getFederatedPermissionProfiles(federation_id=null, ext_dag_id=null) {
+      if (ext_dag_id) {
+        kaapanaApiService
+          .federatedClientApiGet("/federated-permission-profiles", {
+            ext_dag_id
+          })
+          .then((response) => {
+            this.available_federated_permission_profiles = response.data
+            this.remote_instances_w_external_dag_available = this.available_federated_permission_profiles.map((fed_perm_profile) => fed_perm_profile.kaapana_instance.instance_name);
+          })
+          .catch((err) => {
+            console.log(err)
+          })
+        }
+      else {
+        kaapanaApiService
+          .federatedClientApiGet("/federated-permission-profiles", {
+            federation_id
+          })
+          .then((response) => {
+            this.available_federated_permission_profiles = response.data
+            this.available_federated_permission_profile_ids = response.data
+              .map(({ federated_permission_profile_id }) => federated_permission_profile_id);
+            console.log("this.available_federated_permission_profile_ids: ", this.available_federated_permission_profile_ids)
+          })
+          .catch((err) => {
+            console.log(err)
+          })
+        }
     },
     // API Calls: Schemas
     getUiFormSchemas() {
@@ -475,10 +611,14 @@ export default {
       kaapanaApiService
         .federatedClientApiPost("/get-ui-form-schemas", {
           workflow_name: this.workflow_name,
-          instance_names: this.selected_kaapana_instance_names,
+          // instance_names: this.selected_kaapana_instance_names,
+          federated_permission_profile_ids: this.selected_federated_permission_profile_ids,
+          kind_of_workflows: this.kind_of_workflows,
+          only_dag_names: false,
         })
         .then((response) => {
           this.schemas_dict = response.data;
+          console.log("GetUIFormSchemas this.schemas_dict: ", this.schemas_dict)
         })
         .catch((err) => {
           console.log(err);
@@ -489,8 +629,11 @@ export default {
         .federatedClientApiPost("/get-ui-form-schemas", {
           workflow_name: this.workflow_name,
           dag_id: this.external_dag_id,
-          instance_names:
-            this.selected_remote_instances_w_external_dag_available,
+          // instance_names:
+          //   this.selected_remote_instances_w_external_dag_available,
+          federated_permission_profile_ids: this.selected_federated_permission_profile_ids,
+          kind_of_workflows: this.kind_of_workflows,
+          only_dag_names: false,
         })
         .then((response) => {
           this.external_schemas = response.data[this.external_dag_id];
@@ -521,6 +664,7 @@ export default {
           conf_data: this.formatFormData(this.formData),
           remote: this.remote,
           federated: this.federated_data,
+          federation_name: this.selected_federation_name,
         })
         .then((response) => {
           console.log(response);

@@ -127,9 +127,13 @@ def get_utc_timestamp():
     return utc_time
 
 
-def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="all"):
-    if kind_of_dags not in ["all", "minio", "dataset"]:
-        raise HTTPException("kind_of_dags must be one of [None, 'minio', 'dataset']")
+def get_dag_list(
+    only_dag_names=True, filter_allowed_dags=None, kind_of_workflows="all"
+):
+    if kind_of_workflows not in ["all", "minio", "dataset"]:
+        raise HTTPException(
+            "kind_of_workflows must be one of [None, 'minio', 'dataset']"
+        )
 
     with CachedSession("kaapana_cache", expire_after=5, stale_if_error=True) as s:
         r = requests_retry_session(session=s, retries=1).get(
@@ -142,16 +146,16 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
     dags = {}
     for dag, dag_data in raw_dags.items():
         if "ui_visible" in dag_data and dag_data["ui_visible"] is True:
-            if kind_of_dags == "all":
+            if kind_of_workflows == "all":
                 dags[dag] = dag_data
-            elif (kind_of_dags == "dataset") and (
+            elif (kind_of_workflows == "dataset") and (
                 "ui_forms" in dag_data
                 and "data_form" in dag_data["ui_forms"]
                 and "properties" in dag_data["ui_forms"]["data_form"]
                 and "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"]
             ):
                 dags[dag] = dag_data
-            elif (kind_of_dags == "minio") and (
+            elif (kind_of_workflows == "minio") and (
                 "ui_forms" in dag_data
                 and "data_form" in dag_data["ui_forms"]
                 and "properties" in dag_data["ui_forms"]["data_form"]

@@ -143,9 +143,9 @@ export default {
     // API calls
     getDags() {
       kaapanaApiService
-        .federatedClientApiPost("/get-dags", {
+        .federatedClientApiPost("/get-dags-via-instances", {
           instance_names: [this.federated_permission_profile.kaapana_instance.instance_name],
-          kind_of_dags: "all"
+          kind_of_workflows: "all"
         })
         .then((response) => {
           this.available_dags = response.data;
@@ -166,7 +166,7 @@ export default {
       this.federatedPermissionProfilePost.federated_permission_profile_id = this.federated_permission_profile.federated_permission_profile_id
       console.log("this.federatedPermissionProfilePost: ", this.federatedPermissionProfilePost)
       kaapanaApiService
-        .federatedClientApiPut("/federation-permission-profile", this.federatedPermissionProfilePost)
+        .federatedClientApiPut("/federated-permission-profile", this.federatedPermissionProfilePost)
         .then((response) => {
           this.$emit('refreshFederationFromEditing')
           this.federatedPermissionProfileDialog = false

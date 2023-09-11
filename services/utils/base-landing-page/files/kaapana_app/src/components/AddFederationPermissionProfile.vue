@@ -98,7 +98,7 @@ export default {
       console.log("this.federationPermProfilePost.kaapana_instance: ", this.federationPermProfilePost.kaapana_instance)
       if (this.federationPermProfilePost.kaapana_instance) {
         kaapanaApiService
-          .federatedClientApiPost("/federation-permission-profile", this.federationPermProfilePost)
+          .federatedClientApiPost("/federated-permission-profile", this.federationPermProfilePost)
           .then((response) => {
             this.federationPermProfileDialog = false
             this.$emit('refreshFederationFromAdding')

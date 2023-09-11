@@ -657,9 +657,9 @@ def sync_client_remote_new(
         )
         db_federation = create_federation(db, federation=federation)
 
-    print(
-        f"CRUD def sync_client_remote_new() {remote_and_owner_federated_permission_profile=}"
-    )
+    # print(
+    #     f"CRUD def sync_client_remote_new() {remote_and_owner_federated_permission_profile=}"
+    # )
     incoming_federated_permission_profiles = [
         remote_and_owner_federated_permission_profile.remote_federated_permission_profile,
         remote_and_owner_federated_permission_profile.owner_federated_permission_profile,
@@ -712,9 +712,9 @@ def sync_client_remote_new(
             == remote_and_owner_federated_permission_profile.owner_federated_permission_profile.federated_permission_profile_id
         ):
             # update incoming owner_fed_perm_profile
-            print(
-                f"CRUD def sync_client_remote_new() NEED TO UPDATE {incoming_federated_permission_profile=}"
-            )
+            # print(
+            #     f"CRUD def sync_client_remote_new() NEED TO UPDATE {incoming_federated_permission_profile=}"
+            # )
             federated_permission_profile = schemas.FederatedPermissionProfileUpdate(
                 **{
                     "federated_permission_profile_id": incoming_federated_permission_profile.federated_permission_profile_id,
@@ -991,12 +991,12 @@ def get_remote_updates_new(db: Session, periodically=False):
                 "status": "queued",
             }
 
-            print(
-                f"CRUD def get_remote_updates_new() SEND REQUEST TO {db_federated_permission_profile.kaapana_instance.host}"
-            )
-            print(
-                f"CRUD def get_remote_updates_new() SEND REQUEST! {update_federated_permission_profile_payload=}"
-            )
+            # print(
+            #     f"CRUD def get_remote_updates_new() SEND REQUEST TO {db_federated_permission_profile.kaapana_instance.host}"
+            # )
+            # print(
+            #     f"CRUD def get_remote_updates_new() SEND REQUEST! {update_federated_permission_profile_payload=}"
+            # )
 
             # PUT request to remote instance
             remote_backend_url = f"{db_federated_permission_profile.kaapana_instance.protocol}://{db_federated_permission_profile.kaapana_instance.host}:{db_federated_permission_profile.kaapana_instance.port}/kaapana-backend/remote"
@@ -1025,13 +1025,13 @@ def get_remote_updates_new(db: Session, periodically=False):
             incoming_fed_perm_profile_update = incoming_data[
                 "update_remote_federated_permission_profile_payload"
             ]
-            print(
-                f"CRUD def get_remote_updates_new() RECEIVE {incoming_fed_perm_profile_update=}"
-            )
+            # print(
+            #     f"CRUD def get_remote_updates_new() RECEIVE {incoming_fed_perm_profile_update=}"
+            # )
 
-            print(
-                f"CRUD def get_remote_updates_new() ALLOWED_DAGS {incoming_fed_perm_profile_update['allowed_dags'].keys()=} ; {type(incoming_fed_perm_profile_update['allowed_dags'].keys())=}"
-            )
+            # print(
+            #     f"CRUD def get_remote_updates_new() ALLOWED_DAGS {incoming_fed_perm_profile_update['allowed_dags'].keys()=} ; {type(incoming_fed_perm_profile_update['allowed_dags'].keys())=}"
+            # )
             # update db_federated_permission_profile with incoming_fed_perm_profile_update
             federated_permission_profile = schemas.FederatedPermissionProfileUpdate(
                 **{
@@ -1755,6 +1755,8 @@ def queue_generate_jobs_and_add_to_workflow(
     json_schema_data: schemas.JsonSchemaData,
     db=None,
 ):
+    # print(f"CRUD def queue_generate_jobs_and_add_to_workflow {json_schema_data=}")
+
     # open separate db session if method is called with db=None, i.e. called in Thread while workflow creation
     if db is None:
         db = SessionLocal()
@@ -1805,7 +1807,17 @@ def queue_generate_jobs_and_add_to_workflow(
                 db_dataset = get_dataset(db, dataset_name)
                 identifiers = [idx.id for idx in db_dataset.identifiers]
             else:
-                for dataset_info in db_kaapana_instance.allowed_datasets:
+                # get via current db_kaapana_instance and federation_name the fed_perm_profile
+                db_federation = get_federation(
+                    db, federation_name=json_schema_data.federation_name
+                )
+                db_federated_permission_profile = get_federated_permission_profile(
+                    db,
+                    federation_id=db_federation.federation_id,
+                    kaapana_id=db_kaapana_instance.id,
+                )
+                # get allowed_datasets from fed_perm_profile
+                for dataset_info in db_federated_permission_profile.allowed_datasets:
                     if dataset_info["name"] == dataset_name:
                         identifiers = (
                             dataset_info["identifiers"]
@@ -2134,9 +2146,9 @@ def create_federation(db: Session, federation: schemas.FederationCreate):
     return db_federation
 
 
-def get_federation(db: Session, federation_id: str = None):
-    print(f"CRUD def get_federation() {federation_id=}")
-    if federation_id is not None:
+def get_federation(db: Session, federation_id: str = None, federation_name: str = None):
+    # print(f"CRUD def get_federation() {federation_id=}")
+    if federation_id:
         return (
             db.query(models.Federation)
             .options(
@@ -2147,6 +2159,17 @@ def get_federation(db: Session, federation_id: str = None):
             .filter_by(federation_id=federation_id)
             .first()
         )
+    elif federation_name:
+        return (
+            db.query(models.Federation)
+            .options(
+                joinedload(models.Federation.federated_permission_profiles).joinedload(
+                    models.FederatedPermissionProfile.kaapana_instance
+                )
+            )
+            .filter_by(federation_name=federation_name)
+            .first()
+        )
     else:
         raise HTTPException(status_code=404, detail="Federation not found")
 
@@ -2155,7 +2178,7 @@ def get_federations(
     db: Session,
     limit=None,
 ):
-    print("CRUD def get_federations()")
+    # print("CRUD def get_federations()")
     return (
         db.query(models.Federation)
         .options(
@@ -2170,23 +2193,23 @@ def get_federations(
 
 
 def update_federation(db: Session, federation: schemas.FederationUpdate):
-    print(f"CRUD def update_federation() {federation=}")
+    # print(f"CRUD def update_federation() {federation=}")
 
     # get db_federation
     db_federation = get_federation(db, federation.federation_id)
 
     if federation.owner_federated_permission_profile_id:
         # add owner_federated_permission_profile_id to db_federation object
-        print("CRUD def update_federation() WITH OWNER!")
+        # print("CRUD def update_federation() WITH OWNER!")
         db_federation.owner_federated_permission_profile_id = (
             federation.owner_federated_permission_profile_id
         )
 
     elif federation.federated_permission_profile:
         # add federated_permission_profile to db_federation object
-        print(
-            f"CRUD def update_federation() WITH PARTICIPANT: {federation.federated_permission_profile}"
-        )
+        # print(
+        #     f"CRUD def update_federation() WITH PARTICIPANT: {federation.federated_permission_profile}"
+        # )
         db_federated_permission_profile = get_federated_permission_profile(
             db, federation.federated_permission_profile.federated_permission_profile_id
         )
@@ -2253,36 +2276,70 @@ def create_federated_permission_profile(
 
 
 def get_federated_permission_profile(
-    db: Session, federated_permission_profile_id: str = None
+    db: Session,
+    federated_permission_profile_id: str = None,
+    federation_id: str = None,
+    kaapana_id: str = None,
 ):
-    print(
-        f"CRUD def get_federated_permission_profile() {federated_permission_profile_id=}"
-    )
+    # print(
+    #     f"CRUD def get_federated_permission_profile() {federated_permission_profile_id=}"
+    # )
     if federated_permission_profile_id is not None:
         return (
             db.query(models.FederatedPermissionProfile)
             .filter_by(federated_permission_profile_id=federated_permission_profile_id)
             .first()
         )
+    elif federation_id and kaapana_id:
+        return (
+            db.query(models.FederatedPermissionProfile)
+            .filter_by(federation_id=federation_id)
+            .filter_by(kaapana_id=kaapana_id)
+            .first()
+        )
     else:
         raise HTTPException(status_code=404, detail="Federation not found")
 
 
-def get_federated_permission_profiles(db: Session, limit=None):
-    return (
-        db.query(models.FederatedPermissionProfile)
-        .order_by(desc(models.FederatedPermissionProfile.time_updated))
-        .limit(limit)
-        .all()
-    )
+def get_federated_permission_profiles(
+    db: Session, federation_id=None, dag_id=None, limit=None
+):
+    if federation_id and dag_id is None:
+        return (
+            db.query(models.FederatedPermissionProfile)
+            .filter_by(federation_id=federation_id)
+            .order_by(desc(models.FederatedPermissionProfile.time_updated))
+            .limit(limit)
+            .all()
+        )
+    elif federation_id and dag_id:
+        return (
+            db.query(models.FederatedPermissionProfile)
+            .filter_by(federation_id=federation_id)
+            .filter(
+                cast(models.FederatedPermissionProfile.allowed_dags, String).contains(
+                    dag_id
+                ),
+            )
+            .order_by(desc(models.FederatedPermissionProfile.time_updated))
+            .limit(limit)
+            .all()
+        )
+    else:
+        return (
+            db.query(models.FederatedPermissionProfile)
+            .order_by(desc(models.FederatedPermissionProfile.time_updated))
+            .limit(limit)
+            .all()
+        )
 
 
 def update_federated_permission_profile(
     db: Session, federated_permission_profile: schemas.FederatedPermissionProfileUpdate
 ):
-    print(
-        f"CRUD def update_federated_permission_profile() {federated_permission_profile=}"
-    )
+    # print(
+    #     f"CRUD def update_federated_permission_profile() {federated_permission_profile=}"
+    # )
 
     # get db_federated_permission_profile
     db_federated_permission_profile = get_federated_permission_profile(
@@ -2339,12 +2396,12 @@ def update_federated_permission_profile(
         if federated_permission_profile.automatic_workflow_execution is not None
         else db_federated_permission_profile.automatic_workflow_execution
     )
-    print(
-        f"CRUD def update_federated_permission_profile() {federated_permission_profile.allowed_dags=} ; {type(federated_permission_profile.allowed_dags)=}"
-    )
-    print(
-        f"CRUD def update_federated_permission_profile() {db_federated_permission_profile.allowed_dags=} ; {type(db_federated_permission_profile.allowed_dags)=}"
-    )
+    # print(
+    #     f"CRUD def update_federated_permission_profile() {federated_permission_profile.allowed_dags=} ; {type(federated_permission_profile.allowed_dags)=}"
+    # )
+    # print(
+    #     f"CRUD def update_federated_permission_profile() {db_federated_permission_profile.allowed_dags=} ; {type(db_federated_permission_profile.allowed_dags)=}"
+    # )
     db_federated_permission_profile.allowed_dags = allowed_dags
     db_federated_permission_profile.allowed_datasets = allowed_datasets
 

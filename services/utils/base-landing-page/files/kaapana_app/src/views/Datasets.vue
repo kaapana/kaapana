@@ -287,7 +287,7 @@
           :identifiers="identifiersOfInterest"
           :onlyLocal="true"
           :isDialog="true"
-          kind_of_dags="dataset"
+          kind_of_workflows="dataset"
           @successful="() => (this.workflowDialog = false)"
           @cancel="() => (this.workflowDialog = false)"
         />

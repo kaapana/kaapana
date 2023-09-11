@@ -154,10 +154,11 @@ class FilterKaapanaInstances(BaseModel):
     federated: bool = False
     dag_id: str = None
     instance_names: List = []
+    federation_name: str = None
     workflow_id: str = None
     workflow_name: str = None
     only_dag_names: bool = True
-    kind_of_dags: str = None
+    kind_of_workflows: str = None
 
 
 class JsonSchemaData(FilterKaapanaInstances):
@@ -354,6 +355,13 @@ class FederatedPermissionProfile(FederatedPermissionProfileBase):
 
     class Config:  # makes Pydantic model compatible with sqlalchemy ORMs
         orm_mode = True
+
+
+class FilterFederatedPermissionProfile(BaseModel):
+    federated_permission_profile_ids: List = []
+    only_dag_names: bool = True
+    kind_of_workflows: str = None
+    dag_id: str = None
 
 
 class FederationBase(BaseModel):

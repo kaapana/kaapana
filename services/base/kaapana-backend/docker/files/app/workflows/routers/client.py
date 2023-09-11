@@ -288,15 +288,13 @@ def get_job_taskinstances(job_id: int, db: Session = Depends(get_db)):
     return crud.get_job_taskinstances(db, job_id)
 
 
-@router.post("/get-dags")
-def get_dags(
+@router.post("/get-dags-via-instances")
+def get_dags_via_instances(
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
 ):
-    # if (filter_kaapana_instances.remote is False):  # necessary from old implementation to get dags in client instance view
-    #     dags = get_dag_list(only_dag_names=True)
-    #     return JSONResponse(content=dags)
-
+    print(f"CLIENT def get_dags_via_instances() {filter_kaapana_instances=}")
+    # get all dags
     dags = {}
     for instance_name in filter_kaapana_instances.instance_names:
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
@@ -306,12 +304,11 @@ def get_dags(
         else:
             dags[db_kaapana_instance.instance_name] = get_dag_list(
                 only_dag_names=filter_kaapana_instances.only_dag_names,
-                kind_of_dags=filter_kaapana_instances.kind_of_dags,
+                kind_of_workflows=filter_kaapana_instances.kind_of_workflows,
             )
 
-    if (
-        len(dags) > 1
-    ):  # if multiple instances are selected -> find intersection of their allowed dags
+    if len(dags) > 1:
+        # if multiple instances are selected -> find intersection of their allowed dags
         overall_allowed_dags = []
         for i in range(len(dags) - 1):
             if len(overall_allowed_dags) == 0:
@@ -322,14 +319,184 @@ def get_dags(
                 list1 = list(dags.values())[i]
                 overall_allowed_dags = list(set(overall_allowed_dags) & set(list1))
         return JSONResponse(content=overall_allowed_dags)
-    elif (
-        len(dags) == 1
-    ):  # if just one instance is selected -> return (allowed) dags of this instance
+    elif len(dags) == 1:
+        # if just one instance is selected -> return (allowed) dags of this instance
         return JSONResponse(content=list(dags.values())[0])
+
+
+@router.post("/get-dags-via-fed-perm-profiles")
+def get_dags_via_fed_perm_profiles(
+    filter_fed_perm_profiles: schemas.FilterFederatedPermissionProfile = None,
+    db: Session = Depends(get_db),
+):
+    print(f"CLIENT def get_dags_via_fed_perm_profiles() {filter_fed_perm_profiles=}")
+    # iterate through all given fed_perm_profiles, get allowed_workflows and return intersection of them
+    # collect the allowed_workflows
+    workflows = {}
+    if filter_fed_perm_profiles.federated_permission_profile_ids:
+        # if fed_perm_profiles are given (aka. remote or federated workflows execution)
+        for (
+            federated_permission_profile_id
+        ) in filter_fed_perm_profiles.federated_permission_profile_ids:
+            db_federated_permission_profile = crud.get_federated_permission_profile(
+                db, federated_permission_profile_id
+            )
+            if db_federated_permission_profile.remote:
+                remote_allowed_workflows = list(
+                    db_federated_permission_profile.allowed_dags.keys()
+                )
+                workflows[
+                    db_federated_permission_profile.federated_permission_profile_id
+                ] = remote_allowed_workflows
+            else:
+                workflows[
+                    db_federated_permission_profile.federated_permission_profile_id
+                ] = get_dag_list(
+                    only_dag_names=filter_fed_perm_profiles.only_dag_names,
+                    kind_of_workflows=filter_fed_perm_profiles.kind_of_workflows,
+                )
+    else:
+        # no fed_perm_profiles given -> just get locally available workflows
+        # db_local_kaapana_instance = get_kaapana_instance(db)
+        workflows["local"] = get_dag_list(
+            only_dag_names=filter_fed_perm_profiles.only_dag_names,
+            kind_of_workflows=filter_fed_perm_profiles.kind_of_workflows,
+        )
+    # filter for intersection
+    if len(workflows) > 1:
+        # if multiple instances are selected -> find intersection of their allowed workflows
+        overall_allowed_workflows = []
+        for i in range(len(workflows) - 1):
+            if len(overall_allowed_workflows) == 0:
+                list1 = list(workflows.values())[i]
+                list2 = list(workflows.values())[i + 1]
+                overall_allowed_workflows = list(set(list1) & set(list2))
+            else:
+                list1 = list(workflows.values())[i]
+                overall_allowed_workflows = list(
+                    set(overall_allowed_workflows) & set(list1)
+                )
+        return JSONResponse(content=overall_allowed_workflows)
+        # return json.dumps(overall_allowed_workflows)
+    elif len(workflows) == 1:
+        # if just one instance is selected -> return (allowed) workflows of this instance
+        print(
+            f"CLIENT def get_dags_via_fed_perm_profiles() {list(workflows.values())[0]=}"
+        )
+        # return JSONResponse(content=list(workflows.values())[0])
+        return json.dumps(list(workflows.values())[0])
 
 
 @router.post("/get-ui-form-schemas")
 def ui_form_schemas(
+    request: Request,
+    filter_fed_perm_profiles: schemas.FilterFederatedPermissionProfile = None,
+    db: Session = Depends(get_db),
+):
+    # get username
+    username = request.headers["x-forwarded-preferred-username"]
+
+    # get allowed_workflows via fed_perm_profiles
+    workflows_json = get_dags_via_fed_perm_profiles(filter_fed_perm_profiles)
+    # print(f"CLIENT def ui_form_schemas() {workflows_json=}")
+    workflows = json.loads(workflows_json)
+    # workflows = workflows_json.json()
+    print(f"CLIENT def ui_form_schemas() {workflows=}")
+
+    # get allowed_datasets via fed_perm_profiles
+    datasets = {}
+    dataset_size = {}
+    if filter_fed_perm_profiles.federated_permission_profile_ids:
+        # if fed_perm_profiles are given (aka. remote or federated workflows execution)
+        for (
+            federated_permission_profile_id
+        ) in filter_fed_perm_profiles.federated_permission_profile_ids:
+            db_federated_permission_profile = crud.get_federated_permission_profile(
+                db, federated_permission_profile_id
+            )
+            if not db_federated_permission_profile.remote:
+                # get datasets of local instance
+                local_datasets = crud.get_datasets(db, username=username)
+                allowed_dataset = [ds.name for ds in local_datasets]
+                dataset_size = {ds.name: len(ds.identifiers) for ds in local_datasets}
+            else:
+                # get allowed_datasets of remote fed_perm_profile
+                allowed_dataset = list(
+                    ds["name"]
+                    for ds in db_federated_permission_profile.allowed_datasets
+                )
+                dataset_size = {
+                    ds["name"]: len(ds["identifiers"])
+                    for ds in db_federated_permission_profile.allowed_datasets
+                }
+            datasets[
+                db_federated_permission_profile.kaapana_instance.instance_name
+            ] = allowed_dataset
+    else:
+        # no fed_perm_profiles given -> just get locally available workflows
+        # get datasets of local instance
+        local_datasets = crud.get_datasets(db, username=username)
+        allowed_dataset = [ds.name for ds in local_datasets]
+        dataset_size = {ds.name: len(ds.identifiers) for ds in local_datasets}
+        datasets["local"] = allowed_dataset
+    if len(datasets) > 1:
+        # if multiple instances are selected -> find intersection of their allowed datasets
+        overall_allowed_datasets = []
+        for i in range(len(datasets) - 1):
+            if len(overall_allowed_datasets) == 0:
+                list1 = list(datasets.values())[i]
+                list2 = list(datasets.values())[i + 1]
+                overall_allowed_datasets = list(set(list1) & set(list2))
+            else:
+                list1 = list(datasets.values())[i]
+                overall_allowed_datasets = list(
+                    set(overall_allowed_datasets) & set(list1)
+                )
+        dataset_names = [{"const": d, "title": d} for d in overall_allowed_datasets]
+    elif len(datasets) == 1:
+        # if just one instance is selected -> return (allowed) datasets of this instance
+        dataset_names = [
+            {"const": d, "title": d + f" ({dataset_size[d]})"}
+            for d in list(datasets.values())[0]
+        ]
+    print(f"CLIENT def ui_form_schemas() {dataset_names=}")
+
+    # compose schema with workflows and datasets
+    schemas_dict = {}
+    for dag_id, dag in workflows.items():
+        schemas = dag.get("ui_forms", {})
+        if (
+            "data_form" in schemas
+            and "properties" in schemas["data_form"]
+            and "dataset_name" in schemas["data_form"]["properties"]
+        ):
+            if len(dataset_names) < 1:
+                schemas["data_form"]["__emtpy__"] = "true"
+            else:
+                schemas["data_form"]["properties"]["dataset_name"][
+                    "oneOf"
+                ] = dataset_names
+        schemas_dict[dag_id] = schemas
+    # logging.info(f"\n\nFinal Schema: \n{schemas}")
+    if filter_fed_perm_profiles.dag_id is None:
+        return JSONResponse(content=schemas_dict)
+    elif filter_fed_perm_profiles.dag_id in schemas_dict:
+        return JSONResponse(
+            content={
+                filter_fed_perm_profiles.dag_id: schemas_dict[
+                    filter_fed_perm_profiles.dag_id
+                ]
+            }
+        )
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dag {dag_id} is not part of the dag list. In remote execution the issue might be that is it not part of the allowed dags, please add it!",
+        )
+
+
+@router.post("/get-ui-form-schemas-old")
+def ui_form_schemas_old(
     request: Request,
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
@@ -340,9 +507,8 @@ def ui_form_schemas(
     for instance_name in filter_kaapana_instances.instance_names:
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if not db_kaapana_instance.remote:
-            allowed_dags = get_dag_list(
-                only_dag_names=False
-            )  # get dags incl. its meta information (not only dag_name)
+            # get dags incl. its meta information (not only dag_name)
+            allowed_dags = get_dag_list(only_dag_names=False)
         else:
             allowed_dags = db_kaapana_instance.allowed_dags
             # w/o .keys() --> get dags incl. its meta information (not only dag_name)
@@ -436,6 +602,7 @@ def ui_form_schemas(
                 ] = dataset_names
         schemas_dict[dag_id] = schemas
     # logging.info(f"\n\nFinal Schema: \n{schemas}")
+    print(f"CLIENT def ui_form_schemas() {schemas_dict=}")
     if filter_kaapana_instances.dag_id is None:
         return JSONResponse(content=schemas_dict)
     elif filter_kaapana_instances.dag_id in schemas_dict:
@@ -555,6 +722,8 @@ def create_workflow(
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
 ):
+    print(f"CLIENT def create_workflow() {json_schema_data=}")
+
     # validate incoming json_schema_data
     try:
         jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
@@ -576,11 +745,8 @@ def create_workflow(
             detail="A username has to be set when you submit a workflow schema, either as parameter or in the request!",
         )
 
+    # get local kaapana instance
     db_client_kaapana = crud.get_kaapana_instance(db)
-    # if db_client_kaapana.instance_name in json_schema_data.instance_names:  # check or correct: if client_kaapana_instance in workflow's runner instances ...
-    #     json_schema_data.remote = False                                     # ... set json_schema_data.remote to False
-
-    # conf_data = json_schema_data.conf_data
 
     # create workflow_id
     workflow_id = random_uuid(length=6)
@@ -796,9 +962,10 @@ def create_federation(
 @router.get("/federation", response_model=schemas.Federation)
 def get_federation(
     federation_id: str = None,
+    federation_name: str = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_federation(db, federation_id)
+    return crud.get_federation(db, federation_id, federation_name)
 
 
 # get federations
@@ -820,7 +987,7 @@ def delete_federation(federation_id: str, db: Session = Depends(get_db)):
 
 # create federation_permission_profile
 @router.post(
-    "/federation-permission-profile", response_model=schemas.FederatedPermissionProfile
+    "/federated-permission-profile", response_model=schemas.FederatedPermissionProfile
 )
 def create_federation_permission_profile(
     federation_permission_profile: schemas.FederatedPermissionProfileCreate,
@@ -855,7 +1022,7 @@ def create_federation_permission_profile(
 
 # put(update) federation_permission_profile
 @router.put(
-    "/federation-permission-profile", response_model=schemas.FederatedPermissionProfile
+    "/federated-permission-profile", response_model=schemas.FederatedPermissionProfile
 )
 def put_federation_permission_profile(
     federation_permission_profile: schemas.FederatedPermissionProfileUpdate,
@@ -869,22 +1036,33 @@ def put_federation_permission_profile(
 
 # get federation_permission_profile
 @router.get(
-    "/federation-permission-profile", response_model=schemas.FederatedPermissionProfile
+    "/federated-permission-profile", response_model=schemas.FederatedPermissionProfile
 )
 def get_federation_permission_profile(
     federated_permission_profile_id: str = None,
+    federation_id: str = None,
+    kaapana_id: str = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_federated_permission_profile(db, federated_permission_profile_id)
+    return crud.get_federated_permission_profile(
+        db,
+        federated_permission_profile_id,
+        federation_id=federation_id,
+        kaapana_id=kaapana_id,
+    )
 
 
 # get federation_permission_profiles
 @router.get(
-    "/federation-permission-profiles",
+    "/federated-permission-profiles",
     response_model=List[schemas.FederatedPermissionProfile],
 )
 def get_federation_permission_profiles(
+    federation_id: str = None,
+    dag_id: str = None,
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_federated_permission_profiles(db, limit=limit)
+    return crud.get_federated_permission_profiles(
+        db, federation_id=federation_id, dag_id=dag_id, limit=limit
+    )

@@ -88,7 +88,7 @@
         <WorkflowExecution
           :key="componentKey"
           :onlyLocal=true
-          kind_of_dags="minio"
+          kind_of_workflows="minio"
           :isDialog=true
           @successful="() => (workflowDialog = false)"
           @cancel="() => (workflowDialog = false)"

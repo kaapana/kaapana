@@ -23,7 +23,7 @@
                 | mdi-cloud-braces
               </v-icon>
             </template>
-            <span> remote Kaapana Instance -- time since last update: green: 5 min, yellow: 1 hour, orange: 5 hours, else red </span>
+            <span> remote Kaapana Instance -- last update: {{ item.time_updated }} -- time since last update: green: 5 min, yellow: 1 hour, orange: 5 hours, else red </span>
           </v-tooltip>
         </template>
         <!-- Network -->
@@ -112,7 +112,7 @@ export default {
       { text: 'Instance ID', value: 'id' },
       { text: 'Network', value: 'host' },
       { text: 'Token', value: 'token' },
-      { text: 'Time Updated', value: 'time_updated' },
+      // { text: 'Time Updated', value: 'time_updated' },
       { text: 'Verify SSL', value: 'ssl_check', align: 'center' },
       { text: 'Fernet Key', value: 'fernet_key' },
       { text: 'Actions', value: 'actions', sortable: false, filterable: false, align: 'center' },

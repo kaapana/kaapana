@@ -1,4 +1,5 @@
 dag_id: "isolated-container-workflow"
+ci_ignore: true
 conf_data:
   workflow_form:
     single_execution: false

@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="dcmqi"
 LABEL VERSION="v1.2.4"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 # set work directory
 WORKDIR /kaapana/app

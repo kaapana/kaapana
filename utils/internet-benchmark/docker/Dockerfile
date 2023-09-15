@@ -2,7 +2,7 @@ FROM docker.io/python:3.8
 
 LABEL IMAGE="speedtest"
 LABEL VERSION="0.0.0"
-LABEL CI_IGNORE="True"
+LABEL BUILD_IGNORE="True"
 
 COPY files/speedtest.py .
 

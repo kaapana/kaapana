@@ -2,7 +2,7 @@ FROM docker.io/node:lts-alpine3.10 as build
 
 LABEL IMAGE="ohif"
 LABEL VERSION="4.12.26"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python
 RUN git clone https://github.com/OHIF/Viewers.git /src

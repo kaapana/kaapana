@@ -2,7 +2,7 @@ FROM local-only/base-python-gpu:latest
 
 LABEL IMAGE="bodypartregression"
 LABEL VERSION="v1.3"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 # Keeps Python from generating .pyc files in the container
 ENV PYTHONDONTWRITEBYTECODE=1

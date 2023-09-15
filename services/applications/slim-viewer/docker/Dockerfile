@@ -2,7 +2,7 @@ FROM node:lts-alpine as build
 
 LABEL IMAGE="slim"
 LABEL VERSION="0.14.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base
 RUN git clone -c advice.detachedHead=False --depth 1 --branch v0.14.0 https://github.com/MGHComputationalPathology/slim.git /src

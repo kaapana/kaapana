@@ -28,7 +28,7 @@ Kaapana Docker images often utilize the following labels:
 - `REGISTRY`: Specifies the target registry for pushing the Docker image. This is an optional label, and can be used to control where the built image is stored.
 - `IMAGE`: Defines the intended usage of the image. It can be used to quickly identify the purpose of a particular image.
 - `VERSION`: Indicates the version of the Docker image that is built from the Dockerfile. Providing explicit versions helps with traceability and debugging, instead of just using the :code:`<image>:latest` tag.
-- `CI_IGNORE`: A flag used by the Kaapana build system. If this label is set to true, it will prevent specific containers from being built.
+- `BUILD_IGNORE`: A flag used by the Kaapana build system. If this label is set to true, it will prevent specific containers from being built.
 
 Package managers: apt, apk
 --------------------------
@@ -105,7 +105,7 @@ Assume that the processing algorithm of your workflow is written in a Python fil
   LABEL REGISTRY="example-registry"
   LABEL IMAGE="example-dockerfile-workflow"
   LABEL VERSION="0.1.0"
-  LABEL CI_IGNORE="False"
+  LABEL BUILD_IGNORE="False"
 
   # Setting up the working directory
   WORKDIR /app

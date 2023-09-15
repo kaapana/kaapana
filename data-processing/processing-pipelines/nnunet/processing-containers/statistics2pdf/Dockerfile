@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="statistics2pdf"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /
 

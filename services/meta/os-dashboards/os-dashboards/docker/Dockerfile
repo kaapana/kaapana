@@ -3,7 +3,7 @@ FROM docker.io/node:${NODE_VERSION} AS builder
 
 LABEL IMAGE="os-dashboards"
 LABEL VERSION="2.2.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 USER root
 RUN apt-get update -y && apt-get install -y --no-install-recommends \

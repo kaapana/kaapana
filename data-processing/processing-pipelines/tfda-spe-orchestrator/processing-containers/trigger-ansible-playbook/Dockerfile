@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="trigger-ansible-playbook"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 ARG http_proxy
 ARG https_proxy
@@ -18,8 +18,8 @@ RUN echo "StrictHostKeyChecking=accept-new" > /root/.ssh/config
 
 RUN apt-get update -q -y &&  apt-get dist-upgrade -q -y
 RUN apt-get update -q -y && apt-get install -y --no-install-recommends \
-        openssh-client \
-        vim \
+    openssh-client \
+    vim \
     && rm -rf /var/lib/apt/lists/*
 
 COPY files/requirements.txt /

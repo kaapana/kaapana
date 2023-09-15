@@ -247,7 +247,7 @@ class Container:
         self.repo_version = None
         self.tag = None
         self.path = dockerfile
-        self.ci_ignore = False
+        self.build_ignore = False
         self.pending = False
         self.airflow_component = False
         self.container_dir = os.path.dirname(dockerfile)
@@ -316,8 +316,8 @@ class Container:
 
                         BuildUtils.base_images_used[base_img_obj.tag].append(self)
 
-                elif line.__contains__("LABEL CI_IGNORE="):
-                    self.ci_ignore = (
+                elif line.__contains__("LABEL BUILD_IGNORE="):
+                    self.build_ignore = (
                         True
                         if line.split("#")[0]
                         .split("=")[1]
@@ -408,14 +408,14 @@ class Container:
                 BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
                 return issue, duration_time_text
 
-            if self.ci_ignore:
+            if self.build_ignore:
                 BuildUtils.logger.warning(
-                    f"{self.build_tag}: {self.ci_ignore=} -> skip"
+                    f"{self.build_tag}: {self.build_ignore=} -> skip"
                 )
                 issue = {
                     "component": suite_tag,
                     "name": f"{self.build_tag}",
-                    "msg": f"Container build skipped: {self.ci_ignore=} !",
+                    "msg": f"Container build skipped: {self.build_ignore=} !",
                     "level": "WARING",
                     "path": self.container_dir,
                 }
@@ -498,12 +498,12 @@ class Container:
         issue = None
         duration_time_text = ""
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
-        if self.ci_ignore:
-            BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
+        if self.build_ignore:
+            BuildUtils.logger.warning(f"{self.build_tag}: {self.build_ignore=} -> skip")
             issue = {
                 "component": suite_tag,
                 "name": f"{self.build_tag}",
-                "msg": f"Container push skipped: {self.ci_ignore=} !",
+                "msg": f"Container push skipped: {self.build_ignore=} !",
                 "level": "WARING",
                 "path": self.container_dir,
             }

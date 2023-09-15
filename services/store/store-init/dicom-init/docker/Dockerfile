@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="dicom-init"
 LABEL VERSION="0.1.3"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /kaapana/app
 

@@ -3,7 +3,7 @@ FROM local-only/base-python-gpu:latest
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-nnunet"
 LABEL VERSION="latest"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 ENV OMP_NUM_THREADS=1
 ENV PYTHONUNBUFFERED=1

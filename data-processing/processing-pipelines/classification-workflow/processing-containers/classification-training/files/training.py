@@ -18,12 +18,12 @@ from opensearch_helper import OpenSearchHelper
 from torch.utils.tensorboard import SummaryWriter
 from torchmetrics import Accuracy, F1Score
 
+os.environ["FOLD"] = "0"
+
 RESULTS_DIR = Path(
     "/models", os.environ["DAG_ID"], f"{os.environ['WORKFLOW_ID']}-fold-{os.environ['FOLD']}"
 )
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
-os.environ["FOLD"] = "0"
 
 # Create a custom logger
 logging.getLogger().setLevel(logging.DEBUG)
@@ -44,9 +44,16 @@ f_handler.setFormatter(f_format)
 logger.addHandler(c_handler)
 logger.addHandler(f_handler)
 
+# Create mapping between classes and tags before logging
+
+TAG_TO_CLASS_MAPPING = {}
+
+for class_idx, tag in enumerate(sorted(ast.literal_eval(os.environ["TAG_TO_CLASS_MAPPING_JSON"]))):
+    TAG_TO_CLASS_MAPPING[tag] = class_idx
+
 # Log config
 
-logger.debug(f"TAG_TO_CLASS_MAPPING_JSON={os.environ['TAG_TO_CLASS_MAPPING_JSON']}")
+logger.debug(f"TAG_TO_CLASS_MAPPING_JSON={str(TAG_TO_CLASS_MAPPING)}")
 logger.debug(f"TASK={os.environ['TASK']}")
 logger.debug(f"NUM_EPOCHS={os.environ['NUM_EPOCHS']}")
 logger.debug(f"DIMENSIONS={os.environ['DIMENSIONS']}")
@@ -59,7 +66,7 @@ logger.debug(f"TASK={os.environ['TASK']}")
 try:
     data = {}
 
-    data["TAG_TO_CLASS_MAPPING_JSON"] = os.environ["TAG_TO_CLASS_MAPPING_JSON"]
+    data["TAG_TO_CLASS_MAPPING_JSON"] = str(TAG_TO_CLASS_MAPPING)
     data["TASK"] = os.environ["TASK"]
     data["NUM_EPOCHS"] = os.environ["NUM_EPOCHS"]
     data["DIMENSIONS"] = os.environ["DIMENSIONS"]
@@ -76,8 +83,6 @@ except json.JSONDecodeError:
     logger.error("Error decoding JSON")
 
 # Config
-
-TAG_TO_CLASS_MAPPING = ast.literal_eval(os.environ["TAG_TO_CLASS_MAPPING_JSON"])
 
 NUM_CLASSES = 1 if os.environ["TASK"] == "binary" else len(TAG_TO_CLASS_MAPPING)
 NUM_WORKERS = 4

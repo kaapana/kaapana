@@ -43,6 +43,15 @@ async def get_users(
     return us.get_users(username=username, group_id=group_id)
 
 
+@router.get("/email", response_model=List[str])
+async def get_user_email(
+    username: str,
+    us=Depends(get_user_service),
+):
+    """Returns list of user/email, matching the given parameter"""
+    return us.get_user_email(username=username)
+
+
 @router.get("/{idx}", response_model=KaapanaUser)
 async def get_user(idx: str, us=Depends(get_user_service)):
     """Returns a specific user of the kaapana platform"""

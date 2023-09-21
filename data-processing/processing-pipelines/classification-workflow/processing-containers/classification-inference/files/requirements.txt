@@ -1,0 +1,10 @@
+torch
+batchgenerators
+tqdm
+torchvision
+monai
+torchmetrics
+tensorboard
+matplotlib
+numpy
+opensearch-py

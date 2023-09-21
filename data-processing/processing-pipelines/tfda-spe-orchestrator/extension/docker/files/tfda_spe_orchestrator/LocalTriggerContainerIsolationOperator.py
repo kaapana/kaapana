@@ -12,15 +12,15 @@ class LocalTriggerContainerIsolationOperator(KaapanaPythonBaseOperator):
     Custom operator for triggering an containerized workflow in a Secure Processing Environment (SPE).
 
     This operator extends the KaapanaPythonBaseOperator and is designed to trigger a separate DAG
-    (dag-tfda-spe-orchestrator) that executes a containerized workflow in an SPE. It leverages
+    (tfda-spe-orchestrator) that executes a containerized workflow in an SPE. It leverages
     the Airflow API to trigger the specified DAG with a custom configuration, waits for the DAG
     to complete execution, and checks the final state of the isolated workflow.
 
     Notes:
-        1. This operator triggers the 'dag-tfda-spe-orchestrator' DAG with a custom configuration.
+        1. This operator triggers the 'tfda-spe-orchestrator' DAG with a custom configuration.
         2. The 'start' method handles the triggering, monitoring, and checking of the isolated workflow's state.
         3. If the isolated workflow execution fails, the operator raises an AirflowFailException.
-        4. Ensure that the 'dag-tfda-spe-orchestrator' DAG exists and is correctly configured before using this operator.
+        4. Ensure that the 'tfda-spe-orchestrator' DAG exists and is correctly configured before using this operator.
     """
 
     def get_most_recent_dag_run(self, dag_id):
@@ -29,7 +29,7 @@ class LocalTriggerContainerIsolationOperator(KaapanaPythonBaseOperator):
         return dag_runs[0] if dag_runs else None
 
     def start(self, ds, ti, **kwargs):
-        self.trigger_dag_id = "dag-tfda-spe-orchestrator"
+        self.trigger_dag_id = "tfda-spe-orchestrator"
         dag_run_id = generate_run_id(self.trigger_dag_id)
         logging.info("Triggering isolated execution orchestrator...")
         dag_config = kwargs["dag_run"].conf
@@ -45,7 +45,7 @@ class LocalTriggerContainerIsolationOperator(KaapanaPythonBaseOperator):
             logging.error(e)
         dag_run = self.get_most_recent_dag_run(self.trigger_dag_id)
         if dag_run:
-            logging.debug(
+            logging.info(
                 f"The latest isolated workflow has been triggered at: {dag_run.execution_date}!!!"
             )
         dag_state = get_dag_run_state(
@@ -61,7 +61,7 @@ class LocalTriggerContainerIsolationOperator(KaapanaPythonBaseOperator):
                 f"**************** The isolated workflow has FAILED ****************"
             )
         if dag_state["state"] == "success":
-            logging.debug(
+            logging.info(
                 f"**************** The isolated workflow was SUCCESSFUL ****************"
             )
 

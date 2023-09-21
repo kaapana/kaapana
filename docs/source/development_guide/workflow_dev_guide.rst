@@ -424,7 +424,7 @@ Create the three files :ref:`otsus-method-chart` and :ref:`otsus-chart-requireme
 
 .. important:: 
     The field :code:`repository` in :ref:`otsus-chart-requirements` must be the relative path to the directory that contains the :code:`Chart.yaml` file for the dag-installer chart. 
-    This file is located in the subdirectory :code:`services/utils/dag-installer/dag-installer-chart/` of the kaapana repository.
+    This file is located in the subdirectory :code:`services/utils/dag-installer-chart/` of the kaapana repository.
 
 Update helm dependencies and package the chart.
 

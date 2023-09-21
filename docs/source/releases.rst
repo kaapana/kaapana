@@ -3,6 +3,23 @@
 Changelog
 #########
 
+.. _release-0.2.3:
+
+-------------------------
+
+********************
+Release Notes v0.2.4
+********************
+
+September 11, 2023
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fix problem of images stuck in CTP on large imports
+* Fix python requirements for bodypart-regression processing container
 
 .. _release-0.2.3:
 

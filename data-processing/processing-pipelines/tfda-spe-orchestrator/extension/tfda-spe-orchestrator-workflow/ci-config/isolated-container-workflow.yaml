@@ -1,0 +1,11 @@
+dag_id: "isolated-container-workflow"
+ci_ignore: true
+conf_data:
+  workflow_form:
+    single_execution: false
+    container_registry_url: ""
+    container_name_version: ""
+  data_form:
+    bucket_name: ""
+remote: false
+username: "kaapana"

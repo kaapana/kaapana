@@ -23,6 +23,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     libxcb-image0 \ 
     libxcb-keysyms1 \ 
     libxcb-randr0 \
+    xvfb \
+    xauth \
     && rm -rf /var/lib/apt/lists/*
 
 # Slicer 5.2.2
@@ -43,7 +45,6 @@ RUN useradd -m researcher -s /bin/bash && \
 # install Slicer extension; extension name hardcoded in install-slicer-extension.py
 COPY files/install-slicer-extension.py /opt/slicer
 # see https://github.com/pieper/SlicerDockers/blob/master/slicer-plus/Dockerfile
-RUN apt-get install -y xvfb
 RUN su researcher -c "xvfb-run --auto-servernum \
     /opt/slicer/Slicer --python-script /opt/slicer/install-slicer-extension.py --no-splash --no-main-window"
 

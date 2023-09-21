@@ -1,6 +1,7 @@
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
+from airflow.operators.dummy_operator import DummyOperator
 from tfda_spe_orchestrator.LocalLoadPlatformConfigOperator import (
     LocalLoadPlatformConfigOperator,
 )
@@ -24,7 +25,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="dag-tfda-spe-orchestrator",
+    dag_id="tfda-spe-orchestrator",
     default_args=args,
     concurrency=10,
     max_active_runs=10,
@@ -61,8 +62,9 @@ delete_iso_inst = ManageIsoInstanceOperator(
     dag=dag, trigger_rule="all_done", instanceState="absent", taskName="delete-iso-inst"
 )
 clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True, trigger_rule="all_success"
+    dag=dag, clean_workflow_dir=True, trigger_rule="all_done"
 )
+watcher = DummyOperator(task_id="watcher", dag=dag, trigger_rule="all_success")
 (
     load_platform_config
     >> create_iso_env
@@ -73,6 +75,6 @@ clean = LocalWorkflowCleanerOperator(
     >> fetch_results
     >> trusted_post_etl
     >> upload_results
-    >> delete_iso_inst
-    >> clean
 )
+upload_results >> watcher
+upload_results >> delete_iso_inst >> clean

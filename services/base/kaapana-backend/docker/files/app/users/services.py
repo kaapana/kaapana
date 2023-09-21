@@ -67,6 +67,15 @@ class UserService:
             return None
         return KaapanaUser(name=r["username"], idx=r["id"])
 
+    def get_user_email(self, username: str) -> str:
+        self._login()
+        try:
+            lower_user_name = username.lower()
+            result = self.keycloak_admin.get_users(query={"search": lower_user_name})
+        except KeycloakGetError as e:
+            return None
+        return [r["email"] for r in result]
+
     def get_groups(self, user_id: str = None) -> List[KaapanaGroup]:
         self._login()
         if user_id:

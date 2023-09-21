@@ -102,7 +102,7 @@ app.include_router(routers.router, prefix="/dataset")
 app.include_router(monitoring.router, prefix="/monitoring")
 
 # # Not used yet
-# app.include_router(users.router, prefix="/users")
+app.include_router(users.router, prefix="/users")
 
 # # Not used yet
 # app.include_router(storage.router, prefix="/storage")

@@ -1,12 +1,26 @@
 from fastapi import FastAPI
 from fastapi import Response, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 
-from init import auth_role_mapping_dict, error_page, logger
+from init import error_page, logger
 import uvicorn
 import jwt
+import requests
 
 app = FastAPI()
+
+
+def check_endpoint(access_token, requested_prefix):
+    input = {
+        "input": {"access_token": access_token, "requested_prefix": requested_prefix}
+    }
+    url = "http://open-policy-agent-service.services.svc:8181/v1/data/httpapi/authz"
+    r = requests.post(
+        url,
+        json=input,
+    )
+    allow = r.json().get("result", {}).get("allow", False)
+    return allow
 
 
 @app.get("/auth-check", status_code=status.HTTP_200_OK)
@@ -14,75 +28,39 @@ async def auth_check(request: Request, response: Response):
     """
     Check if the user who made the request is mapped to the required roles in order to be authorized to access the requested resource.
     """
-    # for header, value in request.headers.items():
-    #     logger.warn(f"{header}:{value}")
+
     requested_prefix = request.headers.get("x-forwarded-prefix")
     if requested_prefix is None:
         requested_prefix = request.headers.get("x-forwarded-uri")
 
-    for url_auth_config in auth_role_mapping_dict.keys():
-        print(f"{url_auth_config=}")
-        print(f"{requested_prefix=}")
-        if (
-            requested_prefix.startswith(url_auth_config)
-            and "whitelisted" in auth_role_mapping_dict[url_auth_config]
-        ):
-            message = f"White-listed auth-endpoint: {requested_prefix} -> ok"
-            logger.warn(message)
-            response.status_code = status.HTTP_200_OK
-            return message
+    access_token = request.headers.get("x-forwarded-access-token", None)
 
-    if requested_prefix is None:
-        response.status_code = status.HTTP_403_FORBIDDEN
-        message = "No HTTP_X_FORWARDED_PREFIX could be identified within the request -> restricting access."
-        logger.warn(message)
-        return HTMLResponse(content=error_page, status_code=status.HTTP_403_FORBIDDEN)
-
-    access_token = request.headers.get("x-forwarded-access-token")
     if access_token is None:
-        response.status_code = status.HTTP_403_FORBIDDEN
-        message = "No x-forwarded-access-token could be identified within the request -> restricting access."
-        logger.warn(message)
-        return HTMLResponse(content=error_page, status_code=status.HTTP_403_FORBIDDEN)
-
-    decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
-    realm_access = decoded_access_token.get("realm_access", {"roles": []})
-    user_roles = realm_access["roles"]
-
-    user_requesting = decoded_access_token.get("preferred_username", None)
-    if user_requesting is None:
-        response.status_code = status.HTTP_403_FORBIDDEN
-        message = "No 'preferred_username' could be identified within the access token -> restricting access."
-        logger.warn(message)
-        return HTMLResponse(content=error_page, status_code=status.HTTP_403_FORBIDDEN)
-
-    prefix_roles_allowed = None
-    for url_auth_config in auth_role_mapping_dict.keys():
-        if url_auth_config in requested_prefix:
-            prefix_roles_allowed = auth_role_mapping_dict[url_auth_config]
-            break
-
-    if prefix_roles_allowed is None:
-        response.status_code = status.HTTP_200_OK
-        message = f"No role specified for prefix: {requested_prefix}"
-        logger.warn(message)
-        return message
-
+        decoded_access_token = {}
     else:
-        for user_role in user_roles:
-            if user_role in prefix_roles_allowed:
-                response.status_code = status.HTTP_200_OK
-                message = (
-                    f"User {user_requesting}: Access granted for: {requested_prefix}"
-                )
-                logger.warn(message)
-                return message
+        decoded_access_token = jwt.decode(
+            access_token, options={"verify_signature": False}
+        )
 
-        response.status_code = status.HTTP_403_FORBIDDEN
-        message = f"User ({user_roles=}) has not one of the allowed roles: {prefix_roles_allowed} -> access denied"
+    if check_endpoint(decoded_access_token, requested_prefix):
+        message = f"Policies satisfied for {requested_prefix} -> ok"
         logger.warn(message)
+        response.status_code = status.HTTP_200_OK
+        return message
+    else:
+        message = f"No policy satisfied -> restricting access to {requested_prefix}"
+        logger.info(message)
         return HTMLResponse(content=error_page, status_code=status.HTTP_403_FORBIDDEN)
+
+
+@app.get("/opa-bundles/{somedir}/{bundle}")
+async def get_opa_bundles(somedir: str, bundle: str):
+    """
+    Return init data and policies as gzipped tarball.
+    """
+    f = open(f"/kaapana/app/{somedir}/{bundle}", "rb")
+    return StreamingResponse(content=f, media_type="application/octet-stream")
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

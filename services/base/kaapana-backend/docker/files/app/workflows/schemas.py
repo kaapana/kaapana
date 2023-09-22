@@ -247,6 +247,7 @@ class WorkflowCreate(WorkflowBase):
     kaapana_instance_id: int
     workflow_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
+    accesstable_primary_key: str = None
 
 
 class WorkflowUpdate(WorkflowBase):

@@ -14,7 +14,7 @@ from threading import Thread
 from pathlib import Path
 import jsonschema
 from app.datasets.utils import execute_opensearch_query
-from app.dependencies import get_db
+from app.dependencies import get_db, my_get_db
 from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
@@ -25,6 +25,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 from pydantic.schema import schema
 from sqlalchemy.orm import Session
+from app.users.dependencies import create_access_table_and_list
 
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -190,6 +191,7 @@ def put_client_kaapana_instance(
 
 @router.get("/kaapana-instance", response_model=schemas.KaapanaInstance)
 def get_kaapana_instance(instance_name: str = None, db: Session = Depends(get_db)):
+    print(f"Kaapana_instance db session object: {db=}")
     return crud.get_kaapana_instance(db, instance_name)
 
 
@@ -553,6 +555,7 @@ def create_workflow(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
+    access_table_primary=Depends(create_access_table_and_list),
 ):
     # validate incoming json_schema_data
     try:
@@ -619,6 +622,7 @@ def create_workflow(
                 "involved_instances"
             ],
             "federated": json_schema_data.federated,
+            "accesstable_primary_key": access_table_primary,
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)
@@ -673,7 +677,7 @@ def get_workflows(
     involved_instance_name: str = None,
     workflow_job_id: int = None,
     limit: int = None,
-    db: Session = Depends(get_db),
+    db: Session = Depends(my_get_db, use_cache=False),
 ):
     return crud.get_workflows(
         db, instance_name, involved_instance_name, workflow_job_id, limit=limit

@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from . import models, services, schemas
+from . import schemas
+from app.workflows import models
 from fastapi import HTTPException, Depends
 from app.dependencies import get_user_service
 
@@ -85,3 +86,31 @@ def create_access_list_entree(
     db.commit()
     db.refresh(db_accesslistentree)
     return db_accesslistentree
+
+
+def get_access_information(db: Session, model):
+    """
+    Get access information for all objects in the database.
+    """
+    stmt = (
+        select(model, models.AccessListEntree)
+        .join(
+            models.AccessTable,
+            models.AccessTable.object_primary_key == model.accesstable_primary_key,
+        )
+        .join(
+            models.AccessListEntree,
+            models.AccessListEntree.accesstable_primary_key
+            == model.accesstable_primary_key,
+        )
+    )
+
+    results = db.execute(stmt).all()
+    data = {
+        "Projects": [
+            {"name": m.name, "user": acl.user, "permissions": acl.permissions}
+            for m, acl in results
+        ]
+    }
+
+    return data

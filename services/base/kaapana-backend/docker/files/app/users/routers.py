@@ -13,7 +13,14 @@ from .schemas import (
 from app.dependencies import get_user_service, get_db, my_get_db
 from keycloak.exceptions import KeycloakGetError, KeycloakPostError
 from sqlalchemy.orm import Session
-from app.users import crud, models
+from app.users import crud
+from functools import wraps
+
+# from app.decorators import set_object_primary_key
+from app.users.dependencies import (
+    create_access_table_and_list,
+    fetch_data_and_put_to_opa,
+)
 
 router = APIRouter(tags=["users"])
 
@@ -310,11 +317,14 @@ async def delete_project(
 
 
 @router.post("/projects/{name}", response_model=KaapanaProject)
-async def post_project(
-    request: Request,
+# @set_object_primary_key(object_identifier="name")
+# async def post_project(
+def post_project(
     name: str,
     us=Depends(get_user_service),
     db: Session = Depends(get_db),
+    access_table_primary=Depends(create_access_table_and_list),
+    background=Depends(fetch_data_and_put_to_opa),
 ):
     """
     Create a new project.
@@ -358,29 +368,10 @@ async def post_project(
         project_roles=[
             project_role.__dict__ for project_role in project_roles
         ],  ### I cannot use classes as ColumnType in models
-        accesstable_primary_key=name,
+        accesstable_primary_key=access_table_primary,
     )
-
-    access_table = AccessTable(
-        object_primary_key=kaapana_project.name,
-    )
-    access_table = crud.create_access_table(db=db, accesstable=access_table)
 
     kaapana_project = crud.create_project(db=db, kaapana_project=kaapana_project)
-
-    ### Create permissions for creator
-    if "x-forwarded-preferred-username" in request.headers:
-        user = request.headers["x-forwarded-preferred-username"]
-    else:
-        AssertionError
-
-    crud.create_access_list_entree(
-        db=db,
-        user=user,
-        permissions="rwx",
-        accesstable_primary_key=kaapana_project.name,
-    )
-
     return kaapana_project
 
 

@@ -38,5 +38,5 @@ def load_auth_config():
     logger.warn("")
 
 
-load_auth_config()
+# load_auth_config()
 load_error_page()

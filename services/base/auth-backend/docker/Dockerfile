@@ -12,4 +12,12 @@ RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build
 COPY ./files/*.py /kaapana/app/
 COPY ./files/*.html /kaapana/app/
 
+RUN curl -L -o opa https://openpolicyagent.org/downloads/v0.56.0/opa_linux_amd64_static
+RUN chmod 755 ./opa
+
+COPY files/bundle/ bundle/
+RUN mkdir -p /kaapana/app/authz 
+RUN ./opa build -b bundle/ -o authz/endpoints.tar.gz
+
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]

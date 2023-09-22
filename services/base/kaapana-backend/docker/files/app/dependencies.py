@@ -1,15 +1,20 @@
 import os
-from fastapi import Header, HTTPException, Depends
+from fastapi import Header, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from minio import Minio
 from .monitoring.services import MonitoringService
 from .users.services import UserService
 
 # from .workflows.services import WorkflowService
-from .workflows.models import KaapanaInstance
+from .workflows.models import (
+    KaapanaInstance,
+    Project,
+    AccessTable,
+    Workflow,
+    AccessListEntree,
+)
 from .config import settings
 from .database import SessionLocal
-from .users.models import Project, AccessTable, AccessListEntree
 
 
 def map_permission_to_sql_search(permission: str):
@@ -18,24 +23,16 @@ def map_permission_to_sql_search(permission: str):
     return {"r": "r__", "w": "_w_", "x": "__x"}.get(permission)
 
 
-def filter_to_sqlalchemy(filter_key: str):
-    """
-    Return the object corresponding to the filter key
-    """
-    filter_key
-    table, column = filter_key.split(".")
-    Str2Object = {
-        "Project": {
-            "name": Project.name,
-            "group_id": Project.group_id,
-            "project_roles": Project.project_roles,
-            "accesstable_primary_key": Project.accesstable_primary_key,
-        },
-        "AccessTable": AccessTable,
-        "AccessListEntree": AccessListEntree,
+def map_url_to_object(base_url, url: str):
+    map = {
+        base_url + "users/projects/": Project,
+        base_url + "client/workflows": Workflow,
     }
-    filter_target = Str2Object.get(table).get(column)
-    return filter_target
+    print(f"{map=}")
+    print(f"{url=}")
+    for key, value in map.items():
+        if url.startswith(key):
+            return value
 
 
 def filter_query_by_user_and_permission(query, user, permission, model):
@@ -55,67 +52,37 @@ def filter_query_by_user_and_permission(query, user, permission, model):
     return filtered_query
 
 
-class KaapanaDB:
-    """
-    Custom context manager that is supposed to work with fastapi dependencies
-    """
+def my_get_db(request: Request):
+    def my_decorator(func, db, user, requested_permission, requested_object):
+        def filter_wrapper(statement, *args, **kwargs):
+            db.num_executions = db.num_executions + 1
+            print(f"Executed statements for this session: {db.num_executions}")
+            if db.num_executions > 1:
+                print("Execute original statement")
+                return func(statement, *args, **kwargs)
+            filtered_statement = filter_query_by_user_and_permission(
+                statement, user, requested_permission, requested_object
+            )
+            return func(filtered_statement, *args, **kwargs)
 
-    def __init__(self, kaapana_filter):
-        self.db = SessionLocal()
-        print("Am I even initialized?!?")
-        self.kaapana_filter = kaapana_filter
+        return filter_wrapper
 
-        def my_decorator(func):
-            def wrapper(statement, kaapana_filter=self.kaapana_filter, **kwargs):
-                print(f"{kaapana_filter=}")
-                print("Decorator in use!!!")
-                filter_key, filter_val = kaapana_filter
-                if filter_key and filter_val:
-                    filter_row_object = filter_to_sqlalchemy(filter_key)
-                    filtered_statement = statement.filter(
-                        filter_row_object == filter_val
-                    )
-
-                    print(filtered_statement)
-                else:
-                    # filtered_statement = statement
-                    filtered_statement = filter_query_by_user_and_permission(
-                        statement, "kaapana", "r", Project
-                    )
-                return func(filtered_statement, *kwargs)
-
-            return wrapper
-
-        print("Set decorator for execute function")
-        self.db.execute = my_decorator(self.db.execute)
-
-    # def __enter__(self):
-    #     print("Is this method even called?!?!")
-
-    #     def my_decorator(func):
-    #         def wrapper(statement, kaapana_filter=self.kaapana_filter, **kwargs):
-    #             print(f"{kaapana_filter=}")
-    #             print("Decorator in use!!!")
-    #             func(statement, *kwargs)
-
-    #         return wrapper
-
-    #     print("Set decorator for execute function")
-    #     self.db.execute = my_decorator(self.db.execute)
-    #     return self.db
-
-    # def __exit__(self, exc_type, exc_value, traceback):
-    #     self.db.close()
-
-    def close(self):
-        self.db.close()
-
-
-def my_get_db(filter_key: str = "", filter_value: str = ""):
-    db = KaapanaDB((filter_key, filter_value))
-    print("Do I use this!?!?!")
+    user = request.headers.get("x-forwarded-preferred-username", "")
+    requested_permission = "r"
+    base_url = request.base_url
+    url = request.url
+    requested_object = map_url_to_object(str(base_url), str(url))
+    db = SessionLocal()
+    db.num_executions = 0
+    db.execute = my_decorator(
+        db.execute,
+        db,
+        user=user,
+        requested_permission=requested_permission,
+        requested_object=requested_object,
+    )
     try:
-        yield db.db
+        yield db
     finally:
         db.close()
 

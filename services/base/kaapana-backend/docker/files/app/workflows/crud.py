@@ -13,7 +13,7 @@ import requests
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
-from sqlalchemy import desc
+from sqlalchemy import desc, select
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, String, JSON
@@ -1312,6 +1312,7 @@ def create_workflow(
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         federated=workflow.federated,
+        accesstable_primary_key=workflow.accesstable_primary_key,
     )
     if db_kaapana_instance.remote is False:
         # db_kaapana_instance.remote is False aka. db_kaapana_instance == db_local_kaapana_instance
@@ -1477,40 +1478,28 @@ def get_workflows(
     workflow_job_id: int = None,
     limit=None,
 ):
+    stmt = select(models.Workflow)
     if instance_name is not None:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.kaapana_instance, aliased=True)
-            .filter_by(instance_name=instance_name)
+        stmt = (
+            stmt.join(models.Workflow.kaapana_instance, aliased=True)
+            .filter(models.Workflow.instance_name == instance_name)
             .order_by(desc(models.Workflow.time_updated))
             .limit(limit)
-            .all()
         )
     elif involved_instance_name is not None:
-        return (
-            db.query(models.Workflow)
-            .filter(
-                models.Workflow.involved_kaapana_instances.contains(
-                    involved_instance_name
-                )
-            )
-            .all()
+        stmt = stmt.filter(
+            models.Workflow.involved_kaapana_instances.contains(involved_instance_name)
         )
     elif workflow_job_id is not None:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.workflow_jobs, aliased=True)
-            .filter_by(id=workflow_job_id)
-            .all()
+        stmt = stmt.join(models.Workflow.workflow_jobs, aliased=True).filter(
+            models.Workflow.id == workflow_job_id
         )
     else:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.kaapana_instance)
-            .order_by(desc(models.Workflow.time_updated))
-            .limit(limit)
-            .all()
-        )  # , aliased=True
+        stmt = stmt.order_by(desc(models.Workflow.time_updated)).limit(limit)
+
+    new_result = db.execute(stmt)
+    corrected_list = [r[0] for r in new_result]
+    return corrected_list
 
 
 def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):

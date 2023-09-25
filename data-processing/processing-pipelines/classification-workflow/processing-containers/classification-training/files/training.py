@@ -340,7 +340,7 @@ if __name__ == "__main__":
                 optimizer,
                 os.path.join(
                     RESULTS_DIR,
-                    f"model-best-{epoch}.pth.tar",
+                    f"model-best.pth.tar",
                 ),
             )
 

@@ -35,19 +35,19 @@ class ProjectUser(KaapanaUser):
     projectRole: ProjectRole
 
 
-class KaapanaProject(MyBaseModel):
+class Accessable(MyBaseModel):
+    accessable_id: str = ""
+    type: str = ""
+
+
+class KaapanaProject(Accessable):
     name: str
     group_id: str
     project_roles: list
-    accesstable_primary_key: str
 
 
 class AccessListEntree(MyBaseModel):
     id: int
     user: str = ""
     permissions: str = ""
-    accesstable_primary_key: str = ""
-
-
-class AccessTable(MyBaseModel):
-    object_primary_key: str = ""
+    accessable_id: str = ""

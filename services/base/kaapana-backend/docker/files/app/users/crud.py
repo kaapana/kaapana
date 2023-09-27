@@ -2,8 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from . import schemas
 from app.workflows import models
-from fastapi import HTTPException, Depends
-from app.dependencies import get_user_service
+from fastapi import HTTPException
 
 
 def create_project(db: Session, kaapana_project: schemas.KaapanaProject):
@@ -11,7 +10,7 @@ def create_project(db: Session, kaapana_project: schemas.KaapanaProject):
         name=kaapana_project.name,
         group_id=kaapana_project.group_id,
         project_roles=kaapana_project.project_roles,
-        accesstable_primary_key=kaapana_project.accesstable_primary_key,
+        accessable_id=kaapana_project.accessable_id,
     )
     db.add(db_project)
     db.commit()
@@ -58,29 +57,14 @@ def delete_kaapana_project(db: Session, kaapana_project: schemas.KaapanaProject)
     return {"ok": True}
 
 
-def create_access_table(db: Session, accesstable: schemas.AccessTable):
-    """
-    Create an accesstable
-    """
-    db_accesstable = models.AccessTable(
-        object_primary_key=accesstable.object_primary_key
-    )
-    db.add(db_accesstable)
-    db.commit()
-    db.refresh(db_accesstable)
-    return db_accesstable
-
-
-def create_access_list_entree(
-    db: Session, user: str, permissions: str, accesstable_primary_key
-):
+def create_access_list_entree(db: Session, user: str, permissions: str, accessable_id):
     """
     Create an access list entree
     """
     db_accesslistentree = models.AccessListEntree(
         user=user,
         permissions=permissions,
-        accesstable_primary_key=accesstable_primary_key,
+        accessable_id=accessable_id,
     )
     db.add(db_accesslistentree)
     db.commit()
@@ -92,17 +76,9 @@ def get_access_information(db: Session, model):
     """
     Get access information for all objects in the database.
     """
-    stmt = (
-        select(model, models.AccessListEntree)
-        .join(
-            models.AccessTable,
-            models.AccessTable.object_primary_key == model.accesstable_primary_key,
-        )
-        .join(
-            models.AccessListEntree,
-            models.AccessListEntree.accesstable_primary_key
-            == model.accesstable_primary_key,
-        )
+    stmt = select(model, models.AccessListEntree).join(
+        models.AccessListEntree,
+        models.AccessListEntree.accessable_id == model.accessable_id,
     )
 
     results = db.execute(stmt).all()

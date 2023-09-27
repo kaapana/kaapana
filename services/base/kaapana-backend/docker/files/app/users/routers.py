@@ -7,7 +7,6 @@ from .schemas import (
     KaapanaProject,
     ProjectUser,
     ProjectRole,
-    AccessTable,
     AccessListEntree,
 )
 from app.dependencies import get_user_service, get_db, my_get_db
@@ -18,8 +17,10 @@ from functools import wraps
 
 # from app.decorators import set_object_primary_key
 from app.users.dependencies import (
-    create_access_table_and_list,
+    background_init_accesslistentree,
     fetch_data_and_put_to_opa,
+    create_uid,
+    init_accesslistentree,
 )
 
 router = APIRouter(tags=["users"])
@@ -323,8 +324,9 @@ def post_project(
     name: str,
     us=Depends(get_user_service),
     db: Session = Depends(get_db),
-    access_table_primary=Depends(create_access_table_and_list),
+    # accessable_id=Depends(create_uid),
     background=Depends(fetch_data_and_put_to_opa),
+    accessable_id=Depends(background_init_accesslistentree),
 ):
     """
     Create a new project.
@@ -368,7 +370,7 @@ def post_project(
         project_roles=[
             project_role.__dict__ for project_role in project_roles
         ],  ### I cannot use classes as ColumnType in models
-        accesstable_primary_key=access_table_primary,
+        accessable_id=accessable_id,
     )
 
     kaapana_project = crud.create_project(db=db, kaapana_project=kaapana_project)

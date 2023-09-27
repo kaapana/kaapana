@@ -466,7 +466,7 @@ def get_jobs(
         return (
             db.query(models.Job)
             .filter_by(status=status)
-            .join(models.Job.kaapana_instance, aliased=True)
+            .join(models.Job.kaapana_instance)
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -476,7 +476,7 @@ def get_jobs(
         return (
             db.query(models.Job)
             .filter_by(status=status)
-            .join(models.Job.workflow, aliased=True)
+            .join(models.Job.workflow)
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -485,7 +485,7 @@ def get_jobs(
     elif instance_name is not None:
         return (
             db.query(models.Job)
-            .join(models.Job.kaapana_instance, aliased=True)
+            .join(models.Job.kaapana_instance)
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -494,7 +494,7 @@ def get_jobs(
     elif workflow_name is not None:
         return (
             db.query(models.Job)
-            .join(models.Job.workflow, aliased=True)
+            .join(models.Job.workflow)
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -504,7 +504,7 @@ def get_jobs(
         return (
             db.query(models.Job)
             .filter_by(status=status)
-            .join(models.Job.kaapana_instance, aliased=True)
+            .join(models.Job.kaapana_instance)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
             .all()
@@ -512,8 +512,8 @@ def get_jobs(
     else:
         return (
             db.query(models.Job)
-            .join(models.Job.workflow, aliased=True)
-            .join(models.Workflow.kaapana_instance, aliased=True)
+            .join(models.Job.workflow)
+            .join(models.Workflow.kaapana_instance)
             .filter_by(remote=remote)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -1312,7 +1312,7 @@ def create_workflow(
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         federated=workflow.federated,
-        accesstable_primary_key=workflow.accesstable_primary_key,
+        accessable_id=workflow.accessable_id,
     )
     if db_kaapana_instance.remote is False:
         # db_kaapana_instance.remote is False aka. db_kaapana_instance == db_local_kaapana_instance
@@ -1481,7 +1481,7 @@ def get_workflows(
     stmt = select(models.Workflow)
     if instance_name is not None:
         stmt = (
-            stmt.join(models.Workflow.kaapana_instance, aliased=True)
+            stmt.join(models.Workflow.kaapana_instance)
             .filter(models.Workflow.instance_name == instance_name)
             .order_by(desc(models.Workflow.time_updated))
             .limit(limit)
@@ -1491,7 +1491,7 @@ def get_workflows(
             models.Workflow.involved_kaapana_instances.contains(involved_instance_name)
         )
     elif workflow_job_id is not None:
-        stmt = stmt.join(models.Workflow.workflow_jobs, aliased=True).filter(
+        stmt = stmt.join(models.Workflow.workflow_jobs).filter(
             models.Workflow.id == workflow_job_id
         )
     else:

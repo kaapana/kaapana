@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Table
-from sqlalchemy.orm import relationship, Mapped
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.schema import UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy_json import mutable_json_type
@@ -7,6 +7,39 @@ from sqlalchemy_json import mutable_json_type
 from typing import List
 
 from app.database import Base
+
+
+class AccessListEntree(Base):
+    __tablename__ = "accesslistentree"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user = Column(String(37))
+    permissions = Column(String(3))
+    accessable_id = Column(String(36), ForeignKey("accessable.accessable_id"))
+    accessable = relationship(
+        "Accessable", back_populates="accesslistentree", cascade="all, delete"
+    )
+
+
+class Accessable(Base):
+    __tablename__ = "accessable"
+    accessable_id: Mapped[str] = mapped_column(
+        primary_key=True
+    )  ## Column(String(36), primary_key=True)
+    type: Mapped[str]  ## Column(String)
+    __allow_unmapped__ = True
+    __mapper_args__ = {"polymorphic_identity": "accessable", "polymorphic_on": "type"}
+    accesslistentree = relationship(
+        "AccessListEntree", back_populates="accessable", cascade="all, delete"
+    )
+
+
+class Project(Accessable):
+    __tablename__ = "projects"
+    name = Column(String(32), primary_key=True)
+    group_id = Column(String(37), unique=True)
+    project_roles = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
+    accessable_id = Column(String(36), ForeignKey("accessable.accessable_id"))
+    __mapper_args__ = {"polymorphic_identity": "project"}
 
 
 # job_kaapana_instance_table = Table('job_kaapana_instance_table', Base.metadata,
@@ -90,7 +123,7 @@ class KaapanaInstance(Base):
         )
 
 
-class Workflow(Base):
+class Workflow(Accessable):
     __tablename__ = "workflow"
     workflow_id = Column(String(64), primary_key=True)
     workflow_name = Column(String(64))
@@ -112,9 +145,8 @@ class Workflow(Base):
     workflow_jobs = relationship(
         "Job", back_populates="workflow"
     )  # , cascade="all, delete")
-    accesstable_primary_key = Column(
-        String(32), ForeignKey("accesstable.object_primary_key")
-    )
+    accessable_id = Column(String(36), ForeignKey("accessable.accessable_id"))
+    __mapper_args__ = {"polymorphic_identity": "workflow"}
 
 
 class Job(Base):
@@ -149,35 +181,4 @@ class Job(Base):
             unique=True,
             postgresql_where=(external_job_id.isnot(None)),
         ),  # The condition
-    )
-
-
-class AccessListEntree(Base):
-    __tablename__ = "accesslistentree"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user = Column(String(37))
-    permissions = Column(String(3))
-    accesstable_primary_key = Column(
-        String(32), ForeignKey("accesstable.object_primary_key")
-    )
-    accesstable = relationship(
-        "AccessTable", back_populates="accesslistentree", cascade="all, delete"
-    )
-
-
-class AccessTable(Base):
-    __tablename__ = "accesstable"
-    object_primary_key = Column(String(32), primary_key=True)
-    accesslistentree = relationship(
-        "AccessListEntree", back_populates="accesstable", cascade="all, delete"
-    )
-
-
-class Project(Base):
-    __tablename__ = "projects"
-    name = Column(String(32), primary_key=True)
-    group_id = Column(String(37), unique=True)
-    project_roles = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
-    accesstable_primary_key = Column(
-        String(32), ForeignKey("accesstable.object_primary_key")
     )

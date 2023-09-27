@@ -9,7 +9,6 @@ from .users.services import UserService
 from .workflows.models import (
     KaapanaInstance,
     Project,
-    AccessTable,
     Workflow,
     AccessListEntree,
 )
@@ -28,8 +27,6 @@ def map_url_to_object(base_url, url: str):
         base_url + "users/projects/": Project,
         base_url + "client/workflows": Workflow,
     }
-    print(f"{map=}")
-    print(f"{url=}")
     for key, value in map.items():
         if url.startswith(key):
             return value
@@ -39,12 +36,8 @@ def filter_query_by_user_and_permission(query, user, permission, model):
     permission = map_permission_to_sql_search(permission)
     filtered_query = (
         query.join(
-            AccessTable,
-            AccessTable.object_primary_key == model.accesstable_primary_key,
-        )
-        .join(
             AccessListEntree,
-            AccessListEntree.accesstable_primary_key == model.accesstable_primary_key,
+            AccessListEntree.accessable_id == model.accessable_id,
         )
         .filter(AccessListEntree.user == user)
         .filter(AccessListEntree.permissions.like(permission))

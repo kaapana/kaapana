@@ -4,6 +4,7 @@ from sqlalchemy_json import NestedMutableDict, NestedMutableList
 import json
 import datetime
 from pydantic import BaseModel, validator, root_validator
+from app.users.schemas import Accessable
 
 
 class KaapanaInstanceBase(BaseModel):
@@ -205,7 +206,7 @@ class AllowedDatasetCreate(DatasetBase):
         orm_mode = True
 
 
-class WorkflowBase(BaseModel):
+class WorkflowBase(Accessable):
     workflow_id: str = None
     workflow_name: str = None
     workflow_status: str = None
@@ -247,7 +248,6 @@ class WorkflowCreate(WorkflowBase):
     kaapana_instance_id: int
     workflow_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
-    accesstable_primary_key: str = None
 
 
 class WorkflowUpdate(WorkflowBase):

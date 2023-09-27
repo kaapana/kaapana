@@ -1,19 +1,18 @@
 from fastapi import Depends, Request, BackgroundTasks
 from app.dependencies import get_db
 
-from .crud import create_access_list_entree, create_access_table, get_access_information
+from .crud import create_access_list_entree, get_access_information
 import string, random
-from app.workflows.models import AccessTable, Project
+from app.workflows.models import Project
 import requests
+import uuid
 
 
-def create_access_table_and_list(request: Request, db=Depends(get_db)):
-    characters = string.ascii_uppercase + string.ascii_lowercase + string.digits
-    access_table_primary = "".join(random.choices(characters, k=6))
-    access_table = AccessTable(
-        object_primary_key=access_table_primary,
-    )
-    access_table = create_access_table(db=db, accesstable=access_table)
+def create_uid():
+    return str(uuid.uuid4())
+
+
+def init_accesslistentree(accessable_id, request: Request, db=Depends(get_db)):
     ### Create permissions for creator
     if "x-forwarded-preferred-username" in request.headers:
         user = request.headers["x-forwarded-preferred-username"]
@@ -23,9 +22,20 @@ def create_access_table_and_list(request: Request, db=Depends(get_db)):
         db=db,
         user=user,
         permissions="rwx",
-        accesstable_primary_key=access_table_primary,
+        accessable_id=accessable_id,
     )
-    return access_table_primary
+    return accessable_id
+
+
+def background_init_accesslistentree(
+    background_tasks: BackgroundTasks,
+    request: Request,
+    db=Depends(get_db),
+):
+    accessable_id = str(uuid.uuid4())
+    background_tasks.add_task(init_accesslistentree, accessable_id, request, db)
+
+    return accessable_id
 
 
 def put_opa_data(data, path):

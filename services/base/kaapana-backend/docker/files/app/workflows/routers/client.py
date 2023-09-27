@@ -25,7 +25,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 from pydantic.schema import schema
 from sqlalchemy.orm import Session
-from app.users.dependencies import create_access_table_and_list
+from app.users.dependencies import background_init_accesslistentree
 
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -555,7 +555,7 @@ def create_workflow(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
-    access_table_primary=Depends(create_access_table_and_list),
+    accessable_id=Depends(background_init_accesslistentree),
 ):
     # validate incoming json_schema_data
     try:
@@ -622,7 +622,7 @@ def create_workflow(
                 "involved_instances"
             ],
             "federated": json_schema_data.federated,
-            "accesstable_primary_key": access_table_primary,
+            "accessable_id": accessable_id,
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)

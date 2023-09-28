@@ -23,6 +23,24 @@
         </ProjectInformation>
       </v-dialog>
 
+      <UserTable
+        title="Accessables"
+        :rows="computedAccessableList"
+        :columns="accessableColumns"
+        identifier="accesslists"
+        @refresh="get_accessables"
+        @open-settings="open_accessable_info"
+      >
+      </UserTable>
+
+      <v-dialog v-model="accessableInformationField" width="500">
+        <AccessableInformation
+          title="Access list entrees"
+          :accesslistentrees="accessList"
+        >
+        </AccessableInformation>
+      </v-dialog>
+
       <v-dialog v-model="createProjectDialog" width="500">
         <CreateUser
           title="Create project"
@@ -112,6 +130,7 @@ import CreateUser from "@/components/UserManagement/CreateUser.vue";
 import UserInformation from "@/components/UserManagement/UserInformation.vue";
 import GroupInformation from "@/components/UserManagement/GroupInformation.vue";
 import ProjectInformation from "@/components/UserManagement/ProjectInformation.vue";
+import AccessableInformation from "@/components/UserManagement/AccessableInformation.vue";
 
 export default {
   name: "iframe-view",
@@ -122,10 +141,12 @@ export default {
     UserInformation,
     GroupInformation,
     ProjectInformation,
+    AccessableInformation,
   },
   data() {
     return {
       userId: "",
+      accessList: [],
       userGroups: [],
       userRoles: [],
       createUserDialog: false,
@@ -135,6 +156,7 @@ export default {
       userInformationField: false,
       groupInformationField: false,
       projectInformationField: false,
+      accessableInformationField: false,
 
       groupId: "",
       groupUsers: [],
@@ -160,6 +182,7 @@ export default {
       groupList: [],
       roleList: [],
       projectList: [],
+      accessableList: [],
       createUserFields: [
         { name: "username", label: "Username" },
         { name: "firstName", label: "First Name" },
@@ -185,6 +208,11 @@ export default {
         { value: "name", text: "Project name" },
         { value: "details", text: "Details" },
       ],
+      accessableColumns: [
+        { value: "accessable_id", text: "ID" },
+        { value: "type", text: "Type" },
+        { value: "details", text: "Details" },
+      ],
     };
   },
 
@@ -192,7 +220,8 @@ export default {
     this.get_users(),
       this.get_groups(),
       this.get_available_realm_roles(),
-      this.get_projects();
+      this.get_projects(),
+      this.get_accessables();
   },
 
   computed: {
@@ -208,9 +237,27 @@ export default {
     computedProjectList() {
       return [...this.projectList];
     },
+    computedAccessableList() {
+      return [...this.accessableList];
+    },
   },
 
   methods: {
+    open_accessable_info(accesslists) {
+      console.log(accesslists[0].accessable_id);
+      this.accessableInformationField = true;
+      this.accessList = accesslists;
+    },
+    get_accessables() {
+      kaapanaApiService
+        .kaapanaApiGet("users/accessables/")
+        .then((response) => {
+          this.accessableList = response.data;
+        })
+        .catch((error) => {
+          console.error("Error fetching Accessables", error);
+        });
+    },
     get_groups() {
       kaapanaApiService
         .kaapanaApiGet("users/groups")

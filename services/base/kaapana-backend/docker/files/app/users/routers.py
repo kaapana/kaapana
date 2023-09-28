@@ -8,6 +8,7 @@ from .schemas import (
     ProjectUser,
     ProjectRole,
     AccessListEntree,
+    Accessable,
 )
 from app.dependencies import get_user_service, get_db, my_get_db
 from keycloak.exceptions import KeycloakGetError, KeycloakPostError
@@ -420,3 +421,12 @@ async def put_project_user_role(
                 us.delete_realm_roles_of_user(id, [role.get("name")])
             except Exception as e:
                 pass
+
+
+@router.get("/accessables/", response_model=list)
+async def get_accessables(
+    type: str = "", accessable_id: str = "", db: Session = Depends(get_db)
+):
+    print(20 * "####")
+    print("Get all accessables")
+    return crud.get_accessables(db, type, accessable_id)

@@ -80,7 +80,6 @@ def get_access_information(db: Session, model):
         models.AccessListEntree,
         models.AccessListEntree.accessable_id == model.accessable_id,
     )
-
     results = db.execute(stmt).all()
     data = {
         "Projects": [
@@ -88,5 +87,20 @@ def get_access_information(db: Session, model):
             for m, acl in results
         ]
     }
-
     return data
+
+
+def get_accessables(db: Session, type: str = None, accessable_id: str = None):
+    """
+    Get all accessables and their accesslistentrees
+    """
+    stmt = select(models.Accessable, models.AccessListEntree).join(
+        models.AccessListEntree,
+        models.AccessListEntree.accessable_id == models.Accessable.accessable_id,
+    )
+    if accessable_id:
+        stmt = stmt.filter(models.Accessable.accessable_id == accessable_id)
+    if type:
+        stmt = stmt.filter(models.Accessable.type == type)
+    result = db.execute(stmt).all()
+    return [{**r[0].__dict__, "accesslists": [l for l in r[1:]]} for r in result]

@@ -11,6 +11,7 @@ from .workflows.models import (
     Project,
     Workflow,
     AccessListEntree,
+    Accessable,
 )
 from .config import settings
 from .database import SessionLocal
@@ -26,10 +27,13 @@ def map_url_to_object(base_url, url: str):
     map = {
         base_url + "users/projects/": Project,
         base_url + "client/workflows": Workflow,
+        base_url + "users/accessables/": Accessable,
     }
     for key, value in map.items():
         if url.startswith(key):
             return value
+
+    raise AssertionError("No model could be identified!")
 
 
 def filter_query_by_user_and_permission(query, user, permission, model):

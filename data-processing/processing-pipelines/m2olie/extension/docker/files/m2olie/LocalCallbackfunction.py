@@ -52,23 +52,36 @@ class LocalCallbackfunction(KaapanaPythonBaseOperator):
                         print(release)
                         print("Sending result to Prometheus!")
                         url = workflow_from["prometheus_uri"] + "/setState"
-                        payload = {"url": release["links"]}
-                        response = requests.post(
-                            url,
-                            params={
-                                "processInstanceLabel": workflow_from[
-                                    "process_instance_label"
-                                ],
-                                "taskLabel": workflow_from["task_label"],
-                                "newTaskState": "Completed",
-                            },
-                            json=payload,
-                        )
-                        if response.status_code == 500 or response.status_code == 404:
+                        print("URL: ", url)
+                        payload = {
+                            "Kaapana.Dag.Link": {
+                                "Type": "System.String",
+                                "Value": release["links"][0],
+                                "Uri": "",
+                            }
+                        }
+                        print("payload: ", payload)
+                        params = {
+                            "processInstanceLabel": workflow_from[
+                                "process_instance_label"
+                            ],
+                            "taskLabel": workflow_from["task_label"],
+                            "newTaskState": "Completed",
+                        }
+                        print("params: ", params)
+                        response = requests.post(url, params=params, json=payload)
+                        print(response.status_code)
+                        if (
+                            not response.status_code == 200
+                            or response.status_code == 201
+                        ):
                             print(
                                 "Something whent wrong, could not send the link to prometheus."
                             )
-                        print("Response: ".response.content)
+                            print("Response: ", response.content)
+                            exit(1)
+                        else:
+                            print("Response: ", response.content)
                         return
                     else:
                         print("No matching result found.")

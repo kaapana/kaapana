@@ -75,7 +75,7 @@ class HelperDcmWeb:
                 objectUIDList
             ):
                 if len(objectUIDList) == 1 and objectUIDList[0][-1] is not None:
-                    if expected_object_count <= objectUIDList[0][-1]:
+                    if expected_object_count <= int(objectUIDList[0][-1]):
                         print(
                             f"len(objectUIDList) {len(objectUIDList)} AND expected_object_count {expected_object_count} <= NumberOfFrames {objectUIDList[0][-1]} --> success!"
                         )

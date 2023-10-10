@@ -9,7 +9,7 @@ from airflow.operators.dummy_operator import DummyOperator
 from m2olie.LocalCallbackfunction import LocalCallbackfunction
 from m2olie.LocalGetAdditionalInput import LocalGetAdditionalInput
 from m2olie.LocalCreateMITKScene import LocalCreateMITKScene
-from m2olie.ElastixRegistration import ElastixRegistration
+from m2olie.ElastixRegistrationOperator import ElastixRegistrationOperator
 from m2olie.NiftiConvOperator import NiftiConvOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 
@@ -75,7 +75,7 @@ get_input_moving = LocalGetAdditionalInput(dag=dag)
 input_moving_converted = DcmConverterOperator(
     dag=dag, name="dcm-converter_moving", input_operator=get_input_moving
 )
-registration = ElastixRegistration(
+registration = ElastixRegistrationOperator(
     dag=dag,
     task_id="registration",
     operator_in_dir_fixed=input_converted.operator_out_dir,

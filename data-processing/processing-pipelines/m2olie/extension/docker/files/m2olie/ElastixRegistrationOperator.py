@@ -8,7 +8,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 
 
-class ElastixRegistration(KaapanaBaseOperator):
+class ElastixRegistrationOperator(KaapanaBaseOperator):
     """
     Registration Operator
 

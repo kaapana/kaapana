@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="m2olie-elastix-registration"
-LABEL VERSION="2023-05-15"
+LABEL VERSION="2023-10-10"
 LABEL CI_IGNORE="False"
 ENV ELASTIX_VERSION="5.0.0"
 
@@ -13,8 +13,9 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget --no-check-certificate https://github.com/SuperElastix/elastix/releases/download/${ELASTIX_VERSION}/elastix-${ELASTIX_VERSION}-linux.tar.bz2 -O /src/elastix.tar.bz2
-RUN tar -xvjf /src/elastix.tar.bz2 -C /usr/ && rm -rf /src/elastix.tar.bz2
+#RUN wget --no-check-certificate https://github.com/SuperElastix/elastix/releases/download/${ELASTIX_VERSION}/elastix-${ELASTIX_VERSION}-linux.tar.bz2 -O /src/elastix.tar.bz2
+RUN wget --no-check-certificate https://data.jtfc.de/mitk-elastix-v2.tar.gz -O /src/elastix.tar.bz
+RUN tar -xvf /src/elastix.tar.bz -C /usr/ && rm -rf /src/elastix.tar.bz
 
 WORKDIR /
 

@@ -48,3 +48,5 @@ best of your knowledge:
 - Does your instance have a GPU and is Kaapana utilizing it?
 - Is your instance connected to a registry or are you working with an offline installation?
 - Is your instance running behind a proxy server?
+
+/label ~community-tech-meeting

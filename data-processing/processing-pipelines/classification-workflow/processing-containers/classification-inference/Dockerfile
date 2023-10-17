@@ -2,7 +2,7 @@ FROM local-only/base-python-gpu:latest
 
 LABEL IMAGE="classification-inference"
 LABEL VERSION="0.2.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 RUN apt-get update && apt-get install -y xvfb
 

@@ -412,13 +412,6 @@ class Container:
                 BuildUtils.logger.warning(
                     f"{self.build_tag}: {self.build_ignore=} -> skip"
                 )
-                issue = {
-                    "component": suite_tag,
-                    "name": f"{self.build_tag}",
-                    "msg": f"Container build skipped: {self.build_ignore=} !",
-                    "level": "WARING",
-                    "path": self.container_dir,
-                }
                 return issue, duration_time_text
 
             startTime = time()
@@ -500,13 +493,6 @@ class Container:
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
         if self.build_ignore:
             BuildUtils.logger.warning(f"{self.build_tag}: {self.build_ignore=} -> skip")
-            issue = {
-                "component": suite_tag,
-                "name": f"{self.build_tag}",
-                "msg": f"Container push skipped: {self.build_ignore=} !",
-                "level": "WARING",
-                "path": self.container_dir,
-            }
             return issue, duration_time_text
 
         if BuildUtils.push_to_microk8s is True:

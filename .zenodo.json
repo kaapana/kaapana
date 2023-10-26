@@ -1,12 +1,12 @@
 {
-    "description": "Kaapana release v0.2.4",
-    "title": "kaapana/kaapana: v0.2.4",
-    "version": "0.2.4",
+    "description": "Kaapana release v0.2.5",
+    "title": "kaapana/kaapana: v0.2.5",
+    "version": "0.2.5",
     "license": {
         "id": "AGPL-3.0"
     },
     "upload_type": "software",
-    "publication_date": "2022-08-05",
+    "publication_date": "2023-10-26",
     "creators": [
         {
             "affiliation": "German Cancer Research Center",

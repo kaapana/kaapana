@@ -3,7 +3,25 @@
 Changelog
 #########
 
-.. _release-0.2.3:
+.. _release-0.2.5:
+
+-------------------------
+
+********************
+Release Notes v0.2.5
+********************
+
+October 26, 2023
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fix issue downloading Body Part Regression models from Zenodo
+* Fix a problem when importing uploaded container images
+
+.. _release-0.2.4:
 
 -------------------------
 

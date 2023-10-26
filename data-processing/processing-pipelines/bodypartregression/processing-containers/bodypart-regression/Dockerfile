@@ -22,7 +22,9 @@ RUN git clone  --single-branch --branch master https://github.com/MIC-DKFZ/BodyP
 
 # Download public model from zenodo 
 RUN touch BodyPartRegression/src/models/public_bpr_model.zip
-RUN curl https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1 -o /kaapana/app/BodyPartRegression/src/models/public_bpr_model.zip 
+RUN curl --location --header "Connection: Keep-Alive" --header "Keep-Alive: 300" https://zenodo.org/record/5113483/files/public_bpr_model.zip?download=1 -o /kaapana/app/BodyPartRegression/src/models/public_bpr_model.zip 
+RUN echo "cc0ba26374932f0ca27452f4ad9bf9db /kaapana/app/BodyPartRegression/src/models/public_bpr_model.zip" | md5sum -c
+
 
 RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d /kaapana/app/BodyPartRegression/src/models/
 

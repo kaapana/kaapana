@@ -506,7 +506,7 @@ async def run_containerd_import(
         logger.error(f"file can not be found in path {fpath}")
         return False, f"file {fname} can not be found"
 
-    cmd = f"ctr --namespace k8s.io -address='{settings.containerd_sock}' image import {fpath}"
+    cmd = f"ctr --namespace k8s.io -address='{settings.containerd_sock}' image import --digests {fpath}"
     logger.debug(f"{cmd=}")
     res, stdout = await helm_helper.exec_shell_cmd_async(cmd, shell=True, timeout=180)
 

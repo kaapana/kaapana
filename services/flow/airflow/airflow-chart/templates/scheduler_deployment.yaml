@@ -133,7 +133,7 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.http_proxy }}
         - name: no_proxy
-          value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
+          value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }},10.34.7.0/24" # TODO make this dynamic from with something like {{ .Values.global.no_proxy }} from /etc/enviroments
         - name: PULL_POLICY_IMAGES
           value: "{{ .Values.global.pull_policy_images }}"
         - name: SERVICES_NAMESPACE

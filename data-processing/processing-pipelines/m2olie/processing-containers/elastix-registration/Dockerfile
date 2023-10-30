@@ -14,7 +14,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 #RUN wget --no-check-certificate https://github.com/SuperElastix/elastix/releases/download/${ELASTIX_VERSION}/elastix-${ELASTIX_VERSION}-linux.tar.bz2 -O /src/elastix.tar.bz2
-RUN wget --no-check-certificate https://data.jtfc.de/mitk-elastix-v2.tar.gz -O /src/elastix.tar.bz
+RUN wget --no-check-certificate https://data.jtfc.de/mitk-elastix-2023_10_27.tar.gz -O /src/elastix.tar.bz
 RUN tar -xvf /src/elastix.tar.bz -C /usr/ && rm -rf /src/elastix.tar.bz
 
 WORKDIR /

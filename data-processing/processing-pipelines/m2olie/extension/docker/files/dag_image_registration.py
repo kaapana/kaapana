@@ -100,10 +100,10 @@ dcm_send_result = DcmSendOperator(
     dag=dag,
     input_operator=convert_nifti,
     ae_title="REGISTRATION",
-    pacs_host="x.x.x.x",
+    pacs_host="10.34.7.21",
     pacs_port="11112",
-    enable_proxy=True,
-    no_proxy=".svc,.svc.cluster,.svc.cluster.local",
+    enable_proxy=False,
+    no_proxy=".svc,.svc.cluster,.svc.cluster.local,10.34.7.0/24",
 )
 dcm_send_result_local_pacs = DcmSendOperator(
     dag=dag, name="local-dcm-send", input_operator=convert_nifti

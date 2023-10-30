@@ -1,18 +1,22 @@
-FROM local-only/no-vnc-base:latest
+FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="m2olie-workbench"
-LABEL VERSION="2022.10"
+LABEL VERSION="2023-10-10"
 LABEL CI_IGNORE="False"
 ENV ELASTIX_VERSION="5.0.0"
 
-WORKDIR /src
-RUN mkdir -p /mitk
+RUN mkdir -p /src
 
-RUN wget https://github.com/SuperElastix/elastix/releases/download/${ELASTIX_VERSION}/elastix-${ELASTIX_VERSION}-linux.tar.bz2 -O /src/elastix.tar.bz2
-RUN tar -xvjf /src/elastix.tar.bz2 -C /usr/ && rm -rf /src/elastix.tar.bz2
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    wget \
+    bzip2 \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN wget --no-check-certificate https://data.jtfc.de/mitk-elastix.tar.gz -O /src/mitk-elastix.tar.gz && \
-    tar -xzf /src/mitk-elastix.tar.gz --strip 1 -C /mitk/ && rm -rf /src/mitk-elastix.tar.gz
+RUN wget --no-check-certificate https://data.jtfc.de/mitk-elastix-2023_10_27.tar.gz -O /src/elastix.tar.bz
+RUN tar -xvf /src/elastix.tar.bz -C /usr/ && rm -rf /src/elastix.tar.bz
+
+WORKDIR /
 
 # Application start definition, here a shell script is used to start the application
 COPY files/startMITK.sh /root/Desktop/

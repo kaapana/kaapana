@@ -76,6 +76,10 @@ def convert_nifti2dcm_singleFrame(file, data_type, pat_name, output_path, conf, 
         implementation_class_uid = glob_implementation_class_UID
     else:
         implementation_class_uid = generate_uid()
+    if "FrameOfReferenceUID" in conf:
+        FrameOfReferenceUID=conf["FrameOfReferenceUID"]
+    else:
+        FrameOfReferenceUID=generate_uid()
 
     pat_name = conf["PatID"]
     date_time = str(datetime.now())
@@ -123,6 +127,7 @@ def convert_nifti2dcm_singleFrame(file, data_type, pat_name, output_path, conf, 
         dcm_file.SOPInstanceUID = media_storage_SOP_Instance_UID
         dcm_file.StudyDate = date
         dcm_file.SeriesDate = date
+        dcm_file.SeriesDescription = conf['SeriesDescription']
         dcm_file.ContentDate = date
         tag = pydicom.tag.Tag("StudyTime")
         pd_ele = DataElement(tag, "TM", time)
@@ -152,7 +157,7 @@ def convert_nifti2dcm_singleFrame(file, data_type, pat_name, output_path, conf, 
         image_pos = str(running_offset_z)
         dcm_file.ImagePositionPatient = [offset_x, offset_y, image_pos]
         dcm_file.ImageOrientationPatient = ImageorientationPatient
-        dcm_file.FrameOfReferenceUID = generate_uid()
+        dcm_file.FrameOfReferenceUID = FrameOfReferenceUID
         dcm_file.PositionReferenceIndicator = ""
         dcm_file.SamplesPerPixel = 1
         dcm_file.PhotometricInterpretation = "MONOCHROME2"
@@ -233,11 +238,18 @@ conf["Modality"] = moving_img.Modality
 conf["PatID"] = moving_img.PatientID
 conf["StudyInstanceUID"] = moving_img.StudyInstanceUID
 conf["SeriesInstanceUID"] = generate_uid()
-os.rename(
-    os.path.join(batch_folders, "registration", "result.1.nrrd"),
-    os.path.join(batch_folders, "registration", "result1.nrrd"),
-)
-registeredImage = read_nrrd(os.path.join(batch_folders, "registration", "result1.nrrd"))
+conf["FrameOfReferenceUID"]=fixed_img.FrameOfReferenceUID
+conf['SeriesDescription']=moving_img.SeriesDescription+'_Registered'
+if os.path.isdir(os.path.join(batch_folders, "manually_registered"))==True:
+    working_dir='manually_registered'
+    registered_image_name="file.nrrd"
+    print('Taking manually registered image')
+else:
+    working_dir='registration'
+    registered_image_name="result1.nrrd"
+    os.rename(os.path.join(batch_folders, working_dir, "result.1.nrrd"),os.path.join(batch_folders, working_dir, "result1.nrrd"))
+    print('Taking automatic registered image')
+registeredImage = read_nrrd(os.path.join(batch_folders, working_dir, registered_image_name))
 
 
 file_name = "registration1"

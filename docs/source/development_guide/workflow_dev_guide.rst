@@ -85,7 +85,7 @@ Since we provide the algorithm as a python script, we start with a minimal pytho
     FROM local-only/base-python-cpu:latest
     LABEL IMAGE="python-template"
     LABEL VERSION="0.1.0"
-    LABEL CI_IGNORE="True"
+    LABEL BUILD_IGNORE="True"
 
 .. important::
    To access the base images for our container (like ``local-only/base-python-cpu:latest``) we can either build them individualy following :ref:`faq_build_base_img` or build the whole platform :ref:`build`.

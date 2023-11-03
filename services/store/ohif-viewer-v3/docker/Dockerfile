@@ -2,7 +2,7 @@ FROM docker.io/node:20-alpine3.16 as build
 
 LABEL IMAGE="ohif-v3"
 LABEL VERSION="v3-stable"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python3
 

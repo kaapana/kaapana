@@ -2,7 +2,7 @@ FROM local-only/base-installer:latest
 
 LABEL IMAGE="dag-persistence-layer-operators"
 LABEL VERSION="0.0.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/HelperPersistence.py /kaapana/tmp/dags/persistence/
 COPY files/LocalGetUrnOperator.py /kaapana/tmp/dags/persistence/

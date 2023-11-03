@@ -10,6 +10,6 @@ COPY files/login.jpg /app/kaapana/login/resources/img/kaapana-bg.png
 FROM quay.io/keycloak/keycloak:21.0.1
 LABEL IMAGE="keycloak"
 LABEL VERSION="21.0.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana

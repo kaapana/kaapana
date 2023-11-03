@@ -2,7 +2,7 @@ FROM docker.io/alpine/git:2.36.3 as build-stage
 
 LABEL IMAGE="doccano-backend"
 LABEL VERSION="sha-0489118"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /
 
@@ -23,34 +23,34 @@ COPY --from=build-stage /doccano/backend /backend/
 COPY --from=build-stage /doccano/Pipfile* /backend/
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-    netcat=1.* \
-    libpq-dev=11.* \
-    unixodbc-dev=2.* \
-    g++=4:* \
- && pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir pipenv==2020.11.15 \
- && pipenv install --system --deploy \
- && pip uninstall -y pipenv virtualenv-clone virtualenv \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/* 
+  && apt-get install -y --no-install-recommends \
+  netcat=1.* \
+  libpq-dev=11.* \
+  unixodbc-dev=2.* \
+  g++=4:* \
+  && pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir pipenv==2020.11.15 \
+  && pipenv install --system --deploy \
+  && pip uninstall -y pipenv virtualenv-clone virtualenv \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* 
 
- # Security fixes
- RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir \ 
-      # Security fix for CVE-2022-40898
-      wheel==0.38.1 \
-      # Security fix for CVE-2022-40897
-      setuptools==65.5.1 \
-      # Security fix for CVE-2022-21797
-      joblib==1.2.0 \
-      # Security fix for CVE-2023-0286
-      cryptography==39.0.1 \
-      # Security fix for CVE-2021-23727
-      celery==5.2.2 \
-      # Security fix for CVE-2022-28346
-      Django==3.2.18 \
-      # Security fix for CVE-2022-29217
-      PyJWT==2.6.0 
- 
+# Security fixes
+RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir \ 
+  # Security fix for CVE-2022-40898
+  wheel==0.38.1 \
+  # Security fix for CVE-2022-40897
+  setuptools==65.5.1 \
+  # Security fix for CVE-2022-21797
+  joblib==1.2.0 \
+  # Security fix for CVE-2023-0286
+  cryptography==39.0.1 \
+  # Security fix for CVE-2021-23727
+  celery==5.2.2 \
+  # Security fix for CVE-2022-28346
+  Django==3.2.18 \
+  # Security fix for CVE-2022-29217
+  PyJWT==2.6.0 
+
 COPY --from=build-stage /doccano/tools/ /opt/bin/
 RUN mkdir -p /backend/staticfiles \
   && mkdir -p /backend/client/dist/static \

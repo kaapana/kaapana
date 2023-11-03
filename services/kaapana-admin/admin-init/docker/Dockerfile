@@ -2,7 +2,7 @@ FROM docker.io/alpine:3.17.2
 
 LABEL IMAGE="cert-init"
 LABEL VERSION="0.0.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 ENV KUBE_LATEST_VERSION="v1.26.1"
 # RUN apk add --no-cache kubectl --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing/x86_64

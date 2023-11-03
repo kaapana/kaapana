@@ -3,7 +3,7 @@ FROM docker.io/python:3.9.17-slim
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-cpu"
 LABEL VERSION="latest"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -43,7 +43,7 @@ RUN code-server --install-extension ms-python.python
 # Juyterlab
 # Disable security token for Jupyter lab
 RUN jupyter-lab --generate-config \
- && sed -i "s/^.*ServerApp.token.*$/c.ServerApp.token = ''/g" /root/.jupyter/jupyter_lab_config.py
+    && sed -i "s/^.*ServerApp.token.*$/c.ServerApp.token = ''/g" /root/.jupyter/jupyter_lab_config.py
 COPY files/jupyterlab.sh /
 COPY files/kaapana_federated /kaapana_federated
 

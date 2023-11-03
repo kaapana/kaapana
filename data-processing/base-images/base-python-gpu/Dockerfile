@@ -3,7 +3,7 @@ FROM local-only/base-python-cpu:latest
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-gpu"
 LABEL VERSION="latest"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 ARG CUDA_VERSION
 LABEL com.nvidia.volumes.needed="nvidia_driver"

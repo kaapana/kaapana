@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="nnunet-get-ensemble"
 LABEL VERSION="0.1.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 ENV MODELDIR "/models"
 

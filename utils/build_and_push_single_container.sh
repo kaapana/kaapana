@@ -30,9 +30,9 @@ do
         version=${line#*=}
         version=$(sed -e "s/\"//g" -e "s/\'//g" <<<"$version")
     fi
-    if [[ $line == *"LABEL CI_IGNORE"* ]]; then
-        ci_ignore=${line#*=}
-        ci_ignore=$(sed -e "s/\"//g" -e "s/\'//g" <<<"$ci_ignore")
+    if [[ $line == *"LABEL BUILD_IGNORE"* ]]; then
+        build_ignore=${line#*=}
+        build_ignore=$(sed -e "s/\"//g" -e "s/\'//g" <<<"$build_ignore")
     fi
 done < "$input"
 if [ -z "$docker_registry" ]

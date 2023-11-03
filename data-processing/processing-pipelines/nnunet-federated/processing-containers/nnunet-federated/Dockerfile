@@ -2,7 +2,7 @@ FROM local-only/base-nnunet:latest
 
 LABEL IMAGE="nnunet-federated"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/ /kaapana/app/
 

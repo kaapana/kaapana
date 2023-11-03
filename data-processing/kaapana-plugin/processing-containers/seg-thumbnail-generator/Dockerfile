@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="seg-thumbnail-generator"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     ffmpeg  \

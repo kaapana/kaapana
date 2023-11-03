@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="example-pool-jsons"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/pool_jsons.py /kaapana/app/
 WORKDIR /kaapana/app/

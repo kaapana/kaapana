@@ -2,7 +2,7 @@ FROM local-only/base-installer:latest
 
 LABEL IMAGE="dag-classification-training-workflow"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/dag_classification_training_workflow.py /kaapana/tmp/dags/
 COPY files/dag_classification_inference_workflow.py /kaapana/tmp/dags/

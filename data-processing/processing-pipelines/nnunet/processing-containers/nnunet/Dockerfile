@@ -2,7 +2,7 @@ FROM local-only/base-nnunet:latest
 
 LABEL IMAGE="nnunet-gpu"
 LABEL VERSION="03-22"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/ /kaapana/app/
 WORKDIR /kaapana/app/

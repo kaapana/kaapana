@@ -2,7 +2,7 @@ FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="slicer-workbench"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /src
 RUN mkdir -p /kaapana/mounted/slicer-data
@@ -29,8 +29,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 
 # Slicer 5.2.2
 RUN SLICER_URL="https://download.slicer.org/bitstream/63f5bee68939577d9867b4c7" && \
-  curl -k -v -s -L $SLICER_URL | tar xz -C /tmp && \
-  mv /tmp/Slicer* /opt/slicer
+    curl -k -v -s -L $SLICER_URL | tar xz -C /tmp && \
+    mv /tmp/Slicer* /opt/slicer
 
 RUN chmod -R a+w /opt/slicer
 

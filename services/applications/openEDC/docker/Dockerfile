@@ -2,7 +2,7 @@ FROM docker.io/httpd:2.4.56
 
 LABEL IMAGE="openedc"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /kaapana/app
 

@@ -5,7 +5,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-mitk-phenotyping"
 LABEL VERSION="latest"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /kaapana/app
 

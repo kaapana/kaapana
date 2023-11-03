@@ -3,7 +3,7 @@ FROM local-only/base-python-cpu:latest
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-installer"
 LABEL VERSION="latest"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /kaapana/app
 

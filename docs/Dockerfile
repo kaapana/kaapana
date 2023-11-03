@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="kaapana-documentation"
 LABEL VERSION="0.1.2"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY ./ /src
 WORKDIR /src

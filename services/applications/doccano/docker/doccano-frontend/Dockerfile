@@ -2,8 +2,8 @@ FROM docker.io/alpine/git:v2.34.2 as build-stage
 
 LABEL IMAGE="doccano-frontend"
 LABEL VERSION="sha-0489118"
-                   
-LABEL CI_IGNORE="False"
+
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /
 

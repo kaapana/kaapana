@@ -2,7 +2,7 @@ FROM local-only/base-mitk-phenotyping:latest
 
 LABEL IMAGE="mitk-resample"
 LABEL VERSION="2021-02-18"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 ENV BATCHES_INPUT_DIR /input
 ENV OPERATOR_IN_DIR initial-input

@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="dcmqr"
 LABEL VERSION="0.1.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/requirements.txt /
 RUN pip3 install --no-cache-dir -r /requirements.txt

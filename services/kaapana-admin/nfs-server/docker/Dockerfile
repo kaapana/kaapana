@@ -33,4 +33,4 @@ CMD ["/start-nfs.sh"]
 
 LABEL IMAGE="volume-nfs"
 LABEL VERSION="0.8"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"

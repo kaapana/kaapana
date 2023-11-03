@@ -6,7 +6,7 @@ RUN yarn install
 
 LABEL IMAGE="kaapana-persistence-frontend"
 LABEL VERSION="0.0.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 RUN yarn build
 

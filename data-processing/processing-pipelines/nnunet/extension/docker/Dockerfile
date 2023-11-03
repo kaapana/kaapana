@@ -2,7 +2,7 @@ FROM local-only/base-installer:latest
 
 LABEL IMAGE="dag-nnunet"
 LABEL VERSION="03-22"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/nnunet /kaapana/tmp/dags/nnunet
 COPY files/dag_nnunet_model_management.py /kaapana/tmp/dags/

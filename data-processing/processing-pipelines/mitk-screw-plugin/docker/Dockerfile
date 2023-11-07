@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /mitk
 RUN mkdir -p /mitk  
-RUN curl https://hub.dkfz.de/s/BTEY9EStfy27s2c/download/mitk.tar.gz --compressed -o /mitk/mitk.tar.gz
+RUN curl https://hub.dkfz.de/s/e87pCA2cJqfbsyB/download/mitk.tar.gz --compressed -o /mitk/mitk.tar.gz
 RUN tar -xzf /mitk/mitk.tar.gz --strip 1 -C /mitk/ && rm -rf /mitk/mitk.tar.gz
 COPY /files/requirements.txt /
 RUN pip3 install --no-cache-dir -r /requirements.txt

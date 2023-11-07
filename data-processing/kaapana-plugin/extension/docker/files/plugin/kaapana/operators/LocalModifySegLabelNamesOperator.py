@@ -22,18 +22,6 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
     """
 
-    def replace_label_name_in_dict(metadata_dict, curr_label, new_label):
-        if isinstance(metadata_dict, dict):
-            for key, value in metadata_dict.items():
-                if isinstance(value, str):
-                    metadata_dict[key] = value.replace(curr_label, new_label)
-                    # return metadata_dict
-                else:
-                    replace_label_name_in_dict(value)
-        elif isinstance(metadata_dict, list):
-            for item in metadata_dict:
-                replace_label_name_in_dict(item)
-
     def start(self, ds, **kwargs):
         print("Starting module LocalModifySegLabelNamesOperator...")
         print(kwargs)
@@ -68,7 +56,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
         # iterate over batches
         for batch_element_dir in batch_dirs:
-            # define batch-wise input and output dirs        )
+            # define batch-wise input and output dirs
             batch_el_json_files = sorted(
                 glob.glob(
                     os.path.join(
@@ -77,8 +65,20 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                     recursive=True,
                 )
             )
+            print(f"{self.metainfo_input_operator.name=}")
+            batch_el_metainfo_json_files = sorted(
+                glob.glob(
+                    os.path.join(
+                        batch_element_dir,
+                        self.metainfo_input_operator.name,
+                        "**",
+                        "*.json*",
+                    ),
+                    recursive=True,
+                )
+            )
             # output dir
-            json_output_path = os.path.join(
+            seg_info_output_path = os.path.join(
                 run_dir,
                 self.batch_name,
                 batch_element_dir,
@@ -86,79 +86,111 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 "seg_info.json",
             )
             # make output directory
-            Path(os.path.dirname(json_output_path)).mkdir(parents=True, exist_ok=True)
+            Path(os.path.dirname(seg_info_output_path)).mkdir(
+                parents=True, exist_ok=True
+            )
+            # output dir
+            metainfo_output_path = os.path.join(
+                run_dir,
+                self.batch_name,
+                batch_element_dir,
+                self.operator_out_dir,
+                f"{self.name}.json",
+            )
+            # make output directory
+            Path(os.path.dirname(metainfo_output_path)).mkdir(
+                parents=True, exist_ok=True
+            )
 
-            # get metadata json of incoming dcm_seg object
+            # get seg_info json of modified dcm_seg object
             for batch_el_json_file in batch_el_json_files:
                 with open(batch_el_json_file) as data_file:
-                    incoming_dcm_metadata = json.load(data_file)
-            print("# INCOMING DCM_SEG METADATA: ")
+                    incoming_seg_info = json.load(data_file)
+            print("# INCOMING SEG INFO: ")
             print(f"Filename: {batch_el_json_file=}")
-            print(json.dumps(incoming_dcm_metadata, indent=4))
-            print(f"{type(incoming_dcm_metadata)=}")
+            print(json.dumps(incoming_seg_info, indent=4))
+            print(f"{type(incoming_seg_info)=}")
 
-            # add "Clear Label" entry
-            if self.clear_label_as_zero:
-                segment_dict = {}
-                segment_dict["label_name"] = "Clear Label"
-                segment_dict["label_int"] = "0"
-                new_metadata_json["seg_info"].append(segment_dict)
+            # get metainfo json of incoming dcm_seg object
+            for batch_el_metainfo_json_file in batch_el_metainfo_json_files:
+                with open(batch_el_metainfo_json_file) as data_file:
+                    incoming_metainfo = json.load(data_file)
+            print("# INCOMING DICOMSEG METAINFO: ")
+            print(f"Filename: {batch_el_metainfo_json_file=}")
+            print(json.dumps(incoming_metainfo, indent=4))
+            print(f"{type(incoming_metainfo)=}")
 
-            # iterate over "segmentAttributes" in incoming_dcm_metadata
-            if "segmentAttributes" in incoming_dcm_metadata:
-                for segment in incoming_dcm_metadata["segmentAttributes"]:
-                    print("# SEGMENT: ")
-                    print(json.dumps(segment, indent=4))
+            # iterate over old_label_names and replace them by corresponding new_label_names in incoming_seg_info
+            for old_label_name in old_label_names:
+                # find corresponding new label name
+                new_label_name = new_label_names[old_label_names.index(old_label_name)]
+                print("#")
+                print("#")
+                print(
+                    f"# FOUND OLD SEGMENTATION LABEL NAME = {old_label_name} IN LIST OF OLD LABEL NAMES."
+                )
+                print(f"# REPLACE BY NEW SEGMENTATION LABEL NAME: {new_label_name}")
+                print("#")
+                print("#")
 
-                    # extract current segmentation_label_name and labelID
-                    curr_segmentation_label_name = segment[0]["SegmentLabel"]
-                    segmentation_label_id = segment[0]["labelID"]
-                    print(
-                        f"# CURRENT SEGMENTATION LABEL NAME: {curr_segmentation_label_name}"
+                # replace old_label_name with new_label_name in incoming_seg_info
+                incoming_seg_info = json.loads(
+                    json.dumps(incoming_seg_info).replace(
+                        old_label_name, new_label_name
                     )
-                    print(f"# CURRENT SEGMENTATION LABEL ID: {segmentation_label_id}")
+                )
 
-                    # find new segmentation_label_name based on current (aka. old) segmentation_label_name
-                    # check if curr_segmentation_label_name is in old_label_names list
-                    if curr_segmentation_label_name in old_label_names:
-                        new_segmentation_label_name = new_label_names[
-                            old_label_names.index(curr_segmentation_label_name)
-                        ]
-                        print("#")
-                        print(
-                            f"# FOUND CURRENT SEGMENTATION LABEL NAME = {curr_segmentation_label_name} IN LIST OF OLD LABEL NAMES."
-                        )
-                        print(
-                            f"# NEW SEGMENTATION LABEL NAME: {new_segmentation_label_name}"
-                        )
-                        segmentation_label_name = new_segmentation_label_name
+                # replace old_label_name with new_label_name in incoming_metainfo
+                incoming_metainfo = json.loads(
+                    json.dumps(incoming_metainfo).replace(
+                        old_label_name, new_label_name
+                    )
+                )
 
-                        # replace curr_segmentation_label_name with new_segmentation_label_name in incoming dcm_seg metadata
-                        incoming_dcm_metadata = json.loads(
-                            json.dumps(incoming_dcm_metadata).replace(
-                                curr_segmentation_label_name, segmentation_label_name
-                            )
-                        )
-                    else:
-                        print(
-                            f"# COULD NOT FIND CURRENT SEGMENTATION LABEL NAME = {curr_segmentation_label_name} IN LIST OF OLD LABEL NAMES = {old_label_names}."
-                        )
-                        segmentation_label_name = curr_segmentation_label_name
+            # restructure incoming_metainfo such that "segmentAttributes" is in the right format to support multi_label itkimage2dcmimage functionalities
+            segmentAttributes = incoming_metainfo["segmentAttributes"]
+            if (
+                len(segmentAttributes) > 1
+                and sum(isinstance(element, list) for element in segmentAttributes) > 1
+            ):
+                # segmentAttributes is a list of multiple lists ==> restructuring necessary
+                print("#")
+                print("#")
+                print("RESTRUCTURING OF segmentAttributes NECESSARY!")
+                print("#")
+                print("#")
 
-                    # compose dict
-                    segment_dict = {}
-                    segment_dict["label_int"] = f"{segmentation_label_id}"
-                    segment_dict["label_name"] = f"{segmentation_label_name}"
+                # instantiate new segmentAttributes list
+                new_segmentAttributes = []
 
-                    # append to output json
-                    new_metadata_json["seg_info"].append(segment_dict)
+                # retrieve single segmentAttribute dicts
+                for segmentAttribute_list in segmentAttributes:
+                    segmentAttribute = segmentAttribute_list[0]
 
+                    # append single segmentAttribute dicts to new_segmentAttributes list
+                    new_segmentAttributes.append(segmentAttribute)
+
+                # delete wrongly structured segmentAttributes from incoming_metainfo
+                del incoming_metainfo["segmentAttributes"]
+
+                # add new and correctly structured segmentAttributes to incoming_metainfo
+                incoming_metainfo["segmentAttributes"] = [new_segmentAttributes]
+
+            print("#")
+            print("#")
             print("# MODIFIED SEG INFO:")
-            print(json.dumps(new_metadata_json, indent=4))
-            # write to file in output dir
-            with open(json_output_path, "w", encoding="utf-8") as jsonData:
-                json.dump(new_metadata_json, jsonData, indent=4, sort_keys=True)
-            # copy output json also to operator_in_dir bc subsequential nrrd2dcmseg operator needs seg_info.json there
+            print(json.dumps(incoming_seg_info, indent=4))
+            print("#")
+            print("#")
+            print("#")
+            print("#")
+            print("# MODIFIED METAINFO:")
+            print(json.dumps(incoming_metainfo, indent=4))
+
+            # save incoming_seg_info to ouput_dirs
+            with open(seg_info_output_path, "w", encoding="utf-8") as jsonData:
+                json.dump(incoming_seg_info, jsonData, indent=4, sort_keys=True)
+            # copy incoming_seg_info also to operator_in_dir bc subsequential nrrd2dcmseg operator needs seg_info.json there
             second_json_output_path = os.path.join(
                 run_dir,
                 self.batch_name,
@@ -166,23 +198,31 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 self.operator_in_dir,
                 "seg_info.json",
             )
-            shutil.copyfile(json_output_path, second_json_output_path)
+            shutil.copyfile(seg_info_output_path, second_json_output_path)
 
-            print("# MODIFIED DCM META DATA:")
-            print(json.dumps(incoming_dcm_metadata, indent=4))
-            # write to file in output dir
-            with open(batch_el_json_file, "w", encoding="utf-8") as jsonData:
-                json.dump(incoming_dcm_metadata, jsonData, indent=4, sort_keys=True)
-            # copy output json also to operator_in_dir bc subsequential nrrd2dcmseg operator needs seg_info.json there
-            # second_json_output_path = os.path.join(
-            #     run_dir, self.batch_name, batch_element_dir, self.operator_in_dir, batch_el_json_file
-            # )
-            # shutil.copyfile(json_output_path, second_json_output_path)
+            # save incoming_metainfo to ouput_dirs
+            with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
+                json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
+            # copy incoming_metainfo also to operator_in_dir bc subsequential nrrd2dcmseg operator needs seg_info.json there
+            second_json_output_path = os.path.join(
+                run_dir,
+                self.batch_name,
+                batch_element_dir,
+                self.operator_in_dir,
+                f"{self.name}.json",
+            )
+            shutil.copyfile(metainfo_output_path, second_json_output_path)
 
     def __init__(
-        self, dag, name="rename-seg-label-names", clear_label_as_zero=False, **kwargs
+        self,
+        dag,
+        name="rename-seg-label-names",
+        # clear_label_as_zero=False,
+        metainfo_input_operator="",
+        **kwargs,
     ):
         """ """
-        self.clear_label_as_zero = clear_label_as_zero
+        # self.clear_label_as_zero = clear_label_as_zero
+        self.metainfo_input_operator = metainfo_input_operator
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

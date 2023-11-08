@@ -96,9 +96,17 @@ export default Vue.extend({
     checkAuthR(policyData, endpoint, role) {
       let policyDataRegexList = [];
       if (role == "user") {
-        policyDataRegexList = policyData.allowed_user_endpoints;
+        policyDataRegexList =
+          policyData.allowed_user_endpoints &&
+          Array.isArray(policyData.allowed_user_endpoints)
+            ? policyData.allowed_user_endpoints
+            : [];
       } else if (role == "admin") {
-        policyDataRegexList = policyData.allowed_admin_endpoints;
+        policyDataRegexList =
+          policyData.allowed_admin_endpoints &&
+          Array.isArray(policyData.allowed_admin_endpoints)
+            ? policyData.allowed_admin_endpoints
+            : [];
       } else {
         return false;
       }

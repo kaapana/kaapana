@@ -25,7 +25,7 @@ def check_endpoint(access_token, requested_prefix):
         url,
         json=input,
     )
-    
+
     try:
         result = r.json()["result"]
     except KeyError as e:
@@ -73,8 +73,8 @@ async def get_opa_bundles(somedir: str, bundle: str):
 
 
 if __name__ == "__main__":
-    ### Production 
+    ### Production
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-    ### Development 
+    ### Development
     # uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

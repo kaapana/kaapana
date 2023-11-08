@@ -12,7 +12,7 @@
               <v-list-item-title>Home</v-list-item-title>
             </v-list-item-content>
           </v-list-item>
-          <!-- top navigation -->
+          <!-- TOP NAVIGATION -->
           <v-list-item
             v-if="settings.navigationMode && isAuthenticated"
             :to="'/datasets'"
@@ -40,7 +40,7 @@
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
-          <!-- Default navigation mode -->
+          <!-- DEFAULT NAVIGATION -->
           <v-list-group
             v-if="!settings.navigationMode"
             prepend-icon="mdi-gamepad-variant"
@@ -49,12 +49,13 @@
             <template v-slot:activator>
               <v-list-item-title>Workflows</v-list-item-title>
             </template>
+            <!-- WORKFLOWS -->
             <v-list-item
               v-for="([title, icon, to], i) in workflowsList"
               :key="i"
               :to="to"
               :value="to"
-              v-if="isAuthenticated"
+              v-if="isAuthenticated && checkAuthR(policyData, to, currentUser.role)"
             >
               <v-list-item-action></v-list-item-action>
               <v-list-item-title>{{ title }}</v-list-item-title>
@@ -68,7 +69,7 @@
             v-if="
               !settings.navigationMode &&
               isAuthenticated &&
-              section.roles.indexOf(currentUser.role) > -1
+              checkAuthSection(policyData, section, currentUser.role)
             "
             v-for="(section, sectionKey) in externalWebpages"
             :key="section.id"
@@ -77,7 +78,10 @@
               <v-list-item-title>{{ section.label }}</v-list-item-title>
             </template>
             <v-list-item
-              v-if="section.subSections"
+              v-if="
+                section.subSections &&
+                checkAuthR(policyData, subSection.linkTo, currentUser.role)
+              "
               v-for="(subSection, subSectionKey) in section.subSections"
               :key="subSection.id"
               :to="{
@@ -89,7 +93,13 @@
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
           </v-list-group>
-          <v-list-item :to="'/extensions'" v-if="isAuthenticated">
+          <!-- EXTENSIONS -->
+          <v-list-item
+            :to="'/extensions'"
+            v-if="
+              isAuthenticated && checkAuthR(policyData, '/extensions', currentUser.role)
+            "
+          >
             <v-list-item-action>
               <!-- <v-icon>mdi-view-comfy</v-icon> -->
               <!-- <v-icon>mdi-toy-brick-plus</v-icon> -->
@@ -156,6 +166,7 @@
           </v-card>
         </v-menu>
       </v-app-bar>
+      <!-- TOP NAVIGATION MENUS -->
       <v-main id="v-main-content">
         <div v-if="settings.navigationMode">
           <v-bottom-navigation
@@ -165,16 +176,19 @@
             inset
             mode="shift"
           >
+            <!-- TOP NAVIGATION WORKFLOWS -->
             <v-btn
               v-for="([title, icon, to], i) in workflowsList"
               :key="i"
               :to="to"
               :value="to"
+              v-if="checkAuthR(policyData, to, currentUser.role)"
             >
               <v-icon>{{ icon }}</v-icon>
               {{ title }}
             </v-btn>
           </v-bottom-navigation>
+          <!-- TOP NAVIGATION ADVANCED -->
           <v-bottom-navigation
             v-if="advancedNavigation && drawer"
             color="primary"
@@ -186,6 +200,9 @@
               offset-y
               v-for="(section, sectionKey) in externalWebpages"
               :key="section.id"
+              v-if="
+                isAuthenticated && checkAuthSection(policyData, section, currentUser.role)
+              "
             >
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on">
@@ -195,9 +212,8 @@
               </template>
               <v-list>
                 <v-list-item
-                  v-for="(
-                    subSection, subSectionKey
-                  ) in section.subSections"
+                  v-for="(subSection, subSectionKey) in section.subSections"
+                  v-if="checkAuthR(policyData, subSection.linkTo, currentUser.role)"
                   :key="subSection.id"
                   :value="subSection.id"
                   :to="{
@@ -208,9 +224,7 @@
                     },
                   }"
                 >
-                  <v-list-item-title>{{
-                    subSection.label
-                  }}</v-list-item-title>
+                  <v-list-item-title>{{ subSection.label }}</v-list-item-title>
                 </v-list-item>
               </v-list>
             </v-menu>
@@ -220,7 +234,8 @@
       </v-main>
       <v-footer color="primary" app inset>
         <span class="white--text">
-          &copy; DKFZ 2018 - DKFZ 2023 | {{ commonData.version }}
+          &copy; DKFZ 2018 - DKFZ 2023 | {{ commonData.version }} | policyData:
+          {{ policyData }}
         </span>
       </v-footer>
     </v-app>
@@ -237,6 +252,7 @@ import { LOGIN, LOGOUT, CHECK_AUTH } from "@/store/actions.type";
 import {
   CHECK_AVAILABLE_WEBSITES,
   LOAD_COMMON_DATA,
+  GET_POLICY_DATA,
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
 import { settings } from "@/static/defaultUIConfig";
@@ -256,16 +272,47 @@ export default Vue.extend({
       "externalWebpages",
       "workflowsList",
       "commonData",
+      "policyData",
     ]),
     workflowNavigation() {
-      let routerPath = ["/", "/extensions"]
-      return !this.$route.path.startsWith("/web/") && !routerPath.includes(this.$route.path);
+      let routerPath = ["/", "/extensions"];
+      return (
+        !this.$route.path.startsWith("/web/") && !routerPath.includes(this.$route.path)
+      );
     },
     advancedNavigation() {
       return this.$route.path.startsWith("/web/");
     },
   },
   methods: {
+    checkAuthR(policyData: any, endpoint: string, role: string): boolean {
+      let policyDataRegexList: string[] = [];
+      if (role == "user") {
+        policyDataRegexList = policyData.allowed_user_endpoints;
+      } else if (role == "admin") {
+        policyDataRegexList = policyData.allowed_admin_endpoints;
+      } else {
+        return false;
+      }
+      let strippedEndpoint: string;
+      if (endpoint.includes("://")) {
+        const endpointUrl = new URL(endpoint);
+        strippedEndpoint = endpointUrl.pathname;
+      } else {
+        strippedEndpoint = endpoint;
+      }
+      return policyDataRegexList.some((regex: string) =>
+        new RegExp(regex).test(strippedEndpoint)
+      );
+    },
+    checkAuthSection(policyData: any, section: any, role: string): boolean {
+      let endpoints = Object.values(section.subSections).map(
+        (subsection: any) => subsection.linkTo
+      );
+      return endpoints.some((endpoint: string) =>
+        this.checkAuthR(policyData, endpoint, role)
+      );
+    },
     changeMode(v: boolean) {
       this.settings["darkMode"] = v;
       localStorage["settings"] = JSON.stringify(this.settings);
@@ -276,9 +323,7 @@ export default Vue.extend({
       localStorage["settings"] = JSON.stringify(this.settings);
     },
     login() {
-      this.$store
-        .dispatch(LOGIN)
-        .then(() => this.$router.push({ name: "home" }));
+      this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "home" }));
     },
     logout() {
       this.$store.dispatch(LOGOUT);
@@ -287,6 +332,7 @@ export default Vue.extend({
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
     this.$store.dispatch(LOAD_COMMON_DATA);
+    this.$store.dispatch(GET_POLICY_DATA);
     if (!localStorage["settings"]) {
       localStorage["settings"] = JSON.stringify(settings);
     }
@@ -357,18 +403,15 @@ export default Vue.extend({
 .v-item-group.v-bottom-navigation {
   border-bottom-width: 1px;
   border-bottom-style: solid;
-  border-bottom-color: rgba(0,0,0,.12);
-  -moz-box-shadow: none!important;
-  -webkit-box-shadow: none!important;
-  box-shadow: none!important;
-  
+  border-bottom-color: rgba(0, 0, 0, 0.12);
+  -moz-box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
 }
 
-@media (min-width: 2100px)
-{
+@media (min-width: 2100px) {
   .container--fluid {
-    max-width: 2100px!important;
+    max-width: 2100px !important;
   }
 }
-
 </style>

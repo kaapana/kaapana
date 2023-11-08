@@ -118,3 +118,11 @@ def get_traefik_routes():
     except Exception as e:
         print("ERROR in getting traefik routes!")
         return {"Error message": str(e)}, 500
+
+
+@router.get("/open-policy-data")
+def get_open_policy_data():
+    r = requests.get(
+        f"http://open-policy-agent-service.{settings.admin_namespace}.svc:8181/v1/data/httpapi/authz"
+    )
+    return r.json().get("result")

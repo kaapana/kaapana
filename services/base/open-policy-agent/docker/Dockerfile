@@ -2,7 +2,7 @@ FROM docker.io/openpolicyagent/opa:0.56.0
 
 LABEL IMAGE="open-policy-agent"
 LABEL VERSION="0.0.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /kaapana/opa/
 

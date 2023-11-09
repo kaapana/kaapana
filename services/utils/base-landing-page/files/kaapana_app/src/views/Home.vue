@@ -17,18 +17,18 @@
                       v-card-text
                         v-layout(row='', wrap='')
                           v-flex.justify-center(v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to")
-                            v-card(:to="to" elevation=0 v-if="checkAuthR(policyData, to, currentUser.role)")
+                            v-card(:to="to" elevation=0 v-if="_checkAuthR(policyData, to, currentUser)")
                               v-card-title.justify-center
                                 v-icon(x-large) {{ icon }}
                               v-card-text
                                 span {{ title }}
                           v-flex
-                            v-card(to="/extensions" elevation=0 v-if="checkAuthR(policyData, '/extensions', currentUser.role)")
+                            v-card(to="/extensions" elevation=0 v-if="_checkAuthR(policyData, '/extensions', currentUser)")
                               v-card-title.justify-center
                                 v-icon(x-large) mdi-puzzle
                               v-card-text
                                 span Extensions
-            v-layout(v-if="checkAuthR(policyData, '/grafana', currentUser.role)")
+            v-layout(v-if="_checkAuthR(policyData, '/grafana', currentUser)")
               v-flex(sm4)
                 <iframe src="/grafana/d-solo/adadsdasd/kubernetes?orgId=1&panelId=72" width="100%" height="auto" frameborder="0"></iframe>
               v-flex(sm4)
@@ -55,6 +55,7 @@ import { mapGetters } from "vuex";
 import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
 import Dashboard from "@/components/Dashboard.vue";
 import { loadPatients } from "../common/api.service";
+import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   data() {
@@ -93,33 +94,8 @@ export default Vue.extend({
     reloadPage() {
       window.location.reload();
     },
-    checkAuthR(policyData, endpoint, role) {
-      let policyDataRegexList = [];
-      if (role == "user") {
-        policyDataRegexList =
-          policyData.allowed_user_endpoints &&
-          Array.isArray(policyData.allowed_user_endpoints)
-            ? policyData.allowed_user_endpoints
-            : [];
-      } else if (role == "admin") {
-        policyDataRegexList =
-          policyData.allowed_admin_endpoints &&
-          Array.isArray(policyData.allowed_admin_endpoints)
-            ? policyData.allowed_admin_endpoints
-            : [];
-      } else {
-        return false;
-      }
-      let strippedEndpoint;
-      if (endpoint.includes("://")) {
-        const endpointUrl = new URL(endpoint);
-        strippedEndpoint = endpointUrl.pathname;
-      } else {
-        strippedEndpoint = endpoint;
-      }
-      return policyDataRegexList.some((regex) =>
-        new RegExp(regex).test(strippedEndpoint)
-      );
+    _checkAuthR(policyData, endpoint, currentUser) {
+      return checkAuthR(policyData, endpoint, currentUser);
     },
   },
 });

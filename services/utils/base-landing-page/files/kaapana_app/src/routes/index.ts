@@ -3,12 +3,13 @@ import VueRouter from 'vue-router'
 import store from '@/store'
 import { CHECK_AUTH, GET_POLICY_DATA } from '@/store/actions.type'
 import routes from './routes'
+import { checkAuthR } from '@/utils/utils'
 
 Vue.use(VueRouter)
 
 // Guard the route from unauthorized users.
-function guardRoute(to: any, from: any, next: any) {
-  //// Check if the user is authenticated
+export function guardRoute(to: any, from: any, next: any) {
+  //// Check if the user is authenticated and authorized
   if (!store.getters.isAuthenticated) {
     next({ name: 'home' })
   } else {
@@ -18,21 +19,11 @@ function guardRoute(to: any, from: any, next: any) {
 
 function authorizeRoute(to: any, from: any, next: any) {
   //// Check if the route is allowed for the current user
-  let policyDataRegexList: string[] = []
-  if (store.getters.currentUser.role == 'user') {
-    policyDataRegexList = store.getters.policyData.allowed_user_endpoints
-  } else if (store.getters.currentUser.role == 'admin') {
-    policyDataRegexList = store.getters.policyData.allowed_admin_endpoints
+  if (checkAuthR(store.getters.policyData, to.path, store.getters.currentUser)) {
+    return next()
   } else {
-    policyDataRegexList = []
+    return next({ name: 'home' })
   }
-  for (const regexStr of policyDataRegexList) {
-    const regex = new RegExp(regexStr)
-    if (regex.test(to.path)) {
-      return next()
-    }
-  }
-  return next({ name: 'home' })
 }
 
 const router = new VueRouter({
@@ -73,6 +64,7 @@ router.beforeEach((to, from, next) => {
 
 
 router.beforeEach((to, from, next) => {
+  //// Get user infor before changing the route
   Promise.all([store.dispatch(GET_POLICY_DATA)]).then(() => {
     next()
   }).catch((err: any) => {

@@ -11,15 +11,13 @@ import os
 app = FastAPI()
 
 
-def check_endpoint(access_token, requested_prefix):
+def check_endpoint(input: dict):
     """
     Send the decoded access token and requested prefex to the open policy agent.
     Return the decision of the open policy agent.
     """
     ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE")
-    input = {
-        "input": {"access_token": access_token, "requested_prefix": requested_prefix}
-    }
+
     url = f"http://open-policy-agent-service.{ADMIN_NAMESPACE}.svc:8181/v1/data/httpapi/authz"
     r = requests.post(
         url,
@@ -38,13 +36,11 @@ async def auth_check(request: Request, response: Response):
     """
     Check if the user who made the request is mapped to the required roles in order to be authorized to access the requested resource.
     """
-
     requested_prefix = request.headers.get("x-forwarded-prefix")
     if requested_prefix is None:
         requested_prefix = request.headers.get("x-forwarded-uri")
 
     access_token = request.headers.get("x-forwarded-access-token", None)
-
     if access_token is None:
         decoded_access_token = {}
     else:
@@ -52,8 +48,16 @@ async def auth_check(request: Request, response: Response):
             access_token, options={"verify_signature": False}
         )
 
-    if check_endpoint(decoded_access_token, requested_prefix):
-        message = f"Policies satisfied for {requested_prefix} -> ok"
+    method = request.headers.get("x-forwarded-method")
+    input = {
+        "input": {
+            "access_token": decoded_access_token,
+            "requested_prefix": requested_prefix,
+            "method": request.method,
+        }
+    }
+    if check_endpoint(input):
+        message = f"Policies satisfied for {method} {requested_prefix} -> ok"
         logger.warn(message)
         response.status_code = status.HTTP_200_OK
         return message

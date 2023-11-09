@@ -55,7 +55,7 @@
               :key="i"
               :to="to"
               :value="to"
-              v-if="isAuthenticated && checkAuthR(policyData, to, currentUser.role)"
+              v-if="isAuthenticated && _checkAuthR(policyData, to, currentUser)"
             >
               <v-list-item-action></v-list-item-action>
               <v-list-item-title>{{ title }}</v-list-item-title>
@@ -69,7 +69,7 @@
             v-if="
               !settings.navigationMode &&
               isAuthenticated &&
-              checkAuthSection(policyData, section, currentUser.role)
+              checkAuthSection(policyData, section, currentUser)
             "
             v-for="(section, sectionKey) in externalWebpages"
             :key="section.id"
@@ -80,7 +80,7 @@
             <v-list-item
               v-if="
                 section.subSections &&
-                checkAuthR(policyData, subSection.linkTo, currentUser.role)
+                _checkAuthR(policyData, subSection.linkTo, currentUser)
               "
               v-for="(subSection, subSectionKey) in section.subSections"
               :key="subSection.id"
@@ -96,9 +96,7 @@
           <!-- EXTENSIONS -->
           <v-list-item
             :to="'/extensions'"
-            v-if="
-              isAuthenticated && checkAuthR(policyData, '/extensions', currentUser.role)
-            "
+            v-if="isAuthenticated && _checkAuthR(policyData, '/extensions', currentUser)"
           >
             <v-list-item-action>
               <!-- <v-icon>mdi-view-comfy</v-icon> -->
@@ -182,7 +180,7 @@
               :key="i"
               :to="to"
               :value="to"
-              v-if="checkAuthR(policyData, to, currentUser.role)"
+              v-if="_checkAuthR(policyData, to, currentUser)"
             >
               <v-icon>{{ icon }}</v-icon>
               {{ title }}
@@ -200,9 +198,7 @@
               offset-y
               v-for="(section, sectionKey) in externalWebpages"
               :key="section.id"
-              v-if="
-                isAuthenticated && checkAuthSection(policyData, section, currentUser.role)
-              "
+              v-if="isAuthenticated && checkAuthSection(policyData, section, currentUser)"
             >
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on">
@@ -213,7 +209,7 @@
               <v-list>
                 <v-list-item
                   v-for="(subSection, subSectionKey) in section.subSections"
-                  v-if="checkAuthR(policyData, subSection.linkTo, currentUser.role)"
+                  v-if="_checkAuthR(policyData, subSection.linkTo, currentUser)"
                   :key="subSection.id"
                   :value="subSection.id"
                   :to="{
@@ -255,6 +251,7 @@ import {
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
 import { settings } from "@/static/defaultUIConfig";
+import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   name: "App",
@@ -284,40 +281,17 @@ export default Vue.extend({
     },
   },
   methods: {
-    checkAuthR(policyData: any, endpoint: string, role: string): boolean {
-      let policyDataRegexList: string[] = [];
-      if (role == "user") {
-        policyDataRegexList =
-          policyData.allowed_user_endpoints &&
-          Array.isArray(policyData.allowed_user_endpoints)
-            ? policyData.allowed_user_endpoints
-            : [];
-      } else if (role == "admin") {
-        policyDataRegexList =
-          policyData.allowed_admin_endpoints &&
-          Array.isArray(policyData.allowed_admin_endpoints)
-            ? policyData.allowed_admin_endpoints
-            : [];
-      } else {
-        return false;
-      }
-      let strippedEndpoint: string;
-      if (endpoint.includes("://")) {
-        const endpointUrl = new URL(endpoint);
-        strippedEndpoint = endpointUrl.pathname;
-      } else {
-        strippedEndpoint = endpoint;
-      }
-      return policyDataRegexList.some((regex: string) =>
-        new RegExp(regex).test(strippedEndpoint)
-      );
+    _checkAuthR(policyData: any, endpoint: string, currentUser: any): boolean {
+      "Check if the user has a role that authorizes him to access the requested endpoint";
+      return checkAuthR(policyData, endpoint, currentUser);
     },
-    checkAuthSection(policyData: any, section: any, role: string): boolean {
+    checkAuthSection(policyData: any, section: any, currentUser: any): boolean {
+      "Check if the user has a role that grants access to any subsection of the section";
       let endpoints = Object.values(section.subSections).map(
         (subsection: any) => subsection.linkTo
       );
       return endpoints.some((endpoint: string) =>
-        this.checkAuthR(policyData, endpoint, role)
+        this._checkAuthR(policyData, endpoint, currentUser)
       );
     },
     changeMode(v: boolean) {

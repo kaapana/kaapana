@@ -30,7 +30,7 @@ spec:
           limits:
             memory: "100Mi"
           requests:
-            memory: "100Mi"
+            memory: "10Mi"
       imagePullSecrets:
         - name: registry-secret
 ---

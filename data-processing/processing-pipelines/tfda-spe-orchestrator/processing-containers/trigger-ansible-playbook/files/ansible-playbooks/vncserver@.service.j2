@@ -6,11 +6,9 @@ After=syslog.target network.target
 Type=forking
 User={{ ansible_user }}
 Group={{ ansible_user }}
-WorkingDirectory=/home/{{ ansible_user }}
 
-PIDFile=/home/{{ ansible_user }}/.vnc/%H%i.pid
-ExecStartPre=-/usr/bin/vncserver -kill :%i > /dev/null 2>&1 || :
-ExecStart=/usr/bin/vncserver -localhost
+ExecStartPre=/usr/bin/vncserver -kill :%i > /dev/null 2>&1 || :
+ExecStart=/usr/bin/vncserver -localhost no
 ExecStop=/usr/bin/vncserver -kill :%i
 
 [Install]

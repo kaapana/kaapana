@@ -1,5 +1,7 @@
+# Description: This Ansible Playbook sets up a VNC server inside an isolated environment
 ---
-- hosts: localhost
+- name: Add the target host to an inventory group
+  hosts: localhost
   gather_facts: no
   vars:
     - target: "{{ target_host }}"
@@ -32,6 +34,7 @@
         - "{{ ssh_key_name }}"
     
     - name: Install TigerVNC server and XFCE desktop environment
+      become: yes
       apt:
         name:
           - xfce4
@@ -39,14 +42,22 @@
           - tigervnc-standalone-server
           - tigervnc-common 
           - tigervnc-xorg-extension
+          - autocutsel
         state: present
+        update_cache: true
 
     - name: Configure VNC server
+      become: yes
       template:
         src: vncserver@.service.j2
         dest: /etc/systemd/system/vncserver@.service
-      notify: Start TigerVNC server
 
+    - name: Run systemctl daemon-reload due to update in service
+      become: yes
+      systemd:
+        daemon_reload: true
+
+    
     - name: Set VNC password for user
       shell: |
         mkdir -p /home/{{ ansible_user }}/.vnc
@@ -55,11 +66,15 @@
       vars:
         vnc_password: your_vnc_password
 
-    - name: Edit xstartup configuration file
+    - name: Create xstartup configuration file (required for VNC server) if doesn't exist and edit it
       blockinfile:
         path: /home/{{ ansible_user }}/.vnc/xstartup
+        create: yes
+        mode: 0711
         block: |
           #!/bin/sh
+          # Allow Clipboard usage
+          /usr/bin/autocutsel -s CLIPBOARD -fork
           # Start up the standard system desktop
           unset SESSION_MANAGER
           unset DBUS_SESSION_BUS_ADDRESS
@@ -67,11 +82,19 @@
           [ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup
           [ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources
           x-window-manager &
-      notify: Start TigerVNC server
+      notify: Start TigerVNC server as a systemd service and enable start on boot
 
   handlers:
-    - name: Start TigerVNC server
+    - name: Start TigerVNC server as a systemd service and enable start on boot
+      become: yes
       systemd:
-        name: vncserver@:1
+        name: vncserver@1.service
         state: started
         enabled: yes
+    
+    - name: Stop TigerVNC server's systemd service
+      become: yes
+      systemd:
+        name: vncserver@1.service
+        state: stopped
+    

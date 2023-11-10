@@ -175,3 +175,30 @@ class KeycloakHelper:
         return self.make_authorized_request(
             url, requests.post, payload=payload, update_url=update_url, **kwargs
         )
+
+    def post_composite_role(self, composite_role: str, roles_to_add: list):
+        roles = self.get_realm_roles().json()
+        role_id = [
+            available_role.get("id")
+            for available_role in roles
+            if available_role.get("name") == composite_role
+        ][0]
+
+        payload = [
+            role_to_add
+            for role_to_add in roles
+            if role_to_add.get("name") in roles_to_add
+        ]
+
+        url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
+        return self.make_authorized_request(url, requests.post, payload)
+
+    def get_composite_role(self, role):
+        roles = self.get_realm_roles().json()
+        role_id = [
+            available_role.get("id")
+            for available_role in roles
+            if available_role.get("name") == role
+        ][0]
+        url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
+        return self.make_authorized_request(url, requests.get)

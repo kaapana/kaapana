@@ -13,6 +13,7 @@ if __name__ == "__main__":
     KAAPANA_INIT_PASSWORD = os.getenv("KAAPANA_INIT_PASSWORD")
     logger.info(f"{DEV_MODE=}")
     logger.info(f"{KAAPANA_INIT_PASSWORD=}")
+
     ### Add realm
     file = "realm_objects/kaapana-realm.json"
     payload = json.load(open(file, "r"))
@@ -21,6 +22,9 @@ if __name__ == "__main__":
         logger.warning("!! DEV_MODE: Set password policies to emtpy string.")
     logger.debug(f"{payload=}")
     keycloak.post_realm(payload)
+
+    ### Add user role to default-roles-kaapana
+    keycloak.post_composite_role("default-roles-kaapana", ["user"])
 
     ### Add group
     file = "realm_objects/group-all_data.json"

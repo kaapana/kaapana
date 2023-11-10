@@ -1,5 +1,7 @@
+# Description: This Ansible playbook copies algorithm files and study data to an isolated enironment.
 ---
-- hosts: localhost
+- name: Add the target host to an inventory group
+  hosts: localhost
   gather_facts: no
   vars:
     - target: "{{ target_host }}"
@@ -13,7 +15,7 @@
         name: "{{ target }}"
         groups: os_server
 
-- name: Copy algorithm chart and study data to isolated environment
+- name: Copy algorithm files, study and user data to isolated environment
   hosts: os_server
   strategy: free
   gather_facts: yes
@@ -23,6 +25,7 @@
     src_algorithm_dir: "{{ src_algorithm_files_path }}"
     dst_algorithm_dir: "{{ ansible_env.HOME }}/algorithm_files/{{ user_experiment_name }}"
     dst_data_dir: "{{ ansible_env.HOME }}/{{ user_selected_data }}"
+    dst_pacs_data_dir: "{{ ansible_env.HOME }}/pacs_data"
   # TODO: data could be in any or multiple instances
   tasks:
     - name: Check if all required variables are passed using --extra-vars
@@ -38,9 +41,15 @@
         state: directory
         recurse: yes
     
-    - name: Create data directory if it doesn't exist
+    - name: Create bucket data directory if it doesn't exist
       file:
         path: "{{ dst_data_dir }}"
+        state: directory
+        recurse: yes
+    
+    - name: Create pacs data directory if it doesn't exist
+      file:
+        path: "{{ dst_pacs_data_dir }}"
         state: directory
         recurse: yes
 
@@ -52,12 +61,22 @@
         group: "{{ ansible_user_id }}"
         mode: '600'
 
-    - name: Copy user selected study-data bucket to Iso
+    - name: Copy user selected data bucket to isolated environment
       become: yes
       copy:
         src: "{{ src_data_path }}/"
         dest: "{{ dst_data_dir }}"
         # directory_mode: yes
+        owner: "{{ ansible_user_id }}"
+        group: "{{ ansible_user_id }}"
+        mode: '600' # TODO: data permissions need to be clarified
+    
+    - name: Copy user selected PACS data to isolated environment
+      become: yes
+      copy:
+        src: "{{ pacs_data_path }}"
+        dest: "{{ dst_pacs_data_dir }}"
+        directory_mode: yes
         owner: "{{ ansible_user_id }}"
         group: "{{ ansible_user_id }}"
         mode: '400' # TODO: data permissions need to be clarified

@@ -1,5 +1,7 @@
+# Description: This Ansible playbook prepares an isolated environment with additional dependencies as requested
 ---
-- hosts: localhost
+- name: Add the target host to an inventory group
+  hosts: localhost
   gather_facts: yes
   vars:
     - target: "{{ target_host }}"

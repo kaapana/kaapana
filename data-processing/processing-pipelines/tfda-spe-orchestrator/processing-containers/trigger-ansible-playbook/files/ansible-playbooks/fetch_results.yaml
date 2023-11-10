@@ -1,5 +1,6 @@
 ---
-- hosts: localhost
+- name: Add the target host to an inventory group
+  hosts: localhost
   gather_facts: no
   vars:
     - target: "{{ target_host }}"

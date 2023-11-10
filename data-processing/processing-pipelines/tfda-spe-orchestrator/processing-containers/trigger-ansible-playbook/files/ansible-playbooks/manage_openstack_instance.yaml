@@ -70,6 +70,11 @@
         msg: "Instance does NOT already exist!"
       when: inst_info.openstack_servers | length == 0
     
+    - name: if instance found
+      debug: 
+        msg: "Instance already exists!"
+      when: inst_info.openstack_servers | length > 0
+    
     - name: Create instance if not already present
       block:
       - name: Create ssh key-pair if not existing
@@ -141,14 +146,14 @@
           terminate_volume: True
           security_groups: "{{ sec_grp }}"
           delete_fip: yes
-          # auto_ip: yes
+          auto_ip: yes
           reuse_ips: yes
           wait: yes
           timeout: 120
           # floating_ips:
           #   - 10.133.26.2
-          floating_ip_pools:
-            - "{{ os_floating_ip_pools }}"
+          # floating_ip_pools:
+          #   - "{{ os_floating_ip_pools }}"
           meta:
             hostname: new_instance.localdomain
         register: new_instance

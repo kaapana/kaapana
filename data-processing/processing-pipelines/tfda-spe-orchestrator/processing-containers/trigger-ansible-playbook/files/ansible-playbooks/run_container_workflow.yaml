@@ -1,5 +1,7 @@
+# Description: This Ansible Playbook runs container workflow on designated data in an isolated environment
 ---
-- hosts: localhost
+- name: Add the target host to an inventory group
+  hosts: localhost
   gather_facts: no
   vars:
     - target: "{{ target_host }}"

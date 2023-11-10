@@ -15,17 +15,26 @@ class KeycloakHelper:
     The base api endpoint is based on KEYCLOAK environment variables.
     """
 
-    def __init__(self):
-        self.KEYCLOAK_USER = os.environ["KEYCLOAK_USER"]
-        self.KEYCLOAK_PASSWORD = os.environ["KEYCLOAK_PASSWORD"]
-        self.KEYCLOAK_HOST = os.environ["KEYCLOAK_HOST"]
-        self.auth_url = f"https://{self.KEYCLOAK_HOST}/auth/admin/realms/"
+    def __init__(
+        self,
+        keycloak_user=None,
+        keycloak_password=None,
+        keycloak_host=None,
+        keycloak_https_port=None,
+    ):
+        self.keycloak_user = keycloak_user or os.environ["KEYCLOAK_USER"]
+        self.keycloak_password = keycloak_password or os.environ["KEYCLOAK_PASSWORD"]
+        self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
+        self.keycloak_https_port = keycloak_https_port or os.getenv(
+            "KEYCLOAK_HTTPS_PORT", 443
+        )
+        self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
         self.master_access_token = self.get_access_token(
-            self.KEYCLOAK_USER,
-            self.KEYCLOAK_PASSWORD,
+            self.keycloak_user,
+            self.keycloak_password,
             "https",
-            self.KEYCLOAK_HOST,
-            443,
+            self.keycloak_host,
+            self.keycloak_https_port,
             False,
             "admin-cli",
         )

@@ -17,18 +17,18 @@
                       v-card-text
                         v-layout(row='', wrap='')
                           v-flex.justify-center(v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to")
-                            v-card(:to="to" elevation=0)
+                            v-card(:to="to" elevation=0 v-if="_checkAuthR(policyData, to, currentUser)")
                               v-card-title.justify-center
                                 v-icon(x-large) {{ icon }}
                               v-card-text
                                 span {{ title }}
                           v-flex
-                            v-card(to="/extensions" elevation=0)
+                            v-card(to="/extensions" elevation=0 v-if="_checkAuthR(policyData, '/extensions', currentUser)")
                               v-card-title.justify-center
                                 v-icon(x-large) mdi-puzzle
                               v-card-text
                                 span Extensions
-            v-layout(v-if='currentUser.role === "admin"') 
+            v-layout(v-if="_checkAuthR(policyData, '/grafana', currentUser)")
               v-flex(sm4)
                 <iframe src="/grafana/d-solo/adadsdasd/kubernetes?orgId=1&panelId=72" width="100%" height="auto" frameborder="0"></iframe>
               v-flex(sm4)
@@ -54,16 +54,14 @@ import { Component, Vue } from "vue-property-decorator";
 import { mapGetters } from "vuex";
 import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
 import Dashboard from "@/components/Dashboard.vue";
-import {
-  loadPatients,
-} from "../common/api.service";
-
+import { loadPatients } from "../common/api.service";
+import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   data() {
     return {
-      seriesInstanceUIDs: []
-    }
+      seriesInstanceUIDs: [],
+    };
   },
   components: {
     KaapanaWelcome,
@@ -76,15 +74,17 @@ export default Vue.extend({
       "externalWebpages",
       "workflowsList",
       "commonData",
+      "policyData",
     ]),
   },
   created() {
     this.settings = JSON.parse(localStorage["settings"]);
     loadPatients({
-        structured: false,
-        query: {"bool":{"must":["",{"query_string":{"query":"*"}}]}},
-      }).then((data) => {
-          this.seriesInstanceUIDs = data;
+      structured: false,
+      query: { bool: { must: ["", { query_string: { query: "*" } }] } },
+    })
+      .then((data) => {
+        this.seriesInstanceUIDs = data;
       })
       .catch((e) => {
         this.message = e;
@@ -94,8 +94,11 @@ export default Vue.extend({
     reloadPage() {
       window.location.reload();
     },
+    _checkAuthR(policyData, endpoint, currentUser) {
+      return checkAuthR(policyData, endpoint, currentUser);
+    },
   },
-})
+});
 </script>
 
 <style lang="scss">

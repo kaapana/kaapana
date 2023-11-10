@@ -40,6 +40,7 @@ class Settings(BaseSettings):
 
     airflow_url: str = os.getenv("AIRFLOW_URL")
     services_namespace: str = os.getenv("SERVICES_NAMESPACE")
+    admin_namespace: str = os.getenv("ADMIN_NAMESPACE", "admin")
 
 
 settings = Settings()

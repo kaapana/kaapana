@@ -15,17 +15,26 @@ class KeycloakHelper:
     The base api endpoint is based on KEYCLOAK environment variables.
     """
 
-    def __init__(self):
-        self.KEYCLOAK_USER = os.environ["KEYCLOAK_USER"]
-        self.KEYCLOAK_PASSWORD = os.environ["KEYCLOAK_PASSWORD"]
-        self.KEYCLOAK_HOST = os.environ["KEYCLOAK_HOST"]
-        self.auth_url = f"https://{self.KEYCLOAK_HOST}/auth/admin/realms/"
+    def __init__(
+        self,
+        keycloak_user=None,
+        keycloak_password=None,
+        keycloak_host=None,
+        keycloak_https_port=None,
+    ):
+        self.keycloak_user = keycloak_user or os.environ["KEYCLOAK_USER"]
+        self.keycloak_password = keycloak_password or os.environ["KEYCLOAK_PASSWORD"]
+        self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
+        self.keycloak_https_port = keycloak_https_port or os.getenv(
+            "KEYCLOAK_HTTPS_PORT", 443
+        )
+        self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
         self.master_access_token = self.get_access_token(
-            self.KEYCLOAK_USER,
-            self.KEYCLOAK_PASSWORD,
+            self.keycloak_user,
+            self.keycloak_password,
             "https",
-            self.KEYCLOAK_HOST,
-            443,
+            self.keycloak_host,
+            self.keycloak_https_port,
             False,
             "admin-cli",
         )
@@ -175,3 +184,30 @@ class KeycloakHelper:
         return self.make_authorized_request(
             url, requests.post, payload=payload, update_url=update_url, **kwargs
         )
+
+    def post_composite_role(self, composite_role: str, roles_to_add: list):
+        roles = self.get_realm_roles().json()
+        role_id = [
+            available_role.get("id")
+            for available_role in roles
+            if available_role.get("name") == composite_role
+        ][0]
+
+        payload = [
+            role_to_add
+            for role_to_add in roles
+            if role_to_add.get("name") in roles_to_add
+        ]
+
+        url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
+        return self.make_authorized_request(url, requests.post, payload)
+
+    def get_composite_role(self, role):
+        roles = self.get_realm_roles().json()
+        role_id = [
+            available_role.get("id")
+            for available_role in roles
+            if available_role.get("name") == role
+        ][0]
+        url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
+        return self.make_authorized_request(url, requests.get)

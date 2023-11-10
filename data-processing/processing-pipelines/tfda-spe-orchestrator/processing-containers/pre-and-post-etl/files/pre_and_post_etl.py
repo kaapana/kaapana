@@ -22,21 +22,20 @@ def post_etl():
 
 
 def algo_pre_etl():
-    print(
-        "Prepare algorithm before being loaded into the isolated environment..."
-    )
-    print(
-        "Downloading container from registry since container workflow is requested..."
-    )
-    container_registry_url = getenv("CONTAINER_REGISTRY_URL", "None")
-    container_registry_user = getenv("CONTAINER_REGISTRY_USER", "None")
-    container_registry_pwd = getenv("CONTAINER_REGISTRY_PWD", "None")
-    container_name_version = getenv("CONTAINER_NAME_VERSION", "None")
+    print("Prepare algorithm before being loaded into the isolated environment...")
+    print("Downloading requested container from registry...")
+    container_registry_url = getenv("CONTAINER_REGISTRY_URL", None)
+    container_registry_user = getenv("CONTAINER_REGISTRY_USER", None)
+    container_registry_pwd = getenv("CONTAINER_REGISTRY_PWD", None)
+    container_name_version = getenv("CONTAINER_NAME_VERSION", None)
     container_name = container_name_version.split(":")[0]
     user_container_path = os.path.join(workflow_dir, "algorithm_files", container_name)
     Path(user_container_path).mkdir(parents=True, exist_ok=True)
-    if (container_registry_user or container_registry_pwd is None) or (
-        container_registry_user == "" or container_registry_pwd == ""
+    if (
+        container_registry_user is None
+        or container_registry_pwd is None
+        or container_registry_user == ""
+        or container_registry_pwd == ""
     ):
         print("Registry login credentials missing, skipping login...")
     else:

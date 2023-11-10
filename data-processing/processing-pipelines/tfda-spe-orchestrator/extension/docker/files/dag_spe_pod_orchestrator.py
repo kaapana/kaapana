@@ -1,18 +1,21 @@
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
+from airflow.operators.dummy_operator import DummyOperator
 from tfda_spe_orchestrator.LocalLoadPlatformConfigOperator import (
     LocalLoadPlatformConfigOperator,
 )
 from tfda_spe_orchestrator.ManageIsoInstanceOperator import (
     ManageIsoInstanceOperator,
 )
+from tfda_spe_orchestrator.SetupVNCServerOperator import SetupVNCServerOperator
 from tfda_spe_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
 from tfda_spe_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
 from tfda_spe_orchestrator.RunAlgoOperator import RunAlgoOperator
 from tfda_spe_orchestrator.FetchResultsOperator import FetchResultsOperator
 from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 args = {
@@ -24,7 +27,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="vnc-spe-orchestrator",
+    dag_id="vnc-spe-pod-orchestrator",
     default_args=args,
     concurrency=10,
     max_active_runs=10,
@@ -37,7 +40,9 @@ load_platform_config = LocalLoadPlatformConfigOperator(
 create_iso_env = ManageIsoInstanceOperator(
     dag=dag, instanceState="present", taskName="create-iso-inst"
 )
+setup_vnc_server = SetupVNCServerOperator(dag=dag)
 trusted_pre_etl = TrustedPreETLOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag)
 get_minio_bucket = LocalMinioOperator(
     action="get",
     dag=dag,
@@ -46,33 +51,24 @@ get_minio_bucket = LocalMinioOperator(
     operator_out_dir="user-selected-data",
 )
 copy_data_algo = CopyDataAndAlgoOperator(dag=dag, input_operator=get_minio_bucket)
-run_isolated_workflow = RunAlgoOperator(dag=dag)
-fetch_results = FetchResultsOperator(dag=dag, operator_out_dir="results")
 trusted_post_etl = TrustedPostETLOperator(dag=dag)
-upload_results = LocalMinioOperator(
-    action="put",
-    dag=dag,
-    name="upload-results",
-    bucket_name="results",
-    action_operators=[fetch_results],
-    zip_files=False,
-)
 delete_iso_inst = ManageIsoInstanceOperator(
     dag=dag, trigger_rule="all_done", instanceState="absent", taskName="delete-iso-inst"
 )
 clean = LocalWorkflowCleanerOperator(
-    dag=dag, clean_workflow_dir=True, trigger_rule="all_success"
+    dag=dag, clean_workflow_dir=True, trigger_rule="all_done"
 )
+# Following operator fails the DAG if any previous operator fails
+watcher = DummyOperator(task_id="watcher", dag=dag, trigger_rule="all_success")
 (
     load_platform_config
     >> create_iso_env
+    >> setup_vnc_server
     >> trusted_pre_etl
+    >> get_input
     >> get_minio_bucket
     >> copy_data_algo
-    >> run_isolated_workflow
-    >> fetch_results
     >> trusted_post_etl
-    >> upload_results
-    >> delete_iso_inst
-    >> clean
 )
+trusted_post_etl >> watcher
+trusted_post_etl >> delete_iso_inst >> clean

@@ -52,7 +52,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         else:
             return True
 
-    def send_dicom_data(self, send_dir, series_uid):
+    def send_dicom_data(self, send_dir, series_uid, retry=0):
         if len(list(Path(send_dir).rglob("*.dcm"))) == 0:
             print(send_dir)
             print("############### no dicoms found...!")
@@ -84,6 +84,19 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             print("############### Something went wrong with dcmsend!")
             for line in str(output).split("\\n"):
                 print(line)
+            if "Invalid SOP Instance UID" in str(output) and retry == 0:
+                print("Manually adapting invalid SOP Instance UID")
+                dcm_files = sorted(
+                    glob.glob(os.path.join(send_dir, "**/*.dcm*"), recursive=True)
+                )
+                for dicomfile in dcm_files:
+                    ds = pydicom.read_file(dicomfile)
+                    print("SOP Instance UID: ", str(ds[0x0008, 0x0018].value))
+                    ds[0x0008, 0x0018].value = pydicom.uid.generate_uid()
+                    ds.save_as(dicomfile, write_like_original=False)
+                    print("NEW SOP Instance UID: ", str(ds[0x0008, 0x0018].value))
+                self.send_dicom_data(send_dir, series_uid, 1)
+                return
             print("##################################################")
             raise ValueError("ERROR")
         else:

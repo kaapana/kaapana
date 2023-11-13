@@ -10,15 +10,22 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
     """
-    # Description
+    Operator to rename segmentation label names.
+
+    This operator takes as input a list of old and to-be-replaced label names, a list of new label names.
+    These label names are modified in the incoming_seg_info and in the incoming_metainfo JSON files which are loaded via the two defined input_operator directories.
 
     **Inputs:**
 
-        * # sth
+        * input_operator: Input operator directory to load incoming_seg_info JSON file from it.
+        * metainfo_input_operator:  Input operator directory to load incoming_metainfo JSON file from it.
+        * old_label_names: list of old label names which should be replaced; input via UI form; same order necessary as in new_label_names, e.g. [aorta, liver]
+        * new_label_names: list of new label names which should replace old label names; input via UI form; same order necessary as in old_label_names, e.g. [cool_aorta, oliver]
 
     **Outputs**
 
-        * # sth
+        * modified seg_info.json with renamed label names; stored in operator out_dir and in operator_in_dir (necessary for nrrd2dcmseg operator which is (mostly) used afterwards)
+        * modified metainfo.json with renamed label names; stored in operator out_dir and in operator_in_dir (necessary for nrrd2dcmseg operator which is (mostly) used afterwards)
 
     """
 
@@ -133,19 +140,39 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 print("#")
                 print("#")
 
-                # replace old_label_name with new_label_name in incoming_seg_info
-                incoming_seg_info = json.loads(
-                    json.dumps(incoming_seg_info).replace(
-                        old_label_name, new_label_name
+                # check if old_label_name is even part of incoming_seg_info or incoming_metainfo
+                if old_label_name in json.dumps(
+                    incoming_seg_info
+                ) or old_label_name in json.dumps(incoming_metainfo):
+                    print("#")
+                    print("#")
+                    print(
+                        f"# FOUND OLD SEGMENTATION LABEL NAME = {old_label_name} IN INCOMING_SEG_INFO OR INCOMING_METAINFO."
                     )
-                )
+                    print("#")
+                    print("#")
 
-                # replace old_label_name with new_label_name in incoming_metainfo
-                incoming_metainfo = json.loads(
-                    json.dumps(incoming_metainfo).replace(
-                        old_label_name, new_label_name
+                    # replace old_label_name with new_label_name in incoming_seg_info
+                    incoming_seg_info = json.loads(
+                        json.dumps(incoming_seg_info).replace(
+                            old_label_name, new_label_name
+                        )
                     )
-                )
+
+                    # replace old_label_name with new_label_name in incoming_metainfo
+                    incoming_metainfo = json.loads(
+                        json.dumps(incoming_metainfo).replace(
+                            old_label_name, new_label_name
+                        )
+                    )
+                else:
+                    print("#")
+                    print("#")
+                    print(
+                        f"# COULD NOT FIND OLD SEGMENTATION LABEL NAME = {old_label_name} IN INCOMING_SEG_INFO OR INCOMING_METAINFO. ==> SKIP BATCH ELEMENT!"
+                    )
+                    print("#")
+                    print("#")
 
             # restructure incoming_metainfo such that "segmentAttributes" is in the right format to support multi_label itkimage2dcmimage functionalities
             segmentAttributes = incoming_metainfo["segmentAttributes"]

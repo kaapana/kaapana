@@ -4,7 +4,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalModifySegLabelNamesOperator import (
+from rename_seg_label_names.LocalModifySegLabelNamesOperator import (
     LocalModifySegLabelNamesOperator,
 )
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator

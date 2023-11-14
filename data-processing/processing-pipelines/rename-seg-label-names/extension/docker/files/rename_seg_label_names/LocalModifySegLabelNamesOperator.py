@@ -141,9 +141,10 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 print("#")
 
                 # check if old_label_name is even part of incoming_seg_info or incoming_metainfo
-                if old_label_name in json.dumps(
-                    incoming_seg_info
-                ) or old_label_name in json.dumps(incoming_metainfo):
+                if (
+                    old_label_name in json.dumps(incoming_seg_info).lower()
+                    or old_label_name in json.dumps(incoming_metainfo).lower()
+                ):
                     print("#")
                     print("#")
                     print(
@@ -154,16 +155,16 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
                     # replace old_label_name with new_label_name in incoming_seg_info
                     incoming_seg_info = json.loads(
-                        json.dumps(incoming_seg_info).replace(
-                            old_label_name, new_label_name
-                        )
+                        json.dumps(incoming_seg_info)
+                        .lower()
+                        .replace(old_label_name, new_label_name)
                     )
 
                     # replace old_label_name with new_label_name in incoming_metainfo
                     incoming_metainfo = json.loads(
-                        json.dumps(incoming_metainfo).replace(
-                            old_label_name, new_label_name
-                        )
+                        json.dumps(incoming_metainfo)
+                        .lower()
+                        .replace(old_label_name, new_label_name)
                     )
                 else:
                     print("#")
@@ -175,7 +176,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                     print("#")
 
             # restructure incoming_metainfo such that "segmentAttributes" is in the right format to support multi_label itkimage2dcmimage functionalities
-            segmentAttributes = incoming_metainfo["segmentAttributes"]
+            segmentAttributes = incoming_metainfo["segmentAttributes".lower()]
             if (
                 len(segmentAttributes) > 1
                 and sum(isinstance(element, list) for element in segmentAttributes) > 1
@@ -198,10 +199,10 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                     new_segmentAttributes.append(segmentAttribute)
 
                 # delete wrongly structured segmentAttributes from incoming_metainfo
-                del incoming_metainfo["segmentAttributes"]
+                del incoming_metainfo["segmentAttributes".lower()]
 
                 # add new and correctly structured segmentAttributes to incoming_metainfo
-                incoming_metainfo["segmentAttributes"] = [new_segmentAttributes]
+                incoming_metainfo["segmentAttributes".lower()] = [new_segmentAttributes]
 
             print("#")
             print("#")
@@ -244,12 +245,10 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
         self,
         dag,
         name="rename-seg-label-names",
-        # clear_label_as_zero=False,
         metainfo_input_operator="",
         **kwargs,
     ):
         """ """
-        # self.clear_label_as_zero = clear_label_as_zero
         self.metainfo_input_operator = metainfo_input_operator
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

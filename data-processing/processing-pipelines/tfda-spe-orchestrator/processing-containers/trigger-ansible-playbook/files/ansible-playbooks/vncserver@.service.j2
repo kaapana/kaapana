@@ -7,7 +7,6 @@ Type=forking
 User={{ ansible_user }}
 Group={{ ansible_user }}
 
-ExecStartPre=/usr/bin/vncserver -kill :%i > /dev/null 2>&1 || :
 ExecStart=/usr/bin/vncserver -localhost no
 ExecStop=/usr/bin/vncserver -kill :%i
 

@@ -57,7 +57,6 @@
       systemd:
         daemon_reload: true
 
-    
     - name: Set VNC password for user
       shell: |
         mkdir -p /home/{{ ansible_user }}/.vnc

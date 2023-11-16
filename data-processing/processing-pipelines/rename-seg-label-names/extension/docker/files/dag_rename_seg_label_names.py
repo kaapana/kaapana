@@ -9,7 +9,7 @@ from rename_seg_label_names.LocalModifySegLabelNamesOperator import (
 )
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.CombineMasksOperator import CombineMasksOperator
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 
@@ -85,7 +85,7 @@ dcm2nifti_seg = Mask2nifitiOperator(
     dicom_operator=get_ref_ct_series_from_seg,
 )
 
-combine_masks = CombineMasksOperator(
+combine_masks = MergeMasksOperator(
     dag=dag,
     input_operator=dcm2nifti_seg,
 )

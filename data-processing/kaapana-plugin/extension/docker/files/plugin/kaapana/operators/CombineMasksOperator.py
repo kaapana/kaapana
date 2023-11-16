@@ -7,7 +7,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 
 
-class CombineMasksOperator(KaapanaBaseOperator):
+class MergeMasksOperator(KaapanaBaseOperator):
     """
     Searches for NIFTI files (expects segmentation masks) in operator input-dir and combines them into a single NIFTI-file.
     """
@@ -18,6 +18,7 @@ class CombineMasksOperator(KaapanaBaseOperator):
         self,
         dag,
         name="combine-masks",
+        mode="combine",
         env_vars=None,
         execution_timeout=execution_timeout,
         **kwargs,
@@ -25,9 +26,16 @@ class CombineMasksOperator(KaapanaBaseOperator):
         ram_mem_mb = 8000
         gpu_mem_mb = None
 
+        if env_vars is None:
+            env_vars = {}
+        envs = {
+            "MODE": str(mode),
+        }
+        env_vars.update(envs)
+
         super().__init__(
             dag=dag,
-            image=f"{DEFAULT_REGISTRY}/combine-masks:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/merge-masks:{KAAPANA_BUILD_VERSION}",
             name=name,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,

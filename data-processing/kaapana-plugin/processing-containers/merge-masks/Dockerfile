@@ -1,6 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="combine-masks"
+LABEL IMAGE="merge-masks"
 LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
 

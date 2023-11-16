@@ -36,7 +36,7 @@ ui_forms = {
             "spe_ip": {
                 "title": "Enter the IP address of the SPE to be deleted",
                 "type": "string",
-                "required": True
+                "required": True,
             },
         },
     },
@@ -79,11 +79,7 @@ clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, trigger_rule="all_done"
 )
 # Following operator fails the DAG if any previous operator fails
-watcher = DummyOperator(task_id='watcher', dag=dag, trigger_rule='all_success')
-(
-    load_platform_config
-    >> trusted_post_etl
-    >> fetch_results
-    >> upload_results
-)
+watcher = DummyOperator(task_id="watcher", dag=dag, trigger_rule="all_success")
+
+(load_platform_config >> trusted_post_etl >> fetch_results >> upload_results)
 trusted_post_etl >> delete_iso_inst >> clean

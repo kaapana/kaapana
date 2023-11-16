@@ -85,9 +85,9 @@ def combine_mask_nifits(nifti_dir, target_dir):
 
     for label_entry in seg_info_dict:
         label_entry["file_found"] = False
-        label_name = label_entry["label_name"]
+        label_name = label_entry["label_name"].lower()
         label_int = label_entry["label_int"]
-        fitting_nifti_found = [x for x in input_files if f"{label_name}.nii.gz" in x]
+        fitting_nifti_found = [x for x in input_files if f"--{label_name}.nii.gz" in x]
         if len(fitting_nifti_found) != 1:
             logger.warning("")
             logger.warning("")

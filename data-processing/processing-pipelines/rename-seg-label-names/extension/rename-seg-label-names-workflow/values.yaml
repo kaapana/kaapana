@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-rename-seg-label-names"
+    action: "copy"

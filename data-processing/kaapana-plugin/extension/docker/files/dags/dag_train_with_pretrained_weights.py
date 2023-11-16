@@ -87,6 +87,7 @@ dag = DAG(
 dag_trigger_operator = LocalDagTriggerOperator(
     dag=dag,
     trigger_dag_id="nnunet-training",
+    use_dcm_files=False,
     input_operator=None,
     trigger_mode="single",
     wait_till_done=True,

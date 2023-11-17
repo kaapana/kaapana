@@ -1,0 +1,8 @@
+{
+    "dockerfile_paths": [],
+    "dir_path": "/kaapana/app/extension",
+    "kaapana_path": "/kaapana/app/kaapana",
+    "kaapana_build_version": "0.0.0-latest",
+    "custom_registry_url": "docker.io/kaapana",
+    "container_engine": "podman"
+}

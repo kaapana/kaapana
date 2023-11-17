@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
+from nnunet.getTasks import get_all_checkpoints
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.blueprints.kaapana_global_variables import (
     GPU_COUNT,
@@ -37,7 +38,9 @@ ui_forms = {
 for training_dag in training_dags:
     selection = {
         "title": training_dag,
-        "properties": {"default_training_dag": {"type": "string", "const": training_dag}}
+        "properties": {
+            "default_training_dag": {"type": "string", "const": training_dag}
+        },
     }
     # prepare the DAG specific form, new training workflows should also be added here
     if training_dag == "nnunet-training":
@@ -55,16 +58,28 @@ for training_dag in training_dags:
         training_results_study_uid = None
         prep_threads = 2
 
-        # TODO: put additional "pretrained_weights" and "folds" fields here with all the installed tasks
+        checkpoints = get_all_checkpoints()
+
+        val = {
+            "type": "string",
+            "title": "Model checkpoints available",
+            "default": "",
+            "description": "Select a pretrained model under installed tasks. Use nnunet-model-management DAG to install more tasks. NOTE: please select the right 'network/task/trainer/fold' combination for your training, otherwise it will fail.",
+            "enum": [],
+        }
+        for checkpoint in checkpoints:
+            val["enum"].append(checkpoint)
+        selection["properties"]["pretrained_weights"] = val
+
         for k, v in nnunet_form["workflow_form"]["properties"].items():
             selection["properties"][k] = v
-        
+
         ui_forms["workflow_form"]["oneOf"].append(selection)
 
     elif training_dag == "classification-training-workflow":
         for k, v in clf_form["workflow_form"]["properties"].items():
             selection["properties"][k] = v
-        
+
         ui_forms["workflow_form"]["oneOf"].append(selection)
 
 args = {
@@ -91,7 +106,7 @@ dag_trigger_operator = LocalDagTriggerOperator(
     input_operator=None,
     trigger_mode="single",
     wait_till_done=True,
-    delay=10
+    delay=10,
 )
 
 dag_trigger_operator

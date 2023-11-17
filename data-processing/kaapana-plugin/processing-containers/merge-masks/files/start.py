@@ -22,6 +22,8 @@ def combine_mask_nifits(nifti_dir, target_dir):
     global processed_count, input_file_extension
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)
+
+    # check and get seg_info JSON; compose from meta_info JSON if not there
     json_files = glob(join(nifti_dir, "*.json"), recursive=True)
     json_files = [x for x in json_files if "seg_info" in x or "-meta.json" in x]
     assert len(json_files) == 1
@@ -46,6 +48,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
         logger.info(f"No valid metadata json found @{nifti_dir}")
         exit(1)
 
+    # define variables for combing or fusing
     target_nifti_path = join(target_dir, "combined_masks.nii.gz")
     base_img = None
     base_img_numpy = None
@@ -54,6 +57,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
     logger.info("seg_info loaded:")
     logger.info(json.dumps(seg_info_dict, indent=4))
 
+    # get nifti file names
     nifti_search_query = join(nifti_dir, "*.nii.gz")
     logger.info(f"Collecting NIFTIs @{nifti_search_query}")
     input_files = glob(nifti_search_query, recursive=False)
@@ -62,9 +66,12 @@ def combine_mask_nifits(nifti_dir, target_dir):
     )
     assert len(input_files) > 0
 
+    # just a single label in seg_info -> no merging
     if len(seg_info_dict) == 1:
         logger.info("Only one label present -> no merging required.")
         assert len(input_files) == 1
+
+        # process the single label
         label_nifti_path = input_files[0]
         nifti_loaded = nib.load(label_nifti_path)
         nifti_numpy = nifti_loaded.get_fdata().astype(int)
@@ -83,10 +90,13 @@ def combine_mask_nifits(nifti_dir, target_dir):
             logger.error(f"{nifti_labels_found=}")
             exit(1)
 
+    # multiple labels in seg_info -> merge them
     for label_entry in seg_info_dict:
         label_entry["file_found"] = False
         label_name = label_entry["label_name"].lower()
         label_int = label_entry["label_int"]
+
+        # find fitting nifti file to current label
         fitting_nifti_found = [x for x in input_files if f"--{label_name}.nii.gz" in x]
         if len(fitting_nifti_found) != 1:
             logger.warning("")
@@ -100,22 +110,29 @@ def combine_mask_nifits(nifti_dir, target_dir):
             logger.warning("")
             continue
 
+        # confirm nifti file found and start merging
         label_entry["file_found"] = True
         label_nifti_path = fitting_nifti_found[0]
         input_files.remove(label_nifti_path)
         logger.info("")
         logger.info("")
         logger.info(f"Merging {basename(label_nifti_path)}")
+
+        # load current nifti and it's numpy array
         nifti_loaded = nib.load(label_nifti_path)
         nifti_numpy = nifti_loaded.get_fdata().astype(int)
 
+        # modify one-hot encoded numpy array to have label_int as encoding integer in segmentation label mask
         nifti_numpy[nifti_numpy == 1] = label_int
         nifti_labels_found = list(np.unique(nifti_numpy))
         logger.info(f"New labels found {nifti_labels_found}")
+
+        # if no one-hot encoded label was found in nifti numpy array --> skip segmentation label mask
         if len(nifti_labels_found) == 1:
             logger.warning("No annotation has been found -> skipping mask ...")
             continue
 
+        # first of to-be-merged niftis serves as base image
         if base_img == None:
             base_img = nifti_loaded
             base_img_numpy = nifti_numpy
@@ -125,6 +142,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
             target_seg_info_dict["seg_info"].append(label_entry)
             continue
 
+        # can not merge niftis with different shapes --> throw error
         if base_img.shape != nifti_loaded.shape:
             logger.error("")
             logger.error(basename(label_nifti_path))
@@ -132,6 +150,7 @@ def combine_mask_nifits(nifti_dir, target_dir):
             logger.error("")
             exit(1)
 
+        # check whether label_int of current label was already merged with a previous nifti; if yes --> throw error
         duplicates_found = [
             x for x in nifti_labels_found if x != 0 and x in base_img_labels
         ]
@@ -141,11 +160,12 @@ def combine_mask_nifits(nifti_dir, target_dir):
             logger.error("")
         else:
             logger.info("No duplicates found.")
-
         if len(duplicates_found) > 0:
             exit(1)
 
+        # check potential overlap of current segmentation label mask and already merged masks
         overlap_percentage = check_overlap(base_map=base_img_numpy, new_map=nifti_numpy)
+        # if overlap, ignore current segmentation label mask in merging process
         if overlap_percentage > 0:
             logger.error("")
             logger.error(label_nifti_path)
@@ -161,11 +181,14 @@ def combine_mask_nifits(nifti_dir, target_dir):
         logger.info(" -> no overlap ♥")
         logger.info(" Merging base_img_numpy + nifti_numpy ...")
         logger.info("")
+        # merge current nifti numpy array with already merged nifti stack
+        # merging via taking from each pixel max value; as overlaps are already sorted out, it is always just label_int vs. 0
         base_img_numpy = np.maximum(base_img_numpy, nifti_numpy)
         base_img_labels = list(np.unique(base_img_numpy))
         target_seg_info_dict["seg_info"].append(label_entry)
         processed_count += 1
 
+    # generate final nifti file from combined niftis
     logger.info(f" Generating merged result NIFTI @{basename(target_nifti_path)}")
     assert len(base_img_labels) > 1
     result_nifti = nib.Nifti1Image(base_img_numpy, base_img.affine, base_img.header)
@@ -187,6 +210,10 @@ def combine_mask_nifits(nifti_dir, target_dir):
         exit(1)
 
     return True, nifti_dir, target_seg_info_dict
+
+
+def fuse_mask_nifits(nifti_dir, target_dir):
+    global processed_count, input_file_extension
 
 
 def check_overlap(base_map, new_map):
@@ -237,6 +264,10 @@ if __name__ == "__main__":
     operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
     assert operator_out_dir is not None
 
+    mode = getenv("MODE", "None")
+    mode = mode if mode.lower() != "none" else None
+    assert mode is not None
+
     logger.info("##################################################")
     logger.info("#")
     logger.info("# Starting combine-masks operator:")
@@ -245,6 +276,7 @@ if __name__ == "__main__":
     logger.info(f"# batch_name:       {batch_name}")
     logger.info(f"# operator_in_dir:  {operator_in_dir}")
     logger.info(f"# operator_out_dir: {operator_out_dir}")
+    logger.info(f"# mode: {mode}")
     logger.info("#")
     logger.info("#")
     logger.info("##################################################")
@@ -253,6 +285,10 @@ if __name__ == "__main__":
     logger.info("#")
     logger.info("##################################################")
     logger.info("#")
+
+    #################### TEST
+    mode = "combine"
+    #################### TEST
 
     # Loop for every batch-element (usually series)
     batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
@@ -271,9 +307,25 @@ if __name__ == "__main__":
             logger.info("#")
             continue
         else:
-            success, nifti_dir, target_seg_info_dict = combine_mask_nifits(
-                nifti_dir=element_input_dir, target_dir=element_output_dir
-            )
+            if mode == "combine":
+                # combine masks
+                success, nifti_dir, target_seg_info_dict = combine_mask_nifits(
+                    nifti_dir=element_input_dir, target_dir=element_output_dir
+                )
+            elif mode == "fuse":
+                # fuse masks
+                success, nifti_dir, target_seg_info_dict = fuse_mask_nifits(
+                    nifti_dir=element_input_dir, target_dir=element_output_dir
+                )
+            else:
+                # given mode is not supported --> through error
+                logger.error(f"#")
+                logger.error(
+                    f"# MODE not supported! Choose either mode 'combine' or 'fuse' segmentation label masks!"
+                )
+                logger.error(f"#")
+                exit(1)
+
             target_seg_info_path = join(element_output_dir, "seg_info.json")
             assert not exists(target_seg_info_path)
             with open(target_seg_info_path, "w") as fp:
@@ -307,9 +359,25 @@ if __name__ == "__main__":
             logger.info("# -> skipping")
             logger.info("#")
         else:
-            success, nifti_dir, target_seg_info_dict = combine_mask_nifits(
-                nifti_dir=batch_input_dir, target_dir=batch_output_dir
-            )
+            if mode == "combine":
+                # combine masks
+                success, nifti_dir, target_seg_info_dict = combine_mask_nifits(
+                    nifti_dir=batch_input_dir, target_dir=batch_output_dir
+                )
+            elif mode == "fuse":
+                # fuse masks
+                success, nifti_dir, target_seg_info_dict = fuse_mask_nifits(
+                    nifti_dir=batch_input_dir, target_dir=batch_output_dir
+                )
+            else:
+                # given mode is not supported --> through error
+                logger.error(f"#")
+                logger.error(
+                    f"# MODE not supported! Choose either mode 'combine' or 'fuse' segmentation label masks!"
+                )
+                logger.error(f"#")
+                exit(1)
+
             target_seg_info_path = join(batch_output_dir, "seg_info.json")
             assert not exists(target_seg_info_path)
             with open(target_seg_info_path, "w") as fp:

@@ -61,7 +61,7 @@ class LocalDcmAnonymizerOperator(KaapanaPythonBaseOperator):
                 if not output_filepath.is_file() or self.overwrite:
                     shutil.copyfile(dcm_file, output_filepath)
 
-                file_command = anon_command + str(output_filepath)
+                file_command = anon_command + str(output_filepath).replace(' ','\ ')
                 process = subprocess.Popen(
                     file_command,
                     shell=True,

@@ -38,6 +38,4 @@ git clone -b $BRANCH --single-branch $GIT_REPOSITORY
 echo successfully cloned repository
 
 echo Downloading extensionctl
-wget https://github.com/unalakunal/extensionctl/releases/download/0.1.0/extensionctl_linux_amd64
-chmod +x extensionctl_linux_amd64
-cp extensionctl_linux_amd64 /bin/extensionctl
+# TODO

@@ -25,6 +25,7 @@ done
 
 echo building base images...
 
+# TODO: currently can't be run in the container due to permission issues, try kaniko as well for future work
 podman build -t local-only/base-python-cpu:latest /kaapana/app/kaapana/data-processing/base-images/base-python-cpu
 podman build -t local-only/base-python-gpu:latest /kaapana/app/kaapana/data-processing/base-images/base-python-gpu
 podman build -t local-only/base-installer:latest /kaapana/app/kaapana/services/utils/base-installer

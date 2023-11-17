@@ -104,7 +104,7 @@ elif [ "$MODE" = "training" ]; then
     #     echo "#"
     # fi
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
-        pretrain="-pretrained_weights $PRETRAINED_WEIGHTS"
+        pretrain="-pretrained_weights /models/nnUNet/$PRETRAINED_WEIGHTS/model_final_checkpoint.model"
     else
         pretrain=""
     fi

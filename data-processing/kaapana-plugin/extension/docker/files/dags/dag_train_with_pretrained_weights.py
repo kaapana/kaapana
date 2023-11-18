@@ -1,9 +1,9 @@
 import random
 from datetime import datetime, timedelta
+from glob import glob
 
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
-from nnunet.getTasks import get_all_checkpoints
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.blueprints.kaapana_global_variables import (
     GPU_COUNT,
@@ -12,8 +12,6 @@ from kaapana.blueprints.kaapana_global_variables import (
     INSTANCE_NAME,
     GPU_COUNT,
 )
-from dag_nnunet_training import ui_forms as nnunet_form
-from dag_classification_training_workflow import ui_forms as clf_form
 
 max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1
 print(f"### max_active_runs {max_active_runs}")
@@ -21,8 +19,19 @@ print(f"### max_active_runs {max_active_runs}")
 # TODO: assign selected DAG value here
 default_training_dag = ""
 
-# TODO: fetch names from installed DAGs
-training_dags = ["nnunet-training", "classification-training-workflow"]
+# TODO: fetch names from installed DAGs and import accordingly
+training_dags = []
+try:
+    from dag_nnunet_training import ui_forms as nnunet_form
+    from nnunet.getTasks import get_all_checkpoints
+    training_dags.append("nnunet-training")
+except Exception as e:
+    print("nnunet-training is not installed")
+try:
+    from dag_classification_training_workflow import ui_forms as clf_form
+    training_dags.append("classification-training-workflow")
+except Exception as e:
+    print("classification-training-workflow is not installed")
 
 ui_forms = {
     "workflow_form": {
@@ -99,6 +108,8 @@ dag = DAG(
     schedule_interval=None,
 )
 
+# TODO: trigger_dag_id should be a variable
+# TODO: triggers as a service DAG
 dag_trigger_operator = LocalDagTriggerOperator(
     dag=dag,
     trigger_dag_id="nnunet-training",

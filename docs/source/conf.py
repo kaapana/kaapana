@@ -27,13 +27,13 @@ sys.path.insert(
 # -- Project information -----------------------------------------------------
 
 project = "Kaapana"
-copyright = "2022, MIC @DKFZ"
+copyright = "2023, MIC @DKFZ"
 author = "MIC @DKFZ"
 
 # The short X.Y version
-version = "0.1.4"
+version = "0.2.5"
 # The full version, including alpha/beta/rc tags
-release = "0.1.4"
+release = "0.2.5"
 
 
 # -- General configuration ---------------------------------------------------

@@ -216,6 +216,17 @@ if __name__ == "__main__":
         num_classes=NUM_CLASSES,
     )
 
+    # Load pretrained weights 
+
+    if os.environ["PRETRAINED_WEIGHTS"]:
+        path_to_checkpoint_file = os.path.join(
+            "/models/classification-training-workflow", os.environ["PRETRAINED_WEIGHTS"]
+        )
+
+        # load weights
+        checkpoint = torch.load(path_to_checkpoint_file, map_location=DEVICE)
+        model.load_state_dict(checkpoint["state_dict"], strict=False)
+
     model = model.to(DEVICE)
 
     logger.debug("Load model on gpu")

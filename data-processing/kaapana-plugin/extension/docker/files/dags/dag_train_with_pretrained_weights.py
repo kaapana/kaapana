@@ -16,9 +16,6 @@ from kaapana.blueprints.kaapana_global_variables import (
 max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1
 print(f"### max_active_runs {max_active_runs}")
 
-# TODO: assign selected DAG value here
-default_training_dag = ""
-
 # TODO: fetch names from installed DAGs and import accordingly
 training_dags = []
 try:
@@ -48,7 +45,7 @@ for training_dag in training_dags:
     selection = {
         "title": training_dag,
         "properties": {
-            "default_training_dag": {"type": "string", "const": training_dag}
+            "trigger_dag_id": {"type": "string", "const": training_dag}
         },
     }
     # prepare the DAG specific form, new training workflows should also be added here
@@ -108,11 +105,10 @@ dag = DAG(
     schedule_interval=None,
 )
 
-# TODO: trigger_dag_id should be a variable
 # TODO: triggers as a service DAG
 dag_trigger_operator = LocalDagTriggerOperator(
     dag=dag,
-    trigger_dag_id="nnunet-training",
+    trigger_dag_id="", # operator gets from workflow_form.trigger_dag_id , only for use_dcm_files=False
     use_dcm_files=False,
     input_operator=None,
     trigger_mode="single",

@@ -303,6 +303,10 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         self.conf = kwargs["dag_run"].conf
         self.dag_run_id = kwargs["dag_run"].run_id
 
+        if self.trigger_dag_id == "":
+            print(f"trigger_dag_id is empty, setting to {self.conf['workflow_form']['trigger_dag_id']}")
+            self.trigger_dag_id = self.conf["workflow_form"]["trigger_dag_id"]
+
         print(f"{self.use_dcm_files=}")
         print(f"{self.dag_run_id=}")
         print(f"{self.trigger_dag_id=}")

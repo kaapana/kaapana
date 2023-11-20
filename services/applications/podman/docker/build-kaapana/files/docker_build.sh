@@ -51,7 +51,7 @@ fi
 
 if [ -z ${BRANCH-""} ]; then
     BRANCH=develop
-    echo "GIT_REPOSITORY not set, setting it to $BRANCH"
+    echo "BRANCH not set, setting it to $BRANCH"
 fi
 
 echo kwargs for start_build.py for $START_BUILD_KWARGS

@@ -1,0 +1,1 @@
+`docker run --privileged --cgroupns=host -ti <registry>/build-kaapana-extension:0.0.0 -kv 0.0.0:latest`

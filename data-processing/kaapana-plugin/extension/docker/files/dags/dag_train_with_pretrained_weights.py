@@ -16,7 +16,6 @@ from kaapana.blueprints.kaapana_global_variables import (
 max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1
 print(f"### max_active_runs {max_active_runs}")
 
-# TODO: fetch names from installed DAGs and import accordingly
 training_dags = []
 try:
     from dag_nnunet_training import ui_forms as nnunet_form
@@ -26,6 +25,7 @@ except Exception as e:
     print("nnunet-training is not installed")
 try:
     from dag_classification_training_workflow import ui_forms as clf_form
+    from classification_training_workflow.getCheckpoints import getCheckpoints
     training_dags.append("classification-training-workflow")
 except Exception as e:
     print("classification-training-workflow is not installed")
@@ -45,9 +45,20 @@ for training_dag in training_dags:
     selection = {
         "title": training_dag,
         "properties": {
-            "trigger_dag_id": {"type": "string", "const": training_dag}
+            "trigger_dag_id": {
+                "type": "string", 
+                "const": training_dag
+            },
+            "pretrained_weights": {
+                "type": "string",
+                "title": "Model checkpoints available",
+                "default": "",
+                "description": "",
+                "enum": [],
+            }
         },
     }
+
     # prepare the DAG specific form, new training workflows should also be added here
     if training_dag == "nnunet-training":
         study_id = "Kaapana"
@@ -64,29 +75,38 @@ for training_dag in training_dags:
         training_results_study_uid = None
         prep_threads = 2
 
+        # add pretrained weights options
         checkpoints = get_all_checkpoints()
 
-        val = {
-            "type": "string",
-            "title": "Model checkpoints available",
-            "default": "",
-            "description": "Select a pretrained model under installed tasks. Use nnunet-model-management DAG to install more tasks. NOTE: please select the right 'network/task/trainer/fold' combination for your training, otherwise it will fail.",
-            "enum": [],
-        }
+        val = selection["properties"]["pretrained_weights"]
+        val["description"] = "Select pretrained weights from installed tasks. Use nnunet-model-management DAG to install more tasks. NOTE: please select the right 'network/task/trainer/fold' combination for your training, otherwise it will fail."
         for checkpoint in checkpoints:
             val["enum"].append(checkpoint)
-        selection["properties"]["pretrained_weights"] = val
 
+        # add the workflow_form
         for k, v in nnunet_form["workflow_form"]["properties"].items():
             selection["properties"][k] = v
 
         ui_forms["workflow_form"]["oneOf"].append(selection)
 
     elif training_dag == "classification-training-workflow":
+        # add pretrained weights options
+        checkpoints = getCheckpoints()
+
+        val = selection["properties"]["pretrained_weights"]
+        val["description"] = "Select pretrained weights from previous classification training runs" 
+        for checkpoint in checkpoints:
+            val["enum"].append(checkpoint)
+        
+        # add the workflow_form
         for k, v in clf_form["workflow_form"]["properties"].items():
             selection["properties"][k] = v
 
         ui_forms["workflow_form"]["oneOf"].append(selection)
+    
+    else:
+        print(f"Unknown training DAG {training_dag}")
+
 
 args = {
     "ui_visible": True,

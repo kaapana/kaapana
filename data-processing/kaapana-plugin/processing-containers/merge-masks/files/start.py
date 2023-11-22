@@ -263,7 +263,7 @@ def fuse(
                     )
                 )
                 mod_segment["labelID"] = fused_label_int
-                mod_segmentAttributes.append(mod_segment)
+                mod_segmentAttributes.append([mod_segment])
                 added_fused_label = True
             else:
                 continue
@@ -302,17 +302,24 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
     Path(target_dir).mkdir(parents=True, exist_ok=True)
 
     # check and get seg_info JSON; compose from meta_info JSON if not there
-    json_files = glob(join(nifti_dir, "*.json"), recursive=True)
-    json_files = [x for x in json_files if "seg_info" in x or "-meta.json" in x]
-    assert len(json_files) == 1
-    meta_json_path = json_files[0]
-    logger.info(f"seg_info JSON @{meta_json_path}")
-    with open(meta_json_path, "r") as f:
-        meta_json_dict = json.load(f)
+    # json_files = glob(join(nifti_dir, "*.json"), recursive=True)
+    # json_files = [x for x in json_files if "seg_info" in x or "-meta.json" in x]
+    # assert len(json_files) == 1
+    # meta_json_path = json_files[0]
+    # logger.info(f"seg_info JSON @{meta_json_path}")
+    # with open(meta_json_path, "r") as f:
+    #     meta_json_dict = json.load(f)
 
-    if "seg_info.json" in meta_json_path:
-        seg_info_dict = meta_json_dict["seg_info"]
-    elif "-meta.json" in meta_json_path:
+    json_files = glob(join(nifti_dir, "*.json"), recursive=True)
+    seg_info_json = [x for x in json_files if "seg_info" in x]
+    meta_info_json = [x for x in json_files if "-meta.json" in x]
+
+    if len(seg_info_json) == 1:
+        with open(seg_info_json[0], "r") as f:
+            seg_info_dict = json.load(f)
+    elif len(meta_info_json) == 1:
+        with open(meta_info_json[0], "r") as f:
+            meta_json_dict = json.load(f)
         assert "segmentAttributes" in meta_json_dict
         seg_info_dict = []
         for segment in meta_json_dict["segmentAttributes"]:
@@ -325,6 +332,22 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
     else:
         logger.info(f"No valid metadata json found @{nifti_dir}")
         exit(1)
+
+    # if "seg_info.json" in meta_json_path:
+    #     seg_info_dict = meta_json_dict["seg_info"]
+    # elif "-meta.json" in meta_json_path:
+    #     assert "segmentAttributes" in meta_json_dict
+    #     seg_info_dict = []
+    #     for segment in meta_json_dict["segmentAttributes"]:
+    #         seg_info_dict.append(
+    #             {
+    #                 "label_name": segment[0]["SegmentLabel"],
+    #                 "label_int": segment[0]["labelID"],
+    #             }
+    #         )
+    # else:
+    #     logger.info(f"No valid metadata json found @{nifti_dir}")
+    #     exit(1)
 
     # define variables for combing or fusing
     target_nifti_path = join(target_dir, "combined_masks.nii.gz")

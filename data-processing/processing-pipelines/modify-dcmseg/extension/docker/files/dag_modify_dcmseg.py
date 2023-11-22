@@ -26,14 +26,26 @@ ui_forms = {
                 "readOnly": True,
                 "required": True,
             },
+            "fuse_labels": {
+                "title": "Fuse Segmentation Labels",
+                "description": "Segmentation label maps which should be fused.",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fused_label_name": {
+                "title": "Fuse Segmentation Label: New Label Name",
+                "description": "Segmentation label name of segmentation label maps which should be fused.",
+                "type": "string",
+                "readOnly": False,
+            },
             "old_labels": {
-                "title": "Old Labels",
+                "title": "Rename Label Names: Old Labels",
                 "description": "Old segmentation label names which should be overwritten; SAME ORDER AS NEW LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
             },
             "new_labels": {
-                "title": "New Labels",
+                "title": "Rename Label Names: New Labels",
                 "description": "New segmentation label names which should overwrite the old segmentation label names; SAME ORDER AS OLD LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
@@ -59,7 +71,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="rename-seg-label-names",
+    dag_id="modify_segmentations",
     default_args=args,
     concurrency=10,
     max_active_runs=1,
@@ -85,15 +97,25 @@ dcm2nifti_seg = Mask2nifitiOperator(
     dicom_operator=get_ref_ct_series_from_seg,
 )
 
+fuse_masks = MergeMasksOperator(
+    dag=dag,
+    name="fuse-masks",
+    input_operator=dcm2nifti_seg,
+    mode="fuse",
+    # dev_server="code-server"
+)
+
 combine_masks = MergeMasksOperator(
     dag=dag,
+    name="combine-masks",
     input_operator=dcm2nifti_seg,
+    mode="combine",
 )
 
 modify_seg_label_names = LocalModifySegLabelNamesOperator(
     dag=dag,
     input_operator=combine_masks,
-    metainfo_input_operator=dcm2nifti_seg,
+    metainfo_input_operator=fuse_masks,
 )
 
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
@@ -120,6 +142,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
     get_input
     >> get_ref_ct_series_from_seg
     >> dcm2nifti_seg
+    >> fuse_masks
     >> combine_masks
     >> modify_seg_label_names
     >> nrrd2dcmSeg_multi

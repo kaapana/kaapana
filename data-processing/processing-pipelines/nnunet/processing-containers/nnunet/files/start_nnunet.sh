@@ -95,6 +95,7 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# TRAIN_CONTINUE:       $TRAIN_CONTINUE"
     echo "# TRAIN_NPZ:            $TRAIN_NPZ"
+    echo "# PRETRAINED_WEIGHTS:   $PRETRAINED_WEIGHTS"
     echo "#"
     
     # if ! [ -z "${TENSORBOARD_DIR}" ]; then
@@ -102,9 +103,15 @@ elif [ "$MODE" = "training" ]; then
     #     python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw_data_base &
     #     echo "#"
     # fi
-    
+    if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
+        pretrain="-pretrained_weights /models/nnUNet/$PRETRAINED_WEIGHTS/model_final_checkpoint.model"
+    else
+        pretrain=""
+    fi
+
     if [ "$TRAIN_CONTINUE" = "True" ] || [ "$TRAIN_CONTINUE" = "true" ]; then
         continue="--continue_training"
+        echo "WARNING: --continue-training is set, ignoring pretrained_weights"
     else
         continue=""
     fi
@@ -126,8 +133,8 @@ elif [ "$MODE" = "training" ]; then
     fi
     
     echo "#"
-    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $fp32 $npz $continue "
-    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $fp32 $npz $continue
+    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrain $fp32 $npz $continue"
+    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrain $fp32 $npz $continue 
 
     # CREATE_REPORT="True"
 

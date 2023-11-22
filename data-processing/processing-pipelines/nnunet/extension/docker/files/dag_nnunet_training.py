@@ -80,7 +80,7 @@ ui_forms = {
         "properties": {
             "task": {
                 "title": "TASK_NAME",
-                "description": "Specify a name for the training task",
+                "description": "Specify a name for the training task, first part should be 'TASK<100-999>'",
                 "type": "string",
                 "default": TASK_NAME,
                 "required": True,

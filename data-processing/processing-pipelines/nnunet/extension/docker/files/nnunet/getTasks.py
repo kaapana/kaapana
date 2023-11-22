@@ -123,6 +123,17 @@ def get_tasks():
         print("Error in getTasks.py: ", e)
         return [], {}, {}
 
+def get_all_checkpoints():
+    try:
+        nnunet_path = "/kaapana/mounted/workflows/models/nnUNet"
+        checkpoints = glob(f"{nnunet_path}/**/**/**/**/*.model")
+        checkpoints = ["/".join(i.replace(nnunet_path, "")[1:].split("/")[:-1]) for i in checkpoints]
+        return checkpoints[::-1]
+
+    except Exception as e:
+        print("Error in get_all_model_checkpoints.py: ", e)
+        return []
+
 
 def get_available_protocol_names():
     try:

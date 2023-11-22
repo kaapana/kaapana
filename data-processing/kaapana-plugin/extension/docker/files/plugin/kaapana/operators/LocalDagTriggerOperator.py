@@ -218,6 +218,12 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 raise ValueError("ERROR")
 
     def trigger_dag_dicom_helper(self):
+        """
+        Triggers Airflow workflows passed with the input DICOM data.
+
+        Returns:
+            pending_dags (list): List containing information about triggered DAGs that are still pending.
+        """
         pending_dags = []
         dicom_info_list = self.get_dicom_list()
         print(f"DICOM-LIST: {dicom_info_list}")
@@ -297,6 +303,19 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         return pending_dags
 
     def trigger_dag(self, ds, **kwargs):
+        """
+        Orchestrates triggering of Airflow workflows.  
+
+        Parameters:
+            ds (str): Datestamp parameter for Airflow.
+            **kwargs: Additional keyword arguments, including `dag_run` information.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If any triggered DAG fails or encounters unexpected behavior.
+        """
         pending_dags = []
         done_dags = []
 

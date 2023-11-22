@@ -1,7 +1,5 @@
 package httpapi.authz
 
-import data.httpapi.authz.allowed_admin_endpoints
-import data.httpapi.authz.allowed_user_endpoints
 import data.httpapi.authz.whitelisted_endpoints
 import data.httpapi.authz.endpoints_per_role
 
@@ -24,4 +22,12 @@ allow {
     regex.match(endpoint.path, input.requested_prefix)
     some k
     endpoint.methods[k] == input.method
+}
+
+### Allow access to application entities in dcm4chee based on user attribute application_entity
+allow {
+    regex.match("^/dcm4chee-arc/aets/.*", input.requested_prefix)
+    some i
+    checking_regex := concat("",["^/dcm4chee-arc/aets/", input.access_token.application_entity[i], "/.*"])
+    regex.match(checking_regex, input.requested_prefix)
 }

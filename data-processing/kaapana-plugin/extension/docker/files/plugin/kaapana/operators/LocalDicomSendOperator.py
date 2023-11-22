@@ -19,6 +19,20 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
     For dcmsend documentation please have a look at https://support.dcmtk.org/docs/dcmsend.html.
     """
 
+    def set_access_control_id_of_study(self, study_instance_uid: str):
+        """
+        Set the access con
+        """
+        url = f"http://{self.host}:8080/dcm4chee-arc/aets/AS_RECEIVED/rs/studies/{study_instance_uid}/access/{study_instance_uid}"
+        r = requests.put(url)
+        r.raise_for_status()
+
+    def add_access_control_id_to_ae(self, study_instance_uid: str):
+        ### Add access control id to Application entity
+        url = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/aets/{self.aetitle}/access-control-id/{study_instance_uid}"
+        r = requests.put(url)
+        r.raise_for_status()
+
     def check_if_arrived(self, seriesUID):
         print("#")
         print("############### Check if DICOMs arrived ###############")
@@ -27,7 +41,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         tries = 0
         while tries < max_tries:
             pacs_dcmweb_endpoint = (
-                f"http://{self.host}:8080/dcm4chee-arc/aets/KAAPANA/rs/instances"
+                f"http://{self.host}:8080/dcm4chee-arc/aets/{self.aetitle}/rs/instances"
             )
 
             payload = {"SeriesInstanceUID": seriesUID}
@@ -98,6 +112,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         batch_folders = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
         ]
+        study_instance_uids = set()
         for batch_element_dir in batch_folders:
             print("input operator ", self.operator_in_dir)
             element_input_dir = os.path.join(batch_element_dir, self.operator_in_dir)
@@ -115,6 +130,11 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             ds = pydicom.dcmread(dcm_file)
             series_uid = str(ds[0x0020, 0x000E].value)
             self.send_dicom_data(element_input_dir, series_uid)
+            study_instance_uids.add(str(ds[0x0020, 0x000D].value))
+
+        for study_instance_uid in study_instance_uids:
+            self.set_access_control_id_of_study(study_instance_uid)
+            self.add_access_control_id_to_ae(study_instance_uid)
 
     def __init__(
         self,

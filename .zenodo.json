@@ -92,7 +92,8 @@
     ],
     "access_right": "open",
     "references": [
-        "Thomas Phil, Thomas Albrecht, Skylar Gay, & Mathis Ersted Rasmussen. (2023). Sikerdebaard/dcmrtstruct2nii: dcmrtstruct2nii v5 (Version v5). Zenodo. https://doi.org/10.5281/zenodo.4037864"
+        "Thomas Phil, Thomas Albrecht, Skylar Gay, & Mathis Ersted Rasmussen. (2023). Sikerdebaard/dcmrtstruct2nii: dcmrtstruct2nii v5 (Version v5). Zenodo. https://doi.org/10.5281/zenodo.4037864",
+        "MITK Team. (2023). MITK (Version v2023.04) [Computer software]. https://github.com/MITK/MITK"
     ],
     "related_identifiers": [
         {

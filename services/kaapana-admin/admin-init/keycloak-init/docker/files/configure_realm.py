@@ -46,6 +46,9 @@ if __name__ == "__main__":
         payload["credentials"] = [{"type": "password", "value": KAAPANA_INIT_PASSWORD}]
         keycloak.post_user(payload)
 
+    ### Add impersonation role to kaapana user
+    keycloak.post_client_role_mapping("realm-management", "impersonation", "kaapana")
+
     ### Add client
     file = "realm_objects/kaapana-client.json"
     with open(file, "r") as f:

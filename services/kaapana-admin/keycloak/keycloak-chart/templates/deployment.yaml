@@ -83,6 +83,7 @@ spec:
           - "/opt/keycloak/bin/kc.sh"
           - "--verbose"
           - "start"
+          - "--features=token-exchange"
           # livenessProbe:
           #   httpGet:
           #     path: /

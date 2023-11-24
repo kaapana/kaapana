@@ -211,3 +211,38 @@ class KeycloakHelper:
         ][0]
         url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
         return self.make_authorized_request(url, requests.get)
+
+    def post_client_role_mapping(self, client: str, client_role: str, username: str):
+        """
+        Post a role mapping for a client role
+        client: the client of the role
+        client_role: the name of the role
+        username: Name of the user
+        """
+        client_id = self.get_client_id(client)
+        role_representation = self.get_client_role(client_id, client_role)
+        user_id = self.get_user_by_name(username).get("id")
+        print(user_id)
+        url = (
+            self.auth_url + f"kaapana/users/{user_id}/role-mappings/clients/{client_id}"
+        )
+        return self.make_authorized_request(url, requests.post, [role_representation])
+
+    def get_client_role(self, client_id: str, client_role: str):
+        """
+        Get the role represenation of a client role
+        client_id: the id of the client the role belongs to (not the name)
+        client_role: the name of the client
+        """
+        url = self.auth_url + f"kaapana/clients/{client_id}/roles"
+        r = self.make_authorized_request(url, requests.get)
+        client_roles = r.json()
+        return [role for role in client_roles if role.get("name") == client_role][0]
+
+    def get_user_by_name(self, username: str):
+        """
+        Get the user representation by the username
+        """
+        url = self.auth_url + f"kaapana/users?username={username}"
+        r = self.make_authorized_request(url, requests.get)
+        return r.json()[0]

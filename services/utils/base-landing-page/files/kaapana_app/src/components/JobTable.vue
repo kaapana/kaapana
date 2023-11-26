@@ -101,15 +101,13 @@
             </v-tooltip>
         </template>
         <template v-slot:item.actions="{ item }">
-          <div v-if="item.service_job">
-            <v-tooltip bottom>
+          <v-col v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
+            <v-tooltip v-if="item.service_job" bottom>
               <template v-slot:activator="{ on }">
                 <v-icon v-on="on" color="secondary" dark>mdi-account-hard-hat-outline</v-icon>
               </template>
-              <span> No actions for service jobs! </span>
+              <span>This is an auto triggered service job</span>
             </v-tooltip>
-          </div>
-          <v-col v-else-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" @click='abortJob(item)' small icon>

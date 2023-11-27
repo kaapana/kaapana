@@ -16,10 +16,53 @@ from tfda_spe_orchestrator.FetchResultsOperator import FetchResultsOperator
 from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.HelperMinio import HelperMinio
+
+buckets = HelperMinio.minioClient.list_buckets()
+bucket_names = [bucket.name for bucket in buckets]
+
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "bucket_name": {
+                "title": "Select Data to process",
+                "description": "It should be the name of a Bucket from MinIO store",
+                "type": "string",
+                "enum": list(set(bucket_names)),
+                "readOnly": False,
+            },
+            "container_registry_url": {
+                "title": "Enter container registry URL",
+                "type": "string",
+                "required": True,
+            },
+            "container_registry_user": {
+                "title": "Enter container registry username (optional)",
+                "description": "Enter only if downloading your container needs login",
+                "type": "string",
+            },
+            "container_registry_pwd": {
+                "title": "Enter container registry password (optional)",
+                "description": "Enter only if downloading your container needs login",
+                "type": "string",
+                "x-props": {"type": "password"},
+                "readOnly": False,
+            },
+            "container_name_version": {
+                "title": "Enter container name:version",
+                "type": "string",
+                "required": True,
+            },
+        },
+    },
+}
 
 args = {
-    "ui_visible": False,
+    "ui_visible": True,
+    "ui_forms": ui_forms,
     "owner": "kaapana",
     "start_date": days_ago(0),
     "retries": 0,
@@ -33,16 +76,18 @@ dag = DAG(
     max_active_runs=10,
     schedule_interval=None,
 )
-
 load_platform_config = LocalLoadPlatformConfigOperator(
     dag=dag, platform_config_file="platform_config.json"
 )
-create_iso_env = ManageIsoInstanceOperator(
-    dag=dag, instanceState="present", taskName="create-iso-inst"
-)
-setup_vnc_server = SetupVNCServerOperator(dag=dag)
-trusted_pre_etl = TrustedPreETLOperator(dag=dag)
+trusted_pre_etl = TrustedPreETLOperator(dag=dag)  # , dev_server="code-server")
 get_input = LocalGetInputDataOperator(dag=dag)
+launch_local_spe = KaapanaApplicationOperator(
+    dag=dag,
+    name="local-spe-inst",
+    input_operator=get_input,
+    chart_name="local-spe-chart",
+    version="0.1.0",
+)
 get_minio_bucket = LocalMinioOperator(
     action="get",
     dag=dag,
@@ -50,11 +95,10 @@ get_minio_bucket = LocalMinioOperator(
     local_root_dir="{run_dir}/user-selected-data",
     operator_out_dir="user-selected-data",
 )
-copy_data_algo = CopyDataAndAlgoOperator(dag=dag, input_operator=get_minio_bucket)
+copy_data_algo = CopyDataAndAlgoOperator(
+    dag=dag, input_operator=get_minio_bucket
+)  # , dev_server="code-server")
 trusted_post_etl = TrustedPostETLOperator(dag=dag)
-delete_iso_inst = ManageIsoInstanceOperator(
-    dag=dag, trigger_rule="all_done", instanceState="absent", taskName="delete-iso-inst"
-)
 clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, trigger_rule="all_done"
 )
@@ -62,8 +106,7 @@ clean = LocalWorkflowCleanerOperator(
 watcher = DummyOperator(task_id="watcher", dag=dag, trigger_rule="all_success")
 (
     load_platform_config
-    >> create_iso_env
-    >> setup_vnc_server
+    >> launch_local_spe
     >> trusted_pre_etl
     >> get_input
     >> get_minio_bucket
@@ -71,4 +114,4 @@ watcher = DummyOperator(task_id="watcher", dag=dag, trigger_rule="all_success")
     >> trusted_post_etl
 )
 trusted_post_etl >> watcher
-trusted_post_etl >> delete_iso_inst >> clean
+trusted_post_etl >> clean

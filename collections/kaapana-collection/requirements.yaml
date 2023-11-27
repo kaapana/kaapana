@@ -38,6 +38,8 @@ dependencies:
     version: 0.0.0
   - name: tfda-spe-orchestrator-workflow
     version: 0.0.0
+  - name: spe-novnc-client-chart
+    version: 0.0.0
   # - name: rateme-workflow
   #   version: 0.0.0
   # - name: rateme-chart

@@ -16,6 +16,7 @@ from tfda_spe_orchestrator.FetchResultsOperator import FetchResultsOperator
 from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.HelperMinio import HelperMinio
 
@@ -93,7 +94,23 @@ get_minio_bucket = LocalMinioOperator(
     operator_out_dir="user-selected-data",
 )
 copy_data_algo = CopyDataAndAlgoOperator(dag=dag, input_operator=get_minio_bucket)
+spe_vnc_client = KaapanaApplicationOperator(
+    dag=dag,
+    name="spe-vnc-client",
+    input_operator=get_input,
+    chart_name="spe-vnc-client-chart",
+    version="0.1.0",
+)
 trusted_post_etl = TrustedPostETLOperator(dag=dag)
+fetch_results = FetchResultsOperator(dag=dag, operator_out_dir="results")
+upload_results = LocalMinioOperator(
+    action="put",
+    dag=dag,
+    name="upload-results",
+    bucket_name="results",
+    action_operators=[fetch_results],
+    zip_files=False,
+)
 delete_iso_inst = ManageIsoInstanceOperator(
     dag=dag, trigger_rule="all_done", instanceState="absent", taskName="delete-iso-inst"
 )
@@ -110,7 +127,10 @@ watcher = DummyOperator(task_id="watcher", dag=dag, trigger_rule="all_success")
     >> get_input
     >> get_minio_bucket
     >> copy_data_algo
+    >> spe_vnc_client
     >> trusted_post_etl
+    >> fetch_results
+    >> upload_results
 )
 trusted_post_etl >> watcher
 trusted_post_etl >> delete_iso_inst >> clean

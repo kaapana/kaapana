@@ -1,0 +1,14 @@
+---
+global:
+  registry_url: ""
+  pull_policy_images: ""
+  base_namespace: ""
+  fast_data_dir: ""
+  slow_data_dir: ""
+  namespace: "{{ .Values.global.jobs_namespace }}"
+  dynamicVolumes:
+  port: 6080
+  AUTOCONNECT: "true"
+  VNC_SERVER: "<ip_address>:5901" # this needs to be dynamically assigned from ip addr file in the mounted DAG folder
+  VNC_PASSWORD: "" # this needs to be dynamically assigned from ip addr file in the mounted DAG folder
+  VIEW_ONLY: "false"

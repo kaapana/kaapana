@@ -1,0 +1,6 @@
+---
+global:
+  dev_files: docker/files
+  dynamicVolumes:
+  - name: backend
+    host_path: /postgres-spe

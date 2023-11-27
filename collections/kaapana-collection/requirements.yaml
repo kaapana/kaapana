@@ -20,8 +20,8 @@ dependencies:
     version: 0.0.0 
   - name: mitk-flow-workflow
     version: 0.0.0
-  - name: bodypartregression-workflow
-    version: 0.0.0
+  # - name: bodypartregression-workflow
+  #   version: 0.0.0
   - name: wsiconv-workflow
     version: 0.0.0
   - name: nnunet-workflow

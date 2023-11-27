@@ -1,4 +1,4 @@
-FROM local-only/base-python-cpu:latest
+    FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="kaapana-backend"
 LABEL VERSION="0.1.0"

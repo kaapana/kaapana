@@ -9,7 +9,8 @@ metadata:
 spec:
   selector:
     app-name: dcm4chee
-  type: ClusterIP
+  # type: ClusterIP
+  type: NodePort
   ports:
   - name: dcm4che-http
     port: 8080
@@ -27,6 +28,7 @@ spec:
     port: 11115
     targetPort: 11112
     protocol: TCP
+    nodePort: 11113
   - name: dcm4che-hl7-port
     port: 2575
     targetPort: 2575

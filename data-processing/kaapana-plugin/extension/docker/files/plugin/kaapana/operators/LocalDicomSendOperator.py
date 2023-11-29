@@ -9,6 +9,7 @@ import pydicom
 import requests
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 
 
 class LocalDicomSendOperator(KaapanaPythonBaseOperator):
@@ -18,53 +19,6 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
     This operator is used for sending data to the platform locally.
     For dcmsend documentation please have a look at https://support.dcmtk.org/docs/dcmsend.html.
     """
-
-    def set_access_control_id_of_study(self, study_instance_uid: str):
-        """
-        Set the access con
-        """
-        url = f"http://{self.host}:8080/dcm4chee-arc/aets/AS_RECEIVED/rs/studies/{study_instance_uid}/access/{study_instance_uid}"
-        r = requests.put(url)
-        r.raise_for_status()
-
-    def add_access_control_id_to_ae(self, study_instance_uid: str):
-        ### Add access control id to Application entity
-        url = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/aets/{self.aetitle}/access-control-id/{study_instance_uid}"
-        r = requests.put(url)
-        r.raise_for_status()
-
-    def check_if_arrived(self, seriesUID):
-        print("#")
-        print("############### Check if DICOMs arrived ###############")
-        print("#")
-        max_tries = 30
-        tries = 0
-        while tries < max_tries:
-            pacs_dcmweb_endpoint = (
-                f"http://{self.host}:8080/dcm4chee-arc/aets/{self.aetitle}/rs/instances"
-            )
-
-            payload = {"SeriesInstanceUID": seriesUID}
-            print("#")
-            print(f"# request: {pacs_dcmweb_endpoint}: {payload}")
-            print("#")
-            httpResponse = requests.get(pacs_dcmweb_endpoint, params=payload, timeout=2)
-            if httpResponse.status_code == 200:
-                print("# Series found -> success !")
-                break
-            else:
-                print("# Series not found -> sleep 2s !")
-                tries += 1
-                time.sleep(2)
-        print("#")
-        print("# Done")
-        print("#")
-        if tries >= max_tries:
-            print("# -> too many failed requests -> Error!")
-            print("# ABORT")
-            return False
-        else:
-            return True
 
     def send_dicom_data(self, send_dir, series_uid):
         if len(list(Path(send_dir).rglob("*.dcm"))) == 0:
@@ -103,11 +57,20 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         else:
             print(f"Success! output: {output}")
             print("")
-        if self.check_arrival and not self.check_if_arrived(seriesUID=series_uid):
+        if self.check_arrival and not self.dcmweb_helper.check_if_series_in_archive(
+            seriesUID=series_uid
+        ):
             print(f"Arrival check failed!")
             raise ValueError("ERROR")
 
     def start(self, **kwargs):
+        self.conf = kwargs["dag_run"].conf
+        try:
+            username = self.conf["form_data"].get("username")
+        except KeyError:
+            username = "system"
+        self.dcmweb_helper = HelperDcmWeb(username, self.aetitle)
+
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
@@ -133,8 +96,8 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             study_instance_uids.add(str(ds[0x0020, 0x000D].value))
 
         for study_instance_uid in study_instance_uids:
-            self.set_access_control_id_of_study(study_instance_uid)
-            self.add_access_control_id_to_ae(study_instance_uid)
+            self.dcmweb_helper.set_access_control_id_of_study(study_instance_uid)
+            self.dcmweb_helper.add_access_control_id_to_ae(study_instance_uid)
 
     def __init__(
         self,

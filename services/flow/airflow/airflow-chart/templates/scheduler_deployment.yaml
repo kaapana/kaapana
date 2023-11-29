@@ -144,6 +144,8 @@ spec:
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
         - name: SQLALCHEMY_SILENCE_UBER_WARNING
           value: "1"
+        - name: OIDC_CLIENT_SECRET
+          value: "{{ .Values.global.oidc_client_secret }}"
         resources:
           requests:
             memory: 3000Mi

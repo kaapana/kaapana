@@ -89,6 +89,13 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         global es
 
+        conf = kwargs["dag_run"].conf
+        try:
+            username = conf["form_data"].get("username")
+        except KeyError:
+            username = "system"
+        self.dcmweb_helper = HelperDcmWeb(username, "KAAPANA")
+
         self.ti = kwargs["ti"]
         print("# Starting module json2meta")
 
@@ -160,7 +167,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         print("#")
         print("# Checking if series available in PACS...")
         check_count = 0
-        while not HelperDcmWeb.checkIfSeriesAvailable(seriesUID=instanceUID):
+        while not self.dcmweb_helper.check_if_series_in_archive(seriesUID=instanceUID):
             print("#")
             print(f"# Series {instanceUID} not found in PACS-> try: {check_count}")
             if check_count >= self.avalability_check_max_tries:

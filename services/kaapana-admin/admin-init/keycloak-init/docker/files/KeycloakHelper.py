@@ -147,14 +147,21 @@ class KeycloakHelper:
         url = self.auth_url + "kaapana/roles"
         return self.make_authorized_request(url, requests.get)
 
-    def post_role_mapping(self, roles_to_add: list, group: str):
-        group_id = self.get_group_id(group)
+    def post_role_mapping(
+        self, roles_to_add: list, group: str = None, user: str = None
+    ):
+        assert group or user
+        if group:
+            group_id = self.get_group_id(group)
+            url = self.auth_url + f"kaapana/groups/{group_id}/role-mappings/realm"
+        elif user:
+            user_id = self.get_user_by_name(user).get("id")
+            url = self.auth_url + f"kaapana/users/{user_id}/role-mappings/realm"
         payload = []
         roles = self.get_realm_roles().json()
         for role in roles:
             if role["name"] in roles_to_add:
                 payload.append(role)
-        url = self.auth_url + f"kaapana/groups/{group_id}/role-mappings/realm"
         return self.make_authorized_request(url, requests.post, payload)
 
     def post_user(self, payload, **kwargs):

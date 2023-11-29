@@ -18,6 +18,12 @@
       "clientRole" : false,
       "containerId" : "kaapana",
       "attributes" : { }
+    }, {
+      "name" : "dcm4chee-admin",
+      "description": "Grant access to enitre dcm4chee web API",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "kaapana"
     } ]
   },
   "attributes" : {

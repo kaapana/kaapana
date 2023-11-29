@@ -37,17 +37,29 @@ if __name__ == "__main__":
 
     ### Add role mappings to group
     roles = ["admin", "user"]
-    keycloak.post_role_mapping(roles, "all_data")
+    keycloak.post_role_mapping(roles, group="all_data")
 
-    ### Add user
+    ### Add kaapana user
     file = "realm_objects/kaapana-user.json"
     with open(file, "r") as f:
         payload = json.load(f)
         payload["credentials"] = [{"type": "password", "value": KAAPANA_INIT_PASSWORD}]
         keycloak.post_user(payload)
 
-    ### Add impersonation role to kaapana user
-    keycloak.post_client_role_mapping("realm-management", "impersonation", "kaapana")
+    ### Add system user
+    file = "realm_objects/system-user.json"
+    with open(file, "r") as f:
+        ### TODO The password should be generated during the deployment and to be hardcoded to admin
+        ### It should be stored in a keycloak secret
+        system_user_password = "admin"
+        payload = json.load(f)
+        payload["credentials"] = [{"type": "password", "value": system_user_password}]
+        keycloak.post_user(payload)
+
+    ### Add impersonation role to system user
+    keycloak.post_client_role_mapping("realm-management", "impersonation", "system")
+    ### Add dcm4chee-admin-role to system user
+    keycloak.post_role_mapping(["dcm4chee-admin"], user="system")
 
     ### Add client
     file = "realm_objects/kaapana-client.json"

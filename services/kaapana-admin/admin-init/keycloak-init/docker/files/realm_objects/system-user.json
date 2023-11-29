@@ -1,0 +1,13 @@
+{
+    "username" : "system",
+    "enabled" : true,
+    "emailVerified" : false,
+    "firstName" : "System",
+    "lastName" : "User",
+    "email" : "system@user.com",
+    "attributes" : {
+        "application_entity" : [ "KAAPANA" ]
+      },
+    "requiredActions" : [ ],
+    "realmRoles" : [ "dcm4chee-admin" ]
+  }

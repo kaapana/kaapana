@@ -1,0 +1,62 @@
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-kaapana-spe
+  # namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "services"
+spec:
+  stripPrefix:
+    prefixes:
+    - /kaapana-backend
+    forceSlash: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kaapana-spe-service
+  # namespace: "{{ .Values.global.services_namespace }}"
+  namespace: services
+  labels:
+    app-name: kaapana-backend
+spec:
+  selector:
+    app-name: kaapana-backend
+  ports:
+# {{- if .Values.global.dev_files }}
+    - name: hw-http
+      port: 5000 
+      targetPort: 5000
+      nodePort: 5000 # only for development!
+  type: NodePort # only for development!
+# {{- else }}
+#     - name: hw-http
+#       port: 5000 
+#       targetPort: 5000
+#   type: ClusterIP
+# {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kaapana-spe-ingress
+  # namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "services"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-kaapana-backend@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: services-strip-prefix-kaapana-spe@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /kaapana-spe
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: kaapana-backend-service
+            port: 
+              number: 5000

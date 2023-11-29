@@ -177,7 +177,7 @@ def send_meta_init():
 
 
 def check_file_on_platform(examples_send):
-    dcmweb_helper = MyHelperDcmWeb("kaapana", "KAAPANA")
+    dcmweb_helper = MyHelperDcmWeb("system", "KAAPANA")
     for file in examples_send:
         max_counter = 100
         counter = 0

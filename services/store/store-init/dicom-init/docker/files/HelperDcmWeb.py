@@ -47,7 +47,7 @@ class MyHelperDcmWeb:
 
     def impersonate_user(self):
         admin_access_token = self.get_system_user_token()
-        url = f"https://10.128.130.252:443/auth/realms/{self.client_id}/protocol/openid-connect/token"
+        url = f"http://keycloak-external-service.admin.svc:80/auth/realms/{self.client_id}/protocol/openid-connect/token"
         data = {
             "client_id": self.client_id,
             "client_secret": OIDC_CLIENT_SECRET,

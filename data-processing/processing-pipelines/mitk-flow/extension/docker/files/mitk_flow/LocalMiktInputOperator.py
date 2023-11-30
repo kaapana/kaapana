@@ -15,7 +15,7 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
         print("Downloading Series: %s" % seriesUID)
         print("Target DIR: %s" % target_dir)
         result = self.dcmweb_helper.downloadSeries(
-            seriesUID=seriesUID, target_dir=target_dir
+            series_uid=seriesUID, target_dir=target_dir
         )
         return result
 
@@ -77,8 +77,8 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
                         os.makedirs(target_dir)
 
                     result = self.downloadSeries(
-                        studyUID=incoming_dcm.StudyInstanceUID,
-                        seriesUID=seriesUID,
+                        study_uid=incoming_dcm.StudyInstanceUID,
+                        series_uid=seriesUID,
                         target_dir=target_dir,
                     )
                     if result:

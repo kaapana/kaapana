@@ -92,7 +92,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         if self.data_type == "dicom":
             download_successful = self.dcmweb_helper.downloadSeries(
-                seriesUID=seriesUID, target_dir=target_dir
+                series_uid=seriesUID, target_dir=target_dir
             )
             if not download_successful:
                 print("Could not download DICOM data!")

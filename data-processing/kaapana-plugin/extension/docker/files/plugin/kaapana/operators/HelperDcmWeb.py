@@ -67,7 +67,7 @@ class HelperDcmWeb:
 
     def impersonate_user(self):
         admin_access_token = self.get_system_user_token()
-        url = f"https://10.128.130.252:443/auth/realms/{self.client_id}/protocol/openid-connect/token"
+        url = f"http://keycloak-external-service.admin.svc:80/auth/realms/{self.client_id}/protocol/openid-connect/token"
         data = {
             "client_id": self.client_id,
             "client_secret": OIDC_CLIENT_SECRET,
@@ -147,12 +147,12 @@ class HelperDcmWeb:
 
     def downloadSeries(
         self,
-        seriesUID,
+        series_uid,
         target_dir,
         expected_object_count=None,
         include_series_dir=False,
     ):
-        payload = {"SeriesInstanceUID": seriesUID}
+        payload = {"SeriesInstanceUID": series_uid}
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/instances"
         httpResponse = requests.get(url, params=payload, headers=self.auth_headers)
         if httpResponse.status_code == 200:
@@ -170,7 +170,7 @@ class HelperDcmWeb:
                 )  # objectUID
 
             if include_series_dir:
-                target_dir = join(target_dir, seriesUID)
+                target_dir = join(target_dir, series_uid)
             Path(target_dir).mkdir(parents=True, exist_ok=True)
             print(
                 f"HelperDcmWeb: {expected_object_count=} ; {len(objectUIDList)=} ; {objectUIDList=} ; {objectUIDList[0][-1]=}"
@@ -196,13 +196,13 @@ class HelperDcmWeb:
                     f"expected_object_count {expected_object_count} <= len(objectUIDList) {len(objectUIDList)} --> success!"
                 )
 
-            for objectUID in objectUIDList:
-                studyUID = objectUID[0]
-                objectUID = objectUID[1]
+            for object_uid in objectUIDList:
+                study_uid = object_uid[0]
+                object_uid = object_uid[1]
                 result = self.downloadObject(
-                    studyUID=studyUID,
-                    seriesUID=seriesUID,
-                    objectUID=objectUID,
+                    study_uid=study_uid,
+                    series_uid=series_uid,
+                    object_uid=object_uid,
                     target_dir=target_dir,
                 )
                 if not result:
@@ -213,24 +213,24 @@ class HelperDcmWeb:
             print("################################")
             print("#")
             print("# Can't request series objects from PACS!")
-            print(f"# UID: {seriesUID}")
+            print(f"# UID: {series_uid}")
             print(f"# Status code: {httpResponse.status_code}")
             print("#")
             print("################################")
             return False
 
-    def downloadObject(self, study_uid, seriesUID, objectUID, target_dir):
+    def downloadObject(self, study_uid, series_uid, object_uid, target_dir):
         payload = {
             "requestType": "WADO",
             "studyUID": study_uid,
-            "seriesUID": seriesUID,
-            "objectUID": objectUID,
+            "seriesUID": series_uid,
+            "objectUID": object_uid,
             "contentType": "application/dicom",
         }
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/wado"
         response = requests.get(url, params=payload, headers=self.auth_headers)
         if response.status_code == 200:
-            fileName = objectUID + ".dcm"
+            fileName = object_uid + ".dcm"
             filePath = os.path.join(target_dir, fileName)
             with open(filePath, "wb") as f:
                 f.write(response.content)
@@ -241,9 +241,9 @@ class HelperDcmWeb:
             print("################################")
             print("#")
             print("# Download of requested objectUID was not successful!")
-            print(f"# seriesUID: {seriesUID}")
+            print(f"# seriesUID: {series_uid}")
             print(f"# studyUID: {study_uid}")
-            print(f"# objectUID: {objectUID}")
+            print(f"# objectUID: {object_uid}")
             print(f"# Status code: {response.status_code}")
             print(f"# Response content: {response.content}")
             print("#")

@@ -58,7 +58,10 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         print("# Starting module LocalGetRefSeriesOperator")
 
         conf = kwargs["dag_run"].conf
-        username = conf["form_data"].get("username")
+        try:
+            username = conf["form_data"].get("username")
+        except KeyError:
+            username = "system"
         self.dcmweb_helper = HelperDcmWeb(username, self.aetitle)
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)

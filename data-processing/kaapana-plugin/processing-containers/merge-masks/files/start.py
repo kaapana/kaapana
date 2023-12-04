@@ -117,9 +117,6 @@ def combine(
                 f"Overlap ({overlap_percentage} %) has been identified! -> copy org nifti"
             )
             logger.error("")
-            # keep_nifti_path = join(target_dir, basename(label_nifti_path))
-            # keep_nifti = nib.Nifti1Image(nifti_numpy, base_img.affine, base_img.header)
-            # keep_nifti.to_filename(keep_nifti_path)
             continue
 
         logger.info(" -> no overlap ♥")
@@ -313,15 +310,6 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
     global processed_count, input_file_extension
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)
-
-    # check and get seg_info JSON; compose from meta_info JSON if not there
-    # json_files = glob(join(nifti_dir, "*.json"), recursive=True)
-    # json_files = [x for x in json_files if "seg_info" in x or "-meta.json" in x]
-    # assert len(json_files) == 1
-    # meta_json_path = json_files[0]
-    # logger.info(f"seg_info JSON @{meta_json_path}")
-    # with open(meta_json_path, "r") as f:
-    #     meta_json_dict = json.load(f)
 
     json_files = glob(join(nifti_dir, "*.json"), recursive=True)
     seg_info_json = [x for x in json_files if "seg_info" in x]

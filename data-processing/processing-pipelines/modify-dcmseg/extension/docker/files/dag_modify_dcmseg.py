@@ -108,7 +108,7 @@ fuse_masks = MergeMasksOperator(
 combine_masks = MergeMasksOperator(
     dag=dag,
     name="combine-masks",
-    input_operator=dcm2nifti_seg,
+    input_operator=fuse_masks,
     mode="combine",
 )
 
@@ -126,13 +126,13 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     multi_label_seg_name="rename-seg-label-names",
     multi_label_seg_info_json="seg_info.json",
     skip_empty_slices=True,
-    alg_name="rename_seg_label_names",
+    alg_name="modify-dcmseg",
 )
 
 dicom_send = DcmSendOperator(
     dag=dag,
     input_operator=nrrd2dcmSeg_multi,
-    ae_title="rename_labels",
+    ae_title="modify-dcmseg",
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)

@@ -18,7 +18,9 @@ issue_occurred = False
 logger = None
 
 
-def combine(seg_info_dict, target_seg_info_dict, input_files, target_nifti_path):
+def combine(
+    seg_info_list, target_seg_info_dict, input_files, target_nifti_path, target_dir
+):
     global processed_count, input_file_extension
 
     # define base_imgs for combining process
@@ -27,13 +29,19 @@ def combine(seg_info_dict, target_seg_info_dict, input_files, target_nifti_path)
     base_img_labels = None
 
     # multiple labels in seg_info -> combine them
-    for label_entry in seg_info_dict:
+    for label_entry in seg_info_list:
         label_entry["file_found"] = False
         label_name = label_entry["label_name"].lower().replace(" ", "").replace(",", "")
         label_int = label_entry["label_int"]
 
         # find fitting nifti file to current label
-        fitting_nifti_found = [x for x in input_files if f"--{label_name}.nii.gz" in x]
+        fitting_nifti_found = [x for x in input_files if f"{label_name}.nii.gz" in x]
+        # eventually search for "--{label_name}.nii.gz" due to nnUNet style of labels
+        fitting_nifti_found = (
+            [x for x in input_files if f"--{label_name}.nii.gz" in x]
+            if len(fitting_nifti_found) == 0
+            else fitting_nifti_found
+        )
         if len(fitting_nifti_found) != 1:
             logger.warning("")
             logger.warning("")
@@ -143,13 +151,18 @@ def combine(seg_info_dict, target_seg_info_dict, input_files, target_nifti_path)
                 logger.warning("#####################################################")
                 logger.warning("")
                 f.write(f"{basename(left_file)}\n")
-        exit(1)
+        # exit(1)
 
     return True, target_seg_info_dict
 
 
 def fuse(
-    seg_info_dict, target_seg_info_dict, meta_json_dict, input_files, target_nifti_path
+    seg_info_list,
+    target_seg_info_dict,
+    meta_json_dict,
+    input_files,
+    target_nifti_path,
+    target_dir,
 ):
     global processed_count, input_file_extension
 
@@ -176,11 +189,11 @@ def fuse(
         # check whether fuse_label is in seg_info and get index
         fuse_label_index_in_seg_info = [
             index
-            for index, item in enumerate(seg_info_dict)
+            for index, item in enumerate(seg_info_list)
             if item["label_name"].lower().replace(" ", "") == fuse_label
         ]
 
-        # check whether fuse_labels are in seg_info_dict and input_files
+        # check whether fuse_labels are in seg_info_list and input_files
         if len(fitting_nifti_found) != 1 or len(fuse_label_index_in_seg_info) != 1:
             logger.error("")
             logger.error("")
@@ -196,7 +209,7 @@ def fuse(
         # compose a fuse_label_dict of current fuse_label
         fuse_label_dict = {}
         fuse_label_dict["label_name"] = fuse_label
-        fuse_label_dict["label_int"] = seg_info_dict[fuse_label_index_in_seg_info[0]][
+        fuse_label_dict["label_int"] = seg_info_list[fuse_label_index_in_seg_info[0]][
             "label_int"
         ]
         fuse_label_dict["nifti_fname"] = fitting_nifti_found[0]
@@ -241,7 +254,7 @@ def fuse(
     # adapt seg_info JSON
     target_seg_info_dict = [
         entry
-        for entry in seg_info_dict
+        for entry in seg_info_list
         if entry["label_name"].lower().replace(" ", "") not in fuse_labels
     ]
     # add fused label
@@ -316,14 +329,15 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
 
     if len(seg_info_json) == 1:
         with open(seg_info_json[0], "r") as f:
+            # get seg_info_dict in style {"seg_info": [{...}, {...}, {...}]}
             seg_info_dict = json.load(f)
     elif len(meta_info_json) == 1:
         with open(meta_info_json[0], "r") as f:
             meta_json_dict = json.load(f)
         assert "segmentAttributes" in meta_json_dict
-        seg_info_dict = []
+        seg_info_dict = {"seg_info": []}
         for segment in meta_json_dict["segmentAttributes"]:
-            seg_info_dict.append(
+            seg_info_dict["seg_info"].append(
                 {
                     "label_name": segment[0]["SegmentLabel"],
                     "label_int": segment[0]["labelID"],
@@ -332,40 +346,25 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
     else:
         logger.info(f"No valid metadata json found @{nifti_dir}")
         exit(1)
-
-    # if "seg_info.json" in meta_json_path:
-    #     seg_info_dict = meta_json_dict["seg_info"]
-    # elif "-meta.json" in meta_json_path:
-    #     assert "segmentAttributes" in meta_json_dict
-    #     seg_info_dict = []
-    #     for segment in meta_json_dict["segmentAttributes"]:
-    #         seg_info_dict.append(
-    #             {
-    #                 "label_name": segment[0]["SegmentLabel"],
-    #                 "label_int": segment[0]["labelID"],
-    #             }
-    #         )
-    # else:
-    #     logger.info(f"No valid metadata json found @{nifti_dir}")
-    #     exit(1)
+    seg_info_list = seg_info_dict["seg_info"]
 
     # define variables for combing or fusing
     target_nifti_path = join(target_dir, "combined_masks.nii.gz")
     target_seg_info_dict = {"seg_info": []}
     logger.info("seg_info loaded:")
-    logger.info(json.dumps(seg_info_dict, indent=4))
+    logger.info(json.dumps(seg_info_list, indent=4))
 
     # get nifti file names
     nifti_search_query = join(nifti_dir, "*.nii.gz")
     logger.info(f"Collecting NIFTIs @{nifti_search_query}")
     input_files = glob(nifti_search_query, recursive=False)
     logger.info(
-        f"Found {len(input_files)} NIFTI files vs {len(seg_info_dict)} seg infos ..."
+        f"Found {len(input_files)} NIFTI files vs {len(seg_info_list)} seg infos ..."
     )
     assert len(input_files) > 0
 
     # just a single label in seg_info -> no merging
-    if len(seg_info_dict) == 1:
+    if len(seg_info_list) == 1:
         logger.info("Only one label present -> no merging required.")
         assert len(input_files) == 1
 
@@ -377,7 +376,7 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
         logger.info(f"{ nifti_labels_found= }")
         if len(nifti_labels_found) > 1:
             shutil.copy(label_nifti_path, target_nifti_path)
-            target_seg_info_dict["seg_info"].append(seg_info_dict[0])
+            target_seg_info_dict["seg_info"].append(seg_info_list[0])
             processed_count += 1
             return True, nifti_dir, target_seg_info_dict
         elif len(nifti_labels_found) == 1:
@@ -390,15 +389,20 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
 
     if mode == "combine":
         res, target_seg_info_dict = combine(
-            seg_info_dict, target_seg_info_dict, input_files, target_nifti_path
+            seg_info_list,
+            target_seg_info_dict,
+            input_files,
+            target_nifti_path,
+            target_dir,
         )
     elif mode == "fuse":
         res, target_seg_info_dict = fuse(
-            seg_info_dict,
+            seg_info_list,
             target_seg_info_dict,
             meta_json_dict,
             input_files,
             target_nifti_path,
+            target_dir,
         )
     else:
         # given mode is not supported --> through error

@@ -19,8 +19,8 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
         * input_operator: Input operator directory to load incoming_seg_info JSON file from it.
         * metainfo_input_operator:  Input operator directory to load incoming_metainfo JSON file from it.
-        * old_label_names: list of old label names which should be replaced; input via UI form; same order necessary as in new_label_names, e.g. [aorta, liver]
-        * new_label_names: list of new label names which should replace old label names; input via UI form; same order necessary as in old_label_names, e.g. [cool_aorta, oliver]
+        * old_label_names: list of old label names which should be replaced; input via UI form; same order necessary as in new_label_names, e.g. [aorta,liver]
+        * new_label_names: list of new label names which should replace old label names; input via UI form; same order necessary as in old_label_names, e.g. [cool_aorta,oliver]
 
     **Outputs**
 
@@ -42,18 +42,20 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
         print("CONF:")
         print(conf["form_data"])
         if ("old_labels" in conf["form_data"]) and ("new_labels" in conf["form_data"]):
-            old_label_names = conf["form_data"]["old_labels"].split(
-                ","
-            )  # .replace(" ", "").lower()
-            new_label_names = conf["form_data"]["new_labels"].split(
-                ","
-            )  # .replace(" ", "").lower()
+            old_label_names = (
+                conf["form_data"]["old_labels"].replace(" ", "").lower().split(",")
+            )
+            new_label_names = (
+                conf["form_data"]["new_labels"].replace(" ", "").lower().split(",")
+            )
         else:
+            old_label_names = []
+            new_label_names = []
             print("### ERROR ###")
             print("#")
             print("# No OLD_LABELS or NEW_LABELS defined in workflow_form.")
             print("#")
-            exit(1)
+            # exit(1)
         print(f"# OLD LABELS: {old_label_names}")
         print(f"# NEW LABELS: {new_label_names}")
 
@@ -79,7 +81,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                         batch_element_dir,
                         self.metainfo_input_operator.name,
                         "**",
-                        "*.json*",
+                        "*-meta.json*",
                     ),
                     recursive=True,
                 )
@@ -127,6 +129,21 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
             print(json.dumps(incoming_metainfo, indent=4))
             print(f"{type(incoming_metainfo)=}")
 
+            # seg_info holds ground-truth -> delete segments from metainfo_json if they are not in seg_info
+            segments_in_seg_info = [
+                item["label_name"] for item in incoming_seg_info["seg_info"]
+            ]
+            print(f"{type(segments_in_seg_info)=}{segments_in_seg_info=}")
+            # Iterate through segmentAttributes in reverse order to safely remove elements
+            for i in range(len(incoming_metainfo["segmentAttributes"]) - 1, -1, -1):
+                segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
+                # Check if SegmentLabel is not in segments_in_seg_info
+                if segment_attribute["SegmentLabel"] not in segments_in_seg_info:
+                    # Remove the entire segmentAttribute if not in the list
+                    del incoming_metainfo["segmentAttributes"][i]
+            print(f"# POTENTIALLY CORRECTED incoming_metainfo:")
+            print(json.dumps(incoming_metainfo, indent=4))
+
             # iterate over old_label_names and replace them by corresponding new_label_names in incoming_seg_info
             for old_label_name in old_label_names:
                 # find corresponding new label name
@@ -141,9 +158,22 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 print("#")
 
                 # check if old_label_name is even part of incoming_seg_info or incoming_metainfo
-                if old_label_name in json.dumps(
+                print(f"{old_label_name=}")
+                if old_label_name.replace("-", "") in json.dumps(
                     incoming_seg_info
-                ) or old_label_name in json.dumps(incoming_metainfo):
+                ).lower().replace(" ", "").replace("-", "").replace(
+                    ",", ""
+                ) or old_label_name.replace(
+                    "-", ""
+                ) in json.dumps(
+                    incoming_metainfo
+                ).lower().replace(
+                    " ", ""
+                ).replace(
+                    "-", ""
+                ).replace(
+                    ",", ""
+                ):
                     print("#")
                     print("#")
                     print(
@@ -153,23 +183,56 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                     print("#")
 
                     # replace old_label_name with new_label_name in incoming_seg_info
-                    incoming_seg_info = json.loads(
-                        json.dumps(incoming_seg_info).replace(
-                            old_label_name, new_label_name
+                    for seg_info_item in incoming_seg_info["seg_info"]:
+                        # Convert label_name to lowercase and replace spaces and commas
+                        formatted_label_name = (
+                            seg_info_item["label_name"]
+                            .lower()
+                            .replace(" ", "")
+                            .replace(",", "")
                         )
-                    )
+                        print(f"{formatted_label_name=}")
+                        # Check if formatted label_name matches old_label_name
+                        if formatted_label_name == old_label_name.replace("-", ""):
+                            # Update label_name in the original dictionary
+                            seg_info_item["label_name"] = new_label_name
+                            print(f"{seg_info_item=}")
+                    print(f"{json.dumps(incoming_seg_info)=}")
+                    assert new_label_name in json.dumps(incoming_seg_info)
 
                     # replace old_label_name with new_label_name in incoming_metainfo
-                    incoming_metainfo = json.loads(
-                        json.dumps(incoming_metainfo).replace(
-                            old_label_name, new_label_name
+                    for i in range(
+                        len(incoming_metainfo["segmentAttributes"]) - 1, -1, -1
+                    ):
+                        # get segment_attribute
+                        segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
+                        # Convert label_name to lowercase and replace spaces and commas
+                        formatted_label_name = (
+                            segment_attribute["SegmentLabel"]
+                            .lower()
+                            .replace(" ", "")
+                            .replace(",", "")
                         )
-                    )
+                        print(f"{formatted_label_name=}")
+                        if formatted_label_name == old_label_name.replace("-", ""):
+                            # segment_attribute["SegmentLabel"] = new_label_name
+                            segment_attribute = json.loads(
+                                json.dumps(segment_attribute).replace(
+                                    segment_attribute["SegmentLabel"], new_label_name
+                                )
+                            )
+                            print(f"{segment_attribute=}")
+                            incoming_metainfo["segmentAttributes"][i][
+                                0
+                            ] = segment_attribute
+                    print("BLAAAAAAHH")
+                    print(f"{json.dumps(incoming_metainfo, indent=4)}")
+                    assert new_label_name in json.dumps(incoming_metainfo)
                 else:
                     print("#")
                     print("#")
                     print(
-                        f"# COULD NOT FIND OLD SEGMENTATION LABEL NAME = {old_label_name} IN INCOMING_SEG_INFO OR INCOMING_METAINFO. ==> SKIP BATCH ELEMENT!"
+                        f"# COULD NOT FIND OLD SEGMENTATION LABEL NAME = {old_label_name} IN INCOMING_SEG_INFO OR INCOMING_METAINFO. ==> SKIP RENAMING IN BATCH ELEMENT!"
                     )
                     print("#")
                     print("#")
@@ -192,6 +255,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
                 # retrieve single segmentAttribute dicts
                 for segmentAttribute_list in segmentAttributes:
+                    print(f"{segmentAttribute_list=}")
                     segmentAttribute = segmentAttribute_list[0]
 
                     # append single segmentAttribute dicts to new_segmentAttributes list
@@ -244,12 +308,9 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
         self,
         dag,
         name="rename-seg-label-names",
-        # clear_label_as_zero=False,
         metainfo_input_operator="",
         **kwargs,
     ):
-        """ """
-        # self.clear_label_as_zero = clear_label_as_zero
         self.metainfo_input_operator = metainfo_input_operator
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

@@ -29,7 +29,7 @@ def combine(seg_info_dict, target_seg_info_dict, input_files, target_nifti_path)
     # multiple labels in seg_info -> combine them
     for label_entry in seg_info_dict:
         label_entry["file_found"] = False
-        label_name = label_entry["label_name"].lower()
+        label_name = label_entry["label_name"].lower().replace(" ", "").replace(",", "")
         label_int = label_entry["label_int"]
 
         # find fitting nifti file to current label

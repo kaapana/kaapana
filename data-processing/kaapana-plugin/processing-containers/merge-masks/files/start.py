@@ -346,7 +346,12 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
     else:
         logger.info(f"No valid metadata json found @{nifti_dir}")
         exit(1)
-    seg_info_list = seg_info_dict["seg_info"]
+    # ensure seg_info_list's desired form: [{...}, {...}, {...}]
+    if isinstance(seg_info_dict, dict):
+        if "seg_info" in seg_info_dict:
+            seg_info_list = seg_info_dict["seg_info"]
+    else:
+        seg_info_list = seg_info_dict
 
     # define variables for combing or fusing
     target_nifti_path = join(target_dir, "combined_masks.nii.gz")

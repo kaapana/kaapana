@@ -82,7 +82,7 @@
             <template v-slot:activator="{ on }">
               <v-icon v-on="on" color="primary" dark>mdi-account-hard-hat-outline</v-icon>
             </template>
-            <span> No actions for service workflows! </span>
+            <span>Service workflow actions are only allowed in job level, click to see all jobs </span>
           </v-tooltip>
         </div>
         <div v-else-if="!item.automatic_execution">

@@ -1,0 +1,7 @@
+apiVersion: v1
+appVersion: "23.05.5.3.1"
+description: Launches a collabora instance to edit documents and spreadsheets
+name: collabora-chart
+version: "0.0.0"
+keywords:
+- kaapanaapplication

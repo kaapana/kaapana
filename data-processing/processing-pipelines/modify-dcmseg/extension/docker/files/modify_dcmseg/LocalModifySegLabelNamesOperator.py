@@ -233,7 +233,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                             incoming_metainfo["segmentAttributes"][i][
                                 0
                             ] = segment_attribute
-                    print("BLAAAAAAHH")
+                            
                     print(f"{json.dumps(incoming_metainfo, indent=4)}")
                     assert new_label_name in json.dumps(incoming_metainfo)
                 else:

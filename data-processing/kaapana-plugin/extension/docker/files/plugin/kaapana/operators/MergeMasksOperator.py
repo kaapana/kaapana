@@ -9,7 +9,24 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 class MergeMasksOperator(KaapanaBaseOperator):
     """
-    Searches for NIFTI files (expects segmentation masks) in operator input-dir and combines them into a single NIFTI-file.
+    MergeMasksOperator
+
+    Searches for NIFTI files (expects segmentation masks) in operator input-dir and merges them according to the given mode.
+    mode can either be "combine" (default) or "fuse".
+
+    mode = "combine": combines NIFTI files into a single NIFTI-file; labels that overlap with already combined labels are sorted out.
+    mode = "fuse": fuses label masks of specified labels (via label_name) into a single NIFTI file.
+
+    **Inputs:**
+    * mode: either "combine" or "fuse"
+    * fuse_label_names: label_names of segmentation masks which should be fused
+    * fused_label_name: new label name of fused segmentation masks
+    * input Nifti files
+
+    **Outputs:**
+    * Nifti file(s) with merged (combined or fused) segmentation masks
+    * adapted seg_info and meta_info JSON files
+
     """
 
     execution_timeout = timedelta(minutes=60)

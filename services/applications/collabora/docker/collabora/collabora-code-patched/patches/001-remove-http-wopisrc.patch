@@ -1,0 +1,23 @@
+Patch allowing to ommit the "http://" prefix of WOPI Source URLs in the wopiSRC parameter of colabora.
+--- a/wsd/DocumentBroker.cpp
++++ b/wsd/DocumentBroker.cpp
+@@ -808,7 +808,8 @@ bool DocumentBroker::download(const std::shared_ptr<ClientSession>& session, con
+ 
+         try
+         {
+-            _storage = StorageBase::create(uriPublic, jailRoot, jailPath.toString(),
++            const Poco::URI& fixedUriPublic = Poco::URI("http://" + session->getPublicUri().toString());
++            _storage = StorageBase::create(fixedUriPublic, jailRoot, jailPath.toString(),
+                                            /*takeOwnership=*/isConvertTo());
+         }
+         catch (...)
+@@ -1704,7 +1705,7 @@ void DocumentBroker::uploadToStorageInternal(const std::shared_ptr<ClientSession
+                                             << "]. Force: " << force);
+ 
+     const bool isSaveAs = !saveAsPath.empty();
+-    const std::string uri = isSaveAs ? saveAsPath : session->getPublicUri().toString();
++    const std::string uri = isSaveAs ? saveAsPath : "http://" + session->getPublicUri().toString();
+ 
+     // Map the FileId from the docKey to the new filename to anonymize the new filename as the FileId.
+     const std::string newFilename = Util::getFilenameFromURL(uri);
+ 

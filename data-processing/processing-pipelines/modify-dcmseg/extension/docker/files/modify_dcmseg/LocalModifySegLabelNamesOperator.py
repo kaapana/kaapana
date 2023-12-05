@@ -4,6 +4,7 @@ import json
 import datetime
 from pathlib import Path
 import shutil
+import re
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -29,6 +30,16 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
     """
 
+    def remove_special_characters(self, input_string):
+        # Convert the string to lowercase
+        input_string = input_string.lower()
+        # Define the regex pattern
+        pattern = re.compile("[^a-z0-9.]")
+        # Use sub() method to replace matched characters with underscores
+        result = re.sub(pattern, "", input_string)
+
+        return result
+
     def start(self, ds, **kwargs):
         print("Starting module LocalModifySegLabelNamesOperator...")
         print(kwargs)
@@ -42,12 +53,17 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
         print("CONF:")
         print(conf["form_data"])
         if ("old_labels" in conf["form_data"]) and ("new_labels" in conf["form_data"]):
-            old_label_names = (
-                conf["form_data"]["old_labels"].replace(" ", "").lower().split(",")
-            )
+            old_label_names = conf["form_data"]["old_labels"].split(",")
+            old_label_names = [
+                self.remove_special_characters(x) for x in old_label_names
+            ]
+
             new_label_names = (
                 conf["form_data"]["new_labels"].replace(" ", "").lower().split(",")
             )
+            new_label_names = [
+                self.remove_special_characters(x) for x in new_label_names
+            ]
         else:
             old_label_names = []
             new_label_names = []
@@ -55,7 +71,7 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
             print("#")
             print("# No OLD_LABELS or NEW_LABELS defined in workflow_form.")
             print("#")
-            # exit(1)
+
         print(f"# OLD LABELS: {old_label_names}")
         print(f"# NEW LABELS: {new_label_names}")
 
@@ -131,14 +147,20 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
             # seg_info holds ground-truth -> delete segments from metainfo_json if they are not in seg_info
             segments_in_seg_info = [
-                item["label_name"] for item in incoming_seg_info["seg_info"]
+                self.remove_special_characters(item["label_name"])
+                for item in incoming_seg_info["seg_info"]
             ]
-            print(f"{type(segments_in_seg_info)=}{segments_in_seg_info=}")
             # Iterate through segmentAttributes in reverse order to safely remove elements
             for i in range(len(incoming_metainfo["segmentAttributes"]) - 1, -1, -1):
                 segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
                 # Check if SegmentLabel is not in segments_in_seg_info
-                if segment_attribute["SegmentLabel"] not in segments_in_seg_info:
+                print(
+                    f"{self.remove_special_characters(segment_attribute['SegmentLabel'])=}"
+                )
+                if (
+                    self.remove_special_characters(segment_attribute["SegmentLabel"])
+                    not in segments_in_seg_info
+                ):
                     # Remove the entire segmentAttribute if not in the list
                     del incoming_metainfo["segmentAttributes"][i]
             print(f"# POTENTIALLY CORRECTED incoming_metainfo:")
@@ -159,20 +181,10 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
 
                 # check if old_label_name is even part of incoming_seg_info or incoming_metainfo
                 print(f"{old_label_name=}")
-                if old_label_name.replace("-", "") in json.dumps(
-                    incoming_seg_info
-                ).lower().replace(" ", "").replace("-", "").replace(
-                    ",", ""
-                ) or old_label_name.replace(
-                    "-", ""
-                ) in json.dumps(
-                    incoming_metainfo
-                ).lower().replace(
-                    " ", ""
-                ).replace(
-                    "-", ""
-                ).replace(
-                    ",", ""
+                if old_label_name in self.remove_special_characters(
+                    json.dumps(incoming_seg_info)
+                ) or old_label_name in self.remove_special_characters(
+                    json.dumps(incoming_metainfo)
                 ):
                     print("#")
                     print("#")
@@ -185,15 +197,12 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                     # replace old_label_name with new_label_name in incoming_seg_info
                     for seg_info_item in incoming_seg_info["seg_info"]:
                         # Convert label_name to lowercase and replace spaces and commas
-                        formatted_label_name = (
+                        formatted_label_name = self.remove_special_characters(
                             seg_info_item["label_name"]
-                            .lower()
-                            .replace(" ", "")
-                            .replace(",", "")
                         )
                         print(f"{formatted_label_name=}")
                         # Check if formatted label_name matches old_label_name
-                        if formatted_label_name == old_label_name.replace("-", ""):
+                        if formatted_label_name == old_label_name:
                             # Update label_name in the original dictionary
                             seg_info_item["label_name"] = new_label_name
                             print(f"{seg_info_item=}")
@@ -207,14 +216,13 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                         # get segment_attribute
                         segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
                         # Convert label_name to lowercase and replace spaces and commas
-                        formatted_label_name = (
+                        formatted_label_name = self.remove_special_characters(
                             segment_attribute["SegmentLabel"]
-                            .lower()
-                            .replace(" ", "")
-                            .replace(",", "")
                         )
                         print(f"{formatted_label_name=}")
-                        if formatted_label_name == old_label_name.replace("-", ""):
+                        if formatted_label_name == self.remove_special_characters(
+                            old_label_name
+                        ):
                             # segment_attribute["SegmentLabel"] = new_label_name
                             segment_attribute = json.loads(
                                 json.dumps(segment_attribute).replace(

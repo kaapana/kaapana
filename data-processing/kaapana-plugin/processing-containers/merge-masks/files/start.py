@@ -12,10 +12,22 @@ import shutil
 import nibabel as nib
 import numpy as np
 import json
+import re
 
 processed_count = 0
 issue_occurred = False
 logger = None
+
+
+def remove_special_characters(input_string):
+    # Convert the string to lowercase
+    input_string = input_string.lower()
+    # Define the regex pattern
+    pattern = re.compile("[^a-z0-9.]")
+    # Use sub() method to replace matched characters with underscores
+    result = re.sub(pattern, "", input_string)
+
+    return result
 
 
 def combine(
@@ -31,17 +43,17 @@ def combine(
     # multiple labels in seg_info -> combine them
     for label_entry in seg_info_list:
         label_entry["file_found"] = False
-        label_name = label_entry["label_name"].lower().replace(" ", "").replace(",", "")
+        # label_name = label_entry["label_name"].lower().replace(" ", "").replace(",", "")
+        label_name = remove_special_characters(label_entry["label_name"])
         label_int = label_entry["label_int"]
 
         # find fitting nifti file to current label
-        fitting_nifti_found = [x for x in input_files if f"{label_name}.nii.gz" in x]
-        # eventually search for "--{label_name}.nii.gz" due to nnUNet style of labels
-        fitting_nifti_found = (
-            [x for x in input_files if f"--{label_name}.nii.gz" in x]
-            if len(fitting_nifti_found) == 0
-            else fitting_nifti_found
-        )
+        fitting_nifti_found = [
+            x
+            for x in input_files
+            if f"{label_name}.nii.gz" in remove_special_characters(x)
+        ]
+
         if len(fitting_nifti_found) != 1:
             logger.warning("")
             logger.warning("")
@@ -167,11 +179,18 @@ def fuse(
     fuse_labels = getenv("FUSE_LABELS", "None")
     fuse_labels = fuse_labels if fuse_labels.lower() != "none" else None
     assert fuse_labels is not None
-    fuse_labels = fuse_labels.lower().replace(" ", "").split(",")
+    # fuse_labels = fuse_labels.lower().replace(" ", "").split(",")
+    fuse_labels = fuse_labels.split(",")
+    fuse_labels = [remove_special_characters(x) for x in fuse_labels]
 
     fused_label_name = getenv("FUSED_LABEL_NAME", "None")
     fused_label_name = fused_label_name if fused_label_name.lower() != "none" else None
     assert fused_label_name is not None
+    fused_label_name = remove_special_characters(fused_label_name)
+
+    print("#")
+    print(f"# FUSE {fuse_labels} to {fused_label_name} !")
+    print("#")
 
     # gather information needed for fusion
     fusion_list = []
@@ -180,14 +199,14 @@ def fuse(
         fitting_nifti_found = [
             x
             for x in input_files
-            if f"--{fuse_label}.nii.gz" in x.lower().replace(" ", "")
+            if f"{fuse_label}.nii.gz" in remove_special_characters(x)
         ]
 
         # check whether fuse_label is in seg_info and get index
         fuse_label_index_in_seg_info = [
             index
             for index, item in enumerate(seg_info_list)
-            if item["label_name"].lower().replace(" ", "") == fuse_label
+            if remove_special_characters(item["label_name"]) == fuse_label
         ]
 
         # check whether fuse_labels are in seg_info_list and input_files
@@ -252,7 +271,7 @@ def fuse(
     target_seg_info_dict = [
         entry
         for entry in seg_info_list
-        if entry["label_name"].lower().replace(" ", "") not in fuse_labels
+        if remove_special_characters(entry["label_name"]) not in fuse_labels
     ]
     # add fused label
     target_seg_info_dict.append(
@@ -263,7 +282,7 @@ def fuse(
     mod_segmentAttributes = []
     added_fused_label = False
     for segment in meta_json_dict["segmentAttributes"]:
-        segment_label = segment[0]["SegmentLabel"].lower().replace(" ", "")
+        segment_label = remove_special_characters(segment[0]["SegmentLabel"])
         if segment_label in fuse_labels:
             if added_fused_label is False:
                 # add fused label to mod_segmentAttributes

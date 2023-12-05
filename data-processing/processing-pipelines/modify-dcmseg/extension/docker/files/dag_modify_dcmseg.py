@@ -4,7 +4,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from rename_seg_label_names.LocalModifySegLabelNamesOperator import (
+from modify_dcmseg.LocalModifySegLabelNamesOperator import (
     LocalModifySegLabelNamesOperator,
 )
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
@@ -28,25 +28,25 @@ ui_forms = {
             },
             "fuse_labels": {
                 "title": "Fuse Segmentation Labels",
-                "description": "Segmentation label maps which should be fused.",
+                "description": "Segmentation label maps which should be fused (all special characters are removed).",
                 "type": "string",
                 "readOnly": False,
             },
             "fused_label_name": {
                 "title": "Fuse Segmentation Label: New Label Name",
-                "description": "Segmentation label name of segmentation label maps which should be fused.",
+                "description": "Segmentation label name of segmentation label maps which should be fused (all special characters are removed).",
                 "type": "string",
                 "readOnly": False,
             },
             "old_labels": {
                 "title": "Rename Label Names: Old Labels",
-                "description": "Old segmentation label names which should be overwritten; SAME ORDER AS NEW LABEL NAMES REQUIRED!!!",
+                "description": "Old segmentation label names which should be overwritten (all special characters are removed); SAME ORDER AS NEW LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
             },
             "new_labels": {
                 "title": "Rename Label Names: New Labels",
-                "description": "New segmentation label names which should overwrite the old segmentation label names; SAME ORDER AS OLD LABEL NAMES REQUIRED!!!",
+                "description": "New segmentation label names which should overwrite the old segmentation label names (all special characters are removed); SAME ORDER AS OLD LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
             },
@@ -102,7 +102,6 @@ fuse_masks = MergeMasksOperator(
     name="fuse-masks",
     input_operator=dcm2nifti_seg,
     mode="fuse",
-    # dev_server="code-server"
 )
 
 combine_masks = MergeMasksOperator(

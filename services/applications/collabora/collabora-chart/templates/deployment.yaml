@@ -1,0 +1,76 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app-name: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: collabora
+        image: "{{ .Values.global.registry_url }}/collabora:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        ports:
+        - name: http
+          containerPort: 9980
+          protocol: TCP
+        resources:
+          requests:
+            memory: "1000Mi"
+          limits:
+            memory: "2000Mi"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/coolwsd/coolwsd.xml
+          subPath: coolwsd.xml 
+        env:
+        - name: username
+          value: {{ .Values.global.collabora_username }}
+        - name: password
+          value: {{ .Values.global.collabora_password }}
+      - name: wopi
+        image: "{{ .Values.global.registry_url }}/kaapana-wopi:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+        resources:
+          requests:
+            memory: "500Mi"
+          limits:
+            memory: "500Mi"
+        env:
+        - name: APPLICATION_ROOT
+          value: /collabora-wopi
+        - name: COLLABORA_URL
+          value: http://collabora-chart.services:9980/collabora
+        - name: DOCUMENT_ROOT
+          value:  /minio
+        - name: WOPI_API_ENDPOINT
+          # value: http://collabora-chart-wopi.services:5000/collabora-wopi
+          # Workaround till double backslash urls are supported by oauth2-proxy
+          value: collabora-chart-wopi.services:5000
+        - name: DEV_MODE
+          value: "false"
+        volumeMounts:
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
+      imagePullSecrets:
+      - name: registry-secret
+      volumes:
+{{ include "dynamicVolumes" $ | indent 6 }}
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}
+          items:
+          - key: coolwsd.xml
+            path: coolwsd.xml

@@ -19,6 +19,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION
 
 buckets = HelperMinio.minioClient.list_buckets()
 bucket_names = [bucket.name for bucket in buckets]
@@ -79,14 +80,14 @@ dag = DAG(
 load_platform_config = LocalLoadPlatformConfigOperator(
     dag=dag, platform_config_file="platform_config.json"
 )
-trusted_pre_etl = TrustedPreETLOperator(dag=dag)  # , dev_server="code-server")
+trusted_pre_etl = TrustedPreETLOperator(dag=dag)
 get_input = LocalGetInputDataOperator(dag=dag)
 launch_local_spe = KaapanaApplicationOperator(
     dag=dag,
     name="local-spe-inst",
     input_operator=get_input,
     chart_name="local-spe-chart",
-    version="0.1.0",
+    version=KAAPANA_BUILD_VERSION,
 )
 get_minio_bucket = LocalMinioOperator(
     action="get",
@@ -95,9 +96,7 @@ get_minio_bucket = LocalMinioOperator(
     local_root_dir="{run_dir}/user-selected-data",
     operator_out_dir="user-selected-data",
 )
-copy_data_algo = CopyDataAndAlgoOperator(
-    dag=dag, input_operator=get_minio_bucket
-)  # , dev_server="code-server")
+copy_data_algo = CopyDataAndAlgoOperator(dag=dag, input_operator=get_minio_bucket)
 trusted_post_etl = TrustedPostETLOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, trigger_rule="all_done"

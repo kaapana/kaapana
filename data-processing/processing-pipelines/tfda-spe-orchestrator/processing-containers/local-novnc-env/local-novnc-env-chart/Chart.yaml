@@ -1,0 +1,9 @@
+apiVersion: v1
+appVersion: "0.1.0"
+description: A VNC application that spins up a Secure Processing Environment (SPE) within the cluster
+name: local-novnc-env-chart
+version: "0.0.0"
+keywords:
+- kaapanaint
+- kaapanaexperimental
+- kaapanaapplication

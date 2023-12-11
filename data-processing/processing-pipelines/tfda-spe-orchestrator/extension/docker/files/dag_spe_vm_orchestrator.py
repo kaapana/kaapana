@@ -19,6 +19,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION
 
 buckets = HelperMinio.minioClient.list_buckets()
 bucket_names = [bucket.name for bucket in buckets]
@@ -96,10 +97,10 @@ get_minio_bucket = LocalMinioOperator(
 copy_data_algo = CopyDataAndAlgoOperator(dag=dag, input_operator=get_minio_bucket)
 spe_vnc_client = KaapanaApplicationOperator(
     dag=dag,
-    name="spe-vnc-client",
+    name="spe-novnc-client",
     input_operator=get_input,
-    chart_name="spe-vnc-client-chart",
-    version="0.1.0",
+    chart_name="spe-novnc-client-chart",
+    version=KAAPANA_BUILD_VERSION,
 )
 trusted_post_etl = TrustedPostETLOperator(dag=dag)
 fetch_results = FetchResultsOperator(dag=dag, operator_out_dir="results")

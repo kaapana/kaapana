@@ -9,6 +9,6 @@ global:
   dynamicVolumes:
   port: 6080
   AUTOCONNECT: "true"
-  VNC_SERVER: "<ip_address>:5901" # this needs to be dynamically assigned from ip addr file in the mounted DAG folder
-  VNC_PASSWORD: "" # this needs to be dynamically assigned from ip addr file in the mounted DAG folder
+  VNC_SERVER: "<ip_address>:5901" # TODO: this needs to be dynamically assigned from ip addr file in the mounted DAG folder
+  VNC_PASSWORD: "your_vnc_password" # TODO: this needs to be dynamically assigned from ip addr file in the mounted DAG folder
   VIEW_ONLY: "false"

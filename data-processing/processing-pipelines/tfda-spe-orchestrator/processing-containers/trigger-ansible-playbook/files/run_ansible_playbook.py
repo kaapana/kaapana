@@ -226,3 +226,5 @@ elif task_type == "run-isolated-workflow":
     run_isolated_workflow()
 elif task_type == "fetch-results":
     fetch_results()
+else:
+    raise RuntimeError(f"Task type {getenv('TASK_TYPE')} not supported! Exiting...")

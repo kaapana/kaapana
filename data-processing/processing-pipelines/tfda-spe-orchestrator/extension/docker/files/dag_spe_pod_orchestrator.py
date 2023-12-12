@@ -4,6 +4,9 @@ from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from tfda_spe_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
 from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
+from tfda_spe_orchestrator.LocalSPEApplicationOperator import (
+    LocalSPEApplicationOperator,
+)
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator

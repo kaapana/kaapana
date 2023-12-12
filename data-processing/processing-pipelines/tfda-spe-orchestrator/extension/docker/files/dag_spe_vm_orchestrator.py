@@ -13,6 +13,9 @@ from tfda_spe_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
 from tfda_spe_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
 from tfda_spe_orchestrator.FetchResultsOperator import FetchResultsOperator
 from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
+from tfda_spe_orchestrator.LocalSPEApplicationOperator import (
+    LocalSPEApplicationOperator,
+)
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator

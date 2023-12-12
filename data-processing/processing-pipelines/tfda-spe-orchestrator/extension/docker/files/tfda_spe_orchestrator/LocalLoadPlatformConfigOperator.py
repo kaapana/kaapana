@@ -38,6 +38,16 @@ class LocalLoadPlatformConfigOperator(KaapanaPythonBaseOperator):
         Path(dag_run_dir).mkdir(parents=True, exist_ok=True)
         shutil.copy(platform_config_path, dag_run_dir)
 
+        ## Code for loading platform config as passed via the SPE Admin UI
+        # logging.info("Load platform specific configuration for the DAG run...")
+        # dag_run_id = kwargs["dag_run"].run_id
+        # dag_conf = kwargs["dag_run"].conf
+        # dag_run_config_dir = os.path.join(AIRFLOW_WORKFLOW_DIR, dag_run_id)
+        # Path(dag_run_config_dir).mkdir(parents=True, exist_ok=True)
+        # dag_run_config_path = os.path.join(dag_run_config_dir, self.platform_config_file)
+        # with open(dag_run_config_path, "w") as fp:
+        #     json.dump(dag_conf, fp, indent=2)
+
     def __init__(self, dag, platform_config_file="platform_config.json", **kwargs):
         super().__init__(
             dag=dag,

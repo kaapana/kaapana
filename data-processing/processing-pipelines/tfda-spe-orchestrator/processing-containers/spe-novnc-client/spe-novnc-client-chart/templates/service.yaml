@@ -9,7 +9,7 @@ metadata:
 spec:
   ports:
     - protocol: TCP
-      port: {{ .Values.global.service.port }}
+      port: {{ .Values.global.port }}
       # targetPort: 6080
       name: pt-spe-novnc
   type: ClusterIP
@@ -22,9 +22,9 @@ metadata:
   name: {{ .Release.Name }}-redirect
   namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
-  redirectRegex:
+  stripPrefixRegex:
     regex: ^.*/{{ .Release.Name }}([^\/]*)$
-    replacement: {{ printf "/%s/" .Release.Name }}
+    # replacement: {{ printf "/%s/" .Release.Name }}
 ---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress

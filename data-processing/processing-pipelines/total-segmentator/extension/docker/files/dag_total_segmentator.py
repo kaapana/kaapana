@@ -11,7 +11,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
 from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.CombineMasksOperator import CombineMasksOperator
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
@@ -217,7 +217,7 @@ ta = "total"
 total_segmentator_0 = TotalSegmentatorOperator(
     dag=dag, task=ta, input_operator=dcm2nifti
 )
-combine_masks_0 = CombineMasksOperator(
+combine_masks_0 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_0,
     parallel_id=ta,
@@ -260,7 +260,7 @@ total_segmentator_1 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_1 = CombineMasksOperator(
+combine_masks_1 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_1,
     parallel_id=ta,
@@ -302,7 +302,7 @@ total_segmentator_2 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_2 = CombineMasksOperator(
+combine_masks_2 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_2,
     parallel_id=ta,
@@ -344,7 +344,7 @@ total_segmentator_3 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_3 = CombineMasksOperator(
+combine_masks_3 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_3,
     parallel_id=ta,
@@ -386,7 +386,7 @@ total_segmentator_4 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_4 = CombineMasksOperator(
+combine_masks_4 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_4,
     parallel_id=ta,
@@ -428,7 +428,7 @@ total_segmentator_5 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_5 = CombineMasksOperator(
+combine_masks_5 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_5,
     parallel_id=ta,
@@ -470,7 +470,7 @@ total_segmentator_6 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_6 = CombineMasksOperator(
+combine_masks_6 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_6,
     parallel_id=ta,

@@ -157,10 +157,10 @@ NIFTI and nrrd operators
 
 We offer operators specifically designed for NIFTI and nrrd data, enabling functionalities such as radiomics, resampling, and more.
 
-CombineMasksOperator
+MergeMasksOperator
 ^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: kaapana.operators.CombineMasksOperator
+.. automodule:: kaapana.operators.MergeMasksOperator
    :members:
    :undoc-members:
    :show-inheritance:

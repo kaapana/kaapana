@@ -74,7 +74,7 @@ dependencies:
   #   version: 0.0.0
   - name: classification-training-workflow
     version: 0.0.0
-  - name: rename-seg-label-names-workflow
+  - name: modify-dcmseg-workflow
     version: 0.0.0
   - name: collabora-chart
     version: 0.0.0

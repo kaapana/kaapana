@@ -11,7 +11,6 @@ from tfda_spe_orchestrator.ManageIsoInstanceOperator import (
 from tfda_spe_orchestrator.SetupVNCServerOperator import SetupVNCServerOperator
 from tfda_spe_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
 from tfda_spe_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
-from tfda_spe_orchestrator.RunAlgoOperator import RunAlgoOperator
 from tfda_spe_orchestrator.FetchResultsOperator import FetchResultsOperator
 from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -38,6 +37,7 @@ ui_forms = {
             "container_registry_url": {
                 "title": "Enter container registry URL",
                 "type": "string",
+                "default": "registry.hub.docker.com/kaushap",
                 "required": True,
             },
             "container_registry_user": {
@@ -55,6 +55,7 @@ ui_forms = {
             "container_name_version": {
                 "title": "Enter container name:version",
                 "type": "string",
+                "default": "testdock:latest",
                 "required": True,
             },
         },

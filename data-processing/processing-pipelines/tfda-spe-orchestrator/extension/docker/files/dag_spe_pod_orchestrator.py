@@ -2,17 +2,7 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
-from tfda_spe_orchestrator.LocalLoadPlatformConfigOperator import (
-    LocalLoadPlatformConfigOperator,
-)
-from tfda_spe_orchestrator.ManageIsoInstanceOperator import (
-    ManageIsoInstanceOperator,
-)
-from tfda_spe_orchestrator.SetupVNCServerOperator import SetupVNCServerOperator
 from tfda_spe_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
-from tfda_spe_orchestrator.CopyDataAndAlgoOperator import CopyDataAndAlgoOperator
-from tfda_spe_orchestrator.RunAlgoOperator import RunAlgoOperator
-from tfda_spe_orchestrator.FetchResultsOperator import FetchResultsOperator
 from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
@@ -77,16 +67,13 @@ dag = DAG(
     max_active_runs=10,
     schedule_interval=None,
 )
-load_platform_config = LocalLoadPlatformConfigOperator(
-    dag=dag, platform_config_file="platform_config.json"
-)
 trusted_pre_etl = TrustedPreETLOperator(dag=dag)
 get_input = LocalGetInputDataOperator(dag=dag)
 launch_local_spe = KaapanaApplicationOperator(
     dag=dag,
-    name="local-spe-inst",
+    name="local-novnc-env",
     input_operator=get_input,
-    chart_name="local-spe-chart",
+    chart_name="local-novnc-env-chart",
     version=KAAPANA_BUILD_VERSION,
 )
 get_minio_bucket = LocalMinioOperator(
@@ -96,7 +83,7 @@ get_minio_bucket = LocalMinioOperator(
     local_root_dir="{run_dir}/user-selected-data",
     operator_out_dir="user-selected-data",
 )
-copy_data_algo = CopyDataAndAlgoOperator(dag=dag, input_operator=get_minio_bucket)
+# Following is only a Placeholder operator
 trusted_post_etl = TrustedPostETLOperator(dag=dag)
 clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, trigger_rule="all_done"
@@ -104,12 +91,10 @@ clean = LocalWorkflowCleanerOperator(
 # Following operator fails the DAG if any previous operator fails
 watcher = DummyOperator(task_id="watcher", dag=dag, trigger_rule="all_success")
 (
-    load_platform_config
-    >> launch_local_spe
-    >> trusted_pre_etl
+    trusted_pre_etl
     >> get_input
     >> get_minio_bucket
-    >> copy_data_algo
+    >> launch_local_spe
     >> trusted_post_etl
 )
 trusted_post_etl >> watcher

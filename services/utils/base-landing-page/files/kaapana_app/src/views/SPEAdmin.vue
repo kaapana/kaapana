@@ -202,8 +202,8 @@ export default {
       // Trigger a dag that would spin up SPE and send link to user
       kaapanaApiService
         .federatedClientApiPost("/workflow", {
-          workflow_name: "dag-tfda-spe-orchestrator",
-          dag_id: "dag-tfda-spe-orchestrator",
+          workflow_name: "vnc-spe-vm-orchestrator",
+          dag_id: "vnc-spe-vm-orchestrator",
           instance_names: this.selected_kaapana_instance_names,
           conf_data: { "default_platform": {
                          "shell_workflow": "openstack",

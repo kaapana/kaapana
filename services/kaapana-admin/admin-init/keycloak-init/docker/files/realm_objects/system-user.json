@@ -4,9 +4,8 @@
     "emailVerified" : false,
     "firstName" : "System",
     "lastName" : "User",
-    "email" : "system@user.com",
+    "email" : "",
     "attributes" : {
-        "application_entity" : [ "KAAPANA" ]
       },
     "requiredActions" : [ ],
     "realmRoles" : [ "dcm4chee-admin" ]

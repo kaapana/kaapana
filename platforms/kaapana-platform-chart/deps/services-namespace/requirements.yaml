@@ -7,6 +7,8 @@ dependencies:
     version: 0.0.0
   - name: static-website-chart
     version: 0.0.0
+  - name: system-user-password-chart
+    version: 0.0.0
 # MONITORING
   - name: prometheus-chart
     version: 0.0.0

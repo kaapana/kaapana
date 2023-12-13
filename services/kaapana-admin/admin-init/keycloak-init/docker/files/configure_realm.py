@@ -49,12 +49,11 @@ if __name__ == "__main__":
     ### Add system user
     file = "realm_objects/system-user.json"
     with open(file, "r") as f:
-        ### TODO The password should be generated during the deployment and to be hardcoded to admin
-        ### It should be stored in a keycloak secret
-        system_user_password = "admin"
+        system_user_password = os.getenv("SYSTEM_USER_PASSWORD")
+        assert system_user_password
         payload = json.load(f)
         payload["credentials"] = [{"type": "password", "value": system_user_password}]
-        keycloak.post_user(payload)
+        keycloak.post_user(payload, reset_password=True)
 
     ### Add impersonation role to system user
     keycloak.post_client_role_mapping("realm-management", "impersonation", "system")

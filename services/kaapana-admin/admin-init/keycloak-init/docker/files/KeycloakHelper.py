@@ -164,9 +164,21 @@ class KeycloakHelper:
                 payload.append(role)
         return self.make_authorized_request(url, requests.post, payload)
 
-    def post_user(self, payload, **kwargs):
+    def post_user(self, payload, reset_password=False, **kwargs):
         url = self.auth_url + "kaapana/users"
-        return self.make_authorized_request(url, requests.post, payload, **kwargs)
+        response = self.make_authorized_request(url, requests.post, payload, **kwargs)
+        if response.status_code == 409 and reset_password:
+            logger.warning(f"Reset password!")
+            user = self.get_user_by_name(payload.get("username"))
+            user_id = user.get("id")
+            url = self.auth_url + f"kaapana/users/{user_id}/reset-password"
+            reset_payload = payload.get("credentials")[0]
+            reset_payload["temporary"] = False
+            reset_response = self.make_authorized_request(
+                url, requests.put, reset_payload, **kwargs
+            )
+            reset_response.raise_for_status()
+            logger.info(f"Reset password for user {user_id} ")
 
     def get_client_id(self, client_name: str):
         all_clients = self.make_authorized_request(
@@ -229,7 +241,6 @@ class KeycloakHelper:
         client_id = self.get_client_id(client)
         role_representation = self.get_client_role(client_id, client_role)
         user_id = self.get_user_by_name(username).get("id")
-        print(user_id)
         url = (
             self.auth_url + f"kaapana/users/{user_id}/role-mappings/clients/{client_id}"
         )

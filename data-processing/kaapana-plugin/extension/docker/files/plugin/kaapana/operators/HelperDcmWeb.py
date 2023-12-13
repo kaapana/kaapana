@@ -12,6 +12,7 @@ from glob import glob
 from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
     OIDC_CLIENT_SECRET,
+    SYSTEM_USER_PASSWORD,
 )
 
 
@@ -30,7 +31,7 @@ class HelperDcmWeb:
         self.application_entity = application_entity
         self.access_token = access_token
         self.system_user = "system"
-        self.system_user_password = "admin"
+        self.system_user_password = SYSTEM_USER_PASSWORD
         self.client_secret = OIDC_CLIENT_SECRET
         self.client_id = "kaapana"
         self.username = username

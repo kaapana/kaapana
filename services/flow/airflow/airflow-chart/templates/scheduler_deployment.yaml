@@ -146,6 +146,11 @@ spec:
           value: "1"
         - name: OIDC_CLIENT_SECRET
           value: "{{ .Values.global.oidc_client_secret }}"
+        - name: SYSTEM_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: system-user-password
+              key: system-user-password
         resources:
           requests:
             memory: 3000Mi

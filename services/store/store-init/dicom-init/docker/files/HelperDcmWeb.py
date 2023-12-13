@@ -4,6 +4,7 @@ import time
 
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET")
+SYSTEM_USER_PASSWORD = os.getenv("SYSTEM_USER_PASSWORD")
 
 
 class MyHelperDcmWeb:
@@ -14,7 +15,7 @@ class MyHelperDcmWeb:
         self.application_entity = application_entity
         self.access_token = access_token
         self.system_user = "system"
-        self.system_user_password = "admin"
+        self.system_user_password = SYSTEM_USER_PASSWORD
         self.client_secret = OIDC_CLIENT_SECRET
         self.client_id = "kaapana"
         self.username = username

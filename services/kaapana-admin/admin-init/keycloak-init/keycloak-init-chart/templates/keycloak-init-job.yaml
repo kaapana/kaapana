@@ -42,6 +42,11 @@ spec:
               value: "{{ .Values.global.dev_mode }}"
             - name: KAAPANA_INIT_PASSWORD
               value: "{{ .Values.global.kaapana_init_password }}"
+            - name: SYSTEM_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: system-user-password
+                  key: system-user-password
         restartPolicy: Never
         serviceAccountName: kaapana-kube-admin
         imagePullSecrets:

@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+data:
+  nginx.conf: |
+    server {
+        listen 8080 default_server;
+        listen [::]:8080 default_server;
+
+        location / {
+            # if ($http_x_forwarded_proto = 'http') {
+            #    return 301 https://$server_name$request_uri;   
+            #}
+            auth_request /auth;
+            proxy_pass http://localhost:8081/;
+        }
+        location /auth {
+            internal;
+            proxy_pass http://auth-backend-service.admin.svc:5000/auth-check;
+            proxy_set_header X-FORWARDED-URI $request_uri;
+            proxy_pass_request_headers on;
+        }
+        }
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: "{{  .Values.global.helm_namespace  }}"
+---

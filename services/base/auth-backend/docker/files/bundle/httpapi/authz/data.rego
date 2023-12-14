@@ -21,7 +21,7 @@ allowed_user_endpoints := [
     {"path": "^/minio-console.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/ohif.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/.*", "methods": ["GET","POST","PUT","DELETE"]},
-    {"path": "^/dcm4chee-arc/.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/dcm4chee-arc/ui2.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/meta/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/slim.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/mitk-workbench-chart-.*", "methods": ["GET","POST","PUT","DELETE"]},
@@ -41,7 +41,12 @@ allowed_admin_endpoints := [
     {"path":"^/.*", "methods": ["GET","POST","PUT","DELETE"]},
     ]
 
+allowed_dcm4chee_admin_endpoints :=[
+     {"path": "^/dcm4chee-arc/.*", "methods": ["GET","POST","PUT","DELETE"]},
+]
+
 endpoints_per_role := {
     "user" : allowed_user_endpoints,
     "admin" : allowed_admin_endpoints,
+    "dcm4chee-admin": allowed_dcm4chee_admin_endpoints,
 }

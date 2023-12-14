@@ -91,8 +91,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            download_successful = HelperDcmWeb.downloadSeries(
-                seriesUID=seriesUID, target_dir=target_dir
+            download_successful = self.dcmweb_helper.downloadSeries(
+                series_uid=seriesUID, target_dir=target_dir
             )
             if not download_successful:
                 print("Could not download DICOM data!")
@@ -134,7 +134,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("# Starting module LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs["dag_run"].conf
-
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+        )
         dag_run_id = kwargs["dag_run"].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get("seriesInstanceUID")

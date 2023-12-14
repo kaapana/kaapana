@@ -13,5 +13,6 @@ COPY files/requirements.txt /kaapana/app/
 RUN python3 -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
 
 COPY files/start.py /kaapana/app/start.py
+COPY files/HelperDcmWeb.py /kaapana/app/HelperDcmWeb.py
 
 CMD ["python3","-u","/kaapana/app/start.py"]

@@ -56,13 +56,9 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-
-        conf = kwargs["dag_run"].conf
-        try:
-            username = conf["form_data"].get("username")
-        except KeyError:
-            username = "system"
-        self.dcmweb_helper = HelperDcmWeb(username, self.aetitle)
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
+        )
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]

@@ -9,7 +9,7 @@ import json
 from zipfile import ZipFile
 from subprocess import PIPE, run
 from opensearchpy import OpenSearch
-from HelperDcmWeb import MyHelperDcmWeb
+import HelperDcmWeb
 
 tmp_data_dir = "/slow_data_dir/TMP"
 ctp_url = os.getenv("CTP_URL", None)
@@ -177,11 +177,12 @@ def send_meta_init():
 
 
 def check_file_on_platform(examples_send):
-    dcmweb_helper = MyHelperDcmWeb("system", "KAAPANA")
     for file in examples_send:
         max_counter = 100
         counter = 0
-        quido_success = dcmweb_helper.check_file_on_platform(file)
+        quido_success = HelperDcmWeb.check_file_on_platform(
+            file, application_entity="KAAPANA"
+        )
         if not quido_success:
             print("File not found in PACs!")
             exit(1)

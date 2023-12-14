@@ -134,11 +134,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("# Starting module LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs["dag_run"].conf
-        try:
-            username = self.conf["form_data"].get("username")
-        except KeyError:
-            username = "system"
-        self.dcmweb_helper = HelperDcmWeb(username, "KAAPANA")
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+        )
         dag_run_id = kwargs["dag_run"].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get("seriesInstanceUID")

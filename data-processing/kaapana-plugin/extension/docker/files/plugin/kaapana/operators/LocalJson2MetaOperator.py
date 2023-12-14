@@ -88,13 +88,9 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         global es
-
-        conf = kwargs["dag_run"].conf
-        try:
-            username = conf["form_data"].get("username")
-        except KeyError:
-            username = "system"
-        self.dcmweb_helper = HelperDcmWeb(username, "KAAPANA")
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+        )
 
         self.ti = kwargs["ti"]
         print("# Starting module json2meta")

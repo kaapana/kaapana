@@ -37,9 +37,9 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
             json.dump(tasklist, f, ensure_ascii=False, indent=4)
 
     def get_files(self, ds, **kwargs):
-        conf = kwargs["dag_run"].conf
-        username = conf["form_data"].get("username")
-        self.dcmweb_helper = HelperDcmWeb(username, self.aetitle)
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
+        )
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [

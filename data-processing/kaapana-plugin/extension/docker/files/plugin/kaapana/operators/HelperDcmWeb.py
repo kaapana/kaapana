@@ -24,17 +24,50 @@ class DcmWebException(Exception):
 
 
 class HelperDcmWeb:
-    def __init__(self, username, application_entity, access_token=None):
+    """
+    Helper class for making authorized requests against a dcm4chee archive.
+    """
+
+    def __init__(
+        self,
+        application_entity: str,
+        dag_run=None,
+        username: str = None,
+        access_token: str = None,
+    ):
+        """
+        :param application_entity: Title of the application entity to communicate with
+        :param dag_run: Airflow dag object.
+        :param username: Username of the keycloak user that wants to communicate with dcm4chee.
+        :access_token: Access token that should be used for communication with dcm4chee.
+        """
+        assert dag_run or username or access_token
         self.dcmweb_endpoint = (
             f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets"
         )
         self.application_entity = application_entity
-        self.access_token = access_token
         self.system_user = "system"
         self.system_user_password = SYSTEM_USER_PASSWORD
         self.client_secret = OIDC_CLIENT_SECRET
         self.client_id = "kaapana"
-        self.username = username
+
+        ### Determine user
+        if username:
+            self.username = username
+        elif dag_run:
+            conf_data = dag_run.conf
+            try:
+                self.username = conf_data["form_data"].get("username")
+            except KeyError:
+                tags = dag_run.dag.tags
+                if "service" in tags:
+                    self.username = self.system_user
+                    logger.info("Task belongs to a service dag-run")
+        else:
+            assert access_token
+            self.username = None
+
+        ### Set access token for requests to dcm4chee
         if access_token:
             self.access_token = access_token
         elif self.username == self.system_user:
@@ -54,6 +87,9 @@ class HelperDcmWeb:
         self,
         ssl_check=False,
     ):
+        """
+        Get access token for the system user.
+        """
         payload = {
             "username": self.system_user,
             "password": self.system_user_password,
@@ -67,6 +103,9 @@ class HelperDcmWeb:
         return access_token
 
     def impersonate_user(self):
+        """
+        Get access token for a user via token exchange.
+        """
         admin_access_token = self.get_system_user_token()
         url = f"http://keycloak-external-service.admin.svc:80/auth/realms/{self.client_id}/protocol/openid-connect/token"
         data = {
@@ -85,7 +124,7 @@ class HelperDcmWeb:
 
     def set_access_control_id_of_study(self, access_control_id: str):
         """
-        Set the access control id of a study
+        Set the access control id of a study in dcm4chee
         """
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies/{access_control_id}/access/{access_control_id}"
         r = requests.put(
@@ -96,7 +135,7 @@ class HelperDcmWeb:
 
     def add_access_control_id_to_ae(self, access_control_id: str):
         """
-        Add access control id to Application entity
+        Add access control id to an application entity in dcm4chee
         """
         url = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/aets/{self.application_entity}/access-control-id/{access_control_id}"
         r = requests.put(
@@ -105,24 +144,10 @@ class HelperDcmWeb:
         )
         r.raise_for_status()
 
-    def check_file_on_platform(self, file, max_counter=100):
-        counter = 0
-        while counter < max_counter:
-            # quido file
-            r = requests.get(
-                f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies/{file['study_uid']}/series/{file['series_uid']}/instances",
-                verify=False,
-                headers=self.auth_headers,
-            )
-
-            if r.status_code != requests.codes.ok:
-                counter += 1
-                time.sleep(10)
-            else:
-                return True
-        return False
-
     def check_if_series_in_archive(self, seriesUID):
+        """
+        Check if a series exists in the archive and belongs to the application entity
+        """
         max_tries = 30
         tries = 0
         while tries < max_tries:
@@ -263,7 +288,7 @@ class HelperDcmWeb:
 
     def delete_study(self, study_uid: str):
         logger.info(f"Deleting study {study_uid}")
-        if not self.get_study(
+        if not self.get_instances_of_study(
             study_uid=study_uid, application_entity=self.application_entity
         ):
             logger.warn("Study does not exist on PACS")
@@ -275,12 +300,12 @@ class HelperDcmWeb:
         time.sleep(5)
         logger.info("Rejection complete")
         # After the rejection there can be Key Object Selection Document Storage left on the pacs,
-        # these will disapear when the study is finaly deleted, so a check self.get_study(study_uid,aet)
+        # these will disapear when the study is finaly deleted, so a check
         # may still return results in this spot
 
         logger.info("2/2: deleting study")
         aet_rejection_stage = "IOCM_QUALITY"
-        if not self.get_study(
+        if not self.get_instances_of_study(
             study_uid=study_uid, application_entity=aet_rejection_stage
         ):
             raise DcmWebException(
@@ -302,12 +327,12 @@ class HelperDcmWeb:
         time.sleep(5)
         for ae in [aet_rejection_stage, self.application_entity]:
             logger.info(f"Check if study is removed from {ae}")
-            if self.get_study(study_uid, ae):
+            if self.get_instances_of_study(study_uid, ae):
                 raise DcmWebException(f"Deletion of study {study_uid} failed")
 
         logger.info(f"Deletion of {study_uid} complete")
 
-    def get_study(self, study_uid, application_entity=None):
+    def get_instances_of_study(self, study_uid, application_entity=None):
         """
         Get all instances of a study
         """
@@ -322,9 +347,9 @@ class HelperDcmWeb:
             response.raise_for_status()
             return response.json()
 
-    def get_series(self, study_uid, series_uid):
+    def get_instances_of_series(self, study_uid, series_uid):
         """
-        Get all instances of a specific series
+        Get all instances of a specific series of a specific study
         """
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies/{study_uid}/series/{series_uid}/instances"
         response = requests.get(url, headers=self.auth_headers)
@@ -389,7 +414,7 @@ class HelperDcmWeb:
             logger.info("4/4 Delete temp files")
             # deletion of tmp_files should happen automaticaly if scope of tmp_dir is left
 
-        if self.get_series(study_uid, series_uid):
+        if self.get_instances_of_series(study_uid, series_uid):
             raise DcmWebException(f"Series {series_uid} still exists after deletion")
         logger.info(f"Series {series_uid} sucessfully deleted")
 

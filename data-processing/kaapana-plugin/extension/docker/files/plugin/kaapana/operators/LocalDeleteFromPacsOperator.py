@@ -21,11 +21,9 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
-        try:
-            username = conf["form_data"].get("username")
-        except KeyError:
-            username = "system"
-        self.dcmweb_helper = HelperDcmWeb(username, self.pacs_aet)
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity=self.pacs_aet, dag_run=kwargs["dag_run"]
+        )
         print("conf", conf)
         if (
             "form_data" in conf

@@ -90,6 +90,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     :type affinity: dict
     :param node_selectors: A dict containing a group of scheduling rules
     :type node_selectors: dict
+    :param tolerations: A V1Toleration list specifying pod tolerations
+    :type node_selectors: list[V1Toleration]
     :param config_file: The path to the Kublernetes config file
     :type config_file: str
     :param xcom_push: If xcom_push is True, the content of the file
@@ -160,6 +162,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         config_file=None,
         xcom_push=False,
         node_selectors=None,
+        tolerations=None,
         secrets=None,
         kind="Pod",
         pool=None,
@@ -234,6 +237,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
         self.node_selectors = node_selectors or {}
+        self.tolerations = tolerations
         self.annotations = annotations or {}
         self.affinity = affinity or {}
         self.xcom_push = xcom_push
@@ -621,6 +625,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 secrets=self.secrets,
                 labels=self.labels,
                 node_selectors=self.node_selectors,
+                tolerations=self.tolerations,
                 volumes=self.volumes,
                 volume_mounts=self.volume_mounts,
                 namespace=self.namespace,

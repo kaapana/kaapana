@@ -14,9 +14,9 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
     def downloadSeries(self, studyUID: str, seriesUID: str, target_dir: str):
         print("Downloading Series: %s" % seriesUID)
         print("Target DIR: %s" % target_dir)
-
-        dcm_web = HelperDcmWeb()
-        result = dcm_web.downloadSeries(seriesUID=seriesUID, target_dir=target_dir)
+        result = self.dcmweb_helper.downloadSeries(
+            series_uid=seriesUID, target_dir=target_dir
+        )
         return result
 
     def createTasklist(self, run_dir: str, tasks: list()):
@@ -37,6 +37,10 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
             json.dump(tasklist, f, ensure_ascii=False, indent=4)
 
     def get_files(self, ds, **kwargs):
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
+        )
+
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
@@ -73,8 +77,8 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
                         os.makedirs(target_dir)
 
                     result = self.downloadSeries(
-                        studyUID=incoming_dcm.StudyInstanceUID,
-                        seriesUID=seriesUID,
+                        study_uid=incoming_dcm.StudyInstanceUID,
+                        series_uid=seriesUID,
                         target_dir=target_dir,
                     )
                     if result:
@@ -118,6 +122,7 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
         aetitle="KAAPANA",
         **kwargs
     ):
+        self.aetitle = aetitle
         self.pacs_dcmweb = (
             pacs_dcmweb_host
             + ":"

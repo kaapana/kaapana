@@ -1,3 +1,4 @@
+from pydoc import Helper
 from typing import List, Dict
 from opensearchpy import OpenSearch
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
@@ -10,6 +11,7 @@ class HelperOpensearch:
     modality_tag = "00080060 Modality_keyword"
     protocol_name = "00181030 ProtocolName_keyword"
     curated_modality_tag = "00000000 CuratedModality_keyword"
+    custom_tag = "00000000 Tags_keyword"
 
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
     port = "9200"
@@ -32,23 +34,29 @@ class HelperOpensearch:
     )
 
     @staticmethod
-    def get_query_dataset(query, index=None, only_uids=False):
+    def get_query_dataset(
+        query, index=None, only_uids=False, include_custom_tag="", exclude_custom_tag=""
+    ):
         index = index if index is not None else HelperOpensearch.index
         print("Getting dataset for query: {}".format(query))
         print("index: {}".format(index))
+        includes = [
+            HelperOpensearch.study_uid_tag,
+            HelperOpensearch.series_uid_tag,
+            HelperOpensearch.SOPInstanceUID_tag,
+            HelperOpensearch.modality_tag,
+            HelperOpensearch.protocol_name,
+            HelperOpensearch.curated_modality_tag,
+        ]
+        if include_custom_tag != "":
+            includes.append(HelperOpensearch.include_custom_tag)
+        excludes = []
+        if exclude_custom_tag != "":
+            excludes.append(HelperOpensearch.exclude_custom_tag)
 
         query_dict = {
             "query": query,
-            "source": {
-                "includes": [
-                    HelperOpensearch.study_uid_tag,
-                    HelperOpensearch.series_uid_tag,
-                    HelperOpensearch.SOPInstanceUID_tag,
-                    HelperOpensearch.modality_tag,
-                    HelperOpensearch.protocol_name,
-                    HelperOpensearch.curated_modality_tag,
-                ]
-            },
+            "source": {"includes": includes},
         }
 
         try:
@@ -112,9 +120,29 @@ class HelperOpensearch:
         return _execute_opensearch_query()
 
     @staticmethod
-    def get_dcm_uid_objects(series_instance_uids):
+    def get_dcm_uid_objects(
+        series_instance_uids, include_custom_tag="", exclude_custom_tag=""
+    ):
+        # defauly query for fetching via identifiers
+        query = {"bool": {"must": [{"ids": {"values": series_instance_uids}}]}}
+        # must have custom tag
+        if include_custom_tag != "":
+            query["bool"]["must"].append(
+                {"term": {"00000000 Tags_keyword.keyword": include_custom_tag}}
+            )
+        # must_not have custom tag
+        if exclude_custom_tag != "":
+            if "must_not" in query["bool"]:
+                query["bool"]["must_not"].append(
+                    {"term": {"00000000 Tags_keyword.keyword": exclude_custom_tag}}
+                )
+            else:
+                query["bool"]["must_not"] = [
+                    {"term": {"00000000 Tags_keyword.keyword": exclude_custom_tag}}
+                ]
+
         res = HelperOpensearch.execute_opensearch_query(
-            query={"bool": {"must": [{"ids": {"values": series_instance_uids}}]}},
+            query=query,
             index=HelperOpensearch.index,
             source={
                 "includes": [

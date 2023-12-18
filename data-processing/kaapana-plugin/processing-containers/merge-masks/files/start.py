@@ -220,7 +220,7 @@ def fuse(
             logger.error("")
             logger.error("")
             logger.error("")
-            exit(1)
+            continue
 
         # compose a fuse_label_dict of current fuse_label
         fuse_label_dict = {}

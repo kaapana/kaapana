@@ -292,6 +292,23 @@ def fuse(
                     )
                 )
                 mod_segment["labelID"] = fused_label_int
+                # ensure that 'CodeMeaning' attribute is the same as 'SegmentLabel'
+                if (
+                    "SegmentedPropertyCategoryCodeSequence" in mod_segment
+                    and "SegmentedPropertyTypeCodeSequence" in mod_segment
+                ):
+                    if (
+                        "CodeMeaning"
+                        in mod_segment["SegmentedPropertyCategoryCodeSequence"]
+                        and "CodeMeaning"
+                        in mod_segment["SegmentedPropertyTypeCodeSequence"]
+                    ):
+                        mod_segment["SegmentedPropertyCategoryCodeSequence"][
+                            "CodeMeaning"
+                        ] = mod_segment["SegmentLabel"]
+                        mod_segment["SegmentedPropertyTypeCodeSequence"][
+                            "CodeMeaning"
+                        ] = mod_segment["SegmentLabel"]
                 mod_segmentAttributes.append([mod_segment])
                 added_fused_label = True
             else:
@@ -299,6 +316,18 @@ def fuse(
         else:
             mod_segmentAttributes.append(segment)
     meta_json_dict["segmentAttributes"] = mod_segmentAttributes
+
+    # remove eventually present "\\t", "\t", "\\s", "\s", "\\n" or "\n"
+    meta_json_dict = json.loads(
+        json.dumps(meta_json_dict)
+        .replace("\\t", "")
+        .replace("\t", "")
+        .replace("\\s", "")
+        .replace("\s", "")
+        .replace("\\n", "")
+        .replace("\n", "")
+    )
+
     # write meta_json_dict to output_dir
     meta_json_in_dir = glob(
         join(Path(dirname(input_files[0])), "*.json"), recursive=True
@@ -375,29 +404,29 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
     )
     assert len(input_files) > 0
 
-    # just a single label in seg_info -> no merging
-    if len(seg_info_list) == 1:
-        logger.info("Only one label present -> no merging required.")
-        assert len(input_files) == 1
+    # # just a single label in seg_info -> no merging
+    # if len(seg_info_list) == 1:
+    #     logger.info("Only one label present -> no merging required.")
+    #     assert len(input_files) == 1
 
-        # process the single label
-        label_nifti_path = input_files[0]
-        nifti_loaded = nib.load(label_nifti_path)
-        nifti_numpy = nifti_loaded.get_fdata().astype(int)
-        nifti_labels_found = list(np.unique(nifti_numpy))
-        logger.info(f"{ nifti_labels_found= }")
-        if len(nifti_labels_found) > 1:
-            shutil.copy(label_nifti_path, target_nifti_path)
-            target_seg_info_dict["seg_info"].append(seg_info_list[0])
-            processed_count += 1
-            return True, nifti_dir, target_seg_info_dict
-        elif len(nifti_labels_found) == 1:
-            logger.error(f"No segmentation found in {label_nifti_path} -> skipping")
-            return True, nifti_dir, target_seg_info_dict
-        else:
-            logger.error("Unknown state -> no labels found-> abort")
-            logger.error(f"{nifti_labels_found=}")
-            exit(1)
+    #     # process the single label
+    #     label_nifti_path = input_files[0]
+    #     nifti_loaded = nib.load(label_nifti_path)
+    #     nifti_numpy = nifti_loaded.get_fdata().astype(int)
+    #     nifti_labels_found = list(np.unique(nifti_numpy))
+    #     logger.info(f"{ nifti_labels_found= }")
+    #     if len(nifti_labels_found) > 1:
+    #         shutil.copy(label_nifti_path, target_nifti_path)
+    #         target_seg_info_dict["seg_info"].append(seg_info_list[0])
+    #         processed_count += 1
+    #         return True, nifti_dir, target_seg_info_dict
+    #     elif len(nifti_labels_found) == 1:
+    #         logger.error(f"No segmentation found in {label_nifti_path} -> skipping")
+    #         return True, nifti_dir, target_seg_info_dict
+    #     else:
+    #         logger.error("Unknown state -> no labels found-> abort")
+    #         logger.error(f"{nifti_labels_found=}")
+    #         exit(1)
 
     if mode == "combine":
         res, target_seg_info_dict = combine(

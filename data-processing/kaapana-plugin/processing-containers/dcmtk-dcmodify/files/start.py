@@ -3,6 +3,7 @@ from os import getenv
 from os.path import join, exists, dirname, basename
 from glob import glob
 from pathlib import Path
+import shutil
 
 # For shell-execution
 from subprocess import PIPE, run
@@ -14,14 +15,27 @@ processed_count = 0
 
 
 # Alternative Process smth via shell-command
-def process_input_file(filepath):
+def process_input_file(filepath, mode):
     global processed_count, execution_timeout, dcm_tags_to_modify, new_values
 
     print(f"# Processing dcm-file: {filepath}")
     command = ["dcmodify"]
     for i, dcm_tag in enumerate(dcm_tags_to_modify, start=0):
         print(f"# Adding tag: {dcm_tag}")
-        command.append("-m")
+        if mode == "modify":
+            command.append("-m")
+        elif mode == "insert":
+            command.append("-i")
+        else:
+            print("#")
+            print("##################  ERROR  #######################")
+            print("#")
+            print("# Specify either 'insert' or 'modify' as valid modes for dcmodify!")
+            print(f"Given mode: {mode}")
+            print("#")
+            exit(1)
+        # safe to not do a backup since we already have it in the operator_input_dir
+        command.append("--no-backup")
         command.append(dcm_tag)
 
     command.append(filepath)
@@ -88,6 +102,10 @@ assert dcm_tags_to_modify is not None
 
 dcm_tags_to_modify = dcm_tags_to_modify.split(";")
 
+mode = getenv("MODE", "None")
+mode = mode if mode.lower() != "none" else None
+assert mode is not None
+
 
 # File-extension to search for in the input-dir
 input_file_extension = "*.dcm"
@@ -105,6 +123,7 @@ print(f"# operator_in_dir:  {operator_in_dir}")
 print(f"# operator_out_dir: {operator_out_dir}")
 print("#")
 print(f"# dcm_tags_to_modify: {dcm_tags_to_modify}")
+print(f"# dcmodify mode: {mode}")
 print("#")
 print("##################################################")
 print("#")
@@ -133,14 +152,21 @@ for batch_element_dir in batch_folders:
     # creating output dir
     Path(element_output_dir).mkdir(parents=True, exist_ok=True)
 
-    # creating output dir
-    input_files = glob(join(element_input_dir, input_file_extension), recursive=True)
+    # copy content from operator_in_dir to operator_out_dir
+    # Note: this is necessary since dcmodify modifies existing DICOM file, but we want to preserve original DICOM file
+    # Remove the destination directory if it exists
+    shutil.rmtree(element_output_dir, ignore_errors=True)
+    # Copy the contents of the source directory to the destination directory
+    shutil.copytree(element_input_dir, element_output_dir)
+
+    # find to-be-processed files
+    input_files = glob(join(element_output_dir, input_file_extension), recursive=True)
     print(f"# Found {len(input_files)} input-files!")
 
     # Single process:
     # Loop for every input-file found with extension 'input_file_extension'
     for input_file in input_files:
-        result, input_file = process_input_file(filepath=input_file)
+        result, input_file = process_input_file(filepath=input_file, mode=mode)
 
 
 print("#")
@@ -181,7 +207,7 @@ if processed_count == 0:
         # Single process:
         # Loop for every input-file found with extension 'input_file_extension'
         for input_file in input_files:
-            result, input_file = process_input_file(filepath=input_file)
+            result, input_file = process_input_file(filepath=input_file, mode=mode)
 
     print("#")
     print("##################################################")

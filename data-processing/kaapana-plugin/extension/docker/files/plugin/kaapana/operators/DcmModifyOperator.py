@@ -21,6 +21,7 @@ class DcmModifyOperator(KaapanaBaseOperator):
 
     * DICOM files which should be modified.
     * DICOM tags which should be modified in given DICOM files.
+    * mode: "insert" to insert new DICOM tag + value, or "modify" to modify/overwrite existing DICOM tag
 
     **Outputs:**
 
@@ -33,6 +34,7 @@ class DcmModifyOperator(KaapanaBaseOperator):
         self,
         dag,
         dicom_tags_to_modify,  # eg: "(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0017)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0018)=1.2.840.10008.5.1.4.1.1.88.11"
+        mode="modify",
         name="DcmModify",
         env_vars={},
         execution_timeout=execution_timeout,
@@ -44,6 +46,7 @@ class DcmModifyOperator(KaapanaBaseOperator):
 
         envs = {
             "DICOM_TAGS_TO_MODIFY": str(dicom_tags_to_modify),
+            "MODE": mode,
         }
         env_vars.update(envs)
 

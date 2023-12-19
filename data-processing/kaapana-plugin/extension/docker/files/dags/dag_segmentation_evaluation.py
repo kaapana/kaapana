@@ -18,6 +18,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from nnunet.SegCheckOperator import SegCheckOperator
+from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 
 
 # TODO: rm nnunet specific operators
@@ -81,7 +82,7 @@ get_gt_images = LocalGetInputDataOperator(
     dataset_limit=None,
     parallel_downloads=5,
     check_modality=False,
-    include_custom_tag_property="test_tag",
+    exclude_custom_tag_property="test_tag",
 )
 
 get_test_images = LocalGetInputDataOperator(
@@ -91,7 +92,17 @@ get_test_images = LocalGetInputDataOperator(
     dataset_limit=None,
     parallel_downloads=5,
     check_modality=False,
-    exclude_custom_tag_property="test_tag",
+    include_custom_tag_property="test_tag",
+)
+
+get_ref_ct_from_gt = LocalGetRefSeriesOperator(
+    dag=dag,
+    input_operator=get_gt_images,
+    search_policy="reference_uid",
+    parallel_downloads=5,
+    parallel_id="gt",
+    modality=None,
+    batch_name="gt-dataset",
 )
 
 get_ref_ct_from_test = LocalGetRefSeriesOperator(
@@ -99,15 +110,24 @@ get_ref_ct_from_test = LocalGetRefSeriesOperator(
     input_operator=get_test_images,
     search_policy="reference_uid",
     parallel_downloads=5,
-    parallel_id="ct",
+    parallel_id="test",
     modality=None,
     batch_name="test-dataset",
 )
 
-dcm2nifti_ct = DcmConverterOperator(
+dcmconverter_gt = DcmConverterOperator(
+    dag=dag,
+    input_operator=get_ref_ct_from_gt,
+    parallel_id="gt",
+    parallel_processes=parallel_processes,
+    batch_name="gt-dataset",
+    output_format="nii.gz",
+)
+
+dcmconverter_test = DcmConverterOperator(
     dag=dag,
     input_operator=get_ref_ct_from_test,
-    parallel_id="ct",
+    parallel_id="test",
     parallel_processes=parallel_processes,
     batch_name="test-dataset",
     output_format="nii.gz",
@@ -127,11 +147,28 @@ dcm2nifti_test = Mask2nifitiOperator(
     parallel_id="test",
 )
 
+seg_check_gt = SegCheckOperator(
+    dag=dag,
+    name="seg_check_gt",
+    input_operator=dcm2nifti_gt,
+    original_img_operator=dcmconverter_gt,
+    target_dict_operator=None, # TODO: check out what this does
+    parallel_processes=parallel_processes,
+    max_overlap_percentage=100,
+    merge_found_niftis=True,
+    delete_merged_data=False,
+    fail_if_overlap=False,
+    fail_if_label_already_present=False,
+    fail_if_label_id_not_extractable=False,
+    force_same_labels=False,
+    batch_name="gt-dataset",
+)
+
 seg_check_test = SegCheckOperator(
     dag=dag,
     name="seg_check_test",
     input_operator=dcm2nifti_test,
-    original_img_operator=dcm2nifti_ct,
+    original_img_operator=dcmconverter_test,
     parallel_processes=parallel_processes,
     max_overlap_percentage=100,
     merge_found_niftis=False,
@@ -143,10 +180,12 @@ seg_check_test = SegCheckOperator(
     batch_name="test-dataset",
 )
 
+# TODO: Add a new operator that can link segmentantations based on reference CTs with two different batches
 evaluation = DiceEvaluationOperator(
     dag=dag,
+    dev_server="code-server",
     anonymize=True,
-    gt_operator=dcm2nifti_gt,
+    gt_operator=seg_check_gt,
     input_operator=seg_check_test,
     parallel_processes=1,
     trigger_rule="all_done",
@@ -180,9 +219,10 @@ put_report_to_minio = LocalMinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_gt_images >> dcm2nifti_gt >> evaluation
+get_gt_images >> get_ref_ct_from_gt >> dcm2nifti_gt >> seg_check_gt
+get_ref_ct_from_gt >> dcmconverter_gt >> seg_check_gt >> evaluation
 
 get_test_images >> get_ref_ct_from_test >> dcm2nifti_test >> seg_check_test
-get_ref_ct_from_test >> dcm2nifti_ct >> seg_check_test >> evaluation
+get_ref_ct_from_test >> dcmconverter_test >> seg_check_test >> evaluation
 
 evaluation >> nnunet_evaluation_notebook >> put_to_minio >> put_report_to_minio >> clean

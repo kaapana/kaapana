@@ -10,6 +10,7 @@ from modify_dcmseg.LocalModifySegLabelNamesOperator import (
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.DcmModifyOperator import DcmModifyOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 
@@ -91,10 +92,18 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     modality=None,
 )
 
+dcmodify = DcmModifyOperator(
+    dag=dag,
+    name="dcmodify-ct",
+    input_operator=get_ref_ct_series_from_seg,
+    dicom_tags_to_modify="(0020,0052)=RANDOM_UID;(0020,1040)=;(0020,0032)=0.000\\0.000\\0.000",
+    mode="insert",
+)
+
 dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_input,
-    dicom_operator=get_ref_ct_series_from_seg,
+    dicom_operator=dcmodify,
 )
 
 fuse_masks = MergeMasksOperator(
@@ -119,7 +128,7 @@ modify_seg_label_names = LocalModifySegLabelNamesOperator(
 
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
-    input_operator=get_ref_ct_series_from_seg,
+    input_operator=dcmodify,
     segmentation_operator=combine_masks,
     input_type="multi_label_seg",
     multi_label_seg_name="rename-seg-label-names",
@@ -140,6 +149,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 (
     get_input
     >> get_ref_ct_series_from_seg
+    >> dcmodify
     >> dcm2nifti_seg
     >> fuse_masks
     >> combine_masks

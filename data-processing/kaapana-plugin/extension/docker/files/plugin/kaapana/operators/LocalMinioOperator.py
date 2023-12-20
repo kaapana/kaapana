@@ -7,10 +7,7 @@ from zipfile import ZipFile
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperMinio import HelperMinio
-from kaapana.operators.KaapanaPythonBaseOperator import (
-    KaapanaPythonBaseOperator,
-    rest_self_udpate,
-)
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from minio import Minio
 
 
@@ -20,7 +17,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
     """
 
     @cache_operator_output
-    @rest_self_udpate
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
         print("conf", conf)

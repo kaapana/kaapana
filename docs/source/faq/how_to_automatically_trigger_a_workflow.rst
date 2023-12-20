@@ -21,9 +21,6 @@ Example:
         "dag_ids": {
             "service-extract-metadata": {
                 "fetch_method": "copy",
-                "rest_call": {
-                    "global": {}
-                },
                 "single_execution" : false
             }
         }

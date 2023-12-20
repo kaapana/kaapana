@@ -7,11 +7,7 @@ from zipfile import ZipFile
 from persistence.HelperPersistence import CASClient
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.KaapanaPythonBaseOperator import (
-    KaapanaPythonBaseOperator,
-    rest_self_udpate,
-)
-
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 class LocalCASPutOperator(KaapanaPythonBaseOperator):
     """
@@ -19,7 +15,6 @@ class LocalCASPutOperator(KaapanaPythonBaseOperator):
     """
 
     @cache_operator_output
-    @rest_self_udpate
     def start(self, ds, **kwargs):
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders = [

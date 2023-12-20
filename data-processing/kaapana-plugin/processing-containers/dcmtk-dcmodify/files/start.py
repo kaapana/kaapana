@@ -4,6 +4,7 @@ from os.path import join, exists, dirname, basename
 from glob import glob
 from pathlib import Path
 import shutil
+import pydicom
 
 # For shell-execution
 from subprocess import PIPE, run
@@ -16,15 +17,21 @@ processed_count = 0
 
 # Alternative Process smth via shell-command
 def process_input_file(filepath, mode):
-    global processed_count, execution_timeout, dcm_tags_to_modify, new_values
-
+    global processed_count, execution_timeout, dcm_tags_to_modify
     print(f"# Processing dcm-file: {filepath}")
     command = ["dcmodify"]
+    # safe to not do a backup since we already have it in the operator_input_dir
+    command.append("--no-backup")
     for i, dcm_tag in enumerate(dcm_tags_to_modify, start=0):
         print(f"# Adding tag: {dcm_tag}")
         if mode == "modify":
             command.append("-m")
         elif mode == "insert":
+            print("#")
+            print(
+                "# WARNING: mode INSERT will overwrite eventually present DICOM tags!"
+            )
+            print("#")
             command.append("-i")
         else:
             print("#")
@@ -34,8 +41,6 @@ def process_input_file(filepath, mode):
             print(f"Given mode: {mode}")
             print("#")
             exit(1)
-        # safe to not do a backup since we already have it in the operator_input_dir
-        command.append("--no-backup")
         command.append(dcm_tag)
 
     command.append(filepath)
@@ -100,11 +105,23 @@ dcm_tags_to_modify = (
 )
 assert dcm_tags_to_modify is not None
 
-dcm_tags_to_modify = dcm_tags_to_modify.split(";")
-
 mode = getenv("MODE", "None")
 mode = mode if mode.lower() != "none" else None
 assert mode is not None
+
+# prepare dcm_tags_to_modify
+# split string into list
+dcm_tags_to_modify = dcm_tags_to_modify.split(";")
+temp_dcm_tags_to_modify = []
+for dcm_tag_to_modify in dcm_tags_to_modify:
+    dcm_tag_to_modify = dcm_tag_to_modify.split("=")
+    dcm_tag = dcm_tag_to_modify[0]
+    modified_value = dcm_tag_to_modify[1]
+    # change key-word RANDOM_UID to actual random uid
+    if modified_value == "RANDOM_UID":
+        modified_value = pydicom.uid.generate_uid()
+    temp_dcm_tags_to_modify.append(f"{dcm_tag}={modified_value}")
+dcm_tags_to_modify = temp_dcm_tags_to_modify
 
 
 # File-extension to search for in the input-dir

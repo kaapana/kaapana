@@ -7,10 +7,7 @@ import json
 import requests
 from airflow.exceptions import AirflowException
 from datetime import timedelta
-from kaapana.operators.KaapanaPythonBaseOperator import (
-    KaapanaPythonBaseOperator,
-    rest_self_udpate,
-)
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     PROCESSING_WORKFLOW_DIR,
     ADMIN_NAMESPACE,
@@ -24,17 +21,6 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
-    def rest_sets_update(self, payload):
-        operator_conf = {}
-        if "global" in payload:
-            operator_conf.update(payload["global"])
-        if "operators" in payload and self.name in payload["operators"]:
-            operator_conf.update(payload["operators"][self.name])
-
-        for k, v in operator_conf.items():
-            self.sets[k] = str(v)
-
-    @rest_self_udpate
     def start(self, ds, **kwargs):
         print(kwargs)
         release_name = (
@@ -78,15 +64,6 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             form_data = conf["form_data"]
             if "annotator" in form_data:
                 payload["sets"]["annotator"] = form_data["annotator"]
-
-        if (
-            kwargs["dag_run"] is not None
-            and "rest_call" in kwargs["dag_run"].conf
-            and kwargs["dag_run"].conf["rest_call"] is not None
-        ):
-            self.rest_sets_update(kwargs["dag_run"].conf["rest_call"])
-            print("CHART INSTALL SETS:")
-            print(json.dumps(self.sets, indent=4, sort_keys=True))
 
         for set_key, set_value in self.sets.items():
             payload["sets"][set_key] = set_value

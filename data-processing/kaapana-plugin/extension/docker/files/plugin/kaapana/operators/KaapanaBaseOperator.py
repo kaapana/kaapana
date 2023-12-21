@@ -442,17 +442,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             session=session,
         )
 
-    def rest_env_vars_update(self, payload):
-        operator_conf = {}
-        if "global" in payload:
-            operator_conf.update(payload["global"])
-        if "operators" in payload and self.name in payload["operators"]:
-            operator_conf.update(payload["operators"][self.name])
-
-        for k, v in operator_conf.items():
-            k = k.upper()
-            self.env_vars[k] = str(v)
-
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
     @federated_sharing_decorator
@@ -494,20 +483,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         ):
             form_data = context["dag_run"].conf["form_data"]
             logging.info(form_data)
-            # form_envs = {}
-            # for form_key in form_data.keys():
-            #     form_envs[str(form_key.upper())] = str(form_data[form_key])
 
-            # self.env_vars.update(form_envs)
-            # logging.info("CONTAINER ENVS:")
-            # logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
-            context["dag_run"].conf["rest_call"] = {"global": form_data}
-        if (
-            context["dag_run"].conf is not None
-            and "rest_call" in context["dag_run"].conf
-            and context["dag_run"].conf["rest_call"] is not None
-        ):
-            self.rest_env_vars_update(context["dag_run"].conf["rest_call"])
+            for key, value in form_data.items():
+                key = key.upper()
+                self.env_vars[key] = str(value)
 
         self.env_vars.update(
             {

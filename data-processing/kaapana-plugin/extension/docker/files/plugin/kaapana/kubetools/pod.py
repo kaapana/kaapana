@@ -69,6 +69,7 @@ class Pod:
         annotations=None,
         restart_policy="Never",
         affinity=None,
+        tolerations=None,
     ):
         self.image = image
         self.envs = envs or {}
@@ -97,6 +98,7 @@ class Pod:
         self.last_kube_status = None
         self.last_af_status = None
         self.task_instance = None
+        self.tolerations = tolerations or []
 
     def get_kube_object(self):
         pod_api_version = self.api_version
@@ -121,6 +123,10 @@ class Pod:
         # spec - node_selector
         if self.node_selectors is not None and len(self.node_selectors) is not 0:
             pod_spec.node_selector = self.node_selectors
+
+        # spec - tolerations
+        if self.tolerations is not None and len(self.tolerations) is not 0:
+            pod_spec.tolerations = self.tolerations
 
         # spec - init_container
         if self.init_containers is not None:

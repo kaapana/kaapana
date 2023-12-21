@@ -9,18 +9,16 @@ metadata:
 spec:
   selector:
     app-name: minio
-  type: NodePort
+  type: ClusterIP
   ports:
     - name: minio-server-port
       port: 9000
       protocol: TCP
       targetPort: 9000
-      nodePort: 9000
     - name: minio-console-port
       port: 9090
       protocol: TCP
       targetPort: 9090
-      nodePort: 9090
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware

@@ -22,7 +22,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_images }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+              value: "keycloak,keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc,80"
             - name: DELAY
               value: "3"
             - name: TIMEOUT

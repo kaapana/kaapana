@@ -21,7 +21,8 @@ class DcmModifyOperator(KaapanaBaseOperator):
 
     * DICOM files which should be modified.
     * DICOM tags which should be modified in given DICOM files.
-    * mode: "insert" to insert new DICOM tag + value, or "modify" to modify/overwrite existing DICOM tag
+    * mode: "insert" to insert new DICOM tag + value, or "modify" to modify existing DICOM tag, or "overwrite" to overwrite specified dicom_tags in input_dcm_file with same dicom_tag in gt_dcm_file
+    * gt_dicom_operator: only necessary for mode 'overwrite'; specifies ground truth dicom file from which dicom_tag is taken and overwritten in nput_dcm_file
 
     **Outputs:**
 
@@ -34,19 +35,23 @@ class DcmModifyOperator(KaapanaBaseOperator):
         self,
         dag,
         dicom_tags_to_modify,  # eg: "(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0017)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0018)=1.2.840.10008.5.1.4.1.1.88.11"
+        gt_dicom_operator=None,
         mode="modify",
-        name="DcmModify",
+        name="dcmodify",
         env_vars={},
         execution_timeout=execution_timeout,
         **kwargs,
     ):
         """
         :param dicom_tags_to_modify: List of all DICOM tags which should be modified in given DICOM file. Specify using the following syntax: eg: "(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0017)=1.2.840.10008.5.1.4.1.1.88.11; ... .
+        :param mode: 'modify', 'insert', 'overwrite'
+        :param gt_dicom_operator: only necessary for mode 'overwrite'; specifies ground truth dicom file from which dicom_tag is taken and overwritten in nput_dcm_file
         """
 
         envs = {
             "DICOM_TAGS_TO_MODIFY": str(dicom_tags_to_modify),
             "MODE": mode,
+            "GT_DICOM_OPERATOR": gt_dicom_operator,
         }
         env_vars.update(envs)
 

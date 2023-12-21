@@ -92,6 +92,8 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     modality=None,
 )
 
+# COMMENTED OUT BY DEFAULT: ONLY NECESSARY IF DICOM STANDARD FOR CT DATA IS VIOLATED
+# TODO: adjust subsequent operators and DAG flow
 dcmodify = DcmModifyOperator(
     dag=dag,
     name="dcmodify-ct",
@@ -137,9 +139,20 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name="modify-dcmseg",
 )
 
+# COMMENTED OUT BY DEFAULT: ONLY NECESSARY IF DICOM STANDARD FOR CT DATA IS VIOLATED
+# TODO: adjust subsequent operators and DAG flow
+dcmodify_seg = DcmModifyOperator(
+    dag=dag,
+    name="dcmodify-seg",
+    input_operator=nrrd2dcmSeg_multi,
+    gt_dicom_operator=get_input.operator_out_dir,
+    dicom_tags_to_modify="(0008,1115)=OVERWRITE",
+    mode="overwrite",
+)
+
 dicom_send = DcmSendOperator(
     dag=dag,
-    input_operator=nrrd2dcmSeg_multi,
+    input_operator=dcmodify_seg,
     ae_title="modify-dcmseg",
 )
 
@@ -148,13 +161,14 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
 
 (
     get_input
-    >> get_ref_ct_series_from_seg
-    >> dcmodify
     >> dcm2nifti_seg
     >> fuse_masks
     >> combine_masks
     >> modify_seg_label_names
     >> nrrd2dcmSeg_multi
+    >> dcmodify_seg
     >> dicom_send
     >> clean
 )
+get_input >> get_ref_ct_series_from_seg >> dcmodify >> nrrd2dcmSeg_multi
+dcmodify >> dcm2nifti_seg

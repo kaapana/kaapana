@@ -15,70 +15,102 @@ execution_timeout = 10
 processed_count = 0
 
 
+def overwrite(dcm_tags_to_modify, gt_dcm_operator_in_dir, filepath):
+    # search gt_dcm_file and read it in
+    gt_dcm_files = glob(os.path.join(gt_dcm_operator_in_dir, "*.dcm"))
+    gt_dcm = pydicom.dcmread(gt_dcm_files[0])
+
+    # load to-be-overwritten dcm file
+    mod_dcm = pydicom.dcmread(filepath)
+
+    for dcm_tag_to_modify in dcm_tags_to_modify:
+        # extract dcm_tag -> dcm_tag_keyword -> dcm_tag_val
+        dcm_tag_to_modify = dcm_tag_to_modify.split("=")
+        dcm_tag = dcm_tag_to_modify[0].strip("(),").replace(",", "")
+        dcm_tag_keyword = pydicom.datadict.keyword_for_tag(int(dcm_tag, 16))
+        dcm_tag_val = gt_dcm[dcm_tag_keyword]
+
+        # overwrite dcm_tag and val of mod_dcm with dcm_tag and val of gt_dcm
+        mod_dcm[dcm_tag_keyword] = dcm_tag_val
+
+    # save mod_dcm with overwritten dcm_tags
+    mod_dcm.save_as(filepath)
+
+
 # Alternative Process smth via shell-command
-def process_input_file(filepath, mode):
+def process_input_file(filepath, mode, gt_dcm_operator_in_dir):
     global processed_count, execution_timeout, dcm_tags_to_modify
-    print(f"# Processing dcm-file: {filepath}")
-    command = ["dcmodify"]
-    # safe to not do a backup since we already have it in the operator_input_dir
-    command.append("--no-backup")
-    for i, dcm_tag in enumerate(dcm_tags_to_modify, start=0):
-        print(f"# Adding tag: {dcm_tag}")
-        if mode == "modify":
-            command.append("-m")
-        elif mode == "insert":
+
+    # "overwrite" is a pydicom functionality
+    if mode == "overwrite":
+        overwrite(dcm_tags_to_modify, gt_dcm_operator_in_dir, filepath)
+
+    # "insert" and "modify" are dcmodify functionalities
+    elif mode == "insert" or mode == "modify":
+        print(f"# Processing dcm-file: {filepath}")
+        command = ["dcmodify"]
+        # safe to not do a backup since we already have it in the operator_input_dir
+        command.append("--no-backup")
+        for i, dcm_tag in enumerate(dcm_tags_to_modify, start=0):
+            print(f"# Adding tag: {dcm_tag}")
+            if mode == "modify":
+                command.append("-m")
+            elif mode == "insert":
+                print("#")
+                print(
+                    "# WARNING: mode INSERT will overwrite eventually present DICOM tags!"
+                )
+                print("#")
+                command.append("-i")
+            else:
+                print("#")
+                print("##################  ERROR  #######################")
+                print("#")
+                print(
+                    "# Specify either 'insert' or 'modify' as valid modes for dcmodify!"
+                )
+                print(f"Given mode: {mode}")
+                print("#")
+                exit(1)
+            command.append(dcm_tag)
+
+        command.append(filepath)
+        output = run(
+            command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            timeout=execution_timeout,
+        )
+        # command stdout output -> output.stdout
+        # command stderr output -> output.stderr
+        if output.returncode != 0:
             print("#")
-            print(
-                "# WARNING: mode INSERT will overwrite eventually present DICOM tags!"
-            )
-            print("#")
-            command.append("-i")
-        else:
+            print("##################################################")
             print("#")
             print("##################  ERROR  #######################")
             print("#")
-            print("# Specify either 'insert' or 'modify' as valid modes for dcmodify!")
-            print(f"Given mode: {mode}")
+            print("# ----> Something went wrong with the shell-execution!")
+            print(f"# Command:  {command}")
+            print(f"# Filepath: {filepath}")
             print("#")
-            exit(1)
-        command.append(dcm_tag)
+            print(f"# STDOUT:")
+            print("#")
+            for line in output.stdout.split("\\n"):
+                print(f"# {line}")
+            print("#")
+            print("#")
+            print("#")
+            print("#")
+            print(f"# STDERR:")
+            print("#")
+            for line in output.stderr.split("\\n"):
+                print(f"# {line}")
+            print("#")
+            print("##################################################")
+            print("#")
+            return False, filepath
 
-    command.append(filepath)
-    output = run(
-        command,
-        stdout=PIPE,
-        stderr=PIPE,
-        universal_newlines=True,
-        timeout=execution_timeout,
-    )
-    # command stdout output -> output.stdout
-    # command stderr output -> output.stderr
-    if output.returncode != 0:
-        print("#")
-        print("##################################################")
-        print("#")
-        print("##################  ERROR  #######################")
-        print("#")
-        print("# ----> Something went wrong with the shell-execution!")
-        print(f"# Command:  {command}")
-        print(f"# Filepath: {filepath}")
-        print("#")
-        print(f"# STDOUT:")
-        print("#")
-        for line in output.stdout.split("\\n"):
-            print(f"# {line}")
-        print("#")
-        print("#")
-        print("#")
-        print("#")
-        print(f"# STDERR:")
-        print("#")
-        for line in output.stderr.split("\\n"):
-            print(f"# {line}")
-        print("#")
-        print("##################################################")
-        print("#")
-        return False, filepath
     processed_count += 1
     return True, filepath
 
@@ -108,6 +140,17 @@ assert dcm_tags_to_modify is not None
 mode = getenv("MODE", "None")
 mode = mode if mode.lower() != "none" else None
 assert mode is not None
+
+gt_dcm_operator_in_dir = getenv("GT_DICOM_OPERATOR", "None")
+gt_dcm_operator_in_dir = (
+    gt_dcm_operator_in_dir if gt_dcm_operator_in_dir.lower() != "none" else None
+)
+if mode == "overwrite":
+    # for mode "overwrite" there has to be a gt_dcm_operator specified
+    assert gt_dcm_operator_in_dir is not None
+    gt_dcm_operator_in_dir = os.path.join(
+        workflow_dir, batch_name, "*", gt_dcm_operator_in_dir
+    )
 
 # prepare dcm_tags_to_modify
 # split string into list
@@ -183,7 +226,11 @@ for batch_element_dir in batch_folders:
     # Single process:
     # Loop for every input-file found with extension 'input_file_extension'
     for input_file in input_files:
-        result, input_file = process_input_file(filepath=input_file, mode=mode)
+        result, input_file = process_input_file(
+            filepath=input_file,
+            mode=mode,
+            gt_dcm_operator_in_dir=gt_dcm_operator_in_dir,
+        )
 
 
 print("#")
@@ -224,7 +271,11 @@ if processed_count == 0:
         # Single process:
         # Loop for every input-file found with extension 'input_file_extension'
         for input_file in input_files:
-            result, input_file = process_input_file(filepath=input_file, mode=mode)
+            result, input_file = process_input_file(
+                filepath=input_file,
+                mode=mode,
+                gt_dcm_operator_in_dir=gt_dcm_operator_in_dir,
+            )
 
     print("#")
     print("##################################################")

@@ -92,20 +92,22 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     modality=None,
 )
 
-# COMMENTED OUT BY DEFAULT: ONLY NECESSARY IF DICOM STANDARD FOR CT DATA IS VIOLATED
-# TODO: adjust subsequent operators and DAG flow
-dcmodify = DcmModifyOperator(
-    dag=dag,
-    name="dcmodify-ct",
-    input_operator=get_ref_ct_series_from_seg,
-    dicom_tags_to_modify="(0020,0052)=RANDOM_UID;(0020,1040)=;(0020,0032)=0.000\\0.000\\0.000",
-    mode="insert",
-)
+# # COMMENTED OUT BY DEFAULT: ONLY NECESSARY IF DICOM STANDARD FOR CT DATA IS VIOLATED
+# # TODO: adjust subsequent operators and DAG flow:
+# # - dcm2nifti_seg: dicom_operator=dcmodify
+# # - nrrd2dcmSeg_multi: input_operator=dcmodify
+# dcmodify = DcmModifyOperator(
+#     dag=dag,
+#     name="dcmodify-ct",
+#     input_operator=get_ref_ct_series_from_seg,
+#     dicom_tags_to_modify="(0020,0052)=RANDOM_UID;(0020,1040)=;(0020,0032)=0.000\\0.000\\0.000",
+#     mode="insert",
+# )
 
 dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_input,
-    dicom_operator=dcmodify,
+    dicom_operator=get_ref_ct_series_from_seg,
 )
 
 fuse_masks = MergeMasksOperator(
@@ -130,7 +132,7 @@ modify_seg_label_names = LocalModifySegLabelNamesOperator(
 
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,
-    input_operator=dcmodify,
+    input_operator=get_ref_ct_series_from_seg,
     segmentation_operator=combine_masks,
     input_type="multi_label_seg",
     multi_label_seg_name="rename-seg-label-names",
@@ -139,26 +141,33 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     alg_name="modify-dcmseg",
 )
 
-# COMMENTED OUT BY DEFAULT: ONLY NECESSARY IF DICOM STANDARD FOR CT DATA IS VIOLATED
-# TODO: adjust subsequent operators and DAG flow
-dcmodify_seg = DcmModifyOperator(
-    dag=dag,
-    name="dcmodify-seg",
-    input_operator=nrrd2dcmSeg_multi,
-    gt_dicom_operator=get_input.operator_out_dir,
-    dicom_tags_to_modify="(0008,1115)=OVERWRITE",
-    mode="overwrite",
-)
+# # COMMENTED OUT BY DEFAULT: ONLY NECESSARY IF DICOM STANDARD FOR CT DATA IS VIOLATED
+# # TODO: adjust subsequent operators and DAG flow
+# # - dicom_send: input_operator=dcmodify_seg
+# dcmodify_seg = DcmModifyOperator(
+#     dag=dag,
+#     name="dcmodify-seg",
+#     input_operator=nrrd2dcmSeg_multi,
+#     gt_dicom_operator=get_input.operator_out_dir,
+#     dicom_tags_to_modify="(0008,1115)=OVERWRITE",
+#     mode="overwrite",
+# )
 
 dicom_send = DcmSendOperator(
     dag=dag,
-    input_operator=dcmodify_seg,
+    input_operator=nrrd2dcmSeg_multi,
     ae_title="modify-dcmseg",
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
+######################################################################
+###
+# TODO: DECIDE FOR CORRECT DAG FLOW
+###
+######################################################################
 
+# DEFAULT DAG FLOW
 (
     get_input
     >> dcm2nifti_seg
@@ -166,9 +175,22 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> combine_masks
     >> modify_seg_label_names
     >> nrrd2dcmSeg_multi
-    >> dcmodify_seg
     >> dicom_send
     >> clean
 )
-get_input >> get_ref_ct_series_from_seg >> dcmodify >> nrrd2dcmSeg_multi
-dcmodify >> dcm2nifti_seg
+get_input >> get_ref_ct_series_from_seg >> nrrd2dcmSeg_multi
+
+# # DAG FLOW FOR DCM STANDARD VIOLATED DATA
+# (
+#     get_input
+#     >> dcm2nifti_seg
+#     >> fuse_masks
+#     >> combine_masks
+#     >> modify_seg_label_names
+#     >> nrrd2dcmSeg_multi
+#     >> dcmodify_seg
+#     >> dicom_send
+#     >> clean
+# )
+# get_input >> get_ref_ct_series_from_seg >> dcmodify >> nrrd2dcmSeg_multi
+# dcmodify >> dcm2nifti_seg

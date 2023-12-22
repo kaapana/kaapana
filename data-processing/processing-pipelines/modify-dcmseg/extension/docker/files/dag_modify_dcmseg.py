@@ -156,7 +156,7 @@ dicom_send = DcmSendOperator(
     ae_title="modify-dcmseg",
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
 (

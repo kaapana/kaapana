@@ -211,15 +211,15 @@ def fuse(
 
         # check whether fuse_labels are in seg_info_list and input_files
         if len(fitting_nifti_found) != 1 or len(fuse_label_index_in_seg_info) != 1:
-            logger.error("")
-            logger.error("")
-            logger.error("")
-            logger.error(
+            logger.warning("")
+            logger.warning("")
+            logger.warning("")
+            logger.warning(
                 f"Segmentation {fuse_label} does not exist -> fusion process aborted!"
             )
-            logger.error("")
-            logger.error("")
-            logger.error("")
+            logger.warning("")
+            logger.warning("")
+            logger.warning("")
             continue
 
         # compose a fuse_label_dict of current fuse_label
@@ -237,46 +237,49 @@ def fuse(
 
         processed_count += 1
 
-    # get new label_int of fused labels, i.e. smallest label_int of fused labels
-    fused_label_int = min(fusion_list, key=lambda x: x["label_int"])["label_int"]
+    if len(fusion_list) > 0:
+        # get new label_int of fused labels, i.e. smallest label_int of fused labels
+        fused_label_int = min(fusion_list, key=lambda x: x["label_int"])["label_int"]
 
-    # check dims of fused label masks
-    nifti_np_arrays = [item["nifti_np_array"] for item in fusion_list]
-    dimensions_are_same = all(
-        arr.shape == nifti_np_arrays[0].shape for arr in nifti_np_arrays
-    )
-    assert dimensions_are_same
+        # check dims of fused label masks
+        nifti_np_arrays = [item["nifti_np_array"] for item in fusion_list]
+        dimensions_are_same = all(
+            arr.shape == nifti_np_arrays[0].shape for arr in nifti_np_arrays
+        )
+        assert dimensions_are_same
 
-    # fuse them to single nifti file and set all non-zero label_ints to fused_label_int
-    fused_nifti_np = np.sum(nifti_np_arrays, axis=0)
-    fused_nifti_np[fused_nifti_np != 0] = fused_label_int
+        # fuse them to single nifti file and set all non-zero label_ints to fused_label_int
+        fused_nifti_np = np.sum(nifti_np_arrays, axis=0)
+        fused_nifti_np[fused_nifti_np != 0] = fused_label_int
 
-    # save fused_nifti as nii.gz file
-    result_nifti_fname = (
-        dirname(target_nifti_path)
-        + "/"
-        + basename(input_files[0]).split("--")[0]
-        + "--"
-        + str(fused_label_int)
-        + "--"
-        + fused_label_name
-        + ".nii.gz"
-    )
-    result_nifti = nib.Nifti1Image(
-        fused_nifti_np, nifti_loaded.affine, nifti_loaded.header
-    )
-    result_nifti.to_filename(result_nifti_fname)
+        # save fused_nifti as nii.gz file
+        result_nifti_fname = (
+            dirname(target_nifti_path)
+            + "/"
+            + basename(input_files[0]).split("--")[0]
+            + "--"
+            + str(fused_label_int)
+            + "--"
+            + fused_label_name
+            + ".nii.gz"
+        )
+        result_nifti = nib.Nifti1Image(
+            fused_nifti_np, nifti_loaded.affine, nifti_loaded.header
+        )
+        result_nifti.to_filename(result_nifti_fname)
 
     # adapt seg_info JSON
+    # add non-fuse labels
     target_seg_info_dict = [
         entry
         for entry in seg_info_list
         if remove_special_characters(entry["label_name"]) not in fuse_labels
     ]
     # add fused label
-    target_seg_info_dict.append(
-        {"label_name": fused_label_name, "label_int": fused_label_int}
-    )
+    if len(fusion_list) > 0:
+        target_seg_info_dict.append(
+            {"label_name": fused_label_name, "label_int": fused_label_int}
+        )
 
     # adapt meta_json_dict JSON
     mod_segmentAttributes = []
@@ -338,7 +341,7 @@ def fuse(
     with open(meta_json_out_dir, "w") as fp:
         json.dump(meta_json_dict, fp, indent=4)
 
-    # copy nifti files of all labels which are not fused to output dir
+    # copy non-fusde nifti files to output dir
     fusion_nifti_fnames = [entry["nifti_fname"] for entry in fusion_list]
     unmodified_nifti_fnames = [
         fname for fname in input_files if fname not in fusion_nifti_fnames
@@ -416,6 +419,8 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
     #     nifti_labels_found = list(np.unique(nifti_numpy))
     #     logger.info(f"{ nifti_labels_found= }")
     #     if len(nifti_labels_found) > 1:
+    #         if mode == "fuse":
+    #             target_nifti_path = label_nifti_path.replace(basename(nifti_dir), basename(target_dir))
     #         shutil.copy(label_nifti_path, target_nifti_path)
     #         target_seg_info_dict["seg_info"].append(seg_info_list[0])
     #         processed_count += 1

@@ -179,6 +179,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> clean
 )
 get_input >> get_ref_ct_series_from_seg >> nrrd2dcmSeg_multi
+get_ref_ct_series_from_seg >> dcm2nifti_seg
 
 # # DAG FLOW FOR DCM STANDARD VIOLATED DATA
 # (

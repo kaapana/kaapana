@@ -48,6 +48,7 @@ def insert(dcm_tags_to_modify, filepath):
         dcm_tag_keyword = pydicom.datadict.keyword_for_tag(int(dcm_tag, 16))
         dcm_tag = pydicom.datadict.tag_for_keyword(dcm_tag_keyword)
         if dcm_tag_to_modify[1] == "0.0000.0000.000":
+            # special case for tag ImagePositionPatient
             dcm_tag_to_modify[1] = "0.000\\0.000\\0.000"
         dcm_tag_val = pydicom.DataElement(dcm_tag, "LO", dcm_tag_to_modify[1])
 

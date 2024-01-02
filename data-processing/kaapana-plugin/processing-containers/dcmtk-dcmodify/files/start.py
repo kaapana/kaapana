@@ -37,6 +37,27 @@ def overwrite(dcm_tags_to_modify, gt_dcm_operator_in_dir, filepath):
     mod_dcm.save_as(filepath)
 
 
+def insert(dcm_tags_to_modify, filepath):
+    # load to-be-overwritten dcm file
+    mod_dcm = pydicom.dcmread(filepath)
+
+    for dcm_tag_to_modify in dcm_tags_to_modify:
+        # extract dcm_tag -> dcm_tag_keyword -> dcm_tag_val
+        dcm_tag_to_modify = dcm_tag_to_modify.split("=")
+        dcm_tag = dcm_tag_to_modify[0].strip("(),").replace(",", "")
+        dcm_tag_keyword = pydicom.datadict.keyword_for_tag(int(dcm_tag, 16))
+        dcm_tag = pydicom.datadict.tag_for_keyword(dcm_tag_keyword)
+        if dcm_tag_to_modify[1] == "0.0000.0000.000":
+            dcm_tag_to_modify[1] = "0.000\\0.000\\0.000"
+        dcm_tag_val = pydicom.DataElement(dcm_tag, "LO", dcm_tag_to_modify[1])
+
+        # overwrite dcm_tag and val of mod_dcm with dcm_tag and val of gt_dcm
+        mod_dcm[dcm_tag_keyword] = dcm_tag_val
+
+    # save mod_dcm with overwritten dcm_tags
+    mod_dcm.save_as(filepath)
+
+
 # Alternative Process smth via shell-command
 def process_input_file(filepath, mode, gt_dcm_operator_in_dir):
     global processed_count, execution_timeout, dcm_tags_to_modify
@@ -45,8 +66,11 @@ def process_input_file(filepath, mode, gt_dcm_operator_in_dir):
     if mode == "overwrite":
         overwrite(dcm_tags_to_modify, gt_dcm_operator_in_dir, filepath)
 
+    elif mode == "insert":
+        insert(dcm_tags_to_modify, filepath)
+
     # "insert" and "modify" are dcmodify functionalities
-    elif mode == "insert" or mode == "modify":
+    elif mode == "modify":
         print(f"# Processing dcm-file: {filepath}")
         command = ["dcmodify"]
         # safe to not do a backup since we already have it in the operator_input_dir

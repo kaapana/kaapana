@@ -14,7 +14,7 @@ class SegmentationEvaluationOperator(KaapanaBaseOperator):
         test_operator,
         batch_gt,
         batch_test,
-        name="dice-evaluation",
+        name="segmentation-evaluation",
         env_vars={},
         execution_timeout=timedelta(hours=12),
         **kwargs,

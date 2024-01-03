@@ -6,7 +6,7 @@ from sqlalchemy_json import mutable_json_type
 
 from typing import List
 
-from database import Base
+from .database import Base
 
 class Dataset(Base):
     __tablename__ = "dataset"
@@ -15,9 +15,9 @@ class Dataset(Base):
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
-    identifiers = relationship(
-        "Identifier", secondary=identifiers2dataset, back_populates="datasets"
-    )
+    # identifiers = relationship(
+    #     "Identifier", secondary=identifiers2dataset, back_populates="datasets"
+    # )
     implicit_generation = Column(Boolean, nullable=True)
 
     # many-to-one relationship
@@ -63,9 +63,9 @@ class Contribution(Base):
     # access_policy:restriction
     
     # TODO clarify: just Foreign_key(contact.id)?
-    contact_mail = Column(String, ForeignKey(contact.email))
-    contact_first_name = Column(String, ForeignKey(contact.first_name))
-    contact_last_name = Column(String, ForeignKey(contact.last_name))
+    # contact_mail = Column(String, ForeignKey(contact.email))
+    # contact_first_name = Column(String, ForeignKey(contact.first_name))
+    # contact_last_name = Column(String, ForeignKey(contact.last_name))
 
 
 
@@ -79,17 +79,17 @@ class Application(Base):
     
     applicant = Column(String)
     dataset_reference = Column(UUID, ForeignKey("dataset.id")) # TODO check correct spelling of database table
-    dataset_specification_reference = Column(UUID, ForeignKey(dataset_specification.id))
+    # dataset_specification_reference = Column(UUID, ForeignKey(dataset_specification.id))
     
     project_reference_id = Column(String, nullable=True)
     project_description = Column(String, nullable=True)
 
-class SPEInstance(Base):
-    __tablename__ = "spe_instance"
+# class SPEInstance(Base):
+#     __tablename__ = "spe_instance"
 
-    id = Column(Integer)
-    time_created = Column(DateTime)
-    time_last_accessed = Column(DateTime)
-    state = Column(Boolean) # TODO not sure if this is good to store in a database. maybe the frontend should just ping to check in a responsive way.
-    access_url = Column(String) # TODO maybe this already exists somewhere and can just be filtered by the endpoint.
+#     id = Column(Integer)
+#     time_created = Column(DateTime)
+#     time_last_accessed = Column(DateTime)
+#     state = Column(Boolean) # TODO not sure if this is good to store in a database. maybe the frontend should just ping to check in a responsive way.
+#     access_url = Column(String) # TODO maybe this already exists somewhere and can just be filtered by the endpoint.
     

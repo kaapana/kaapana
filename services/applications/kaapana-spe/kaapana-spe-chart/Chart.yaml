@@ -4,3 +4,7 @@ appVersion: 0.1.0
 description: Kaapana spe chart
 name: kaapana-spe-chart
 version: "0.0.0"
+keywords:
+- kaapanaapplication
+- kaapanaint    
+- kaapanaexperimental

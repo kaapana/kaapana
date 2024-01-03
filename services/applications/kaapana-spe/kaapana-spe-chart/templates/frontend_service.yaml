@@ -1,0 +1,40 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: spe-frontend-service
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    app-name: spe-frontend
+  ports:
+    - protocol: TCP
+      port: 5173
+      # targetPort: spe-http
+      targetPort: 5173
+      # name: log-http-port
+      nodePort: 5173
+  type: NodePort
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: spe-frontend-ip-redirect
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /spe-frontend
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: spe-frontend-service
+            port:
+              number: 5173
+              # name: log-http-port
+---

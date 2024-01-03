@@ -1,0 +1,48 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: spe-frontend
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    k8s-app: spe-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: spe-frontend
+  template:
+    metadata:
+      labels:
+        app-name: spe-frontend
+    spec:
+      containers:
+      - name: spe-frontend
+        image: "{{ .Values.global.registry_url }}/spe-frontend:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+{{- if .Values.global.frontend_dev_files }}
+        command: ["/bin/sh"]
+        args: ["-c", "npm run dev -- --host 0.0.0.0 --base=/spe-frontend/ "]
+ {{- end }}
+        ports:
+        - name: spe-http
+          containerPort: 5173
+        resources:
+          requests:
+            memory: 500Mi
+          limits:
+            memory: 5Gi
+        volumeMounts:
+{{- if .Values.global.frontend_dev_files }}
+          - name: spe-frontend-dev-files
+            mountPath: /kaapana/app/src
+ {{- end }}
+      volumes:
+{{- if .Values.global.frontend_dev_files }}
+      - name: spe-frontend-dev-files
+        persistentVolumeClaim:
+          claimName: spe-frontend-dev-pv-claim
+{{- end }}
+      priorityClassName: kaapana-high-priority
+      imagePullSecrets:
+      - name: registry-secret

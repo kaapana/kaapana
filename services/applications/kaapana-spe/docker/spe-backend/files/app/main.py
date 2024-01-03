@@ -26,7 +26,7 @@ from fastapi import Depends, FastAPI, Request
     # sync_n_clean_qsr_jobs_with_airflow,
 # )
 
-import models
+from .models import *
 
 # models.Base.metadata.create_all(bind=engine)
 

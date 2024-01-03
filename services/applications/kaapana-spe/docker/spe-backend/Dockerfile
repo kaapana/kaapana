@@ -12,4 +12,7 @@ RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0
 COPY files/ /kaapana/app
 RUN chmod +x /kaapana/app/boot.sh
 
+# RUN apt update && apt install -y nodejs && apt install -y npm
+
+
 CMD ["/bin/sh", "/kaapana/app/boot.sh"]

@@ -8,11 +8,11 @@ from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.SegmentationEvaluationOperator import SegmentationEvaluationOperator
+from kaapana.operators.SegmentationEvaluationOperator import (
+    SegmentationEvaluationOperator,
+)
 
 
-# TODO: change to a standalone extension if a separate DiceEvaluation operator is added
-# TODO: change mask2nifti operator so that it can utilize seg_filter_* as well
 # TODO: use merge masks operator to combine i.e. multiple lung masks into "lung"
 # TODO: add manual evaluation option, if selected put all data into minio and start jupyterlab
 
@@ -61,6 +61,13 @@ ui_forms = {
                 "default": seg_filter_gt,
                 "description": "Select organ for multi-label DICOM SEGs in ground truth",
                 "type": "string",
+                "readOnly": False,
+            },
+            "exit_on_error": {
+                "title": "Exit on evaluation error",
+                "default": True,
+                "description": "Exit if there is an issue with evaluating one of the masks",
+                "type": "boolean",
                 "readOnly": False,
             },
         },
@@ -143,9 +150,8 @@ evaluation = SegmentationEvaluationOperator(
     dag=dag,
     gt_operator=dcm2nifti_gt,
     test_operator=dcm2nifti_test,
-    batch_gt="test-dataset",
+    batch_gt="gt-dataset",
     batch_test="test-dataset",
-    parallel_processes=1,
 )
 
 put_to_minio = LocalMinioOperator(

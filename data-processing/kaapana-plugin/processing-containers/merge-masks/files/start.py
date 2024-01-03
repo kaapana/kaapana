@@ -15,6 +15,7 @@ import json
 import re
 
 processed_count = 0
+skip_operator = False
 issue_occurred = False
 logger = None
 
@@ -173,19 +174,34 @@ def fuse(
     target_nifti_path,
     target_dir,
 ):
-    global processed_count, input_file_extension
+    global processed_count, input_file_extension, skip_operator
 
     # get fusing-specific envs
     fuse_labels = getenv("FUSE_LABELS", "None")
     fuse_labels = fuse_labels if fuse_labels.lower() != "none" else None
-    assert fuse_labels is not None
-    # fuse_labels = fuse_labels.lower().replace(" ", "").split(",")
+    # assert fuse_labels is not None
+    if fuse_labels is None:
+        print("# WARNING")
+        print("#")
+        print("# NO FUSE_LABELS DEFINED. MARK OPERATOR AS SKIPPED")
+        print("#")
+        fuse_labels = ""
+        skip_operator = True
+        # exit(126)
     fuse_labels = fuse_labels.split(",")
     fuse_labels = [remove_special_characters(x) for x in fuse_labels]
 
     fused_label_name = getenv("FUSED_LABEL_NAME", "None")
     fused_label_name = fused_label_name if fused_label_name.lower() != "none" else None
-    assert fused_label_name is not None
+    # assert fused_label_name is not None
+    if fused_label_name is None:
+        print("# WARNING")
+        print("#")
+        print("# NO FUSED_LABEL_NAMES DEFINED. MARK OPERATOR AS SKIPPED")
+        print("#")
+        fused_label_name = ""
+        skip_operator = True
+        # exit(126)
     fused_label_name = remove_special_characters(fused_label_name)
 
     print("#")
@@ -211,16 +227,16 @@ def fuse(
 
         # check whether fuse_labels are in seg_info_list and input_files
         if len(fitting_nifti_found) != 1 or len(fuse_label_index_in_seg_info) != 1:
-            logger.error("")
-            logger.error("")
-            logger.error("")
-            logger.error(
+            logger.warning("")
+            logger.warning("")
+            logger.warning("")
+            logger.warning(
                 f"Segmentation {fuse_label} does not exist -> fusion process aborted!"
             )
-            logger.error("")
-            logger.error("")
-            logger.error("")
-            exit(1)
+            logger.warning("")
+            logger.warning("")
+            logger.warning("")
+            continue
 
         # compose a fuse_label_dict of current fuse_label
         fuse_label_dict = {}
@@ -237,46 +253,49 @@ def fuse(
 
         processed_count += 1
 
-    # get new label_int of fused labels, i.e. smallest label_int of fused labels
-    fused_label_int = min(fusion_list, key=lambda x: x["label_int"])["label_int"]
+    if len(fusion_list) > 0:
+        # get new label_int of fused labels, i.e. smallest label_int of fused labels
+        fused_label_int = min(fusion_list, key=lambda x: x["label_int"])["label_int"]
 
-    # check dims of fused label masks
-    nifti_np_arrays = [item["nifti_np_array"] for item in fusion_list]
-    dimensions_are_same = all(
-        arr.shape == nifti_np_arrays[0].shape for arr in nifti_np_arrays
-    )
-    assert dimensions_are_same
+        # check dims of fused label masks
+        nifti_np_arrays = [item["nifti_np_array"] for item in fusion_list]
+        dimensions_are_same = all(
+            arr.shape == nifti_np_arrays[0].shape for arr in nifti_np_arrays
+        )
+        assert dimensions_are_same
 
-    # fuse them to single nifti file and set all non-zero label_ints to fused_label_int
-    fused_nifti_np = np.sum(nifti_np_arrays, axis=0)
-    fused_nifti_np[fused_nifti_np != 0] = fused_label_int
+        # fuse them to single nifti file and set all non-zero label_ints to fused_label_int
+        fused_nifti_np = np.sum(nifti_np_arrays, axis=0)
+        fused_nifti_np[fused_nifti_np != 0] = fused_label_int
 
-    # save fused_nifti as nii.gz file
-    result_nifti_fname = (
-        dirname(target_nifti_path)
-        + "/"
-        + basename(input_files[0]).split("--")[0]
-        + "--"
-        + str(fused_label_int)
-        + "--"
-        + fused_label_name
-        + ".nii.gz"
-    )
-    result_nifti = nib.Nifti1Image(
-        fused_nifti_np, nifti_loaded.affine, nifti_loaded.header
-    )
-    result_nifti.to_filename(result_nifti_fname)
+        # save fused_nifti as nii.gz file
+        result_nifti_fname = (
+            dirname(target_nifti_path)
+            + "/"
+            + basename(input_files[0]).split("--")[0]
+            + "--"
+            + str(fused_label_int)
+            + "--"
+            + fused_label_name
+            + ".nii.gz"
+        )
+        result_nifti = nib.Nifti1Image(
+            fused_nifti_np, nifti_loaded.affine, nifti_loaded.header
+        )
+        result_nifti.to_filename(result_nifti_fname)
 
     # adapt seg_info JSON
+    # add non-fuse labels
     target_seg_info_dict = [
         entry
         for entry in seg_info_list
         if remove_special_characters(entry["label_name"]) not in fuse_labels
     ]
     # add fused label
-    target_seg_info_dict.append(
-        {"label_name": fused_label_name, "label_int": fused_label_int}
-    )
+    if len(fusion_list) > 0:
+        target_seg_info_dict.append(
+            {"label_name": fused_label_name, "label_int": fused_label_int}
+        )
 
     # adapt meta_json_dict JSON
     mod_segmentAttributes = []
@@ -292,6 +311,23 @@ def fuse(
                     )
                 )
                 mod_segment["labelID"] = fused_label_int
+                # ensure that 'CodeMeaning' attribute is the same as 'SegmentLabel'
+                if (
+                    "SegmentedPropertyCategoryCodeSequence" in mod_segment
+                    and "SegmentedPropertyTypeCodeSequence" in mod_segment
+                ):
+                    if (
+                        "CodeMeaning"
+                        in mod_segment["SegmentedPropertyCategoryCodeSequence"]
+                        and "CodeMeaning"
+                        in mod_segment["SegmentedPropertyTypeCodeSequence"]
+                    ):
+                        mod_segment["SegmentedPropertyCategoryCodeSequence"][
+                            "CodeMeaning"
+                        ] = mod_segment["SegmentLabel"]
+                        mod_segment["SegmentedPropertyTypeCodeSequence"][
+                            "CodeMeaning"
+                        ] = mod_segment["SegmentLabel"]
                 mod_segmentAttributes.append([mod_segment])
                 added_fused_label = True
             else:
@@ -299,6 +335,18 @@ def fuse(
         else:
             mod_segmentAttributes.append(segment)
     meta_json_dict["segmentAttributes"] = mod_segmentAttributes
+
+    # remove eventually present "\\t", "\t", "\\s", "\s", "\\n" or "\n"
+    meta_json_dict = json.loads(
+        json.dumps(meta_json_dict)
+        .replace("\\t", "")
+        .replace("\t", "")
+        .replace("\\s", "")
+        .replace("\s", "")
+        .replace("\\n", "")
+        .replace("\n", "")
+    )
+
     # write meta_json_dict to output_dir
     meta_json_in_dir = glob(
         join(Path(dirname(input_files[0])), "*.json"), recursive=True
@@ -309,7 +357,7 @@ def fuse(
     with open(meta_json_out_dir, "w") as fp:
         json.dump(meta_json_dict, fp, indent=4)
 
-    # copy nifti files of all labels which are not fused to output dir
+    # copy non-fusde nifti files to output dir
     fusion_nifti_fnames = [entry["nifti_fname"] for entry in fusion_list]
     unmodified_nifti_fnames = [
         fname for fname in input_files if fname not in fusion_nifti_fnames
@@ -375,29 +423,31 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
     )
     assert len(input_files) > 0
 
-    # just a single label in seg_info -> no merging
-    if len(seg_info_list) == 1:
-        logger.info("Only one label present -> no merging required.")
-        assert len(input_files) == 1
+    # # just a single label in seg_info -> no merging
+    # if len(seg_info_list) == 1:
+    #     logger.info("Only one label present -> no merging required.")
+    #     assert len(input_files) == 1
 
-        # process the single label
-        label_nifti_path = input_files[0]
-        nifti_loaded = nib.load(label_nifti_path)
-        nifti_numpy = nifti_loaded.get_fdata().astype(int)
-        nifti_labels_found = list(np.unique(nifti_numpy))
-        logger.info(f"{ nifti_labels_found= }")
-        if len(nifti_labels_found) > 1:
-            shutil.copy(label_nifti_path, target_nifti_path)
-            target_seg_info_dict["seg_info"].append(seg_info_list[0])
-            processed_count += 1
-            return True, nifti_dir, target_seg_info_dict
-        elif len(nifti_labels_found) == 1:
-            logger.error(f"No segmentation found in {label_nifti_path} -> skipping")
-            return True, nifti_dir, target_seg_info_dict
-        else:
-            logger.error("Unknown state -> no labels found-> abort")
-            logger.error(f"{nifti_labels_found=}")
-            exit(1)
+    #     # process the single label
+    #     label_nifti_path = input_files[0]
+    #     nifti_loaded = nib.load(label_nifti_path)
+    #     nifti_numpy = nifti_loaded.get_fdata().astype(int)
+    #     nifti_labels_found = list(np.unique(nifti_numpy))
+    #     logger.info(f"{ nifti_labels_found= }")
+    #     if len(nifti_labels_found) > 1:
+    #         if mode == "fuse":
+    #             target_nifti_path = label_nifti_path.replace(basename(nifti_dir), basename(target_dir))
+    #         shutil.copy(label_nifti_path, target_nifti_path)
+    #         target_seg_info_dict["seg_info"].append(seg_info_list[0])
+    #         processed_count += 1
+    #         return True, nifti_dir, target_seg_info_dict
+    #     elif len(nifti_labels_found) == 1:
+    #         logger.error(f"No segmentation found in {label_nifti_path} -> skipping")
+    #         return True, nifti_dir, target_seg_info_dict
+    #     else:
+    #         logger.error("Unknown state -> no labels found-> abort")
+    #         logger.error(f"{nifti_labels_found=}")
+    #         exit(1)
 
     if mode == "combine":
         res, target_seg_info_dict = combine(
@@ -572,6 +622,14 @@ if __name__ == "__main__":
         logger.info("#")
         logger.info("##################################################")
         logger.info("#")
+
+    if mode == "fuse" and skip_operator:
+        logger.warning("#####################################")
+        logger.warning("#")
+        logger.warning("# NO FUSE LABELS SPECIFIED --> MARK OPERATOR AS SKIPPED!")
+        logger.warning("#")
+        logger.warning("#####################################")
+        exit(126)
 
     if processed_count == 0:
         logger.info("#")

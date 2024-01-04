@@ -14,42 +14,83 @@ from app.config import settings
 from opensearchpy import OpenSearch
 from minio import Minio
 from urllib3.util import Timeout
+import xml.etree.ElementTree as ET
 
 logging.getLogger().setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
 
 
-class HelperMinio:
-    _minio_host = f"minio-service.{settings.services_namespace}.svc"
-    _minio_port = "9000"
-    minioClient = Minio(
-        _minio_host + ":" + _minio_port,
-        access_key=settings.minio_username,
-        secret_key=settings.minio_password,
-        secure=False,
-    )
+class HelperMinio(Minio):
+    """
+    Helper class for making authorized requests to the minio API
+    """
 
-    @staticmethod
+    def __init__(
+        self,
+        access_token: str = None,
+    ):
+        """
+        :access_token: Access token that should be used for communication with minio.
+        """
+        if access_token:
+            self.access_token = access_token
+            access_key, secret_key, session_token = self.minio_credentials()
+        else:
+            access_key, secret_key, session_token = (
+                settings.minio_username,
+                settings.minio_password,
+                None,
+            )
+
+        super().__init__(
+            f"minio-service.{settings.services_namespace}.svc:9000",
+            access_key=access_key,
+            secret_key=secret_key,
+            session_token=session_token,
+            secure=False,
+        )
+
+    def minio_credentials(self):
+        r = requests.post(
+            f"http://minio-service.{settings.services_namespace}.svc:9000?Action=AssumeRoleWithWebIdentity&WebIdentityToken={self.access_token}&Version=2011-06-15"
+        )
+        xml_response = r.text
+        root = ET.fromstring(xml_response)
+        credentials = root.find(
+            ".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials"
+        )
+        access_key_id = credentials.find(
+            ".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
+        ).text
+        secret_access_key = credentials.find(
+            ".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
+        ).text
+        session_token = credentials.find(
+            ".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
+        ).text
+        return access_key_id, secret_access_key, session_token
+
     def get_custom_presigend_url(
-        method, bucket_name, object_name, expires=timedelta(days=7)
+        self, method, bucket_name, object_name, expires=timedelta(days=7)
     ):
         if method not in ["GET", "PUT"]:
             raise NameError("Method must be either GET or PUT")
-        presigend_url = HelperMinio.minioClient.get_presigned_url(
+        presigend_url = self.get_presigned_url(
             method, bucket_name, object_name, expires=expires
         )
         return {
             "method": method.lower(),
             "path": presigend_url.replace(
-                f"{HelperMinio.minioClient._base_url._url.scheme}://{HelperMinio.minioClient._base_url._url.netloc}",
+                f"{self._base_url._url.scheme}://{self._base_url._url.netloc}",
                 "",
             ),
         }
 
-    @staticmethod
-    def add_minio_urls(federated, instance_name):
+    def add_minio_urls(self, federated, instance_name):
         federated_dir = federated["federated_dir"]
         federated_bucket = federated["federated_bucket"]
         if "federated_round" in federated:
@@ -57,13 +98,13 @@ class HelperMinio:
         else:
             federated_round = ""
 
-        if not HelperMinio.minioClient.bucket_exists(federated_bucket):
-            HelperMinio.minioClient.make_bucket(federated_bucket)
+        if not self.bucket_exists(federated_bucket):
+            self.make_bucket(federated_bucket)
 
         minio_urls = {}
         for federated_operator in federated["federated_operators"]:
             minio_urls[federated_operator] = {
-                "get": HelperMinio.get_custom_presigend_url(
+                "get": self.get_custom_presigend_url(
                     "GET",
                     federated_bucket,
                     os.path.join(
@@ -73,7 +114,7 @@ class HelperMinio:
                         f"{federated_operator}.tar",
                     ),
                 ),
-                "put": HelperMinio.get_custom_presigend_url(
+                "put": self.get_custom_presigend_url(
                     "PUT",
                     federated_bucket,
                     os.path.join(

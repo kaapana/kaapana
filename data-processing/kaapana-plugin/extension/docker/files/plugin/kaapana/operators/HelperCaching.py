@@ -19,7 +19,7 @@ TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
 
 
-def cache_action(batch_name, cache_operator_dirs, action, dag_run_dir):
+def cache_action(batch_name, cache_operator_dirs, action, dag_run_dir, dag_run):
     loaded_from_cache = True
     batch_folders = sorted(
         [f for f in glob.glob(os.path.join(dag_run_dir, batch_name, "*"))]
@@ -34,8 +34,8 @@ def cache_action(batch_name, cache_operator_dirs, action, dag_run_dir):
             rel_dir = os.path.relpath(element_output_dir, local_root_dir)
             rel_dir = "" if rel_dir == "." else rel_dir
             object_dirs = [rel_dir]
-            HelperMinio.apply_action_to_object_dirs(
-                HelperMinio.minioClient,
+            minioClient = HelperMinio(dag_run=dag_run)
+            minioClient.apply_action_to_object_dirs(
                 action,
                 "cache",
                 local_root_dir,
@@ -178,12 +178,16 @@ def cache_operator_output(func):
                 return
 
         if self.manage_cache == "overwrite" or self.manage_cache == "clear":
-            cache_action(self.batch_name, cache_operator_dirs, "remove", dag_run_dir)
+            cache_action(
+                self.batch_name, cache_operator_dirs, "remove", dag_run_dir, dag_run
+            )
             print("Clearing cache")
 
         if self.manage_cache == "cache":
             if (
-                cache_action(self.batch_name, cache_operator_dirs, "get", dag_run_dir)
+                cache_action(
+                    self.batch_name, cache_operator_dirs, "get", dag_run_dir, dag_run
+                )
                 is True
             ):
                 print(f'{", ".join(cache_operator_dirs)} output loaded from cache')
@@ -195,7 +199,9 @@ def cache_operator_output(func):
             raise e
 
         if self.manage_cache == "cache" or self.manage_cache == "overwrite":
-            cache_action(self.batch_name, cache_operator_dirs, "put", dag_run_dir)
+            cache_action(
+                self.batch_name, cache_operator_dirs, "put", dag_run_dir, dag_run
+            )
             print(f'{", ".join(cache_operator_dirs)} output saved to cache')
         else:
             print("Caching is not used!")

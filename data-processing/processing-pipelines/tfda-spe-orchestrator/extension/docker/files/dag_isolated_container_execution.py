@@ -9,7 +9,7 @@ from kaapana.operators.HelperMinio import HelperMinio
 
 
 minioClient = HelperMinio(username="system")
-buckets = minioClient.client.list_buckets()
+buckets = minioClient.list_buckets()
 bucket_names = [bucket.name for bucket in buckets]
 
 ui_forms = {

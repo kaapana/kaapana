@@ -18,7 +18,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 logger = logging.getLogger(__name__)
 
 
-class HelperMinio:
+class HelperMinio(Minio):
     """
     Helper class for making authorized requests to the minio API
     """
@@ -66,7 +66,7 @@ class HelperMinio:
 
         access_key, secret_key, session_token = self.minio_credentials()
 
-        self.client = Minio(
+        super().__init__(
             f"minio-service.{SERVICES_NAMESPACE}.svc:9000",
             access_key=access_key,
             secret_key=secret_key,
@@ -138,7 +138,7 @@ class HelperMinio:
         self.make_bucket(bucket_name)
         print(f"Putting file: {file_path} to {bucket_name} to {object_name}")
         try:
-            self.client.fput_object(bucket_name, object_name, file_path)
+            super().fput_object(bucket_name, object_name, file_path)
         except InvalidResponseError as err:
             print(err)
             raise
@@ -146,9 +146,9 @@ class HelperMinio:
     def get_file(self, bucket_name, object_name, file_path):
         print(f"Getting file: {object_name} from {bucket_name} to {file_path}")
         try:
-            self.client.stat_object(bucket_name, object_name)
+            super().stat_object(bucket_name, object_name)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            self.client.fget_object(bucket_name, object_name, file_path)
+            super().fget_object(bucket_name, object_name, file_path)
         except S3Error as err:
             print(f"Skipping object {object_name} since it doe not exists in Minio")
         except InvalidResponseError as err:
@@ -157,7 +157,7 @@ class HelperMinio:
     def remove_file(self, bucket_name, object_name):
         print(f"Removing file: {object_name} from {bucket_name}")
         try:
-            self.client.remove_object(bucket_name, object_name)
+            super().remove_object(bucket_name, object_name)
         except InvalidResponseError as err:
             print(err)
             raise
@@ -249,7 +249,7 @@ class HelperMinio:
 
     def make_bucket(self, bucket_name):
         try:
-            self.client.make_bucket(bucket_name=bucket_name, location="eu-central-1")
+            super().make_bucket(bucket_name=bucket_name, location="eu-central-1")
             print("created!")
         except S3Error as err:
             pass
@@ -260,7 +260,7 @@ class HelperMinio:
     def get_presigned_link(self, bucket_name, object_name, expires=timedelta(days=2)):
         print("Generating link...")
         try:
-            return self.client.presigned_get_object(
+            return super().presigned_get_object(
                 bucket_name, object_name, expires=expires
             )
         except InvalidResponseError as err:
@@ -269,7 +269,7 @@ class HelperMinio:
 
     def list_objects(self, *args, **kwargs):
         try:
-            return self.client.list_objects(*args, **kwargs)
+            return super().list_objects(*args, **kwargs)
         except InvalidResponseError as err:
             print(err)
             raise

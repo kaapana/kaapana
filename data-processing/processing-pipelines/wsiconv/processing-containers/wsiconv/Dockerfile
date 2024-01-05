@@ -20,8 +20,8 @@ RUN pip install tifffile pydicom
 
 RUN git clone https://github.com/ImagingDataCommons/idc-wsi-conversion.git
 
-RUN wget http://www.dclunie.com/pixelmed/software/20221004_current/pixelmed.jar && \
-    wget http://www.dclunie.com/pixelmed/software/20221004_current/pixelmedjavadicom_dependencyrelease.20221004.tar.bz2
+RUN wget http://www.dclunie.com/pixelmed/software/20221004_old/pixelmed.jar && \
+    wget http://www.dclunie.com/pixelmed/software/20221004_old/pixelmedjavadicom_dependencyrelease.20221004.tar.bz2
 
 
 

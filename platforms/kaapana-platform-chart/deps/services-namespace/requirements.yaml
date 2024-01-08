@@ -7,7 +7,7 @@ dependencies:
     version: 0.0.0
   - name: static-website-chart
     version: 0.0.0
-  - name: open-policy-agent-chart
+  - name: system-user-password-chart
     version: 0.0.0
 # MONITORING
   - name: prometheus-chart

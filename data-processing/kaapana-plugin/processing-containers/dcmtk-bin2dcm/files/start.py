@@ -139,8 +139,22 @@ def xml_to_binary(target_dir, delete_xml=True):
                 and el.attrib["name"] == "ImageComments"
             ):
                 filename = el.text
-                print(f"# Found filename: {filename}")
-                expected_file_count = int(filename.split(".")[0].split("---")[1])
+                if filename:
+                    print(f"# Found filename: {filename}")
+                else:
+                    filename = "filname_not_found.txt"
+                    print("#")
+                    print(
+                        f"# WARNING: no filename found in XML element {el.attrib['name']}"
+                    )
+                    print(f"# Proceed with the following filename: {filename}")
+                    print("#")
+                # might extract expected_file_count from filename, if filename follows schema e.g. = "aggregated_metrics---1.txt"
+                expected_file_count = (
+                    int(filename.split(".")[0].split("---")[1])
+                    if "---" in filename
+                    else 1
+                )
                 if len(xml_files) != expected_file_count:
                     print("# ERROR!!")
                     print("#")

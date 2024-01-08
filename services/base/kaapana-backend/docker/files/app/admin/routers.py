@@ -1,5 +1,5 @@
 import requests
-
+import subprocess
 from fastapi import (
     APIRouter,
     Depends,
@@ -126,3 +126,28 @@ def get_open_policy_data():
         f"http://open-policy-agent-service.{settings.admin_namespace}.svc:8181/v1/data/httpapi/authz"
     )
     return r.json().get("result")
+
+
+@router.put("/aets/{aetitle}/access-control-id/{access_control_id}")
+def put_aet_access_control_id(aetitle: str, access_control_id: str):
+    """
+    Add an access control id to an application entity in dcm4chee-archive via ldapmodify.
+    """
+    ### Make sure the lines in ldap_config contain no trailing whitespaces
+    ldap_config = f'''"dn: dicomAETitle={aetitle},dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+changetype: modify
+add: dcmAccessControlID
+dcmAccessControlID: {access_control_id}"'''
+    ldapmodify = f'ldapmodify -x -D "cn=admin,dc=dcm4che,dc=org" -w "secret" -H "ldap://ldap-service.{settings.services_namespace}.svc:389"'
+    command = f"echo {ldap_config} | {ldapmodify}"
+    print(f"RUN command {command}")
+    command_result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        shell=True,
+    )
+    print("Command was executed")
+    print(command_result.stdout)
+    print(command_result.stderr)

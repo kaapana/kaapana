@@ -6,9 +6,6 @@
     "dag_ids": {
       "service-segmentation-thumbnail": {
         "fetch_method": "copy",
-        "rest_call": {
-          "global": {}
-        },
         "single_execution" : true
       }
     }

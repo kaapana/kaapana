@@ -5,7 +5,6 @@ import pydicom
 from os.path import join, basename, dirname
 from datetime import timedelta
 from pathlib import Path
-from dicomweb_client.api import DICOMwebClient
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperOpensearch import HelperOpensearch
@@ -26,8 +25,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         print("# Downloading series: {}".format(series["reference_series_uid"]))
         try:
             if self.data_type == "dicom":
-                download_successful = HelperDcmWeb.downloadSeries(
-                    seriesUID=series["reference_series_uid"],
+                download_successful = self.dcmweb_helper.downloadSeries(
+                    series_uid=series["reference_series_uid"],
                     target_dir=series["target_dir"],
                     expected_object_count=series["expected_object_count"],
                 )
@@ -57,12 +56,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-
-        client = DICOMwebClient(
-            url=self.pacs_dcmweb,
-            qido_url_prefix="rs",
-            wado_url_prefix="rs",
-            stow_url_prefix="rs",
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
         )
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
@@ -90,7 +85,9 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("# Searching for series with the following filters:")
             print(json.dumps(search_filters, indent=4, sort_keys=True))
             print("#")
-            pacs_series = client.search_for_series(search_filters=search_filters)
+            pacs_series = self.dcmweb_helper.search_for_series(
+                search_filters=search_filters
+            )
             print(f"Found series: {len(pacs_series)}")
             if len(pacs_series) == 0 or (
                 self.expected_file_count != "all"
@@ -133,7 +130,9 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("# Searching for series with the following filters:")
             print(json.dumps(search_filters, indent=4, sort_keys=True))
             print("#")
-            pacs_series = client.search_for_series(search_filters=search_filters)
+            pacs_series = self.dcmweb_helper.search_for_series(
+                search_filters=search_filters
+            )
             print(f"Found series: {len(pacs_series)}")
             if len(pacs_series) == 0 or (
                 self.expected_file_count != "all"
@@ -260,7 +259,9 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                     )
                     raise ValueError("ERROR")
 
-                pacs_series = client.search_for_series(search_filters=search_filters)
+                pacs_series = self.dcmweb_helper.search_for_series(
+                    search_filters=search_filters
+                )
                 print(f"Found series: {len(pacs_series)}")
                 if len(pacs_series) == 0 or (
                     self.expected_file_count != "all"
@@ -389,6 +390,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         self.dicom_tags = (
             dicom_tags  # studyID dicom_tags=[{'id':'StudyID','value':'nnUnet'},{...}]
         )
+        self.aetitle = aetitle
         self.expected_file_count = expected_file_count
         self.limit_file_count = limit_file_count
         self.search_policy = search_policy

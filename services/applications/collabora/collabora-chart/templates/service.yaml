@@ -1,0 +1,113 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  selector:
+    app-name: {{ .Release.Name }}
+  ports:
+    - protocol: TCP
+      port: 9980
+      name: http
+  type: ClusterIP
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: "{{ .Release.Name }}-wopi"
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+spec:
+  selector:
+    app-name: {{ .Release.Name }}
+  ports:
+    - protocol: TCP
+      port: 5000
+      name: http
+  type: ClusterIP
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-{{ .Release.Name }}-wopi
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /collabora-wopi
+    forceSlash: true
+---
+# A dirty woraround till https://github.com/bitly/oauth2_proxy/issues/506 is fixed
+# This issue occures because the WOPI Server is fully encoded in the url: 
+# collabora/browser/5093121/cool.html?WOPISrc=http://localhost:5000/wopi/files/asdf/
+# which is redirected by oauth2 proxy to 
+# collabora/browser/5093121/cool.html?WOPISrc=http:/localhost:5000/wopi/files/asdf/
+# leading to 1) Websockets not working in Chrome 2) Invalid WOPI Server in the request
+# apiVersion: traefik.containo.us/v1alpha1
+# kind: Middleware
+# metadata:
+#   name: collabora-wopi-redirect-workaround
+#   namespace: "{{ tpl .Values.global.namespace . }}"
+# spec:
+#   plugin:
+#       # https://plugins.traefik.io/plugins/628c9f24ffc0cd18356a97bd/query-paramter-modification
+#       traefik-plugin-query-modification:
+#           paramName: WOPISrc
+#           newValue: "http://localhost:5000/wopi/files/asdf/"
+#           type: add
+# ---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+    # traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-collabora-wopi-redirect-workaround@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: {{ .Values.global.collabora_prefix }}
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}
+            port:
+              name: http
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: "{{ .Release.Name }}-wopi"
+  namespace: "{{ tpl .Values.global.namespace . }}"
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-strip-prefix-{{ .Release.Name }}-wopi@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: {{ .Values.global.collabora_prefix }}-wopi
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: "{{ .Release.Name }}-wopi"
+            port:
+              name: http
+---

@@ -21,6 +21,9 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity=self.pacs_aet, dag_run=kwargs["dag_run"]
+        )
         print("conf", conf)
         if (
             "form_data" in conf
@@ -50,8 +53,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                     study_uid = metadata["0020000D StudyInstanceUID_keyword"]
 
                     if self.delete_complete_study:
-                        HelperDcmWeb.delete_study(
-                            aet=self.pacs_aet,
+                        self.dcmweb_helper.delete_study(
                             study_uid=metadata["0020000D StudyInstanceUID_keyword"],
                         )
                     else:
@@ -63,8 +65,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
         for study_uid, series_uids in study2series_deletion.items():
             self.log.info("Deleting series: %s from study: %s", series_uids, study_uid)
-            HelperDcmWeb.delete_series(
-                aet=self.pacs_aet,
+            self.dcmweb_helper.delete_series(
                 series_uids=series_uids,
                 study_uid=study_uid,
             )

@@ -36,6 +36,11 @@ data:
             "endpoint": "/minio-console",
             "linkTo": "/minio-console"
           },
+          "Documents": {
+            "label": "Documents",
+            "endpoint": "/collabora-wopi",
+            "linkTo": "/collabora-wopi/"
+          },
           "persistence": {
             "label": "Persistence Layer",
             "endpoint": "/persistence/",

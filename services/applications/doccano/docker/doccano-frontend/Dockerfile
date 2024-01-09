@@ -1,4 +1,4 @@
-FROM docker.io/alpine/git:v2.34.2 as build-stage
+FROM docker.io/alpine/git:v2.43.0 as build-stage
 
 LABEL IMAGE="doccano-frontend"
 LABEL VERSION="sha-0489118"
@@ -29,7 +29,7 @@ RUN apk add -U --no-cache python3 make g++ \
 RUN yarn build \
   && apk del --no-cache git make g++
 
-FROM docker.io/nginx:1.23.3-alpine AS runtime
+FROM docker.io/nginx:1.25.3-alpine AS runtime
 ENV SUB_URL='/doccano'
 COPY --from=frontend-builder /app/dist /var/www/html/doccano
 COPY files/nginx/default.conf /etc/nginx/conf.d/default.conf

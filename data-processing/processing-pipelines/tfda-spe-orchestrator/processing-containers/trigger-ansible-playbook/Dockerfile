@@ -25,7 +25,7 @@ RUN apt-get update -q -y && apt-get install -y --no-install-recommends \
 COPY files/requirements.txt /
 RUN pip3 install --no-cache-dir -r /requirements.txt
 
-RUN ansible-galaxy collection install openstack.cloud:==1.8.0
+RUN ansible-galaxy collection install openstack.cloud
 RUN ansible-galaxy collection install community.docker
 RUN ansible-galaxy collection install community.libvirt:==1.2.0
 

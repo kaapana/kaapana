@@ -501,7 +501,7 @@ pyradiomics_6 = PyRadiomicsOperator(
 put_to_minio = LocalMinioOperator(
     dag=dag,
     action="put",
-    bucket_name="thumbnails",
+    bucket_name="totalsegmentator",
     action_operators=[
         pyradiomics_0,
         pyradiomics_1,

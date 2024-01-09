@@ -31,7 +31,7 @@ class TrivyUtils:
         if tag is None:
             raise Exception("Please provide a tag")
 
-        self.tag = tag
+        self.tag
         self.cache = cache
 
         if BuildUtils.configuration_check:
@@ -88,9 +88,16 @@ class TrivyUtils:
         self.database_timestamp = self.get_database_next_update_timestamp()
 
     def create_vulnerability_reports(self, list_of_images):
-        if self.cache:
-            self.load_cache()
+        self.raw_reports_path = os.path.join(self.reports_path, self.tag, "raw")
+        self.compressed_reports_path = os.path.join(
+            self.reports_path, self.tag, "compressed"
+        )
 
+        os.makedirs(self.raw_reports_path, exist_ok=True)
+        os.makedirs(self.compressed_reports_path, exist_ok=True)
+
+        # if self.cache:
+        #     self.load_cache()
         try:
             with self.threadpool as threadpool:
                 with alive_bar(
@@ -143,7 +150,7 @@ class TrivyUtils:
             "-v",
             "/var/run/docker.sock:/var/run/docker.sock",
             "-v",
-            f"{self.reports_path}:/kaapana/trivy_results",
+            f"{self.raw_reports_path}:/kaapana/trivy_results",
             "--name",
             image_name + "_vulnerability_report",
             self.trivy_image,
@@ -224,7 +231,9 @@ class TrivyUtils:
 
         # read the vulnerability file
         with open(
-            os.path.join(self.reports_path, image_name + "_vulnerability_report.json"),
+            os.path.join(
+                self.raw_reports_path, image_name + "_vulnerability_report.json"
+            ),
             "r",
         ) as f:
             vulnerability_report = json.load(f)
@@ -235,8 +244,6 @@ class TrivyUtils:
             self.list_of_running_containers.remove(image_name + "_vulnerability_report")
         finally:
             self.semaphore_running_containers.release()
-
-        compressed_vulnerability_report = {}
 
         # Exit if vulnerabilities are found and exit on error is set
         if BuildUtils.exit_on_error == True and "Results" in vulnerability_report:
@@ -279,50 +286,13 @@ class TrivyUtils:
                 }
                 return image, issue
         # Create compressed vulnerability report
-        elif "Results" in vulnerability_report:
-            if len(vulnerability_report["Results"]) > 0:
-                for target in vulnerability_report["Results"]:
-                    if "Vulnerabilities" in target:
-                        compressed_vulnerability_report[target["Target"]] = {}
-                        for vulnerability in target["Vulnerabilities"]:
-                            compressed_vulnerability_report[target["Target"]][
-                                "VulnerabilityID"
-                            ] = vulnerability["VulnerabilityID"]
-                            compressed_vulnerability_report[target["Target"]][
-                                "Pkg"
-                            ] = vulnerability["PkgName"]
-                            compressed_vulnerability_report[target["Target"]][
-                                "InstalledVersion"
-                            ] = vulnerability["InstalledVersion"]
-
-                            if "FixedVersion" in vulnerability:
-                                compressed_vulnerability_report[target["Target"]][
-                                    "FixedVersion"
-                                ] = vulnerability["FixedVersion"]
-
-                            compressed_vulnerability_report[target["Target"]][
-                                "Severity"
-                            ] = vulnerability["Severity"]
-                            # Not all vulnerabilities have a description
-                            if "Description" in vulnerability:
-                                compressed_vulnerability_report[target["Target"]][
-                                    "Description"
-                                ] = vulnerability["Description"]
 
         self.semaphore_vulnerability_reports.acquire()
         try:
             vulnerability_report["Metadata"]["NextUpdate"] = self.database_timestamp
             self.vulnerability_reports[image] = vulnerability_report
-            self.compressed_vulnerability_reports[
-                image
-            ] = compressed_vulnerability_report
         finally:
             self.semaphore_vulnerability_reports.release()
-
-        # Remove the vulnerability report file
-        os.remove(
-            os.path.join(self.reports_path, image_name + "_vulnerability_report.json")
-        )
 
         if self.kill_flag:
             issue = {
@@ -498,9 +468,6 @@ class TrivyUtils:
             self.sboms[image] = sbom
         finally:
             self.semaphore_sboms.release()
-
-        # Remove the SBOM file
-        os.remove(os.path.join(self.reports_path, image_name + "_sbom.json"))
 
         return image, issue
 
@@ -689,12 +656,6 @@ class TrivyUtils:
                         report["Target"]
                     ]["Severity"] = misconfiguration["Severity"]
 
-        # Delete the dockerfile report file
-        try:
-            os.remove(os.path.join(self.reports_path, "dockerfile_report.json"))
-        except OSError:
-            pass
-
     def safe_vulnerability_reports(self):
         # save the vulnerability reports to the security-reports directory
         with open(
@@ -703,13 +664,50 @@ class TrivyUtils:
         ) as f:
             json.dump(self.vulnerability_reports, f)
 
+        # Create compressed vulnerability report
+        compressed_vulnerability_reports = {}
+
+        for image in self.vulnerability_reports:
+            compressed_vulnerability_report = {}
+            vulnerability_report = self.vulnerability_reports[image]
+            if "Results" in vulnerability_report:
+                if len(vulnerability_report["Results"]) > 0:
+                    for target in vulnerability_report["Results"]:
+                        if "Vulnerabilities" in target:
+                            compressed_vulnerability_report[target["Target"]] = {}
+                            for vulnerability in target["Vulnerabilities"]:
+                                compressed_vulnerability_report[target["Target"]][
+                                    "VulnerabilityID"
+                                ] = vulnerability["VulnerabilityID"]
+                                compressed_vulnerability_report[target["Target"]][
+                                    "Pkg"
+                                ] = vulnerability["PkgName"]
+                                compressed_vulnerability_report[target["Target"]][
+                                    "InstalledVersion"
+                                ] = vulnerability["InstalledVersion"]
+
+                                if "FixedVersion" in vulnerability:
+                                    compressed_vulnerability_report[target["Target"]][
+                                        "FixedVersion"
+                                    ] = vulnerability["FixedVersion"]
+
+                                compressed_vulnerability_report[target["Target"]][
+                                    "Severity"
+                                ] = vulnerability["Severity"]
+                                # Not all vulnerabilities have a description
+                                if "Description" in vulnerability:
+                                    compressed_vulnerability_report[target["Target"]][
+                                        "Description"
+                                    ] = vulnerability["Description"]
+            compressed_vulnerability_reports[image] = compressed_vulnerability_report
+
         with open(
             os.path.join(
                 self.reports_path, self.tag + "_compressed_vulnerability_report.json"
             ),
             "w",
         ) as f:
-            json.dump(self.compressed_vulnerability_reports, f)
+            json.dump(compressed_vulnerability_reports, f)
 
         self.extract_individual_cves()
 
@@ -727,44 +725,45 @@ class TrivyUtils:
                 run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
 
                 # remove empty json files
-                if os.path.exists(os.path.join(self.reports_path, container + ".json")):
-                    os.remove(os.path.join(self.reports_path, container + ".json"))
+                # if os.path.exists(os.path.join(self.reports_path, container + ".json")):
+                #    os.remove(os.path.join(self.reports_path, container + ".json"))
+                # TODO: remove empty json files in raw
         finally:
             self.semaphore_running_containers.release()
 
-    def load_cache(self):
-        # load cache
-        if os.path.exists(
-            os.path.join(
-                self.reports_path, self.tag + "_compressed_vulnerability_report.json"
-            )
-        ):
-            with open(
-                os.path.join(
-                    self.reports_path,
-                    self.tag + "_compressed_vulnerability_report.json",
-                ),
-                "r",
-            ) as f:
-                self.compressed_vulnerability_reports = json.load(f)
+    # def load_cache(self):
+    #     # load cache
+    #     if os.path.exists(
+    #         os.path.join(
+    #             self.reports_path, self.tag + "_compressed_vulnerability_report.json"
+    #         )
+    #     ):
+    #         with open(
+    #             os.path.join(
+    #                 self.reports_path,
+    #                 self.tag + "_compressed_vulnerability_report.json",
+    #             ),
+    #             "r",
+    #         ) as f:
+    #             self.compressed_vulnerability_reports = json.load(f)
 
-        if os.path.exists(
-            os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json")
-        ):
-            with open(
-                os.path.join(
-                    self.reports_path, self.tag + "_vulnerability_reports.json"
-                ),
-                "r",
-            ) as f:
-                self.vulnerability_reports = json.load(f)
+    #     if os.path.exists(
+    #         os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json")
+    #     ):
+    #         with open(
+    #             os.path.join(
+    #                 self.reports_path, self.tag + "_vulnerability_reports.json"
+    #             ),
+    #             "r",
+    #         ) as f:
+    #             self.vulnerability_reports = json.load(f)
 
-        if os.path.exists(os.path.join(self.reports_path, self.tag + "_sboms.json")):
-            with open(
-                os.path.join(self.reports_path, self.tag + "_sboms.json"),
-                "r",
-            ) as f:
-                self.sboms = json.load(f)
+    #     if os.path.exists(os.path.join(self.reports_path, self.tag + "_sboms.json")):
+    #         with open(
+    #             os.path.join(self.reports_path, self.tag + "_sboms.json"),
+    #             "r",
+    #         ) as f:
+    #             self.sboms = json.load(f)
 
     # Read the NextUpdate timestamp from the database and check if it has expired
     def check_database_expired(self, image):
@@ -778,12 +777,30 @@ class TrivyUtils:
             return False
 
     def check_vulnerability_reports_cache(self, image):
-        if image in self.vulnerability_reports:
-            if self.vulnerability_reports[image]["Metadata"][
-                "ImageID"
-            ] == self.get_image_Id(image):
-                if self.check_database_expired(image):
+        # Check if the image is in the vulnerability reports
+        path_to_report = os.path.join(
+            self.raw_reports_path,
+            f"{image}_vulnerability_report.json".replace("/", "_").replace(":", "_"),
+        )
+        if os.path.isfile(path_to_report):
+            try:
+                report = json.load(open(path_to_report))
+            except Exception as e:
+                return False
+            # Check if the image hash is the same
+            if report["Metadata"]["ImageID"] == self.get_image_Id(image):
+                # Check if the database has expired
+                if (
+                    BuildUtils.check_expired_vulnerabilities_database
+                    and self.check_database_expired(image)
+                ):
                     return False
+
+                self.semaphore_vulnerability_reports.acquire()
+                try:
+                    self.vulnerability_reports[image] = report
+                finally:
+                    self.semaphore_vulnerability_reports.release()
                 return True
 
         return False

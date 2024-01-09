@@ -22,3 +22,4 @@ vulnerability_severity_level: "CRITICAL,HIGH" # Filter by severity of findings. 
 configuration_check: false # Wheter the Charts, deployments, dockerfiles etc. should be checked for configuration errors.
 configuration_check_severity_level: "CRITICAL,HIGH" # Filter by severity of findings. CRITICAL, HIGH, MEDIUM, LOW, UNKNOWN. All -> ""
 create_sboms: false # Create Software Bill of Materials (SBOMs) for the built containers.
+check_expired_vulnerabilities_database: false # Check if the vulnerability database is expired (6h) and rescan it if necessary.

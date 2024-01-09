@@ -40,6 +40,7 @@ class BuildUtils:
     platform_last_commit_timestamp = None
     enable_image_stats = None
     trivy_utils = None
+    check_expired_vulnerabilities_database = None
 
     @staticmethod
     def add_container_images_available(container_images_available):

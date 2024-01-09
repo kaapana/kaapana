@@ -3,6 +3,24 @@
 Changelog
 #########
 
+.. _release-0.2.6:
+
+-------------------------
+
+********************
+Release Notes v0.2.6
+********************
+
+January 09, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fix behaviour when missing filename or '---' in filenames in Bin2DcmOperator 
+* Changed storaged path for TotalSegmentator radiomics results from 'thumbnail' to 'totalsegmentator'
+
 .. _release-0.2.5:
 
 -------------------------

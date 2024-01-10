@@ -14,7 +14,7 @@ COPY files/spe-vue/ .
 RUN npm i vuetify
 RUN npm i vite-plugin-vuetify
 RUN npm i @mdi/font
-RUN npm i vuex
+# RUN npm i vuex
 RUN npm i axios
 
 

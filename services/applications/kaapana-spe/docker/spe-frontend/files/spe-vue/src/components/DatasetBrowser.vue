@@ -44,7 +44,10 @@
 </template>
   
 <script>
-import { loadDatasets } from "../services/api.service";
+
+// import { loadDatasets } from "../services/api.service";
+import axios from 'axios';
+
 
 
 export default {
@@ -58,6 +61,27 @@ export default {
         selectItem(item) {
         this.selectedItem = item;
         },
+        const loadDatasets = async (namesOnly = true) => {
+          try {
+            const datasets = await axios.get(
+              KAAPANA_BACKEND_ENDPOINT + "client/datasets"
+            );
+            if (namesOnly) {
+              return datasets.data.map((dataset) => dataset.name);
+            } else {
+              return datasets.data;
+            }
+          } catch (error) {
+            Vue.notify({
+              title: "Error",
+              text:
+                error.response && error.response.data && error.response.data.detail
+                  ? error.response.data.detail
+                  : error,
+              type: "error",
+            });
+          }
+      },
     },
 };
 </script>  

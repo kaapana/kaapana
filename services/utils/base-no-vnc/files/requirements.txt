@@ -6,7 +6,7 @@ Flask==2.2.5
 Flask-Login==0.6.1
 gevent==23.9.1
 gevent-websocket==0.10.1
-greenlet==1.1.2
+greenlet==2.0.2
 idna==3.4
 itsdangerous==2.1.2
 Jinja2==3.1.2

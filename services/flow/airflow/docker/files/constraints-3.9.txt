@@ -133,7 +133,7 @@ apache-airflow-providers-vertica==3.3.1
 apache-airflow-providers-yandex==3.3.0
 apache-airflow-providers-zendesk==4.2.0
 apache-beam==2.46.0
-apispec==3.3.2
+apispec==6.4.0
 appdirs==1.4.4
 argcomplete==2.1.1
 arrow==1.2.3
@@ -323,7 +323,7 @@ h2==4.1.0
 hdfs==2.7.0
 hmsclient==0.1.1
 hpack==4.0.0
-httpcore==0.16.3
+httpcore==1.0.2
 httplib2==0.21.0
 httpx==0.26.0
 humanize==4.6.0

@@ -142,35 +142,38 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
             if self.mode == "keep":
                 num_kept_labels = 0
 
+                # iterate over niftis
+                for nifti_fname in nifti_files:
+                    # check if current nifti_fname is of ignored label_name; if yes, don't copy to out_dir
+                    copy = any(
+                        label_name in self.remove_special_characters(nifti_fname)
+                        for label_name in self.label_filter
+                    )
+                    if copy:
+                        src_path, dest_path = nifti_fname, os.path.join(
+                            os.path.dirname(metainfo_output_path),
+                            os.path.basename(nifti_fname),
+                        )
+                        shutil.copy(src_path, dest_path)
+                        num_kept_labels += 1
+
                 # iterate over label_names in self.label_filter
+                temp_incoming_metainfo_segment_attributes = []
                 for label_name in self.label_filter:
-                    # find nifti files that have self.label_filter's label_names in fname and copy them to output dir
-                    for nifti_fname in nifti_files:
-                        if label_name in self.remove_special_characters(nifti_fname):
-                            src_path = nifti_fname
-                            dest_path = os.path.join(
-                                os.path.dirname(metainfo_output_path),
-                                os.path.basename(nifti_fname),
-                            )
-                            shutil.copy(src_path, dest_path)
-
-                            num_kept_labels += 1
-
                     # modify meta_info JSON according to self.label_filter
-                    temp_incoming_metainfo_segment_attributes = []
                     for segment_attribute in incoming_metainfo["segmentAttributes"]:
                         if label_name in self.remove_special_characters(
-                            segment_attribute
+                            json.dumps(segment_attribute)
                         ):
                             temp_incoming_metainfo_segment_attributes.append(
                                 segment_attribute
                             )
-                    incoming_metainfo[
-                        "segmentAttributes"
-                    ] = temp_incoming_metainfo_segment_attributes
-                    # write incoming_metainfo to output_dir
-                    with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
-                        json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
+                incoming_metainfo[
+                    "segmentAttributes"
+                ] = temp_incoming_metainfo_segment_attributes
+                # write incoming_metainfo to output_dir
+                with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
+                    json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
 
                 print("#")
                 print(
@@ -181,22 +184,23 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
             elif self.mode == "ignore":
                 num_ignored_labels = 0
 
+                # iterate over niftis
+                for nifti_fname in nifti_files:
+                    # check if current nifti_fname is of ignored label_name; if yes, don't copy to out_dir
+                    copy = all(
+                        label_name not in self.remove_special_characters(nifti_fname)
+                        for label_name in self.label_filter
+                    )
+                    if copy:
+                        src_path, dest_path = nifti_fname, os.path.join(
+                            os.path.dirname(metainfo_output_path),
+                            os.path.basename(nifti_fname),
+                        )
+                        shutil.copy(src_path, dest_path)
+                        num_ignored_labels += 1
+
                 # iterate over label_names in self.label_filter
                 for label_name in self.label_filter:
-                    # find nifti files that DON'T have self.label_filter's label_names in fname and copy them to output dir
-                    for nifti_fname in nifti_files:
-                        if label_name not in self.remove_special_characters(
-                            nifti_fname
-                        ):
-                            src_path = nifti_fname
-                            dest_path = os.path.join(
-                                os.path.dirname(metainfo_output_path),
-                                os.path.basename(nifti_fname),
-                            )
-                            shutil.copy(src_path, dest_path)
-
-                            num_ignored_labels += 1
-
                     # modify meta_info JSON according to self.label_filter
                     temp_incoming_metainfo_segment_attributes = []
                     for segment_attribute in incoming_metainfo["segmentAttributes"]:

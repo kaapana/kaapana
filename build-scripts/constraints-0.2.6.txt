@@ -45,7 +45,7 @@ Flask>=2.2.5
 # Security fix for CVE-2021-41945
 httpx>=0.26.0
 # Security fix for CVE-2023-29005
-Flask-AppBuilder>=4.3.0
+Flask-AppBuilder>=4.3.3
 # Security fix for CVE-2023-49081
 aiohttp>=3.9.1
 # Security fix for CVE-2023-25754

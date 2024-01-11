@@ -7,7 +7,7 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir -r /kaapana/app/requirements.txt
+RUN python -m pip install -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
 RUN apt-get update && apt-get install -y ldap-utils  && rm -rf /var/lib/apt/lists/* 
 

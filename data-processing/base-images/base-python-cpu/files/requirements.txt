@@ -14,11 +14,11 @@ seaborn==0.11.2
 # Security fix for CVE-2022-1941
 protobuf==3.20.2
 # Security fix for CVE-2023-0286
-cryptography==39.0.1
+cryptography==41.0.7
 # Security fix for CVE-2023-25577
 Werkzeug==2.2.3
-wheel==0.38.1
-Pillow==9.3.0
+wheel==0.42.0
+Pillow==10.2.0
 nibabel==5.1.0
 SimpleITK==2.2.1
 requests==2.31.0

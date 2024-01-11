@@ -28,24 +28,24 @@ RUN apt-get update \
   libpq-dev=11.* \
   unixodbc-dev=2.* \
   g++=4:* \
-  && pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir pipenv==2020.11.15 \
+  && pip install -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt --no-cache-dir pipenv==2020.11.15 \
   && pipenv install --system --deploy \
   && pip uninstall -y pipenv virtualenv-clone virtualenv \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* 
 
 # Security fixes
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir \ 
+RUN pip install -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt --no-cache-dir \ 
   # Security fix for CVE-2022-40898
-  wheel==0.38.1 \
+  wheel==0.42.0 \
   # Security fix for CVE-2022-40897
-  setuptools==65.5.1 \
+  setuptools==69.0.3 \
   # Security fix for CVE-2022-21797
-  joblib==1.2.0 \
+  joblib==1.3.2 \
   # Security fix for CVE-2023-0286
-  cryptography==39.0.1 \
+  cryptography==41.0.7 \
   # Security fix for CVE-2021-23727
-  celery==5.2.2 \
+  celery==5.3.6 \
   # Security fix for CVE-2022-28346
   Django==3.2.18 \
   # Security fix for CVE-2022-29217

@@ -1,14 +1,10 @@
 import logging
-import os
 import asyncio
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 from app.model.websockets import ConnectionManager
-from app.model.documents import DocumentStore
-from app.model.wopi import WOPI
 from app.dependencies import get_connection_manager, get_document_store, get_wopi
 from app.config import get_settings
 from app.routers.wopi import router as wopi
@@ -46,7 +42,7 @@ async def startup():
     log.info("Initalization started")
     wopi_srv = get_wopi()
     wopi_srv.fetch_apps()
-    doc_store = get_document_store()
+    doc_store = get_document_store(x_auth_token=None)
     doc_store.find_documents(
         wopi_srv.supported_extensions(), get_settings().document_path_ignore_regex
     )
@@ -58,7 +54,7 @@ async def startup():
 @app.on_event("startup")
 async def register_jobs():
     wopi_srv = get_wopi()
-    doc_store = get_document_store()
+    doc_store = get_document_store(x_auth_token=None)
     con_mgr = get_connection_manager()
 
     async def wopi_discovery_task() -> None:

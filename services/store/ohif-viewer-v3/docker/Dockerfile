@@ -6,17 +6,17 @@ LABEL BUILD_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python3
 
-RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout 72ec0bffb533f883aac3b76d0ed9559c70fe5838
+RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout df32a05a4d64878c3aaccb54c4b19665ffa58788
 
 RUN yarn config set workspaces-experimental true
 
 WORKDIR /src
-RUN git checkout v3-stable
+
 
 COPY files/viewer-only.patch /src/
 RUN git apply viewer-only.patch
 
-COPY files/kaapana.js /src/platform/viewer/public/config/kaapana.js
+COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 
 ENV HTML_TEMPLATE "index.html"
 ENV PUBLIC_URL "/ohif-v3/"
@@ -27,7 +27,7 @@ RUN yarn run build
 
 FROM docker.io/nginx:stable-alpine as production-stage
 
-COPY --from=build /src/platform/viewer/dist/ /usr/share/nginx/html/ohif-v3/
+COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif-v3/
 
 COPY files/ /usr/share/nginx/html/
 COPY files/kaapana.js /usr/share/nginx/html/ohif-v3/app-config.js

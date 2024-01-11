@@ -2,21 +2,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ohif-iframe
+  name: ohif-v2
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: ohif-iframe
+      app-name: ohif-v2
   template:
     metadata:
       labels:
-        app-name: ohif-iframe
+        app-name: ohif-v2
     spec:
       containers:
-        - name: ohif-container-iframe
-          image: "{{ .Values.global.registry_url }}/ohif-iframe:{{ .Values.global.kaapana_build_version  }}"
+        - name: ohif-container-v2
+          image: "{{ .Values.global.registry_url }}/ohif-v2:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           ports:
             - containerPort: 80

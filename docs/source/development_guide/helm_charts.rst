@@ -130,7 +130,7 @@ Chart Dependency Tree
     │           │               ├── minio-init-chart
     │           │               ├── node-exporter-chart
     │           │               ├── ohif-chart
-    │           │               ├── ohif-chart-v3
+    │           │               ├── ohif-chart-iframe
     │           │               ├── opensearch-chart
     │           │               ├── os-dashboards-chart
     │           │               ├── prometheus-chart

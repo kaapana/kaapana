@@ -286,7 +286,7 @@ Datasets form the core component for managing and organizing data on the platfor
 * A configurable side-panel metadata dashboard for exploring metadata distributions.
 * Shortcut-based tagging functionality for quick and effective data annotation and categorization.
 * Full-text search for filtering items based on metadata.
-* A side panel series viewer using an adjusted OHIF Viewer-v3 to display DICOM next to the series metadata.
+* A side panel series viewer using an adjusted OHIF Viewer-iframe to display DICOM next to the series metadata.
 
 In the following sections, we delve into these functionalities.
 
@@ -379,7 +379,7 @@ Next to the Gallery View is the Metadata Dashboard (configurable in :ref:`settin
 
 Detail View
 """""""""""
-For a more detailed look at a series, double-click a series card or click the eye icon at the top-right of the thumbnail to open the detail view in the side panel. This view comprises an OHIF-v3 viewer and a searchable metadata table for the selected series.
+For a more detailed look at a series, double-click a series card or click the eye icon at the top-right of the thumbnail to open the detail view in the side panel. This view comprises an OHIF-iframe viewer and a searchable metadata table for the selected series.
 
 .. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/gif/detail_view.gif
    :alt: Detail view with OHIF viewer and metadata table

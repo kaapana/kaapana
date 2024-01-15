@@ -120,9 +120,9 @@ class BuildUtils:
         for entry in graph_bottom_up:
             if "root" in entry.lower():
                 continue
-
-            name = entry.split(":")[1]
-            version = entry.split(":")[2]
+            parts = entry.split(":")
+            name = ":".join(parts[1:-1])
+            version = parts[-1]
             entry_id = f"{name}:{version}"
 
             if "chart:" in entry:

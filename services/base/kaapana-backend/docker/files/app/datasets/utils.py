@@ -205,3 +205,43 @@ async def get_field_mapping(index="meta-index") -> Dict:
         if len(re.findall("\d", k)) == 0 and k != "" and v != ""
     }
     return name_field_map
+
+
+def drop_duplicate_studies(identifiers):
+    import pandas as pd
+    query = {
+        "ids": {
+            "values": identifiers
+        }
+    }
+
+    query = {
+        "terms": {
+            "0020000E SeriesInstanceUID_keyword": identifiers
+        }
+    }
+
+    hits = execute_opensearch_query(
+        query=query,
+        source={
+            "includes": [
+                "00100020 PatientID_keyword",
+                "0020000D StudyInstanceUID_keyword",
+                "0020000E SeriesInstanceUID_keyword",
+            ]
+        },
+    )
+    res_array = [
+        [
+            hit["_source"].get("00100020 PatientID_keyword") or "N/A",
+            hit["_source"]["0020000D StudyInstanceUID_keyword"],
+            hit["_source"]["0020000E SeriesInstanceUID_keyword"],
+        ]
+        for hit in hits
+    ]
+
+    df = pd.DataFrame(
+        res_array,
+        columns=["Patient ID", "Study Instance UID", "Series Instance UID"],
+    )
+    return df.drop_duplicates("Study Instance UID")["Series Instance UID"].tolist()

@@ -1,13 +1,9 @@
 FROM docker.io/node:20-alpine3.16 as build
 
-LABEL IMAGE="ohif"
-<<<<<<< HEAD
-LABEL VERSION="4.12.26"
-LABEL BUILD_IGNORE="False"
-=======
+LABEL IMAGE="ohififrame"
 LABEL VERSION="v3.7.0"
-LABEL CI_IGNORE="False"
->>>>>>> 3fd3650c (ohif 3.7.0 as default ohif, v2 backup: /ohif-v2)
+LABEL BUILD_IGNORE="False"
+
 
 RUN apk add --no-cache ca-certificates git build-base python3
 
@@ -17,10 +13,14 @@ RUN yarn config set workspaces-experimental true
 
 WORKDIR /src
 
+
+#COPY files/viewer-only.patch /src/
+#RUN git apply viewer-only.patch
+
 COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 
 ENV HTML_TEMPLATE "index.html"
-ENV PUBLIC_URL "/ohif/"
+ENV PUBLIC_URL "/ohif-iframe/"
 ENV APP_CONFIG "config/kaapana.js"
 
 RUN yarn install
@@ -28,10 +28,10 @@ RUN yarn run build
 
 FROM docker.io/nginx:stable-alpine as production-stage
 
-COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif/
+COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif-iframe/
 
 COPY files/ /usr/share/nginx/html/
-COPY files/kaapana.js /usr/share/nginx/html/ohif/app-config.js
+COPY files/kaapana.js /usr/share/nginx/html/ohif-iframe/app-config.js
 
 COPY conf /etc/nginx
 EXPOSE 80

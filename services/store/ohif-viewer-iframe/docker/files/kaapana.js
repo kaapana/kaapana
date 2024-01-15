@@ -2,7 +2,7 @@ var hostname = window.location.href.split("//")[1].split("/")[0];
 console.log("Hostname: " + hostname);
 window.config = {
   // default: '/'
-  routerBasename: "/ohif-v3/",
+  routerBasename: "/ohif-iframe/",
   extensions: [],
   modes: [],
   showStudyList: true,

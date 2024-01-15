@@ -1,4 +1,4 @@
-FROM docker.io/python:3.9.16-slim
+FROM docker.io/python:3.9.18-slim
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-python-cpu"

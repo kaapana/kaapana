@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: ohif-service-v3
+  name: ohif-service-iframe
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
-    app-name: ohif-v3
+    app-name: ohif-iframe
   ports:
-  - name: ohif-port-v3
+  - name: ohif-p-iframe
     port: 80
     protocol: TCP
   type: ClusterIP
@@ -16,7 +16,7 @@ spec:
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:
-  name: ohif-ingress-ip-v3
+  name: ohif-ingress-ip-iframe
   namespace: "{{ .Values.global.services_namespace }}"
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
@@ -26,11 +26,11 @@ spec:
   - host: 
     http:
       paths:
-      - path: /ohif-v3
+      - path: /ohif-iframe
         pathType: ImplementationSpecific
         backend:
           service:
-            name: ohif-service-v3
+            name: ohif-service-iframe
             port:
-              name: ohif-port-v3
+              name: ohif-p-iframe
 ---

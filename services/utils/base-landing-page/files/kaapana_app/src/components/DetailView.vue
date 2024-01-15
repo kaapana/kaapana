@@ -66,7 +66,7 @@ export default {
       this.$store.dispatch("resetDetailViewItem");
     },
     openInOHIFViewer() {
-      window.open(`/ohif/viewer/${this.studyInstanceUID}`);
+      window.open(`/ohif/viewer?StudyInstanceUIDs=${this.studyInstanceUID}`);
     },
   },
   watch: {
@@ -80,7 +80,7 @@ export default {
   computed: {
     iFrameURL() {
       return (
-        "/ohif-v3/viewer?StudyInstanceUIDs=" +
+        "/ohif-iframe/viewer?StudyInstanceUIDs=" +
         this.studyInstanceUID +
         "&initialSeriesInstanceUID=" +
         this.seriesInstanceUID

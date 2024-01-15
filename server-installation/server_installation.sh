@@ -419,7 +419,7 @@ function install_microk8s {
         if [ "$REAL_USER" != "root" ]; then
             echo "${YELLOW} Setting non-root permissions ...${NC}"
             sudo usermod -a -G microk8s $REAL_USER
-            sudo chown -f -R $REAL_USER:$REAL_USER $USER_HOME/.kube
+            sudo chown -f -R $REAL_USER $USER_HOME/.kube
         fi
 
         echo ""

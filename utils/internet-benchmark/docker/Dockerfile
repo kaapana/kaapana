@@ -1,4 +1,4 @@
-FROM docker.io/python:3.8
+FROM docker.io/python:3.8.18-slim
 
 LABEL IMAGE="speedtest"
 LABEL VERSION="0.0.0"

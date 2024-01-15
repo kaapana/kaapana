@@ -9,7 +9,7 @@ WORKDIR /kaapana/app
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     apt-transport-https \
     nmap \
-    netcat \
+ #   netcat \
     iputils-ping \
     dnsutils \
     && rm -rf /var/lib/apt/lists/*

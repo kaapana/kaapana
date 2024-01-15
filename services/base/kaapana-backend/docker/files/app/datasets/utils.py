@@ -209,17 +209,10 @@ async def get_field_mapping(index="meta-index") -> Dict:
 
 def drop_duplicate_studies(identifiers):
     import pandas as pd
-    query = {
-        "ids": {
-            "values": identifiers
-        }
-    }
 
-    query = {
-        "terms": {
-            "0020000E SeriesInstanceUID_keyword": identifiers
-        }
-    }
+    query = {"ids": {"values": identifiers}}
+
+    query = {"terms": {"0020000E SeriesInstanceUID_keyword": identifiers}}
 
     hits = execute_opensearch_query(
         query=query,

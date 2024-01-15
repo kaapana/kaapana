@@ -1399,13 +1399,20 @@ def queue_generate_jobs_and_add_to_workflow(
 
             conf_data["data_form"].update({"identifiers": identifiers})
 
-        if "data_form" in conf_data and "identifiers" in conf_data["data_form"] and conf_data.get("workflow_form", {}).get("series_uids_with_unique_study_uids", False):
-            logging.error(
-                f"Dropping identifiers with similar study uids"
+        if (
+            "data_form" in conf_data
+            and "identifiers" in conf_data["data_form"]
+            and conf_data.get("workflow_form", {}).get(
+                "series_uids_with_unique_study_uids", False
             )
+        ):
+            logging.error(f"Dropping identifiers with similar study uids")
             from app.datasets.utils import drop_duplicate_studies
-            conf_data["data_form"]["identifiers"] = drop_duplicate_studies(conf_data["data_form"]["identifiers"])
-            
+
+            conf_data["data_form"]["identifiers"] = drop_duplicate_studies(
+                conf_data["data_form"]["identifiers"]
+            )
+
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []
         if single_execution is True:

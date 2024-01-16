@@ -96,6 +96,7 @@ def cache_operator_output(func):
         downstream_tasks_ids = [task.task_id for task in downstream_tasks]
         conf = dag_run.conf
 
+        # get the federated conf object
         if (
             conf is not None
             and "federated_form" in conf
@@ -114,6 +115,7 @@ def cache_operator_output(func):
         else:
             federated = None
 
+        # set the predefined skip_operators to state "skipped"
         if (
             federated is not None
             and "skip_operators" in federated
@@ -134,19 +136,22 @@ def cache_operator_output(func):
                 print("Soft skipping, since we are in the last round...")
                 return
 
+        # Caching mechanism to cache data/info from previous dag_runs
         if (
             federated is not None
             and "from_previous_dag_run" in federated
             and federated["from_previous_dag_run"] is not None
         ):
+            # skip_operator in last_round
             if (
                 "skip_operators" in federated
                 and self.operator_out_dir in federated["skip_operators"]
                 and last_round is True
             ):
                 print(
-                    f"Ignoring from_previous_dag_run_action for opperators since we are in the last round and we are part of the skip_operators..."
+                    f"Ignoring from_previous_dag_run_action for operators since we are in the last round and we are part of the skip_operators..."
                 )
+            # federated operator
             elif (
                 "federated_operators" in federated
                 and self.operator_out_dir in federated["federated_operators"]
@@ -163,6 +168,7 @@ def cache_operator_output(func):
                         dag_run_dir,
                         federated,
                     )
+            # caching / copying data from previous dag_run
             else:
                 print(
                     f"Copying data from previous workflow for {self.operator_out_dir}"

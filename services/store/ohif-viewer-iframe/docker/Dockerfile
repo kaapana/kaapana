@@ -14,8 +14,8 @@ RUN yarn config set workspaces-experimental true
 WORKDIR /src
 
 
-#COPY files/viewer-only.patch /src/
-#RUN git apply viewer-only.patch
+COPY files/viewer-only.patch /src/
+RUN git apply viewer-only.patch
 
 COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 

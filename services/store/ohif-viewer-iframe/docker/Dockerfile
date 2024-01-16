@@ -7,7 +7,7 @@ LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python3
 
-RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout df32a05a4d64878c3aaccb54c4b19665ffa58788
+RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout 72ec0bffb533f883aac3b76d0ed9559c70fe5838
 
 RUN yarn config set workspaces-experimental true
 
@@ -16,6 +16,9 @@ WORKDIR /src
 
 COPY files/viewer-only.patch /src/
 RUN git apply viewer-only.patch
+
+COPY files/bugfix.patch /src/
+RUN git apply bugfix.patch
 
 COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 

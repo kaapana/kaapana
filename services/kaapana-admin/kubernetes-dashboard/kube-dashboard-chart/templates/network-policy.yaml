@@ -1,0 +1,24 @@
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: allow-ingress-from-traefik
+spec:
+  selector: app-name == 'kubernetes-dashboard'
+  ingress:
+  - action: Allow
+    protocol: TCP
+    source:
+      selector: app == 'traefik'
+    destination:
+      ports:
+      - 9090
+---
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: allow-egress-from-dashboard
+spec:
+  selector: app-name == 'kubernetes-dashboard'
+  egress:
+  - action: Allow
+

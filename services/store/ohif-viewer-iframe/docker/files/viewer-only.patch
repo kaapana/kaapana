@@ -1,68 +1,36 @@
-diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
-index e9c7450c6..2b0e88225 100644
---- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
-+++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
-@@ -334,7 +334,7 @@ function OHIFCornerstoneRTViewport(props) {
-             patientSex: PatientSex || '',
-             patientAge: PatientAge || '',
-             MRN: PatientID || '',
--            thickness: SliceThickness ? `${SliceThickness.toFixed(2)}mm` : '',
-+            thickness: '',
-             spacing:
-               SpacingBetweenSlices !== undefined ? `${SpacingBetweenSlices.toFixed(2)}mm` : '',
-             scanner: ManufacturerModelName || '',
-diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-index fb39f8c36..060707350 100644
---- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-+++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-@@ -337,8 +337,8 @@ function OHIFCornerstoneSEGViewport(props) {
-             patientSex: PatientSex || '',
-             patientAge: PatientAge || '',
-             MRN: PatientID || '',
--            thickness: SliceThickness ? utils.roundNumber(SliceThickness, 2) : '',
--            thicknessUnits: SliceThickness !== undefined ? 'mm' : '',
-+            thickness: '',
-+            thicknessUnits: '',
-             spacing:
-               SpacingBetweenSlices !== undefined ? utils.roundNumber(SpacingBetweenSlices, 2) : '',
-             scanner: ManufacturerModelName || '',
-diff --git a/extensions/cornerstone-dicom-sr/src/viewports/OHIFCornerstoneSRViewport.tsx b/extensions/cornerstone-dicom-sr/src/viewports/OHIFCornerstoneSRViewport.tsx
-index a1e728bdd..b59fb0e7b 100644
---- a/extensions/cornerstone-dicom-sr/src/viewports/OHIFCornerstoneSRViewport.tsx
-+++ b/extensions/cornerstone-dicom-sr/src/viewports/OHIFCornerstoneSRViewport.tsx
-@@ -360,7 +360,7 @@ function OHIFCornerstoneSRViewport(props) {
-             patientSex: PatientSex || '',
-             patientAge: PatientAge || '',
-             MRN: PatientID || '',
--            thickness: SliceThickness ? `${SliceThickness.toFixed(2)}mm` : '',
-+            thickness: '',
-             spacing:
-               SpacingBetweenSlices !== undefined ? `${SpacingBetweenSlices.toFixed(2)}mm` : '',
-             scanner: ManufacturerModelName || '',
 diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
-index e045bca33..f9a3964ec 100644
+index 7d64064fe..10abdd4ee 100644
 --- a/extensions/default/src/ViewerLayout/index.tsx
 +++ b/extensions/default/src/ViewerLayout/index.tsx
-@@ -106,28 +106,12 @@ function ViewerLayout({
+@@ -218,37 +218,14 @@ function ViewerLayout({
  
    return (
      <div>
--      <ViewerHeader
--        hotkeysManager={hotkeysManager}
--        extensionManager={extensionManager}
--        servicesManager={servicesManager}
--      />
+-      <Header
+-        menuOptions={menuOptions}
+-        isReturnEnabled={!!appConfig.showStudyList}
+-        onClickReturnButton={onClickReturnButton}
+-        WhiteLabeling={appConfig.whiteLabeling}
+-      >
+-        <ErrorBoundary context="Primary Toolbar">
+-          <div className="relative flex justify-center">
+-            <Toolbar servicesManager={servicesManager} />
+-          </div>
+-        </ErrorBoundary>
+-      </Header>
        <div
-         className="relative flex w-full flex-row flex-nowrap items-stretch overflow-hidden bg-black"
+         className="bg-black flex flex-row items-stretch w-full overflow-hidden flex-nowrap relative"
 -        style={{ height: 'calc(100vh - 52px' }}
 +        style={{ height: '100vh' }}
        >
          <React.Fragment>
-           {showLoadingIndicator && <LoadingIndicatorProgress className="h-full w-full bg-black" />}
+           {showLoadingIndicator && (
+             <LoadingIndicatorProgress className="h-full w-full bg-black" />
+           )}
 -          {/* LEFT SIDEPANELS */}
 -          {leftPanelComponents.length ? (
 -            <ErrorBoundary context="Left Panel">
--              <SidePanelWithServices
+-              <SidePanel
 -                side="left"
 -                activeTabIndex={leftPanelDefaultClosed ? null : 0}
 -                tabs={leftPanelComponents}
@@ -71,15 +39,15 @@ index e045bca33..f9a3964ec 100644
 -            </ErrorBoundary>
 -          ) : null}
            {/* TOOLBAR + GRID */}
-           <div className="flex h-full flex-1 flex-col">
-             <div className="relative flex h-full flex-1 items-center justify-center overflow-hidden bg-black">
-@@ -140,16 +124,6 @@ function ViewerLayout({
+           <div className="flex flex-col flex-1 h-full">
+             <div className="flex items-center justify-center flex-1 h-full overflow-hidden bg-black relative">
+@@ -261,16 +238,6 @@ function ViewerLayout({
                </ErrorBoundary>
              </div>
            </div>
 -          {rightPanelComponents.length ? (
 -            <ErrorBoundary context="Right Panel">
--              <SidePanelWithServices
+-              <SidePanel
 -                side="right"
 -                activeTabIndex={rightPanelDefaultClosed ? null : 0}
 -                tabs={rightPanelComponents}

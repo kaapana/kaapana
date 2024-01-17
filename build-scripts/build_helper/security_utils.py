@@ -11,14 +11,9 @@ import datetime
 
 suite_tag = "security"
 
-
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:
-    sboms = {}
-    vulnerability_reports = {}
-    compressed_vulnerability_reports = {}
-    compressed_dockerfile_report = {}
     trivy_image = "aquasec/trivy:0.38.3"
     timeout = 10000
     threadpool = None
@@ -26,12 +21,13 @@ class TrivyUtils:
     kill_flag = False
     cache = True
     tag = None
+    dockerfile_report_path = None
 
     def __init__(self, cache=True, tag=None):
         if tag is None:
             raise Exception("Please provide a tag")
 
-        self.tag = tag
+        self.tag
         self.cache = cache
 
         if BuildUtils.configuration_check:
@@ -88,9 +84,19 @@ class TrivyUtils:
         self.database_timestamp = self.get_database_next_update_timestamp()
 
     def create_vulnerability_reports(self, list_of_images):
-        if self.cache:
-            self.load_cache()
 
+        # create raw reports path (/kaapana/security-reports/raw)
+        self.raw_reports_path = os.path.join(self.reports_path, self.tag, "raw")
+        os.makedirs(self.raw_reports_path, exist_ok=True)
+
+        # create compressed reports path (/kaapana/security-reports/compressed)
+        self.compressed_reports_path = os.path.join(
+            self.reports_path, self.tag, "compressed"
+        )
+        os.makedirs(self.compressed_reports_path, exist_ok=True)
+
+        # if self.cache:
+        #     self.load_cache()
         try:
             with self.threadpool as threadpool:
                 with alive_bar(
@@ -117,7 +123,7 @@ class TrivyUtils:
                     self.threadpool = None
             self.error_clean_up()
         finally:
-            self.safe_vulnerability_reports()
+            self.compress_vulnerability_reports()
 
     # Function to check for vulnerabilities in a given image
     def create_vulnerability_report(self, image):
@@ -143,7 +149,7 @@ class TrivyUtils:
             "-v",
             "/var/run/docker.sock:/var/run/docker.sock",
             "-v",
-            f"{self.reports_path}:/kaapana/trivy_results",
+            f"{self.raw_reports_path}:/kaapana/trivy_results",
             "--name",
             image_name + "_vulnerability_report",
             self.trivy_image,
@@ -152,6 +158,7 @@ class TrivyUtils:
             BuildUtils.vulnerability_severity_level,
             "--format",
             "json",
+            "--ignore-unfixed",
             "--skip-dirs",
             "usr/local/lib/python3.8/dist-packages/nibabel/tests/data",
             "--skip-dirs",
@@ -224,7 +231,9 @@ class TrivyUtils:
 
         # read the vulnerability file
         with open(
-            os.path.join(self.reports_path, image_name + "_vulnerability_report.json"),
+            os.path.join(
+                self.raw_reports_path, image_name + "_vulnerability_report.json"
+            ),
             "r",
         ) as f:
             vulnerability_report = json.load(f)
@@ -235,8 +244,6 @@ class TrivyUtils:
             self.list_of_running_containers.remove(image_name + "_vulnerability_report")
         finally:
             self.semaphore_running_containers.release()
-
-        compressed_vulnerability_report = {}
 
         # Exit if vulnerabilities are found and exit on error is set
         if BuildUtils.exit_on_error == True and "Results" in vulnerability_report:
@@ -279,50 +286,13 @@ class TrivyUtils:
                 }
                 return image, issue
         # Create compressed vulnerability report
-        elif "Results" in vulnerability_report:
-            if len(vulnerability_report["Results"]) > 0:
-                for target in vulnerability_report["Results"]:
-                    if "Vulnerabilities" in target:
-                        compressed_vulnerability_report[target["Target"]] = {}
-                        for vulnerability in target["Vulnerabilities"]:
-                            compressed_vulnerability_report[target["Target"]][
-                                "VulnerabilityID"
-                            ] = vulnerability["VulnerabilityID"]
-                            compressed_vulnerability_report[target["Target"]][
-                                "Pkg"
-                            ] = vulnerability["PkgName"]
-                            compressed_vulnerability_report[target["Target"]][
-                                "InstalledVersion"
-                            ] = vulnerability["InstalledVersion"]
-
-                            if "FixedVersion" in vulnerability:
-                                compressed_vulnerability_report[target["Target"]][
-                                    "FixedVersion"
-                                ] = vulnerability["FixedVersion"]
-
-                            compressed_vulnerability_report[target["Target"]][
-                                "Severity"
-                            ] = vulnerability["Severity"]
-                            # Not all vulnerabilities have a description
-                            if "Description" in vulnerability:
-                                compressed_vulnerability_report[target["Target"]][
-                                    "Description"
-                                ] = vulnerability["Description"]
 
         self.semaphore_vulnerability_reports.acquire()
         try:
             vulnerability_report["Metadata"]["NextUpdate"] = self.database_timestamp
-            self.vulnerability_reports[image] = vulnerability_report
-            self.compressed_vulnerability_reports[
-                image
-            ] = compressed_vulnerability_report
+            # self.vulnerability_reports[image] = vulnerability_report
         finally:
             self.semaphore_vulnerability_reports.release()
-
-        # Remove the vulnerability report file
-        os.remove(
-            os.path.join(self.reports_path, image_name + "_vulnerability_report.json")
-        )
 
         if self.kill_flag:
             issue = {
@@ -353,6 +323,11 @@ class TrivyUtils:
         return image, issue
 
     def create_sboms(self, list_of_images):
+
+        # create sboms path (/kaapana/security-reports/sboms)
+        self.sboms_path = os.path.join(self.reports_path, self.tag, "sboms")
+        os.makedirs(self.sboms_path, exist_ok=True)
+
         try:
             with self.threadpool as threadpool:
                 with alive_bar(
@@ -379,7 +354,8 @@ class TrivyUtils:
                     self.threadpool = None
             self.error_clean_up()
         finally:
-            self.safe_sboms()
+            pass
+            # self.safe_sboms()
 
     # Function to create SBOM for a given image
     def create_sbom(self, image):
@@ -401,7 +377,7 @@ class TrivyUtils:
             "-v",
             "/var/run/docker.sock:/var/run/docker.sock",
             "-v",
-            f"{self.reports_path}:/kaapana/trivy_results",
+            f"{self.sboms_path}:/kaapana/trivy_results",
             "--name",
             image_name + "_sbom",
             self.trivy_image,
@@ -481,26 +457,12 @@ class TrivyUtils:
             }
             return image, issue
 
-        # read the SBOM file
-        with open(os.path.join(self.reports_path, image_name + "_sbom.json"), "r") as f:
-            sbom = json.load(f)
-
         # Remove the image from the list of running containers
         self.semaphore_running_containers.acquire()
         try:
             self.list_of_running_containers.remove(image_name + "_sbom")
         finally:
             self.semaphore_running_containers.release()
-
-        self.semaphore_sboms.acquire()
-        try:
-            # add the SBOM to the dictionary
-            self.sboms[image] = sbom
-        finally:
-            self.semaphore_sboms.release()
-
-        # Remove the SBOM file
-        os.remove(os.path.join(self.reports_path, image_name + "_sbom.json"))
 
         return image, issue
 
@@ -513,8 +475,8 @@ class TrivyUtils:
             "json",
             "-o",
             os.path.join(
-                self.reports_path,
-                f"{BuildUtils.platform_repo_version}_chart_report.json",
+                self.reports_path, self.tag,
+                "chart_report.json",
             ),
             "--severity",
             BuildUtils.configuration_check_severity_level,
@@ -541,8 +503,8 @@ class TrivyUtils:
         # read the chart report file
         with open(
             os.path.join(
-                self.reports_path,
-                f"{BuildUtils.platform_repo_version}_chart_report.json",
+                self.reports_path, self.tag,
+                "chart_report.json",
             ),
             "r",
         ) as f:
@@ -584,36 +546,44 @@ class TrivyUtils:
             )
             with open(
                 os.path.join(
-                    self.reports_path,
-                    f"{BuildUtils.platform_repo_version}_compressed_chart_report.json",
+                    self.reports_path, self.tag,
+                    "compressed_chart_report.json",
                 ),
                 "w",
             ) as f:
                 json.dump(compressed_chart_report, f)
 
-        # Safe the dockerfile report to the security-reports directory if there are any errors
-        if not self.compressed_dockerfile_report == {}:
-            BuildUtils.logger.error(
-                "Found configuration errors in Kaapana chart! See compressed_chart_report.json or chart_report.json for details."
-            )
-            with open(
+        # move docker file report to security-reports directory
+        if os.path.exists(
+            os.path.join(
+                self.reports_path,
+                "dockerfile_reports",
+                )
+            ):
+            os.rename(
                 os.path.join(
                     self.reports_path,
-                    f"{BuildUtils.platform_repo_version}_compressed_dockerfile_report.json",
-                ),
-                "w",
-            ) as f:
-                json.dump(self.compressed_dockerfile_report, f)
+                    "dockerfile_reports",
+                    ),
+                os.path.join(
+                    self.reports_path,
+                    self.tag,
+                    "dockerfile_reports",
+                    ),
+            )
 
     # Function to check Dockerfile for configuration errors
     def check_dockerfile(self, path_to_dockerfile):
+
+        module = "_".join(path_to_dockerfile.split("/")[-4:-1])
+
         command = [
             "trivy",
             "config",
             "-f",
             "json",
             "-o",
-            os.path.join(BuildUtils.build_dir, "dockerfile_report.json"),
+            os.path.join(self.dockerfile_report_path, f"{module}.json"),
             "--severity",
             BuildUtils.configuration_check_severity_level,
             path_to_dockerfile,
@@ -638,7 +608,7 @@ class TrivyUtils:
 
         # Log the dockerfile report
         with open(
-            os.path.join(BuildUtils.build_dir, "dockerfile_report.json"), "r"
+            os.path.join(self.dockerfile_report_path, f"{module}.json"), "r"
         ) as f:
             dockerfile_report = json.load(f)
 
@@ -650,73 +620,95 @@ class TrivyUtils:
             )
             return
 
-        # Log the chart report
-        for report in dockerfile_report["Results"]:
-            if report["MisconfSummary"]["Failures"] > 0:
-                if BuildUtils.exit_on_error:
-                    BuildUtils.logger.error(
-                        "Found configuration errors in Dockerfile! See dockerfile_report.json for details."
-                    )
-                    BuildUtils.generate_issue(
-                        component=suite_tag,
-                        name="Check Dockerfile",
-                        msg="Found configuration errors in Dockerfile! See dockerfile_report.json for details.",
-                        level="ERROR",
-                    )
-                self.compressed_dockerfile_report[path_to_dockerfile] = {}
-                self.compressed_dockerfile_report[path_to_dockerfile][
-                    report["Target"]
-                ] = {}
-                for misconfiguration in report["Misconfigurations"]:
-                    if not misconfiguration["CauseMetadata"]["Code"]["Lines"] == None:
-                        self.compressed_dockerfile_report[path_to_dockerfile][
-                            report["Target"]
-                        ]["Lines"] = (
-                            str(misconfiguration["CauseMetadata"]["StartLine"])
-                            + "-"
-                            + str(misconfiguration["CauseMetadata"]["EndLine"])
-                        )
-                    self.compressed_dockerfile_report[path_to_dockerfile][
-                        report["Target"]
-                    ]["Title"] = misconfiguration["Title"]
-                    self.compressed_dockerfile_report[path_to_dockerfile][
-                        report["Target"]
-                    ]["Description"] = misconfiguration["Description"]
-                    self.compressed_dockerfile_report[path_to_dockerfile][
-                        report["Target"]
-                    ]["Message"] = misconfiguration["Message"]
-                    self.compressed_dockerfile_report[path_to_dockerfile][
-                        report["Target"]
-                    ]["Severity"] = misconfiguration["Severity"]
+    def modules_to_cves(self):
+        list_of_vulnerability_reports = os.listdir(self.raw_reports_path)
+        module_vulnerability_count = {}
+        for vulnerability_report in list_of_vulnerability_reports:
+            # Load the vulnerability report
+            with open(
+                os.path.join(self.raw_reports_path, vulnerability_report), "r"
+            ) as f:
+                vulnerability_report = json.load(f)
 
-        # Delete the dockerfile report file
-        try:
-            os.remove(os.path.join(self.reports_path, "dockerfile_report.json"))
-        except OSError:
-            pass
+                # Create compressed vulnerability report
+                compressed_vulnerability_report = {}
+                if "Results" in vulnerability_report:
+                    if len(vulnerability_report["Results"]) > 0:
+                        for target in vulnerability_report["Results"]:
+                            if "Vulnerabilities" in target:
+                                for vulnerability in target["Vulnerabilities"]:
+                                    compressed_vulnerability_report[
+                                        vulnerability["VulnerabilityID"]
+                                    ] = {}
 
-    def safe_vulnerability_reports(self):
-        # save the vulnerability reports to the security-reports directory
-        with open(
-            os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json"),
-            "w",
-        ) as f:
-            json.dump(self.vulnerability_reports, f)
+                                    compressed_vulnerability_report[
+                                        vulnerability["VulnerabilityID"]
+                                    ]["Class"] = target["Class"]
+                                    compressed_vulnerability_report[
+                                        vulnerability["VulnerabilityID"]
+                                    ]["Type"] = target["Type"]
+
+                                    compressed_vulnerability_report[
+                                        vulnerability["VulnerabilityID"]
+                                    ]["Pkg"] = vulnerability["PkgName"]
+                                    compressed_vulnerability_report[
+                                        vulnerability["VulnerabilityID"]
+                                    ]["InstalledVersion"] = vulnerability[
+                                        "InstalledVersion"
+                                    ]
+
+                                    if "FixedVersion" in vulnerability:
+                                        compressed_vulnerability_report[
+                                            vulnerability["VulnerabilityID"]
+                                        ]["FixedVersion"] = vulnerability[
+                                            "FixedVersion"
+                                        ]
+                                    else:
+                                        compressed_vulnerability_report[
+                                            vulnerability["VulnerabilityID"]
+                                        ]["FixedVersion"] = None
+
+                                    compressed_vulnerability_report[
+                                        vulnerability["VulnerabilityID"]
+                                    ]["Severity"] = vulnerability["Severity"]
+                                    # Not all vulnerabilities have a description
+                                    if "Description" in vulnerability:
+                                        compressed_vulnerability_report[
+                                            vulnerability["VulnerabilityID"]
+                                        ]["Description"] = vulnerability["Description"]
+                                    else:
+                                        compressed_vulnerability_report[
+                                            vulnerability["VulnerabilityID"]
+                                        ]["Description"] = None
+                with open(
+                    os.path.join(
+                        self.compressed_reports_path,
+                        vulnerability_report["ArtifactName"]
+                        .replace("/", "_")
+                        .replace(":", "_")
+                        + "_vulnerability_report.json",
+                    ),
+                    "w",
+                ) as f:
+                    json.dump(compressed_vulnerability_report, f)
+            
+            module_vulnerability_count[vulnerability_report["ArtifactName"]] = len(compressed_vulnerability_report)
 
         with open(
             os.path.join(
-                self.reports_path, self.tag + "_compressed_vulnerability_report.json"
+                self.reports_path,
+                self.tag,
+                "module_vulnerability_count.json",
             ),
             "w",
         ) as f:
-            json.dump(self.compressed_vulnerability_reports, f)
+            json.dump(module_vulnerability_count, f)
 
+    def compress_vulnerability_reports(self):
+        # Create compressed vulnerability reports
+        self.modules_to_cves()
+        #
         self.extract_individual_cves()
-
-    def safe_sboms(self):
-        # save the SBOMs to the security-reports directory
-        with open(os.path.join(self.reports_path, self.tag + "_sboms.json"), "w") as f:
-            json.dump(self.sboms, f)
 
     def error_clean_up(self):
         self.kill_flag = True
@@ -727,44 +719,11 @@ class TrivyUtils:
                 run(command, check=False, stdout=DEVNULL, stderr=DEVNULL)
 
                 # remove empty json files
-                if os.path.exists(os.path.join(self.reports_path, container + ".json")):
-                    os.remove(os.path.join(self.reports_path, container + ".json"))
+                # if os.path.exists(os.path.join(self.reports_path, container + ".json")):
+                #    os.remove(os.path.join(self.reports_path, container + ".json"))
+                # TODO: remove empty json files in raw
         finally:
             self.semaphore_running_containers.release()
-
-    def load_cache(self):
-        # load cache
-        if os.path.exists(
-            os.path.join(
-                self.reports_path, self.tag + "_compressed_vulnerability_report.json"
-            )
-        ):
-            with open(
-                os.path.join(
-                    self.reports_path,
-                    self.tag + "_compressed_vulnerability_report.json",
-                ),
-                "r",
-            ) as f:
-                self.compressed_vulnerability_reports = json.load(f)
-
-        if os.path.exists(
-            os.path.join(self.reports_path, self.tag + "_vulnerability_reports.json")
-        ):
-            with open(
-                os.path.join(
-                    self.reports_path, self.tag + "_vulnerability_reports.json"
-                ),
-                "r",
-            ) as f:
-                self.vulnerability_reports = json.load(f)
-
-        if os.path.exists(os.path.join(self.reports_path, self.tag + "_sboms.json")):
-            with open(
-                os.path.join(self.reports_path, self.tag + "_sboms.json"),
-                "r",
-            ) as f:
-                self.sboms = json.load(f)
 
     # Read the NextUpdate timestamp from the database and check if it has expired
     def check_database_expired(self, image):
@@ -778,11 +737,23 @@ class TrivyUtils:
             return False
 
     def check_vulnerability_reports_cache(self, image):
-        if image in self.vulnerability_reports:
-            if self.vulnerability_reports[image]["Metadata"][
-                "ImageID"
-            ] == self.get_image_Id(image):
-                if self.check_database_expired(image):
+        # Check if the image is in the vulnerability reports
+        path_to_report = os.path.join(
+            self.raw_reports_path,
+            f"{image}_vulnerability_report.json".replace("/", "_").replace(":", "_"),
+        )
+        if os.path.isfile(path_to_report):
+            try:
+                report = json.load(open(path_to_report))
+            except Exception as e:
+                return False
+            # Check if the image hash is the same
+            if report["Metadata"]["ImageID"] == self.get_image_Id(image):
+                # Check if the database has expired
+                if (
+                    BuildUtils.check_expired_vulnerabilities_database
+                    and self.check_database_expired(image)
+                ):
                     return False
                 return True
 
@@ -831,24 +802,18 @@ class TrivyUtils:
         # timestamp_object = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
 
     def extract_individual_cves(self):
-        # load report
-        report_path = os.path.join(
-            self.reports_path, self.tag + "_vulnerability_reports.json"
-        )
-
-        if not os.path.exists(report_path):
-            BuildUtils.logger.error(f"Report {report_path} does not exist")
-            exit(1)
-
-        with open(report_path, "r") as f:
-            reports = json.load(f)
-
         cves = {}
+        list_of_vulnerability_reports = os.listdir(self.raw_reports_path)
 
-        BuildUtils.logger.info(f"Found {len(reports)} reports: ")
-        for module in reports:
-            if "Results" in reports[module]:
-                for issue in reports[module]["Results"]:
+        for vulnerability_report in list_of_vulnerability_reports:
+            # Load the vulnerability report
+            with open(
+                os.path.join(self.raw_reports_path, vulnerability_report), "r"
+            ) as f:
+                report = json.load(f)
+
+            if "Results" in report:
+                for issue in report["Results"]:
                     if "Vulnerabilities" in issue:
                         for vulnerability in issue["Vulnerabilities"]:
                             if (
@@ -890,22 +855,24 @@ class TrivyUtils:
                                         "Target": issue["Type"]
                                         if issue["Type"] in issue["Target"]
                                         else issue["Target"],
-                                        "Modules": [module],
+                                        "Modules": [report["ArtifactName"]],
                                     }
                                 else:
                                     if (
-                                        not module
+                                        not report["ArtifactName"]
                                         in cves[vulnerability["VulnerabilityID"]][
                                             "Modules"
                                         ]
                                     ):
                                         cves[vulnerability["VulnerabilityID"]][
                                             "Modules"
-                                        ].append(module)
+                                        ].append(report["ArtifactName"])
 
         BuildUtils.logger.info(f"Found {len(cves)} individual vulnerabilities")
 
-        with open(os.path.join(self.reports_path, self.tag + "_cves.json"), "w") as f:
+        with open(
+            os.path.join(self.reports_path, self.tag, self.tag + "_cves.json"), "w"
+        ) as f:
             json.dump(cves, f, indent=4)
 
 

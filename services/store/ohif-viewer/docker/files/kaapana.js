@@ -26,6 +26,11 @@ window.config = {
       },
     },
   ],
+  whiteLabeling: {
+    createLogoComponentFn: function (React) {
+      return React.Fragment;
+    },
+  },
   defaultDataSourceName: 'dicomweb',
   // Extensions should be able to suggest default values for these?
   // Or we can require that these be explicitly set

@@ -63,7 +63,6 @@ put_to_minio = LocalMinioOperator(
     action_operator_dirs=[dcm2nifti.operator_out_dir],
     bucket_name="downloads",
     file_white_tuples=(".zip", ".nii.gz"),
-    zip_files=True,
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 

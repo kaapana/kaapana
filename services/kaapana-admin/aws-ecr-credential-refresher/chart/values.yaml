@@ -1,0 +1,35 @@
+---
+global:
+  namespace: "{{ .Values.global.admin_namespace }}"
+
+extension_params:
+    AWS_REGION: 
+      default: ""
+      definition: "AWS Region"
+      type: "string"
+      value: ""
+    AWS_ACCESS_KEY_ID: 
+      default: ""
+      definition: "AWS Access Key ID"
+      type: "string"
+      value: ""
+    AWS_SECRET_ACCESS_KEY: 
+      default: ""
+      definition: "AWS Secret Access Key"
+      type: "string"
+      value: ""
+    ECR_SERVER_URL:
+      default: ""
+      definition: "ECR Server URL"
+      type: "string"
+      value: ""
+    K8S_NAMESPACE:
+      default: "admin" #"{{ .Values.global.admin_namespace }}"
+      definition: "K8S Namespace of Secret"
+      type: "string"
+      value: ""
+    K8S_SECRET_NAME:
+      default: "registry-secret"
+      definition: "K8S Secret Name"
+      type: "string"
+      value: ""

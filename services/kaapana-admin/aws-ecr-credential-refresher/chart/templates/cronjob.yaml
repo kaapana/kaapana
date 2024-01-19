@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: update-k8s-secret-job
+spec:
+  schedule: "0 */12 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: update-k8s-secret
+            image: "{{ .Values.global.registry_url }}/update-k8s-secret:{{ .Values.global.kaapana_build_version  }}"
+            imagePullPolicy: {{ .Values.global.pull_policy_images }}
+            resources:
+              limits:
+                memory: "100Mi"
+              requests:
+                memory: "50Mi"
+            env:
+              - name: AWS_REGION
+                value: "{{ .Values.global.AWS_REGION }}"
+              - name: K8S_SECRET_NAME
+                value: "{{ .Values.global.K8S_SECRET_NAME }}"
+              - name: K8S_NAMESPACE
+                value: "{{ .Values.global.K8S_NAMESPACE }}"
+              - name: ECR_SERVER_URL
+                value: "{{ .Values.global.ECR_SERVER_URL }}"
+              - name: AWS_ACCESS_KEY_ID
+                valueFrom:
+                  secretKeyRef:
+                    name: aws-credentials
+                    key: AWS_ACCESS_KEY_ID
+              - name: AWS_SECRET_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: aws-credentials
+                    key: AWS_SECRET_ACCESS_KEY
+          restartPolicy: OnFailure
+          priorityClassName: kaapana-high-priority
+          serviceAccountName: kaapana-kube-admin
+          imagePullSecrets:
+          - name: registry-secret

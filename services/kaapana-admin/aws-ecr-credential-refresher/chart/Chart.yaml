@@ -1,0 +1,7 @@
+apiVersion: v1
+appVersion: "0.0.1"
+description: Updates ECR registry secret every 12 hours with new access token
+name: aws-ecr-credential-refresher
+version: "0.0.0"
+keywords:
+- kaapanaapplication

@@ -22,6 +22,10 @@ class HelperMinio:
         minioClient, action, bucket_name, object_name, file_path, file_white_tuples=None
     ):
         print(file_path)
+        
+        if not os.path.exists(file_path):
+            raise FileNotFoundError
+            
         if file_white_tuples is not None and not file_path.lower().endswith(
             file_white_tuples
         ):

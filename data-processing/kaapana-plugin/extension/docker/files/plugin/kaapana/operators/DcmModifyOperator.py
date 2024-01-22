@@ -27,15 +27,12 @@ class DcmModifyOperator(KaapanaBaseOperator):
     * Modified DICOM files according to DICOM tags.
     """
 
-    execution_timeout = timedelta(seconds=60)
-
     def __init__(
         self,
         dag,
         dicom_tags_to_modify,  # eg: "(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0017)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0018)=1.2.840.10008.5.1.4.1.1.88.11"
         name="DcmModify",
         env_vars={},
-        execution_timeout=execution_timeout,
         **kwargs,
     ):
         """
@@ -52,7 +49,6 @@ class DcmModifyOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/dcmodify:{KAAPANA_BUILD_VERSION}",
             name=name,
             image_pull_secrets=["registry-secret"],
-            execution_timeout=execution_timeout,
             keep_parallel_id=False,
             env_vars=env_vars,
             ram_mem_mb=100,

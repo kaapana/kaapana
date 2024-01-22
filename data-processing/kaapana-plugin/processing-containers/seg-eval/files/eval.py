@@ -5,6 +5,7 @@ import json
 import os
 from os import getenv
 from pathlib import Path
+import ast
 
 import nibabel as nib
 import numpy as np
@@ -51,6 +52,11 @@ exit_on_error = getenv("EXIT_ON_ERROR", "None")
 exit_on_error = exit_on_error if exit_on_error.lower() != "none" else None
 assert exit_on_error is not None
 exit_on_error = False
+
+eval_metrics = getenv("METRICS", "None")
+eval_metrics = ast.literal_eval(eval_metrics) if eval_metrics.lower() != "none" else None
+assert eval_metrics is not None
+eval_metrics = list(eval_metrics)
 
 
 def read_nifti_file(filepath):
@@ -247,14 +253,17 @@ def evaluate_segmentation(
 
             # Calculate metrics for each mask pair
             metric = {}
-            print(f"# Calculating surface dice for test mask {data['test_id']} ...")
-            metric["surface_dice"] = calculate_surface_dice(gt_mask, pred_mask)
-            print(
-                f"# Calculating hausdorff distance for test mask {data['test_id']} ..."
-            )
-            metric["hausdorff"] = calculate_hausdorff(gt_mask, pred_mask)
-            print(f"# Calculating ASD for test mask {data['test_id']} ...")
-            metric["asd"] = calculate_asd(gt_mask, pred_mask)
+            if "surface_dice" in eval_metrics:
+                print(f"# Calculating surface dice for test mask {data['test_id']} ...")
+                metric["surface_dice"] = calculate_surface_dice(gt_mask, pred_mask)
+            if "hausdorff_distance" in eval_metrics:
+                print(
+                    f"# Calculating hausdorff distance for test mask {data['test_id']} ..."
+                )
+                metric["hausdorff"] = calculate_hausdorff(gt_mask, pred_mask)
+            if "average_surface_distance" in eval_metrics:
+                print(f"# Calculating ASD for test mask {data['test_id']} ...")
+                metric["asd"] = calculate_asd(gt_mask, pred_mask)
             metrics[data["test_id"]] = metric
         except Exception as e:
             print(f"\n# ERROR: during evaluation of test/gt pair {data}")

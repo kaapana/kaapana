@@ -37,9 +37,9 @@ ui_forms = {
                 "items": {
                     "type": "string",
                     "enum": [
-                        "dice-score",
-                        "average-surface-distance",
-                        "hausdorff-distance",
+                        "surface_dice",
+                        "average_surface_distance",
+                        "hausdorff_distance",
                     ],
                 },
             },
@@ -66,7 +66,7 @@ ui_forms = {
             "exit_on_error": {
                 "title": "Exit on evaluation error",
                 "default": True,
-                "description": "Exit if there is an issue with evaluating one of the masks",
+                "description": "Exit immediately if there is an issue with evaluating one of the masks",
                 "type": "boolean",
                 "readOnly": False,
             },

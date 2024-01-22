@@ -6,6 +6,7 @@ conf_data:
   workflow_form:
     zip_files: false
     single_execution: true
+    convert_to_nifti: false
 remote: false
 username: "kaapana" 
 ---
@@ -17,5 +18,18 @@ conf_data:
   workflow_form:
     zip_files: true
     single_execution: false
+    convert_to_nifti: false
+remote: false
+username: "kaapana"
+---
+dag_id: "download-selected-files"
+conf_data:
+  data_form: 
+    dataset_name: "test-CT"
+    dataset_limit: 2
+  workflow_form:
+    zip_files: true
+    single_execution: false
+    convert_to_nifti: true
 remote: false
 username: "kaapana"

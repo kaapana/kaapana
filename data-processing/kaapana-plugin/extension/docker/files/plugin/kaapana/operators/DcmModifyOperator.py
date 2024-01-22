@@ -17,6 +17,10 @@ class DcmModifyOperator(KaapanaBaseOperator):
     This operator serves to modify DICOM tags of DICOM files.
     The operator relies on DCMTK's "dcmodify" function.
 
+    Note: This operator edits the DICOM files in-place. Therefore, the original DICOM files are modified.
+    Furthermore, it creates a backup of the original DICOM files in the same directory with ending "{filename}.bak".
+    If the filename ends with ".dcm", the backup file will be named "{filename}.dcm.bak".
+
     **Inputs:**
 
     * DICOM files which should be modified.

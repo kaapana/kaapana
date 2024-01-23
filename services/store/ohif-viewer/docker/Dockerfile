@@ -6,6 +6,7 @@ LABEL CI_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python3
 
+
 RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout df32a05a4d64878c3aaccb54c4b19665ffa58788
 
 RUN yarn config set workspaces-experimental true
@@ -21,7 +22,12 @@ ENV APP_CONFIG "config/kaapana.js"
 RUN yarn install
 RUN yarn run build
 
-FROM docker.io/nginx:stable-alpine as production-stage
+FROM docker.io/nginx:1.24.0-alpine as production-stage
+
+## Security fix for CVE-2023-6129
+RUN apk update && \
+    apk upgrade && \
+    apk add libssl3==3.0.12-r3 libcrypto3==3.0.12-r3
 
 COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif/
 

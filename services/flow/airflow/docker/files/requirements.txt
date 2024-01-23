@@ -1,5 +1,5 @@
-apache-airflow==2.7.0
-psycopg2-binary == 2.9.5
+apache-airflow==2.8.1
+psycopg2-binary == 2.9.9
 Flask-Admin==1.6.1
 pint == 0.16.1
 dicomweb-client == 0.56.2

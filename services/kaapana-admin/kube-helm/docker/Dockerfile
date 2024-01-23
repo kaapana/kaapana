@@ -23,7 +23,7 @@ RUN cp bin/ctr /usr/local/bin/ctr && chmod +x /usr/local/bin/ctr
 RUN rm -rf containerd* bin/
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt --upgrade setuptools pip && pip3 install -r /kaapana/app/requirements.txt
+RUN pip3 install -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt -r /kaapana/app/requirements.txt
 
 COPY files/backend /kaapana/app/backend
 

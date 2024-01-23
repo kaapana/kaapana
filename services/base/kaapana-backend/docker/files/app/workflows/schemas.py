@@ -3,7 +3,7 @@ from typing import Optional, List, Any
 from sqlalchemy_json import NestedMutableDict, NestedMutableList
 import json
 import datetime
-from pydantic import BaseModel, validator, root_validator
+from pydantic import field_validator, ConfigDict, BaseModel, model_validator, create_model
 
 
 class KaapanaInstanceBase(BaseModel):
@@ -37,6 +37,7 @@ class RemoteKaapanaInstanceUpdateExternal(BaseModel):
 
 
 class KaapanaInstance(KaapanaInstanceBase):
+    #model_config = ConfigDict(arbitrary_types_allowed=True)
     id: int
     token: str
     protocol: str
@@ -46,32 +47,33 @@ class KaapanaInstance(KaapanaInstanceBase):
     fernet_key: str
     encryption_key: str
     remote: bool
-    allowed_dags: Optional[NestedMutableDict] = ...
-    allowed_datasets: Optional[NestedMutableList] = ...
+    #allowed_dags: Optional[NestedMutableDict] = ...
+    #allowed_datasets: Optional[NestedMutableList] = ...
     time_created: datetime.datetime
     time_updated: datetime.datetime
-    workflow_in_which_involved: Optional[str]
+    workflow_in_which_involved: Optional[str] = None
 
-    @validator("allowed_dags")
+    @field_validator("allowed_dags", check_fields=False)
+    @classmethod
     def convert_allowed_dags(cls, v):
         return sorted(v)
 
-    @validator("time_created")
+    @field_validator("time_created")
+    @classmethod
     def convert_time_created(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    @validator("time_updated")
+    @field_validator("time_updated")
+    @classmethod
     def convert_time_updated(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
-
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class JobBase(BaseModel):
@@ -87,12 +89,13 @@ class JobBase(BaseModel):
 
 class Job(JobBase):
     id: int
-    conf_data: Optional[NestedMutableDict] = ...
+    #conf_data: Optional[NestedMutableDict] = ...
     username: str = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
 
-    @validator("status")
+    @field_validator("status")
+    @classmethod
     def check_status(cls, v):
         allowed_states = [
             "queued",
@@ -109,22 +112,22 @@ class Job(JobBase):
             )
         return v
 
-    @validator("time_created")
+    @field_validator("time_created")
+    @classmethod
     def convert_time_created(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    @validator("time_updated")
+    @field_validator("time_updated")
+    @classmethod
     def convert_time_updated(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
-
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class JobCreate(JobBase):
@@ -184,25 +187,22 @@ class Dataset(DatasetBase):
     time_created: datetime.datetime
     time_updated: datetime.datetime
     username: str = None
-    identifiers: Optional[List[str]]
+    identifiers: Optional[List[str]] = None
 
-    @validator("time_updated")
+    @field_validator("time_updated")
+    @classmethod
     def convert_time_updated(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
-
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AllowedDatasetCreate(DatasetBase):
     username: str = None
-    identifiers: Optional[List[str]]
-
-    class Config:
-        orm_mode = True
+    identifiers: Optional[List[str]] = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WorkflowBase(BaseModel):
@@ -224,22 +224,22 @@ class Workflow(WorkflowBase):
     automatic_execution: Optional[bool] = False
     involved_kaapana_instances: str = None  # List = []
 
-    @validator("time_created")
+    @field_validator("time_created")
+    @classmethod
     def convert_time_created(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    @validator("time_updated")
+    @field_validator("time_updated")
+    @classmethod
     def convert_time_updated(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
-
-    class Config:  # makes Pydantic model compatible with sqlalchemy ORMs
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WorkflowCreate(WorkflowBase):
@@ -278,10 +278,10 @@ class WorkflowWithJobs(Workflow):
 
 class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
     # workflow_jobs: List[Job] = []
-    workflow_jobs: Optional[List]
-    dataset_name: Optional[str]
+    workflow_jobs: Optional[List] = None
+    dataset_name: Optional[str] = None
 
-    @root_validator
+    @model_validator(mode='after')
     def get_dataset(cls, values) -> str:
         # method to conclude from dataset of workflow_jobs the dataset of the workflow
         db_workflow_jobs = values.get("workflow_jobs", [])
@@ -300,7 +300,7 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                 break
         return values
 
-    @root_validator
+    @model_validator(mode='after')
     def get_workflow_jobs(cls, values) -> List:
         # method to only list workflow_jobs' states in workflow_jobs and not whole Job object
         workflow_job_states = []

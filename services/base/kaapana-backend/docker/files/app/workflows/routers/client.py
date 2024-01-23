@@ -6,9 +6,8 @@ import string
 import uuid
 import shutil
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Union
-import asyncio
 from threading import Thread
 
 from pathlib import Path
@@ -18,12 +17,10 @@ from app.dependencies import get_db
 from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
-from app.workflows.utils import HelperMinio
 from app.workflows.utils import get_dag_list
-from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException
 from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
-from pydantic.schema import schema
 from sqlalchemy.orm import Session
 
 
@@ -556,7 +553,10 @@ def create_workflow(
 ):
     # validate incoming json_schema_data
     try:
-        jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
+        jsonschema.validate(
+            json_schema_data.model_dump_json(),
+            schemas.JsonSchemaData.model_json_schema(),
+        )
     except ValidationError as e:
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
         raise HTTPException(

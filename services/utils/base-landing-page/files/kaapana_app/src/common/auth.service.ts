@@ -20,8 +20,7 @@ const AuthService = {
     })
   },
   logout() {
-    location.href = '/oauth2/sign_out?rd=/auth/realms/kaapana/protocol/openid-connect/logout'
-    //location.href = '/oauth/logout' // without redirect since redirect lead often to the error page and people had to renter the url
+    location.href = '/kaapana-backend/oidc-logout'
   },
   getFederatedHeaders() {
     return new Promise((resolve, reject) => {

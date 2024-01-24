@@ -69,7 +69,7 @@ data:
           "keycloak": {
             "label": "Keycloak",
             "endpoint": "/auth",
-            "linkTo": "/auth"
+            "linkTo": "/auth/admin/master/console/#/kaapana"
           },
           "traefik": {
             "label": "Traefik",

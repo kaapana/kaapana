@@ -1,4 +1,5 @@
 import requests
+from app.config import settings
 
 from fastapi import (
     APIRouter,
@@ -10,12 +11,13 @@ from fastapi import (
     File,
     Header,
 )
-from fastapi.responses import JSONResponse
+from fastapi.responses import RedirectResponse
 from fastapi.encoders import jsonable_encoder
 from opensearchpy import OpenSearch
 from sqlalchemy.orm import Session
 
 import uuid
+import jwt
 from app.workflows.utils import (
     HelperMinio,
     raise_kaapana_connection_error,
@@ -118,3 +120,65 @@ def get_traefik_routes():
     except Exception as e:
         print("ERROR in getting traefik routes!")
         return {"Error message": str(e)}, 500
+
+
+@router.get("/oidc-logout")
+def oidc_logout(request: Request):
+    """
+    Delete the keycloak session corresponding to the session of the access token in the request.
+    Response with a redirect to oauth2-proxy browser session logout url.
+    """
+
+    def get_access_token(
+        username: str,
+        password: str,
+        ssl_check: bool,
+        client_id: str,
+    ):
+        """
+        Get access token for the admin keycloak user.
+        """
+        payload = {
+            "username": username,
+            "password": password,
+            "client_id": client_id,
+            "grant_type": "password",
+        }
+        r = requests.post(
+            f"{settings.keycloak_url}realms/master/protocol/openid-connect/token",
+            verify=ssl_check,
+            data=payload,
+        )
+        r.raise_for_status()
+        return r.json()["access_token"]
+
+    access_token = request.headers.get("x-forwarded-access-token")
+    decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
+    session_state = decoded_access_token.get("session_state")
+    user_id = decoded_access_token.get("sub")
+
+    keycloak_admin_access_token = get_access_token(
+        settings.keycloak_admin_username,
+        settings.keycloak_admin_password,
+        False,
+        "admin-cli",
+    )
+    security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}
+
+    user_sessions = requests.get(
+        f"{settings.keycloak_url}admin/realms/kaapana/users/{user_id}/sessions",
+        verify=False,
+        headers=security_headers,
+    ).json()
+
+    ### Remove the session that corresponds to the access token from keycloak if the session exists
+    for user_session in user_sessions:
+        if user_session.get("id") == session_state:
+            r = requests.delete(
+                f"{settings.keycloak_url}admin/realms/kaapana/sessions/{session_state}",
+                headers=security_headers,
+                verify=False,
+            )
+            r.raise_for_status()
+            break
+    return RedirectResponse("/oauth2/sign_out?rd=/")

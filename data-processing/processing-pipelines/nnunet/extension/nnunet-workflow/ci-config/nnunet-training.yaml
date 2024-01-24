@@ -15,9 +15,9 @@ conf_data:
     prep_modalities: "CT"
     prep_preprocess: true
     seg_filter: ""
-    label_filter: "Keep: spleen,liver"
-    fuse_labels: ""
-    fused_label_name: ""
+    label_filter: "Keep: right@kidney,left@kidney,spleen,liver"
+    fuse_labels: "right@kidney,left@kidney"
+    fused_label_name: "kidneys"
     old_labels: "liver"
     new_labels: "oliver"
     shuffle_sed: 0

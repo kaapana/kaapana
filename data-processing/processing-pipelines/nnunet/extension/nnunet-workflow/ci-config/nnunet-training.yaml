@@ -14,7 +14,12 @@ conf_data:
     prep_check_integrity: true
     prep_modalities: "CT"
     prep_preprocess: true
-    seg_filter: "spleen,liver"
+    seg_filter: ""
+    label_filter: "Keep: spleen,liver"
+    fuse_labels: ""
+    fused_label_name: ""
+    old_labels: "liver"
+    new_labels: "oliver"
     shuffle_sed: 0
     task: "Task000_CI_training"
     test_percentage: 0

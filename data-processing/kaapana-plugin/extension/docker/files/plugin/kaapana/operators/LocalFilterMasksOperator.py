@@ -5,6 +5,7 @@ import datetime
 from pathlib import Path
 import shutil
 import re
+from collections import Counter
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -36,6 +37,55 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
         result = re.sub(pattern, "", input_string)
 
         return result
+
+    def check_saved_metainfo(self, path):
+        # load metainfo json
+        with open(path) as data_file:
+            metainfo = json.load(data_file)
+
+        # get all labels present in metainfo json
+        present_labels = [
+            segment_attribute[0]["SegmentLabel"]
+            for segment_attribute in metainfo["segmentAttributes"]
+        ]
+
+        if len(present_labels) == len(set(present_labels)):
+            # no duplicates
+            print("#")
+            print("# Checked metainfo JSON and no duplicate labels were found.")
+            print("#")
+            return
+        else:
+            # duplicates present
+            print("#")
+            print("# Checked metainfo JSON and DUPLICATE LABELS HAVE BEEN FOUND.")
+            print(f"{len(present_labels)=} ; {len(set(present_labels))=}")
+            print("#")
+            # get multi-present labels
+            label_counts = Counter(present_labels)
+            multi_present_label = {
+                label: count for label, count in label_counts.items() if count > 1
+            }
+            segment_attributes = metainfo["segmentAttributes"]
+
+            # Convert dictionaries within inner lists to strings
+            string_attributes = [
+                str(d) for inner_list in segment_attributes for d in inner_list
+            ]
+            # Create a set from the strings
+            a = set(string_attributes)
+
+            non_duplicated_segment_attributes = []
+            for value in a:
+                segment_dict = json.loads(value.replace("'", '"'))
+                non_duplicated_segment_attributes.append([segment_dict])
+
+            metainfo["segmentAttributes"] = non_duplicated_segment_attributes
+
+            with open(path, "w", encoding="utf-8") as jsonData:
+                json.dump(metainfo, jsonData, indent=4, sort_keys=True)
+
+            return
 
     def start(self, ds, **kwargs):
         print("Starting module LocalFilterMasksOperator...")
@@ -175,6 +225,9 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                 with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
                     json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
 
+                # check saved metainfo json for duplicates
+                self.check_saved_metainfo(metainfo_output_path)
+
                 print("#")
                 print(
                     f"# DONE: I kept {num_kept_labels} out of {len(nifti_files)} labels."
@@ -216,6 +269,9 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                     # write incoming_metainfo to output_dir
                     with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
                         json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
+
+                # check saved metainfo json for duplicates
+                self.check_saved_metainfo(metainfo_output_path)
 
                 print("#")
                 print(

@@ -3,10 +3,18 @@ from typing import Optional, List, Any
 from sqlalchemy_json import NestedMutableDict, NestedMutableList
 import json
 import datetime
-from pydantic import field_validator, ConfigDict, BaseModel, model_validator, create_model
+from pydantic import (
+    field_validator,
+    ConfigDict,
+    BaseModel,
+    model_validator,
+    create_model,
+)
 
 
 class KaapanaInstanceBase(BaseModel):
+    # nessary to allow, for NestedMutableDict and NestedMutableList
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     ssl_check: bool
     automatic_update: bool = False
     automatic_workflow_execution: bool = False
@@ -37,7 +45,6 @@ class RemoteKaapanaInstanceUpdateExternal(BaseModel):
 
 
 class KaapanaInstance(KaapanaInstanceBase):
-    #model_config = ConfigDict(arbitrary_types_allowed=True)
     id: int
     token: str
     protocol: str
@@ -47,8 +54,8 @@ class KaapanaInstance(KaapanaInstanceBase):
     fernet_key: str
     encryption_key: str
     remote: bool
-    #allowed_dags: Optional[NestedMutableDict] = ...
-    #allowed_datasets: Optional[NestedMutableList] = ...
+    allowed_dags: Optional[NestedMutableDict] = ...
+    allowed_datasets: Optional[NestedMutableList] = ...
     time_created: datetime.datetime
     time_updated: datetime.datetime
     workflow_in_which_involved: Optional[str] = None
@@ -73,10 +80,12 @@ class KaapanaInstance(KaapanaInstanceBase):
             return v
         else:
             return datetime.datetime.timestamp(v)
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class JobBase(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     status: str = "pending"
     dag_id: str = None
     run_id: str = None
@@ -89,7 +98,7 @@ class JobBase(BaseModel):
 
 class Job(JobBase):
     id: int
-    #conf_data: Optional[NestedMutableDict] = ...
+    conf_data: Optional[NestedMutableDict] = ...
     username: str = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
@@ -127,6 +136,7 @@ class Job(JobBase):
             return v
         else:
             return datetime.datetime.timestamp(v)
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -196,6 +206,7 @@ class Dataset(DatasetBase):
             return v
         else:
             return datetime.datetime.timestamp(v)
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -239,6 +250,7 @@ class Workflow(WorkflowBase):
             return v
         else:
             return datetime.datetime.timestamp(v)
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -281,7 +293,7 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
     workflow_jobs: Optional[List] = None
     dataset_name: Optional[str] = None
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def get_dataset(cls, values) -> str:
         # method to conclude from dataset of workflow_jobs the dataset of the workflow
         db_workflow_jobs = values.get("workflow_jobs", [])
@@ -300,7 +312,7 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                 break
         return values
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def get_workflow_jobs(cls, values) -> List:
         # method to only list workflow_jobs' states in workflow_jobs and not whole Job object
         workflow_job_states = []

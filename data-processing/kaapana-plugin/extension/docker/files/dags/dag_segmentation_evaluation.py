@@ -11,19 +11,17 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.SegmentationEvaluationOperator import (
     SegmentationEvaluationOperator,
 )
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
 
 
-# TODO: use merge masks operator to combine i.e. multiple lung masks into "lung"
 # TODO: add manual evaluation option, if selected put all data into minio and start jupyterlab
-
 
 default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
 test_dataset_limit = None
 organ_filter = None
-seg_filter_gt = ""
-seg_filter_test = ""
 
 parallel_processes = 3
 ui_forms = {
@@ -49,24 +47,24 @@ ui_forms = {
                 "type": "string",
                 "default": "test",
             },
-            "seg_filter_test": {
-                "title": "Test segmentation filter (optional)",
-                "default": seg_filter_test,
-                "description": "Select organ for multi-label DICOM SEGs in test samples",
+            "gt_label_filter": {
+                "title": "Filter Ground Truth Seg Masks with keyword 'Ignore' or 'Keep'",
+                "default": "",
+                "description": "'Ignore' or 'Keep' labels of multi-label DICOM SEGs for segmentation task: e.g. 'Keep: liver' or 'Ignore: spleen,liver'",
                 "type": "string",
                 "readOnly": False,
             },
-            "seg_filter_gt": {
-                "title": "Ground truth segmentation filter (optional)",
-                "default": seg_filter_gt,
-                "description": "Select organ for multi-label DICOM SEGs in ground truth",
+            "test_label_filter": {
+                "title": "Filter Test Seg Masks with keyword 'Ignore' or 'Keep'",
+                "default": "",
+                "description": "'Ignore' or 'Keep' labels of multi-label DICOM SEGs for segmentation task: e.g. 'Keep: liver' or 'Ignore: spleen,liver'",
                 "type": "string",
                 "readOnly": False,
             },
             "exit_on_error": {
                 "title": "Exit on evaluation error",
                 "default": True,
-                "description": "Exit immediately if there is an issue with evaluating one of the masks",
+                "description": "Exit if there is an issue with evaluating one of the masks",
                 "type": "boolean",
                 "readOnly": False,
             },
@@ -133,25 +131,60 @@ dcmconverter_test = DcmConverterOperator(
 dcm2nifti_gt = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_gt_images,
-    seg_filter=seg_filter_gt,
     batch_name="gt-dataset",
     parallel_id="gt",
+)
+
+filter_gt = LocalFilterMasksOperator(
+    dag=dag,
+    name="filter-masks",
+    label_filter_key="gt_label_filter",
+    input_operator=dcm2nifti_gt,
+    batch_name="gt-dataset",
+)
+
+fuse_gt = MergeMasksOperator(
+    dag=dag,
+    name="fuse-masks-gt",
+    fuse_labels_key="gt_fuse_labels",
+    fused_label_name_key="gt_fused_label_name",
+    input_operator=filter_gt,
+    batch_name="gt-dataset",
+    mode="combine",
 )
 
 dcm2nifti_test = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_test_images,
     batch_name="test-dataset",
-    seg_filter=seg_filter_test,
     parallel_id="test",
+)
+
+filter_test = LocalFilterMasksOperator(
+    dag=dag,
+    name="filter-masks",
+    label_filter_key="test_label_filter",
+    input_operator=dcm2nifti_test,
+    batch_name="test-dataset",
+)
+
+fuse_test = MergeMasksOperator(
+    dag=dag,
+    name="fuse-masks-test",
+    fuse_labels_key="test_fuse_labels",
+    fused_label_name_key="test_fused_label_name",
+    batch_name="test-dataset",
+    input_operator=filter_test,
+    mode="combine",
 )
 
 evaluation = SegmentationEvaluationOperator(
     dag=dag,
-    gt_operator=dcm2nifti_gt,
-    test_operator=dcm2nifti_test,
+    gt_operator=fuse_gt,
+    test_operator=fuse_test,
     batch_gt="gt-dataset",
     batch_test="test-dataset",
+    trigger_rule="none_failed",
 )
 
 put_to_minio = LocalMinioOperator(
@@ -163,12 +196,18 @@ put_to_minio = LocalMinioOperator(
     file_white_tuples=(".zip"),
 )
 
-
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_gt_images >> dcm2nifti_gt >> evaluation
+get_gt_images >> dcm2nifti_gt >> filter_gt >> fuse_gt >> evaluation
 
-get_test_images >> get_ref_ct_from_test >> dcm2nifti_test >> evaluation
+(
+    get_test_images
+    >> get_ref_ct_from_test
+    >> dcm2nifti_test
+    >> filter_test
+    >> fuse_test
+    >> evaluation
+)
 get_ref_ct_from_test >> dcmconverter_test >> evaluation
 
 evaluation >> put_to_minio >> clean

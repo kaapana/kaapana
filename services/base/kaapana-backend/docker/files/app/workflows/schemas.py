@@ -87,19 +87,19 @@ class KaapanaInstance(KaapanaInstanceBase):
 class JobBase(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     status: str = "pending"
-    dag_id: str = None
-    run_id: str = None
-    description: str = None
+    dag_id: str = ""
+    run_id: str = ""
+    description: str = ""
     external_job_id: int = None  # job_id on another system
     # kaapana_instance_id: int
-    owner_kaapana_instance_name: str = None  # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
+    owner_kaapana_instance_name: str = ""  # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
     service_job: Optional[bool] = False
 
 
 class Job(JobBase):
     id: int
     conf_data: Optional[NestedMutableDict] = ...
-    username: str = None
+    username: str = ""
     time_created: datetime.datetime
     time_updated: datetime.datetime
 
@@ -144,15 +144,15 @@ class JobCreate(JobBase):
     conf_data: dict = {}
     kaapana_instance_id: int
     # workflow_id: int = None
-    username: str = None
+    username: str = ""
     automatic_execution: Optional[bool] = False
 
 
 class JobUpdate(JobBase):
     job_id: int  # not defined in model Workflow but still needed in client.py and crud.py
     # status: str
-    # run_id: str = None
-    # description: str = None
+    # run_id: str = ""
+    # description: str = ""
 
 
 class JobWithKaapanaInstance(Job):
@@ -165,26 +165,26 @@ class KaapanaInstanceWithJobs(KaapanaInstance):
 
 class FilterKaapanaInstances(BaseModel):
     federated: bool = False
-    dag_id: str = None
+    dag_id: str = ""
     instance_names: List = []
-    workflow_id: str = None
-    workflow_name: str = None
+    workflow_id: str = ""
+    workflow_name: str = ""
     only_dag_names: bool = True
-    kind_of_dags: str = None
+    kind_of_dags: str = ""
 
 
 class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
-    username: str = None
+    username: str = ""
 
 
 class DatasetBase(BaseModel):
-    name: str = None
+    name: str = ""
 
 
 class DatasetCreate(DatasetBase):
     kaapana_instance_id: int = None
-    username: str = None
+    username: str = ""
     identifiers: List[str] = []
 
 
@@ -196,7 +196,7 @@ class DatasetUpdate(DatasetBase):
 class Dataset(DatasetBase):
     time_created: datetime.datetime
     time_updated: datetime.datetime
-    username: str = None
+    username: str = ""
     identifiers: Optional[List[str]] = None
 
     @field_validator("time_updated")
@@ -211,15 +211,15 @@ class Dataset(DatasetBase):
 
 
 class AllowedDatasetCreate(DatasetBase):
-    username: str = None
+    username: str = ""
     identifiers: Optional[List[str]] = None
     model_config = ConfigDict(from_attributes=True)
 
 
 class WorkflowBase(BaseModel):
-    workflow_id: str = None
-    workflow_name: str = None
-    workflow_status: str = None
+    workflow_id: str = ""
+    workflow_name: str = ""
+    workflow_status: str = ""
     # external_workflow_id: int = None # workflow_id on another system
     # dag_id of jobs which are summarized in that workflow (only makes sense for service workflows)
     dag_id: Optional[str] = None
@@ -228,12 +228,12 @@ class WorkflowBase(BaseModel):
 
 
 class Workflow(WorkflowBase):
-    username: str = None
-    status: str = None
+    username: str = ""
+    status: str = ""
     time_created: datetime.datetime = None
     time_updated: datetime.datetime = None
     automatic_execution: Optional[bool] = False
-    involved_kaapana_instances: str = None  # List = []
+    involved_kaapana_instances: str = ""  # List = []
 
     @field_validator("time_created")
     @classmethod
@@ -255,7 +255,7 @@ class Workflow(WorkflowBase):
 
 
 class WorkflowCreate(WorkflowBase):
-    username: str = None
+    username: str = ""
     kaapana_instance_id: int
     workflow_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []

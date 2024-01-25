@@ -20,6 +20,10 @@ workflow_dir = getenv("WORKFLOW_DIR", "None")
 workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
 assert workflow_dir is not None
 
+operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
+operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
+assert operator_out_dir is not None
+
 batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
 assert batch_name is not None
@@ -62,7 +66,7 @@ def calculate_surface_dice(gt_mask, pred_mask, class_thresholds=[0.5]):
     """Calculate the Surface DICE coefficient."""
     # populate num_of_classes times
     # class_thresholds = np.full(gt_mask.shape[1], class_thresholds[0]).tolist()
-    
+
     # for binary seg.
     class_thresholds = [0.5]
     res = compute_surface_dice(
@@ -235,14 +239,23 @@ def evaluate_segmentation(dataset_map):
     print("metrics")
     print(metrics)
 
-    # TODO: (optional) calculate avg values for all metrics and add to json as well
+    return metrics
 
-    print("# Writing metrics in metrics.json")
-    with open("metrics.json", "w") as f:
-        json.dump(metrics, f, indent=4)
+
+def write_to_out_dir(fname, data):
+    full_path = Path(workflow_dir) / operator_out_dir
+    full_path.mkdir(parents=True, exist_ok=True)
+    file_path = full_path / fname
+
+    print(f"# Writing {fname} in {file_path}")
+    with file_path.open("w") as f:
+        json.dump(data, f, indent=4)
 
 
 dataset_map = get_dataset_map(write_file=True)
-evaluate_segmentation(dataset_map)
+metrics = evaluate_segmentation(dataset_map)
+write_to_out_dir("metrics.json", metrics)
+write_to_out_dir("dataset_map.json", dataset_map)
+
 
 print("# Segmentation evaluation completed.")

@@ -20,6 +20,9 @@ RUN git apply viewer-only.patch
 COPY files/bugfix.patch /src/
 RUN git apply bugfix.patch
 
+COPY files/load-segmetation.patch /src/
+RUN git apply load-segmetation.patch
+
 COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 
 ENV HTML_TEMPLATE "index.html"

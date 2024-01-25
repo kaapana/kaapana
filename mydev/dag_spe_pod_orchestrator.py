@@ -1,0 +1,104 @@
+from airflow.utils.dates import days_ago
+from datetime import timedelta
+from airflow.models import DAG
+from airflow.operators.dummy_operator import DummyOperator
+from tfda_spe_orchestrator.TrustedPreETLOperator import TrustedPreETLOperator
+from tfda_spe_orchestrator.TrustedPostETLOperator import TrustedPostETLOperator
+from tfda_spe_orchestrator.LocalSPEApplicationOperator import (
+    LocalSPEApplicationOperator,
+)
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
+from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION
+
+buckets = HelperMinio.minioClient.list_buckets()
+bucket_names = [bucket.name for bucket in buckets]
+
+ui_forms = {
+    "workflow_form": {
+        "type": "object",
+        "properties": {
+            "bucket_name": {
+                "title": "Select Data to process",
+                "description": "It should be the name of a Bucket from MinIO store",
+                "type": "string",
+                "enum": list(set(bucket_names)),
+                "readOnly": False,
+            },
+            "container_registry_url": {
+                "title": "Enter container registry URL",
+                "type": "string",
+                "required": True,
+            },
+            "container_registry_user": {
+                "title": "Enter container registry username (optional)",
+                "description": "Enter only if downloading your container needs login",
+                "type": "string",
+            },
+            "container_registry_pwd": {
+                "title": "Enter container registry password (optional)",
+                "description": "Enter only if downloading your container needs login",
+                "type": "string",
+                "x-props": {"type": "password"},
+                "readOnly": False,
+            },
+            "container_name_version": {
+                "title": "Enter container name:version",
+                "type": "string",
+                "required": True,
+            },
+        },
+    },
+}
+
+args = {
+    "ui_visible": True,
+    "ui_forms": ui_forms,
+    "owner": "kaapana",
+    "start_date": days_ago(0),
+    "retries": 0,
+    "retry_delay": timedelta(seconds=30),
+}
+
+dag = DAG(
+    dag_id="vnc-spe-pod-orchestrator",
+    default_args=args,
+    concurrency=10,
+    max_active_runs=10,
+    schedule_interval=None,
+)
+trusted_pre_etl = TrustedPreETLOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag)
+launch_local_spe = KaapanaApplicationOperator(
+    dag=dag,
+    name="local-novnc-env",
+    input_operator=get_input,
+    chart_name="local-novnc-env-chart",
+    version=KAAPANA_BUILD_VERSION,
+)
+get_minio_bucket = LocalMinioOperator(
+    action="get",
+    dag=dag,
+    name="get-data-bucket",
+    local_root_dir="{run_dir}/user-selected-data",
+    operator_out_dir="user-selected-data",
+)
+# Following is only a Placeholder operator
+trusted_post_etl = TrustedPostETLOperator(dag=dag)
+clean = LocalWorkflowCleanerOperator(
+    dag=dag, clean_workflow_dir=True, trigger_rule="all_done"
+)
+# Following operator fails the DAG if any previous operator fails
+watcher = DummyOperator(task_id="watcher", dag=dag, trigger_rule="all_success")
+(
+    trusted_pre_etl
+    >> get_input
+    >> get_minio_bucket
+    >> launch_local_spe
+    >> trusted_post_etl
+)
+trusted_post_etl >> watcher
+trusted_post_etl >> clean

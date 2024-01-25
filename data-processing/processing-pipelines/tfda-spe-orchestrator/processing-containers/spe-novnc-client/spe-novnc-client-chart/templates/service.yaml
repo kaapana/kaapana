@@ -23,7 +23,7 @@ metadata:
   namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   stripPrefixRegex:
-    regex: ^.*/{{ .Release.Name }}([^\/]*)$
+    regex: "^.*/{{ .Release.Name }}([^\/]*)$"
     # replacement: {{ printf "/%s/" .Release.Name }}
 ---
 apiVersion: networking.k8s.io/v1 

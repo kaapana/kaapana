@@ -80,18 +80,25 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
             # rescale pixel values with slope and intersect (same values for all slices of volume)
             ds = pydicom.dcmread(dcm_fnames[0])
-            slope = ds.RescaleSlope  # (0028,1053)
-            intercept = ds.RescaleIntercept  # (0028,1052)
-            # slope = (
-            #     ds.SharedFunctionalGroupsSequence[0]
-            #     .PixelValueTransformationSequence[0]
-            #     .RescaleSlope
-            # )  # ds.RescaleSlope; (0028,1053)
-            # intercept = (
-            #     ds.SharedFunctionalGroupsSequence[0]
-            #     .PixelValueTransformationSequence[0]
-            #     .RescaleIntercept
-            # )  # ds.RescaleIntercept; 	(0028,1052)
+            slope = (
+                ds.RescaleSlope
+                if "RescaleSlope" in ds
+                else (
+                    ds.SharedFunctionalGroupsSequence[0]
+                    .PixelValueTransformationSequence[0]
+                    .RescaleSlope
+                )
+            )  # ds.RescaleSlope; (0028,1053)
+            intercept = (
+                ds.RescaleIntercept
+                if "RescaleIntercept" in ds
+                else (
+                    ds.SharedFunctionalGroupsSequence[0]
+                    .PixelValueTransformationSequence[0]
+                    .RescaleIntercept
+                )
+            )  # ds.RescaleIntercept; 	(0028,1052)
+
             volume = volume * slope + intercept
             print(f"MIN Value: {np.min(volume)} ; MAX value: {np.max(volume)}")
             if np.max(volume) > 4095:

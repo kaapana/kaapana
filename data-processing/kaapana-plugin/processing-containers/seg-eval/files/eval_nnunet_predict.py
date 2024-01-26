@@ -28,9 +28,6 @@ batch_name = getenv("BATCH_NAME", "None")
 batch_name = batch_name if batch_name.lower() != "none" else None
 assert batch_name is not None
 
-batch_test = getenv("BATCH_TEST", "None")
-batch_test = batch_test if batch_test.lower() != "none" else None
-assert batch_test is not None
 
 batch_gt = getenv("BATCH_GT", "None")
 batch_gt = batch_gt if batch_gt.lower() != "none" else None
@@ -98,9 +95,19 @@ def get_all_ids(path):
     return ids
 
 
-def get_dataset_map(write_file=True) -> dict:
+def get_all_niftis(path):
+    ids = [
+        i.name.split(".nii.gz")[0]
+        for i in list(path.glob("*"))
+        if (".nii.gz" in i.name and not i.is_dir())
+    ]
+    return ids
+
+
+def get_dataset_map_of_nnunet_predict():
     """
-    Generate a dict that links test data under BATCH_TEST and gt data under BATCH_GT via reference uids.
+    Generate a dict that links prediction data under nnunet inference and gt data under BATCH_GT via reference uids.
+    Note that test ids are actually CT series uids since nnunet predict names them so.
 
     Returns:
         dataset_map
@@ -109,32 +116,43 @@ def get_dataset_map(write_file=True) -> dict:
             'gt_id': '<gt-id>', 'gt_path': '<gt-path>'
         }, ...}
     """
-
     dataset_map = {}
-    if "dataset_map.json" in os.listdir():
-        print("# Using existing dataset_map.json")
-        with open("dataset_map.json", "r") as f:
-            dataset_map = json.load(f)
-        return dataset_map
 
     wf_path = Path(workflow_dir)
     gt_path = wf_path / batch_gt
-    test_path = wf_path / batch_test
+    test_path = wf_path / "batch"
+    model_series_uids = os.listdir(test_path)
+    if len(model_series_uids) == 0:
+        print(
+            f"ERROR: No model series uid found for nnunet predict under {test_path}, aborting..."
+        )
+        exit(1)
+
+    elif len(model_series_uids) > 1:
+        print(f"# WARNING: More than one model series uids found {model_series_uids=}")
+        print(f"# WARNING: using the first one {model_series_uids[0]}")
+
+    test_path = test_path / model_series_uids[0] / dir_in_test
 
     print(f"# {gt_path=} , {test_path=}")
 
     gt_ids = get_all_ids(gt_path)
-    test_ids = get_all_ids(test_path)
+    test_ids = get_all_niftis(test_path)
+
+    print(
+        f"# INFO: Note that test ids are not segmentation but CT uids since they are fetched from nnunet predict results"
+    )
     print(f"# {gt_ids=} , {test_ids=}")
 
     # add ct_uid keys with test mask values to map
     for test_id in test_ids:
-        ref_uid = get_ref_series_instance_uid(test_id)
+        # since test_id is already ref_uid
+        ref_uid = test_id
         if ref_uid in dataset_map:
             print(f"# ERROR: duplicate id, {ref_uid=} already exists in dataset_map")
             exit(1)
-        test_path = str(wf_path / batch_test / test_id / dir_in_test)
-        dataset_map[ref_uid] = {"test_id": test_id, "test_path": test_path}
+        p = str(test_path / test_id) + ".nii.gz"
+        dataset_map[ref_uid] = {"test_id": test_id, "test_path": p}
 
     # add matching ground truth masks of reference CT uids
     for gt_id in gt_ids:
@@ -149,10 +167,6 @@ def get_dataset_map(write_file=True) -> dict:
         else:
             dataset_map[ref_uid]["gt_id"] = gt_id
             dataset_map[ref_uid]["gt_path"] = gt_path
-
-    if write_file:
-        with open("dataset_map.json", "w") as f:
-            json.dump(dataset_map, f, indent=4)
 
     return dataset_map
 
@@ -188,6 +202,8 @@ def evaluate_segmentation(dataset_map):
             filtered_test = [
                 i for i in test_path.glob("*") if "combined_masks.nii.gz" in str(i)
             ]
+
+            filtered_test = [test_path]
 
             print(f"# {filtered_gt=}, {filtered_test=}")
 
@@ -252,14 +268,22 @@ def write_to_out_dir(fname, data):
         json.dump(data, f, indent=4)
 
 
-def run_eval():
-    dataset_map = get_dataset_map(write_file=True)
-    metrics = evaluate_segmentation(dataset_map)
-    write_to_out_dir("metrics.json", metrics)
+def run_eval_nnunet_predict():
+    print("# Segmentation evaluation started for nnunet-predict.")
+
+    dataset_map = get_dataset_map_of_nnunet_predict()
+
+    if len(dataset_map) == 0:
+        print(f"# ERROR: dataset_map empty for nnunet_predict eval, aborting...")
+        exit(1)
+
     write_to_out_dir("dataset_map.json", dataset_map)
 
-    print("# Segmentation evaluation completed.")
+    metrics = evaluate_segmentation(dataset_map)
+    write_to_out_dir("metrics.json", metrics)
+
+    print("# Segmentation evaluation completed for nnunet-predict.")
 
 
 if __name__ == "__main__":
-    run_eval()
+    run_eval_nnunet_predict()

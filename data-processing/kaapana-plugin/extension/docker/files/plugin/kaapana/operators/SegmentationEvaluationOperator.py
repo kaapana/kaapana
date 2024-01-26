@@ -14,6 +14,7 @@ class SegmentationEvaluationOperator(KaapanaBaseOperator):
         test_operator,
         batch_gt,
         batch_test,
+        test_seg_exists=True,
         name="segmentation-evaluation",
         env_vars={},
         execution_timeout=timedelta(hours=12),
@@ -24,6 +25,7 @@ class SegmentationEvaluationOperator(KaapanaBaseOperator):
             "TEST_IN_DIR": str(test_operator.operator_out_dir),
             "BATCH_GT": str(batch_gt),
             "BATCH_TEST": str(batch_test),
+            "TEST_SEG_EXISTS": str(test_seg_exists)
         }
         env_vars.update(envs)
 

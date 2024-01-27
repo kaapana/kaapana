@@ -103,7 +103,7 @@ def get_seg_info(input_nifti):
 
     if "seg-check-inference" in input_nifti:
         model_id_info_file = join(
-            dirname(input_nifti).replace("seg-check-inference", "do-inference"),
+            dirname(input_nifti).replace("seg-check-inference", "data-orga-inference"),
             f"seg_info{model_id}.json",
         )
         print(f"# model_id_info_file: {model_id_info_file}")

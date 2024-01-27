@@ -20,6 +20,12 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.LocalModifySegLabelNamesOperator import (
+    LocalModifySegLabelNamesOperator,
+)
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
+
 default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
@@ -88,6 +94,37 @@ ui_forms = {
                 "description": "Expected input modality.",
                 "type": "string",
                 "readOnly": True,
+            },
+            "label_filter": {
+                "title": "Filter Seg Masks with keyword 'Ignore' or 'Keep'",
+                "default": "",
+                "description": "'Ignore' or 'Keep' labels of multi-label DICOM SEGs for segmentation task: e.g. 'Keep: liver' or 'Ignore: spleen,liver'",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fuse_labels": {
+                "title": "Fuse Segmentation Labels",
+                "description": "Segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fused_label_name": {
+                "title": "Fuse Segmentation Label: New Label Name",
+                "description": "Segmentation label name of segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "old_labels": {
+                "title": "Rename Label Names: Old Labels",
+                "description": "Old segmentation label names which should be overwritten (all special characters are removed); SAME ORDER AS NEW LABEL NAMES REQUIRED!!!",
+                "type": "string",
+                "readOnly": False,
+            },
+            "new_labels": {
+                "title": "Rename Label Names: New Labels",
+                "description": "New segmentation label names which should overwrite the old segmentation label names (all special characters are removed); SAME ORDER AS OLD LABEL NAMES REQUIRED!!!",
+                "type": "string",
+                "readOnly": False,
             },
             "single_execution": {
                 "type": "boolean",
@@ -173,6 +210,30 @@ dcm2nifti_gt = Mask2nifitiOperator(
     parallel_id="gt",
 )
 
+mask_filter = LocalFilterMasksOperator(
+    dag=dag,
+    name="filter-masks",
+    input_operator=dcm2nifti_gt,
+)
+
+fuse_masks = MergeMasksOperator(
+    dag=dag,
+    name="fuse-masks",
+    input_operator=mask_filter,
+    mode="fuse",
+    trigger_rule="all_done",
+)
+
+modify_seg_label_names = LocalModifySegLabelNamesOperator(
+    dag=dag,
+    input_operator=fuse_masks,
+    metainfo_input_operator=fuse_masks,
+    results_to_in_dir=False,
+    write_seginfo_results=False,
+    write_metainfo_results=True,
+    trigger_rule="all_done",
+)
+
 dcm2nifti_ct = DcmConverterOperator(
     dag=dag,
     input_operator=get_ref_ct_series_from_gt,
@@ -235,7 +296,7 @@ seg_check_inference = SegCheckOperator(
 
 seg_check_gt = SegCheckOperator(
     dag=dag,
-    input_operator=dcm2nifti_gt,
+    input_operator=modify_seg_label_names,
     original_img_operator=dcm2nifti_ct,
     target_dict_operator=seg_check_inference,
     parallel_processes=parallel_processes,
@@ -246,7 +307,6 @@ seg_check_gt = SegCheckOperator(
     fail_if_label_already_present=False,
     fail_if_label_id_not_extractable=False,
     force_same_labels=False,
-    # operator_out_dir=dcm2nifti_gt.operator_out_dir,
     batch_name=str(get_test_images.operator_out_dir),
     parallel_id="gt",
 )
@@ -325,7 +385,16 @@ put_report_to_minio = LocalMinioOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_test_images >> sort_gt >> get_ref_ct_series_from_gt >> dcm2nifti_gt >> seg_check_gt
+(
+    get_test_images
+    >> sort_gt
+    >> get_ref_ct_series_from_gt
+    >> dcm2nifti_gt
+    >> mask_filter
+    >> fuse_masks
+    >> modify_seg_label_names
+    >> seg_check_gt
+)
 (
     sort_gt
     >> get_ref_ct_series_from_gt

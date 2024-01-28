@@ -210,28 +210,34 @@ dcm2nifti_gt = Mask2nifitiOperator(
     parallel_id="gt",
 )
 
-mask_filter = LocalFilterMasksOperator(
+filter_gt = LocalFilterMasksOperator(
     dag=dag,
     name="filter-masks",
     input_operator=dcm2nifti_gt,
+    # label_filter_key="gt_label_filter",
+    batch_name="nnunet-dataset",
 )
 
-fuse_masks = MergeMasksOperator(
+fuse_gt = MergeMasksOperator(
     dag=dag,
     name="fuse-masks",
-    input_operator=mask_filter,
+    input_operator=filter_gt,
     mode="fuse",
     trigger_rule="all_done",
+    batch_name="nnunet-dataset",
+    # dev_server="code-server",
 )
 
-modify_seg_label_names = LocalModifySegLabelNamesOperator(
+rename_gt = LocalModifySegLabelNamesOperator(
     dag=dag,
-    input_operator=fuse_masks,
-    metainfo_input_operator=fuse_masks,
+    name="rename-masks",
+    input_operator=fuse_gt,
+    metainfo_input_operator=fuse_gt,
     results_to_in_dir=False,
     write_seginfo_results=False,
     write_metainfo_results=True,
     trigger_rule="all_done",
+    batch_name="nnunet-dataset",
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -296,7 +302,7 @@ seg_check_inference = SegCheckOperator(
 
 seg_check_gt = SegCheckOperator(
     dag=dag,
-    input_operator=modify_seg_label_names,
+    input_operator=rename_gt,
     original_img_operator=dcm2nifti_ct,
     target_dict_operator=seg_check_inference,
     parallel_processes=parallel_processes,
@@ -353,6 +359,7 @@ evaluation = DiceEvaluationOperator(
     parallel_processes=1,
     trigger_rule="all_done",
     batch_name=str(get_test_images.operator_out_dir),
+    dev_server="code-server",
 )
 
 nnunet_evaluation_notebook = NnUnetNotebookOperator(
@@ -390,9 +397,9 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> sort_gt
     >> get_ref_ct_series_from_gt
     >> dcm2nifti_gt
-    >> mask_filter
-    >> fuse_masks
-    >> modify_seg_label_names
+    >> filter_gt
+    >> fuse_gt
+    >> rename_gt
     >> seg_check_gt
 )
 (

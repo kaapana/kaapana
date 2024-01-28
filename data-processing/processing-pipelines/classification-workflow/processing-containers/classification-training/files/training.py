@@ -21,7 +21,9 @@ from torchmetrics import Accuracy, F1Score
 os.environ["FOLD"] = "0"
 
 RESULTS_DIR = Path(
-    "/models", os.environ["DAG_ID"], f"{os.environ['WORKFLOW_ID']}-fold-{os.environ['FOLD']}"
+    "/models",
+    os.environ["DAG_ID"],
+    f"{os.environ['WORKFLOW_ID']}-fold-{os.environ['FOLD']}",
 )
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -48,7 +50,9 @@ logger.addHandler(f_handler)
 
 TAG_TO_CLASS_MAPPING = {}
 
-for class_idx, tag in enumerate(sorted(ast.literal_eval(os.environ["TAG_TO_CLASS_MAPPING_JSON"]))):
+for class_idx, tag in enumerate(
+    sorted(ast.literal_eval(os.environ["TAG_TO_CLASS_MAPPING_JSON"]))
+):
     TAG_TO_CLASS_MAPPING[tag] = class_idx
 
 # Log config
@@ -216,9 +220,9 @@ if __name__ == "__main__":
         num_classes=NUM_CLASSES,
     )
 
-    # Load pretrained weights 
+    # Load pretrained weights
 
-    if os.environ["PRETRAINED_WEIGHTS"]:
+    if os.environ.get("PRETRAINED_WEIGHTS"):
         path_to_checkpoint_file = os.path.join(
             "/models/classification-training-workflow", os.environ["PRETRAINED_WEIGHTS"]
         )

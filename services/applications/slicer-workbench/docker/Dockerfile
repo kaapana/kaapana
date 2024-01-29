@@ -60,8 +60,8 @@ RUN su researcher -c "mkdir /home/researcher/Documents"
 #WORKDIR /data
 
 RUN mkdir -p /home/researcher/Desktop
-RUN ln -s /kaapana/mounted/slicer-data /home/researcher/Desktop/
-WORKDIR /kaapana/mounted/slicer-data
+RUN ln -s /kaapana/minio /home/researcher/Desktop/
+WORKDIR /kaapana/minio
 
 # A supervisord config is used to make the application managed
 COPY files/supervisord.conf /etc/supervisor/conf.d/

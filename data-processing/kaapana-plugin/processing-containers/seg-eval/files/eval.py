@@ -48,7 +48,11 @@ exit_on_error = getenv("EXIT_ON_ERROR", "None")
 exit_on_error = exit_on_error if exit_on_error.lower() != "none" else None
 assert exit_on_error is not None
 
-eval_metrics_str = getenv("METRICS", "None")
+eval_metrics_key = getenv("METRICS_KEY", "None")
+eval_metrics_key = eval_metrics_key if eval_metrics_key.lower() != "none" else None
+assert eval_metrics_key is not None
+
+eval_metrics_str = getenv(eval_metrics_key, "None")
 eval_metrics_ast = (
     ast.literal_eval(eval_metrics_str) if eval_metrics_str.lower() != "none" else None
 )

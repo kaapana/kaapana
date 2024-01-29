@@ -7,6 +7,29 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 
 class SegmentationEvaluationOperator(KaapanaBaseOperator):
+    """
+    This operator evaluates segmentation metrics by comparing two sets of segmentations: ground truth (gt) and predictions (test).
+    It differentiates between these sets using a tag defined in the UI form under `test_tag_key`. 
+    The evaluation process involves comparing binarized `combine_masks.nii.gz` files. 
+    Users are responsible for filtering relevant classes before using this operator.
+
+    Inputs:
+        gt_operator (str): Identifier for the prior operator processing ground truth segmentations. Expects ground truth
+                        segmentations in its output directory.
+        test_operator (str): Identifier for the prior operator processing test (prediction) segmentations. Expects test 
+                            segmentations in its output directory.
+        batch_gt (str): Name of the batch folder for ground truth data. All prior processing of ground truth segmentations
+                        should occur within this folder.
+        batch_test (str): Name of the batch folder for test data. All prior processing of test segmentations should occur
+                        within this folder.
+        metrics_key (str, default='metrics'): Key within `ui_forms['workflow_form']['properties']` for specifying metrics to compute.
+        test_seg_exists (bool, default=True): Only set to `False` only if the DAG runs `nnunet predict` before this operator (experimental).
+
+    Outputs:
+        dataset_map.json (file): JSON file mapping each test and ground truth data identifier to their respective file paths.
+        metrics.json (file): JSON file containing calculated metrics, grouped by each test identifier.
+    """
+
     def __init__(
         self,
         dag,
@@ -14,6 +37,7 @@ class SegmentationEvaluationOperator(KaapanaBaseOperator):
         test_operator,
         batch_gt,
         batch_test,
+        metrics_key="metrics",
         test_seg_exists=True,
         name="segmentation-evaluation",
         env_vars={},
@@ -25,7 +49,8 @@ class SegmentationEvaluationOperator(KaapanaBaseOperator):
             "TEST_IN_DIR": str(test_operator.operator_out_dir),
             "BATCH_GT": str(batch_gt),
             "BATCH_TEST": str(batch_test),
-            "TEST_SEG_EXISTS": str(test_seg_exists)
+            "METRICS_KEY": str(metrics_key),
+            "TEST_SEG_EXISTS": str(test_seg_exists),
         }
         env_vars.update(envs)
 

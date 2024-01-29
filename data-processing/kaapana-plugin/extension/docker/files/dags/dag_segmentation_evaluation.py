@@ -184,6 +184,7 @@ evaluation = SegmentationEvaluationOperator(
     test_operator=fuse_test,
     batch_gt="gt-dataset",
     batch_test="test-dataset",
+    metrics_key="metrics",
     trigger_rule="none_failed",
 )
 

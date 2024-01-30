@@ -70,8 +70,8 @@ def schema_minio_form(
     try:
         from kaapana.operators.HelperMinio import HelperMinio
 
-        objects = HelperMinio.list_objects(
-            HelperMinio.minioClient,
+        minioClient = HelperMinio(username="system")
+        objects = minioClient.list_objects(
             "uploads",
             recursive=True,
         )

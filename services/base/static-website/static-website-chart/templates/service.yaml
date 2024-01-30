@@ -8,7 +8,7 @@ spec:
     app-name: static-website-browser
   ports:
     - protocol: TCP
-      port: 80
+      port: 8080
       name: log-http-port
   type: ClusterIP
 --- 

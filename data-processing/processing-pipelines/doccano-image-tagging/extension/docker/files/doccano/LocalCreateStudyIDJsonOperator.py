@@ -1,4 +1,3 @@
-from minio import Minio
 import os
 import glob
 import uuid
@@ -10,8 +9,6 @@ from kaapana.operators.KaapanaPythonBaseOperator import (
     KaapanaPythonBaseOperator,
     rest_self_udpate,
 )
-from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperCaching import cache_operator_output
 
 

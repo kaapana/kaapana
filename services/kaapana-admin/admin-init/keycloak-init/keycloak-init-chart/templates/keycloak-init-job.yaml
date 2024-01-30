@@ -42,6 +42,10 @@ spec:
               value: "{{ .Values.global.dev_mode }}"
             - name: KAAPANA_INIT_PASSWORD
               value: "{{ .Values.global.kaapana_init_password }}"
+            - name: HOSTNAME
+              value: "{{ .Values.global.hostname }}"
+            - name: HTTPS_PORT
+              value: "{{ .Values.global.https_port}}"
         restartPolicy: Never
         serviceAccountName: kaapana-kube-admin
         imagePullSecrets:

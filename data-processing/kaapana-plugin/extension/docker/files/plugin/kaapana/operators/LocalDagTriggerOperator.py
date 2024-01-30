@@ -27,8 +27,8 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         # ctpet-prep batch 1.3.12.2.1107.5.8.15.101314.30000019092314381173500002262normalization
 
         object_dirs = [join(self.batch_name, series_uid, cache_operator)]
-        HelperMinio.apply_action_to_object_dirs(
-            HelperMinio.minioClient,
+        minio_client = HelperMinio(dag_run=self.dag_run)
+        minio_client.apply_action_to_object_dirs(
             "get",
             self.target_bucket,
             output_dir,

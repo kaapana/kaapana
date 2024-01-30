@@ -345,7 +345,8 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         and "federated_bucket" in job.conf_data["federated_form"]
         and "federated_operators" in job.conf_data["federated_form"]
     ):
-        minio_urls = HelperMinio.add_minio_urls(
+        minioClient = HelperMinio()
+        minio_urls = minioClient.add_minio_urls(
             job.conf_data["federated_form"], db_kaapana_instance.instance_name
         )
         job.conf_data["federated_form"]["minio_urls"] = minio_urls

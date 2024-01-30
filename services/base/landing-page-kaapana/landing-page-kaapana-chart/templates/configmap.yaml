@@ -30,7 +30,7 @@ data:
           "minio": {
             "label": "Minio",
             "endpoint": "/minio-console",
-            "linkTo": "/minio-console"
+            "linkTo": "/minio-console/"
           },
           "persistence": {
             "label": "Persistence Layer",

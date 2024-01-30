@@ -1,5 +1,6 @@
 import json
 from typing import Union
+import base64
 
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import JSONResponse
@@ -119,16 +120,17 @@ async def get_data(series_instance_uid):
     if modality in ["SEG", "RTSTRUCT"]:
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
-        thumbnail_src = (
-            f"minio/thumbnails/batch/{series_instance_uid}"
-            f"/generate-segmentation-thumbnail/{series_instance_uid}.png"
-        )
+
+        path = f"batch/{series_instance_uid}/generate-segmentation-thumbnail/{series_instance_uid}.png"
+        path_bytes = path.encode("ascii")
+        base64_bytes = base64.b64encode(path_bytes)
+        prefix = base64_bytes.decode("ascii")
+        thumbnail_src = f"/minio-console/api/v1/buckets/thumbnails/objects/download?preview=true&prefix={prefix}&version_id=null"
     else:
         thumbnail_src = (
             f"/dcm4chee-arc/aets/KAAPANA/rs/studies/{metadata['Study Instance UID']}/"
             f"series/{series_instance_uid}/thumbnail?viewport=300,300"
         )
-
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))
 
 

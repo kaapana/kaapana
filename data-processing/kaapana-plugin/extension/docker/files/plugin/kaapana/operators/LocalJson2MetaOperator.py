@@ -88,14 +88,12 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         global es
-        self.dcmweb_helper = HelperDcmWeb(
-            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
-        )
 
         self.ti = kwargs["ti"]
         print("# Starting module json2meta")
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
+        run_dir = os.path.join(self.airflow_workflow_dir,
+                               kwargs["dag_run"].run_id)
         batch_folder = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
         ]
@@ -114,6 +112,10 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     batch_element_dir, self.jsonl_operator.operator_out_dir
                 )
                 json_list = glob.glob(json_dir + "/**/*.jsonl", recursive=True)
+                if len(json_list) == 0:
+                    print("+++++++++++++++++++++++++++++++")
+                    print("++++++++ NO JSON FOUND! +++++++")
+                    print("+++++++++++++++++++++++++++++++")
                 for json_file in json_list:
                     print(f"Pushing file: {json_file} to META!")
                     with open(json_file, encoding="utf-8") as f:
@@ -122,13 +124,13 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                             self.push_json(obj)
             else:
                 # TODO: is this dcm check necessary? InstanceID is set in upload
-                dcm_files = sorted(
-                    glob.glob(
-                        os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"),
-                        recursive=True,
-                    )
-                )
-                self.set_id(dcm_files[0])
+                # dcm_files = sorted(
+                #     glob.glob(
+                #         os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"),
+                #         recursive=True,
+                #     )
+                # )
+                # self.set_id(dcm_files[0])
 
                 json_dir = os.path.join(
                     batch_element_dir, self.json_operator.operator_out_dir
@@ -159,25 +161,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         else:
             print("dicom_operator and dct_to_push not specified!")
 
-    def check_pacs_availability(self, instanceUID: str):
-        print("#")
-        print("# Checking if series available in PACS...")
-        check_count = 0
-        while not self.dcmweb_helper.check_if_series_in_archive(seriesUID=instanceUID):
-            print("#")
-            print(f"# Series {instanceUID} not found in PACS-> try: {check_count}")
-            if check_count >= self.avalability_check_max_tries:
-                print(
-                    f"# check_count >= avalability_check_max_tries {self.avalability_check_max_tries}"
-                )
-                print("# Error! ")
-                print("#")
-                raise ValueError("ERROR")
-
-            print(f"# -> waiting {self.avalability_check_delay} s")
-            time.sleep(self.avalability_check_delay)
-            check_count += 1
-
     def __init__(
         self,
         dag,
@@ -205,9 +188,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.dicom_operator = dicom_operator
         self.json_operator = json_operator
         self.jsonl_operator = jsonl_operator
-
-        self.avalability_check_delay = avalability_check_delay
-        self.avalability_check_max_tries = avalability_check_max_tries
         self.set_dag_id = set_dag_id
         self.no_update = no_update
         self.instanceUID = None

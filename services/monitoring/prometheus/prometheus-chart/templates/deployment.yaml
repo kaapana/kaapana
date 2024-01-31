@@ -41,9 +41,9 @@ spec:
             - containerPort: 9090
           resources:
             requests:
-              memory: 300Mi
+              memory: 400Mi
             limits:
-              memory: 5000Mi
+              memory: 7000Mi
           volumeMounts:
             - name: prometheus-alerts-vol
               mountPath: /etc/prometheus/

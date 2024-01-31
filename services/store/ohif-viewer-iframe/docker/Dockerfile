@@ -1,4 +1,4 @@
-FROM docker.io/node:20-alpine3.16 as build
+FROM docker.io/node:20-alpine3.18 as build
 
 LABEL IMAGE="ohififrame"
 LABEL VERSION="v3.7.0"
@@ -6,7 +6,6 @@ LABEL CI_IGNORE="False"
 
 
 RUN apk add --no-cache ca-certificates git build-base python3
-
 RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout 72ec0bffb533f883aac3b76d0ed9559c70fe5838
 
 RUN yarn config set workspaces-experimental true

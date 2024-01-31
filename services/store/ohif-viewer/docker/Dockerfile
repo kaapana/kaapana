@@ -1,4 +1,4 @@
-FROM docker.io/node:20-alpine3.16 as build
+FROM docker.io/node:20-alpine3.18 as build
 
 LABEL IMAGE="ohif"
 LABEL VERSION="v3.7.0"

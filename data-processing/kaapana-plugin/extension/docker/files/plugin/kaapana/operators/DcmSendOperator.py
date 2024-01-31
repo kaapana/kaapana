@@ -62,7 +62,7 @@ class DcmSendOperator(KaapanaBaseOperator):
         if kwargs.get("labels"):
             kwargs["labels"].update(kwargs.get("labels"))
         else:
-            kwargs["labels"] = {"access": "ctp"}
+            kwargs["labels"] = {"network-access": "ctp"}
 
         super().__init__(
             dag=dag,

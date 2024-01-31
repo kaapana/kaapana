@@ -28,9 +28,6 @@ spec:
     - podSelector:
         matchLabels:
           k8s-app: kube-dns
-    ports:
-    - protocol: TCP
-      port: 53
 ---
 ## Allow access to external IPs
 kind: NetworkPolicy
@@ -41,7 +38,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      access: "internet"
+      network-access: "external-ips"
   policyTypes:
   - Egress
   egress:
@@ -49,9 +46,8 @@ spec:
     - ipBlock:
         cidr: 0.0.0.0/0
         except:
-        - 10.152.183.0/24 ### Don't allow egress to cluster network IP's
-        - 192.168.0.0/16 ### Comment, if you want to allow egress to this range of IP addresses
-        - 172.16.0.0/16 ### Comment, if you want to allow egress to this range of IP addresses
+        - 10.152.183.0/24 ### Default range for services in microk8s https://microk8s.io/docs/change-cidr
+        - 10.1.0.0/16 ### Default range for pods in microk8s https://microk8s.io/docs/change-cidr
 ---
 ## Allow access to ctp
 kind: NetworkPolicy
@@ -62,7 +58,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      access: "ctp"
+      network-access: "ctp"
   policyTypes:
   - Egress
   egress:
@@ -73,9 +69,6 @@ spec:
     - podSelector:
         matchLabels:
           app-name: ctp
-    ports:
-    - protocol: TCP
-      port: 11112
 ---
 ### Allow ingress from traefik for dev_server
 kind: NetworkPolicy

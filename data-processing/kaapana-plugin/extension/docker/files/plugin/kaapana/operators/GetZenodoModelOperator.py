@@ -60,7 +60,7 @@ class GetZenodoModelOperator(KaapanaBaseOperator):
         if kwargs.get("labels"):
             kwargs["labels"].update(kwargs.get("labels"))
         else:
-            kwargs["labels"] = {"access": "internet"}
+            kwargs["labels"] = {"network-access": "external-ips"}
 
         super().__init__(
             dag=dag,

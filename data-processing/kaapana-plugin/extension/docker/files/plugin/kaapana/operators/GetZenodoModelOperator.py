@@ -57,6 +57,11 @@ class GetZenodoModelOperator(KaapanaBaseOperator):
         if task_ids is not None:
             env_vars["TASK_IDS"] = task_ids
 
+        if kwargs.get("labels"):
+            kwargs["labels"].update(kwargs.get("labels"))
+        else:
+            kwargs["labels"] = {"access": "internet"}
+
         super().__init__(
             dag=dag,
             image=f"{DEFAULT_REGISTRY}/download-zenodo-models:{KAAPANA_BUILD_VERSION}",

@@ -1,0 +1,97 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-traffic
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kube-dns
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress: 
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    - podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: TCP
+      port: 53
+---
+## Allow access to external IPs
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-external-ips
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      access: "internet"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.152.183.0/24 ### Don't allow egress to cluster network IP's
+        - 192.168.0.0/16 ### Comment, if you want to allow egress to this range of IP addresses
+        - 172.16.0.0/16 ### Comment, if you want to allow egress to this range of IP addresses
+---
+## Allow access to ctp
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-access-to-ctp
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      access: "ctp"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+    - podSelector:
+        matchLabels:
+          app-name: ctp
+    ports:
+    - protocol: TCP
+      port: 11112
+---
+### Allow ingress from traefik for dev_server
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-ingress-from-traefik
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
+    - podSelector:
+        matchLabels:
+          app: 'traefik'

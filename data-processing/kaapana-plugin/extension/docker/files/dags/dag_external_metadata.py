@@ -13,7 +13,7 @@ project_id = "idc-external-031"
 location = "europe-west2"
 dataset_id = "kaapana-integration-test"
 dicom_store_id = "kaapana-integration-test-store"
-
+ae_title = "external-data"
 
 ui_forms = {
     "workflow_form": {
@@ -45,6 +45,13 @@ ui_forms = {
                 "description": "Specify the DicomStoreID inside of the specified Dataset inside of the specified Google Cloud project.",
                 "type": "string",
                 "default": dicom_store_id,
+                "required": True,
+            },
+            "ae_title": {
+                "title": "Dataset Name",
+                "description": "Name of the dataset appearing in the Kaapana",
+                "type": "string",
+                "default": ae_title,
                 "required": True,
             },
         },

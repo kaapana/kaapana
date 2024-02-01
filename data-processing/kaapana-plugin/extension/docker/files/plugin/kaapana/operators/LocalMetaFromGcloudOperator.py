@@ -129,8 +129,6 @@ class LocalMetaFromGcloudOperator(KaapanaPythonBaseOperator):
         See https://github.com/GoogleCloudPlatform/python-docs-samples/tree/main/healthcare/api-client/v1/dicom
         before running the sample."""
 
-        # os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="/kaapana/credentials.json"
-
         if not Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"]).exists():
             print("ERROR, CREDENTIALS FILE IS NOT LOCATED")
             print(os.getcwd())
@@ -145,10 +143,7 @@ class LocalMetaFromGcloudOperator(KaapanaPythonBaseOperator):
         )
         session = requests.AuthorizedSession(scoped_credentials)
         base_url = "https://healthcare.googleapis.com/v1"
-        url = f"{base_url}/projects/{project_id}/locations/{location}"
-        dicomweb_path = "{}/datasets/{}/dicomStores/{}/dicomWeb/instances".format(
-            url, dataset_id, dicom_store_id
-        )
+        dicomweb_path = f"{base_url}/projects/{project_id}/locations/{location}/datasets/{dataset_id}/dicomStores/{dicom_store_id}/dicomWeb/instances"
         headers = {"Content-Type": "application/dicom+json; charset=utf-8"}
 
         response = session.get(dicomweb_path, headers=headers)
@@ -200,6 +195,7 @@ class LocalMetaFromGcloudOperator(KaapanaPythonBaseOperator):
             json_dict = LocalMetaFromGcloudOperator.predict_modality(
                 metadata_dict=json_dict
             )
+            json_dict = self.add_metadata(json_dict)
 
             with open(json_file_path, "w", encoding="utf-8") as jsonData:
                 json.dump(
@@ -807,7 +803,19 @@ class LocalMetaFromGcloudOperator(KaapanaPythonBaseOperator):
 
         return new_meta_data
 
+    def add_metadata(self, json_dict):
+        base_url = "https://healthcare.googleapis.com/v1"
+        dicomweb_path = f"{base_url}/projects/{self.project_id}/locations/{self.location}/datasets/{self.dataset_id}/dicomStores/{self.dicom_store_id}/dicomWeb"
+        new_meta_dict = {
+            "00120020 ClinicalTrialProtocolID_keyword": [self.ae_title],
+            "00020016 SourceApplicationEntityTitle_keyword": "gcloud",
+            "00020026 SourcePresentationAddress_keyword": dicomweb_path
+        }
+        json_dict.update(new_meta_dict)
+        return json_dict
+
     # FIXME: hard-coded timezone used for DICOM tag values
+
     def convert_time_to_utc(self, time_berlin, date_format):
         local = pytz.timezone("Europe/Berlin")
         naive = datetime.strptime(time_berlin, date_format)
@@ -823,6 +831,7 @@ class LocalMetaFromGcloudOperator(KaapanaPythonBaseOperator):
         location: str,
         dataset_id: str,
         dicom_store_id: str,
+        ae_title: str,
         exit_on_error: bool = False,
         operator_out_dir: str = "external-metadata",
         **kwargs
@@ -838,6 +847,7 @@ class LocalMetaFromGcloudOperator(KaapanaPythonBaseOperator):
         self.location = location
         self.dataset_id = dataset_id
         self.dicom_store_id = dicom_store_id
+        self.ae_title = ae_title
         self.operatour_out_dir = operator_out_dir
 
         os.environ["PYTHONIOENCODING"] = "utf-8"

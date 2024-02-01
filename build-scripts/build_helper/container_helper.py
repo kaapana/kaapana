@@ -247,7 +247,7 @@ class Container:
         self.repo_version = None
         self.tag = None
         self.path = dockerfile
-        self.build_ignore = False
+        self.ci_ignore = False
         self.pending = False
         self.airflow_component = False
         self.container_dir = os.path.dirname(dockerfile)
@@ -316,8 +316,8 @@ class Container:
 
                         BuildUtils.base_images_used[base_img_obj.tag].append(self)
 
-                elif line.__contains__("LABEL BUILD_IGNORE="):
-                    self.build_ignore = (
+                elif line.__contains__("LABEL CI_IGNORE="):
+                    self.ci_ignore = (
                         True
                         if line.split("#")[0]
                         .split("=")[1]
@@ -408,9 +408,9 @@ class Container:
                 BuildUtils.logger.debug(f"{self.build_tag}: already build -> skip")
                 return issue, duration_time_text
 
-            if self.build_ignore:
+            if self.ci_ignore:
                 BuildUtils.logger.warning(
-                    f"{self.build_tag}: {self.build_ignore=} -> skip"
+                    f"{self.build_tag}: {self.ci_ignore=} -> skip"
                 )
                 return issue, duration_time_text
 
@@ -491,8 +491,8 @@ class Container:
         issue = None
         duration_time_text = ""
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
-        if self.build_ignore:
-            BuildUtils.logger.warning(f"{self.build_tag}: {self.build_ignore=} -> skip")
+        if self.ci_ignore:
+            BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
             return issue, duration_time_text
 
         if BuildUtils.push_to_microk8s is True:

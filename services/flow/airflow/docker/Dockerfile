@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="airflow"
-LABEL VERSION="2.5.2"
+LABEL VERSION="2.8.1"
 LABEL CI_IGNORE="False"
 
 ENV SLUGIFY_USES_TEXT_UNIDECODE=yes
@@ -20,7 +20,7 @@ COPY files/scripts/ /scripts
 COPY files/bootstrap.sh /kaapana/app/bootstrap.sh
 RUN chmod +x /kaapana/app/bootstrap.sh
 
-COPY files/scheduler_job.py /usr/local/lib/python3.9/site-packages/airflow/jobs/
+COPY files/scheduler_job_runner.py /usr/local/lib/python3.9/site-packages/airflow/jobs/
 COPY files/task_command.py /usr/local/lib/python3.9/site-packages/airflow/cli/commands/
 
 ENTRYPOINT ["/kaapana/app/bootstrap.sh"]

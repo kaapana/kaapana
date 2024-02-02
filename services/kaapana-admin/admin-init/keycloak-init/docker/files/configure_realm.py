@@ -44,5 +44,9 @@ if __name__ == "__main__":
 
     redirect_uris = []
     redirect_uris.append(f"/oauth2/callback")
-    redirect_uris.append(f"/minio-console/oauth_callback/")
+    hostname = os.getenv("HOSTNAME")
+    https_port = os.getenv("HTTPS_PORT")
+    redirect_uris.append(
+        f"https://{hostname}:{https_port}/minio-console/oauth_callback/"
+    )
     keycloak.post_client(payload, redirectUris=redirect_uris)

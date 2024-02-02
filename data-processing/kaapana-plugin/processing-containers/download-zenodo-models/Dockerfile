@@ -5,7 +5,7 @@ LABEL VERSION="0.1.1"
 LABEL BUILD_IGNORE="False"
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt --no-cache-dir -r /kaapana/app/requirements.txt
+RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
 COPY files/* /kaapana/app/
 

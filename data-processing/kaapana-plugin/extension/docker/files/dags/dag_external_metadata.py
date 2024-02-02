@@ -81,6 +81,7 @@ extract_metadata = LocalMetaFromGcloudOperator(
     location=location,
     dataset_id=dataset_id,
     dicom_store_id=dicom_store_id,
+    ae_title=ae_title,
 )
 add_to_dataset = LocalAddToDatasetOperator(
     dag=dag, input_operator=extract_metadata)

@@ -211,7 +211,7 @@ function enable_gpu {
 
     if [ $GPU_SUPPORT == true ];then
         echo "${YELLOW}Activating GPU ...${NC}"
-        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU ...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
+        microk8s.enable nvidia && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU ...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable nvidia) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
         echo "${YELLOW}Waiting for nvidia-device-plugin-daemonset ...${NC}"
     else
         echo "${YELLOW}No GPU support.${NC}"
@@ -419,7 +419,7 @@ function install_microk8s {
         if [ "$REAL_USER" != "root" ]; then
             echo "${YELLOW} Setting non-root permissions ...${NC}"
             sudo usermod -a -G microk8s $REAL_USER
-            sudo chown -f -R $REAL_USER:$REAL_USER $USER_HOME/.kube
+            sudo chown -f -R $REAL_USER $USER_HOME/.kube
         fi
 
         echo ""
@@ -481,7 +481,7 @@ echo -e "${GREEN}REAL_USER: $REAL_USER ${NC}";
 echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
 echo ""
 
-DEFAULT_MICRO_VERSION=1.26/stable
+DEFAULT_MICRO_VERSION=1.29/stable
 DEFAULT_HELM_VERSION=latest/stable
 
 ### Parsing command line arguments:

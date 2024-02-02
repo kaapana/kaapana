@@ -15,11 +15,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build-ctp
 
-RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout 2ae3e71ce84b425857ce0b5cca249eda2ea542ed
+RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout 867f8933de7ce99a035a32639261a3af72ae91e0
 
 COPY /files/Runner.java ./source/java/org/rsna/runner/
 # added consolelogs, to directly view logs in kubernetes logs
 COPY /files/log4j.properties ./source/files/
+
+
+# fixing: CVE-2021-23792  CVE-2021-35515 CVE-2021-37533
+# some unused piplines (e.g. FtpExporter serivce) are untested with this fixes
+# but are not used in kaapana
+COPY /files/security-fix-libraries/commons-compress-1.25.0.jar ./libraries/
+COPY /files/security-fix-libraries/commons-net-3.10.0.jar ./libraries/ftp
+RUN rm -f ./libraries/commons-compress-1.0.jar
+RUN rm -f ./libraries/imageio/twelvemonkeys-imageio-metadata-3.6-SNAPSHOT.jar
+RUN rm -f ./libraries/ftp/commons-net-3.3.jar
+COPY /files/security-fix-libraries/build.xml ./
 
 # use java 8 for correct build process
 ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64 
@@ -36,7 +47,7 @@ RUN cd ./build/kaapana-dag-trigger \
 ###############################           2nd STAGE           ###############################
 #############################################################################################
 
-FROM docker.io/ubuntu:20.04
+FROM local-only/base-python-cpu:latest
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     default-jre \

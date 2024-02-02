@@ -1,5 +1,5 @@
-# Use Alpine 3.17.2 as the base image
-FROM docker.io/alpine:3.17.2
+# Use Alpine 3.17.7 as the base image
+FROM docker.io/alpine:3.17.7
 
 # Update packages and install necessary dependencies
 RUN apk update && \

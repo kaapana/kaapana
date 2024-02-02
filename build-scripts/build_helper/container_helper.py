@@ -412,13 +412,6 @@ class Container:
                 BuildUtils.logger.warning(
                     f"{self.build_tag}: {self.ci_ignore=} -> skip"
                 )
-                issue = {
-                    "component": suite_tag,
-                    "name": f"{self.build_tag}",
-                    "msg": f"Container build skipped: {self.ci_ignore=} !",
-                    "level": "WARING",
-                    "path": self.container_dir,
-                }
                 return issue, duration_time_text
 
             startTime = time()
@@ -500,13 +493,6 @@ class Container:
         BuildUtils.logger.debug(f"{self.build_tag}: in push()")
         if self.ci_ignore:
             BuildUtils.logger.warning(f"{self.build_tag}: {self.ci_ignore=} -> skip")
-            issue = {
-                "component": suite_tag,
-                "name": f"{self.build_tag}",
-                "msg": f"Container push skipped: {self.ci_ignore=} !",
-                "level": "WARING",
-                "path": self.container_dir,
-            }
             return issue, duration_time_text
 
         if BuildUtils.push_to_microk8s is True:
@@ -565,7 +551,7 @@ class Container:
                     BuildUtils.logger.info(
                         f"{self.build_tag}: Image did not change -> skipping ..."
                     )
-                    return
+                    return issue, duration_time_text
                 else:
                     self.container_build_status = "built"
 
@@ -773,6 +759,8 @@ class Container:
         # Init Trivy if configuration check is enabled
         if BuildUtils.configuration_check:
             trivy_utils = BuildUtils.trivy_utils
+            trivy_utils.dockerfile_report_path = os.path.join(trivy_utils.reports_path, "dockerfile_reports")
+            os.makedirs(trivy_utils.dockerfile_report_path, exist_ok=True)
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 
@@ -809,17 +797,6 @@ class Container:
         Container.container_object_list = Container.check_base_containers(
             Container.container_object_list
         )
-
-        if BuildUtils.configuration_check:
-            # Safe the Dockerfile report to the build directory if there are any errors
-            if not trivy_utils.compressed_dockerfile_report == {}:
-                BuildUtils.logger.error(
-                    "Found configuration errors in Dockerfile! See compressed_dockerfile_report.json for details."
-                )
-                with open(
-                    os.path.join(BuildUtils.build_dir, "dockerfile_report.json"), "w"
-                ) as f:
-                    json.dump(trivy_utils.compressed_dockerfile_report, f)
 
         return Container.container_object_list
 

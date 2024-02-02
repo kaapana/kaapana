@@ -5,7 +5,19 @@ import json
 import datetime
 from datetime import timedelta
 
+<<<<<<< HEAD
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+<<<<<<< HEAD
+=======
+from kaapana.blueprints.kaapana_utils import generate_minio_credentials
+from kaapana.operators.HelperMinio import HelperMinio
+=======
+from kaapana.operators.KaapanaPythonBaseOperator import (
+    KaapanaPythonBaseOperator,
+    rest_self_udpate,
+)
+>>>>>>> 518c5222 (Feature/updates)
+>>>>>>> e9d32227 (Feature/updates)
 from kaapana.operators.HelperCaching import cache_operator_output
 
 

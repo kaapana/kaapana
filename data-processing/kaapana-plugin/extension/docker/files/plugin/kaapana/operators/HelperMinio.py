@@ -10,9 +10,12 @@ from minio.error import InvalidResponseError, S3Error
 
 from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
+<<<<<<< HEAD
     OIDC_CLIENT_SECRET,
     SYSTEM_USER_PASSWORD,
     ADMIN_NAMESPACE,
+=======
+>>>>>>> e9d32227 (Feature/updates)
 )
 
 logger = logging.getLogger(__name__)
@@ -34,6 +37,7 @@ class HelperMinio(Minio):
         :param username: Username of the keycloak user that wants to communicate with minio.
         :access_token: Access token that should be used for communication with minio.
         """
+<<<<<<< HEAD
         assert dag_run or username or access_token
         self.system_user = "system"
         self.system_user_password = SYSTEM_USER_PASSWORD
@@ -133,6 +137,16 @@ class HelperMinio(Minio):
         ).text
         return access_key_id, secret_access_key, session_token
 
+=======
+
+        super().__init__(
+            f"minio-service.{SERVICES_NAMESPACE}.svc:9000",
+            access_key=os.environ.get("MINIOUSER"),
+            secret_key=os.environ.get("MINIOPASSWORD"),
+            secure=False,
+        )
+
+>>>>>>> e9d32227 (Feature/updates)
     def put_file(self, bucket_name, object_name, file_path):
         print(f"Creating bucket {bucket_name} if it does not already exist.")
         self.make_bucket(bucket_name)

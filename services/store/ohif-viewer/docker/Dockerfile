@@ -1,4 +1,4 @@
-FROM docker.io/node:20-alpine3.16 as build
+FROM docker.io/node:20-alpine3.18 as build
 
 LABEL IMAGE="ohif"
 <<<<<<< HEAD
@@ -10,6 +10,7 @@ LABEL CI_IGNORE="False"
 >>>>>>> 3fd3650c (ohif 3.7.0 as default ohif, v2 backup: /ohif-v2)
 
 RUN apk add --no-cache ca-certificates git build-base python3
+
 
 RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout df32a05a4d64878c3aaccb54c4b19665ffa58788
 
@@ -26,7 +27,7 @@ ENV APP_CONFIG "config/kaapana.js"
 RUN yarn install
 RUN yarn run build
 
-FROM docker.io/nginx:stable-alpine as production-stage
+FROM docker.io/nginx:1.24.0-alpine@sha256:0ec1c862eb0bca5cce922ea40fe9f6f08361b4e57d9376b3a6c0db622735cc5e as production-stage
 
 COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif/
 

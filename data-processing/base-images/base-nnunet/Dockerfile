@@ -26,6 +26,9 @@ COPY files/patched/nnUNetTrainerV2_warmup.py /nnunet-pip-package/nnunet/training
 
 RUN cd /nnunet-pip-package && pip3 install ./
 
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt tensorboard==2.8.0
+
+
+RUN pip install -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt tensorboard==2.15.1
+
 
 WORKDIR /kaapana/app

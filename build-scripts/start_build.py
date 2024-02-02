@@ -204,6 +204,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Force version to 'latest'",
     )
+
+    parser.add_argument(
+        "-cevdatabase,"
+        "--vulnerability-database",
+        dest="check_expired_vulnerabilities_database",
+        default=False,
+        action="store_true",
+        help="Check if the vulnerability database is expired and rescan if necessary",
+    )
+
     args = parser.parse_args()
 
     kaapana_dir = (
@@ -418,6 +428,12 @@ if __name__ == "__main__":
         configuration["create_sboms"]
         if "create_sboms" in configuration
         else template_configuration["create_sboms"]
+    )
+
+    conf_check_expired_vulnerabilities_database = (
+        configuration["check_expired_vulnerabilities_database"]
+        if "check_expired_vulnerabilities_database" in configuration
+        else template_configuration["check_expired_vulnerabilities_database"]
     )
 
     registry_user = (
@@ -644,6 +660,8 @@ if __name__ == "__main__":
     BuildUtils.version_latest = version_latest
     BuildUtils.enable_image_stats = enable_image_stats
     BuildUtils.create_sboms = create_sboms
+    BuildUtils.check_expired_vulnerabilities_database = conf_check_expired_vulnerabilities_database
+    
 
     if (
         BuildUtils.vulnerability_scan

@@ -84,8 +84,6 @@ spec:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
           - name: common-data-file
             mountPath: /kaapana/app/jsons
-          # - name: minio-data
-          #   mountPath: /kaapana/app/minio
 {{- if .Values.global.dev_files }}
           - name: landing-dev-files
             mountPath: /kaapana/app/src
@@ -95,9 +93,6 @@ spec:
       - name: common-data-file
         configMap:
           name: landing-page-config
-      # - name: minio-data
-      #   persistentVolumeClaim:
-      #     claimName: minio-pv-claim
 {{- if .Values.global.dev_files }}
       - name: landing-dev-files
         persistentVolumeClaim:

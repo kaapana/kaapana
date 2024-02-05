@@ -4,6 +4,8 @@ kind: Job
 metadata:
   name: total-get-zenodo-models
   namespace: "{{ .Values.global.jobs_namespace }}"
+  labels:
+    network-access: external-ips
 spec:
   template:
     metadata:

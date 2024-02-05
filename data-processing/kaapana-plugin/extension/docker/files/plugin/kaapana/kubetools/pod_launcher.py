@@ -17,6 +17,7 @@
 
 import json
 import time
+import traceback
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 from datetime import datetime as dt
@@ -267,9 +268,10 @@ class PodLauncher(LoggingMixin):
             return (self._task_status(pod=pod, event=self.read_pod(pod)), result)
         except Exception as e:
             self.log.warn(
-                f"################# ISSUE! Could not _monitor_pod: {pod.metadata.name}"
+                f"################# ISSUE! Could not _monitor_pod: {pod.name}"
             )
             self.log.warn(f"################# ISSUE! message: {e}")
+            self.log.warn(traceback.format_exc())
 
     def _task_status(self, pod, event):
         af_status, kube_status = self.process_status(event=event, pod=pod)

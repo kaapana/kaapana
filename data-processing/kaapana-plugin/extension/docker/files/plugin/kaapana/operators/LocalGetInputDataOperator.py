@@ -363,6 +363,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.dcmweb_helper = HelperDcmWeb(
             application_entity="KAAPANA", dag_run=kwargs["dag_run"]
         )
+        self.gcloud_dcmweb_helper = HelperGcloudDcmWeb(
+            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+        )
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(self.get_data, download_list)
             for download_successful, series_uid in results:

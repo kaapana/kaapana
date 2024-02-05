@@ -122,14 +122,7 @@ async def get_data(series_instance_uid):
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
 
         path = f"batch/{series_instance_uid}/generate-segmentation-thumbnail/{series_instance_uid}.png"
-<<<<<<< HEAD
         thumbnail_src = f"/thumbnails/{path}"
-=======
-        path_bytes = path.encode("ascii")
-        base64_bytes = base64.b64encode(path_bytes)
-        prefix = base64_bytes.decode("ascii")
-        thumbnail_src = f"/minio-console/api/v1/buckets/thumbnails/objects/download?preview=true&prefix={prefix}&version_id=null"
->>>>>>> e9d32227 (Feature/updates)
     else:
         thumbnail_src = (
             f"/dcm4chee-arc/aets/KAAPANA/rs/studies/{metadata['Study Instance UID']}/"

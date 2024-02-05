@@ -5,12 +5,15 @@ import json
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from kaapana.operators.HelperGcloudDcmWeb import HelperGcloudDcmWeb
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from multiprocessing.pool import ThreadPool
 from os.path import join, exists, dirname
 import shutil
 import glob
 import pydicom
+
+
 from kaapana.operators.HelperCaching import cache_operator_output
 
 
@@ -74,7 +77,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     def get_data(self, series_dict):
         download_successful = True
-        studyUID, seriesUID, dag_run_id = (
+        _, seriesUID, dag_run_id = (
             series_dict["studyUID"],
             series_dict["seriesUID"],
             series_dict["dag_run_id"],
@@ -88,24 +91,34 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             self.operator_out_dir,
         )
         print(f"# Target_dir: {target_dir}")
-
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
 
+        print("Retrieve metadata to determine download location")
+        meta_data = HelperOpensearch.get_series_metadata(
+            series_instance_uid=seriesUID
+        )
+
         if self.data_type == "dicom":
-            download_successful = self.dcmweb_helper.downloadSeries(
-                series_uid=seriesUID, target_dir=target_dir
-            )
-            if not download_successful:
-                print("Could not download DICOM data!")
-                download_successful = False
+            if meta_data["00020016 SourceApplicationEntityTitle_keyword"] == "gcloud":
+                download_successful = self.gcloud_dcmweb_helper.downloadSeries(
+                    series_uid=seriesUID, target_dir=target_dir
+                )
+                if not download_successful:
+                    print("Could not download DICOM data!")
+                    download_successful = False
+
+            else:
+                download_successful = self.dcmweb_helper.downloadSeries(
+                    series_uid=seriesUID, target_dir=target_dir
+                )
+                if not download_successful:
+                    print("Could not download DICOM data!")
+                    download_successful = False
 
         elif self.data_type == "json":
-            meta_data = HelperOpensearch.get_series_metadata(
-                series_instance_uid=seriesUID
-            )
             json_path = join(target_dir, "metadata.json")
-            with open(json_path, "w") as fp:
+            with open(json_path, "w", encoding="utf8") as fp:
                 json.dump(meta_data, fp, indent=4, sort_keys=True)
 
         elif self.data_type == "minio":
@@ -136,14 +149,14 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("# Starting module LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs["dag_run"].conf
-        self.dcmweb_helper = HelperDcmWeb(
-            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
-        )
         dag_run_id = kwargs["dag_run"].run_id
+
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get("seriesInstanceUID")
+
             dcm_path = join(
-                "/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path")
+                "/kaapana/mounted/ctpinput", "incoming", self.conf.get(
+                    "dicom_path")
             )
             print("#")
             print(f"# Dicom-path: {dcm_path}")
@@ -162,19 +175,20 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     print(f"Could not find dicom dir: {dcm_path}")
                     print("Abort!")
                     raise ValueError("ERROR")
-                else:
-                    self.move_series(src_dcm_path=dcm_path, target=target)
+                self.move_series(src_dcm_path=dcm_path, target=target)
             else:
                 print("Files have already been moved -> skipping")
             return
         if self.conf and "ctpBatch" in self.conf:
             batch_folder = join(
-                "/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path")
+                "/kaapana/mounted/ctpinput", "incoming", self.conf.get(
+                    "dicom_path")
             )
             print(f"# Batch folder: {batch_folder}")
             dcm_series_paths = [f for f in glob.glob(batch_folder + "/*")]
             for dcm_series_path in dcm_series_paths:
-                dcm_file_list = glob.glob(dcm_series_path + "/*.dcm", recursive=True)
+                dcm_file_list = glob.glob(
+                    dcm_series_path + "/*.dcm", recursive=True)
                 if dcm_file_list:
                     dcm_file = pydicom.dcmread(dcm_file_list[0], force=True)
                     series_uid = dcm_file[0x0020, 0x000E].value
@@ -190,7 +204,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     ):
                         print("Files have already been moved -> skipping")
                     else:
-                        self.move_series(src_dcm_path=dcm_series_path, target=target)
+                        self.move_series(
+                            src_dcm_path=dcm_series_path, target=target)
             # remove parent batch folder
             if exists(batch_folder) and not os.listdir(batch_folder):
                 shutil.rmtree(batch_folder)
@@ -286,7 +301,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
                 if "study-uid" not in dcm_uid:
                     print(
-                        "'study-uid' not found in 'dcm-uid': {}".format(dicom_data_info)
+                        "'study-uid' not found in 'dcm-uid': {}".format(
+                            dicom_data_info)
                     )
                     print("abort...")
                     raise ValueError("ERROR")
@@ -341,6 +357,17 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("#####################################################")
             raise ValueError("ERROR")
         series_download_fail = []
+
+        # TODO This should be initialized only while using internalPACS
+        # Needs to be exchangeable for the external DcmWeb#
+        # Determine SOURCE before downloading!
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+        )
+        self.gcloud_dcmweb_helper = HelperGcloudDcmWeb(
+            application_entity="KAAPANA",
+            dag_run=kwargs["dag_run"]
+        )
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(self.get_data, download_list)
             for download_successful, series_uid in results:
@@ -349,7 +376,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     series_download_fail.append(series_uid)
 
             if len(series_download_fail) > 0:
-                print("#####################################################")
+                print("#################u####################################")
                 print("#")
                 print(f"# Some series could not be downloaded! ")
                 for series_uid in series_download_fail:

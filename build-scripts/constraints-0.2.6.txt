@@ -5,7 +5,7 @@
 # Security fix for CVE-2021-23727
 celery>=5.3.6
 # Security fix for CVE-2023-0286
-cryptography>=41.0.7
+cryptography>=42.0.2
 # Security fix for CVE-2022-4296
 cleo>=2.1.0
 # Security fix for CVE-2022-23491
@@ -58,3 +58,4 @@ reportlab>=4.0.9
 gevent>=23.9.1
 # Security fix for CVE-2023-40267
 GitPython>=3.1.41
+requets>=2.31.0

@@ -35,16 +35,9 @@ RUN python -m pip install torch torchvision==0.15.2+cu118 torchaudio==2.0.2 --in
 COPY files/requirements.txt /app/
 RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --upgrade setuptools pip && pip3 install -r /app/requirements.txt
 
-# Code server
-RUN wget https://code-server.dev/install.sh
-RUN /bin/bash install.sh --version 4.2.0
-RUN code-server --install-extension ms-python.python
+# Code server and jupiterlab are not installed in this project and can therefore not be used
+# as "dev_server" to debug pods.
 
-# Juyterlab
-# Disable security token for Jupyter lab
-RUN jupyter-lab --generate-config \
-    && sed -i "s/^.*ServerApp.token.*$/c.ServerApp.token = ''/g" /root/.jupyter/jupyter_lab_config.py
-COPY files/jupyterlab.sh /
 COPY files/kaapana_federated /kaapana_federated
 
 WORKDIR /kaapana/app

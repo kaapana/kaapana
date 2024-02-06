@@ -213,7 +213,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 "dev_server must be either None, code-server or jupyterlab!"
             )
         if dev_server is not None:
-            self.execution_timeout = None
+            raise Exception(
+                "dev_server is not installed in this Project!"
+            )
+            #self.execution_timeout = None
         self.dev_server = dev_server
 
         # Kubernetes

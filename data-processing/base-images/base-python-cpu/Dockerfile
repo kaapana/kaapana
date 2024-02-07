@@ -9,26 +9,21 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
-    apt-utils \
     git \
     htop \
     zip \
     unzip \
     nano \
     dcmtk \
-    pandoc \
-    texlive-xetex \
-    texlive-fonts-recommended \
-    texlive-plain-generic \
     ca-certificates \
     build-essential \
     wget \
     curl \
-    procps \
-    libpng-dev \
-    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
+#CVE-2023-45853 download via wget, since not yet in debian standard repo
+RUN wget http://ftp.de.debian.org/debian/pool/main/z/zlib/zlib1g_1.3.dfsg-3+b1_amd64.deb && \
+    apt install wget ./zlib1g_1.3.dfsg-3+b1_amd64.deb -y
 # Common Python packages
 RUN python -m pip install torch torchvision==0.15.2+cu118 torchaudio==2.0.2 --index-url https://download.pytorch.org/whl/cu118
 

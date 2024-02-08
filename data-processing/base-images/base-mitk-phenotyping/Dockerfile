@@ -15,8 +15,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libgomp1 \
     libxt-dev \
-    xvfb \
-    qtbase5-dev \
     jq \
     && rm -rf /var/lib/apt/lists/*
 

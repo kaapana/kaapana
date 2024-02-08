@@ -43,7 +43,7 @@ RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC
   # Security fix for CVE-2022-21797
   joblib==1.3.2 \
   # Security fix for CVE-2023-0286
-  cryptography==41.0.7 \
+  cryptography==42.0.2 \
   # Security fix for CVE-2021-23727
   celery==5.3.6 \
   # Security fix for CVE-2022-28346

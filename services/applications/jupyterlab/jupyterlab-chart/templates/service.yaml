@@ -13,6 +13,16 @@ spec:
       name: log-http-port
   type: ClusterIP
 ---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: jupyterlab-chart-3aaa5ba8243e8c0fc798-redirect ### {{ .Release.Name }}-redirect
+  namespace: services ### "{{ tpl .Values.global.namespace .  }}"
+spec:
+  redirectRegex:
+    regex: ^.*/jupyterlab-chart-3aaa5ba8243e8c0fc798([^\/]*)$ ### ^.*/{{ .Release.Name }}([^\/]*)$
+    replacement: {{ printf "/%s/" "jupyterlab-chart-3aaa5ba8243e8c0fc798" }} ### {{ printf "/%s/" .Release.Name }}
+---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
 metadata:

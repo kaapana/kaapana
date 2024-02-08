@@ -9,7 +9,6 @@ pathlib==1.0.1
 plotly==5.7.0
 # torch==2.0.1
 torchvision==0.15.2
-jupyterlab==3.3.2
 seaborn==0.11.2
 # Security fix for CVE-2022-1941
 protobuf==3.20.2
@@ -22,3 +21,5 @@ Pillow==9.3.0
 nibabel==5.1.0
 SimpleITK==2.2.1
 requests==2.31.0
+psutil==5.9.8
+jsonschema==4.21.1

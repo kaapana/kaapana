@@ -15,6 +15,18 @@ spec:
       labels:
         app-name: {{ .Release.Name }}
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: jupyterlab-init
+        securityContext:
+          runAsUser: 0
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+        command: ["chown", "1000:1000", "/kaapana/minio/jupyterlab"]
+        volumeMounts:
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
       containers:
       - name: minio-mirror
         image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version  }}"
@@ -42,8 +54,6 @@ spec:
       - name: jupyterlab
         image: "{{ tpl .Values.global.complete_image . }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
-        command: ["/bin/bash"]
-        args: ["/jupyterlab.sh"]
         resources:
           requests:
             memory: "100Mi"

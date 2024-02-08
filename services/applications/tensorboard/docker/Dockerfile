@@ -13,3 +13,5 @@ RUN pip3 install --no-cache-dir -r /src/requirements.txt
 COPY files/tensorboard.sh /
 
 CMD ["/bin/sh", "/tensorboard.sh"]
+
+USER 1000

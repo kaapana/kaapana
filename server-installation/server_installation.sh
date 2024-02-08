@@ -63,8 +63,9 @@ function proxy_environment {
 
 
 function no_proxy_environment {
-    # This script makes sure no_proxy configuration is configured correctly so microk8s doesn't send cluster traffic to the proxy server.
-    # The specific settings for ip ranges can change due to updates and 
+    # Note: This script makes sure no_proxy configuration is configured correctly so microk8s doesn't send cluster traffic to the 
+    #       proxy server. The specific settings for ip ranges used by microk8s to request external resource might change in the future
+    #       and are (currently) described here: https://microk8s.io/docs/install-proxy
     echo "${GREEN}Checking no_proxy settings${NC}"
     if [ ! -v no_proxy ] && [ ! -v NO_PROXY ]; then
         echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"

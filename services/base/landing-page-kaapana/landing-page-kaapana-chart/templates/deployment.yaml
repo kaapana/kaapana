@@ -21,6 +21,16 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
       initContainers:
+      - name: landingpage-wait
+        image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        env:
+        - name: WAIT
+          value: "minio-service,minio-service.{{ .Values.global.services_namespace }}.svc,9000"
+        - name: DELAY
+          value: "2"
+        - name: TIMEOUT
+          value: "10"
       - name: thumbnails-init
         securityContext:
           runAsUser: 0
@@ -84,8 +94,6 @@ spec:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
           - name: common-data-file
             mountPath: /kaapana/app/jsons
-          # - name: minio-data
-          #   mountPath: /kaapana/app/minio
 {{- if .Values.global.dev_files }}
           - name: landing-dev-files
             mountPath: /kaapana/app/src
@@ -95,9 +103,6 @@ spec:
       - name: common-data-file
         configMap:
           name: landing-page-config
-      # - name: minio-data
-      #   persistentVolumeClaim:
-      #     claimName: minio-pv-claim
 {{- if .Values.global.dev_files }}
       - name: landing-dev-files
         persistentVolumeClaim:

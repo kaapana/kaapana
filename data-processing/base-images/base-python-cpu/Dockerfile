@@ -19,6 +19,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     build-essential \
     wget \
     curl \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 #CVE-2023-45853 download via wget, since not yet in debian standard repo

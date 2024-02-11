@@ -6,6 +6,7 @@ from pathlib import Path
 import nibabel as nib
 import numpy as np
 from os.path import basename
+import SimpleITK as sitk
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -82,6 +83,7 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
             vox_vol = spacing[0] * spacing[1] * spacing[2]
 
             label_volume_info = {}
+            cca_info = {}
             for seg_nifti_fname in seg_nifti_fnames:
                 print(f"{seg_nifti_fname=}")
 
@@ -89,17 +91,36 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
                 seg_pixel_data = nib.load(seg_nifti_fname).get_fdata()
 
                 # compute volume per class
-                voxels_per_class = seg_pixel_data.sum()
-                vol_per_class = seg_pixel_data.sum() * vox_vol
-
+                voxels_per_class = np.count_nonzero(seg_pixel_data)
+                vol_per_class = voxels_per_class * vox_vol
                 label_volume_info[basename(seg_nifti_fname)] = {
                     "voxels_per_class": f"{voxels_per_class}",
                     "voxel_volume": f"{vox_vol}",
                     "volume_per_class": f"{vol_per_class}",
                 }
 
+                # Convert the numpy array to a SimpleITK image
+                sitk_image = sitk.GetImageFromArray(seg_pixel_data)
+                # Convert the pixel type to 8-bit unsigned integer
+                sitk_image = sitk.Cast(sitk_image, sitk.sitkUInt8)
+                # Perform connected component analysis
+                connected_components = sitk.ConnectedComponent(sitk_image)
+                # Use LabelShapeStatisticsImageFilter to get the number of connected components
+                label_stats = sitk.LabelShapeStatisticsImageFilter()
+                label_stats.Execute(connected_components)
+                # Get the number of connected components
+                num_components = label_stats.GetNumberOfLabels()
+                print("Number of connected components:", num_components)
+                cca_info[basename(seg_nifti_fname)] = {}
+                for label in range(1, num_components + 1):
+                    cca_info[basename(seg_nifti_fname)][
+                        label
+                    ] = label_stats.GetNumberOfPixels(label)
+
             print(f"{label_volume_info=}")
+            print(f"{cca_info=}")
             json_data.update({"volume_per_class": label_volume_info})
+            json_data.update({"connected_component_analysis": cca_info})
             print(f"{json_data=}")
 
             # save to out_dir
@@ -113,7 +134,7 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
     def __init__(
         self,
         dag,
-        name="extract-voxels-per-class",
+        name="seg-data-characteristics",
         input_operator=None,
         json_operator=None,
         img_operator=None,

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: ohif-container-iframe
-          image: "{{ .Values.global.registry_url }}/ohififrame:{{ .Values.global.kaapana_build_version  }}"
+          image: "{{ .Values.global.registry_url }}/ohif-iframe:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           ports:
             - containerPort: 80

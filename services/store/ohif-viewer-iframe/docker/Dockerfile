@@ -1,6 +1,6 @@
 FROM docker.io/node:20-alpine3.18 as build
 
-LABEL IMAGE="ohififrame"
+LABEL IMAGE="ohif-iframe"
 LABEL VERSION="v3.7.0"
 LABEL CI_IGNORE="False"
 

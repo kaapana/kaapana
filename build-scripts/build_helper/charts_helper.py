@@ -646,6 +646,7 @@ class HelmChart:
             x
             for x in BuildUtils.container_images_available
             if x.image_name == container_name and x.registry == container_registry
+            # print()
         ]
 
         if len(containers_found) == 1:
@@ -707,7 +708,8 @@ class HelmChart:
 
     def check_container_use(self):
         BuildUtils.logger.debug(f"{self.chart_id}: check_container_use")
-
+        if "ohif" in self.chartfile:
+            print("itsme")
         if self.kaapana_type == "extenstion-collection":
             self.add_container_by_tag(
                 container_registry=BuildUtils.default_registry,
@@ -803,7 +805,7 @@ class HelmChart:
                         if "#" in line.split("image:")[0]:
                             BuildUtils.logger.debug(f"Commented: {line} -> skip")
                             continue
-                        elif "-if" in line:
+                        elif "-if." in line and "{{else}}" in line:
                             BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 

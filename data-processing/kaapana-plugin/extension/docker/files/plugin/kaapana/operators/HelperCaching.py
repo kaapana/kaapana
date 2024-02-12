@@ -61,7 +61,7 @@ def from_previous_dag_run_action(
         print(dst)
         if os.path.isdir(src):
             print(f"Copying batch files from {src} to {dst}")
-            shutil.copytree(src=src, dst=dst)
+            shutil.copytree(src=src, dst=dst, dirs_exist_ok=True)
 
     if action == "from_previous_dag_run":
         src_root_dir = os.path.join(
@@ -75,7 +75,7 @@ def from_previous_dag_run_action(
             dst = os.path.join(dst_root_dir, rel_dir)
             if os.path.isdir(src):
                 print(f"Moving batch element files from {src} to {dst}")
-                shutil.copytree(src=src, dst=dst)
+                shutil.copytree(src=src, dst=dst, dirs_exist_ok=True)
 
 
 # Decorator

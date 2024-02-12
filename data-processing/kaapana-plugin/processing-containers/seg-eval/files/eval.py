@@ -1,11 +1,11 @@
 # TODO: change prints to logging
-# TODO: docs for funcs
 
 import json
 import os
 from os import getenv
 from pathlib import Path
 import ast
+from typing import List, Tuple
 
 import nibabel as nib
 import numpy as np
@@ -16,43 +16,30 @@ from monai.metrics.surface_dice import compute_surface_dice
 
 from opensearch_helper import get_ref_series_instance_uid
 
-workflow_dir = getenv("WORKFLOW_DIR", "None")
-workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
-assert workflow_dir is not None
 
-operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
-operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
-assert operator_out_dir is not None
+def get_and_assert_not_none(env_var):
+    """Standard checks for parsing env variables"""
+    param = getenv(env_var, "None")
+    param = param if param.lower() != "none" else None
 
-batch_name = getenv("BATCH_NAME", "None")
-batch_name = batch_name if batch_name.lower() != "none" else None
-assert batch_name is not None
+    assert param is not None, f"ERROR: {env_var} is passed as None, aborting"
 
-batch_test = getenv("BATCH_TEST", "None")
-batch_test = batch_test if batch_test.lower() != "none" else None
-assert batch_test is not None
+    return param
 
-batch_gt = getenv("BATCH_GT", "None")
-batch_gt = batch_gt if batch_gt.lower() != "none" else None
-assert batch_gt is not None
 
-dir_in_test = getenv("TEST_IN_DIR", "None")
-dir_in_test = dir_in_test if dir_in_test.lower() != "none" else None
-assert dir_in_test is not None
+workflow_dir = get_and_assert_not_none("WORKFLOW_DIR")
+operator_out_dir = get_and_assert_not_none("OPERATOR_OUT_DIR")
+batch_name = get_and_assert_not_none("BATCH_NAME")
+batch_test = get_and_assert_not_none("BATCH_TEST")
+batch_gt = get_and_assert_not_none("BATCH_GT")
+dir_in_test = get_and_assert_not_none("TEST_IN_DIR")
+dir_in_gt = get_and_assert_not_none("GT_IN_DIR")
+exit_on_error = get_and_assert_not_none("EXIT_ON_ERROR")
+eval_metrics_key = get_and_assert_not_none("METRICS_KEY")
+label_mapping = get_and_assert_not_none("LABEL_MAPPING")
+# array env var
 
-dir_in_gt = getenv("GT_IN_DIR", "None")
-dir_in_gt = dir_in_gt if dir_in_gt.lower() != "none" else None
-assert dir_in_gt is not None
-
-exit_on_error = getenv("EXIT_ON_ERROR", "None")
-exit_on_error = exit_on_error if exit_on_error.lower() != "none" else None
-assert exit_on_error is not None
-
-eval_metrics_key = getenv("METRICS_KEY", "None")
-eval_metrics_key = eval_metrics_key if eval_metrics_key.lower() != "none" else None
-assert eval_metrics_key is not None
-
-eval_metrics_str = getenv(eval_metrics_key, "None")
+eval_metrics_str = getenv(eval_metrics_key.upper(), "None")
 eval_metrics_ast = (
     ast.literal_eval(eval_metrics_str) if eval_metrics_str.lower() != "none" else None
 )
@@ -172,6 +159,22 @@ def convert_to_tensor(nifti_mask) -> torch.Tensor:
     return encoded_tensor
 
 
+def parse_label_mapping_env() -> list[tuple[str, str]]:
+    """
+    Parses the label_mapping variable from str format to a list of (str,str) tuples
+    """
+
+    res = []
+    for lm in label_mapping.split(","):
+        split_lm = lm.split(":")
+        assert (
+            len(split_lm) == 2
+        ), f"ERROR: expected two labels per mapping, i.e. 'gt_label_x:test_label_y,gt_label_z:test_label_t'. Got {split_lm}"
+        gt, test = split_lm
+        res.append((gt, test))
+    return res
+
+
 def evaluate_segmentation(dataset_map):
     """
     Calculate and return multiple segmentation evaluation metrics.
@@ -179,59 +182,65 @@ def evaluate_segmentation(dataset_map):
     print(f"# Evaluate segmentations with {dataset_map=}")
 
     metrics = {}
+    label_pairs = parse_label_mapping_env()
 
+    # for every gt,test pair
     for uid, data in dataset_map.items():
         try:
             print(f"# Calculating metrics for {uid=}, {data=}...")
             gt_path = Path(data["gt_path"])
             test_path = Path(data["test_path"])
 
-            filtered_gt = [
-                i for i in gt_path.glob("*") if "combined_masks.nii.gz" in str(i)
-            ]
-            filtered_test = [
-                i for i in test_path.glob("*") if "combined_masks.nii.gz" in str(i)
-            ]
+            filtered_gt = []
+            filtered_test = []
 
-            print(f"# {filtered_gt=}, {filtered_test=}")
+            metric = {"surface_dice": {}, "hausdorff_distance": {}, "asd": {}}
 
-            # should not be empty
-            assert (
-                len(filtered_gt) > 0
-            ), f"Failed to find combined_masks for {data['gt_id']} under path {gt_path}"
-            assert (
-                len(filtered_test) > 0
-            ), f"Failed to find combined_masks for {data['test_id']} under path {test_path}"
+            # Get masks file with names gt_label and test_label
+            for gt_label, test_label in label_pairs:
+                f_gt = [i for i in gt_path.glob("*") if gt_label in str(i)]
+                f_test = [i for i in test_path.glob("*") if test_label in str(i)]
+                # should be only one
+                if len(f_gt) > 1:
+                    raise Exception(
+                        f"ERROR: Multiple mask files for ground truth label '{gt_label}' in {data['gt_id']}. Use fuse operator to merge into one."
+                    )
+                if len(f_test) > 1:
+                    raise Exception(
+                        f"ERROR: Multiple mask files for ground truth label '{test_label}' in {data['test_id']}. Use fuse operator to merge into one."
+                    )
+                print(f"# {f_gt=}, {f_test=}")
 
-            if len(filtered_gt) > 1:
-                print(
-                    f"More than one combine_mask.nii.gz files found under path {gt_path}, using the first one"
-                )
-            if len(filtered_test) > 1:
-                print(
-                    f"More than one combine_mask.nii.gz files found under path {test_path}, using the first one"
-                )
+                # should not be empty
+                assert (
+                    len(f_gt) > 0
+                ), f"Failed to find gt label masks {label_mapping} for {data['gt_id']} under path {gt_path}"
+                assert (
+                    len(f_test) > 0
+                ), f"Failed to find test label masks {label_mapping} for {data['test_id']} under path {test_path}"
 
-            # Read ground truth and test masks
-            gt_mask = convert_to_tensor(read_nifti_file(filtered_gt[0]))
-            pred_mask = convert_to_tensor(read_nifti_file(filtered_test[0]))
-            print(f"# {gt_mask.shape=}")
-            print(f"# {pred_mask.shape=}")
+                # Read ground truth and test masks
+                gt_mask = convert_to_tensor(read_nifti_file(f_gt[0]))
+                pred_mask = convert_to_tensor(read_nifti_file(f_test[0]))
 
-            # Calculate metrics for each mask pair
-            metric = {}
-            if "surface_dice" in eval_metrics or "dice_score" in eval_metrics:
-                print(f"# Calculating surface dice for test mask {data['test_id']} ...")
-                metric["surface_dice"] = calculate_surface_dice(gt_mask, pred_mask)
-            if "hausdorff_distance" in eval_metrics:
-                print(
-                    f"# Calculating hausdorff distance for test mask {data['test_id']} ..."
-                )
-                metric["hausdorff"] = calculate_hausdorff(gt_mask, pred_mask)
-            if "average_surface_distance" in eval_metrics:
-                print(f"# Calculating ASD for test mask {data['test_id']} ...")
-                metric["asd"] = calculate_asd(gt_mask, pred_mask)
-            metrics[data["test_id"]] = metric
+                key = f"{gt_label}:{test_label}"
+                # Calculate metrics for each mask pair
+                if "surface_dice" in eval_metrics or "dice_score" in eval_metrics:
+                    print(
+                        f"# Calculating surface dice for test mask {data['test_id']} ..."
+                    )
+                    metric["surface_dice"][key] = calculate_surface_dice(
+                        gt_mask, pred_mask
+                    )
+                if "hausdorff_distance" in eval_metrics:
+                    print(
+                        f"# Calculating hausdorff distance for test mask {data['test_id']} ..."
+                    )
+                    metric["hausdorff"][key] = calculate_hausdorff(gt_mask, pred_mask)
+                if "average_surface_distance" in eval_metrics:
+                    print(f"# Calculating ASD for test mask {data['test_id']} ...")
+                    metric["asd"][key] = calculate_asd(gt_mask, pred_mask)
+                metrics[data["test_id"]] = metric
         except Exception as e:
             print(f"\n# ERROR: during evaluation of test/gt pair {data}")
             print(f"# ERROR: {e}\n")

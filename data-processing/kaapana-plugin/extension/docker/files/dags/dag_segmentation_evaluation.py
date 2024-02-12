@@ -61,6 +61,36 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
+            "gt_fuse_labels": {
+                "title": "Ground Truth Fuse Segmentation Labels",
+                "description": "Segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "gt_fused_label_name": {
+                "title": "Ground Truth Fuse Segmentation Label: New Label Name",
+                "description": "Segmentation label name of segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "test_fuse_labels": {
+                "title": "Test Fuse Segmentation Labels",
+                "description": "Segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "test_fused_label_name": {
+                "title": "Test Fuse Segmentation Label: New Label Name",
+                "description": "Segmentation label name of segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "label_mapping": {
+                "title": "Label Mappings",
+                "description": "Label mapping after filter and fusing, in the format of 'gt_label_x:test_label_y,gt_label_z:test_label_t'. Only labels included here will be evaluated",
+                "type": "string",
+                "readOnly": False,
+            },
             "exit_on_error": {
                 "title": "Exit on evaluation error",
                 "default": True,
@@ -146,11 +176,11 @@ filter_gt = LocalFilterMasksOperator(
 fuse_gt = MergeMasksOperator(
     dag=dag,
     name="fuse-masks-gt",
-    fuse_labels_key="gt_fuse_labels",
-    fused_label_name_key="gt_fused_label_name",
     input_operator=filter_gt,
     batch_name="gt-dataset",
-    mode="combine",
+    mode="fuse",
+    fuse_labels_key="gt_fuse_labels",
+    fused_label_name_key="gt_fused_label_name",
 )
 
 dcm2nifti_test = Mask2nifitiOperator(
@@ -170,12 +200,12 @@ filter_test = LocalFilterMasksOperator(
 
 fuse_test = MergeMasksOperator(
     dag=dag,
-    name="fuse-masks-test",
-    fuse_labels_key="test_fuse_labels",
-    fused_label_name_key="test_fused_label_name",
+    name="combine-masks-test",
     batch_name="test-dataset",
     input_operator=filter_test,
-    mode="combine",
+    mode="fuse",
+    fuse_labels_key="test_fuse_labels",
+    fused_label_name_key="test_fused_label_name",
 )
 
 evaluation = SegmentationEvaluationOperator(
@@ -190,7 +220,7 @@ evaluation = SegmentationEvaluationOperator(
 
 put_to_minio = LocalMinioOperator(
     dag=dag,
-    name="upload-evaluation-results",
+    name="put-eval-metrics-to-minio",
     zip_files=True,
     action="put",
     action_operators=[evaluation],

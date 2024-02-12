@@ -803,7 +803,7 @@ class HelmChart:
                         if "#" in line.split("image:")[0]:
                             BuildUtils.logger.debug(f"Commented: {line} -> skip")
                             continue
-                        elif "-if" in line:
+                        elif "-if." in line and "{{else}}" in line:
                             BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 

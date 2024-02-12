@@ -156,7 +156,7 @@ function install_packages_ubuntu {
         i=0
         tput sc
         
-        while [ fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ] || [ fuser /var/lib/dpkg/lock >/dev/null 2>&1 ]; do
+        while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || fuser /var/lib/dpkg/lock >/dev/null 2>&1; do
             case $(($i % 4)) in
                 0 ) j="-" ;;
                 1 ) j="\\" ;;
@@ -167,6 +167,13 @@ function install_packages_ubuntu {
             echo -en "\r[$j] Waiting for other software managers to finish ..." 
             sleep 0.5
             ((i=i+1))
+            if [[  $i == 600 ]]; then
+                tput cud1
+                echo "${YELLOW}There is a process blocking apt!${NC}"
+                fuser /var/lib/dpkg/lock-frontend
+                fuser /var/lib/dpkg/lock
+                exit 1
+            fi
         done 
 
         echo "${YELLOW}APT update & upgrade${NC}"

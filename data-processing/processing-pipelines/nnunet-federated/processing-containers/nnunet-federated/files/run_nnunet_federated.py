@@ -1,7 +1,6 @@
 import os
 import sys
 from pathlib import Path
-import uuid
 from multiprocessing import Pool
 import torch
 import json
@@ -65,8 +64,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         p.join()
         return results
 
-    def __init__(self, workflow_dir=None, use_minio_mount=None):
-        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
+    def __init__(self, workflow_dir=None):
+        super().__init__(workflow_dir=workflow_dir)
 
         if (
             "federated_round" in self.remote_conf_data["federated_form"]
@@ -298,7 +297,6 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             if (
                 self.remote_conf_data["federated_form"]["federated_total_rounds"]
                 == federated_round + 1
-                and self.use_minio_mount is not None
             ):
                 src = (
                     current_federated_round_dir
@@ -353,7 +351,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
 
 
 if __name__ == "__main__":
-    kaapana_ft = nnUNetFederatedTraining(use_minio_mount="/minio")
+    kaapana_ft = nnUNetFederatedTraining()
     if (
         "federated_round" in kaapana_ft.remote_conf_data["federated_form"]
         and kaapana_ft.remote_conf_data["federated_form"]["federated_round"] >= 0

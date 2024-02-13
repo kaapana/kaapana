@@ -272,7 +272,7 @@ nnunet_predict = NnUnetOperator(
     inf_batch_dataset=True,
     inf_remove_if_empty=False,
     models_dir=extract_model.operator_out_dir,
-    # dev_server="code-server"
+    dev_server="code-server",
 )
 
 do_inference = LocalDataorganizerOperator(
@@ -348,6 +348,7 @@ seg_check_ensemble = SegCheckOperator(
     force_same_labels=False,
     batch_name=str(get_test_images.operator_out_dir),
     parallel_id="ensemble",
+    # dev_server="code-server"
 )
 
 evaluation = DiceEvaluationOperator(
@@ -401,15 +402,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> fuse_gt
     >> rename_gt
     >> seg_check_gt
-)
-(
-    sort_gt
-    >> get_ref_ct_series_from_gt
-    >> dcm2nifti_ct
-    >> nnunet_predict
-    >> do_inference
-    >> seg_check_inference
-    >> seg_check_gt
     >> evaluation
 )
 (
@@ -419,11 +411,16 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> nnunet_predict
     >> nnunet_ensemble
     >> do_ensemble
-)
-do_inference >> do_ensemble >> seg_check_ensemble >> evaluation
-(
-    seg_check_inference
+    >> seg_check_ensemble
     >> evaluation
+)
+(nnunet_predict >> do_inference >> seg_check_inference >> evaluation)
+(get_ref_ct_series_from_gt >> dcm2nifti_ct >> nnunet_predict)
+
+seg_check_inference >> seg_check_gt
+seg_check_inference >> seg_check_ensemble
+(
+    evaluation
     >> nnunet_evaluation_notebook
     >> put_to_minio
     >> put_report_to_minio

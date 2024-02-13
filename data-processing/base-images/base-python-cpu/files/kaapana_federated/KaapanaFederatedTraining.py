@@ -1,4 +1,3 @@
-from argparse import Namespace
 from cryptography.fernet import Fernet
 import requests
 import time
@@ -183,13 +182,11 @@ class KaapanaFederatedTrainingBase(ABC):
     def __init__(
         self,
         workflow_dir=None,
-        access_key="kaapanaminio",
-        secret_key="Kaapana2020",
+        access_key="",
+        secret_key="",
         minio_host=f"minio-service.{SERVICES_NAMESPACE}.svc",
         minio_port="9000",
-        use_minio_mount=None,
     ):
-        self.use_minio_mount = use_minio_mount
         self.run_in_parallel = False
         self.federated_dir = os.getenv("RUN_ID", str(uuid.uuid4()))
         self.workflow_dir = workflow_dir or os.getenv("WORKFLOW_DIR")
@@ -212,18 +209,11 @@ class KaapanaFederatedTrainingBase(ABC):
             else:
                 self.local_conf_data[k] = v
 
-        if self.use_minio_mount is None:
-            self.fl_working_dir = os.path.join(
-                "/",
-                self.workflow_dir,
-                os.getenv("OPERATOR_OUT_DIR", "federated-operator"),
-            )
-        else:
-            self.fl_working_dir = os.path.join(
-                self.use_minio_mount,
-                self.remote_conf_data["federated_form"]["remote_dag_id"],
-                self.remote_conf_data["federated_form"]["federated_dir"],
-            )
+        self.fl_working_dir = os.path.join(
+            "/",
+            self.workflow_dir,
+            os.getenv("OPERATOR_OUT_DIR", "federated-operator"),
+        )
         print(self.fl_working_dir)
 
         self.json_writer = JsonWriter(log_dir=self.fl_working_dir)
@@ -415,10 +405,9 @@ class KaapanaFederatedTrainingBase(ABC):
                     )
                     file_dir = os.path.dirname(file_path)
                     os.makedirs(file_dir, exist_ok=True)
-                    if self.use_minio_mount is None:
-                        self.minioClient.fget_object(
-                            federated_bucket, obj.object_name, file_path
-                        )
+                    self.minioClient.fget_object(
+                        federated_bucket, obj.object_name, file_path
+                    )
                     KaapanaFederatedTrainingBase.fernet_decryptfile(
                         file_path, tmp_site_info["fernet_key"]
                     )
@@ -431,10 +420,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     )
             print("Removing objects from previous federated_round_dir on Minio")
 
-            if (
-                previous_federated_round_dir is not None
-                and self.use_minio_mount is None
-            ):
+            if previous_federated_round_dir is not None:
                 minio_rmtree(
                     self.minioClient,
                     federated_bucket,
@@ -461,20 +447,11 @@ class KaapanaFederatedTrainingBase(ABC):
                     file_path, self.client_network["fernet_key"]
                 )
                 print(f"Uploading {file_path } to {next_object_name}")
-                if self.use_minio_mount is None:
-                    self.minioClient.fput_object(
-                        self.remote_conf_data["federated_form"]["federated_bucket"],
-                        next_object_name,
-                        file_path,
-                    )
-                else:
-                    dst = os.path.join(
-                        self.use_minio_mount,
-                        self.remote_conf_data["federated_form"]["federated_bucket"],
-                        next_object_name,
-                    )
-                    os.makedirs(os.path.dirname(dst), exist_ok=True)
-                    shutil.copyfile(file_path, dst)
+                self.minioClient.fput_object(
+                    self.remote_conf_data["federated_form"]["federated_bucket"],
+                    next_object_name,
+                    file_path,
+                )
         print("Finished round", federated_round)
 
     @timeit
@@ -567,17 +544,6 @@ class KaapanaFederatedTrainingBase(ABC):
                 print(f"Removing previous round files {previous_fl_working_round_dir}")
                 if os.path.isdir(previous_fl_working_round_dir):
                     shutil.rmtree(previous_fl_working_round_dir)
-        print("Cleaning up minio")
-
-        if self.use_minio_mount is not None:
-            dst = os.path.join(
-                "/",
-                self.workflow_dir,
-                os.getenv("OPERATOR_OUT_DIR", "federated-operator"),
-                os.path.basename(self.json_writer.filename),
-            )
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copyfile(self.json_writer.filename, dst)
 
     def clean_up_minio(self):
         minio_rmtree(

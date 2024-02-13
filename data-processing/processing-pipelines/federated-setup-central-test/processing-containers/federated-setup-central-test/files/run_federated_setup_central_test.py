@@ -1,6 +1,5 @@
 import os
 import sys
-import uuid
 from pathlib import Path
 
 sys.path.insert(0, "/")
@@ -12,14 +11,14 @@ from kaapana_federated.KaapanaFederatedTraining import (
 
 
 class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):
-    def __init__(self, workflow_dir=None, use_minio_mount=None):
+    def __init__(self, workflow_dir=None):
         # make sure that workflow_dir is defined and get it from environmentals
         workflow_dir = (
             os.getenv("WORKFLOW_DIR", None) if workflow_dir is None else workflow_dir
         )
         assert workflow_dir
 
-        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
+        super().__init__(workflow_dir=workflow_dir)
 
     @timeit
     def update_data(self, federated_round, tmp_central_site_info):
@@ -33,6 +32,6 @@ class FederatedSetupTestFederatedTraining(KaapanaFederatedTrainingBase):
 
 
 if __name__ == "__main__":
-    kaapana_ft = FederatedSetupTestFederatedTraining(use_minio_mount="/minio")
+    kaapana_ft = FederatedSetupTestFederatedTraining()
     kaapana_ft.train()
     kaapana_ft.clean_up_minio()

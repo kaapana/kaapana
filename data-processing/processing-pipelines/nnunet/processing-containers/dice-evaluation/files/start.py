@@ -10,7 +10,11 @@ import numpy as np
 import nibabel as nib
 import torch
 import pandas as pd
-from monai.metrics import compute_meandice, compute_average_surface_distance
+from monai.metrics import (
+    compute_meandice,
+    compute_average_surface_distance,
+    compute_hausdorff_distance,
+)  # , compute_surface_dice
 from pprint import pprint
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -173,7 +177,7 @@ def compute_metric(metric_key, y_pred, y, include_background):
     This function serves to compute a given metric between a prediction mask (y_pred) and a ground-truth mask (y).
 
     Inputs:
-    * metric: computed metric, e.g. "mean_dice", "average_surface_distance"
+    * metric: computed metric, e.g. "mean_dice", "average_surface_distance", "hausdorff_distance"
     * y_pred: evaluated prediction mask
     * y: ground-truth mask
     * include_background: boolean indicating inclusion of background class into metric computation.
@@ -193,6 +197,18 @@ def compute_metric(metric_key, y_pred, y, include_background):
             y_pred=y_pred, y=y, include_background=include_background
         ).numpy()[0]
         return asd_scores
+    elif metric_key == "hausdorff_distance":
+        hd_scores = compute_hausdorff_distance(
+            y_pred=y_pred, y=y, include_background=include_background
+        ).numpy()[0]
+        return hd_scores
+    # elif metric_key == "surface_dice":
+    #     # computes (normalized) surface dice (source: https://docs.monai.io/en/stable/metrics.html#surface-dice)
+    #     # normalized surface dice and normalized surface distance are synonyms (source: "Metrics Reloaded: Recommendations for image analysis validation", L. Maier-Hein et al.)
+    #     sd_scores = compute_surface_dice(
+    #         y_pred=y_pred, y=y, class_thresholds= [1.0, 1.0, 1.0], include_background=include_background
+    #     ).numpy()[0]
+    #     return sc_scores
     else:
         print("#")
         print("##################################################")
@@ -201,7 +217,9 @@ def compute_metric(metric_key, y_pred, y, include_background):
         print("#")
         print("# ----> Given metric not implementated!")
         print(f"# Given metric: {metric_key}")
-        print("# Implemented metrics: mean_dice, average_surface_distance")
+        print(
+            "# Implemented metrics: mean_dice, average_surface_distance, hausdorff_distance, surface_dice"
+        )
         print("#")
         print("##################################################")
         print("#")
@@ -254,7 +272,6 @@ def get_metric_score(input_data):
         one_hot_encoding_pred = None
 
         ### COMPUTE METRICS ###
-
         # mean dice
         dice_scores = compute_metric(
             metric_key="mean_dice",
@@ -262,7 +279,6 @@ def get_metric_score(input_data):
             y=gt_tensor,
             include_background=include_background,
         )
-
         # avg surface distance
         asd_scores = compute_metric(
             metric_key="average_surface_distance",
@@ -270,17 +286,30 @@ def get_metric_score(input_data):
             y=gt_tensor,
             include_background=include_background,
         )
+        # hausdorff distance
+        hd_scores = compute_metric(
+            metric_key="hausdorff_distance",
+            y_pred=pred_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
+        # # surface dice
+        # sd_scores = compute_metric(metric_key="surface_dice", y_pred=pred_tensor, y=gt_tensor, include_background=include_background)
 
         # report computed metrics and save
         pred_tensor = None
         print(f"# {model_pred_file} -> dice_scores: {list(dice_scores)}")
         print(f"# {model_pred_file} -> asd_scores: {list(asd_scores)}")
+        print(f"# {model_pred_file} -> hd_scores: {list(hd_scores)}")
+        # print(f"# {model_pred_file} -> sd_scores: {list(sd_scores)}")
         results[model_id] = {
             pred_file_id: {
                 "dice_scores": list(dice_scores),
                 "asd_scores": list(
                     np.float32(asd_scores)
                 ),  # numpy casting to have same format as dice_score
+                "hd_scores": list(np.float32(hd_scores)),
+                # "sd_scores": list(np.float32(sd_scores)),
             }
         }
 
@@ -313,7 +342,6 @@ def get_metric_score(input_data):
         one_hot_encoding_ensemble = None
 
         ### COMPUTE METRICS ###
-
         # mean dice
         dice_scores = compute_metric(
             metric_key="mean_dice",
@@ -321,7 +349,6 @@ def get_metric_score(input_data):
             y=gt_tensor,
             include_background=include_background,
         )
-
         # avg surface distance
         asd_scores = compute_metric(
             metric_key="average_surface_distance",
@@ -329,16 +356,29 @@ def get_metric_score(input_data):
             y=gt_tensor,
             include_background=include_background,
         )
+        # hausdorff distance
+        hd_scores = compute_metric(
+            metric_key="hausdorff_distance",
+            y_pred=ensemble_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
+        # # surface dice
+        # sd_scores = compute_metric(metric_key="surface_dice", y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background)
 
         pred_tensor = None
 
         # report computed metrics and save
         print(f"# ensemble: {ensemble_pred_file} -> dice_scores: {list(dice_scores)}")
         print(f"# ensemble: {ensemble_pred_file} -> asd_scores: {list(asd_scores)}")
+        print(f"# ensemble: {ensemble_pred_file} -> hd_scores: {list(hd_scores)}")
+        # print(f"# ensemble: {ensemble_pred_file} -> sd_scores: {list(sd_scores)}")
         results["ensemble"] = {
             ensemble_file_id: {
                 "dice_scores": list(dice_scores),
                 "asd_scores": list(np.float32(asd_scores)),
+                "hd_scores": list(np.float32(hd_scores)),
+                # "sd_scores": list(np.float32(sd_scores)),
             }
         }
 

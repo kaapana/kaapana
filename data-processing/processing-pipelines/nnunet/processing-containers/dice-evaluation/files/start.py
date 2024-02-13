@@ -66,6 +66,17 @@ dice_results = {}
 
 
 def get_seg_info(input_nifti):
+    """
+    This function extracts model and seg_info dict from incoming nifti segmentation mask file.
+
+    Input:
+    * input_nifti: NIFTI segmentation mask.
+
+    Output:
+    * model_id: ID of model with which input_nifti segmentation mask was predicted with.
+    * gen_seg_info: seg_info dict containing all segmentation label and label IDs.
+    """
+
     print(f"# Get seg configuration for: {basename(input_nifti)}")
     model_id = (
         f"-{basename(input_nifti).replace('.nii.gz','').split('-')[-1]}"
@@ -125,6 +136,16 @@ def get_seg_info(input_nifti):
 
 
 def check_prediction_info(seg_info):
+    """
+    This function a seg_info dict and evaluates its compatibility with the global_seg_info dict.
+
+    Input:
+    * seg_info: evaluated seg_info dict.
+
+    Output:
+    * bool: Boolean indicating compatibility of evaluated seg_info with the global_seg_info dict.
+    """
+
     global global_seg_check_info
 
     for label_key, encoding_int in seg_info.items():
@@ -147,12 +168,53 @@ def check_prediction_info(seg_info):
     return True
 
 
+def compute_metric(metric_key, y_pred, y, include_background):
+    """
+    This function serves to compute a given metric between a prediction mask (y_pred) and a ground-truth mask (y).
+
+    Inputs:
+    * metric: computed metric, e.g. "mean_dice", "average_surface_distance"
+    * y_pred: evaluated prediction mask
+    * y: ground-truth mask
+    * include_background: boolean indicating inclusion of background class into metric computation.
+
+    Output:
+    * metrics: computed metrics
+    """
+
+    if metric_key == "mean_dice":
+        dice_scores = compute_meandice(
+            y_pred=y_pred, y=y, include_background=include_background
+        ).numpy()[0]
+        return dice_scores
+
+    elif metric_key == "average_surface_distance":
+        asd_scores = compute_average_surface_distance(
+            y_pred=y_pred, y=y, include_background=include_background
+        ).numpy()[0]
+        return asd_scores
+    else:
+        print("#")
+        print("##################################################")
+        print("#")
+        print("##################  ERROR  #######################")
+        print("#")
+        print("# ----> Given metric not implementated!")
+        print(f"# Given metric: {metric_key}")
+        print("# Implemented metrics: mean_dice, average_surface_distance")
+        print("#")
+        print("##################################################")
+        print("#")
+        exit(1)
+
+
 def get_metric_score(input_data):
     global dice_results, global_seg_check_info, max_label_encoding, processed_count, include_background, model_counter
     batch_id, single_model_pred_files, gt_file, ensemble_pred_file = input_data
 
     results = {}
 
+    # load gt from nifti file to one-hot encoded torch tensor
     ground_trouth = nib.load(gt_file).get_fdata().astype(int)
     one_hot_encoding_gt = (
         (np.arange(max_label_encoding + 1) == ground_trouth[..., None])
@@ -164,10 +226,12 @@ def get_metric_score(input_data):
     gt_tensor = torch.from_numpy(one_hot_encoding_gt)
     one_hot_encoding_gt = None
 
+    # iterate over present single_model_pred_files
     for model_pred_file in single_model_pred_files:
         info_json = model_pred_file.replace("nii.gz", "json")
         pred_file_id = basename(model_pred_file).replace(".nii.gz", "")
 
+        # get seg_info of current model_pred_file and evaluate against global_seg_info
         model_id, seg_info = get_seg_info(input_nifti=model_pred_file)
         if seg_info is None:
             print(f"# info_json does not exist: {info_json}")
@@ -177,6 +241,7 @@ def get_metric_score(input_data):
         assert model_id not in results
         results[model_id] = {}
 
+        # load current model_pred mask from nifti file to one-hot encoded torch tensor
         single_model_prediction = nib.load(model_pred_file).get_fdata().astype(int)
         one_hot_encoding_pred = (
             (np.arange(max_label_encoding + 1) == single_model_prediction[..., None])
@@ -187,25 +252,45 @@ def get_metric_score(input_data):
         single_model_prediction = None
         pred_tensor = torch.from_numpy(one_hot_encoding_pred)
         one_hot_encoding_pred = None
-        dice_scores = compute_meandice(
-            y_pred=pred_tensor, y=gt_tensor, include_background=include_background
-        ).numpy()[0]
-        asd_scores = compute_average_surface_distance(
-            y_pred=pred_tensor, y=gt_tensor, include_background=include_background
-        ).numpy()[0]
+
+        ### COMPUTE METRICS ###
+
+        # mean dice
+        dice_scores = compute_metric(
+            metric_key="mean_dice",
+            y_pred=pred_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
+
+        # avg surface distance
+        asd_scores = compute_metric(
+            metric_key="average_surface_distance",
+            y_pred=pred_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
+
+        # report computed metrics and save
         pred_tensor = None
         print(f"# {model_pred_file} -> dice_scores: {list(dice_scores)}")
         print(f"# {model_pred_file} -> asd_scores: {list(asd_scores)}")
         results[model_id] = {
             pred_file_id: {
                 "dice_scores": list(dice_scores),
-                "asd_scores": list(np.float32(asd_scores)),
+                "asd_scores": list(
+                    np.float32(asd_scores)
+                ),  # numpy casting to have same format as dice_score
             }
-        }  # numpy casting to have same format as dice_score
+        }
+
+    # for present ensemble_pred_file
     if ensemble_pred_file is not None:
         info_json = ensemble_pred_file.replace(".nii.gz", ".json")
         print(f"# info_json: {info_json}")
         print(f"# ensemble_pred_file: {ensemble_pred_file}")
+
+        # get seg_info of current ensemble_pred_file and evaluate against global_seg_info
         model_id, seg_info = get_seg_info(input_nifti=ensemble_pred_file)
         if seg_info is None:
             print(f"# info_json does not exist: {info_json}")
@@ -214,6 +299,7 @@ def get_metric_score(input_data):
 
         assert "ensemble" not in results
 
+        # load current ensemble_pred mask from nifti file to one-hot encoded torch tensor
         ensemble_file_id = basename(ensemble_pred_file).replace(".nii.gz", "")
         ensemble_prediction = nib.load(ensemble_pred_file).get_fdata().astype(int)
         one_hot_encoding_ensemble = (
@@ -226,15 +312,27 @@ def get_metric_score(input_data):
         ensemble_tensor = torch.from_numpy(one_hot_encoding_ensemble)
         one_hot_encoding_ensemble = None
 
-        dice_scores = compute_meandice(
-            y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background
-        ).numpy()[0]
-        asd_scores = compute_average_surface_distance(
-            y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background
-        ).numpy()[0]
+        ### COMPUTE METRICS ###
+
+        # mean dice
+        dice_scores = compute_metric(
+            metric_key="mean_dice",
+            y_pred=ensemble_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
+
+        # avg surface distance
+        asd_scores = compute_metric(
+            metric_key="average_surface_distance",
+            y_pred=ensemble_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
 
         pred_tensor = None
 
+        # report computed metrics and save
         print(f"# ensemble: {ensemble_pred_file} -> dice_scores: {list(dice_scores)}")
         print(f"# ensemble: {ensemble_pred_file} -> asd_scores: {list(asd_scores)}")
         results["ensemble"] = {
@@ -249,7 +347,7 @@ def get_metric_score(input_data):
 
 print("##################################################")
 print("#")
-print("# Starting operator dice-evaluation:")
+print("# Starting operator segmentation-evaluation:")
 print("#")
 print(f"# workflow_dir:     {workflow_dir}")
 print(f"# batch_name:       {batch_name}")
@@ -270,6 +368,7 @@ print("#")
 print("##################################################")
 print("#")
 
+# get global seg_info
 seg_check_info_json_files = glob(join("/", workflow_dir, "global-seg-info", "*.json"))
 assert len(seg_check_info_json_files) == 1
 
@@ -288,22 +387,26 @@ for label_key, int_encoding in tmp_info_dict.items():
 if "Clear Label" not in global_seg_check_info:
     global_seg_check_info["Clear Label"] = 0
 
+# prepare output dirs
 queue_list = []
 batch_output_dir = join("/", workflow_dir, operator_out_dir)
 Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
-
 output_file = join(batch_output_dir, "dice_results.json")
+
 # Loop for every batch-element (usually series)
 batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
 for batch_element_dir in batch_folders:
     print("#")
     print(f"# Processing batch-element {batch_element_dir}")
     print("#")
+
+    # define mask input dirs
     batch_id = basename(batch_element_dir)
     single_model_input_dir = join(batch_element_dir, operator_in_dir)
     ensemble_input_dir = join(batch_element_dir, ensemble_in_dir)
     gt_input_dir = join(batch_element_dir, gt_in_dir)
 
+    # search for input masks
     single_model_pred_files = glob(join(single_model_input_dir, input_file_extension))
     gt_files = glob(join(gt_input_dir, input_file_extension))
     ensemble_pred_files = glob(join(ensemble_input_dir, input_file_extension))
@@ -317,6 +420,7 @@ for batch_element_dir in batch_folders:
     print(f"# {len(gt_files)} gt_files at {gt_input_dir}")
     print(f"# {len(ensemble_pred_files)} ensemble_pred_files at {ensemble_input_dir}")
     print(f"#")
+
     assert len(gt_files) == 1
     gt_file = gt_files[0]
     assert len(single_model_pred_files) > 0
@@ -327,6 +431,7 @@ for batch_element_dir in batch_folders:
         ensemble_pred_file = ensemble_pred_files[0]
         print(f"# Using ensemble-file: {ensemble_pred_file}")
 
+    # adding task with found masks of current batch element to task queue
     input_data = (batch_id, single_model_pred_files, gt_file, ensemble_pred_file)
     queue_list.append(input_data)
     print(f"# Adding data to the job-list ..")
@@ -371,6 +476,7 @@ print("#")
 print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
 print("#")
 
+# write metrics to json output
 print("# Writing results to json:")
 print("# ")
 print(json.dumps(dice_results, indent=4, sort_keys=True, default=str))
@@ -378,8 +484,7 @@ print("# ")
 with open(output_file, "w", encoding="utf-8") as jsonData:
     json.dump(dice_results, jsonData, indent=4, sort_keys=True, default=str)
 
-# with open(output_file) as f:
-#     dice_results = json.load(f)
+# write metrics to csv output
 print("# Generating dataframes ... ")
 result_table = []
 for batch_id, model_results in dice_results.items():

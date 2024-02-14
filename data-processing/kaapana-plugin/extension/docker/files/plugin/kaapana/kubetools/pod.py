@@ -17,7 +17,6 @@
 
 import kubernetes
 from kaapana.kubetools.resources import Resources
-import uuid
 
 
 class Pod:

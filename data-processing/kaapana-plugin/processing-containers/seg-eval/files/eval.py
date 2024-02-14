@@ -37,8 +37,8 @@ dir_in_gt = get_and_assert_not_none("GT_IN_DIR")
 exit_on_error = get_and_assert_not_none("EXIT_ON_ERROR")
 eval_metrics_key = get_and_assert_not_none("METRICS_KEY")
 label_mapping = get_and_assert_not_none("LABEL_MAPPING")
-# array env var
 
+# array env var
 eval_metrics_str = getenv(eval_metrics_key.upper(), "None")
 eval_metrics_ast = (
     ast.literal_eval(eval_metrics_str) if eval_metrics_str.lower() != "none" else None

@@ -200,7 +200,7 @@ filter_test = LocalFilterMasksOperator(
 
 fuse_test = MergeMasksOperator(
     dag=dag,
-    name="combine-masks-test",
+    name="fuse-masks-test",
     batch_name="test-dataset",
     input_operator=filter_test,
     mode="fuse",

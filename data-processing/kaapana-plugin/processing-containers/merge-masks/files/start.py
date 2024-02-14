@@ -196,9 +196,11 @@ def fuse(
     fuse_labels = fuse_labels.split(",")
     fuse_labels = [remove_special_characters(x) for x in fuse_labels]
 
-     # first get the key specified in conf
+    # first get the key specified in conf
     fused_label_name_key = getenv("FUSED_LABEL_NAME_KEY", "None")
-    fused_label_name_key = fused_label_name_key if fused_label_name_key.lower() != "none" else None
+    fused_label_name_key = (
+        fused_label_name_key if fused_label_name_key.lower() != "none" else None
+    )
     assert fused_label_name_key is not None
     # get the actual value
     fused_label_name = getenv(fused_label_name_key, "None")
@@ -235,31 +237,27 @@ def fuse(
             if remove_special_characters(item["label_name"]) == fuse_label
         ]
 
+        assert len(fitting_nifti_found) == len(fuse_label_index_in_seg_info)
+
         # check whether fuse_labels are in seg_info_list and input_files
-        if len(fitting_nifti_found) != 1 or len(fuse_label_index_in_seg_info) != 1:
-            logger.warning("")
-            logger.warning("")
-            logger.warning("")
+        if len(fitting_nifti_found) == 0 or len(fuse_label_index_in_seg_info) == 0:
             logger.warning(
                 f"Segmentation {fuse_label} does not exist -> fusion process aborted!"
             )
-            logger.warning("")
-            logger.warning("")
-            logger.warning("")
-            continue
 
-        # compose a fuse_label_dict of current fuse_label
-        fuse_label_dict = {}
-        fuse_label_dict["label_name"] = fuse_label
-        fuse_label_dict["label_int"] = seg_info_list[fuse_label_index_in_seg_info[0]][
-            "label_int"
-        ]
-        fuse_label_dict["nifti_fname"] = fitting_nifti_found[0]
-        nifti_loaded = nib.load(fuse_label_dict["nifti_fname"])
-        fuse_label_dict["nifti_np_array"] = nifti_loaded.get_fdata().astype(int)
+        for i in range(0, len(fitting_nifti_found)):
+            # compose a fuse_label_dict of current fuse_label
+            fuse_label_dict = {}
+            fuse_label_dict["label_name"] = fuse_label
+            fuse_label_dict["label_int"] = seg_info_list[
+                fuse_label_index_in_seg_info[i]
+            ]["label_int"]
+            fuse_label_dict["nifti_fname"] = fitting_nifti_found[i]
+            nifti_loaded = nib.load(fuse_label_dict["nifti_fname"])
+            fuse_label_dict["nifti_np_array"] = nifti_loaded.get_fdata().astype(int)
 
-        # add fuse_label_dict to fusion_list
-        fusion_list.append(fuse_label_dict)
+            # add fuse_label_dict to fusion_list
+            fusion_list.append(fuse_label_dict)
 
         processed_count += 1
 

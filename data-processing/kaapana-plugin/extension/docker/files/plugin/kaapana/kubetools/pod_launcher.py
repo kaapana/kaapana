@@ -246,20 +246,17 @@ class PodLauncher(LoggingMixin):
     def _monitor_pod(self, pod: Pod, get_logs: bool):
         try:
             if get_logs:
-                _pod = self.read_pod(pod)
+                api_pod_obj = self.read_pod(pod)
                 logs = self._client.read_namespaced_pod_log(
-                    name=_pod.metadata.name,
-                    namespace=_pod.metadata.namespace,
-                    container=_pod.spec.containers[0].name,
+                    name=api_pod_obj.metadata.name,
+                    namespace=api_pod_obj.metadata.namespace,
+                    container=api_pod_obj.spec.containers[0].name,
                     follow=True,
                     tail_lines=10,
                     _preload_content=False,
                 )
                 for log in logs:
                     self.log.info(log)
-                    # log = log.decode("utf-8").replace("\n","").split("\\n")
-                    # for line in log:
-                    # self.log.info(line)
 
             result = None
             if self.extract_xcom:

@@ -11,10 +11,12 @@ import nibabel as nib
 import torch
 import pandas as pd
 from monai.metrics import (
-    compute_meandice,
+    # compute_meandice,
+    DiceMetric,
     compute_average_surface_distance,
     compute_hausdorff_distance,
-)  # , compute_surface_dice
+    compute_surface_dice,
+)
 from pprint import pprint
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -187,11 +189,11 @@ def compute_metric(metric_key, y_pred, y, include_background):
     """
 
     if metric_key == "mean_dice":
-        dice_scores = compute_meandice(
-            y_pred=y_pred, y=y, include_background=include_background
-        ).numpy()[0]
+        # dice_scores = compute_meandice(
+        #     y_pred=y_pred, y=y, include_background=include_background
+        # ).numpy()[0]
+        dice_scores = DiceMetric(include_background=include_background)(y_pred, y)
         return dice_scores
-
     elif metric_key == "average_surface_distance":
         asd_scores = compute_average_surface_distance(
             y_pred=y_pred, y=y, include_background=include_background
@@ -202,13 +204,16 @@ def compute_metric(metric_key, y_pred, y, include_background):
             y_pred=y_pred, y=y, include_background=include_background
         ).numpy()[0]
         return hd_scores
-    # elif metric_key == "surface_dice":
-    #     # computes (normalized) surface dice (source: https://docs.monai.io/en/stable/metrics.html#surface-dice)
-    #     # normalized surface dice and normalized surface distance are synonyms (source: "Metrics Reloaded: Recommendations for image analysis validation", L. Maier-Hein et al.)
-    #     sd_scores = compute_surface_dice(
-    #         y_pred=y_pred, y=y, class_thresholds= [1.0, 1.0, 1.0], include_background=include_background
-    #     ).numpy()[0]
-    #     return sc_scores
+    elif metric_key == "surface_dice":
+        # computes (normalized) surface dice (source: https://docs.monai.io/en/stable/metrics.html#surface-dice)
+        # normalized surface dice and normalized surface distance are synonyms (source: "Metrics Reloaded: Recommendations for image analysis validation", L. Maier-Hein et al.)
+        sd_scores = compute_surface_dice(
+            y_pred=y_pred,
+            y=y,
+            class_thresholds=[1.0, 1.0, 1.0],
+            include_background=include_background,
+        ).numpy()[0]
+        return sd_scores
     else:
         print("#")
         print("##################################################")
@@ -293,23 +298,26 @@ def get_metric_score(input_data):
             y=gt_tensor,
             include_background=include_background,
         )
-        # # surface dice
-        # sd_scores = compute_metric(metric_key="surface_dice", y_pred=pred_tensor, y=gt_tensor, include_background=include_background)
+        # surface dice
+        sd_scores = compute_metric(
+            metric_key="surface_dice",
+            y_pred=pred_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
 
         # report computed metrics and save
         pred_tensor = None
         print(f"# {model_pred_file} -> dice_scores: {list(dice_scores)}")
         print(f"# {model_pred_file} -> asd_scores: {list(asd_scores)}")
         print(f"# {model_pred_file} -> hd_scores: {list(hd_scores)}")
-        # print(f"# {model_pred_file} -> sd_scores: {list(sd_scores)}")
+        print(f"# {model_pred_file} -> sd_scores: {list(sd_scores)}")
         results[model_id] = {
             pred_file_id: {
-                "dice_scores": list(dice_scores),
-                "asd_scores": list(
-                    np.float32(asd_scores)
-                ),  # numpy casting to have same format as dice_score
-                "hd_scores": list(np.float32(hd_scores)),
-                # "sd_scores": list(np.float32(sd_scores)),
+                "dice_scores": np.float32(dice_scores)[0],
+                "asd_scores": np.float32(asd_scores),
+                "hd_scores": np.float32(hd_scores),
+                "sd_scores": np.float32(sd_scores),
             }
         }
 
@@ -363,8 +371,13 @@ def get_metric_score(input_data):
             y=gt_tensor,
             include_background=include_background,
         )
-        # # surface dice
-        # sd_scores = compute_metric(metric_key="surface_dice", y_pred=ensemble_tensor, y=gt_tensor, include_background=include_background)
+        # surface dice
+        sd_scores = compute_metric(
+            metric_key="surface_dice",
+            y_pred=ensemble_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
 
         pred_tensor = None
 
@@ -372,13 +385,13 @@ def get_metric_score(input_data):
         print(f"# ensemble: {ensemble_pred_file} -> dice_scores: {list(dice_scores)}")
         print(f"# ensemble: {ensemble_pred_file} -> asd_scores: {list(asd_scores)}")
         print(f"# ensemble: {ensemble_pred_file} -> hd_scores: {list(hd_scores)}")
-        # print(f"# ensemble: {ensemble_pred_file} -> sd_scores: {list(sd_scores)}")
+        print(f"# ensemble: {ensemble_pred_file} -> sd_scores: {list(sd_scores)}")
         results["ensemble"] = {
             ensemble_file_id: {
-                "dice_scores": list(dice_scores),
-                "asd_scores": list(np.float32(asd_scores)),
-                "hd_scores": list(np.float32(hd_scores)),
-                # "sd_scores": list(np.float32(sd_scores)),
+                "dice_scores": np.float32(dice_scores)[0],
+                "asd_scores": np.float32(asd_scores),
+                "hd_scores": np.float32(hd_scores),
+                "sd_scores": np.float32(sd_scores),
             }
         }
 
@@ -539,12 +552,23 @@ for batch_id, model_results in dice_results.items():
                 ]
                 class_dice = float(dice_info["dice_scores"][array_index])
                 class_asd = float(dice_info["asd_scores"][array_index])
+                class_hd = float(dice_info["hd_scores"][array_index])
+                class_sd = float(dice_info["sd_scores"][array_index])
                 result_table.append(
-                    [file_id, model_id, class_label, class_dice, class_asd]
+                    [
+                        file_id,
+                        model_id,
+                        class_label,
+                        class_dice,
+                        class_asd,
+                        class_hd,
+                        class_sd,
+                    ]
                 )
 
 df_data = pd.DataFrame(
-    result_table, columns=["Series", "Model", "Label", "Dice", "ASD"]
+    result_table,
+    columns=["Series", "Model", "Label", "Dice", "ASD", "Hausdorff Distance", "NSD"],
 )
 df_data.to_csv(join(batch_output_dir, "dice_results.csv"), sep="\t")
 

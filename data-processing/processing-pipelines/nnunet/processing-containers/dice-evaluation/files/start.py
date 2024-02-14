@@ -174,12 +174,40 @@ def check_prediction_info(seg_info):
     return True
 
 
+def compute_normalized_average_volume_error(y_pred, y, include_background):
+    """
+    This function computes the normalized average volume error between a predicted mask (y_pred) and a gt mask (y).
+    (source: "Rapid artificial intelligence solutions in a pandemic—The COVID-19-20 Lung CT Lesion Segmentation Challenge", H. R. Roth et al.)
+
+    Formula:
+    V_error = (abs(V_pred - V_gt)) / (V_gt)
+    = (abs((voxels_pred * V_voxel) - (voxels_gt * V_voxel))) / (voxels_gt * V_voxel)
+    = (abs(voxels_pred - voxels_gt)) / voxels_gt
+
+    Inputs:
+    * y_pred: predicted segmentation mask
+    * y: ground-truth segmentation mask
+    * include_background: Boolean indicating incorporation of background mask
+    """
+    # get voxels per class dependent in incorporation of background class
+    if include_background:
+        vox_pred = torch.sum(y_pred != 0, dim=(0, 2, 3, 4))
+        vox_gt = torch.sum(y != 0, dim=(0, 2, 3, 4))
+    elif not include_background:
+        vox_pred = torch.sum(y_pred[:, 1:] != 0, dim=(0, 2, 3, 4))
+        vox_gt = torch.sum(y[:, 1:] != 0, dim=(0, 2, 3, 4))
+
+    # compute volume errors
+    volume_errors = (abs(vox_pred - vox_gt)) / vox_gt
+    return volume_errors
+
+
 def compute_metric(metric_key, y_pred, y, include_background):
     """
     This function serves to compute a given metric between a prediction mask (y_pred) and a ground-truth mask (y).
 
     Inputs:
-    * metric: computed metric, e.g. "mean_dice", "average_surface_distance", "hausdorff_distance"
+    * metric: computed metric, e.g. "mean_dice", "average_surface_distance", "hausdorff_distance", "surface_dice", "nave"
     * y_pred: evaluated prediction mask
     * y: ground-truth mask
     * include_background: boolean indicating inclusion of background class into metric computation.
@@ -192,7 +220,9 @@ def compute_metric(metric_key, y_pred, y, include_background):
         # dice_scores = compute_meandice(
         #     y_pred=y_pred, y=y, include_background=include_background
         # ).numpy()[0]
-        dice_scores = DiceMetric(include_background=include_background)(y_pred, y)
+        dice_scores = DiceMetric(include_background=include_background)(
+            y_pred, y
+        ).numpy()[0]
         return dice_scores
     elif metric_key == "average_surface_distance":
         asd_scores = compute_average_surface_distance(
@@ -214,6 +244,12 @@ def compute_metric(metric_key, y_pred, y, include_background):
             include_background=include_background,
         ).numpy()[0]
         return sd_scores
+    elif metric_key == "nave":
+        nave_scores = compute_normalized_average_volume_error(
+            y_pred=y_pred, y=y, include_background=include_background
+        ).numpy()
+        return nave_scores
+
     else:
         print("#")
         print("##################################################")
@@ -223,7 +259,7 @@ def compute_metric(metric_key, y_pred, y, include_background):
         print("# ----> Given metric not implementated!")
         print(f"# Given metric: {metric_key}")
         print(
-            "# Implemented metrics: mean_dice, average_surface_distance, hausdorff_distance, surface_dice"
+            "# Implemented metrics: mean_dice, average_surface_distance, hausdorff_distance, surface_dice, nave"
         )
         print("#")
         print("##################################################")
@@ -305,6 +341,13 @@ def get_metric_score(input_data):
             y=gt_tensor,
             include_background=include_background,
         )
+        # normalized average volume error
+        nave_scores = compute_metric(
+            metric_key="nave",
+            y_pred=pred_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
 
         # report computed metrics and save
         pred_tensor = None
@@ -312,12 +355,14 @@ def get_metric_score(input_data):
         print(f"# {model_pred_file} -> asd_scores: {list(asd_scores)}")
         print(f"# {model_pred_file} -> hd_scores: {list(hd_scores)}")
         print(f"# {model_pred_file} -> sd_scores: {list(sd_scores)}")
+        print(f"# {model_pred_file} -> nave_scores: {list(nave_scores)}")
         results[model_id] = {
             pred_file_id: {
-                "dice_scores": np.float32(dice_scores)[0],
+                "dice_scores": np.float32(dice_scores),
                 "asd_scores": np.float32(asd_scores),
                 "hd_scores": np.float32(hd_scores),
                 "sd_scores": np.float32(sd_scores),
+                "nave_scores": np.float32(nave_scores),
             }
         }
 
@@ -378,6 +423,13 @@ def get_metric_score(input_data):
             y=gt_tensor,
             include_background=include_background,
         )
+        # normalized average volume error
+        nave_scores = compute_metric(
+            metric_key="nave",
+            y_pred=ensemble_tensor,
+            y=gt_tensor,
+            include_background=include_background,
+        )
 
         pred_tensor = None
 
@@ -386,12 +438,14 @@ def get_metric_score(input_data):
         print(f"# ensemble: {ensemble_pred_file} -> asd_scores: {list(asd_scores)}")
         print(f"# ensemble: {ensemble_pred_file} -> hd_scores: {list(hd_scores)}")
         print(f"# ensemble: {ensemble_pred_file} -> sd_scores: {list(sd_scores)}")
+        print(f"# ensemble: {ensemble_pred_file} -> nave_scores: {list(nave_scores)}")
         results["ensemble"] = {
             ensemble_file_id: {
-                "dice_scores": np.float32(dice_scores)[0],
+                "dice_scores": np.float32(dice_scores),
                 "asd_scores": np.float32(asd_scores),
                 "hd_scores": np.float32(hd_scores),
                 "sd_scores": np.float32(sd_scores),
+                "nave_scores": np.float32(nave_scores),
             }
         }
 
@@ -554,6 +608,7 @@ for batch_id, model_results in dice_results.items():
                 class_asd = float(dice_info["asd_scores"][array_index])
                 class_hd = float(dice_info["hd_scores"][array_index])
                 class_sd = float(dice_info["sd_scores"][array_index])
+                class_nave = float(dice_info["nave_scores"][array_index])
                 result_table.append(
                     [
                         file_id,
@@ -563,12 +618,22 @@ for batch_id, model_results in dice_results.items():
                         class_asd,
                         class_hd,
                         class_sd,
+                        class_nave,
                     ]
                 )
 
 df_data = pd.DataFrame(
     result_table,
-    columns=["Series", "Model", "Label", "Dice", "ASD", "Hausdorff Distance", "NSD"],
+    columns=[
+        "Series",
+        "Model",
+        "Label",
+        "Dice",
+        "ASD",
+        "Hausdorff Distance",
+        "Normalized Surface Dice/Distance (NSD)",
+        "Normalized Average Volume Error (NAVE)",
+    ],
 )
 df_data.to_csv(join(batch_output_dir, "dice_results.csv"), sep="\t")
 

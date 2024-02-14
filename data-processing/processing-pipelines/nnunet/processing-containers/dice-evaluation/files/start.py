@@ -202,7 +202,7 @@ def compute_normalized_average_volume_error(y_pred, y, include_background):
     return volume_errors
 
 
-def compute_metric(metric_key, y_pred, y, include_background):
+def compute_metric(metric_key, y_pred, y, include_background, voxel_spacings=None):
     """
     This function serves to compute a given metric between a prediction mask (y_pred) and a ground-truth mask (y).
 
@@ -242,6 +242,7 @@ def compute_metric(metric_key, y_pred, y, include_background):
             y=y,
             class_thresholds=[1.0, 1.0, 1.0],
             include_background=include_background,
+            spacing=[float(f) for f in voxel_spacings],
         ).numpy()[0]
         return sd_scores
     elif metric_key == "nave":
@@ -274,15 +275,19 @@ def get_metric_score(input_data):
     results = {}
 
     # load gt from nifti file to one-hot encoded torch tensor
-    ground_trouth = nib.load(gt_file).get_fdata().astype(int)
+    ground_trouth = nib.load(gt_file)
+    ground_trouth_array = ground_trouth.get_fdata().astype(int)
     one_hot_encoding_gt = (
-        (np.arange(max_label_encoding + 1) == ground_trouth[..., None])
+        (np.arange(max_label_encoding + 1) == ground_trouth_array[..., None])
         .astype(int)
         .transpose()
     )
     one_hot_encoding_gt = np.expand_dims(one_hot_encoding_gt, axis=0)
-    ground_trouth = None
     gt_tensor = torch.from_numpy(one_hot_encoding_gt)
+    # get voxel spacing of ground truth mask
+    gt_vox_spacings = ground_trouth.header.get_zooms()
+    ground_trouth = None
+    ground_trouth_array = None
     one_hot_encoding_gt = None
 
     # iterate over present single_model_pred_files
@@ -340,6 +345,7 @@ def get_metric_score(input_data):
             y_pred=pred_tensor,
             y=gt_tensor,
             include_background=include_background,
+            voxel_spacings=gt_vox_spacings,
         )
         # normalized average volume error
         nave_scores = compute_metric(
@@ -422,6 +428,7 @@ def get_metric_score(input_data):
             y_pred=ensemble_tensor,
             y=gt_tensor,
             include_background=include_background,
+            voxel_spacings=gt_vox_spacings,
         )
         # normalized average volume error
         nave_scores = compute_metric(

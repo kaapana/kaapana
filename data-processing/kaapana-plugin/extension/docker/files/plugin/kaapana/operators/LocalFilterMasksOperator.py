@@ -37,6 +37,45 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
 
         return result
 
+    def set_label_filters(self, conf):
+        """
+        Parse the value of self.label_filter_key and assign to self.label_filter
+        """
+        self.label_filter = []
+        # check whether self.label_filter_key is set
+        if self.label_filter_key in conf["form_data"]:
+            val = conf["form_data"][self.label_filter_key]
+            if conf["form_data"][self.label_filter_key]:
+                if ":" in val:
+                    self.mode = val.split(":")[0]
+                    self.label_filter = val.split(":")[1].split(",")
+                else:
+                    print("### ERROR ###")
+                    print("#")
+                    print(f"# {self.label_filter_key} IS NOT SET CORRECTLY")
+                    print(
+                        "# CORRECT FORMAT: e.g. 'Keep: liver' or 'Ignore: spleen,liver'"
+                    )
+                    print("#")
+                    exit(1)
+            else:
+                print("### WARNING ###")
+                print("#")
+                print(f"# NO {self.label_filter_key} SET.")
+                print("# Finish process without processing any data.")
+                print("#")
+                self.mode = ""
+        else:
+            print("### WARNING ###")
+            print("#")
+            print("# NO self.label_filter SET.")
+            print("# Finish process without processing any data.")
+            print("#")
+            self.mode = ""
+
+        print(f"{self.label_filter=}, {self.mode=}")
+        return
+
     def start(self, ds, **kwargs):
         print("Starting module LocalFilterMasksOperator...")
         print(kwargs)
@@ -48,39 +87,7 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
         print("CONF:")
         print(conf["form_data"])
 
-        # check whether self.label_filter is set
-        if "label_filter" in conf["form_data"]:
-            if conf["form_data"]["label_filter"]:
-                if ":" in conf["form_data"]["label_filter"]:
-                    self.mode = conf["form_data"]["label_filter"].split(":")[0]
-                    self.label_filter = (
-                        conf["form_data"]["label_filter"].split(":")[1].split(",")
-                    )
-                else:
-                    print("### ERROR ###")
-                    print("#")
-                    print("# self.label_filter IS SET BUT NOT IN CORRECT FORMAT.")
-                    print(
-                        "# CORRECT FORMAT: e.g. 'Keep: liver' or 'Ignore: spleen,liver'"
-                    )
-                    print("#")
-                    exit(1)
-            else:
-                print("### WARNING ###")
-                print("#")
-                print("# NO self.label_filter SET.")
-                print("# Finish process without processing any data.")
-                print("#")
-                self.mode = ""
-                self.label_filter = []
-        else:
-            print("### WARNING ###")
-            print("#")
-            print("# NO self.label_filter SET.")
-            print("# Finish process without processing any data.")
-            print("#")
-            self.mode = ""
-            self.label_filter = []
+        self.set_label_filters(conf)
 
         self.mode = self.remove_special_characters(self.mode)
         self.label_filter = [
@@ -246,6 +253,8 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
         self,
         dag,
         name="filter-seg-label-masks",
+        label_filter_key="label_filter",
         **kwargs,
     ):
+        self.label_filter_key = label_filter_key
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

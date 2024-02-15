@@ -36,6 +36,8 @@ class MergeMasksOperator(KaapanaBaseOperator):
         dag,
         name="combine-masks",
         mode="combine",
+        fuse_labels_key="fuse_labels",
+        fused_label_name_key="fused_label_name",
         env_vars=None,
         execution_timeout=execution_timeout,
         **kwargs,
@@ -47,6 +49,8 @@ class MergeMasksOperator(KaapanaBaseOperator):
             env_vars = {}
         envs = {
             "MODE": str(mode),
+            "FUSE_LABELS_KEY": str(fuse_labels_key).upper(),
+            "FUSED_LABEL_NAME_KEY": str(fused_label_name_key).upper(),
         }
         env_vars.update(envs)
 

@@ -48,11 +48,11 @@ def combine(
         label_name = remove_special_characters(label_entry["label_name"])
         label_int = label_entry["label_int"]
 
-        # find fitting nifti file to current label
+        # find fitting nifti file to current label, use {label_int}{label_name} for files with same label_name
         fitting_nifti_found = [
             x
             for x in input_files
-            if f"{label_name}.nii.gz" in remove_special_characters(x)
+            if f"{label_int}{label_name}.nii.gz" in remove_special_characters(x)
         ]
 
         if len(fitting_nifti_found) != 1:
@@ -177,36 +177,48 @@ def fuse(
     global processed_count, input_file_extension, skip_operator
 
     # get fusing-specific envs
-    fuse_labels = getenv("FUSE_LABELS", "None")
+    # first get the key specified in conf
+    fuse_labels_key = getenv("FUSE_LABELS_KEY", "None")
+    fuse_labels_key = fuse_labels_key if fuse_labels_key.lower() != "none" else None
+    assert fuse_labels_key is not None
+    # get the actual value
+    fuse_labels = getenv(fuse_labels_key, "None")
     fuse_labels = fuse_labels if fuse_labels.lower() != "none" else None
     # assert fuse_labels is not None
     if fuse_labels is None:
-        print("# WARNING")
-        print("#")
-        print("# NO FUSE_LABELS DEFINED. MARK OPERATOR AS SKIPPED")
-        print("#")
+        logger.warning("# WARNING")
+        logger.warning("#")
+        logger.warning("# NO FUSE_LABELS DEFINED. MARK OPERATOR AS SKIPPED")
+        logger.warning("#")
         fuse_labels = ""
         skip_operator = True
         # exit(126)
     fuse_labels = fuse_labels.split(",")
     fuse_labels = [remove_special_characters(x) for x in fuse_labels]
 
-    fused_label_name = getenv("FUSED_LABEL_NAME", "None")
+    # first get the key specified in conf
+    fused_label_name_key = getenv("FUSED_LABEL_NAME_KEY", "None")
+    fused_label_name_key = (
+        fused_label_name_key if fused_label_name_key.lower() != "none" else None
+    )
+    assert fused_label_name_key is not None
+    # get the actual value
+    fused_label_name = getenv(fused_label_name_key, "None")
     fused_label_name = fused_label_name if fused_label_name.lower() != "none" else None
     # assert fused_label_name is not None
     if fused_label_name is None:
-        print("# WARNING")
-        print("#")
-        print("# NO FUSED_LABEL_NAMES DEFINED. MARK OPERATOR AS SKIPPED")
-        print("#")
+        logger.warning("# WARNING")
+        logger.warning("#")
+        logger.warning("# NO FUSED_LABEL_NAMES DEFINED. MARK OPERATOR AS SKIPPED")
+        logger.warning("#")
         fused_label_name = ""
         skip_operator = True
         # exit(126)
     fused_label_name = remove_special_characters(fused_label_name)
 
-    print("#")
-    print(f"# FUSE {fuse_labels} to {fused_label_name} !")
-    print("#")
+    logger.info("#")
+    logger.info(f"# FUSING {fuse_labels} to {fused_label_name} !")
+    logger.info("#")
 
     # gather information needed for fusion
     fusion_list = []
@@ -225,31 +237,27 @@ def fuse(
             if remove_special_characters(item["label_name"]) == fuse_label
         ]
 
+        assert len(fitting_nifti_found) == len(fuse_label_index_in_seg_info)
+
         # check whether fuse_labels are in seg_info_list and input_files
-        if len(fitting_nifti_found) != 1 or len(fuse_label_index_in_seg_info) != 1:
-            logger.warning("")
-            logger.warning("")
-            logger.warning("")
+        if len(fitting_nifti_found) == 0 or len(fuse_label_index_in_seg_info) == 0:
             logger.warning(
                 f"Segmentation {fuse_label} does not exist -> fusion process aborted!"
             )
-            logger.warning("")
-            logger.warning("")
-            logger.warning("")
-            continue
 
-        # compose a fuse_label_dict of current fuse_label
-        fuse_label_dict = {}
-        fuse_label_dict["label_name"] = fuse_label
-        fuse_label_dict["label_int"] = seg_info_list[fuse_label_index_in_seg_info[0]][
-            "label_int"
-        ]
-        fuse_label_dict["nifti_fname"] = fitting_nifti_found[0]
-        nifti_loaded = nib.load(fuse_label_dict["nifti_fname"])
-        fuse_label_dict["nifti_np_array"] = nifti_loaded.get_fdata().astype(int)
+        for i in range(0, len(fitting_nifti_found)):
+            # compose a fuse_label_dict of current fuse_label
+            fuse_label_dict = {}
+            fuse_label_dict["label_name"] = fuse_label
+            fuse_label_dict["label_int"] = seg_info_list[
+                fuse_label_index_in_seg_info[i]
+            ]["label_int"]
+            fuse_label_dict["nifti_fname"] = fitting_nifti_found[i]
+            nifti_loaded = nib.load(fuse_label_dict["nifti_fname"])
+            fuse_label_dict["nifti_np_array"] = nifti_loaded.get_fdata().astype(int)
 
-        # add fuse_label_dict to fusion_list
-        fusion_list.append(fuse_label_dict)
+            # add fuse_label_dict to fusion_list
+            fusion_list.append(fuse_label_dict)
 
         processed_count += 1
 
@@ -373,8 +381,8 @@ def fuse(
     return True, target_seg_info_dict
 
 
-def merge_mask_nifits(nifti_dir, target_dir, mode=None):
-    global processed_count, input_file_extension
+def merge_mask_niftis(nifti_dir, target_dir, mode=None):
+    global processed_count, input_file_extension, skip_operator
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -422,32 +430,6 @@ def merge_mask_nifits(nifti_dir, target_dir, mode=None):
         f"Found {len(input_files)} NIFTI files vs {len(seg_info_list)} seg infos ..."
     )
     assert len(input_files) > 0
-
-    # # just a single label in seg_info -> no merging
-    # if len(seg_info_list) == 1:
-    #     logger.info("Only one label present -> no merging required.")
-    #     assert len(input_files) == 1
-
-    #     # process the single label
-    #     label_nifti_path = input_files[0]
-    #     nifti_loaded = nib.load(label_nifti_path)
-    #     nifti_numpy = nifti_loaded.get_fdata().astype(int)
-    #     nifti_labels_found = list(np.unique(nifti_numpy))
-    #     logger.info(f"{ nifti_labels_found= }")
-    #     if len(nifti_labels_found) > 1:
-    #         if mode == "fuse":
-    #             target_nifti_path = label_nifti_path.replace(basename(nifti_dir), basename(target_dir))
-    #         shutil.copy(label_nifti_path, target_nifti_path)
-    #         target_seg_info_dict["seg_info"].append(seg_info_list[0])
-    #         processed_count += 1
-    #         return True, nifti_dir, target_seg_info_dict
-    #     elif len(nifti_labels_found) == 1:
-    #         logger.error(f"No segmentation found in {label_nifti_path} -> skipping")
-    #         return True, nifti_dir, target_seg_info_dict
-    #     else:
-    #         logger.error("Unknown state -> no labels found-> abort")
-    #         logger.error(f"{nifti_labels_found=}")
-    #         exit(1)
 
     if mode == "combine":
         res, target_seg_info_dict = combine(
@@ -532,7 +514,7 @@ if __name__ == "__main__":
 
     logger.info("##################################################")
     logger.info("#")
-    logger.info("# Starting combine-masks operator:")
+    logger.info("# Starting merge-masks operator:")
     logger.info("#")
     logger.info(f"# workflow_dir:     {workflow_dir}")
     logger.info(f"# batch_name:       {batch_name}")
@@ -566,7 +548,7 @@ if __name__ == "__main__":
             continue
         else:
             # merge masks with mode
-            success, nifti_dir, target_seg_info_dict = merge_mask_nifits(
+            success, nifti_dir, target_seg_info_dict = merge_mask_niftis(
                 nifti_dir=element_input_dir,
                 target_dir=element_output_dir,
                 mode=mode,
@@ -606,7 +588,7 @@ if __name__ == "__main__":
             logger.info("#")
         else:
             # merge masks with mode
-            success, nifti_dir, target_seg_info_dict = merge_mask_nifits(
+            success, nifti_dir, target_seg_info_dict = merge_mask_niftis(
                 nifti_dir=batch_input_dir, target_dir=batch_output_dir, mode=mode
             )
 

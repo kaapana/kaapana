@@ -40,7 +40,7 @@ assert gt_in_dir is not None
 
 ensemble_in_dir = getenv("ENSEMBLE_IN_DIR", "None")
 ensemble_in_dir = ensemble_in_dir if ensemble_in_dir.lower() != "none" else None
-# assert ensemble_in_dir is not None
+assert ensemble_in_dir is not None
 
 operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
 operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
@@ -301,16 +301,12 @@ for batch_element_dir in batch_folders:
     print("#")
     batch_id = basename(batch_element_dir)
     single_model_input_dir = join(batch_element_dir, operator_in_dir)
-    ensemble_input_dir = None
-    if ensemble_in_dir is not None:
-        ensemble_input_dir = join(batch_element_dir, ensemble_in_dir)
+    ensemble_input_dir = join(batch_element_dir, ensemble_in_dir)
     gt_input_dir = join(batch_element_dir, gt_in_dir)
 
     single_model_pred_files = glob(join(single_model_input_dir, input_file_extension))
     gt_files = glob(join(gt_input_dir, input_file_extension))
-    ensemble_pred_files = []
-    if ensemble_input_dir is not None:
-        ensemble_pred_files = glob(join(ensemble_input_dir, input_file_extension))
+    ensemble_pred_files = glob(join(ensemble_input_dir, input_file_extension))
 
     print(f"#")
     print(f"# found:")

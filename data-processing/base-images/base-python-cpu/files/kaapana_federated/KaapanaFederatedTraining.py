@@ -185,8 +185,8 @@ class KaapanaFederatedTrainingBase(ABC):
     def __init__(
         self,
         workflow_dir=None,
-        access_key="",
-        secret_key="",
+        access_key="kaapanaminio",
+        secret_key="Kaapana2020",
         minio_host=f"minio-service.{SERVICES_NAMESPACE}.svc",
         minio_port="9000",
     ):

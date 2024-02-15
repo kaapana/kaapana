@@ -225,7 +225,6 @@ fuse_gt = MergeMasksOperator(
     mode="fuse",
     trigger_rule="all_done",
     batch_name="nnunet-dataset",
-    # dev_server="code-server",
 )
 
 rename_gt = LocalModifySegLabelNamesOperator(
@@ -272,7 +271,6 @@ nnunet_predict = NnUnetOperator(
     inf_batch_dataset=True,
     inf_remove_if_empty=False,
     models_dir=extract_model.operator_out_dir,
-    dev_server="code-server",
 )
 
 do_inference = LocalDataorganizerOperator(
@@ -348,7 +346,6 @@ seg_check_ensemble = SegCheckOperator(
     force_same_labels=False,
     batch_name=str(get_test_images.operator_out_dir),
     parallel_id="ensemble",
-    # dev_server="code-server"
 )
 
 evaluation = DiceEvaluationOperator(
@@ -360,7 +357,6 @@ evaluation = DiceEvaluationOperator(
     parallel_processes=1,
     trigger_rule="all_done",
     batch_name=str(get_test_images.operator_out_dir),
-    dev_server="code-server",
 )
 
 nnunet_evaluation_notebook = NnUnetNotebookOperator(
@@ -370,7 +366,6 @@ nnunet_evaluation_notebook = NnUnetNotebookOperator(
     arguments=[
         "/kaapana/app/notebooks/nnunet_ensemble/run_nnunet_evaluation_notebook.sh"
     ],
-    # dev_server='code-server'
 )
 
 put_to_minio = LocalMinioOperator(

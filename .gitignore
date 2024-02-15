@@ -33,4 +33,3 @@ request_config.yaml
 .direnv/
 .envrc
 .venv/
-data-processing/kaapana-plugin/extension/docker/files/plugin/kaapana/tests

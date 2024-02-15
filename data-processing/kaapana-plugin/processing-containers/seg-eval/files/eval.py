@@ -236,7 +236,7 @@ def evaluate_segmentation(dataset_map):
                     print(
                         f"# Calculating hausdorff distance for test mask {data['test_id']} ..."
                     )
-                    metric["hausdorff"][key] = calculate_hausdorff(gt_mask, pred_mask)
+                    metric["hausdorff_distance"][key] = calculate_hausdorff(gt_mask, pred_mask)
                 if "average_surface_distance" in eval_metrics:
                     print(f"# Calculating ASD for test mask {data['test_id']} ...")
                     metric["asd"][key] = calculate_asd(gt_mask, pred_mask)

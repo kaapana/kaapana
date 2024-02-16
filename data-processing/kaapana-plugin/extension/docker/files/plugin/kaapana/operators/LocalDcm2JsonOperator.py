@@ -81,7 +81,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         return bool(modality_tag and modality_tag["Value"][0] in ("RTSTRUCT", "SEG"))
 
     @cache_operator_output
-    def start(self, ds, **kwargs):
+    def start(self, **kwargs):
         logger.info("Starting module dcm2json...")
 
         run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)

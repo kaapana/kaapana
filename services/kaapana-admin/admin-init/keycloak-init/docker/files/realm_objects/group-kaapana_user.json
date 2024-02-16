@@ -1,0 +1,9 @@
+{
+  "name": "kaapana_user",
+  "path": "/kaapana_user",
+  "attributes": {
+    "policy": [
+      "kaapanaUser"
+    ]
+  }
+}

@@ -27,9 +27,18 @@ if __name__ == "__main__":
     payload = json.load(open(file, "r"))
     keycloak.post_group(payload)
 
-    ### Add role mappings to group
+    ### Add role mappings to group all_data
     roles = ["admin", "user"]
     keycloak.post_role_mapping(roles, "all_data")
+
+    ### Add kaapana_user group all_data
+    file = "realm_objects/group-kaapana_user.json"
+    payload = json.load(open(file, "r"))
+    keycloak.post_group(payload)
+
+    ### Add role mappings to group kaapana_user
+    roles = ["user"]
+    keycloak.post_role_mapping(roles, "kaapana_user")
 
     ### Add user
     file = "realm_objects/kaapana-user.json"

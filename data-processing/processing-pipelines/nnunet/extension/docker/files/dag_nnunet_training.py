@@ -32,6 +32,15 @@ from kaapana.blueprints.kaapana_global_variables import (
     CPU_CORE_COUNT,
 )
 
+#####
+# NEW for FL: DAG should fail if 1 operator fails
+from airflow.utils.db import provide_session
+from airflow.operators.python_operator import PythonOperator
+from airflow.models import TaskInstance
+from airflow.utils.state import State
+
+#####
+
 study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
@@ -456,6 +465,39 @@ dcm_send_int = DcmSendOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+
+
+#####
+# NEW for FL: DAG should fail if 1 operator fails
+@provide_session
+def _finally(task, execution_date, dag, session=None, **_):
+    upstream_task_instances = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.execution_date == execution_date,
+            TaskInstance.task_id.in_(task.upstream_task_ids),
+        )
+        .all()
+    )
+    upstream_states = [ti.state for ti in upstream_task_instances]
+    fail_this_task = State.FAILED in upstream_states
+
+    if fail_this_task:
+        raise AirflowException(
+            "Failing task because one or more upstream tasks failed."
+        )
+
+
+nnunet_fail_check_ = PythonOperator(
+    task_id="finally",
+    python_callable=_finally,
+    trigger_rule=TriggerRule.ALL_DONE,
+    provide_context=True,
+    dag=dag,
+)
+#####
+
 (
     get_input
     >> get_ref_ct_series_from_seg
@@ -484,3 +526,8 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> clean
 )
 nnunet_train >> zip_model >> bin2dcm >> dcm_send_int >> clean
+
+#####
+# NEW for FL: DAG should fail if 1 operator fails
+nnunet_train >> nnunet_fail_check_
+#####

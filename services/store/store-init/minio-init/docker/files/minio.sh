@@ -6,4 +6,4 @@ mc mb --ignore-existing kaapana/uploads
 mc mb --ignore-existing kaapana/staticwebsiteresults
 mc cp /kaapana/app/readme.txt kaapana/uploads/readme.txt
 
-mc admin policy create minio kaapanaUser /kaapana/app/user-policy.json
+mc admin policy create kaapana kaapanaUser /kaapana/app/user-policy.json

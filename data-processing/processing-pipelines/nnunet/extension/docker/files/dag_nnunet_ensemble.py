@@ -11,6 +11,7 @@ from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
 from nnunet.getTasks import get_available_protocol_names
@@ -18,7 +19,6 @@ from nnunet.getTasks import get_available_protocol_names
 # from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from nnunet.SegCheckOperator import SegCheckOperator
-from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 
 default_interpolation_order = "default"
 default_prep_thread_count = 1
@@ -295,14 +295,20 @@ evaluation = DiceEvaluationOperator(
     batch_name=str(get_test_images.operator_out_dir),
 )
 
-nnunet_evaluation_notebook = NnUnetNotebookOperator(
+get_notebooks_from_minio = LocalMinioOperator(
+    dag=dag,
+    name="nnunet-get-notebook-from-minio",
+    bucket_name="analysis-scripts",
+    action="get",
+    action_files=["run_nnunet_evaluation_notebook.ipynb"],
+)
+
+nnunet_evaluation_notebook = JupyterlabReportingOperator(
     dag=dag,
     name="nnunet-evaluation-notebook",
     input_operator=evaluation,
-    arguments=[
-        "/kaapana/app/notebooks/nnunet_ensemble/run_nnunet_evaluation_notebook.sh"
-    ],
-    # dev_server='code-server'
+    notebook_filename="run_nnunet_evaluation_notebook.ipynb",
+    output_format="html,pdf",
 )
 
 put_to_minio = LocalMinioOperator(
@@ -348,6 +354,7 @@ do_inference >> do_ensemble >> seg_check_ensemble >> evaluation
 (
     seg_check_inference
     >> evaluation
+    >> get_notebooks_from_minio
     >> nnunet_evaluation_notebook
     >> put_to_minio
     >> put_report_to_minio

@@ -61,7 +61,7 @@ if [ "$MODE" = "preprocess" ]; then
 
     echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP"
     echo "#"
-    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP -pl3d ExperimentPlanner3D_v21_Pretrained -overwrite_plans /models/nnUNet/3d_fullres/Task256_TotalSegmentator_3mm_1139subj/nnUNetTrainerV2_ep8000_nomirror__nnUNetPlansv2.1/plans.pkl -overwrite_plans_identifier TRANSFER_TRIAL
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"
@@ -134,7 +134,8 @@ elif [ "$MODE" = "training" ]; then
     
     echo "#"
     echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrain $fp32 $npz $continue"
-    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrain $fp32 $npz $continue 
+    # nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrain $fp32 $npz $continue
+    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD -p nnUNetPlans_pretrained_TRANSFER_TRIAL --npz $pretrain
 
     # CREATE_REPORT="True"
 

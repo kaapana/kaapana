@@ -34,4 +34,4 @@ request_config.yaml
 .envrc
 .venv/
 tests/airflow_workflow_dir/*
-tests/venv/*
+tests/venv/*.venv/

@@ -200,20 +200,31 @@ def cache_operator_output(func):
         else:
             print("Caching is not used!")
 
+        print(f"{federated is not None=}")
+        print(f"{'skip_operators' in federated=}")
+        print(f"{last_round is False=}")
+        print(f"{set(downstream_tasks_ids)=}")
+        print(f"{set(federated['skip_operators'])=}")
+        print(f"{set(downstream_tasks_ids).issubset(set(federated['skip_operators']))=}")
+        if (
+            federated is not None
+            and "before_previous_dag_run" in federated
+            and last_round is False
+        ):
+            print(f"Cleaning up: {federated['before_previous_dag_run']=}")
+            clean_previous_dag_run(
+                self.airflow_workflow_dir, conf, "before_previous_dag_run"
+            )
         if (
             federated is not None
             and "skip_operators" in federated
             and last_round is False
             and set(downstream_tasks_ids).issubset(set(federated["skip_operators"]))
         ):
-            print("The rest is skipped cleaning up!", downstream_tasks)
-            clean_previous_dag_run(
-                self.airflow_workflow_dir, conf, "before_previous_dag_run"
-            )
-            print("Update remote job")
-
             print("Skipping the following tasks", downstream_tasks)
             self.skip(dag_run, dag_run.execution_date, downstream_tasks)
+
+            print("Update remote job")
         return x
 
     return wrapper

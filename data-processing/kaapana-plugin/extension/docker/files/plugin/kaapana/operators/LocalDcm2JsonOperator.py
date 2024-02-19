@@ -362,7 +362,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         # Check for AcquisitionDateTime
         if "0008002A AcquisitionDateTime_datetime" in metadata:
-            time_tag_used = "AcquisitionDateTime"
+            time_tag_used = "AcquisitionDateTime_datetime"
             datetime_formatted = metadata["0008002A AcquisitionDateTime_datetime"]
 
         else:

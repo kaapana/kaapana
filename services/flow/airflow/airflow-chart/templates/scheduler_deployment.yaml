@@ -124,6 +124,8 @@ spec:
           value: "{{ .Values.global.slow_data_dir }}/minio"
         - name: MINIOUSER
           value: "{{ .Values.global.credentials_minio_username }}"
+        - name: GCLOUD_TOKEN
+          value: "{{ .Values.global.gcloud_token }}"
         - name: MINIOPASSWORD
           value: "{{ .Values.global.credentials_minio_password }}"
         - name: MODELDIR

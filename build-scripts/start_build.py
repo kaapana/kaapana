@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 from shutil import copyfile, rmtree
-import yaml
-import os
 import logging
+import os
 from os.path import join, dirname, exists
 from time import time
 from argparse import ArgumentParser
+import yaml
 from build_helper.charts_helper import HelmChart, init_helm_charts, helm_registry_login
 from build_helper.container_helper import Container, container_registry_login
 from build_helper.build_utils import BuildUtils
@@ -33,6 +33,14 @@ if __name__ == "__main__":
         default=None,
         required=False,
         help="Password",
+    )
+    parser.add_argument(
+        "-gc",
+        "--gcloud-token",
+        dest="gcloud_token",
+        default=None,
+        required=False,
+        help="Token for google cloud services",
     )
     parser.add_argument(
         "-dr",
@@ -218,7 +226,7 @@ if __name__ == "__main__":
 
     kaapana_dir = (
         args.kaapana_dir
-        if args.kaapana_dir != None
+        if args.kaapana_dir != None  # shouldn't it be args.kaapana_dir is not None?
         else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )
     build_dir = (
@@ -284,8 +292,8 @@ if __name__ == "__main__":
     if not os.path.isfile(config_filepath):
         logger.error("")
         logger.error("")
-        logger.error(f"The build-configuration.yaml was not found!")
-        logger.error(f"Default config has been created -> please adjust as needed !!")
+        logger.error("The build-configuration.yaml was not found!")
+        logger.error("Default config has been created -> please adjust as needed !!")
         logger.error("")
         logger.error(f"See: {config_filepath}")
         copyfile(src=template_config_filepath, dst=config_filepath)
@@ -394,6 +402,13 @@ if __name__ == "__main__":
     conf_registry_password = (
         conf_registry_password if conf_registry_password != "" else None
     )
+    conf_gcloud_token = (
+        configuration["gcloud_token"]
+        if "gcloud_token" in configuration
+        else template_configuration["gcloud_token"]
+    )
+    conf_gcloud_token = conf_gcloud_token if conf_gcloud_token != "" else None
+
     conf_include_credentials = (
         configuration["include_credentials"]
         if "include_credentials" in configuration
@@ -441,6 +456,9 @@ if __name__ == "__main__":
     )
     registry_pwd = (
         args.password if args.password is not None else conf_registry_password
+    )
+    gcloud_token = (
+        args.gcloud_token if args.gcloud_token is not None else conf_gcloud_token
     )
 
     build_only = args.build_only if args.build_only != None else conf_build_only

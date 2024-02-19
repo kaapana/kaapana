@@ -200,12 +200,6 @@ def cache_operator_output(func):
         else:
             print("Caching is not used!")
 
-        print(f"{federated is not None=}")
-        print(f"{'skip_operators' in federated=}")
-        print(f"{last_round is False=}")
-        print(f"{set(downstream_tasks_ids)=}")
-        print(f"{set(federated['skip_operators'])=}")
-        print(f"{set(downstream_tasks_ids).issubset(set(federated['skip_operators']))=}")
         if (
             federated is not None
             and "before_previous_dag_run" in federated

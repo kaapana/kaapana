@@ -1403,22 +1403,16 @@ def queue_generate_jobs_and_add_to_workflow(
 
             conf_data["data_form"].update({"identifiers": identifiers})
 
-        if (
-            "data_form" in conf_data
-            and "identifiers" in conf_data["data_form"]
-            and conf_data.get("workflow_form", {}).get(
+        if "data_form" in conf_data and "identifiers" in conf_data["data_form"]:
+
+            drop_duplicate_studies = conf_data.get("workflow_form", {}).get(
                 "series_uids_with_unique_study_uids", False
             )
-        ):
-            drop_duplicate_studies = True
-        else:
-            drop_duplicate_studies = False
-
-        meta_data = get_meta_data(
-            conf_data["data_form"]["identifiers"], drop_duplicate_studies
-        )
-        conf_data["data_form"]["identifiers"] = list(meta_data.keys())
-        conf_data["data_form"]["meta_data"] = meta_data
+            meta_data = get_meta_data(
+                conf_data["data_form"]["identifiers"], drop_duplicate_studies
+            )
+            conf_data["data_form"]["identifiers"] = list(meta_data.keys())
+            conf_data["data_form"]["meta_data"] = meta_data
 
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []

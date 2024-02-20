@@ -207,13 +207,10 @@ async def get_field_mapping(index="meta-index") -> Dict:
     return name_field_map
 
 
-def drop_duplicate_studies(identifiers):
+def get_meta_data(identifiers, drop_duplicate_studies=False):
     import pandas as pd
 
     query = {"ids": {"values": identifiers}}
-
-    query = {"terms": {"0020000E SeriesInstanceUID_keyword": identifiers}}
-
     hits = execute_opensearch_query(
         query=query,
         source={
@@ -221,20 +218,29 @@ def drop_duplicate_studies(identifiers):
                 "00100020 PatientID_keyword",
                 "0020000D StudyInstanceUID_keyword",
                 "0020000E SeriesInstanceUID_keyword",
+                "00081030 StudyDescription_keyword",
             ]
         },
     )
     res_array = [
         [
-            hit["_source"].get("00100020 PatientID_keyword") or "N/A",
-            hit["_source"]["0020000D StudyInstanceUID_keyword"],
-            hit["_source"]["0020000E SeriesInstanceUID_keyword"],
+            hit["_source"].get("00100020 PatientID_keyword", "N/A"),
+            hit["_source"].get("0020000D StudyInstanceUID_keyword", "N/A"),
+            hit["_source"].get("0020000E SeriesInstanceUID_keyword", "N/A"),
+            hit["_source"].get("00081030 StudyDescription_keyword", "N/A"),
         ]
         for hit in hits
     ]
 
     df = pd.DataFrame(
         res_array,
-        columns=["Patient ID", "Study Instance UID", "Series Instance UID"],
+        columns=[
+            "Patient ID",
+            "Study Instance UID",
+            "Series Instance UID",
+            "Study Description",
+        ],
     )
-    return df.drop_duplicates("Study Instance UID")["Series Instance UID"].tolist()
+    if drop_duplicate_studies:
+        df = df.drop_duplicates("Study Instance UID")
+    return df.set_index("Series Instance UID").to_dict(orient="index")

@@ -82,29 +82,52 @@ async def get_series(data: dict = Body(...)):
                     "00100020 PatientID_keyword",
                     "0020000D StudyInstanceUID_keyword",
                     "0020000E SeriesInstanceUID_keyword",
+                    "00080060 Modality_keyword",
+                    "00200011 SeriesNumber_integer",
+                    "00081030 StudyDescription_keyword",
+                    "0008103E SeriesDescription_keyword",
                 ]
             },
         )
 
         res_array = [
             [
-                hit["_source"].get("00100020 PatientID_keyword") or "N/A",
-                hit["_source"]["0020000D StudyInstanceUID_keyword"],
-                hit["_source"]["0020000E SeriesInstanceUID_keyword"],
+                hit["_source"].get("00100020 PatientID_keyword", "N/A"),
+                hit["_source"].get("0020000D StudyInstanceUID_keyword", "N/A"),
+                hit["_source"].get("0020000E SeriesInstanceUID_keyword", "N/A"),
+                hit["_source"].get("00080060 Modality_keyword", "N/A"),
+                hit["_source"].get("00200011 SeriesNumber_integer", "N/A"),
+                hit["_source"].get("00081030 StudyDescription_keyword", "N/A"),
+                hit["_source"].get("0008103E SeriesDescription_keyword", "N/A"),
             ]
             for hit in hits
         ]
 
         df = pd.DataFrame(
             res_array,
-            columns=["Patient ID", "Study Instance UID", "Series Instance UID"],
+            columns=[
+                "Patient ID",
+                "Study Instance UID",
+                "Series Instance UID",
+                "Modality",
+                "Series Number",
+                "Study Description",
+                "Series Description",
+            ],
         )
         return JSONResponse(
             {
                 k: f.groupby("Study Instance UID")["Series Instance UID"]
                 .apply(list)
                 .to_dict()
-                for k, f in df.groupby("Patient ID")
+                for k, f in df.sort_values(
+                    [
+                        "Modality",
+                        "Series Number",
+                        "Study Description",
+                        "Series Description",
+                    ]
+                ).groupby("Patient ID")
             }
         )
     elif not structured:

@@ -64,7 +64,15 @@ async def post_minio_file_upload(request: Request):
     form = await request.form()
     patch = str(uuid.uuid4())
     remove_outdated_tmp_files(UPLOAD_DIR)
-    filepath = json.loads(form["filepond"])["filepath"]
+
+    json_form = json.loads(form["filepond"])
+    if "filepath" in json_form:
+        filepath = json_form["filepath"]
+    else:
+        # If no filepath is provided, the uploaded file will just be stored by the generated {uuid}.zip
+        # FIXME This assumes zip files are uploaded. 
+        # A more generenic way would be to add a file extension to the json_form, which could then be used here
+        filepath = f"{patch}.zip"
 
     patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
     with open(patch_fpath, "w") as fp:

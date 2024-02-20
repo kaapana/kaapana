@@ -37,6 +37,7 @@ from .utils import (
     raise_kaapana_connection_error,
     requests_retry_session,
 )
+from app.datasets.utils import get_meta_data
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -859,9 +860,9 @@ def get_remote_updates(db: Session, periodically=False):
                 ]
 
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
-            incoming_job[
-                "owner_kaapana_instance_name"
-            ] = db_remote_kaapana_instance.instance_name
+            incoming_job["owner_kaapana_instance_name"] = (
+                db_remote_kaapana_instance.instance_name
+            )
             incoming_job["external_job_id"] = incoming_job["id"]
             incoming_job["status"] = "pending"
             job = schemas.JobCreate(**incoming_job)
@@ -1374,9 +1375,11 @@ def queue_generate_jobs_and_add_to_workflow(
         db,
         filter_kaapana_instances=schemas.FilterKaapanaInstances(
             **{
-                "instance_names": conf_data["workflow_form"]["runner_instances"]
-                if not json_schema_data.federated
-                else json_schema_data.instance_names,
+                "instance_names": (
+                    conf_data["workflow_form"]["runner_instances"]
+                    if not json_schema_data.federated
+                    else json_schema_data.instance_names
+                ),
             }
         ),
     )
@@ -1407,12 +1410,15 @@ def queue_generate_jobs_and_add_to_workflow(
                 "series_uids_with_unique_study_uids", False
             )
         ):
-            logging.error(f"Dropping identifiers with similar study uids")
-            from app.datasets.utils import drop_duplicate_studies
+            drop_duplicate_studies = True
+        else:
+            drop_duplicate_studies = False
 
-            conf_data["data_form"]["identifiers"] = drop_duplicate_studies(
-                conf_data["data_form"]["identifiers"]
-            )
+        meta_data = get_meta_data(
+            conf_data["data_form"]["identifiers"], drop_duplicate_studies
+        )
+        conf_data["data_form"]["identifiers"] = list(meta_data.keys())
+        conf_data["data_form"]["meta_data"] = meta_data
 
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []
@@ -1421,6 +1427,9 @@ def queue_generate_jobs_and_add_to_workflow(
                 # Copying due to reference?!
                 single_conf_data = copy.deepcopy(conf_data)
                 single_conf_data["data_form"]["identifiers"] = [identifier]
+                single_conf_data["data_form"]["meta_data"] = {
+                    identifier: meta_data[identifier]
+                }
                 queued_jobs.append(
                     {
                         "conf_data": single_conf_data,

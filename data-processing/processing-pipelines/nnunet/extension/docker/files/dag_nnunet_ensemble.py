@@ -216,8 +216,6 @@ filter_gt = LocalFilterMasksOperator(
     input_operator=dcm2nifti_gt,
     # label_filter_key="gt_label_filter",
     batch_name="nnunet-dataset",
-    # label_filter_key="gt_label_filter",
-    batch_name="nnunet-dataset",
 )
 
 fuse_gt = MergeMasksOperator(
@@ -359,7 +357,6 @@ evaluation = DiceEvaluationOperator(
     parallel_processes=1,
     trigger_rule="all_done",
     batch_name=str(get_test_images.operator_out_dir),
-    dev_server="code-server",
 )
 
 nnunet_evaluation_notebook = NnUnetNotebookOperator(
@@ -399,15 +396,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> filter_gt
     >> fuse_gt
     >> rename_gt
-    >> seg_check_gt
-)
-(
-    sort_gt
-    >> get_ref_ct_series_from_gt
-    >> dcm2nifti_ct
-    >> nnunet_predict
-    >> do_inference
-    >> seg_check_inference
     >> seg_check_gt
     >> evaluation
 )

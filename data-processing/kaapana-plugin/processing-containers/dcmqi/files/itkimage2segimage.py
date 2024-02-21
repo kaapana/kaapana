@@ -2,12 +2,15 @@ import os
 import json
 import glob
 import re
+import ast
 import math
 import random
 from matplotlib import cm
 import subprocess
 import numpy as np
 import pydicom
+
+from handle_empty_seg import check_n_replace_empty_mask
 
 processed_count = 0
 
@@ -268,6 +271,97 @@ fail_on_no_segmentation_found = (
     if os.environ.get("FAIL_ON_NO_SEGMENTATION_FOUND", "true").lower() == "true"
     else False
 )
+allow_empty_segmentation =  (
+    True
+    if os.environ.get('ALLOW_EMPTY_SEGMENTATION', 'true').lower() == "true"
+    else False
+)
+
+empty_segmentation_label = int(os.environ.get('EMPTY_SEGMENTATION_LABEL', '99'))
+
+def check_for_number_or_list(variable):
+    try:
+        # Try evaluating the string as a Python literal
+        value = ast.literal_eval(variable)
+        # Check if the value is a number (int or float)
+        if isinstance(value, (int, float)):
+            return value  # Return the number
+        elif isinstance(value, list):
+            return value
+    except (ValueError, SyntaxError):
+        pass  # If literal_eval() fails or value is not a number, continue to the next step
+    
+    return variable  # Return the string as is if it's not a number
+
+def extract_props_from_env_str(env_val: str):
+
+    env_val = env_val.strip()
+    if env_val == "":
+        return {}
+
+    # Split the string by the delimiter
+    key_value_pairs = env_val.split(";")
+
+    target_props = {}
+    for pair in key_value_pairs:
+        key, value = pair.split("=")        
+        key = check_for_number_or_list(key)
+        # check values for tuples
+        values = value.split(':')
+        if len(values) > 1:
+            tuple_key = values[0]
+            tuple_val = values[1]
+            tuple_values = tuple_val.split(',')
+            # check if tuple value is a list then convert it into a list
+            if len(tuple_values) > 1:
+                tuple_val = [check_for_number_or_list(v) for v in tuple_values]
+            value = (tuple_key, tuple_val)
+        else:
+            value = check_for_number_or_list(value)
+        target_props[key] = value
+    
+    return target_props
+
+def update_seg_attribute_props(seg_attributes: list, seg_update_dict: dict):
+    seg_labels = list(seg_update_dict.keys())
+    for seg_item in seg_attributes:
+        if isinstance(seg_item, list):
+            seg_item = seg_item[0]
+
+        seg_label = seg_item['labelID']
+        if seg_label in seg_labels:
+            seg_updates = seg_update_dict[seg_label]
+            update_key, update_val = seg_updates
+            seg_item[update_key] = update_val
+            seg_labels.remove(seg_label)
+
+    if len(seg_labels) > 0:
+        print(f"Segment attributes not found with the following labels {','.join(map(str, seg_labels))}. Provided values could not be updated.")
+
+    return seg_attributes
+
+def update_seg_attribute_props_single_segment(seg_attributes: list, seg_update_dict: dict):
+    seg_attrs = list(seg_update_dict.keys())
+    for seg_item in seg_attributes:
+        if isinstance(seg_item, list):
+            seg_item = seg_item[0]
+
+        seg_label = seg_item['labelID']
+        if not seg_label == 0:
+            for attrs in seg_attrs:
+                if attrs in seg_item.keys():
+                    seg_item[attrs] = seg_update_dict[attrs]
+
+    return seg_attributes
+
+
+# Additional meta props environment variable value
+meta_props_value = os.environ.get("ADDITIONAL_META_PROPS", "")
+# Create a dictionary from the key-value pairs
+meta_props = extract_props_from_env_str(meta_props_value)
+
+seg_attribute_values = os.environ.get("SEGMENT_ATTRIBUTES_PROPS", "")
+seg_attr_props = extract_props_from_env_str(seg_attribute_values)
 
 get_seg_info_from_file = False
 if input_type == "multi_label_seg":
@@ -321,6 +415,9 @@ for batch_element_dir in batch_folders:
         batch_element_dir, os.environ["OPERATOR_IMAGE_LIST_INPUT_DIR"]
     )
 
+    if allow_empty_segmentation:
+        check_n_replace_empty_mask(input_image_list_input_dir, empty_segmentation_label)
+
     element_output_dir = os.path.join(batch_element_dir, os.environ["OPERATOR_OUT_DIR"])
     if not os.path.exists(element_output_dir):
         os.makedirs(element_output_dir)
@@ -350,6 +447,12 @@ for batch_element_dir in batch_folders:
     segmentation_information["ContentCreatorName"] = content_creator_name
     segmentation_information["SeriesNumber"] = series_number
     segmentation_information["InstanceNumber"] = instance_number
+
+    # set the additional forwarded meta props to the segmentation information dict
+    # for new meta data file
+    if len(meta_props.keys()) > 0:
+        for props in meta_props.keys():
+            segmentation_information[props] = meta_props[props]
 
     if input_type == "single_label_segs":
         print("input_type == 'single_label_segs'")
@@ -383,6 +486,9 @@ for batch_element_dir in batch_folders:
 
             if create_multi_label_dcm_from_single_label_segs.lower() == "true":
                 segment_attributes.append([segment_attribute])
+            
+            if len(seg_attr_props.keys()) > 0:
+                segment_attribute = update_seg_attribute_props_single_segment(segment_attribute, seg_attr_props)
 
             segmentation_information["segmentAttributes"] = [[segment_attribute]]
             meta_data_file = f"{input_image_list_input_dir}/{rootname}.json"
@@ -516,6 +622,9 @@ for batch_element_dir in batch_folders:
         _, segmentation_information["SeriesDescription"] = process_seg_info(
             multi_label_seg_name, series_description
         )
+
+        if len(seg_attr_props.keys()) > 0:
+            segment_attributes = update_seg_attribute_props_single_segment(segment_attributes, seg_attr_props)
 
         segmentation_information["segmentAttributes"] = segment_attributes
         meta_data_file = (

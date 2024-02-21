@@ -129,7 +129,9 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
 
-            zip_object_name = f"{kwargs['dag'].dag_id}_{timestamp}.zip"
+            zip_object_name = (
+                f"{kwargs['dag'].dag_id}_{kwargs['dag_run'].run_id}_{timestamp}.zip"
+            )
             zip_file_path = os.path.join(target_dir, zip_object_name)
             with ZipFile(zip_file_path, "w") as zipObj:
                 if not object_dirs:

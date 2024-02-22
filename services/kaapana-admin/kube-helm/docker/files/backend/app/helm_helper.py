@@ -37,12 +37,12 @@ global_extensions_list = []
 global_platforms_list = []
 global_collected_tgz_charts = {}
 global_collected_tgz_charts_platforms = {}
-global_extension_states: Dict[
-    str, schemas.ExtensionState
-] = {}  # keys are in form <name>__<version>
-global_recently_updated: Set[
-    str
-] = set()  # list of keys for recently updated ( < refresh_delay) extensions
+global_extension_states: Dict[str, schemas.ExtensionState] = (
+    {}
+)  # keys are in form <name>__<version>
+global_recently_updated: Set[str] = (
+    set()
+)  # list of keys for recently updated ( < refresh_delay) extensions
 global_extensions_release_names: Set[str] = set()
 
 
@@ -210,12 +210,14 @@ def add_extension_to_dict(
             available_versions={},
             description=extension_dict["description"],
             keywords=extension_dict["keywords"],
-            experimental="yes"
-            if "kaapanaexperimental" in extension_dict["keywords"]
-            else "no",
-            multiinstallable="yes"
-            if "kaapanamultiinstallable" in extension_dict["keywords"]
-            else "no",
+            experimental=(
+                "yes" if "kaapanaexperimental" in extension_dict["keywords"] else "no"
+            ),
+            multiinstallable=(
+                "yes"
+                if "kaapanamultiinstallable" in extension_dict["keywords"]
+                else "no"
+            ),
             kind=extension_kind,
             extension_params=ext_params,
             # "values": extension_dict["values"]
@@ -257,7 +259,7 @@ def add_extension_to_dict(
                         if success:
                             chart_info["kube_status"] = concatenated_states["status"]
                             chart_info["kube_info"] = concatenated_states
-                            chart_info["links"] = paths
+                            chart_info["links"] = extension_dict["links"] if "links" in extension_dict else paths
                             chart_info["ready"] = deployment_ready
                             latest_kube_status = concatenated_states["ready"]
                             # all_links.extend(paths)
@@ -613,7 +615,14 @@ def collect_all_tgz_charts(
                 chart = list(yaml.load_all(stdout, yaml.FullLoader))[0]
                 if "keywords" in chart and (set(chart["keywords"]) & keywords_filter):
                     logger.debug(f"Valid keyword-filter!")
-                    chart = add_extension_params(chart, platforms=platforms)
+                    vals = helm_show_values(
+                        chart["name"], chart["version"], platforms=platforms
+                    )
+                    if (vals is not None) and "extension_params" in vals:
+                        chart = add_extension_params(chart, vals)
+                    if (vals is not None) and "links" in vals["global"]:
+                        logger.debug(f"'links' specified in values.yaml of {chart['name']}")
+                        chart["links"] = vals["global"]["links"]
                     current_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                     collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                 else:
@@ -997,15 +1006,13 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
     return res
 
 
-def add_extension_params(chart, platforms=False):
+def add_extension_params(chart, vals):
     """
-    Add 'extension_params' to chart object, if a valid field exists in chart values.
+    Add 'extension_params' from vals to chart object.
     """
     logger.debug(f"in function add_extension_params {chart['name']=}")
-    vals = helm_show_values(chart["name"], chart["version"], platforms=platforms)
-    if (vals is not None) and "extension_params" in vals:
-        # TODO: validate the parameter fields
-        params_dict = vals["extension_params"]
-        logger.debug(f"extension_params {params_dict}")
-        chart["extension_params"] = params_dict
+    # TODO: validate the parameter fields
+    params_dict = vals["extension_params"]
+    logger.debug(f"extension_params {params_dict}")
+    chart["extension_params"] = params_dict
     return chart

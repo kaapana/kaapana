@@ -10,3 +10,5 @@ global:
   collabora_username: admin
   collabora_password: admin
   collabora_prefix: /collabora
+  links:
+    - /web/store/Documents

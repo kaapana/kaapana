@@ -17,7 +17,10 @@ from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR
 from airflow.operators.python import BranchPythonOperator
 
-from nnunet.LocalCreateEmptySegmentsOperator import get_all_files_from_dir, LocalCreateEmptySegmentsOperator
+from nnunet.LocalCreateEmptySegmentsOperator import (
+    get_all_files_from_dir,
+    LocalCreateEmptySegmentsOperator,
+)
 
 max_active_runs = 10
 concurrency = max_active_runs * 2
@@ -218,7 +221,7 @@ create_empty_segments = LocalCreateEmptySegmentsOperator(
     dag=dag,
     name="create-empty-segmentation",
     input_operator=dcm2nifti,
-    operator_out_dir=nnunet_predict.operator_out_dir
+    operator_out_dir=nnunet_predict.operator_out_dir,
 )
 
 
@@ -234,8 +237,8 @@ meta_props = {
 # }
 
 segment_attributes_props = {
-    'SegmentLabel': 'Empty Mask',
-    'recommendedDisplayRGBValue': "[66, 77, 128]",
+    "SegmentLabel": "Empty Mask",
+    "recommendedDisplayRGBValue": "[66, 77, 128]",
 }
 
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
@@ -249,7 +252,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     meta_json_props=meta_props,
     seg_attrs_props=segment_attributes_props,
     trigger_rule="none_failed_min_one_success",
-    dev_server='code-server',
+    dev_server="code-server",
 )
 
 
@@ -259,20 +262,26 @@ def segmentation_file_check_callable(**kwargs):
     # Retrieve the run directory based on the DAG run ID
     run_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id
     # Gather the output batch directories for processing
-    batch_dirs = [f for f in glob.glob(os.path.join(run_dir, create_empty_segments.batch_name, "*"))]
+    batch_dirs = [
+        f
+        for f in glob.glob(os.path.join(run_dir, create_empty_segments.batch_name, "*"))
+    ]
 
     seg_file_in_all_batches = True
     # Iterate through each batch directory
     for batch_element in batch_dirs:
-        input_files_dir = os.path.join(batch_element, create_empty_segments.operator_out_dir)
+        input_files_dir = os.path.join(
+            batch_element, create_empty_segments.operator_out_dir
+        )
 
         # Retrieve all files in the input directory matching the NIfTI file format
-        all_nifties = get_all_files_from_dir(input_files_dir, filter_pattern=r'.*\.nii.*')
+        all_nifties = get_all_files_from_dir(
+            input_files_dir, filter_pattern=r".*\.nii.*"
+        )
 
         if len(all_nifties) == 0:
             seg_file_in_all_batches = False
             break
-
 
     if not seg_file_in_all_batches:
         return [create_empty_segments.name]
@@ -294,12 +303,7 @@ dcmseg_send_multi = DcmSendOperator(
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_task_model >> nnunet_predict
-(
-    get_input
-    >> dcm2nifti
-    >> nnunet_predict
-    >> check_if_segmentaion_exists
-)
+(get_input >> dcm2nifti >> nnunet_predict >> check_if_segmentaion_exists)
 
 check_if_segmentaion_exists >> create_empty_segments >> nrrd2dcmSeg_multi
 check_if_segmentaion_exists >> nrrd2dcmSeg_multi

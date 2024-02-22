@@ -160,9 +160,9 @@ def create_segment_attribute(
     }
     segment_attribute["SegmentedPropertyTypeModifierCodeSequence"] = {
         "CodeValue": str(coding_scheme["Code Value"]),
-        "CodingSchemeDesignator": coding_scheme["SNOMED-RT ID (Retired)"]
-        if not math.isnan
-        else "unkown",
+        "CodingSchemeDesignator": (
+            coding_scheme["SNOMED-RT ID (Retired)"] if not math.isnan else "unkown"
+        ),
         "CodeMeaning": code_meaning,
     }
     return segment_attribute
@@ -271,13 +271,14 @@ fail_on_no_segmentation_found = (
     if os.environ.get("FAIL_ON_NO_SEGMENTATION_FOUND", "true").lower() == "true"
     else False
 )
-allow_empty_segmentation =  (
+allow_empty_segmentation = (
     True
-    if os.environ.get('ALLOW_EMPTY_SEGMENTATION', 'true').lower() == "true"
+    if os.environ.get("ALLOW_EMPTY_SEGMENTATION", "true").lower() == "true"
     else False
 )
 
-empty_segmentation_label = int(os.environ.get('EMPTY_SEGMENTATION_LABEL', '99'))
+empty_segmentation_label = int(os.environ.get("EMPTY_SEGMENTATION_LABEL", "99"))
+
 
 def check_for_number_or_list(variable):
     try:
@@ -290,8 +291,9 @@ def check_for_number_or_list(variable):
             return value
     except (ValueError, SyntaxError):
         pass  # If literal_eval() fails or value is not a number, continue to the next step
-    
+
     return variable  # Return the string as is if it's not a number
+
 
 def extract_props_from_env_str(env_val: str):
 
@@ -304,14 +306,14 @@ def extract_props_from_env_str(env_val: str):
 
     target_props = {}
     for pair in key_value_pairs:
-        key, value = pair.split("=")        
+        key, value = pair.split("=")
         key = check_for_number_or_list(key)
         # check values for tuples
-        values = value.split(':')
+        values = value.split(":")
         if len(values) > 1:
             tuple_key = values[0]
             tuple_val = values[1]
-            tuple_values = tuple_val.split(',')
+            tuple_values = tuple_val.split(",")
             # check if tuple value is a list then convert it into a list
             if len(tuple_values) > 1:
                 tuple_val = [check_for_number_or_list(v) for v in tuple_values]
@@ -319,8 +321,9 @@ def extract_props_from_env_str(env_val: str):
         else:
             value = check_for_number_or_list(value)
         target_props[key] = value
-    
+
     return target_props
+
 
 ## Curently not being used, as the dcmqi only support single segment mask
 def update_seg_attribute_props(seg_attributes: list, seg_update_dict: dict):
@@ -329,7 +332,7 @@ def update_seg_attribute_props(seg_attributes: list, seg_update_dict: dict):
         if isinstance(seg_item, list):
             seg_item = seg_item[0]
 
-        seg_label = seg_item['labelID']
+        seg_label = seg_item["labelID"]
         if seg_label in seg_labels:
             seg_updates = seg_update_dict[seg_label]
             update_key, update_val = seg_updates
@@ -337,11 +340,16 @@ def update_seg_attribute_props(seg_attributes: list, seg_update_dict: dict):
             seg_labels.remove(seg_label)
 
     if len(seg_labels) > 0:
-        print(f"Segment attributes not found with the following labels {','.join(map(str, seg_labels))}. Provided values could not be updated.")
+        print(
+            f"Segment attributes not found with the following labels {','.join(map(str, seg_labels))}. Provided values could not be updated."
+        )
 
     return seg_attributes
 
-def update_seg_attribute_props_single_segment(seg_attributes: list, seg_update_dict: dict):
+
+def update_seg_attribute_props_single_segment(
+    seg_attributes: list, seg_update_dict: dict
+):
     """
     Update attributes of a single segment in a list of segment attributes based on a provided dictionary.
 
@@ -360,9 +368,9 @@ def update_seg_attribute_props_single_segment(seg_attributes: list, seg_update_d
         if isinstance(seg_item, list):
             seg_item = seg_item[0]
 
-        seg_label = seg_item['labelID']
+        seg_label = seg_item["labelID"]
         if not seg_label == 0:
-            for attrs in seg_attrs:                
+            for attrs in seg_attrs:
                 seg_item[attrs] = seg_update_dict[attrs]
 
     return seg_attributes
@@ -499,9 +507,11 @@ for batch_element_dir in batch_folders:
 
             if create_multi_label_dcm_from_single_label_segs.lower() == "true":
                 segment_attributes.append([segment_attribute])
-            
+
             if len(seg_attr_props.keys()) > 0:
-                segment_attribute = update_seg_attribute_props_single_segment(segment_attribute, seg_attr_props)
+                segment_attribute = update_seg_attribute_props_single_segment(
+                    segment_attribute, seg_attr_props
+                )
 
             segmentation_information["segmentAttributes"] = [[segment_attribute]]
             meta_data_file = f"{input_image_list_input_dir}/{rootname}.json"
@@ -637,7 +647,9 @@ for batch_element_dir in batch_folders:
         )
 
         if len(seg_attr_props.keys()) > 0:
-            segment_attributes = update_seg_attribute_props_single_segment(segment_attributes, seg_attr_props)
+            segment_attributes = update_seg_attribute_props_single_segment(
+                segment_attributes, seg_attr_props
+            )
 
         segmentation_information["segmentAttributes"] = segment_attributes
         meta_data_file = (

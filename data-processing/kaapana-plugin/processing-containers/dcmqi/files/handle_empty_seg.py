@@ -4,7 +4,10 @@ import json
 import numpy as np
 import nibabel as nib
 
-def get_all_files_from_dir(target: str, filter_pattern: str = "", full_path: bool = True):
+
+def get_all_files_from_dir(
+    target: str, filter_pattern: str = "", full_path: bool = True
+):
     """
     Retrieve a list of files from the specified directory, optionally filtered by a regular expression pattern.
 
@@ -17,13 +20,14 @@ def get_all_files_from_dir(target: str, filter_pattern: str = "", full_path: boo
     - List[str]: A list of file paths.
     """
     all_files = os.listdir(target)
-    if filter_pattern != "":    
+    if filter_pattern != "":
         all_files = [f for f in all_files if re.match(filter_pattern, f)]
 
     if full_path:
         all_files = [os.path.join(target, f) for f in all_files]
-    
+
     return all_files
+
 
 def get_filename_stem(target: str):
     """
@@ -36,11 +40,11 @@ def get_filename_stem(target: str):
     - str: The filename stem.
     """
     filename = os.path.basename(target)
-    file_splits = filename.split('.')
+    file_splits = filename.split(".")
     return file_splits[0]
 
 
-def np_from_nifti(nifti_file: str, astype: str = 'int'):
+def np_from_nifti(nifti_file: str, astype: str = "int"):
     """
     Load a NIfTI file and return its data as a NumPy array.
 
@@ -52,11 +56,12 @@ def np_from_nifti(nifti_file: str, astype: str = 'int'):
     - np.ndarray: The NumPy array containing the NIfTI data.
     """
     nptype = int
-    if astype == 'float':
+    if astype == "float":
         nptype = float
 
     nifti = nib.load(nifti_file)
     return nifti.get_fdata().astype(nptype)
+
 
 def np_binarize(np_val, inverse: bool = False):
     """
@@ -73,9 +78,10 @@ def np_binarize(np_val, inverse: bool = False):
         return np.where(np_val > 0, 0, 1)
     return np.where(np_val > 0, 1, 0)
 
+
 def _extract_nifti_files(input_files_dir: str, raise_err: bool = False):
     """
-    Extracts / Look for all the NIfTI files from the specified input directory, separating the background base 
+    Extracts / Look for all the NIfTI files from the specified input directory, separating the background base
     NIfTI file or emtpy nifti file named `empty.nii(.gz)` from other nifti files.
 
     Parameters:
@@ -87,10 +93,14 @@ def _extract_nifti_files(input_files_dir: str, raise_err: bool = False):
     """
     # Ensure that the provided input directory exists
     if not os.path.isdir(input_files_dir):
-        raise FileNotFoundError('Directory not found!! {} is not a valid Minio files input directory.'.format(input_files_dir))
+        raise FileNotFoundError(
+            "Directory not found!! {} is not a valid Minio files input directory.".format(
+                input_files_dir
+            )
+        )
 
     # Retrieve all files in the input directory matching the NIfTI file format
-    all_nifties = get_all_files_from_dir(input_files_dir, filter_pattern=r'.*\.nii.*')
+    all_nifties = get_all_files_from_dir(input_files_dir, filter_pattern=r".*\.nii.*")
 
     # Initialize a variable to store the background base NIfTI file name
     empty_nifti = None
@@ -111,12 +121,19 @@ def _extract_nifti_files(input_files_dir: str, raise_err: bool = False):
 
     # If no empty Segmentation NIfTI file is found, raise an exception
     if not empty_nifti and raise_err:
-        raise FileNotFoundError('No empty segmentation NIfTI file were not found in the directory {}'.format(input_files_dir))
+        raise FileNotFoundError(
+            "No empty segmentation NIfTI file were not found in the directory {}".format(
+                input_files_dir
+            )
+        )
 
     # Return the background base NIfTI file and the list of remaining NIfTI files
     return empty_nifti, all_nifties, list(set(seg_labels))
 
-def _create_empty_mask_n_assign_label(empty_base_mask: str, other_masks: list, empty_mask_label: int):
+
+def _create_empty_mask_n_assign_label(
+    empty_base_mask: str, other_masks: list, empty_mask_label: int
+):
     """
     Creates a background mask by combining a base background mask with additional segmentation masks.
 
@@ -141,7 +158,7 @@ def _create_empty_mask_n_assign_label(empty_base_mask: str, other_masks: list, e
         # Load the segmentation mask NIfTI file and extract necessary information
         mask_np = np_from_nifti(mask_file)
         filename = get_filename_stem(mask_file)
-        
+
         # Extract unique labels from the segmentation mask
         unique_mask_labels = list(np.unique(mask_np))
         if 0 in unique_mask_labels:
@@ -153,8 +170,11 @@ def _create_empty_mask_n_assign_label(empty_base_mask: str, other_masks: list, e
 
         # Check for errors in segmentation, such as more than one label
         if len(unique_mask_labels) > 1:
-            raise ValueError("Error: More than 1 label in segmentation found in the file {}.".format(os.path.basename(mask_file)))
-
+            raise ValueError(
+                "Error: More than 1 label in segmentation found in the file {}.".format(
+                    os.path.basename(mask_file)
+                )
+            )
 
     # Invert the combined segmentation mask and add it to the base background mask
     segmentation_inversed = np_binarize(segmentation_base, inverse=True)
@@ -163,12 +183,14 @@ def _create_empty_mask_n_assign_label(empty_base_mask: str, other_masks: list, e
     # Replace pixels with a value of 1 with the specified background label, and set other pixels to 0
     empty_mask = np.where(empty_mask == 1, empty_mask_label, 0)
 
-
     # Create a new NIfTI image from the generated background mask with the same affine and header as the base background mask
-    empty_mask_nifti = nib.Nifti1Image(empty_mask, empty_base_nifti.affine, empty_base_nifti.header)
+    empty_mask_nifti = nib.Nifti1Image(
+        empty_mask, empty_base_nifti.affine, empty_base_nifti.header
+    )
 
     # Return the generated background mask and segmentation information
     return empty_mask_nifti
+
 
 def check_n_replace_empty_mask(input_dir: str, empty_mask_label: int):
     empty_nifti, other_nifties, segmentation_labels = _extract_nifti_files(input_dir)
@@ -176,36 +198,42 @@ def check_n_replace_empty_mask(input_dir: str, empty_mask_label: int):
         empty_masked_output_nifti_file = _create_empty_mask_n_assign_label(
             empty_nifti, other_nifties, empty_mask_label
         )
-        nib.save(empty_masked_output_nifti_file, empty_nifti) 
+        nib.save(empty_masked_output_nifti_file, empty_nifti)
 
-        print('################################')
+        print("################################")
         print("empty nifti file updated with new empty segmentation mask labels")
-        print('################################')
+        print("################################")
 
-        seg_info_files = get_all_files_from_dir(target=input_dir, filter_pattern=r'.*seg(-|_)info.json\b')
+        seg_info_files = get_all_files_from_dir(
+            target=input_dir, filter_pattern=r".*seg(-|_)info.json\b"
+        )
         if len(seg_info_files) == 0:
-            raise FileNotFoundError('No segmentation info file were not found in the directory {}'.format(input_dir))
-        
+            raise FileNotFoundError(
+                "No segmentation info file were not found in the directory {}".format(
+                    input_dir
+                )
+            )
+
         seg_info_file = seg_info_files[0]
         with open(seg_info_file) as f:
-                seg_info_json = json.load(f) 
+            seg_info_json = json.load(f)
 
-        updated_seg_info = []   
-        
+        updated_seg_info = []
+
         for seg in seg_info_json["seg_info"]:
-            label_id = int(seg['label_int'])
+            label_id = int(seg["label_int"])
             if label_id == 0:
-                seg['label_int'] = str(empty_mask_label)
+                seg["label_int"] = str(empty_mask_label)
             elif label_id not in segmentation_labels:
                 continue
-                
+
             updated_seg_info.append(seg)
 
         seg_info_json["seg_info"] = updated_seg_info
 
-        with open(seg_info_file, 'w', encoding ='utf8') as json_file:
+        with open(seg_info_file, "w", encoding="utf8") as json_file:
             json.dump(seg_info_json, json_file, indent=4)
 
-        print('################################')
+        print("################################")
         print("seg_info.json file updated with new empty segmentation mask labels")
-        print('################################')
+        print("################################")

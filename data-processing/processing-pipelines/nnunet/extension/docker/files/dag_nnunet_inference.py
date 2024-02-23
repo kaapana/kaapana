@@ -56,6 +56,7 @@ properties_template = {
         "type": "string",
         "required": True,
         "enum": [],
+        "default": "3d_lowres"
     },
     "inf_softmax": {
         "title": "enable softmax",
@@ -114,6 +115,10 @@ for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
             to_be_placed = task_values[key]
             if key == "model":
                 item["enum"] = to_be_placed
+                # set the first available model or `3d_lowres` as default model
+                item["default"] = next(iter(to_be_placed), None)
+                if '3d_lowres' in to_be_placed:
+                    item["default"] = "3d_lowres"
             else:
                 if isinstance(to_be_placed, list):
                     to_be_placed = ",".join(to_be_placed)

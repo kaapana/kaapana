@@ -44,10 +44,10 @@ if [ "$MODE" = "preprocess" ]; then
         preprocess="-no_pp"
     fi
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
-        experiment_planner_pretrain="ExperimentPlanner3D_v21_Pretrained"
+        experiment_planner_pretrain="-pl3d ExperimentPlanner3D_v21_Pretrained"
         plans_path=$(dirname "$PRETRAINED_WEIGHTS")
-        overwrite_plans="/models/nnUNet/$plans_path/plans.pkl"   
-        overwrite_plans_identifier="TRANSFER_TRIAL"
+        overwrite_plans="-overwrite_plans /models/nnUNet/$plans_path/plans.pkl"   
+        overwrite_plans_identifier="-overwrite_plans_identifier TRANSFER_TRIAL"
     else
         experiment_planner_pretrain=""
         overwrite_plans=""
@@ -74,9 +74,9 @@ if [ "$MODE" = "preprocess" ]; then
     echo "# pre-trained weights: $PRETRAINED_WEIGHTS";
     echo "#"
     echo "#"
-    echo "# COMMAND:     nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP -pl3d $experiment_planner_pretrain -overwrite_plans $overwrite_plans -overwrite_plans_identifier $overwrite_plans_identifier"
+    echo "# COMMAND:     nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
     echo "#"
-    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP -pl3d $experiment_planner_pretrain -overwrite_plans $overwrite_plans -overwrite_plans_identifier $overwrite_plans_identifier
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"

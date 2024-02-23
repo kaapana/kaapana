@@ -24,22 +24,7 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     echo "# Starting preprocessing..."
     echo "#"
-    echo "# PREPROCESS:      $PREP_PREPROCESS";
-    echo "# PREP_INCREMENT_STEP: $PREP_INCREMENT_STEP";
-    echo "# CHECK_INTEGRITY: $PREP_CHECK_INTEGRITY";
-    echo "#"
-    echo "# OMP_THREAD_LIMIT" $OMP_THREAD_LIMIT
-    echo "# OMP_NUM_THREADS" $OMP_NUM_THREADS
-    echo "# PREP_TL" $PREP_TL
-    echo "# PREP_TF" $PREP_TF
-    echo "#"
-    echo "# NIFTI_DIRS: $INPUT_MODALITY_DIRS";
-    echo "# LABEL_DIR: $PREP_LABEL_DIRS";
-    echo "# MODALITIES: $PREP_MODALITIES";
-    echo "#"
-    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base";
-    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed";
-    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER";
+    
     if [ "$PREP_INCREMENT_STEP" = "all" ] || [ "$PREP_INCREMENT_STEP" = "to_dataset_properties" ]; then
         echo "#"
         echo "# Starting create_dataset..."
@@ -58,11 +43,40 @@ if [ "$MODE" = "preprocess" ]; then
     else
         preprocess="-no_pp"
     fi
+    if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
+        experiment_planner_pretrain="ExperimentPlanner3D_v21_Pretrained"
+        plans_path=$(dirname "$PRETRAINED_WEIGHTS")
+        overwrite_plans="/models/nnUNet/$plans_path/plans.pkl"   
+        overwrite_plans_identifier="TRANSFER_TRIAL"
+    else
+        experiment_planner_pretrain=""
+        overwrite_plans=""
+    fi
 
-    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP"
     echo "#"
-    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP
-    # nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP -pl3d ExperimentPlanner3D_v21_Pretrained -overwrite_plans /models/nnUNet/3d_fullres/Task256_TotalSegmentator_3mm_1139subj/nnUNetTrainerV2_ep8000_nomirror__nnUNetPlansv2.1/plans.pkl -overwrite_plans_identifier TRANSFER_TRIAL
+    echo "# PREPROCESS:      $PREP_PREPROCESS";
+    echo "# PREP_INCREMENT_STEP: $PREP_INCREMENT_STEP";
+    echo "# CHECK_INTEGRITY: $PREP_CHECK_INTEGRITY";
+    echo "#"
+    echo "# OMP_THREAD_LIMIT" $OMP_THREAD_LIMIT
+    echo "# OMP_NUM_THREADS" $OMP_NUM_THREADS
+    echo "# PREP_TL" $PREP_TL
+    echo "# PREP_TF" $PREP_TF
+    echo "#"
+    echo "# NIFTI_DIRS: $INPUT_MODALITY_DIRS";
+    echo "# LABEL_DIR: $PREP_LABEL_DIRS";
+    echo "# MODALITIES: $PREP_MODALITIES";
+    echo "#"
+    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base";
+    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed";
+    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER";
+    echo "#"
+    echo "# pre-trained weights: $PRETRAINED_WEIGHTS";
+    echo "#"
+    echo "#"
+    echo "# COMMAND:     nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP -pl3d $experiment_planner_pretrain -overwrite_plans $overwrite_plans -overwrite_plans_identifier $overwrite_plans_identifier"
+    echo "#"
+    nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP -pl3d $experiment_planner_pretrain -overwrite_plans $overwrite_plans -overwrite_plans_identifier $overwrite_plans_identifier
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"
@@ -78,26 +92,6 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# Starting training..."
     echo "#"
-    echo "# FOLD:  $TRAIN_FOLD";
-    echo "# TASK:  $TASK";
-    echo "# MODEL: $MODEL";
-    echo "# NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER";
-    echo "# FP32:" $FP32;
-    echo "#"
-    echo "# MAX_EPOCHS: $TRAIN_MAX_EPOCHS";
-    echo "# EPOCHS_PER_ROUND: $EPOCHS_PER_ROUND";
-    echo "# NUM_BATCHES_PER_EPOCH: $NUM_BATCHES_PER_EPOCH";
-    echo "# NUM_VAL_BATCHES_PER_EPOCH: $NUM_VAL_BATCHES_PER_EPOCH";
-    echo "#"
-    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
-    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER"
-    echo "# TENSORBOARD_DIR:      $TENSORBOARD_DIR"
-    echo "#"
-    echo "# TRAIN_CONTINUE:       $TRAIN_CONTINUE"
-    echo "# TRAIN_NPZ:            $TRAIN_NPZ"
-    echo "# PRETRAINED_WEIGHTS:   $PRETRAINED_WEIGHTS"
-    echo "#"
     
     # if ! [ -z "${TENSORBOARD_DIR}" ]; then
     #     echo "# Starting monitoring:";
@@ -106,8 +100,16 @@ elif [ "$MODE" = "training" ]; then
     # fi
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
         pretrain="-pretrained_weights /models/nnUNet/$PRETRAINED_WEIGHTS/model_final_checkpoint.model"
+        pretrained_plan="nnUNetPlans_pretrained_TRANSFER_TRIAL"
+        TRAIN_NETWORK_TRAINER="nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads"
+        echo "# WARNING: nnU-Net training from pre-trained weights ==> changing TRAIN_NETWORK_TRAINER!"
+        echo "# WARNING: Changing from given $TRAIN_NETWORK_TRAINER to nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads trainer!"
+        npz="--npz"
     else
         pretrain=""
+        pretrained_plan=""
+        # take given TRAIN_NETWORK_TRAINER
+        npz=""
     fi
 
     if [ "$TRAIN_CONTINUE" = "True" ] || [ "$TRAIN_CONTINUE" = "true" ]; then
@@ -132,11 +134,32 @@ elif [ "$MODE" = "training" ]; then
     else
         disable_postprocessing=""
     fi
-    
+
     echo "#"
-    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrain $fp32 $npz $continue"
+    echo "# FOLD:  $TRAIN_FOLD";
+    echo "# TASK:  $TASK";
+    echo "# MODEL: $MODEL";
+    echo "# NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER";
+    echo "# FP32:" $FP32;
+    echo "#"
+    echo "# MAX_EPOCHS: $TRAIN_MAX_EPOCHS";
+    echo "# EPOCHS_PER_ROUND: $EPOCHS_PER_ROUND";
+    echo "# NUM_BATCHES_PER_EPOCH: $NUM_BATCHES_PER_EPOCH";
+    echo "# NUM_VAL_BATCHES_PER_EPOCH: $NUM_VAL_BATCHES_PER_EPOCH";
+    echo "#"
+    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
+    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
+    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER"
+    echo "# TENSORBOARD_DIR:      $TENSORBOARD_DIR"
+    echo "#"
+    echo "# TRAIN_CONTINUE:       $TRAIN_CONTINUE"
+    echo "# TRAIN_NPZ:            $TRAIN_NPZ"
+    echo "# PRETRAINED_WEIGHTS:   $PRETRAINED_WEIGHTS"
+    echo "#"
+    echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrained_plan $pretrain $fp32 $npz $continue"
     # nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrain $fp32 $npz $continue
-    nnUNet_train $MODEL nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads $TASK $TRAIN_FOLD -p nnUNetPlans_pretrained_TRANSFER_TRIAL --npz $pretrain
+    nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrained_plan $pretrain $fp32 $npz $continue
+    # nnUNet_train $MODEL nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads $TASK $TRAIN_FOLD -p nnUNetPlans_pretrained_TRANSFER_TRIAL --npz $pretrain
 
     # CREATE_REPORT="True"
 

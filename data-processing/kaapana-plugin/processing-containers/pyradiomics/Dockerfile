@@ -19,3 +19,4 @@ RUN python3 -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/
 
 COPY files/pyradiomics.py /kaapana/app/
 
+CMD ["python3","-u","/kaapana/app/pyradiomics.py"]

@@ -101,13 +101,9 @@ elif [ "$MODE" = "training" ]; then
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
         pretrain="-pretrained_weights /models/nnUNet/$PRETRAINED_WEIGHTS/model_final_checkpoint.model"
         pretrained_plan="-p nnUNetPlans_pretrained_TRANSFER_TRIAL"
-        TRAIN_NETWORK_TRAINER="nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads"
-        echo "# WARNING: nnU-Net training from pre-trained weights ==> changing TRAIN_NETWORK_TRAINER!"
-        echo "# WARNING: Changing from given $TRAIN_NETWORK_TRAINER to nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads trainer!"
     else
         pretrain=""
         pretrained_plan=""
-        # take given TRAIN_NETWORK_TRAINER
     fi
 
     if [ "$TRAIN_CONTINUE" = "True" ] || [ "$TRAIN_CONTINUE" = "true" ]; then

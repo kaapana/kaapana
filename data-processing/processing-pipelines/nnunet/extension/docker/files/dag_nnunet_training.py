@@ -105,9 +105,15 @@ ui_forms = {
             "train_network_trainer": {
                 "title": "Network-trainer",
                 "default": train_network_trainer,
-                "description": "nnUNetTrainerV2 or nnUNetTrainerV2CascadeFullRes",
+                "description": "nnUNetTrainerV2, nnUNetTrainerV2CascadeFullRes, nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads",
+                "enum": [
+                    "nnUNetTrainerV2",
+                    "nnUNetTrainerV2CascadeFullRes",
+                    "nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads",
+                ],
                 "type": "string",
                 "readOnly": False,
+                "required": True,
             },
             "prep_modalities": {
                 "title": "Modalities",
@@ -361,7 +367,7 @@ nnunet_preprocess = NnUnetOperator(
     allow_federated_learning=True,
     whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
     trigger_rule=TriggerRule.NONE_FAILED,
-    dev_server=None,  #'code-server'
+    dev_server=None,  # "code-server"
 )
 
 nnunet_train = NnUnetOperator(
@@ -373,7 +379,7 @@ nnunet_train = NnUnetOperator(
     allow_federated_learning=True,
     train_network_trainer=train_network_trainer,
     train_fold="all",
-    dev_server=None,
+    dev_server=None,  # "code-server"
     retries=0,
 )
 
@@ -381,6 +387,7 @@ generate_nnunet_report = NnUnetNotebookOperator(
     dag=dag,
     name="generate-nnunet-report",
     input_operator=nnunet_train,
+    dev_server=None,  # "jupyterlab",
     arguments=["/kaapana/app/notebooks/nnunet_training/run_generate_nnunet_report.sh"],
 )
 

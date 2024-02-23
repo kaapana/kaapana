@@ -193,7 +193,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="miac-nnunet-flow",
+    dag_id="nnunet-empty-seg-flow",
     default_args=args,
     concurrency=concurrency,
     max_active_runs=max_active_runs,
@@ -229,7 +229,7 @@ alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 meta_props = {
     "ContentLabel": "SEGMENTATION_HD-BET",
     "ContentDescription": "Image segmentation",
-    "ClinicalTrialCoordinatingCenterName": "MIAC",
+    "ClinicalTrialCoordinatingCenterName": "DKFZ",
 }
 # segment_attributes_props = {
 #     '99': ('recommendedDisplayRGBValue', [0, 0, 128]),

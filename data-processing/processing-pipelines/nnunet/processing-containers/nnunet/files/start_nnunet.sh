@@ -100,16 +100,14 @@ elif [ "$MODE" = "training" ]; then
     # fi
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
         pretrain="-pretrained_weights /models/nnUNet/$PRETRAINED_WEIGHTS/model_final_checkpoint.model"
-        pretrained_plan="nnUNetPlans_pretrained_TRANSFER_TRIAL"
+        pretrained_plan="-p nnUNetPlans_pretrained_TRANSFER_TRIAL"
         TRAIN_NETWORK_TRAINER="nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads"
         echo "# WARNING: nnU-Net training from pre-trained weights ==> changing TRAIN_NETWORK_TRAINER!"
         echo "# WARNING: Changing from given $TRAIN_NETWORK_TRAINER to nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads trainer!"
-        npz="--npz"
     else
         pretrain=""
         pretrained_plan=""
         # take given TRAIN_NETWORK_TRAINER
-        npz=""
     fi
 
     if [ "$TRAIN_CONTINUE" = "True" ] || [ "$TRAIN_CONTINUE" = "true" ]; then
@@ -157,9 +155,7 @@ elif [ "$MODE" = "training" ]; then
     echo "# PRETRAINED_WEIGHTS:   $PRETRAINED_WEIGHTS"
     echo "#"
     echo "# COMMAND: nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrained_plan $pretrain $fp32 $npz $continue"
-    # nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrain $fp32 $npz $continue
     nnUNet_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrained_plan $pretrain $fp32 $npz $continue
-    # nnUNet_train $MODEL nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads $TASK $TRAIN_FOLD -p nnUNetPlans_pretrained_TRANSFER_TRIAL --npz $pretrain
 
     # CREATE_REPORT="True"
 

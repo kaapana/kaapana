@@ -15,7 +15,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates gnupg patch
 
 # nodejs
-RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - \
+RUN curl -sL https://deb.nodesource.com/setup_16.x | bash - \
     && apt-get install -y nodejs
 
 # yarn
@@ -74,11 +74,7 @@ RUN apt update \
 RUN apt update \
     && apt install -y --no-install-recommends \
     xvfb x11vnc \
-<<<<<<< HEAD
     vim-tiny ttf-wqy-zenhei  \
-=======
-    vim-tiny firefox ttf-ubuntu-font-family ttf-wqy-zenhei  \
->>>>>>> 1acaa1aa (change constains file location)
     && apt autoclean -y \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
@@ -94,11 +90,7 @@ RUN apt-get update \
 
 RUN apt update \
     && apt install -y --no-install-recommends --allow-unauthenticated \
-<<<<<<< HEAD
-    lightdm lxde gtk2-engines-murrine gtk2-engines-pixbuf gtk2-engines-murrine arc-theme \
-=======
     lightdm lxde gtk2-engines-murrine gnome-themes-standard gtk2-engines-pixbuf gtk2-engines-murrine arc-theme \
->>>>>>> 1acaa1aa (change constains file location)
     && apt autoclean -y \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
@@ -118,14 +110,12 @@ RUN apt-get update \
 
 # python library
 COPY /files/requirements.txt /tmp
+
 RUN apt-get update \
     && dpkg-query -W -f='${Package}\n' > /tmp/a.txt \
     && apt-get install -y python3-pip python3-dev build-essential \
-<<<<<<< HEAD
+    && pip3 install --ignore-installed blinker \
     && pip3 install setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt \
-=======
-    && pip3 install setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt \
->>>>>>> 1acaa1aa (change constains file location)
     && ln -s /usr/bin/python3 /usr/local/bin/python \
     && dpkg-query -W -f='${Package}\n' > /tmp/b.txt \
     && apt-get remove -y `diff --changed-group-format='%>' --unchanged-group-format='' /tmp/a.txt /tmp/b.txt | xargs` \
@@ -181,10 +171,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     gedit \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
-<<<<<<< HEAD
-
-=======
->>>>>>> 1acaa1aa (change constains file location)
 
 
 RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --no-cache-dir \

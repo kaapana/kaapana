@@ -1,13 +1,8 @@
 FROM docker.io/node:20-alpine3.18 as build
 
 LABEL IMAGE="ohif"
-<<<<<<< HEAD
-LABEL VERSION="4.12.26"
-LABEL BUILD_IGNORE="False"
-=======
 LABEL VERSION="v3.7.0"
-LABEL CI_IGNORE="False"
->>>>>>> 3fd3650c (ohif 3.7.0 as default ohif, v2 backup: /ohif-v2)
+LABEL BUILD_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python3
 

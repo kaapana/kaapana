@@ -144,9 +144,17 @@ if __name__ == "__main__":
             # integrate res_dict into json in json_info_dir
             if json_info_dir:
                 # get existing json_info form json_info operator to correct format
-                json_info = list(Path(batch_element_dir, json_info_dir).glob("*.json"))[
-                    0
-                ]
+                json_info = list(Path(batch_element_dir, json_info_dir).glob("*.json"))
+                if len(json_info) > 0:
+                    json_info = json_info[0]
+                else:
+                    logger.info("#")
+                    logger.info(
+                        f"# No JSON file in {json_info_dir}! ==> No SEG file, so skip!"
+                    )
+                    logger.info("#")
+                    continue
+
                 with open(json_info, "r") as f:
                     json_content = json.load(f)
 

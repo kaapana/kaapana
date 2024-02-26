@@ -2,3 +2,5 @@ pydicom
 python-dateutil
 pytz
 apache-airflow
+pytest
+pytest-xdist

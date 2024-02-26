@@ -44,7 +44,7 @@ def fill_datetime_related_tags(dcm):
     # Dicom Standard
     dcm.AcquisitionDateTime = now.strftime("%Y%m%d%H%M%S.%f")
     # Adding Trailing Whitespace
-    dcm.InstanceCoercionDateTime = now.strftime(" %Y%m%d%H%M%S.%f ")
+    dcm.InstanceCoercionDateTime = now.strftime("%Y%m%d%H%M%S.%f ")
     # Only DateTime Without Seconds
     dcm.RadiopharmaceuticalStartDateTime = now.strftime("%Y%m%d%H%M%S")
 
@@ -66,11 +66,15 @@ def fill_datetime_related_tags(dcm):
     # Add Timezone Offset
     minus_timezone = pytz.timezone("America/New_York")
     minus_datetime = now.astimezone(minus_timezone)
-    dcm.AttributeModificationDateTime = minus_datetime.strftime("%Y%m%d%H%M%S.%f%z")
+    dcm.AttributeModificationDateTime = minus_datetime.strftime(
+        "%Y%m%d%H%M%S.%f%z"
+    )
 
     plus_timezone = pytz.timezone("Asia/Kolkata")
     plus_datetime = now.astimezone(plus_timezone)
-    dcm.ExpectedCompletionDateTime = plus_datetime.strftime("%Y%m%d%H%M%S.%f%z")
+    dcm.ExpectedCompletionDateTime = plus_datetime.strftime(
+        "%Y%m%d%H%M%S.%f%z"
+    )
 
     # Open Cases
     dcm.ScheduledProcedureStepStartDateTime = ""
@@ -80,16 +84,20 @@ def fill_datetime_related_tags(dcm):
     dcm.ProcedureStepCancellationDateTime = ""
 
     # DATE
-    dcm.ContentDate = now.strftime("  %Y%m%d   ")
     dcm.StudyDate = now.strftime("%Y%m%d")
-    dcm.SeriesDate = now.strftime("%Y%m")
-    dcm.PerformedProcedureStepStartDate = now.strftime("%Y")
-    dcm.PerformedProcedureStepEndDate = now.strftime("%Y.%m.%d")
-    dcm.PresentationCreationDate = now.strftime("%Y-%m-%d")
-    dcm.StructureSetDate = ""
+
+    # dcm.ContentDate = now.strftime("%Y%m%d  ")
+    # dcm.SeriesDate = now.strftime("%Y%m")
+    # dcm.PerformedProcedureStepStartDate = now.strftime("%Y")
+    # dcm.PerformedProcedureStepEndDate = now.strftime("%Y.%m.%d")
+    # dcm.PresentationCreationDate = now.strftime("%Y-%m-%d")
+    # dcm.StructureSetDate = ""
 
     # TIME
-    dcm.ContentTime = now.strftime("   %H%M%S.%f   ")
+    # dcm.ContentTime = now.strftime("%H%M%S.%f   ")
+    # dcm.PresentationCreationTime = now.strftime("%H.%M.%S")
+    # dcm.StructureSetTime = now.strftime("%H:%M:%S.%f")
+
     dcm.StudyTime = now.strftime("%H%M%S.%f")
     dcm.TreatmentControlPointTime = now.strftime("%H%M%S.%f")[:-1]
     dcm.SafePositionExitTime = now.strftime("%H%M%S.%f")[:-2]
@@ -97,8 +105,6 @@ def fill_datetime_related_tags(dcm):
     dcm.SeriesTime = now.strftime("%H%M%S")
     dcm.PerformedProcedureStepStartTime = now.strftime("%H%M")
     dcm.PerformedProcedureStepEndTime = now.strftime("%H")
-    dcm.PresentationCreationTime = now.strftime("%H.%M.%S")
-    dcm.StructureSetTime = now.strftime("%H:%M:%S.%f")
 
     return dcm
 
@@ -132,8 +138,12 @@ def fill_byte_data(dcm):
     dcm.BurnedInAnnotation = "NO"
 
     float_pixel_data = [1.0, 2.0, 3.0]
-    byte_pixel_data_float = struct.pack("f" * len(float_pixel_data), *float_pixel_data)
-    byte_pixel_data_double = struct.pack("d" * len(float_pixel_data), *float_pixel_data)
+    byte_pixel_data_float = struct.pack(
+        "f" * len(float_pixel_data), *float_pixel_data
+    )
+    byte_pixel_data_double = struct.pack(
+        "d" * len(float_pixel_data), *float_pixel_data
+    )
 
     # Example of adding a bad pixel image
     dcm.BadPixelImage = b"\x00"
@@ -169,7 +179,7 @@ def fill_rtstruct(dcm):
     roi_observations_seq = Sequence()
     structure_set_roi_seq = Sequence()
 
-    for idx, label_type in enumerate(["marker", "organ", "other", "000000_1"]):
+    for idx, label_type in enumerate(["MARKER", "ORGAN", "OTHER", "000000_1"]):
         # Add sub-items to the sequence (example with Observation Number and Referenced ROI Number)
         roi_observation = pydicom.Dataset()
         roi_observation.ObservationNumber = str(idx)
@@ -205,7 +215,7 @@ def fill_sequence(dcm):
 def fill_segmentation(dcm):
     segment_sequence = Sequence()
     for alg_name, alg_type in zip(
-        ["TotalSegmentator", "NNuNet"], ["Segmentation", "Classification"]
+        ["TotalSegmentator", "NNuNet"], ["XYZ_123", "A_B_C"]
     ):
         segment = pydicom.Dataset()
         segment.SegmentAlgorithmName = alg_name
@@ -276,6 +286,21 @@ def generate_ct(src_dir, name):
     dcm = fill_datetime_related_tags(dcm)
     dcm = fill_sequence(dcm)
     dcm.save_as(filename, write_like_original=False)
+
+
+def generate_dcms(run_dir, batch_name, operator_in_dir):
+    generate_ct(
+        run_dir / batch_name / "batch1" / operator_in_dir,
+        "ct",
+    )
+    generate_seg(
+        run_dir / batch_name / "batch2" / operator_in_dir,
+        "seg",
+    )
+    generate_rtstruct(
+        run_dir / batch_name / "batch3" / operator_in_dir,
+        "rtstruct",
+    )
 
 
 def generate_test_dicoms(src_dir):

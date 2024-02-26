@@ -1,17 +1,14 @@
 import os
-from pathlib import Path
 import sys
-import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from attr import dataclass
-from mock_modules import mock_modules
-from generator import generate_ct, generate_rtstruct, generate_seg
+import pytest
+from tests.mock_modules import mock_modules
+from tests.generator import generate_dcms
 from airflow.models.skipmixin import SkipMixin
 from airflow.operators.python import PythonOperator
-
-
-mock_modules()
 
 sys.path.insert(
     0,
@@ -21,6 +18,7 @@ sys.path.insert(
     ),
 )
 
+mock_modules()
 
 from kaapana.operators.KaapanaPythonBaseOperator import (
     KaapanaPythonBaseOperator,
@@ -36,62 +34,51 @@ class Dag:
     run_id: str
 
 
-class LocalDcm2JsonOperatorTest(unittest.TestCase):
+@pytest.fixture
+def op():
+    os.environ["DICT_PATH"] = (
+        "services/flow/airflow/docker/files/scripts/dicom_tag_dict.json"
+    )
 
-    def setUp(self):
+    dag = Dag(run_id="test_run")
 
-        dag = Dag(run_id="TestID")
+    def mock_decorator_function(func):
+        def wrapper(*args, **kwargs):
+            result = func(dag_run=dag, *args, **kwargs)
+            return result
 
-        def mock_decorator_function(func):
-            def wrapper(*args, **kwargs):
-                result = func(dag_run=dag, *args, **kwargs)
-                return result
+        return wrapper
 
-            return wrapper
-
-        mock1 = patch.object(
-            KaapanaPythonBaseOperator, "__init__", new=__init__
+    mock1 = patch.object(KaapanaPythonBaseOperator, "__init__", __init__)
+    mock2 = patch.object(SkipMixin, "__init__", __init__)
+    mock3 = patch.object(PythonOperator, "__init__", __init__)
+    mock4 = patch(
+        "kaapana.operators.HelperCaching.cache_operator_output",
+        mock_decorator_function,
+    )
+    with mock1, mock2, mock3, mock4:
+        from kaapana.operators.LocalDcm2JsonOperator import (
+            LocalDcm2JsonOperator,
         )
-        mock2 = patch.object(SkipMixin, "__init__", new=__init__)
-        mock3 = patch.object(PythonOperator, "__init__", new=__init__)
-        mock4 = patch(
-            "kaapana.operators.HelperCaching.cache_operator_output",
-            mock_decorator_function,
-        )
-        with mock1, mock2, mock3, mock4:
-            from kaapana.operators.LocalDcm2JsonOperator import (
-                LocalDcm2JsonOperator,
-            )
 
-            op = LocalDcm2JsonOperator(dag=DEFAULT_DAG_RUN_ID)
-            op.operator_in_dir = "operator_in_dir"
-            op.operator_out_dir = "operator_out_dir"
-            op.manage_cache = "ignore"
-            op.airflow_workflow_dir = "tests"
-            op.batch_name = "batch_name"
+        op = LocalDcm2JsonOperator(dag="", testing=True)
+        op.operator_in_dir = "operator_in_dir"
+        op.operator_out_dir = "operator_out_dir"
+        op.manage_cache = "ignore"
+        op.airflow_workflow_dir = "tests"
+        op.batch_name = "batch_name"
 
-            run_dir = Path(op.airflow_workflow_dir, dag.run_id)
-            generate_ct(
-                run_dir / op.batch_name / "batch1" / op.operator_in_dir, "ct"
-            )
-            generate_seg(
-                run_dir / op.batch_name / "batch2" / op.operator_in_dir, "seg"
-            )
-            generate_rtstruct(
-                run_dir / op.batch_name / "batch3" / op.operator_in_dir,
-                "rtstruct",
-            )
-            op.exit_on_error = False
-            op.start()
-            os.environ["DICT_PATH"] = (
-                "services/flow/airflow/docker/files/scripts/dicom_tag_dict.json"
-            )
-
-            self.op = LocalDcm2JsonOperator(dag="")
-
-    def test_complete(self):
-        self.op.start()
+        run_dir = Path(op.airflow_workflow_dir, dag.run_id)
+        generate_dcms(run_dir, op.batch_name, op.operator_in_dir)
+        return op
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_exit_on_error_false(op):
+    op.exit_on_error = False
+    op.start()
+
+
+def test_exit_on_error_true(op):
+    op.exit_on_error = True
+    with pytest.raises(Exception):
+        op.start()

@@ -33,3 +33,4 @@ request_config.yaml
 .direnv/
 .envrc
 .venv/
+tests/test_run/*

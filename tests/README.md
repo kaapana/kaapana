@@ -1,4 +1,7 @@
-# Unit tests
+# Additional Unit tests
+
+These tests are additional local tests.
+There is also a CI/CD pipeline that tests building, deploying, running dags, etc. that is not included here.
 
 ## Pytest
 
@@ -8,3 +11,8 @@ Pytest automatically finds all the files in test_*.py pattern.
 - `pip install -r test-requirements.txt`
 - `pytest`
 
+## CI/CD
+
+Build script is tested by CI:
+
+https://codebase.helmholtz.cloud/kaapana/kaapana-ci

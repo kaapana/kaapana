@@ -327,7 +327,10 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             ] = self.remote_conf_data["federated_form"]["skip_operators"] + [
                 "get-input-data",
                 "get-ref-series-ct",
-                "dcmseg2nrrd",
+                "mask2nifti",
+                "filter-masks",
+                "fuse-masks",
+                "rename-seg-label-names",
                 "dcm-converter-ct",
                 "seg-check",
             ]

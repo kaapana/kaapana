@@ -10,8 +10,3 @@ Pytest automatically finds all the files in test_*.py pattern.
 
 - `pip install -r test-requirements.txt`
 - `pytest`
-
-## CI/CD
-
-Build script is tested by CI accessible only to internal members.
-https://codebase.helmholtz.cloud/kaapana/kaapana-ci

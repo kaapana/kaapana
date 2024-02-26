@@ -28,7 +28,7 @@ RUN cd /nnunet-pip-package && pip3 install ./
 
 
 
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt tensorboard==2.15.1
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt tensorboard==2.15.1
 
 
 WORKDIR /kaapana/app

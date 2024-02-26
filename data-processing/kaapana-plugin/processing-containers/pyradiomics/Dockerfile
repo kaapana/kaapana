@@ -15,7 +15,7 @@ RUN git clone https://github.com/AIM-Harvard/pyradiomics.git pyradiomics \
 
 
 COPY files/requirements.txt /kaapana/app/
-RUN python3 -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
+RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
 
 COPY files/pyradiomics.py /kaapana/app/
 

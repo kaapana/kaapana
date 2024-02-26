@@ -7,7 +7,7 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /kaapana/app
 
 COPY ./files/requirements.txt /kaapana/app/requirements.txt
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --no-cache-dir --upgrade -r /kaapana/app/requirements.txt
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir --upgrade -r /kaapana/app/requirements.txt
 
 COPY ./files/*.py /kaapana/app/
 COPY ./files/*.html /kaapana/app/

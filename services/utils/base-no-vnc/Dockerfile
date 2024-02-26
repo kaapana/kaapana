@@ -173,7 +173,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --no-cache-dir \
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir \
     # Security fix for CVE-2021-33503
     urllib3==1.26.5 \
     # Security fix for CVE-2022-40898

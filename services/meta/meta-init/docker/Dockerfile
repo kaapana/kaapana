@@ -8,7 +8,7 @@ WORKDIR /
 RUN mkdir /dashboards
 
 COPY files/requirements.txt ./
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --no-cache-dir -r requirements.txt
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r requirements.txt
 
 COPY files/init_meta.py /init_meta.py
 

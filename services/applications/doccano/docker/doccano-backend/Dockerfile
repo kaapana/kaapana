@@ -28,14 +28,14 @@ RUN apt-get update \
   libpq-dev=11.* \
   unixodbc-dev=2.* \
   g++=4:* \
-  && pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --no-cache-dir pipenv==2020.11.15 \
+  && pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir pipenv==2020.11.15 \
   && pipenv install --system --deploy \
   && pip uninstall -y pipenv virtualenv-clone virtualenv \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* 
 
 # Security fixes
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/feature/PoC/build-scripts/constraints-0.2.6.txt --no-cache-dir \ 
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir \ 
   # Security fix for CVE-2022-40898
   wheel==0.42.0 \
   # Security fix for CVE-2022-40897

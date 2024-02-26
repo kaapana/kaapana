@@ -133,7 +133,7 @@ put_to_minio = LocalMinioOperator(
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
-    clean_workflow_dir=False,
+    clean_workflow_dir=True,
 )
 
 (

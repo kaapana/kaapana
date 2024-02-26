@@ -1,3 +1,0 @@
-graphviz==0.17
-tensorboardX==2.5
-pynvml==8.0.4

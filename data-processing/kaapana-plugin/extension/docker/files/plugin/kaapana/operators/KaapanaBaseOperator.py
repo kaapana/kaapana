@@ -211,10 +211,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.retry_delay = retry_delay
 
         # helm
-        if dev_server not in [None, "code-server", "jupyterlab"]:
-            raise NameError(
-                "dev_server must be either None, code-server or jupyterlab!"
-            )
+        if dev_server not in [None, "code-server"]:
+            raise NameError("dev_server must be either None or code-server!")
         if dev_server is not None:
             self.execution_timeout = None
         self.dev_server = dev_server
@@ -360,12 +358,16 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if self.pod_resources is None:
             pod_resources = PodResources(
-                request_cpu="{}m".format(self.cpu_millicores)
-                if self.cpu_millicores != None
-                else None,
-                limit_cpu="{}m".format(self.cpu_millicores + 100)
-                if self.cpu_millicores != None
-                else None,
+                request_cpu=(
+                    "{}m".format(self.cpu_millicores)
+                    if self.cpu_millicores != None
+                    else None
+                ),
+                limit_cpu=(
+                    "{}m".format(self.cpu_millicores + 100)
+                    if self.cpu_millicores != None
+                    else None
+                ),
                 request_memory="{}Mi".format(self.ram_mem_mb),
                 limit_memory="{}Mi".format(
                     self.ram_mem_mb_lmt
@@ -578,17 +580,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     "release_name": release_name,
                     "sets": helm_sets,
                 }
-            elif self.dev_server == "jupyterlab":
-                payload = {
-                    "name": "jupyterlab-chart",
-                    "version": KAAPANA_BUILD_VERSION,
-                    "release_name": release_name,
-                    "sets": helm_sets,
-                }
             else:
-                raise NameError(
-                    "dev_server must be either None, code-server or jupyterlab!"
-                )
+                raise NameError("dev_server must be either None or code-server!")
             logging.info("payload")
             logging.info(payload)
             r = requests.post(url, json=payload)

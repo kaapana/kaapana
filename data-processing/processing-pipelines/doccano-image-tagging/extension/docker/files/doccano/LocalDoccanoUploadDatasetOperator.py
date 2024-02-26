@@ -1,4 +1,3 @@
-from minio import Minio
 import os
 import glob
 import uuid
@@ -8,8 +7,6 @@ from datetime import timedelta
 import requests
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import EXTENSIONS_NAMESPACE
-from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperCaching import cache_operator_output
 
 DOCCANO_API = f"http://doccano-backend-service.{EXTENSIONS_NAMESPACE}:8000/v1/"

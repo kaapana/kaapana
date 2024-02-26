@@ -8,5 +8,5 @@ global:
   dynamicVolumes:
   - name: staticwebsiteresults
     mount_path: /usr/share/nginx/html/
-    host_path: /minio/staticwebsiteresults
+    host_path: /staticwebsiteresults
     storage: "10Mi"

@@ -20,8 +20,9 @@ from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR
 from pathlib import Path
 
 try:
-    objects = HelperMinio.list_objects(
-        HelperMinio.minioClient,
+    minioClient = HelperMinio(username="system")
+
+    objects = minioClient.list_objects(
         "uploads",
         prefix="itk",
         recursive=True,

@@ -14,11 +14,10 @@ from threading import Thread
 from pathlib import Path
 import jsonschema
 from app.datasets.utils import execute_opensearch_query
-from app.dependencies import get_db
+from app.dependencies import get_db, get_minio
 from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
-from app.workflows.utils import HelperMinio
 from app.workflows.utils import get_dag_list
 from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
 from fastapi.responses import JSONResponse, Response
@@ -31,7 +30,7 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 router = APIRouter(tags=["client"])
 
-UPLOAD_DIR = "/kaapana/mounted/minio/uploads"
+UPLOAD_DIR = "/tmp"
 
 
 def remove_outdated_tmp_files(search_dir):
@@ -77,7 +76,9 @@ async def post_minio_file_upload(request: Request):
 
 
 @router.patch("/minio-file-upload")
-async def post_minio_file_upload(request: Request, patch: str):
+async def post_minio_file_upload(
+    request: Request, patch: str, minioClient=Depends(get_minio)
+):
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
     uname = request.headers.get("upload-name", None)
@@ -97,10 +98,9 @@ async def post_minio_file_upload(request: Request, patch: str):
                     f"upload mapping dictionary file {patch_fpath} does not exist"
                 )
             logging.info(f"{patch=}, {filename=}")
-            target_path = Path(UPLOAD_DIR) / filename.strip("/")
-            target_path.parents[0].mkdir(parents=True, exist_ok=True)
-            logging.info(f"Moving file {fpath} to {target_path}")
-            shutil.move(fpath, target_path)
+            minioClient.fput_object(
+                bucket_name="uploads", object_name=filename.strip("/"), file_path=fpath
+            )
             patch_fpath.unlink()
             # Todo check if fput_objects also needs a long time... if not Minio file mount can be removed and UPLOAD_DIR might be /tmp
             logging.info(f"Successfully saved file {uname} to Minio")

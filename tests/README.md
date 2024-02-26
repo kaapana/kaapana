@@ -8,5 +8,5 @@ There is also a CI/CD pipeline that tests building, deploying, running dags, etc
 Install requirements and run pytest in the root of the project directory.
 Pytest automatically finds all the files in test_*.py pattern.
 
-- `pip install -r test-requirements.txt`
+- `pip install -r requirements.txt`
 - `pytest`

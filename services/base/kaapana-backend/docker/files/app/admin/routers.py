@@ -21,6 +21,7 @@ from app.workflows.utils import (
     raise_kaapana_connection_error,
     requests_retry_session,
 )
+from app.dependencies import get_minio
 from app.config import settings
 
 router = APIRouter()
@@ -40,7 +41,10 @@ def health_check():
 
 
 @router.get("/get-static-website-results")
-def get_static_website_results():
+def get_static_website_results(
+    request: Request,
+    minioClient=Depends(get_minio),
+):
     def build_tree(item, filepath, org_filepath):
         # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
         splits = filepath.split("/", 1)
@@ -75,7 +79,7 @@ def get_static_website_results():
         return subtree
 
     tree = {"vuetifyFiles": []}
-    objects = HelperMinio.minioClient.list_objects(
+    objects = minioClient.list_objects(
         "staticwebsiteresults", prefix=None, recursive=True
     )
     for obj in objects:

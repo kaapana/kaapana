@@ -1,0 +1,31 @@
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-nnunet-analysis-scripts
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  template:
+    metadata:
+      name: init-nnunet-analysis-scripts
+    spec:
+      containers:
+      - name: init-nnunet-analysis-scripts
+        image: "{{ .Values.global.registry_url }}/nnunet-analysis-scripts:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_jobs }}
+        env:
+        - name: MINIO_SERVICE
+          value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
+        - name: MINIO_USER
+          value: {{ .Values.global.credentials_minio_username  | default "" }}
+        - name: MINIO_PASSWORD
+          value: {{ .Values.global.credentials_minio_password | default ""}}
+        resources:
+          requests:
+            memory: 50Mi
+          limits:
+            memory: 500Mi
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 0

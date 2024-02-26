@@ -7,7 +7,9 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from datetime import timedelta
 from kaapana.operators.HelperMinio import HelperMinio
 
-buckets = HelperMinio.minioClient.list_buckets()
+
+minioClient = HelperMinio(username="system")
+buckets = minioClient.list_buckets()
 bucket_names = [bucket.name for bucket in buckets]
 
 ui_forms = {
@@ -29,24 +31,24 @@ ui_forms = {
             "container_registry_url": {
                 "title": "Enter container registry URL",
                 "type": "string",
-                "required": True
+                "required": True,
             },
             "container_registry_user": {
                 "title": "Enter container registry username (optional)",
                 "description": "Enter only if downloading your container needs login",
-                "type": "string"
+                "type": "string",
             },
             "container_registry_pwd": {
                 "title": "Enter container registry password (optional)",
                 "description": "Enter only if downloading your container needs login",
                 "type": "string",
                 "x-props": {"type": "password"},
-                "readOnly": False
+                "readOnly": False,
             },
             "container_name_version": {
                 "title": "Enter container name:version",
                 "type": "string",
-                "required": True
+                "required": True,
             },
         },
     },

@@ -5,7 +5,7 @@
     "firstName" : "System",
     "lastName" : "User",
     "email" : "",
-    "attributes" : {
+    "attributes" : { "policy": ["consoleAdmin"]
       },
     "requiredActions" : [ ],
     "realmRoles" : [ "dcm4chee-admin" ]

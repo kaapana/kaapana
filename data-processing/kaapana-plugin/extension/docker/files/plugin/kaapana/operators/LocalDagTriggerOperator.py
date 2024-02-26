@@ -27,8 +27,8 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         # ctpet-prep batch 1.3.12.2.1107.5.8.15.101314.30000019092314381173500002262normalization
 
         object_dirs = [join(self.batch_name, series_uid, cache_operator)]
-        HelperMinio.apply_action_to_object_dirs(
-            HelperMinio.minioClient,
+        minio_client = HelperMinio(dag_run=self.dag_run)
+        minio_client.apply_action_to_object_dirs(
             "get",
             self.target_bucket,
             output_dir,
@@ -304,7 +304,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
 
     def trigger_dag(self, ds, **kwargs):
         """
-        Orchestrates triggering of Airflow workflows.  
+        Orchestrates triggering of Airflow workflows.
 
         Parameters:
             ds (str): Datestamp parameter for Airflow.
@@ -318,12 +318,14 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         """
         pending_dags = []
         done_dags = []
-
+        self.dag_run = kwargs["dag_run"]
         self.conf = kwargs["dag_run"].conf
         self.dag_run_id = kwargs["dag_run"].run_id
 
         if self.trigger_dag_id == "":
-            print(f"trigger_dag_id is empty, setting to {self.conf['workflow_form']['trigger_dag_id']}")
+            print(
+                f"trigger_dag_id is empty, setting to {self.conf['workflow_form']['trigger_dag_id']}"
+            )
             self.trigger_dag_id = self.conf["workflow_form"]["trigger_dag_id"]
 
         print(f"{self.use_dcm_files=}")

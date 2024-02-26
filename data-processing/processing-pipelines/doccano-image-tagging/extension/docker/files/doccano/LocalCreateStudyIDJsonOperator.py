@@ -1,4 +1,3 @@
-from minio import Minio
 import os
 import glob
 import uuid
@@ -7,8 +6,6 @@ import datetime
 from datetime import timedelta
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_utils import generate_minio_credentials
-from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperCaching import cache_operator_output
 
 

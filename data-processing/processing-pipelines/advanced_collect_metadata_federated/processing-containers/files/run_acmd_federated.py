@@ -1,13 +1,4 @@
-import os
 import sys
-import psutil
-from pathlib import Path
-import uuid
-import torch
-import json
-import pickle
-import shutil
-import collections
 
 sys.path.insert(0, "/")
 sys.path.insert(0, "/kaapana/app")
@@ -18,8 +9,8 @@ from kaapana_federated.KaapanaFederatedTraining import (
 
 
 class AdvancedCollectMetadataFederatedTraining(KaapanaFederatedTrainingBase):
-    def __init__(self, workflow_dir=None, use_minio_mount=None):
-        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
+    def __init__(self, workflow_dir=None):
+        super().__init__(workflow_dir=workflow_dir)
 
     @timeit
     def upload_workflow_dir_to_minio_object(
@@ -35,7 +26,7 @@ class AdvancedCollectMetadataFederatedTraining(KaapanaFederatedTrainingBase):
 
 if __name__ == "__main__":
     # instantiate FederatedTraining class
-    kaapana_ft = AdvancedCollectMetadataFederatedTraining(use_minio_mount="/minio")
+    kaapana_ft = AdvancedCollectMetadataFederatedTraining()
 
     # actual FL training
     kaapana_ft.train()  # calls train method of KaapanaFederatedTrainingBase

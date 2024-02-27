@@ -423,7 +423,8 @@ def ui_form_schemas(
     elif len(datasets) == 1:
         # if just one instance is selected -> return (allowed) datasets of this instance
         dataset_names = [
-            {"const": d, "title": d + f" ({dataset_size[d]})"}
+            # {"const": d, "title": d + f" ({dataset_size[d]})"}
+            {"const": d, "title": d}
             for d in list(datasets.values())[0]
         ]
 

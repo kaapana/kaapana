@@ -284,7 +284,7 @@ async def get_all_values(item_name, query):
             "items": (
                 [
                     dict(
-                        text=f"{bucket.get('key_as_string', bucket['key'])}  ({bucket['doc_count']})",
+                        text=f"{bucket.get('key_as_string', bucket['key'])}",
                         value=bucket.get("key_as_string", bucket["key"]),
                         count=bucket["doc_count"],
                     )

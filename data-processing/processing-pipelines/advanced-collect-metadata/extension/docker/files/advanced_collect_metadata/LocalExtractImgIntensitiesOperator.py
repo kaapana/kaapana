@@ -63,6 +63,8 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
                 if json_data["00000000 CuratedModality_keyword"] not in ["CT", "MR"]:
                     print("sample is not a CT or MR image --> continue w/ next sample")
                     continue
+                else:
+                    print("sample is a CT or MR image!")
             else:
                 json_data = {}
 
@@ -80,8 +82,9 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
             slices = [pydicom.dcmread(file).pixel_array for file in dcm_fnames]
             new_slices = []
             for arr in slices:
-                if arr.ndim == 3:
-                    new_slices.append(arr)
+                new_slices.append(
+                    arr
+                )  # Note: should work with arr.ndim=3 and arr.ndim=2
             slices = new_slices
             volume = np.stack(slices, axis=-1)
 

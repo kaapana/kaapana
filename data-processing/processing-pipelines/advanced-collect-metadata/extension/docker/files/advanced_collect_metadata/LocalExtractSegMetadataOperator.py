@@ -84,6 +84,7 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
 
             label_volume_info = {}
             cca_info = {}
+            non_zero_layers_indices = {}
             for seg_nifti_fname in seg_nifti_fnames:
                 print(f"{seg_nifti_fname=}")
 
@@ -99,28 +100,18 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
                     "volume_per_class": f"{vol_per_class}",
                 }
 
-                # Convert the numpy array to a SimpleITK image
-                sitk_image = sitk.GetImageFromArray(seg_pixel_data)
-                # Convert the pixel type to 8-bit unsigned integer
-                sitk_image = sitk.Cast(sitk_image, sitk.sitkUInt8)
-                # Perform connected component analysis
-                connected_components = sitk.ConnectedComponent(sitk_image)
-                # Use LabelShapeStatisticsImageFilter to get the number of connected components
-                label_stats = sitk.LabelShapeStatisticsImageFilter()
-                label_stats.Execute(connected_components)
-                # Get the number of connected components
-                num_components = label_stats.GetNumberOfLabels()
-                print("Number of connected components:", num_components)
-                cca_info[basename(seg_nifti_fname)] = {}
-                for label in range(1, num_components + 1):
-                    cca_info[basename(seg_nifti_fname)][
-                        label
-                    ] = label_stats.GetNumberOfPixels(label)
+                # get indices of layers that contain annotation labels
+                print(f"Shape of SEG: {seg_pixel_data.shape}")
+                # Find layers with non-zero values and their indices
+                non_zero_layers_i = np.where(np.any(seg_pixel_data != 0, axis=(0, 1)))[
+                    0
+                ].tolist()
+                non_zero_layers_indices[basename(seg_nifti_fname)] = non_zero_layers_i
 
             print(f"{label_volume_info=}")
-            print(f"{cca_info=}")
+            print(f"{non_zero_layers_indices=}")
             json_data.update({"volume_per_class": label_volume_info})
-            json_data.update({"connected_component_analysis": cca_info})
+            json_data.update({"non_zero_layers_indices": non_zero_layers_indices})
             print(f"{json_data=}")
 
             # save to out_dir

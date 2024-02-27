@@ -215,7 +215,13 @@ async def get_dashboard(config: dict = Body(...)):
                     }
                 },
                 **{
-                    name: {"terms": {"field": field, "size": 10000}}
+                    name: {
+                        "terms": {
+                            "field": field,
+                            "size": 10000,
+                            "order": {"_key": "asc"},
+                        }
+                    }
                     for name, field in filtered_name_field_map.items()
                 },
             },

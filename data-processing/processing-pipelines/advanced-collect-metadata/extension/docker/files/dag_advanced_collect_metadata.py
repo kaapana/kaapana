@@ -127,7 +127,7 @@ put_to_minio = LocalMinioOperator(
     dag=dag,
     action="put",
     action_operators=[merge_branches],
-    bucket_name="downloads",
+    bucket_name="advanced-collect-metadata",
     zip_files=True,
 )
 

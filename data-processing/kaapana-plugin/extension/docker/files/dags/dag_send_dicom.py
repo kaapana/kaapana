@@ -75,6 +75,7 @@ dcm_send = DcmSendOperator(
     level="element",
     enable_proxy=True,
     no_proxy=".svc,.svc.cluster,.svc.cluster.local",
+    labels={"network-access": "external-ips"},
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

@@ -759,6 +759,10 @@ class Container:
         # Init Trivy if configuration check is enabled
         if BuildUtils.configuration_check:
             trivy_utils = BuildUtils.trivy_utils
+            trivy_utils.dockerfile_report_path = os.path.join(
+                trivy_utils.reports_path, "dockerfile_reports"
+            )
+            os.makedirs(trivy_utils.dockerfile_report_path, exist_ok=True)
 
         dockerfiles_found = sorted(set(dockerfiles_found))
 
@@ -795,17 +799,6 @@ class Container:
         Container.container_object_list = Container.check_base_containers(
             Container.container_object_list
         )
-
-        if BuildUtils.configuration_check:
-            # Safe the Dockerfile report to the build directory if there are any errors
-            if not trivy_utils.compressed_dockerfile_report == {}:
-                BuildUtils.logger.error(
-                    "Found configuration errors in Dockerfile! See compressed_dockerfile_report.json for details."
-                )
-                with open(
-                    os.path.join(BuildUtils.build_dir, "dockerfile_report.json"), "w"
-                ) as f:
-                    json.dump(trivy_utils.compressed_dockerfile_report, f)
 
         return Container.container_object_list
 

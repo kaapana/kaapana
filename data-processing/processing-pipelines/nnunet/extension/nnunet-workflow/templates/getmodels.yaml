@@ -4,10 +4,13 @@ kind: Job
 metadata:
   name: nnunet-get-zenodo-models
   namespace: "{{ .Values.global.jobs_namespace }}"
+  
 spec:
   template:
     metadata:
       name: nnunet-get-zenodo-models
+      labels:
+        network-access: external-ips
     spec:
       # hostNetwork: true
       containers:
@@ -36,7 +39,7 @@ spec:
           requests:
             memory: 100Mi
           limits:
-            memory: 200Mi
+            memory: 6Gi
       volumes:
       - name: modeldata
         persistentVolumeClaim:

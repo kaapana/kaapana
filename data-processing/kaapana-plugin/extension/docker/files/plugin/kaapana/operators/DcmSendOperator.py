@@ -56,6 +56,12 @@ class DcmSendOperator(KaapanaBaseOperator):
 
         env_vars.update(envs)
 
+        if not kwargs.get("labels"):
+            kwargs["labels"] = {"network-access": "ctp"}
+        else:
+            if not kwargs.get("labels").get("network-access"):
+                kwargs["labels"]["network-access"] = "ctp"
+
         super().__init__(
             dag=dag,
             name=name,

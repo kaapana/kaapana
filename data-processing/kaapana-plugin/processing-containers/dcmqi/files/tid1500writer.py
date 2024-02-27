@@ -148,9 +148,9 @@ def create_measurements_json(json_path, src_dicom_dir, seg_dicom_dir):
             exit(1)
 
     tid_template = {}
-    tid_template[
-        "@schema"
-    ] = "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/sr-tid1500-schema.json#"
+    tid_template["@schema"] = (
+        "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/schemas/sr-tid1500-schema.json#"
+    )
     tid_template["SeriesNumber"] = (
         str(input_measurements_json["SeriesNumber"])
         if "SeriesNumber" in input_measurements_json
@@ -171,20 +171,26 @@ def create_measurements_json(json_path, src_dicom_dir, seg_dicom_dir):
     tid_template["imageLibrary"] = imageLibrary
 
     tid_template["observerContext"] = {
-        "ObserverType": str(input_measurements_json["ObserverType"])
-        if "ObserverType" in input_measurements_json
-        else "DEVICE",
-        "DeviceObserverName": str(input_measurements_json["DeviceObserverName"])
-        if "DeviceObserverName" in input_measurements_json
-        else "Kaapana",
-        "DeviceObserverManufacturer": str(
-            input_measurements_json["DeviceObserverManufacturer"]
-        )
-        if "DeviceObserverManufacturer" in input_measurements_json
-        else "Kaapana",
-        "DeviceObserverUID": str(input_measurements_json["DeviceObserverUID"])
-        if "DeviceObserverUID" in input_measurements_json
-        else "1.2.3.4.5",  # generate_uid()
+        "ObserverType": (
+            str(input_measurements_json["ObserverType"])
+            if "ObserverType" in input_measurements_json
+            else "DEVICE"
+        ),
+        "DeviceObserverName": (
+            str(input_measurements_json["DeviceObserverName"])
+            if "DeviceObserverName" in input_measurements_json
+            else "Kaapana"
+        ),
+        "DeviceObserverManufacturer": (
+            str(input_measurements_json["DeviceObserverManufacturer"])
+            if "DeviceObserverManufacturer" in input_measurements_json
+            else "Kaapana"
+        ),
+        "DeviceObserverUID": (
+            str(input_measurements_json["DeviceObserverUID"])
+            if "DeviceObserverUID" in input_measurements_json
+            else "1.2.3.4.5"
+        ),  # generate_uid()
     }
 
     # tid_template["observerContext"] = {
@@ -208,9 +214,9 @@ def create_measurements_json(json_path, src_dicom_dir, seg_dicom_dir):
         if "activitySession" in input_measurements_json
         else "1"
     )
-    tid_template[
-        "timePoint"
-    ] = "1"  # should have values of 1 for baseline, and 2 for the followup
+    tid_template["timePoint"] = (
+        "1"  # should have values of 1 for baseline, and 2 for the followup
+    )
 
     tid_template["Measurements"] = []
 
@@ -294,17 +300,21 @@ def create_measurements_json(json_path, src_dicom_dir, seg_dicom_dir):
             measurement_group["FindingSite"] = {}
 
         measurement_group["measurementAlgorithmIdentification"] = {
-            "AlgorithmName": input_measurement_group["AlgorithmName"]
-            if "AlgorithmName" in input_measurement_group
-            else "N/A",
-            "AlgorithmVersion": input_measurement_group["AlgorithmVersion"]
-            if "AlgorithmVersion" in input_measurement_group
-            else "N/A",
-            "AlgorithmParameters": input_measurement_group["AlgorithmParameters"].split(
-                ";"
-            )
-            if "AlgorithmParameters" in input_measurement_group
-            else ["N/A"],
+            "AlgorithmName": (
+                input_measurement_group["AlgorithmName"]
+                if "AlgorithmName" in input_measurement_group
+                else "N/A"
+            ),
+            "AlgorithmVersion": (
+                input_measurement_group["AlgorithmVersion"]
+                if "AlgorithmVersion" in input_measurement_group
+                else "N/A"
+            ),
+            "AlgorithmParameters": (
+                input_measurement_group["AlgorithmParameters"].split(";")
+                if "AlgorithmParameters" in input_measurement_group
+                else ["N/A"]
+            ),
         }
 
         measurement_group["measurementItems"] = []

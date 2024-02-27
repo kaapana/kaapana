@@ -86,6 +86,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         env_vars=None,
         execution_timeout=timedelta(minutes=90),
         allow_empty_segmentation=True,
+        base_nifti_dir=None,
         empty_segmentation_label=99,
         meta_json_props=None,
         seg_attrs_props=None,
@@ -106,6 +107,8 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         :param skip_empty_slices: Whether empty sclices of the series should be skipped. Default: False
         :param env_vars: Environment variables
         :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond it will raise and fail
+        :param base_nifti_dir: nifti directory before the segmentation operator. In case segmentation fails, this operator will create
+            an empty nifti using the base nifti from this directory and create an empty segmentation file.
         :param allow_empty_segmentation: handle empty segmentation or empty nifti files
         :param empty_segmentation_label: if allow_empty_segmentation set to True, it will replace the empty segmentation mask label to 
             provided user given label.
@@ -167,6 +170,9 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                 raise NameError(
                     "Either segmentation_operator or operator_in_dir has to be set."
                 )
+        
+        if base_nifti_dir:
+            env_vars["BASE_NIFTI_DIR"] = str(base_nifti_dir)
 
         super().__init__(
             dag=dag,

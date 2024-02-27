@@ -10,7 +10,8 @@ import subprocess
 import numpy as np
 import pydicom
 
-from handle_empty_seg import check_n_replace_empty_mask
+from emptyseg.handle import check_n_replace_empty_mask
+from emptyseg.create import create_empty_seg
 
 processed_count = 0
 
@@ -417,14 +418,20 @@ code_lookup_table_path = "code_lookup_table.json"
 with open(code_lookup_table_path) as f:
     code_lookup_table = json.load(f)
 
-batch_folders = sorted(
-    [
-        f
-        for f in glob.glob(
-            os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
-        )
-    ]
-)
+batch_path = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"])
+
+# check and create a empty nifti file in case
+# no nifti file is created in the image_list input directory
+# by the algorithm
+if allow_empty_segmentation:
+    create_empty_seg(
+        batch_path,
+        os.environ.get("BASE_NIFTI_DIR", ""),
+        os.environ["OPERATOR_IMAGE_LIST_INPUT_DIR"],
+    )
+
+
+batch_folders = sorted([f for f in glob.glob(os.path.join(batch_path, "*"))])
 
 print("Found {} batches".format(len(batch_folders)))
 

@@ -1,8 +1,8 @@
 asyncio==3.4.3
 aiofiles==23.1.0
-connexion==3.0.5
+connexion>=3.0.5
 opensearch-py==2.2.0
-fastapi==0.108.0
+fastapi==0.109.2
 gunicorn==20.1.0
 Jinja2==3.1.3
 python-dotenv==1.0.0

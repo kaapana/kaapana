@@ -15,7 +15,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates gnupg patch
 
 # nodejs
-RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - \
+RUN curl -sL https://deb.nodesource.com/setup_16.x | bash - \
     && apt-get install -y nodejs
 
 # yarn
@@ -90,7 +90,7 @@ RUN apt-get update \
 
 RUN apt update \
     && apt install -y --no-install-recommends --allow-unauthenticated \
-    lightdm lxde gtk2-engines-murrine gtk2-engines-pixbuf gtk2-engines-murrine arc-theme \
+    lightdm lxde gtk2-engines-murrine gnome-themes-standard gtk2-engines-pixbuf gtk2-engines-murrine arc-theme \
     && apt autoclean -y \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*
@@ -110,10 +110,13 @@ RUN apt-get update \
 
 # python library
 COPY /files/requirements.txt /tmp
+
 RUN apt-get update \
     && dpkg-query -W -f='${Package}\n' > /tmp/a.txt \
     && apt-get install -y python3-pip python3-dev build-essential \
-    && pip3 install setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt \
+    && pip3 install --ignore-installed blinker \
+    && pip3 install setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://raw.githubusercontent.com/hammb/kaapana-constraints/main/constraints-0.2.6.txt \
+    && ln -s /usr/bin/python3 /usr/local/bin/python \
     && dpkg-query -W -f='${Package}\n' > /tmp/b.txt \
     && apt-get remove -y `diff --changed-group-format='%>' --unchanged-group-format='' /tmp/a.txt /tmp/b.txt | xargs` \
     && apt-get autoclean -y \
@@ -170,15 +173,15 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir \
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir \
     # Security fix for CVE-2021-33503
     urllib3==1.26.5 \
     # Security fix for CVE-2022-40898
-    wheel==0.38.1 \
+    wheel==0.42.0 \
     # Security fix for CVE-2023-25577
-    Werkzeug==2.2.3 \
+    Werkzeug==3.0.1 \
     # Werkzeug 2.0.0+ breaks Flask
-    Flask==2.2.3 \
+    Flask==3.0.0 \
     Jinja2==3.1.2
 
 COPY files/startup.sh /startup.sh

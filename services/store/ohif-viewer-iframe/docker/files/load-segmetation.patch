@@ -1,0 +1,60 @@
+diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+index 58d190f5a..34b59980e 100644
+--- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
++++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+@@ -151,15 +151,16 @@ function OHIFCornerstoneRTViewport(props) {
+       return;
+     }
+ 
+-    promptHydrateRT({
+-      servicesManager,
+-      viewportIndex,
+-      rtDisplaySet,
+-    }).then(isHydrated => {
+-      if (isHydrated) {
+-        setIsHydrated(true);
+-      }
+-    });
++    setIsHydrated(true);
++    // promptHydrateRT({
++    //   servicesManager,
++    //   viewportIndex,
++    //   rtDisplaySet,
++    // }).then(isHydrated => {
++    //   if (isHydrated) {
++    //     setIsHydrated(true);
++    //   }
++    // });
+   }, [servicesManager, viewportIndex, rtDisplaySet, rtIsLoading]);
+ 
+   useEffect(() => {
+diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+index 08ed004f0..3d3c3342d 100644
+--- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
++++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+@@ -154,15 +154,16 @@ function OHIFCornerstoneSEGViewport(props) {
+       return;
+     }
+ 
+-    promptHydrateSEG({
+-      servicesManager,
+-      viewportIndex,
+-      segDisplaySet,
+-    }).then(isHydrated => {
+-      if (isHydrated) {
+-        setIsHydrated(true);
+-      }
+-    });
++    setIsHydrated(true);
++    // promptHydrateSEG({
++    //   servicesManager,
++    //   viewportIndex,
++    //   segDisplaySet,
++    // }).then(isHydrated => {
++    //   if (isHydrated) {
++    //     setIsHydrated(true);
++    //   }
++    // });
+   }, [servicesManager, viewportIndex, segDisplaySet, segIsLoading]);
+ 
+   useEffect(() => {

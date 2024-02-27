@@ -90,7 +90,7 @@ def set_ohif_template():
             + domain
             + ":"
             + https_port
-            + '/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{value}}","labelTemplate":"{{value}}"}}}',
+            + '/ohif/viewer?StudyInstanceUIDs={{value}}","labelTemplate":"{{value}}"}}}',
         }
     }
     try:

@@ -63,7 +63,7 @@ When installing Python packages, it's also recommended to use a constraints file
 
 .. code-block:: bash
 
-  pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt <package-name>
+  pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt <package-name>
 
 
 Utilizing Multi-Stage Dockerfiles
@@ -113,7 +113,7 @@ Assume that the processing algorithm of your workflow is written in a Python fil
   # Update pip first and install the necessary Python packages using constraints file
   COPY files/requirements.txt .
   RUN pip install --upgrade pip && \
-      pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt -r requirements.txt
+      pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r requirements.txt
 
   # Copy only the necessary script to be executed
   COPY files/example-workflow.py .

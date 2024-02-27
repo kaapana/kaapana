@@ -103,10 +103,10 @@ if __name__ == "__main__":
                 trivy_utils.threadpool = None
         trivy_utils.error_clean_up()
 
-        if BuildUtils.create_sboms:
-            trivy_utils.safe_sboms()
-        if BuildUtils.vulnerability_scan:
-            trivy_utils.safe_vulnerability_reports()
+        #if BuildUtils.create_sboms:
+        #    trivy_utils.safe_sboms()
+        #if BuildUtils.vulnerability_scan:
+        #    trivy_utils.safe_vulnerability_reports()
 
         exit()
 

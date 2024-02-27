@@ -16,7 +16,6 @@ WORKDIR /kaapana/app
 
 COPY --from=build-stage /kaapana/app/dist /kaapana/app
 COPY --from=build-stage /kaapana/app/nginx.conf /etc/nginx/nginx.conf
-
 USER 0
 RUN chown 1000 /etc/nginx/nginx.conf
 

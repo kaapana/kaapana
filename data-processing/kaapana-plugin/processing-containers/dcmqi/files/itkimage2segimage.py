@@ -297,6 +297,10 @@ empty_segmentation_label = int(os.environ.get("EMPTY_SEGMENTATION_LABEL", "99"))
 
 
 def check_for_number_or_list(variable, space_replacement_char="~"):
+    # Initially convert the variable into str and fix the space, that was replaced by 
+    # spacial character for passing through env variables.
+    variable = str(variable).replace(space_replacement_char, ' ')    
+
     try:
         # Try evaluating the string as a Python literal
         value = ast.literal_eval(variable)
@@ -307,10 +311,7 @@ def check_for_number_or_list(variable, space_replacement_char="~"):
             return value
     except (ValueError, SyntaxError):
         pass  # If literal_eval() fails or value is not a number, continue to the next step
-    
-    # Else convert the variable into str and fix the space, that was replaced by 
-    # spacial character for passing through env variables.
-    variable = str(variable).replace(space_replacement_char, ' ')    
+   
     return variable  # Return the string as is if it's not a number
 
 

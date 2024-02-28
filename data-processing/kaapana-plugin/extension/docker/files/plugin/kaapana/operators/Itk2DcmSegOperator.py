@@ -127,7 +127,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
 
         segment_attr_vals = ""
         if seg_attrs_props and isinstance(seg_attrs_props, dict):
-            segment_attr_vals = convert_dict_to_env_safe_str(seg_attrs_props)
+            segment_attr_vals = convert_dict_to_env_safe_str(seg_attrs_props, space_replacement_char="~")
 
         envs = {
             "INPUT_TYPE": input_type,  # multi_label_seg or single_label_segs

@@ -206,6 +206,24 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
     dcmseg_file.add_new([0x012, 0x020], "LO", aetitle)  # Clinical Trial Protocol ID
     dcmseg_file.save_as(output_dcm_file)
 
+def add_content_tags(meta_attrs: dict, output_dcm_file):
+    if not ('ContentDescription' in meta_attrs or 'ContentLabel' in meta_attrs):
+        return
+
+    dcmseg_file = pydicom.dcmread(output_dcm_file)
+
+    print(f"# Updating Content meta tags....")
+    
+    if 'ContentLabel' in meta_attrs:
+        content_label = dcmseg_file[0x0070, 0x0080]
+        content_label.value = meta_attrs['ContentLabel']
+    
+    if 'ContentDescription' in meta_attrs:
+        content_desc = dcmseg_file[0x0070, 0x0081]
+        content_desc.value = meta_attrs['ContentDescription']
+    
+    dcmseg_file.save_as(output_dcm_file)
+
 
 # Example: https://github.com/QIICR/dcmqi/blob/master/doc/examples/seg-example.json
 # SegmentedPropertyCategoryCodeSequence: Sequence defining the general category of the property the segment represents: https://dicom.innolitics.com/ciods/rt-structure-set/rt-roi-observations/30060080/00620003
@@ -721,6 +739,7 @@ for batch_element_dir in batch_folders:
                 )
 
         adding_aetitle(element_input_dir, output_dcm_file, body_part=body_part)
+        add_content_tags(meta_props, output_dcm_file)
         processed_count += 1
 
 

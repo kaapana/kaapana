@@ -240,7 +240,7 @@ def compute_metric(metric_key, y_pred, y, include_background, voxel_spacings=Non
         sd_scores = compute_surface_dice(
             y_pred=y_pred,
             y=y,
-            class_thresholds=[1.0, 1.0, 1.0],
+            class_thresholds=[1.0 for i in range(0, (y.shape[1] - 1))],
             include_background=include_background,
             spacing=[float(f) for f in voxel_spacings],
         ).numpy()[0]

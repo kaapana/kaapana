@@ -7,7 +7,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     KAAPANA_BUILD_VERSION,
 )
 
-def convert_dict_to_env_safe_str(env_dict: dict):
+def convert_dict_to_env_safe_str(env_dict: dict, space_replacement_char=''):
     """
     Converts a dictionary into a string safe for use as an environment variable value.
 
@@ -43,9 +43,9 @@ def convert_dict_to_env_safe_str(env_dict: dict):
             # Store the processed tuple value in a temporary dictionary tuple key, value separated by a `:`
             temp_dict[key] = f"{tuple_key}:{tuple_val}"
 
-        env_var_value = ";".join([f"{key}={str(value).replace(' ','')}" for key, value in temp_dict.items()])
+        env_var_value = ";".join([f"{key}={str(value).replace(' ', space_replacement_char)}" for key, value in temp_dict.items()])
     else:
-        env_var_value =  ";".join([f"{key}={str(value).replace(' ','')}" for key, value in env_dict.items()])
+        env_var_value =  ";".join([f"{key}={str(value).replace(' ', space_replacement_char)}" for key, value in env_dict.items()])
         
     return env_var_value
 
@@ -123,7 +123,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
 
         meta_props_val = ""
         if meta_json_props and isinstance(meta_json_props, dict):
-            meta_props_val =  convert_dict_to_env_safe_str(meta_json_props)
+            meta_props_val =  convert_dict_to_env_safe_str(meta_json_props, space_replacement_char="~")
 
         segment_attr_vals = ""
         if seg_attrs_props and isinstance(seg_attrs_props, dict):

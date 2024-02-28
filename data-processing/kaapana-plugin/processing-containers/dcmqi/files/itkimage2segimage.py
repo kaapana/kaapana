@@ -206,10 +206,7 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
     dcmseg_file.add_new([0x012, 0x020], "LO", aetitle)  # Clinical Trial Protocol ID
     dcmseg_file.save_as(output_dcm_file)
 
-def add_content_tags(meta_attrs: dict, output_dcm_file):
-    if not ('ContentDescription' in meta_attrs or 'ContentLabel' in meta_attrs):
-        return
-
+def force_update_content_tag_to_dicom(meta_attrs: dict, output_dcm_file):
     dcmseg_file = pydicom.dcmread(output_dcm_file)
 
     print(f"# Updating Content meta tags....")
@@ -299,7 +296,7 @@ allow_empty_segmentation = (
 empty_segmentation_label = int(os.environ.get("EMPTY_SEGMENTATION_LABEL", "99"))
 
 
-def check_for_number_or_list(variable):
+def check_for_number_or_list(variable, space_replacement_char="~"):
     try:
         # Try evaluating the string as a Python literal
         value = ast.literal_eval(variable)
@@ -310,7 +307,10 @@ def check_for_number_or_list(variable):
             return value
     except (ValueError, SyntaxError):
         pass  # If literal_eval() fails or value is not a number, continue to the next step
-
+    
+    # Else convert the variable into str and fix the space, that was replaced by 
+    # spacial character for passing through env variables.
+    variable = str(variable).replace(space_replacement_char, ' ')    
     return variable  # Return the string as is if it's not a number
 
 
@@ -739,7 +739,8 @@ for batch_element_dir in batch_folders:
                 )
 
         adding_aetitle(element_input_dir, output_dcm_file, body_part=body_part)
-        add_content_tags(meta_props, output_dcm_file)
+        if ('ContentDescription' in meta_props or 'ContentLabel' in meta_props):
+            force_update_content_tag_to_dicom(meta_props, output_dcm_file)
         processed_count += 1
 
 

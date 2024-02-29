@@ -11,6 +11,8 @@ RUN apk update && apk add git
 
 RUN git clone --single-branch https://github.com/lucaskulla/SpreadSheetImporter.git
 
+RUN ls -la
+
 RUN npm ci --silent
 RUN npm run build
 

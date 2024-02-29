@@ -6,7 +6,6 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-# Install Git
 RUN apk update && apk add git
 
 RUN git clone --single-branch https://github.com/lucaskulla/SpreadSheetImporter.git

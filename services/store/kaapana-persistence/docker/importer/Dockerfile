@@ -1,7 +1,6 @@
 ###############################
 ######### Build Stage #########
 ###############################
-
 FROM node:lts-alpine as build-stage
 
 LABEL IMAGE="kaapana-persistence-importer"

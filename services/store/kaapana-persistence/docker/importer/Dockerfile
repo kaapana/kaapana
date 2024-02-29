@@ -10,7 +10,7 @@ WORKDIR /kaapana/app
 RUN apk update && apk add git
 
 # Clone the specified repository
-RUN git clone --single-branch git@github.com:lucaskulla/SpreadSheetImporter.git
+RUN git clone --single-branch https://github.com/lucaskulla/SpreadSheetImporter.git
 
 RUN npm ci --silent
 RUN npm run build

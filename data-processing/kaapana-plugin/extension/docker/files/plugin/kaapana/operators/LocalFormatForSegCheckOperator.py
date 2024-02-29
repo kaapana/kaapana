@@ -5,6 +5,8 @@ import datetime
 from pathlib import Path
 import shutil
 import re
+import nibabel as nib
+import numpy as np
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -81,19 +83,29 @@ class LocalFormatForSegCheckOperator(KaapanaPythonBaseOperator):
                 )
             )
 
-            # rename nifti files and save to out_dir
+            # manipulate and rename nifti
+            pleural_effusion_int = 1
             for nifti_file in nifti_files:
+                # manipulate nifti pixel values according to pleural_effusion_int
+                nifti_img = nib.load(nifti_file)
+                data = nifti_img.get_fdata()
+                manipulated_data = np.where(data != 0, 1, data)
+                manipulated_nifti_img = nib.Nifti1Image(
+                    manipulated_data, nifti_img.affine
+                )
+
+                # save with new file name
                 dest = os.path.join(
                     os.path.dirname(nifti_file).replace(
                         self.operator_in_dir, self.operator_out_dir
                     ),
                     "imagine_a_uid--1.nii.gz",
                 )
-                shutil.copyfile(nifti_file, dest)
+                nib.save(manipulated_nifti_img, dest)
 
             # Iterate through seg_info list and update label_int
             for i, item in enumerate(incoming_seginfo["seg_info"]):
-                item["label_int"] = i + 1
+                item["label_int"] = pleural_effusion_int  # i + 1
             print(json.dumps(incoming_seginfo, indent=4))
 
             # write incoming_seginfo to output_dir

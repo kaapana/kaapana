@@ -15,6 +15,8 @@ RUN git clone --single-branch -b Refactoring https://github.com/lucaskulla/Sprea
 
 WORKDIR /kaapana/app/SpreadSheetImporter
 
+RUN git status
+
 RUN npm ci --silent
 RUN npm run build
 

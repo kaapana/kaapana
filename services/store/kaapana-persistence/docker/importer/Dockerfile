@@ -6,7 +6,7 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-RUN git clone --single-branch git@github.com:lucaskulla/react-spreadsheet-import.git
+
 RUN npm ci --silent
 RUN npm run build
 

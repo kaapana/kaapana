@@ -164,20 +164,35 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                         shutil.copy(src_path, dest_path)
                         num_kept_labels += 1
 
-                # iterate over label_names in self.label_filter
-                temp_incoming_metainfo_segment_attributes = []
-                for label_name in self.label_filter:
-                    # modify meta_info JSON according to self.label_filter
-                    for segment_attribute in incoming_metainfo["segmentAttributes"]:
-                        if label_name in self.remove_special_characters(
-                            json.dumps(segment_attribute)
-                        ):
-                            temp_incoming_metainfo_segment_attributes.append(
-                                segment_attribute
-                            )
-                incoming_metainfo[
-                    "segmentAttributes"
-                ] = temp_incoming_metainfo_segment_attributes
+                # metainfo json
+                if "segmentAttributes" in incoming_metainfo:
+                    # iterate over label_names in self.label_filter
+                    temp_incoming_metainfo_segment_attributes = []
+                    for label_name in self.label_filter:
+                        # modify meta_info JSON according to self.label_filter
+                        for segment_attribute in incoming_metainfo["segmentAttributes"]:
+                            if label_name in self.remove_special_characters(
+                                json.dumps(segment_attribute)
+                            ):
+                                temp_incoming_metainfo_segment_attributes.append(
+                                    segment_attribute
+                                )
+                    incoming_metainfo[
+                        "segmentAttributes"
+                    ] = temp_incoming_metainfo_segment_attributes
+                # seg_info json
+                elif "seg_info" in incoming_metainfo:
+                    # iterate over label_names in self.label_filter
+                    temp_incoming_metainfo_segments = []
+                    for label_name in self.label_filter:
+                        # modify seg_info JSON according to self.label_filter
+                        for segment in incoming_metainfo["seg_info"]:
+                            if label_name == self.remove_special_characters(
+                                segment["label_name"]
+                            ):
+                                temp_incoming_metainfo_segments.append(segment)
+                    incoming_metainfo["seg_info"] = temp_incoming_metainfo_segments
+
                 # write incoming_metainfo to output_dir
                 with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
                     json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
@@ -206,23 +221,39 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                         shutil.copy(src_path, dest_path)
                         num_ignored_labels += 1
 
-                # iterate over label_names in self.label_filter
-                for label_name in self.label_filter:
-                    # modify meta_info JSON according to self.label_filter
-                    temp_incoming_metainfo_segment_attributes = []
-                    for segment_attribute in incoming_metainfo["segmentAttributes"]:
-                        if label_name not in self.remove_special_characters(
-                            json.dumps(segment_attribute)
-                        ):
-                            temp_incoming_metainfo_segment_attributes.append(
-                                segment_attribute
-                            )
-                    incoming_metainfo[
-                        "segmentAttributes"
-                    ] = temp_incoming_metainfo_segment_attributes
-                    # write incoming_metainfo to output_dir
-                    with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
-                        json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
+                # metainfo json
+                if "segmentAttributes" in incoming_metainfo:
+                    # iterate over label_names in self.label_filter
+                    for label_name in self.label_filter:
+                        # modify meta_info JSON according to self.label_filter
+                        temp_incoming_metainfo_segment_attributes = []
+                        for segment_attribute in incoming_metainfo["segmentAttributes"]:
+                            if label_name not in self.remove_special_characters(
+                                json.dumps(segment_attribute)
+                            ):
+                                temp_incoming_metainfo_segment_attributes.append(
+                                    segment_attribute
+                                )
+                        incoming_metainfo[
+                            "segmentAttributes"
+                        ] = temp_incoming_metainfo_segment_attributes
+                # seg_info json
+                # TODO: also implement working version for ignoring in seg_info json
+                # elif "seg_info" in incoming_metainfo:
+                #     # iterate over label_names in self.label_filter
+                #     temp_incoming_metainfo_segments = []
+                #     for label_name in self.label_filter:
+                #         # modify seg_info JSON according to self.label_filter
+                #         for segment in incoming_metainfo["seg_info"]:
+                #             if label_name != self.remove_special_characters(segment["label_name"]):
+                #                 temp_incoming_metainfo_segments.append(segment)
+                #     incoming_metainfo[
+                #         "seg_info"
+                #     ] = temp_incoming_metainfo_segments
+
+                # write incoming_metainfo to output_dir
+                with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
+                    json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
 
                 print("#")
                 print(

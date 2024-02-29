@@ -94,37 +94,29 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
             temp_incoming_seg_info = {}
             temp_incoming_seg_info["seg_info"] = incoming_seg_info
             incoming_seg_info = temp_incoming_seg_info
-        print("# INCOMING SEG INFO: ")
-        print(f"Filename: {batch_el_json_file=}")
-        print(json.dumps(incoming_seg_info, indent=4))
-        print(f"{type(incoming_seg_info)=}")
 
         # get metainfo json of incoming dcm_seg object
+        incoming_metainfo = None
         for batch_el_metainfo_json_file in batch_el_metainfo_json_files:
             with open(batch_el_metainfo_json_file) as data_file:
                 incoming_metainfo = json.load(data_file)
-        print("# INCOMING DICOMSEG METAINFO: ")
-        print(f"Filename: {batch_el_metainfo_json_file=}")
-        print(json.dumps(incoming_metainfo, indent=4))
-        print(f"{type(incoming_metainfo)=}")
 
-        # seg_info holds ground-truth -> delete segments from metainfo_json if they are not in seg_info
-        segments_in_seg_info = [
-            self.remove_special_characters(item["label_name"])
-            for item in incoming_seg_info["seg_info"]
-        ]
-        # Iterate through segmentAttributes in reverse order to safely remove elements
-        for i in range(len(incoming_metainfo["segmentAttributes"]) - 1, -1, -1):
-            segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
-            # Check if SegmentLabel is not in segments_in_seg_info
-            if (
-                self.remove_special_characters(segment_attribute["SegmentLabel"])
-                not in segments_in_seg_info
-            ):
-                # Remove the entire segmentAttribute if not in the list
-                del incoming_metainfo["segmentAttributes"][i]
-        # print(f"# POTENTIALLY CORRECTED incoming_metainfo:")
-        # print(json.dumps(incoming_metainfo, indent=4))
+        if incoming_metainfo:
+            # seg_info holds ground-truth -> delete segments from metainfo_json if they are not in seg_info
+            segments_in_seg_info = [
+                self.remove_special_characters(item["label_name"])
+                for item in incoming_seg_info["seg_info"]
+            ]
+            # Iterate through segmentAttributes in reverse order to safely remove elements
+            for i in range(len(incoming_metainfo["segmentAttributes"]) - 1, -1, -1):
+                segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
+                # Check if SegmentLabel is not in segments_in_seg_info
+                if (
+                    self.remove_special_characters(segment_attribute["SegmentLabel"])
+                    not in segments_in_seg_info
+                ):
+                    # Remove the entire segmentAttribute if not in the list
+                    del incoming_metainfo["segmentAttributes"][i]
 
         # iterate over self.old_label_names and replace them by corresponding self.new_label_names in incoming_seg_info
         for old_label_name in self.old_label_names:
@@ -167,29 +159,34 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 # print(f"{json.dumps(incoming_seg_info)=}")
                 assert new_label_name in json.dumps(incoming_seg_info)
 
-                # replace old_label_name with new_label_name in incoming_metainfo
-                for i in range(len(incoming_metainfo["segmentAttributes"]) - 1, -1, -1):
-                    # get segment_attribute
-                    segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
-                    # Convert label_name to lowercase and replace spaces and commas
-                    formatted_label_name = self.remove_special_characters(
-                        segment_attribute["SegmentLabel"]
-                    )
-                    # print(f"{formatted_label_name=}")
-                    if formatted_label_name == self.remove_special_characters(
-                        old_label_name
+                if incoming_metainfo:
+                    # replace old_label_name with new_label_name in incoming_metainfo
+                    for i in range(
+                        len(incoming_metainfo["segmentAttributes"]) - 1, -1, -1
                     ):
-                        # segment_attribute["SegmentLabel"] = new_label_name
-                        segment_attribute = json.loads(
-                            json.dumps(segment_attribute).replace(
-                                segment_attribute["SegmentLabel"], new_label_name
-                            )
+                        # get segment_attribute
+                        segment_attribute = incoming_metainfo["segmentAttributes"][i][0]
+                        # Convert label_name to lowercase and replace spaces and commas
+                        formatted_label_name = self.remove_special_characters(
+                            segment_attribute["SegmentLabel"]
                         )
-                        # print(f"{segment_attribute=}")
-                        incoming_metainfo["segmentAttributes"][i][0] = segment_attribute
+                        # print(f"{formatted_label_name=}")
+                        if formatted_label_name == self.remove_special_characters(
+                            old_label_name
+                        ):
+                            # segment_attribute["SegmentLabel"] = new_label_name
+                            segment_attribute = json.loads(
+                                json.dumps(segment_attribute).replace(
+                                    segment_attribute["SegmentLabel"], new_label_name
+                                )
+                            )
+                            # print(f"{segment_attribute=}")
+                            incoming_metainfo["segmentAttributes"][i][
+                                0
+                            ] = segment_attribute
 
-                # print(f"{json.dumps(incoming_metainfo, indent=4)}")
-                assert new_label_name in json.dumps(incoming_metainfo)
+                    # print(f"{json.dumps(incoming_metainfo, indent=4)}")
+                    assert new_label_name in json.dumps(incoming_metainfo)
             else:
                 print("#")
                 print("#")
@@ -200,34 +197,35 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 print("#")
 
         # restructure incoming_metainfo such that "segmentAttributes" is in the right format to support multi_label itkimage2dcmimage functionalities
-        segmentAttributes = incoming_metainfo["segmentAttributes"]
-        if (
-            len(segmentAttributes) > 1
-            and sum(isinstance(element, list) for element in segmentAttributes) > 1
-        ):
-            # segmentAttributes is a list of multiple lists ==> restructuring necessary
-            print("#")
-            print("#")
-            print("RESTRUCTURING OF segmentAttributes NECESSARY!")
-            print("#")
-            print("#")
+        if incoming_metainfo:
+            segmentAttributes = incoming_metainfo["segmentAttributes"]
+            if (
+                len(segmentAttributes) > 1
+                and sum(isinstance(element, list) for element in segmentAttributes) > 1
+            ):
+                # segmentAttributes is a list of multiple lists ==> restructuring necessary
+                print("#")
+                print("#")
+                print("RESTRUCTURING OF segmentAttributes NECESSARY!")
+                print("#")
+                print("#")
 
-            # instantiate new segmentAttributes list
-            new_segmentAttributes = []
+                # instantiate new segmentAttributes list
+                new_segmentAttributes = []
 
-            # retrieve single segmentAttribute dicts
-            for segmentAttribute_list in segmentAttributes:
-                # print(f"{segmentAttribute_list=}")
-                segmentAttribute = segmentAttribute_list[0]
+                # retrieve single segmentAttribute dicts
+                for segmentAttribute_list in segmentAttributes:
+                    # print(f"{segmentAttribute_list=}")
+                    segmentAttribute = segmentAttribute_list[0]
 
-                # append single segmentAttribute dicts to new_segmentAttributes list
-                new_segmentAttributes.append(segmentAttribute)
+                    # append single segmentAttribute dicts to new_segmentAttributes list
+                    new_segmentAttributes.append(segmentAttribute)
 
-            # delete wrongly structured segmentAttributes from incoming_metainfo
-            del incoming_metainfo["segmentAttributes"]
+                # delete wrongly structured segmentAttributes from incoming_metainfo
+                del incoming_metainfo["segmentAttributes"]
 
-            # add new and correctly structured segmentAttributes to incoming_metainfo
-            incoming_metainfo["segmentAttributes"] = [new_segmentAttributes]
+                # add new and correctly structured segmentAttributes to incoming_metainfo
+                incoming_metainfo["segmentAttributes"] = [new_segmentAttributes]
 
         print("#")
         print("#")
@@ -294,19 +292,32 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
                 if old_label_name in self.remove_special_characters(found_nifti):
                     # copy nifti_file with new label name to output dir
                     src_path = found_nifti
-                    dest_path = (
-                        os.path.dirname(found_nifti).replace(
-                            self.operator_in_dir, self.operator_out_dir
+                    if "--" in os.path.basename(found_nifti):
+                        dest_path = (
+                            os.path.dirname(found_nifti).replace(
+                                self.operator_in_dir, self.operator_out_dir
+                            )
+                            + "/"
+                            + os.path.basename(found_nifti).split("--")[0]  # uid
+                            + "--"
+                            + os.path.basename(found_nifti).split("--")[1]  # label_int
+                            + "--"
+                            + self.new_label_names[i]
+                            + ".nii.gz"
                         )
-                        + "/"
-                        + os.path.basename(found_nifti).split("--")[0]  # uid
-                        + "--"
-                        + os.path.basename(found_nifti).split("--")[1]  # label_int
-                        + "--"
-                        + self.new_label_names[i]
-                        + ".nii.gz"
-                    )
+                    else:
+                        dest_path = (
+                            os.path.dirname(found_nifti).replace(
+                                self.operator_in_dir, self.operator_out_dir
+                            )
+                            + "/"
+                            + "mask"
+                            + "--"
+                            + self.new_label_names[i]
+                            + ".nii.gz"
+                        )
                     shutil.copy(src_path, dest_path)
+                    print(f"Move {src_path} to {dest_path}")
 
                     # add currently processed nifti_file to processed files
                     processed_niftis.append(found_nifti)

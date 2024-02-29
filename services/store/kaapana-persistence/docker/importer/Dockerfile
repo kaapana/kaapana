@@ -11,7 +11,7 @@ LABEL CI_IGNORE="False"
 WORKDIR /kaapana/app
 
 RUN apk update && apk add git
-RUN git clone --single-branch - Refactoring https://github.com/lucaskulla/SpreadSheetImporter.git
+RUN git clone --single-branch -b Refactoring https://github.com/lucaskulla/SpreadSheetImporter.git
 
 WORKDIR /kaapana/app/SpreadSheetImporter
 

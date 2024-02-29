@@ -15,7 +15,6 @@ import json
 import re
 
 processed_count = 0
-skip_operator = False
 issue_occurred = False
 logger = None
 
@@ -174,7 +173,7 @@ def fuse(
     target_nifti_path,
     target_dir,
 ):
-    global processed_count, input_file_extension, skip_operator
+    global processed_count, input_file_extension
 
     # get fusing-specific envs
     # first get the key specified in conf
@@ -191,8 +190,7 @@ def fuse(
         logger.warning("# NO FUSE_LABELS DEFINED. MARK OPERATOR AS SKIPPED")
         logger.warning("#")
         fuse_labels = ""
-        skip_operator = True
-        # exit(126)
+        exit(126)
     fuse_labels = fuse_labels.split(",")
     fuse_labels = [remove_special_characters(x) for x in fuse_labels]
 
@@ -212,8 +210,7 @@ def fuse(
         logger.warning("# NO FUSED_LABEL_NAMES DEFINED. MARK OPERATOR AS SKIPPED")
         logger.warning("#")
         fused_label_name = ""
-        skip_operator = True
-        # exit(126)
+        exit(126)
     fused_label_name = remove_special_characters(fused_label_name)
 
     logger.info("#")
@@ -382,7 +379,7 @@ def fuse(
 
 
 def merge_mask_niftis(nifti_dir, target_dir, mode=None):
-    global processed_count, input_file_extension, skip_operator
+    global processed_count, input_file_extension
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -604,14 +601,6 @@ if __name__ == "__main__":
         logger.info("#")
         logger.info("##################################################")
         logger.info("#")
-
-    if mode == "fuse" and skip_operator:
-        logger.warning("#####################################")
-        logger.warning("#")
-        logger.warning("# NO FUSE LABELS SPECIFIED --> MARK OPERATOR AS SKIPPED!")
-        logger.warning("#")
-        logger.warning("#####################################")
-        exit(126)
 
     if processed_count == 0:
         logger.info("#")

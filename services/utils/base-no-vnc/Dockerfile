@@ -1,5 +1,4 @@
 
-
 # based on https://github.com/fcwu/docker-ubuntu-vnc-desktop
 # and https://github.com/Tiryoh/docker-ubuntu-vnc-desktop
 ################################################################################
@@ -175,11 +174,11 @@ RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build
     # Security fix for CVE-2021-33503
     urllib3==1.26.5 \
     # Security fix for CVE-2022-40898
-    wheel==0.38.1 \
+    wheel==0.42.0 \
     # Security fix for CVE-2023-25577
-    Werkzeug==2.2.3 \
+    Werkzeug==3.0.1 \
     # Werkzeug 2.0.0+ breaks Flask
-    Flask==2.2.3 \
+    Flask==3.0.0 \
     Jinja2==3.1.2
 
 COPY files/startup.sh /startup.sh

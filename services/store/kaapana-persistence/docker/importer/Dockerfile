@@ -24,7 +24,6 @@ WORKDIR /kaapana/app
 
 EXPOSE 80
 
-# Copy built assets from the build stage
 COPY --from=build-stage /kaapana/app/build /usr/share/nginx/html
 
 CMD ["nginx", "-g", "daemon off;"]

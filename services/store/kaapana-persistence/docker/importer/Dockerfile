@@ -28,6 +28,6 @@ WORKDIR /kaapana/app
 
 EXPOSE 80
 
-COPY --from=build-stage /build /usr/share/nginx/html
+COPY --from=build-stage /kaapana/app/SpreadSheetImporter/build /usr/share/nginx/html
 
 CMD ["nginx", "-g", "daemon off;"]

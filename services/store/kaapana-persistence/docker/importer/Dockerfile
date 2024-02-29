@@ -6,6 +6,11 @@ LABEL CI_IGNORE="False"
 
 WORKDIR /kaapana/app
 
+# Install Git
+RUN apk update && apk add git
+
+# Clone the specified repository
+RUN git clone --single-branch git@github.com:lucaskulla/SpreadSheetImporter.git
 
 RUN npm ci --silent
 RUN npm run build
@@ -19,6 +24,7 @@ WORKDIR /kaapana/app
 
 EXPOSE 80
 
-COPY --from=build-stage kaapana/app/build /usr/share/nginx/html
+# Copy built assets from the build stage
+COPY --from=build-stage /kaapana/app/build /usr/share/nginx/html
 
 CMD ["nginx", "-g", "daemon off;"]

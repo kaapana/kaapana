@@ -5,3 +5,5 @@ mc config host add kaapana http://minio-service.$SERVICES_NAMESPACE.svc:9000/ $M
 mc mb --ignore-existing kaapana/uploads
 mc mb --ignore-existing kaapana/staticwebsiteresults
 mc cp /kaapana/app/readme.txt kaapana/uploads/readme.txt
+
+mc admin policy create kaapana kaapanaUser /kaapana/app/user-policy.json

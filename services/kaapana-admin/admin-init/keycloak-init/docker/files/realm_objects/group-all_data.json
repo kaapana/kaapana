@@ -1,4 +1,9 @@
 {
-    "name" : "all_data",
-    "path" : "/all_data"
+  "name" : "all_data",
+  "path" : "/all_data",
+  "attributes": {
+    "policy": [
+      "consoleAdmin"
+    ]
+  }
 }

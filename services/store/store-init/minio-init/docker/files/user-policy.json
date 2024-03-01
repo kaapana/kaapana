@@ -14,16 +14,6 @@
             "Resource": [
                 "arn:aws:s3:::uploads"
             ]
-        },
-        {
-            "Effect": "Deny",
-            "Action": [
-                "s3:GetObject",
-                "s3:ListBucket"
-            ],
-            "NotResource": [
-                "arn:aws:s3:::uploads/*"
-            ]
         }
     ]
 }

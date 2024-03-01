@@ -85,7 +85,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         fail_on_no_segmentation_found=True,
         env_vars=None,
         execution_timeout=timedelta(minutes=90),
-        allow_empty_segmentation=True,
+        allow_empty_segmentation=False,
         base_nifti_dir=None,
         empty_segmentation_label=99,
         meta_json_props=None,
@@ -109,7 +109,7 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond it will raise and fail
         :param base_nifti_dir: nifti directory before the segmentation operator. In case segmentation fails, this operator will create
             an empty nifti using the base nifti from this directory and create an empty segmentation file.
-        :param allow_empty_segmentation: handle empty segmentation or empty nifti files
+        :param allow_empty_segmentation: handle empty segmentation or empty nifti files.
         :param empty_segmentation_label: if allow_empty_segmentation set to True, it will replace the empty segmentation mask label to 
             provided user given label.
         :param meta_json_props: additional meta data json properties as dictionary, will be appended to the newly created meta data json file.

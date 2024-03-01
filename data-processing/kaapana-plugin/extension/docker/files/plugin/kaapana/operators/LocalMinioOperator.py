@@ -9,6 +9,7 @@ from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from minio import Minio
+from minio.error import MinioException
 
 
 class LocalMinioOperator(KaapanaPythonBaseOperator):
@@ -62,6 +63,12 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
         minioClient = HelperMinio(dag_run=dag_run)
 
+        if self.action != "put":
+            if  self.bucket_name is None:
+                raise ValueError(f"Bucket name not specified. Please set bucket_name with existing bucket.")
+            elif not minio_client.bucket_exists(self.bucket_name):
+                raise ValueError(f"The bucket '{self.bucket_name}' you try to access does not exist.")
+                
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         local_root_dir = self.local_root_dir.format(run_dir=run_dir)
 
@@ -238,7 +245,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         self.minio_port = minio_port
         self.file_white_tuples = file_white_tuples
         self.zip_files = zip_files
-
+        
         super(LocalMinioOperator, self).__init__(
             dag=dag,
             name=name,

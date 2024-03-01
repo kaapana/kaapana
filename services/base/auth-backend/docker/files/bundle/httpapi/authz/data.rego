@@ -21,7 +21,7 @@ allowed_user_endpoints := [
     {"path": "^/minio-console.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/ohif.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/.*", "methods": ["GET","POST","PUT","DELETE"]},
-    {"path": "^/dcm4chee-arc/ui2.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/dcm4chee-arc/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/meta/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/slim.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/mitk-workbench-chart-.*", "methods": ["GET","POST","PUT","DELETE"]},
@@ -35,6 +35,7 @@ allowed_user_endpoints := [
     {"path": "^/web/meta/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kube-helm-api/pending-applications", "methods": ["GET"]},
+    {"path": "^/thumbnails/.*", "methods": ["GET"]}
 ]
 
 allowed_admin_endpoints := [

@@ -1,9 +1,11 @@
 import requests
 import subprocess
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from opensearchpy import OpenSearch
 import uuid
-
+import jwt
+from datetime import datetime, timezone
 from app.workflows.utils import (
     raise_kaapana_connection_error,
     requests_retry_session,
@@ -131,7 +133,6 @@ add: dcmAccessControlID
 dcmAccessControlID: {access_control_id}"'''
     ldapmodify = f'ldapmodify -x -D "cn=admin,dc=dcm4che,dc=org" -w "secret" -H "ldap://ldap-service.{settings.services_namespace}.svc:389"'
     command = f"echo {ldap_config} | {ldapmodify}"
-    print(f"RUN command {command}")
     command_result = subprocess.run(
         command,
         capture_output=True,
@@ -139,6 +140,70 @@ dcmAccessControlID: {access_control_id}"'''
         encoding="utf-8",
         shell=True,
     )
-    print("Command was executed")
-    print(command_result.stdout)
-    print(command_result.stderr)
+
+
+@router.get("/oidc-logout")
+def oidc_logout(request: Request):
+    """
+    Delete the keycloak session corresponding to the session of the access token in the request.
+    Response with a redirect to oauth2-proxy browser session logout url.
+    """
+
+    def get_access_token(
+        username: str,
+        password: str,
+        ssl_check: bool,
+        client_id: str,
+    ):
+        """
+        Get access token for the admin keycloak user.
+        """
+        payload = {
+            "username": username,
+            "password": password,
+            "client_id": client_id,
+            "grant_type": "password",
+        }
+        r = requests.post(
+            f"{settings.keycloak_url}realms/master/protocol/openid-connect/token",
+            verify=ssl_check,
+            data=payload,
+        )
+        r.raise_for_status()
+        return r.json()["access_token"]
+
+    access_token = request.headers.get("x-forwarded-access-token")
+    decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
+    session_state = decoded_access_token.get("session_state")
+    user_id = decoded_access_token.get("sub")
+
+    keycloak_admin_access_token = get_access_token(
+        settings.keycloak_admin_username,
+        settings.keycloak_admin_password,
+        False,
+        "admin-cli",
+    )
+    security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}
+
+    user_sessions = requests.get(
+        f"{settings.keycloak_url}admin/realms/kaapana/users/{user_id}/sessions",
+        verify=False,
+        headers=security_headers,
+    ).json()
+
+    ### Remove the session that corresponds to the access token from keycloak if the session exists
+    for user_session in user_sessions:
+        if user_session.get("id") == session_state:
+            r = requests.delete(
+                f"{settings.keycloak_url}admin/realms/kaapana/sessions/{session_state}",
+                headers=security_headers,
+                verify=False,
+            )
+            r.raise_for_status()
+            break
+    response = RedirectResponse("/oauth2/sign_out?rd=/")
+    ### Delete the token cookie for the minio session.
+    response.set_cookie(
+        key="token", value="", expires=datetime(1900, 1, 1, tzinfo=timezone.utc)
+    )
+    return response

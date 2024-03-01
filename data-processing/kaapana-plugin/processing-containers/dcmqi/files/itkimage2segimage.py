@@ -289,7 +289,7 @@ fail_on_no_segmentation_found = (
 )
 allow_empty_segmentation = (
     True
-    if os.environ.get("ALLOW_EMPTY_SEGMENTATION", "true").lower() == "true"
+    if os.environ.get("ALLOW_EMPTY_SEGMENTATION", "false").lower() == "true"
     else False
 )
 

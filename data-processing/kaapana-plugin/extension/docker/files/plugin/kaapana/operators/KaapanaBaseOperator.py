@@ -35,6 +35,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
+from kaapana.operators.HelperSendEmailService import HelperSendEmailService
 import uuid
 import json
 import logging
@@ -213,10 +214,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 "dev_server must be either None, code-server or jupyterlab!"
             )
         if dev_server is not None:
-            raise Exception(
-                "dev_server is not installed in this Project!"
-            )
-            #self.execution_timeout = None
+            raise Exception("dev_server is not installed in this Project!")
+            # self.execution_timeout = None
         self.dev_server = dev_server
 
         # Kubernetes
@@ -359,12 +358,16 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if self.pod_resources is None:
             pod_resources = PodResources(
-                request_cpu="{}m".format(self.cpu_millicores)
-                if self.cpu_millicores != None
-                else None,
-                limit_cpu="{}m".format(self.cpu_millicores + 100)
-                if self.cpu_millicores != None
-                else None,
+                request_cpu=(
+                    "{}m".format(self.cpu_millicores)
+                    if self.cpu_millicores != None
+                    else None
+                ),
+                limit_cpu=(
+                    "{}m".format(self.cpu_millicores + 100)
+                    if self.cpu_millicores != None
+                    else None
+                ),
                 request_memory="{}Mi".format(self.ram_mem_mb),
                 limit_memory="{}Mi".format(
                     self.ram_mem_mb_lmt
@@ -410,8 +413,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             pool_slots=self.pool_slots,
             retry_delay=self.retry_delay,
             email=None,
-            email_on_retry=True,
-            email_on_failure=True,
+            email_on_retry=False,
+            email_on_failure=False,
             start_date=days_ago(0),
             depends_on_past=False,
             wait_for_downstream=False,
@@ -734,6 +737,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
             KaapanaApplicationOperator.uninstall_helm_chart(context)
+        send_email_on_workflow_failure = context["dag_run"].dag.default_args.get(
+            "send_email_on_workflow_failure", False
+        )
+        if send_email_on_workflow_failure:
+            HelperSendEmailService.task_failure_alert(context)
 
     @staticmethod
     def on_success(context):

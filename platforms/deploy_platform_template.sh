@@ -62,6 +62,10 @@ HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
 HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 
+SMTP_HOST="{{ smtp_host|default('')}}"
+SMTP_PORT="{{ smtp_port|default(0)|int }}"
+EMAIL_ADDRESS_SENDER="{{ email_address_sender|default('')}}"
+
 VERSION_IMAGE_COUNT="20"
 DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
@@ -450,6 +454,9 @@ function deploy_chart {
     --set-string global.instance_name="$INSTANCE_NAME" \
     --set-string global.dev_mode="$DEV_MODE" \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
+    --set-string global.smtp_host="$SMTP_HOST" \
+    --set-string global.smtp_port="$SMTP_PORT" \
+    --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

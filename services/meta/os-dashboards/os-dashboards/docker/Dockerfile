@@ -13,7 +13,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
 
 USER node
 WORKDIR /home/node
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 RUN git clone https://github.com/opensearch-project/OpenSearch-Dashboards && cd OpenSearch-Dashboards && git checkout 2.12.0
 WORKDIR /home/node/OpenSearch-Dashboards
 RUN yarn osd bootstrap

@@ -88,3 +88,27 @@ spec:
     - podSelector:
         matchLabels:
           app: 'traefik'
+---
+### Allow access to opensearch from jobs with label {access-opensearch: "true"}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-opensearch-egress
+  namespace: jobs
+spec:
+  podSelector:
+    matchLabels:
+      access-opensearch: "true" # for pods that need access to OpenSearch
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: services
+    - podSelector:
+        matchLabels:
+          app-name: opensearch
+    ports:
+    - protocol: TCP
+      port: 9200

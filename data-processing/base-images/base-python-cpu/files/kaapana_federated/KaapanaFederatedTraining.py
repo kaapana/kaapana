@@ -186,6 +186,7 @@ class KaapanaFederatedTrainingBase(ABC):
         secret_key="Kaapana2020",
         minio_host=f"minio-service.{SERVICES_NAMESPACE}.svc",
         minio_port="9000",
+        **kwargs,
     ):
         self.run_in_parallel = False
         self.federated_dir = os.getenv("RUN_ID", str(uuid.uuid4()))

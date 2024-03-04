@@ -7,5 +7,5 @@
   "email" : "not@available.com",
   "requiredActions" : [ "UPDATE_PASSWORD" ],
   "realmRoles" : [ "default-roles-kaapana" ],
-  "groups": ["all_data"]
+  "groups": ["kaapana_admin"]
 }

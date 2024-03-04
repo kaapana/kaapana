@@ -1,6 +1,6 @@
 {
-  "name" : "all_data",
-  "path" : "/all_data",
+  "name" : "kaapana_admin",
+  "path" : "/kaapana_admin",
   "attributes": {
     "policy": [
       "consoleAdmin"

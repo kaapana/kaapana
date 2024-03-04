@@ -30,16 +30,15 @@ if __name__ == "__main__":
     keycloak.post_composite_role("default-roles-kaapana", ["user"])
 
     ### Add group
-    file = "realm_objects/group-all_data.json"
-    with open(file, "r") as f:
-        payload = json.load(f)
-        keycloak.post_group(payload)
+    file = "realm_objects/group-kaapana_admin.json"
+    payload = json.load(open(file, "r"))
+    keycloak.post_group(payload)
 
-    ### Add role mappings to group all_data
+    ### Add role mappings to group kaapana_admin
     roles = ["admin", "user"]
-    keycloak.post_role_mapping(roles, group="all_data")
+    keycloak.post_role_mapping(roles, "kaapana_admin")
 
-    ### Add kaapana_user group all_data
+    ### Add kaapana_user group kaapana_user
     file = "realm_objects/group-kaapana_user.json"
     payload = json.load(open(file, "r"))
     keycloak.post_group(payload)

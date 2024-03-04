@@ -5,21 +5,14 @@ from fastapi import (
     APIRouter,
     Depends,
     Request,
-    HTTPException,
-    UploadFile,
-    Response,
-    File,
-    Header,
 )
 from fastapi.responses import RedirectResponse
-from fastapi.encoders import jsonable_encoder
 from opensearchpy import OpenSearch
-from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
 import uuid
 import jwt
 from app.workflows.utils import (
-    HelperMinio,
     raise_kaapana_connection_error,
     requests_retry_session,
 )
@@ -185,4 +178,9 @@ def oidc_logout(request: Request):
             )
             r.raise_for_status()
             break
-    return RedirectResponse("/oauth2/sign_out?rd=/")
+    response = RedirectResponse("/oauth2/sign_out?rd=/")
+    ### Delete the token cookie for the minio session.
+    response.set_cookie(
+        key="token", value="", expires=datetime(1900, 1, 1, tzinfo=timezone.utc)
+    )
+    return response

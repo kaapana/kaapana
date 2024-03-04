@@ -10,6 +10,7 @@ from typing import List, Tuple
 import nibabel as nib
 import numpy as np
 import torch
+from monai.metrics.meandice import DiceMetric
 from monai.metrics.hausdorff_distance import compute_hausdorff_distance
 from monai.metrics.surface_distance import compute_average_surface_distance
 from monai.metrics.surface_dice import compute_surface_dice
@@ -51,6 +52,12 @@ def read_nifti_file(filepath):
     """Read and return the data from a NIFTI file."""
     nifti_img = nib.load(filepath)
     return nifti_img.get_fdata().astype(int)
+
+
+def calculate_dice_score(gt_mask, pred_mask):
+    res = DiceMetric(include_background=False)(pred_mask, gt_mask).numpy()[0]
+    res = np.array([v for v in res]).tolist()
+    return res
 
 
 def calculate_surface_dice(gt_mask, pred_mask, class_thresholds=[0.5]):
@@ -194,7 +201,12 @@ def evaluate_segmentation(dataset_map):
             filtered_gt = []
             filtered_test = []
 
-            metric = {"surface_dice": {}, "hausdorff_distance": {}, "asd": {}}
+            metric = {
+                "dice_score": {},
+                "surface_dice": {},
+                "hausdorff_distance": {},
+                "asd": {},
+            }
 
             # Get masks file with names gt_label and test_label
             for gt_label, test_label in label_pairs:
@@ -225,7 +237,12 @@ def evaluate_segmentation(dataset_map):
 
                 key = f"{gt_label}:{test_label}"
                 # Calculate metrics for each mask pair
-                if "surface_dice" in eval_metrics or "dice_score" in eval_metrics:
+                if "dice_score" in eval_metrics:
+                    print(
+                        f"# Calculating dice score for test mask {data['test_id']} ..."
+                    )
+                    metric["dice_score"][key] = calculate_dice_score(gt_mask, pred_mask)
+                if "surface_dice" in eval_metrics:
                     print(
                         f"# Calculating surface dice for test mask {data['test_id']} ..."
                     )
@@ -236,7 +253,9 @@ def evaluate_segmentation(dataset_map):
                     print(
                         f"# Calculating hausdorff distance for test mask {data['test_id']} ..."
                     )
-                    metric["hausdorff_distance"][key] = calculate_hausdorff(gt_mask, pred_mask)
+                    metric["hausdorff_distance"][key] = calculate_hausdorff(
+                        gt_mask, pred_mask
+                    )
                 if "average_surface_distance" in eval_metrics:
                     print(f"# Calculating ASD for test mask {data['test_id']} ...")
                     metric["asd"][key] = calculate_asd(gt_mask, pred_mask)

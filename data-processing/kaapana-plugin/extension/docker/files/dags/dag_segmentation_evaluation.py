@@ -35,6 +35,7 @@ ui_forms = {
                 "items": {
                     "type": "string",
                     "enum": [
+                        "dice_score",
                         "surface_dice",
                         "average_surface_distance",
                         "hausdorff_distance",

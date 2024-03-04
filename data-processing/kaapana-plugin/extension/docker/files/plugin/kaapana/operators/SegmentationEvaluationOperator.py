@@ -64,6 +64,6 @@ class SegmentationEvaluationOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             ram_mem_mb=5000,
             ram_mem_mb_lmt=100000,
-            labels={"access-opensearch": "true"},
+            labels={"network-access": "opensearch"},
             **kwargs,
         )

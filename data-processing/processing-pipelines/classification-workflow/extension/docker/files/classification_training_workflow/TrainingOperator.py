@@ -24,7 +24,7 @@ class TrainingOperator(KaapanaBaseOperator):
             execution_timeout=execution_timeout,
             ram_mem_mb=16000,
             gpu_mem_mb=11000,
-            labels={"access-opensearch": "true"},
+            labels={"network-access": "opensearch"},
             *args,
             **kwargs,
         )

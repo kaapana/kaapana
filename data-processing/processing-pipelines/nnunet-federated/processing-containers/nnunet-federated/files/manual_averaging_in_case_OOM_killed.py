@@ -1,10 +1,7 @@
 import os
 import sys
 from pathlib import Path
-import uuid
 import torch
-import json
-import pickle
 import shutil
 import collections
 from argparse import Namespace
@@ -14,14 +11,12 @@ sys.path.insert(0, "../")
 sys.path.insert(0, "/kaapana/app")
 from kaapana_federated.KaapanaFederatedTraining import (
     KaapanaFederatedTrainingBase,
-    timeit,
 )
 
 ############################################################################################################
 # Needs adaptations!
 federated_round = 451
 current_dir = "/kaapana/app/nnunet-training/nnunet-federated-220627045607689042"
-use_minio_mount = "/kaapana/app"
 # instance_names = ['A', 'B', 'C', 'D', 'E']
 instance_names = ["G", "J", "K", "L", "M"]
 ############################################################################################################
@@ -29,8 +24,6 @@ instance_names = ["G", "J", "K", "L", "M"]
 self = Namespace(
     **{
         "fl_working_dir": current_dir,
-        #'use_minio_mount': '/minio'
-        "use_minio_mount": use_minio_mount,  # Adapted to jupyter notebook!
     }
 )
 current_federated_round_dir = Path(
@@ -94,6 +87,6 @@ for instance_name in instance_names:
     KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
     print(f"Uploading {file_path } to {next_object_name}")
 
-    dst = os.path.join(self.use_minio_mount, "nnunet-training", next_object_name)
+    dst = os.path.join("nnunet-training", next_object_name)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     shutil.copyfile(file_path, dst)

@@ -1,7 +1,7 @@
 FROM local-only/base-minio-mc:latest
-LABEL IMAGE="radiomics-federated-analysis"
+LABEL IMAGE="nnunet-analysis-scripts"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 USER 0 
 COPY files/ /files

@@ -11,10 +11,11 @@ from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from airflow.api.common.experimental import pool as pool_api
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
-from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
+
+from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
+
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.utils.trigger_rule import TriggerRule
@@ -313,11 +314,20 @@ nnunet_train = NnUnetOperator(
     retries=0,
 )
 
-generate_nnunet_report = NnUnetNotebookOperator(
+get_notebooks_from_minio = LocalMinioOperator(
+    dag=dag,
+    name="nnunet-get-notebook-from-minio",
+    bucket_name="analysis-scripts",
+    action="get",
+    action_files=["run_generate_nnunet_report.ipynb"],
+)
+
+generate_nnunet_report = JupyterlabReportingOperator(
     dag=dag,
     name="generate-nnunet-report",
     input_operator=nnunet_train,
-    arguments=["/kaapana/app/notebooks/nnunet_training/run_generate_nnunet_report.sh"],
+    notebook_filename="run_generate_nnunet_report.ipynb",
+    output_format="html,pdf",
 )
 
 put_to_minio = LocalMinioOperator(
@@ -404,6 +414,7 @@ get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> check_seg
 
 (
     nnunet_train
+    >> get_notebooks_from_minio
     >> generate_nnunet_report
     >> put_to_minio
     >> put_report_to_minio

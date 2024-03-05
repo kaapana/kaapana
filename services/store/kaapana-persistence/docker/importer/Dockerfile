@@ -13,7 +13,7 @@ RUN apk update && apk add git
 
 # Used to invalidate cache
 ADD https://api.github.com/repos/lucaskulla/SpreadSheetImporter/git/refs/heads/master version.json 
-RUN git clone -b master https://github.com/$lucaskulla/SpreadSheetImporter.git
+RUN git clone -b master https://github.com/lucaskulla/SpreadSheetImporter.git
 
 
 WORKDIR /kaapana/app/SpreadSheetImporter

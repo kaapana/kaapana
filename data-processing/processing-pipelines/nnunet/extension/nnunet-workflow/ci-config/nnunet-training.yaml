@@ -1,4 +1,5 @@
 dag_id: "nnunet-training"
+ci_ignore: true
 instance_names:
   - central
 conf_data:

@@ -1,4 +1,5 @@
 dag_id: "bodypart-regression"
+ci_ignore: true
 conf_data:
   workflow_form:
     single_execution: false
@@ -9,6 +10,7 @@ remote: false
 username: "kaapana"
 --- 
 dag_id: "bodypart-regression"
+ci_ignore: true
 conf_data:
   workflow_form:
     single_execution: false

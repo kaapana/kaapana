@@ -1,9 +1,9 @@
 ARG NODE_VERSION=18
-ARG OS_VERSION=2.11.1
+ARG OS_VERSION=2.12.0
 FROM docker.io/node:${NODE_VERSION} AS builder
 
 LABEL IMAGE="os-dashboards"
-LABEL VERSION="2.11.1"
+LABEL VERSION="2.12.0"
 LABEL BUILD_IGNORE="False"
 
 USER root
@@ -13,8 +13,8 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
 
 USER node
 WORKDIR /home/node
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
-RUN git clone https://github.com/opensearch-project/OpenSearch-Dashboards && cd OpenSearch-Dashboards && git checkout 2.11
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+RUN git clone https://github.com/opensearch-project/OpenSearch-Dashboards && cd OpenSearch-Dashboards && git checkout 2.12.0
 WORKDIR /home/node/OpenSearch-Dashboards
 RUN yarn osd bootstrap
 
@@ -24,14 +24,14 @@ WORKDIR /home/node/OpenSearch-Dashboards/plugins/workflow-trigger
 USER root
 RUN git config --global --add safe.directory /home/node/OpenSearch-Dashboards
 
-RUN yarn build --opensearch-dashboards-version 2.11.1 --allow-root
+RUN yarn build --opensearch-dashboards-version 2.12.0 --allow-root
 
 # ################################################################## NEW STAGE ########################################################################
-FROM docker.io/opensearchproject/opensearch-dashboards:2.11.1
+FROM docker.io/opensearchproject/opensearch-dashboards:2.12.0
 
 
 WORKDIR /usr/share/opensearch-dashboards/
-COPY --from=builder /home/node/OpenSearch-Dashboards/plugins/workflow-trigger/build/workflowTrigger-2.11.1.zip /workflowTrigger.zip
+COPY --from=builder /home/node/OpenSearch-Dashboards/plugins/workflow-trigger/build/workflowTrigger-2.12.0.zip /workflowTrigger.zip
 
 RUN bin/opensearch-dashboards-plugin install file:///workflowTrigger.zip
 COPY files/kaapana.svg /usr/share/opensearch-dashboards/src/core/server/core_app/assets/kaapana.svg

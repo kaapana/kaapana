@@ -109,7 +109,7 @@ cca = ConnectedComponentAnalysisOperator(
 concat_metadata = LocalConcatJsonOperator(
     dag=dag,
     name="concatenate-seg-metadata",
-    input_operator=extract_seg_metadata,
+    input_operator=cca,
 )
 
 ### COMMON ###

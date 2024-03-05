@@ -94,10 +94,17 @@ class HelperSendEmailService:
         if not HelperSendEmailService.send_requiered(workflow_name, run_id):
             logger.info("Not Triggering send-mail dag, since already triggered.")
             return
-
+        receivers = None
+        username = workflow_form.get("username", None)
+        if username:
+            # Basic regex pattern for email validation, just basic
+            pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$")
+            if bool(re.match(pattern, username)):
+                receivers = [username]
         logger.info("Trigger service-email-send")
         HelperSendEmailService.trigger(
             workflow_name_monitor=workflow_name,
+            receivers=receivers,
             trigger_run_id=run_id,
         )
 

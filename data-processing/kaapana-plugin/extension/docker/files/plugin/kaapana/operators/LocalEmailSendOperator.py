@@ -205,7 +205,14 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             task_instance.set_state(State.SKIPPED)
             return f"Task {task_instance.task_id} with run_id {run_id} is set to SKIPPED state."
 
-        receivers = workflow_form.get("receivers", [])
+        receivers = workflow_form.get("receivers", None)
+        if not receivers:
+            username = workflow_form.get("username", None)
+            if username:
+                # Basic regex pattern for email validation, just basic
+                pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$")
+                if bool(re.match(pattern, username)):
+                    receivers = [username]
         smtp_host = workflow_form.get("smtp_host", None)
         smtp_port = workflow_form.get("smtp_port", None)
         sender = workflow_form.get("workflow_name_monitor", None)

@@ -12,6 +12,7 @@ WORKDIR /kaapana/app
 RUN apk update && apk add git
 
 RUN git clone -b Master https://github.com/lucaskulla/SpreadSheetImporter.git
+
 WORKDIR /kaapana/app/SpreadSheetImporter
 
 RUN npm ci --silent

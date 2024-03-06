@@ -10,9 +10,9 @@ COPY files/login.jpg /app/kaapana/login/resources/img/kaapana-bg.png
 RUN sed -i '/^stylesCommon=/c\stylesCommon=node_modules/@patternfly/patternfly/patternfly.min.css node_modules/patternfly/dist/css/patternfly.min.css node_modules/patternfly/dist/css/patternfly-additions.min.css lib/pficon/pficon.css' /app/kaapana/login/theme.properties
 
 ################################################################# NEW STAGE ########################################################################
-FROM quay.io/keycloak/keycloak:23.0.4
+FROM quay.io/keycloak/keycloak:24.0.1
 LABEL IMAGE="keycloak"
-LABEL VERSION="23.0.4"
+LABEL VERSION="24.0.1"
 LABEL CI_IGNORE="False"
 
 COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana

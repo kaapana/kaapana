@@ -420,9 +420,9 @@ def helm_install(
             logger.error(
                 f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}"
             )
-    timeout = 5
+    timeout = 15
     if platforms:
-        timeout = 15
+        timeout = 45 # plaforms usually take longer due to multiple sub-charts involved
     success, stdout = helm_helper.execute_shell_command(
         helm_command, shell=shell, blocking=blocking, timeout=timeout
     )

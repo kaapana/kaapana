@@ -15,6 +15,7 @@ import json
 import re
 
 processed_count = 0
+skip_operator = False
 issue_occurred = False
 logger = None
 
@@ -173,7 +174,7 @@ def fuse(
     target_nifti_path,
     target_dir,
 ):
-    global processed_count, input_file_extension
+    global processed_count, input_file_extension, skip_operator
 
     # get fusing-specific envs
     # first get the key specified in conf
@@ -190,7 +191,8 @@ def fuse(
         logger.warning("# NO FUSE_LABELS DEFINED. MARK OPERATOR AS SKIPPED")
         logger.warning("#")
         fuse_labels = ""
-        exit(126)
+        skip_operator = True
+        # exit(126)
     fuse_labels = fuse_labels.split(",")
     fuse_labels = [remove_special_characters(x) for x in fuse_labels]
 
@@ -210,7 +212,8 @@ def fuse(
         logger.warning("# NO FUSED_LABEL_NAMES DEFINED. MARK OPERATOR AS SKIPPED")
         logger.warning("#")
         fused_label_name = ""
-        exit(126)
+        skip_operator = True
+        # exit(126)
     fused_label_name = remove_special_characters(fused_label_name)
 
     logger.info("#")
@@ -234,13 +237,12 @@ def fuse(
             if remove_special_characters(item["label_name"]) == fuse_label
         ]
 
-        assert len(fitting_nifti_found) == len(fuse_label_index_in_seg_info)
-
         # check whether fuse_labels are in seg_info_list and input_files
         if len(fitting_nifti_found) == 0 or len(fuse_label_index_in_seg_info) == 0:
             logger.warning(
                 f"Segmentation {fuse_label} does not exist -> fusion process aborted!"
             )
+            break
 
         for i in range(0, len(fitting_nifti_found)):
             # compose a fuse_label_dict of current fuse_label
@@ -379,7 +381,7 @@ def fuse(
 
 
 def merge_mask_niftis(nifti_dir, target_dir, mode=None):
-    global processed_count, input_file_extension
+    global processed_count, input_file_extension, skip_operator
 
     Path(target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -601,6 +603,14 @@ if __name__ == "__main__":
         logger.info("#")
         logger.info("##################################################")
         logger.info("#")
+
+    if mode == "fuse" and skip_operator:
+        logger.warning("#####################################")
+        logger.warning("#")
+        logger.warning("# NO FUSE LABELS SPECIFIED --> MARK OPERATOR AS SKIPPED!")
+        logger.warning("#")
+        logger.warning("#####################################")
+        exit(126)
 
     if processed_count == 0:
         logger.info("#")

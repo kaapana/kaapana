@@ -198,9 +198,6 @@ def evaluate_segmentation(dataset_map):
             gt_path = Path(data["gt_path"])
             test_path = Path(data["test_path"])
 
-            filtered_gt = []
-            filtered_test = []
-
             metric = {
                 "dice_score": {},
                 "surface_dice": {},

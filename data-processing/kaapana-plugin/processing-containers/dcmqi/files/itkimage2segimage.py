@@ -2,12 +2,16 @@ import os
 import json
 import glob
 import re
+import ast
 import math
 import random
 from matplotlib import cm
 import subprocess
 import numpy as np
 import pydicom
+
+from emptyseg.handle import check_n_replace_empty_mask
+from emptyseg.create import create_empty_seg
 
 processed_count = 0
 
@@ -157,9 +161,9 @@ def create_segment_attribute(
     }
     segment_attribute["SegmentedPropertyTypeModifierCodeSequence"] = {
         "CodeValue": str(coding_scheme["Code Value"]),
-        "CodingSchemeDesignator": coding_scheme["SNOMED-RT ID (Retired)"]
-        if not math.isnan
-        else "unkown",
+        "CodingSchemeDesignator": (
+            coding_scheme["SNOMED-RT ID (Retired)"] if not math.isnan else "unkown"
+        ),
         "CodeMeaning": code_meaning,
     }
     return segment_attribute
@@ -200,6 +204,21 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
         print("# Could not extract any body-part!")
 
     dcmseg_file.add_new([0x012, 0x020], "LO", aetitle)  # Clinical Trial Protocol ID
+    dcmseg_file.save_as(output_dcm_file)
+
+def force_update_content_tag_to_dicom(meta_attrs: dict, output_dcm_file):
+    dcmseg_file = pydicom.dcmread(output_dcm_file)
+
+    print(f"# Updating Content meta tags....")
+    
+    if 'ContentLabel' in meta_attrs:
+        content_label = dcmseg_file[0x0070, 0x0080]
+        content_label.value = meta_attrs['ContentLabel']
+    
+    if 'ContentDescription' in meta_attrs:
+        content_desc = dcmseg_file[0x0070, 0x0081]
+        content_desc.value = meta_attrs['ContentDescription']
+    
     dcmseg_file.save_as(output_dcm_file)
 
 
@@ -268,6 +287,122 @@ fail_on_no_segmentation_found = (
     if os.environ.get("FAIL_ON_NO_SEGMENTATION_FOUND", "true").lower() == "true"
     else False
 )
+allow_empty_segmentation = (
+    True
+    if os.environ.get("ALLOW_EMPTY_SEGMENTATION", "false").lower() == "true"
+    else False
+)
+
+empty_segmentation_label = int(os.environ.get("EMPTY_SEGMENTATION_LABEL", "99"))
+
+
+def check_for_number_or_list(variable, space_replacement_char="~"):
+    # Initially convert the variable into str and fix the space, that was replaced by 
+    # spacial character for passing through env variables.
+    variable = str(variable).replace(space_replacement_char, ' ')    
+
+    try:
+        # Try evaluating the string as a Python literal
+        value = ast.literal_eval(variable)
+        # Check if the value is a number (int or float)
+        if isinstance(value, (int, float)):
+            return value  # Return the number
+        elif isinstance(value, list):
+            return value
+    except (ValueError, SyntaxError):
+        pass  # If literal_eval() fails or value is not a number, continue to the next step
+   
+    return variable  # Return the string as is if it's not a number
+
+
+def extract_props_from_env_str(env_val: str):
+
+    env_val = env_val.strip()
+    if env_val == "":
+        return {}
+
+    # Split the string by the delimiter
+    key_value_pairs = env_val.split(";")
+
+    target_props = {}
+    for pair in key_value_pairs:
+        key, value = pair.split("=")
+        key = check_for_number_or_list(key)
+        # check values for tuples
+        values = value.split(":")
+        if len(values) > 1:
+            tuple_key = values[0]
+            tuple_val = values[1]
+            tuple_values = tuple_val.split(",")
+            # check if tuple value is a list then convert it into a list
+            if len(tuple_values) > 1:
+                tuple_val = [check_for_number_or_list(v) for v in tuple_values]
+            value = (tuple_key, tuple_val)
+        else:
+            value = check_for_number_or_list(value)
+        target_props[key] = value
+
+    return target_props
+
+
+## Curently not being used, as the dcmqi only support single segment mask
+def update_seg_attribute_props(seg_attributes: list, seg_update_dict: dict):
+    seg_labels = list(seg_update_dict.keys())
+    for seg_item in seg_attributes:
+        if isinstance(seg_item, list):
+            seg_item = seg_item[0]
+
+        seg_label = seg_item["labelID"]
+        if seg_label in seg_labels:
+            seg_updates = seg_update_dict[seg_label]
+            update_key, update_val = seg_updates
+            seg_item[update_key] = update_val
+            seg_labels.remove(seg_label)
+
+    if len(seg_labels) > 0:
+        print(
+            f"Segment attributes not found with the following labels {','.join(map(str, seg_labels))}. Provided values could not be updated."
+        )
+
+    return seg_attributes
+
+
+def update_seg_attribute_props_single_segment(
+    seg_attributes: list, seg_update_dict: dict
+):
+    """
+    Update attributes of a single segment in a list of segment attributes based on a provided dictionary.
+
+    Args:
+        seg_attributes (list): List of segment attributes, where each segment is represented as a dictionary.
+        seg_update_dict (dict): Dictionary containing attributes to update for the segment. applies
+            update to all available segments, since now it only accept one segmentation mask.
+
+    Returns:
+        list: Updated list of segment attributes after applying the updates.
+
+    """
+    seg_attrs = list(seg_update_dict.keys())
+    for seg_item in seg_attributes:
+        # If the segment is represented as a list, extract the dictionary from it
+        if isinstance(seg_item, list):
+            seg_item = seg_item[0]
+
+        seg_label = seg_item["labelID"]
+        if not seg_label == 0:
+            for attrs in seg_attrs:
+                seg_item[attrs] = seg_update_dict[attrs]
+
+    return seg_attributes
+
+
+# Additional meta props environment variable value
+meta_props_value = os.environ.get("ADDITIONAL_META_PROPS", "")
+# Create a dictionary from the key-value pairs
+meta_props = extract_props_from_env_str(meta_props_value)
+
+seg_attribute_values = os.environ.get("SEGMENT_ATTRIBUTES_PROPS", "")
+seg_attr_props = extract_props_from_env_str(seg_attribute_values)
 
 get_seg_info_from_file = False
 if input_type == "multi_label_seg":
@@ -302,14 +437,20 @@ code_lookup_table_path = "code_lookup_table.json"
 with open(code_lookup_table_path) as f:
     code_lookup_table = json.load(f)
 
-batch_folders = sorted(
-    [
-        f
-        for f in glob.glob(
-            os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*")
-        )
-    ]
-)
+batch_path = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"])
+
+# check and create a empty nifti file in case
+# no nifti file is created in the image_list input directory
+# by the algorithm
+if allow_empty_segmentation:
+    create_empty_seg(
+        batch_path,
+        os.environ.get("BASE_NIFTI_DIR", ""),
+        os.environ["OPERATOR_IMAGE_LIST_INPUT_DIR"],
+    )
+
+
+batch_folders = sorted([f for f in glob.glob(os.path.join(batch_path, "*"))])
 
 print("Found {} batches".format(len(batch_folders)))
 
@@ -320,6 +461,9 @@ for batch_element_dir in batch_folders:
     input_image_list_input_dir = os.path.join(
         batch_element_dir, os.environ["OPERATOR_IMAGE_LIST_INPUT_DIR"]
     )
+
+    if allow_empty_segmentation:
+        check_n_replace_empty_mask(input_image_list_input_dir, empty_segmentation_label)
 
     element_output_dir = os.path.join(batch_element_dir, os.environ["OPERATOR_OUT_DIR"])
     if not os.path.exists(element_output_dir):
@@ -350,6 +494,12 @@ for batch_element_dir in batch_folders:
     segmentation_information["ContentCreatorName"] = content_creator_name
     segmentation_information["SeriesNumber"] = series_number
     segmentation_information["InstanceNumber"] = instance_number
+
+    # set the additional forwarded meta props to the segmentation information dict
+    # for new meta data file
+    if len(meta_props.keys()) > 0:
+        for props in meta_props.keys():
+            segmentation_information[props] = meta_props[props]
 
     if input_type == "single_label_segs":
         print("input_type == 'single_label_segs'")
@@ -383,6 +533,11 @@ for batch_element_dir in batch_folders:
 
             if create_multi_label_dcm_from_single_label_segs.lower() == "true":
                 segment_attributes.append([segment_attribute])
+
+            if len(seg_attr_props.keys()) > 0:
+                segment_attribute = update_seg_attribute_props_single_segment(
+                    segment_attribute, seg_attr_props
+                )
 
             segmentation_information["segmentAttributes"] = [[segment_attribute]]
             meta_data_file = f"{input_image_list_input_dir}/{rootname}.json"
@@ -517,6 +672,11 @@ for batch_element_dir in batch_folders:
             multi_label_seg_name, series_description
         )
 
+        if len(seg_attr_props.keys()) > 0:
+            segment_attributes = update_seg_attribute_props_single_segment(
+                segment_attributes, seg_attr_props
+            )
+
         segmentation_information["segmentAttributes"] = segment_attributes
         meta_data_file = (
             f"{input_image_list_input_dir}/{multi_label_seg_name.lower()}.json"
@@ -580,6 +740,8 @@ for batch_element_dir in batch_folders:
                 )
 
         adding_aetitle(element_input_dir, output_dcm_file, body_part=body_part)
+        if ('ContentDescription' in meta_props or 'ContentLabel' in meta_props):
+            force_update_content_tag_to_dicom(meta_props, output_dcm_file)
         processed_count += 1
 
 

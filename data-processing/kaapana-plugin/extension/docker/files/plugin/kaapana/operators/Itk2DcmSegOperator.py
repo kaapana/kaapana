@@ -1,3 +1,4 @@
+
 from datetime import datetime
 from datetime import timedelta
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
@@ -5,6 +6,49 @@ from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
+
+def convert_dict_to_env_safe_str(env_dict: dict, space_replacement_char=''):
+    """
+    Converts a dictionary into a string safe for use as an environment variable value.
+
+    Args:
+        env_dict (dict): The dictionary to be converted.
+
+    Returns:
+        str: A string safe for use as an environment variable value.
+
+    Example:
+        # Sample input dictionary
+        env_dict = {
+            'key1': ('value1', [1, 2, 3]),
+            'key2': ('value2', ['a', 'b', 'c']),
+            'key3': ('value3', ['x', 'y', 'z']),
+        }
+
+        # Output: 'key1=value1:1,2,3;key2=value2:a,b,c;key3=value3:x,y,z'
+        convert_dict_to_env_safe_str(env_dict)
+    """
+    
+    sample_key = list(env_dict.keys())[0]
+    
+    # Check if the value corresponding to the sample key is a tuple
+    if isinstance(env_dict[sample_key], tuple):
+        # If it's a tuple, process each key-value pair
+        temp_dict = {}
+        for key, value in env_dict.items():
+            tuple_key = value[0]
+            tuple_val = str(value[1])
+            if isinstance(value[1], list):
+                tuple_val = ','.join(map(str, value[1]))
+            # Store the processed tuple value in a temporary dictionary tuple key, value separated by a `:`
+            temp_dict[key] = f"{tuple_key}:{tuple_val}"
+
+        env_var_value = ";".join([f"{key}={str(value).replace(' ', space_replacement_char)}" for key, value in temp_dict.items()])
+    else:
+        env_var_value =  ";".join([f"{key}={str(value).replace(' ', space_replacement_char)}" for key, value in env_dict.items()])
+        
+    return env_var_value
+
 
 
 class Itk2DcmSegOperator(KaapanaBaseOperator):
@@ -41,6 +85,11 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         fail_on_no_segmentation_found=True,
         env_vars=None,
         execution_timeout=timedelta(minutes=90),
+        allow_empty_segmentation=False,
+        base_nifti_dir=None,
+        empty_segmentation_label=99,
+        meta_json_props=None,
+        seg_attrs_props=None,
         **kwargs,
     ):
         """
@@ -58,11 +107,27 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
         :param skip_empty_slices: Whether empty sclices of the series should be skipped. Default: False
         :param env_vars: Environment variables
         :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond it will raise and fail
+        :param base_nifti_dir: nifti directory before the segmentation operator. In case segmentation fails, this operator will create
+            an empty nifti using the base nifti from this directory and create an empty segmentation file.
+        :param allow_empty_segmentation: handle empty segmentation or empty nifti files.
+        :param empty_segmentation_label: if allow_empty_segmentation set to True, it will replace the empty segmentation mask label to 
+            provided user given label.
+        :param meta_json_props: additional meta data json properties as dictionary, will be appended to the newly created meta data json file.
+        :param seg_attrs_props: additional segment attributes properties as dictionary where segment label int as key, will be updated and added to the 
+            segment attributes of the newly created meta data json file.
 
         """
 
         if env_vars is None:
             env_vars = {}
+
+        meta_props_val = ""
+        if meta_json_props and isinstance(meta_json_props, dict):
+            meta_props_val =  convert_dict_to_env_safe_str(meta_json_props, space_replacement_char="~")
+
+        segment_attr_vals = ""
+        if seg_attrs_props and isinstance(seg_attrs_props, dict):
+            segment_attr_vals = convert_dict_to_env_safe_str(seg_attrs_props, space_replacement_char="~")
 
         envs = {
             "INPUT_TYPE": input_type,  # multi_label_seg or single_label_segs
@@ -87,6 +152,10 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
             "INSTANCE_NUMBER": "1",
             "SKIP_EMPTY_SLICES": f"{skip_empty_slices}",
             "DCMQI_COMMAND": "itkimage2segimage",
+            "ALLOW_EMPTY_SEGMENTATION": f"{allow_empty_segmentation}",
+            "EMPTY_SEGMENTATION_LABEL": f"{empty_segmentation_label}",
+            "ADDITIONAL_META_PROPS": f"{meta_props_val}",
+            "SEGMENT_ATTRIBUTES_PROPS": f"{segment_attr_vals}",
         }
         env_vars.update(envs)
 
@@ -101,6 +170,9 @@ class Itk2DcmSegOperator(KaapanaBaseOperator):
                 raise NameError(
                     "Either segmentation_operator or operator_in_dir has to be set."
                 )
+        
+        if base_nifti_dir:
+            env_vars["BASE_NIFTI_DIR"] = str(base_nifti_dir)
 
         super().__init__(
             dag=dag,

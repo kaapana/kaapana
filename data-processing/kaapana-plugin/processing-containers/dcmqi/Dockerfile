@@ -14,7 +14,9 @@ RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/f
 RUN mkdir -p /kaapana/app/src && wget --no-check-certificate https://github.com/QIICR/dcmqi/releases/download/v1.2.5/dcmqi-1.2.5-linux.tar.gz -O /kaapana/app/src/dcmqi.tar.gz \
     && mkdir -p /kaapana/app/dcmqi && tar -xzf /kaapana/app/src/dcmqi.tar.gz --strip 1 -C /kaapana/app/dcmqi && rm -rf /kaapana/app/src/dcmqi.tar.gz
 
-COPY files/* /kaapana/app/
+COPY files/ /kaapana/app/
+RUN ls -la /kaapana/app/*
+
 RUN chmod +x /kaapana/app/convert.sh
 
 ENTRYPOINT ["/bin/bash", "/kaapana/app/convert.sh"]

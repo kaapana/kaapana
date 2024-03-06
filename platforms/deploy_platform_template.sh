@@ -467,18 +467,22 @@ function deploy_chart {
 
 
 function pull_chart {
-    for i in 1 2 3 4 5;
+    MAX_RETRIES=30
+    i=1
+    while [ $i -le $MAX_RETRIES ];
     do
         echo -e "${YELLOW}Pulling chart: ${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME with version $PLATFORM_VERSION ${NC}"
         helm pull oci://${CONTAINER_REGISTRY_URL}/$PLATFORM_NAME --version $PLATFORM_VERSION -d $1 \
             && break \
             || ( echo -e "${RED}Failed -> retry${NC}" && sleep 1 );
-        
-        if [ $i -eq 5 ];then
-            echo -e "${RED}Could not pull chart! -> abort${NC}"
-            exit 1
-        fi 
+        ((i++))
     done
+    if [ ! -f "${1}/${PLATFORM_NAME}-${PLATFORM_VERSION}.tgz" ];then
+        echo -e "${RED}Could not pull chart! -> abort${NC}"
+        echo -e "${YELLOW}This can be related to issues on the registry side or connection issues.${NC}"
+        echo -e "${YELLOW}Retrying the deployment script might solve this issue.${NC}"
+        exit 1
+    fi
 }
 
 function check_credentials {

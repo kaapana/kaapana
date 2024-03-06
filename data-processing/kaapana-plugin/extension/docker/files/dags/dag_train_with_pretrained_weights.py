@@ -4,6 +4,8 @@ from glob import glob
 
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+
 from kaapana.operators.LocalDagTriggerOperator import LocalDagTriggerOperator
 from kaapana.blueprints.kaapana_global_variables import (
     GPU_COUNT,
@@ -13,8 +15,9 @@ from kaapana.blueprints.kaapana_global_variables import (
     GPU_COUNT,
 )
 
+log = LoggingMixin().log
+
 max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1
-print(f"### max_active_runs {max_active_runs}")
 
 training_dags = []
 try:
@@ -23,14 +26,18 @@ try:
 
     training_dags.append("nnunet-training")
 except Exception as e:
-    print("nnunet-training is not installed")
+    log.warning(
+        f"dag_train_with_pretrained_weights: nnunet-training is not installed {e}"
+    )
 try:
     from dag_classification_training_workflow import ui_forms as clf_form
     from classification_training_workflow.getCheckpoints import getCheckpoints
 
     training_dags.append("classification-training-workflow")
 except Exception as e:
-    print("classification-training-workflow is not installed")
+    log.warning(
+        f"dag_train_with_pretrained_weights: classification-training-workflow is not installed: {e}"
+    )
 
 ui_forms = {
     "workflow_form": {
@@ -78,9 +85,9 @@ for training_dag in training_dags:
         checkpoints = get_all_checkpoints()
 
         val = selection["properties"]["pretrained_weights"]
-        val[
-            "description"
-        ] = "Select pretrained weights from installed tasks. Use nnunet-model-management DAG to install more tasks. NOTE: please select the right 'network/task/trainer/fold' combination for your training, otherwise it will fail."
+        val["description"] = (
+            "Select pretrained weights from installed tasks. Use nnunet-model-management DAG to install more tasks. NOTE: please select the right 'network/task/trainer/fold' combination for your training, otherwise it will fail."
+        )
         for checkpoint in checkpoints:
             val["enum"].append(checkpoint)
 
@@ -95,9 +102,9 @@ for training_dag in training_dags:
         checkpoints = getCheckpoints()
 
         val = selection["properties"]["pretrained_weights"]
-        val[
-            "description"
-        ] = "Select pretrained weights from previous classification training runs"
+        val["description"] = (
+            "Select pretrained weights from previous classification training runs"
+        )
         for checkpoint in checkpoints:
             val["enum"].append(checkpoint)
 
@@ -108,7 +115,7 @@ for training_dag in training_dags:
         ui_forms["workflow_form"]["oneOf"].append(selection)
 
     else:
-        print(f"Unknown training DAG {training_dag}")
+        log.warning(f"Unknown training DAG {training_dag}")
 
 
 args = {

@@ -144,6 +144,12 @@ spec:
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
         - name: SQLALCHEMY_SILENCE_UBER_WARNING
           value: "1"
+        - name: SMTP_HOST
+          value: "{{ .Values.global.smtp_host }}"
+        - name: SMTP_PORT
+          value: "{{ .Values.global.smtp_port }}"
+        - name: EMAIL_ADDRESS_SENDER
+          value: "{{ .Values.global.email_address_sender }}"
         resources:
           requests:
             memory: 3000Mi

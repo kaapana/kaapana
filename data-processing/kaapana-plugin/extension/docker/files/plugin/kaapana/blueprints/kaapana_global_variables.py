@@ -16,6 +16,9 @@ KAAPANA_BUILD_VERSION = os.getenv("KAAPANA_BUILD_VERSION", None)
 PLATFORM_VERSION = os.getenv("PLATFORM_VERSION", None)
 GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else False
 ENABLE_NFS = os.getenv("ENABLE_NFS", None)
+SMTP_HOST = os.getenv("SMTP_HOST", None)
+SMTP_PORT = os.getenv("SMTP_PORT", 0)
+EMAIL_ADDRESS_SENDER = os.getenv("EMAIL_ADDRESS_SENDER", None)
 
 # Deprecated kept for backwards compatibility
 WORKFLOW_DIR = AIRFLOW_WORKFLOW_DIR

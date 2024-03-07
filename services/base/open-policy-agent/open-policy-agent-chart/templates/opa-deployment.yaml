@@ -19,7 +19,7 @@ spec:
       containers:
       - name: open-policy-agent
         image: "{{ .Values.global.registry_url }}/open-policy-agent:{{ .Values.global.kaapana_build_version  }}"
-        imagePullPolicy:  Always
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
         #args: ["run", "--server","--log-format=json-pretty", "--set=decision_logs.console=true", "-c /kaapana/opa/config.yaml" ]
         env:
           - name: ADMIN_NAMESPACE

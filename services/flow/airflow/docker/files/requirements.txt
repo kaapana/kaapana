@@ -8,5 +8,7 @@ dicom_parser==1.2.3
 statsd==4.0.1
 monai==0.7.0
 # Security fix for CVE-2023-0286
-cryptography==41.0.7
+cryptography==42.0.5
 Werkzeug==2.2.3
+pylibjpeg==2.0.0
+pylibjpeg-libjpeg==2.0.2

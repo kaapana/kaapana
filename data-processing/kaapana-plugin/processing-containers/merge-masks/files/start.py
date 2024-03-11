@@ -49,11 +49,13 @@ def combine(
         label_int = label_entry["label_int"]
 
         # find fitting nifti file to current label, use {label_int}{label_name} for files with same label_name
-        fitting_nifti_found = [
-            x
-            for x in input_files
-            if f"{label_int}{label_name}.nii.gz" in remove_special_characters(x)
-        ]
+        fitting_nifti_found = []
+        for x in input_files:
+            spec_removed = remove_special_characters(x)
+            with_label_int = f"{label_int}{label_name}.nii.gz"
+            wo_label_int = f"{label_name}.nii.gz"
+            if with_label_int in spec_removed or wo_label_int in spec_removed:
+                fitting_nifti_found.append(x)
 
         if len(fitting_nifti_found) != 1:
             logger.warning("")

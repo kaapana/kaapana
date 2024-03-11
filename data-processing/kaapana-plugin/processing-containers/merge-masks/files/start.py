@@ -237,13 +237,12 @@ def fuse(
             if remove_special_characters(item["label_name"]) == fuse_label
         ]
 
-        assert len(fitting_nifti_found) == len(fuse_label_index_in_seg_info)
-
         # check whether fuse_labels are in seg_info_list and input_files
         if len(fitting_nifti_found) == 0 or len(fuse_label_index_in_seg_info) == 0:
             logger.warning(
                 f"Segmentation {fuse_label} does not exist -> fusion process aborted!"
             )
+            break
 
         for i in range(0, len(fitting_nifti_found)):
             # compose a fuse_label_dict of current fuse_label

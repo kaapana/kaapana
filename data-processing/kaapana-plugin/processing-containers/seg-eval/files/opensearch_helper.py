@@ -19,11 +19,15 @@ os_client = OpenSearch(
 
 
 def get_ref_series_instance_uid(id: str) -> str:
+    ref_obj_old = "00081115 ReferencedSeriesSequence_object_object"
+    ref_obj_new = "00081115 ReferencedSeriesSequence_object"
+    ref_key = "0020000E SeriesInstanceUID_keyword"
     query_body = {
         "query": {"bool": {"filter": {"term": {"_id": id}}}},
         "_source": [
-            "00081115 ReferencedSeriesSequence_object_object.0020000E SeriesInstanceUID_keyword"
-        ],
+            f"{ref_obj_old}.{ref_key}",
+            f"{ref_obj_new}.{ref_key}",
+        ],  # it's enough if one of them exists
     }
 
     # Exec query
@@ -35,9 +39,18 @@ def get_ref_series_instance_uid(id: str) -> str:
             f"# WARNING: OpenSearch query returned multiple hits for {id=}, using first one"
         )
 
+    hit_src = hits[0]["_source"]
+    # check whether the old one or new one is in there
+    ref_obj = (
+        ref_obj_new
+        if ref_obj_new in hit_src
+        else ref_obj_old if ref_obj_old in hit_src else None
+    )
     # Get ref series UID
-    ref_uid = hits[0]["_source"]["00081115 ReferencedSeriesSequence_object_object"][
-        "0020000E SeriesInstanceUID_keyword"
-    ]
+    if ref_obj is None:
+        raise KeyError(
+            f"Neither {ref_obj_old} nor {ref_obj_new} could be found in {hit_src}"
+        )
+    ref_uid = hit_src[f"{ref_obj}"][f"{ref_key}"]
 
     return ref_uid

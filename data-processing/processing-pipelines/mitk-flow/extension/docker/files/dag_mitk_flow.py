@@ -1,6 +1,5 @@
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
 from datetime import timedelta
 from airflow.models import DAG
 from mitk_flow.LocalMiktInputOperator import LocalMiktInputOperator
@@ -9,9 +8,7 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION
-from datetime import datetime
 
-import os
 
 log = LoggingMixin().log
 
@@ -52,7 +49,7 @@ dag = DAG(
 )
 
 get_input = LocalGetInputDataOperator(dag=dag)
-mitk_input = LocalMiktInputOperator(
+mitk = LocalMiktInputOperator(
     dag=dag, input_operator=get_input, operator_out_dir="mitk-results"
 )
 launch_app = KaapanaApplicationOperator(
@@ -62,10 +59,8 @@ launch_app = KaapanaApplicationOperator(
     chart_name="mitk-flow-chart",
     version=KAAPANA_BUILD_VERSION,
 )
-send_dicom = DcmSendOperator(
-    dag=dag, operator_in_dir="mitk-results", ae_title="MITK-flow"
-)
+
+send_dicom = DcmSendOperator(dag=dag, ae_title="MITK-flow", input_operator=mitk)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
-
-get_input >> mitk_input >> launch_app >> send_dicom >> clean
+get_input >> mitk >> launch_app >> send_dicom >> clean

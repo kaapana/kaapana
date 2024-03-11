@@ -1,7 +1,7 @@
 FROM local-only/base-installer:latest
 
 LABEL IMAGE="dag-mitk-flow"
-LABEL VERSION="2022.10"
+LABEL VERSION="2023.12"
 LABEL BUILD_IGNORE="False"
 
 COPY files/dag_mitk_flow.py /kaapana/tmp/dags/

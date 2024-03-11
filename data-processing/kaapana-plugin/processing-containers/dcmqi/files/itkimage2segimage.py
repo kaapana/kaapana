@@ -206,19 +206,20 @@ def adding_aetitle(element_input_dir, output_dcm_file, body_part):
     dcmseg_file.add_new([0x012, 0x020], "LO", aetitle)  # Clinical Trial Protocol ID
     dcmseg_file.save_as(output_dcm_file)
 
+
 def force_update_content_tag_to_dicom(meta_attrs: dict, output_dcm_file):
     dcmseg_file = pydicom.dcmread(output_dcm_file)
 
     print(f"# Updating Content meta tags....")
-    
-    if 'ContentLabel' in meta_attrs:
+
+    if "ContentLabel" in meta_attrs:
         content_label = dcmseg_file[0x0070, 0x0080]
-        content_label.value = meta_attrs['ContentLabel']
-    
-    if 'ContentDescription' in meta_attrs:
+        content_label.value = meta_attrs["ContentLabel"]
+
+    if "ContentDescription" in meta_attrs:
         content_desc = dcmseg_file[0x0070, 0x0081]
-        content_desc.value = meta_attrs['ContentDescription']
-    
+        content_desc.value = meta_attrs["ContentDescription"]
+
     dcmseg_file.save_as(output_dcm_file)
 
 
@@ -297,9 +298,9 @@ empty_segmentation_label = int(os.environ.get("EMPTY_SEGMENTATION_LABEL", "99"))
 
 
 def check_for_number_or_list(variable, space_replacement_char="~"):
-    # Initially convert the variable into str and fix the space, that was replaced by 
+    # Initially convert the variable into str and fix the space, that was replaced by
     # spacial character for passing through env variables.
-    variable = str(variable).replace(space_replacement_char, ' ')    
+    variable = str(variable).replace(space_replacement_char, " ")
 
     try:
         # Try evaluating the string as a Python literal
@@ -311,7 +312,7 @@ def check_for_number_or_list(variable, space_replacement_char="~"):
             return value
     except (ValueError, SyntaxError):
         pass  # If literal_eval() fails or value is not a number, continue to the next step
-   
+
     return variable  # Return the string as is if it's not a number
 
 
@@ -383,15 +384,18 @@ def update_seg_attribute_props_single_segment(
 
     """
     seg_attrs = list(seg_update_dict.keys())
-    for seg_item in seg_attributes:
-        # If the segment is represented as a list, extract the dictionary from it
-        if isinstance(seg_item, list):
-            seg_item = seg_item[0]
-
-        seg_label = seg_item["labelID"]
-        if not seg_label == 0:
-            for attrs in seg_attrs:
-                seg_item[attrs] = seg_update_dict[attrs]
+    attr_list = seg_attributes
+    if isinstance(seg_attributes, list):
+        if len(seg_attributes) == 1:
+            attr_list = seg_attributes[0]
+        for seg_item in attr_list:
+            seg_label = seg_item["labelID"]
+            if not seg_label == 0:
+                for attrs in seg_attrs:
+                    seg_item[attrs] = seg_update_dict[attrs]
+    elif isinstance(seg_attributes, dict):
+        for attrs in seg_attrs:
+            seg_attributes[attrs] = seg_update_dict[attrs]
 
     return seg_attributes
 
@@ -740,7 +744,7 @@ for batch_element_dir in batch_folders:
                 )
 
         adding_aetitle(element_input_dir, output_dcm_file, body_part=body_part)
-        if ('ContentDescription' in meta_props or 'ContentLabel' in meta_props):
+        if "ContentDescription" in meta_props or "ContentLabel" in meta_props:
             force_update_content_tag_to_dicom(meta_props, output_dcm_file)
         processed_count += 1
 

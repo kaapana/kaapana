@@ -1,5 +1,5 @@
-FROM docker.io/grafana/grafana:main-ubuntu@sha256:4976a0edbfdb0e075ff7c6fc10ae8508740f92aec79f50838cb92d85694c6d79
+FROM docker.io/grafana/grafana:10.3.4
 
 LABEL IMAGE="grafana"
-LABEL VERSION="10.3.1"
+LABEL VERSION="10.3.4"
 LABEL BUILD_IGNORE="False"

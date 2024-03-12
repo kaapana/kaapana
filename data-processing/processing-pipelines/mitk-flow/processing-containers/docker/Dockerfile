@@ -1,13 +1,13 @@
 FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="mitk-flow"
-LABEL VERSION="2022.10"
+LABEL VERSION="2023.12"
 LABEL BUILD_IGNORE="False"
 
 WORKDIR /src
 RUN mkdir -p /mitk
 
-RUN wget https://www.mitk.org/download/kaapana/flowbench/MITK-122321bb-linux-x86_64.tar.gz -O /src/mitk.tar.gz \
+RUN wget https://www.mitk.org/download/kaapana/flowbench/MITK-34738818-linux-x86_64.tar.gz -O /src/mitk.tar.gz \
     && tar -xzf /src/mitk.tar.gz --strip 1 -C /mitk/ && rm -rf /src/mitk.tar.gz
 
 # Application start definition, here a shell script is used to start the application

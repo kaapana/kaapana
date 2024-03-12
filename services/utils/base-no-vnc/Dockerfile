@@ -170,6 +170,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     at-spi2-core \
     gedit \
     python3-pip \
+    libxcb-cursor0 \
     && rm -rf /var/lib/apt/lists/*
 
 

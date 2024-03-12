@@ -77,8 +77,8 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
                         os.makedirs(target_dir)
 
                     result = self.downloadSeries(
-                        study_uid=incoming_dcm.StudyInstanceUID,
-                        series_uid=seriesUID,
+                        studyUID=incoming_dcm.StudyInstanceUID,
+                        seriesUID=seriesUID,
                         target_dir=target_dir,
                     )
                     if result:

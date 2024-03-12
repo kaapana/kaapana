@@ -75,6 +75,12 @@ function no_proxy_environment {
     else
         echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
 
+        if [ -v no_proxy ]; then
+                no_proxy=$no_proxy
+        else
+                no_proxy=$NO_PROXY
+        fi
+
         # remove any " from no_proxy ENV
         no_proxy=$( echo $no_proxy | sed 's/"//g')
         

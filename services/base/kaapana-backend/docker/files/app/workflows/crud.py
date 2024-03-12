@@ -713,7 +713,7 @@ def delete_external_job(db: Session, db_job):
                 params=params,
                 headers={
                     "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                    "User-Agent": f"kaapana-backend-{settings.kaapana_build_version}"
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )
@@ -749,7 +749,7 @@ def update_external_job(db: Session, db_job):
                     json=payload,
                     headers={
                         "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                        "User-Agent": f"kaapana-backend-{settings.kaapana_build_version}"
+                        "User-Agent": f"kaapana",
                     },
                     timeout=TIMEOUT,
                 )
@@ -796,7 +796,7 @@ def get_remote_updates(db: Session, periodically=False):
                 verify=db_remote_kaapana_instance.ssl_check,
                 headers={
                     "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                    "User-Agent": f"kaapana-backend-{settings.kaapana_build_version}"
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )
@@ -1651,7 +1651,7 @@ def update_remote_workflow(
                 json=payload,
                 headers={
                     "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                    "User-Agent": f"kaapana-backend-{settings.kaapana_build_version}"
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )

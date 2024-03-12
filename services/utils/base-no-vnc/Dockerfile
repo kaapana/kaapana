@@ -174,16 +174,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 
-RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir \
-    # Security fix for CVE-2021-33503
-    urllib3==1.26.5 \
-    # Security fix for CVE-2022-40898
-    wheel==0.42.0 \
-    # Security fix for CVE-2023-25577
-    Werkzeug==3.0.1 \
-    # Werkzeug 2.0.0+ breaks Flask
-    Flask==3.0.0 \
-    Jinja2==3.1.2
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir
 
 COPY files/startup.sh /startup.sh
 

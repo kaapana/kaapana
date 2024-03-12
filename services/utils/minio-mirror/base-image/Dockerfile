@@ -4,7 +4,7 @@ LABEL IMAGE="base-minio-mc"
 LABEL VERSION="latest"
 LABEL CI_IGNORE="False"
 
-RUN curl https://dl.min.io/client/mc/release/linux-amd64/archive/mcli_20240118070339.0.0_amd64.deb \
+RUN curl https://dl.min.io/client/mc/release/linux-amd64/archive/mcli_20240307003149.0.0_amd64.deb \
   -o mcli.deb && \
   dpkg -i mcli.deb
 

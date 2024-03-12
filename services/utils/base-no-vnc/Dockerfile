@@ -138,12 +138,12 @@ ENTRYPOINT ["/startup.sh"]
 
 
 
-
-
 RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     ca-certificates \
+    # CVE-2023-46343 
+    linux-libc-dev \
     libtiff5-dev \
     libwrap0-dev \
     libxcomposite1 \
@@ -173,8 +173,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libxcb-cursor0 \
     && rm -rf /var/lib/apt/lists/*
 
-
-RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir
 
 COPY files/startup.sh /startup.sh
 

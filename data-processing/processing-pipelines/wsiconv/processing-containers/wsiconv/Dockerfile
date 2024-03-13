@@ -16,7 +16,7 @@ RUN apt-get update && \
     git \
     wget
 
-RUN pip install tifffile pydicom
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt tifffile pydicom
 
 RUN git clone https://github.com/ImagingDataCommons/idc-wsi-conversion.git
 

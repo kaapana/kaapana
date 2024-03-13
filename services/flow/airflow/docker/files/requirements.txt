@@ -10,4 +10,4 @@ monai==0.7.0
 # Security fix for CVE-2023-0286
 cryptography==41.0.7
 Werkzeug==2.2.3
-jupyterlab==4.0.11
+jupyterlab==4.1.4

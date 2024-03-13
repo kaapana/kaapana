@@ -8,7 +8,7 @@ plotly==5.7.0
 torchvision==0.15.2
 seaborn==0.11.2
 protobuf==4.23.4
-cryptography==42.0.4
+cryptography==42.0.5
 Werkzeug==3.0.1
 wheel==0.42.0
 Pillow==10.2.0

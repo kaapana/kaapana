@@ -1,7 +1,7 @@
 treelib
 networkx[default]
 jinja2
-GitPython
+GitPython==3.1.42
 semver
 alive-progress
 requests>=2.26.0

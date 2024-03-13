@@ -4,7 +4,7 @@ tqdm
 torchvision
 monai
 torchmetrics
-tensorboard
+tensorboard==2.16.2
 matplotlib
 numpy
 opensearch-py

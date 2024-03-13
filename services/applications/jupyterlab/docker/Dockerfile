@@ -5,7 +5,7 @@ LABEL VERSION="3.3.2"
 LABEL BUILD_IGNORE="False"
 
 COPY files/requirements.txt /app/
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --upgrade setuptools pip && pip3 install -r /app/requirements.txt
+RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --upgrade setuptools pip && pip3 install -r /app/requirements.txt
 
 RUN jupyter-lab --generate-config && \
     mkdir -m 777 -p /kaapana/app/.jupyter/ && \

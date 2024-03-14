@@ -5,6 +5,6 @@ LABEL BUILD_IGNORE="False"
 
 USER 0 
 COPY files/ /files
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --upgrade setuptools pip && pip3 install -r /files/requirements.txt
+RUN python -m pip install --upgrade setuptools pip && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r /files/requirements.txt
 
 CMD ["/bin/bash","/files/generate_report.sh"]

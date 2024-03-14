@@ -24,7 +24,7 @@ COPY files/patched/predict.py /nnunet-pip-package/nnunet/inference/predict.py
 COPY files/patched/run_training.py /nnunet-pip-package/nnunet/run/run_training.py
 COPY files/patched/nnUNetTrainerV2_warmup.py /nnunet-pip-package/nnunet/training/network_training/nnUNet_variants/loss_function/nnUNetTrainerV2_warmup.py
 
-RUN cd /nnunet-pip-package && pip3 install ./
+RUN cd /nnunet-pip-package && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt ./
 
 
 

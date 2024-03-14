@@ -115,7 +115,7 @@ RUN apt-get update \
     && dpkg-query -W -f='${Package}\n' > /tmp/a.txt \
     && apt-get install -y python3-pip python3-dev build-essential \
     && pip3 install --ignore-installed blinker \
-    && pip3 install setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt \
+    && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt setuptools wheel && pip3 install -r /tmp/requirements.txt  -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt \
     && ln -s /usr/bin/python3 /usr/local/bin/python \
     && dpkg-query -W -f='${Package}\n' > /tmp/b.txt \
     && apt-get remove -y `diff --changed-group-format='%>' --unchanged-group-format='' /tmp/a.txt /tmp/b.txt | xargs` \

@@ -1,7 +1,7 @@
 alembic==1.13.1
 asyncio==3.4.3
 opensearch-py==2.4.2
-fastapi==0.109.0
+fastapi==0.109.2
 gunicorn==21.2.0
 httpx==0.26.0
 minio==7.2.3
@@ -16,7 +16,7 @@ SQLAlchemy==1.4.51
 sqlalchemy-json==0.7.0
 dicom_parser==1.2.3
 Werkzeug==3.0.1
-cryptography==42.0.2
+cryptography==42.0.5
 pyjwt==2.8.0
 pydantic==1.10.14
 prometheus-client==0.20.0

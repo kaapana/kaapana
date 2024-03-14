@@ -92,6 +92,8 @@ spec:
               name: standalone-data
             - mountPath: /storage
               name: storage-data
+          securityContext:
+            allowPrivilegeEscalation: false
       volumes:
         - name: standalone-data
           persistentVolumeClaim:

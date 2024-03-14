@@ -47,6 +47,11 @@ spec:
           volumeMounts:
             - name: dbvol
               mountPath: /var/lib/postgresql/data
+            - name:  unix-socket-dir
+              mountPath: /var/run/postgresql
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           env:
             - name: POSTGRES_USER
               value: root
@@ -78,6 +83,8 @@ spec:
         - name: dbvol
           persistentVolumeClaim:
             claimName: af-postgres-pv-claim
+        - name: unix-socket-dir
+          emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

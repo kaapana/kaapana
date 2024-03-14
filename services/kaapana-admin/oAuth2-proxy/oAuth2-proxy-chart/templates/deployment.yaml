@@ -82,6 +82,9 @@ spec:
           volumeMounts:
             - name: ssl-config
               mountPath: /ssl
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
       volumes:
       - name: ssl-config
         secret:

@@ -144,6 +144,7 @@ def apply_minio_presigned_url_action(
                     headers={
                         "FederatedAuthorization": remote_network["token"],
                         "presigned-url": data["path"],
+                        "User-Agent": f"kaapana",
                     },
                 )
                 raise_kaapana_connection_error(r)
@@ -160,6 +161,7 @@ def apply_minio_presigned_url_action(
                 headers={
                     "FederatedAuthorization": remote_network["token"],
                     "presigned-url": data["path"],
+                    "User-Agent": f"kaapana",
                 },
             ) as r:
                 raise_kaapana_connection_error(r)

@@ -82,6 +82,18 @@ def periodically_sync_states_from_airflow():
 #             logging.warning(traceback.format_exc())
 
 
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    if request.method == "PUT":
+        print("===========================================")
+        print(request.method)
+        print("queries: ", request.query_params)
+        print("paths: ", request.path_params)
+        print("===========================================")
+    response = await call_next(request)
+    return response
+
+
 app.include_router(
     admin.router,
 )

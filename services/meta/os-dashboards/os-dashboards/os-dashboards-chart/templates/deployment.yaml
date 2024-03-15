@@ -31,6 +31,12 @@ spec:
             - name: config
               mountPath: /usr/share/opensearch-dashboards/config/opensearch_dashboards.yml
               subPath: opensearch_dashboards.yml
+            - name: uuid-file
+              mountPath: "/usr/share/opensearch-dashboards/data/"
+              subPath: uuid
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
       volumes:
       - name: config
         configMap:
@@ -38,6 +44,8 @@ spec:
           items:
           - key: opensearch_dashboards.yml
             path: opensearch_dashboards.yml
+      - name: uuid-file
+        emptyDir: {}
       imagePullSecrets:
       - name: registry-secret
 ---

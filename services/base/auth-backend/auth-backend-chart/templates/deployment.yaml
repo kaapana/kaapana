@@ -31,6 +31,9 @@ spec:
         - name: auth-config
           mountPath: /kaapana/app/auth_role_mapping.json
           subPath: auth_role_mapping.json
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - name: auth-config
         configMap:

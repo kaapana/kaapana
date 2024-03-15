@@ -705,7 +705,8 @@ def delete_external_job(db: Session, db_job):
                 verify=db_remote_kaapana_instance.ssl_check,
                 params=params,
                 headers={
-                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )
@@ -740,7 +741,8 @@ def update_external_job(db: Session, db_job):
                     verify=db_remote_kaapana_instance.ssl_check,
                     json=payload,
                     headers={
-                        "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                        "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                        "User-Agent": f"kaapana",
                     },
                     timeout=TIMEOUT,
                 )
@@ -786,7 +788,8 @@ def get_remote_updates(db: Session, periodically=False):
                 json=update_remote_instance_payload,
                 verify=db_remote_kaapana_instance.ssl_check,
                 headers={
-                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )
@@ -1678,7 +1681,8 @@ def update_remote_workflow(
                 verify=db_remote_kaapana_instance.ssl_check,
                 json=payload,
                 headers={
-                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )

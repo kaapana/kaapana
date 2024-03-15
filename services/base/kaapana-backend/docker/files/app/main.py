@@ -23,6 +23,7 @@ from .workflows.crud import (
     sync_states_from_airflow,
     sync_n_clean_qsr_jobs_with_airflow,
 )
+from .middlewares import invoke_middlewares_on_requests, invoke_middlewares_on_response
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -83,14 +84,14 @@ def periodically_sync_states_from_airflow():
 
 
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    if request.method == "PUT":
-        print("===========================================")
-        print(request.method)
-        print("queries: ", request.query_params)
-        print("paths: ", request.path_params)
-        print("===========================================")
+async def run_middlewares_on_route(request: Request, call_next):
+    # body = await request.json()
+    # print(body)
+    request = await invoke_middlewares_on_requests(request)
+    # body = await request.json()
+    # print(body)
     response = await call_next(request)
+    response = invoke_middlewares_on_response(response)
     return response
 
 

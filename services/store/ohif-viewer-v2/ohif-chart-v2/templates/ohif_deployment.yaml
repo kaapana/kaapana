@@ -24,7 +24,20 @@ spec:
             requests:
               memory: 50Mi
             limits:
-              memory: 100Mi
+              memory: 100Mi    
+          volumeMounts:
+            - name: tmp
+              mountPath: /var/run
+            - name: cache
+              mountPath: /var/cache/nginx
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
       imagePullSecrets:
       - name: registry-secret
 ---

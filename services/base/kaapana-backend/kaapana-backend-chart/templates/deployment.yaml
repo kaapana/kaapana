@@ -110,10 +110,17 @@ spec:
           mountPath: /kaapana/app/alembic
         - name: minio-data
           mountPath: /kaapana/mounted/minio
+        - name: tmp
+          mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
       volumes:
+      - name: tmp
+        emptyDir: {}
       - name: alembic
         persistentVolumeClaim:
           claimName: alembic-pv-claim

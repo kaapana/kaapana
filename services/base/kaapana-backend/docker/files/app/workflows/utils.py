@@ -183,7 +183,9 @@ def get_dag_list(
             "kind_of_dags must be one of ['all', 'minio', 'dataset','import']"
         )
 
-    with CachedSession("kaapana_cache", expire_after=5, stale_if_error=True) as s:
+    with CachedSession(
+        "kaapana_cache", expire_after=5, stale_if_error=True, use_temp=True
+    ) as s:
         r = requests_retry_session(session=s, retries=1).get(
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags",
             timeout=TIMEOUT,

@@ -66,6 +66,11 @@ spec:
             mountPath: /etc/grafana/dashboards/gpu/dashboards/gpu-dashboard.json
             subPath: gpu-dashboard.json
           {{- end }}
+          - name: grafana-strorage
+            mountPath: /var/lib/grafana
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
         livenessProbe:
           httpGet:
             path: /
@@ -126,5 +131,7 @@ spec:
           items:
           - key: airflow-dag-dashboard.json
             path: airflow-dag-dashboard.json
+      - name: grafana-strorage
+        emptyDir: {}
       imagePullSecrets:
         - name: registry-secret

@@ -47,6 +47,9 @@ spec:
           mountPropagation: HostToContainer
           name: root
           readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - hostPath:
           path: /sys

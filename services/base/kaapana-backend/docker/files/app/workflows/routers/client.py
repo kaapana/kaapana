@@ -85,7 +85,19 @@ async def post_file(request: Request):
     form = await request.form()
     patch = str(uuid.uuid4())
     remove_outdated_tmp_files(UPLOAD_DIR)
+<<<<<<< HEAD
     filepath = json.loads(form["filepond"])["filepath"]
+=======
+
+    json_form = json.loads(form["filepond"])
+    if "filepath" in json_form:
+        filepath = json_form["filepath"]
+    else:
+        # If no filepath is provided, the uploaded file will just be stored by the generated {uuid}.zip
+        # FIXME This assumes zip files are uploaded.
+        # A more generenic way would be to add a file extension to the json_form, which could then be used here
+        filepath = f"{patch}.zip"
+>>>>>>> 9135126e (security context and cleaning)
 
     patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
     with open(patch_fpath, "w") as fp:
@@ -161,8 +173,10 @@ def create_remote_kaapana_instance(
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return crud.create_and_update_remote_kaapana_instance(
-        db=db, remote_kaapana_instance=remote_kaapana_instance
+    return schemas.KaapanaInstance.clean_return(
+        crud.create_and_update_remote_kaapana_instance(
+            db=db, remote_kaapana_instance=remote_kaapana_instance
+        )
     )
 
 @router.put("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
@@ -170,8 +184,10 @@ def put_remote_kaapana_instance(
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return crud.create_and_update_remote_kaapana_instance(
-        db=db, remote_kaapana_instance=remote_kaapana_instance, action="update"
+    return schemas.KaapanaInstance.clean_return(
+        crud.create_and_update_remote_kaapana_instance(
+            db=db, remote_kaapana_instance=remote_kaapana_instance, action="update"
+        )
     )
 
 
@@ -180,14 +196,18 @@ def put_client_kaapana_instance(
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return crud.create_and_update_client_kaapana_instance(
-        db=db, client_kaapana_instance=client_kaapana_instance, action="update"
+    return schemas.KaapanaInstance.clean_return(
+        crud.create_and_update_client_kaapana_instance(
+            db=db, client_kaapana_instance=client_kaapana_instance, action="update"
+        )
     )
 
 
 @router.get("/kaapana-instance", response_model=schemas.KaapanaInstance)
 def get_kaapana_instance(instance_name: str = None, db: Session = Depends(get_db)):
-    return crud.get_kaapana_instance(db, instance_name)
+    return schemas.KaapanaInstance.clean_return(
+        crud.get_kaapana_instance(db, instance_name)
+    )
 
 
 @router.post("/get-kaapana-instances", response_model=List[schemas.KaapanaInstance])
@@ -195,9 +215,13 @@ def get_kaapana_instances(
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_kaapana_instances(
+    kaapana_instances = crud.get_kaapana_instances(
         db, filter_kaapana_instances=filter_kaapana_instances
     )
+
+    for instance in kaapana_instances:
+        schemas.KaapanaInstance.clean_return(instance)
+    return kaapana_instances
 
 
 @router.delete("/kaapana-instance")
@@ -597,9 +621,11 @@ def create_workflow(
             "username": username,
             "workflow_id": workflow_id,
             "workflow_name": workflow_name,
-            "involved_instances": json_schema_data.instance_names
-            if json_schema_data.federated == False
-            else involved_instance_names,  # instances on which workflow is created!
+            "involved_instances": (
+                json_schema_data.instance_names
+                if json_schema_data.federated == False
+                else involved_instance_names
+            ),  # instances on which workflow is created!
             "runner_instances": json_schema_data.instance_names,  # instances on which jobs of workflow are created!
         }
     )

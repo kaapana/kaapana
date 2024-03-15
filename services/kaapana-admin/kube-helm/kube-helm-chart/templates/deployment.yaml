@@ -63,10 +63,17 @@ spec:
             mountPath: "/kaapana/mounted/platforms"
           - name: containerd-socket
             mountPath: "/kaapana/mounted/containerd.sock"
+          - name: tmp
+            mountPath: "/tmp"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - name: containerd-socket
         hostPath:
           path: /var/snap/microk8s/common/run/containerd.sock
+      - name: tmp
+        emptyDir: {}
       - name: helmextensions
         persistentVolumeClaim:
           claimName: extensions-pv-claim

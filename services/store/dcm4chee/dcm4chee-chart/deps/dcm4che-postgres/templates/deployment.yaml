@@ -41,10 +41,17 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
               name: postgres-data
+            - name:  unix-socket-dir
+              mountPath: /var/run/postgresql
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
       volumes:
       - name: postgres-data
         persistentVolumeClaim:
           claimName: dcm4chee-postgres-pv-claim
+      - name: unix-socket-dir
+        emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

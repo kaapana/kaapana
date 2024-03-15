@@ -61,6 +61,9 @@ spec:
         volumeMounts:
         - name: minio-data
           mountPath: "/kaapana/mounted/minio"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - name: minio-data
         persistentVolumeClaim:

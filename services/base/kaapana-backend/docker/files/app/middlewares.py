@@ -1,6 +1,7 @@
 import html
 import json
 from fastapi import FastAPI, Request, Response
+from starlette.types import Message, Receive, Scope, Send
 
 
 def safe_html_escape(value):
@@ -14,10 +15,59 @@ def safe_html_escape(value):
         return value
 
 
-# async def set_body(request: Request, body: bytes):
-#      async def receive() -> Message:
-#          return {"type": "http.request", "body": body}
-#      request._receive = receive
+class SanitizePostBody:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http" or scope["method"] != "POST":
+            await self.app(scope, receive, send)
+            return
+
+        async def sanitize_body():
+            message = await receive()
+            assert message["type"] == "http.request"
+
+            body: bytes = message.get("body", b"")
+            body: str = body.decode()
+            data = json.loads(body)
+            data = safe_html_escape(data)
+
+            message["body"] = json.dumps(data).encode()
+            return message
+
+        await self.app(scope, sanitize_body, send)
+
+
+class SanitizePutBody:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        if scope["type"] != "http" or scope["method"] != "PUT":
+            await self.app(scope, receive, send)
+            return
+
+        async def sanitize_body():
+            message = await receive()
+            assert message["type"] == "http.request"
+
+            body: bytes = message.get("body", b"")
+            body: str = body.decode()
+            data = json.loads(body)
+            data = safe_html_escape(data)
+
+            message["body"] = json.dumps(data).encode()
+            return message
+
+        await self.app(scope, sanitize_body, send)
+
+
+async def set_body(request: Request, body: bytes):
+    async def receive() -> Message:
+        return {"type": "http.request", "body": body}
+
+    request._receive = receive
 
 
 async def run_on_post_requests(request: Request):
@@ -25,17 +75,17 @@ async def run_on_post_requests(request: Request):
         print("=====================================")
         print("Running on POST Request")
         body = await request.json()
-        print(body)
 
         body = safe_html_escape(body)
         # Convert the modified dictionary back to JSON
         modified_json = json.dumps(body)
 
-        request._body = modified_json.encode()  # Convert the JSON string back to bytes
+        await set_body(request, body=modified_json.encode())
 
-        # body = await request.json()
-        print(request._body)
+        body = await request.json()
+        print(body)
         print("=====================================")
+
     return request
 
 

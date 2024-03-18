@@ -23,7 +23,9 @@ from .workflows.crud import (
     sync_states_from_airflow,
     sync_n_clean_qsr_jobs_with_airflow,
 )
-from .middlewares import invoke_middlewares_on_requests, invoke_middlewares_on_response
+
+# from .middlewares import invoke_middlewares_on_requests, invoke_middlewares_on_response, SanitizePostBody
+from . import middlewares
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -32,6 +34,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI(root_path="/kaapana-backend")
+
+app.add_middleware(middlewares.SanitizePostBody)
+app.add_middleware(middlewares.SanitizePutBody)
 
 
 @app.on_event("startup")
@@ -83,16 +88,16 @@ def periodically_sync_states_from_airflow():
 #             logging.warning(traceback.format_exc())
 
 
-@app.middleware("http")
-async def run_middlewares_on_route(request: Request, call_next):
-    # body = await request.json()
-    # print(body)
-    request = await invoke_middlewares_on_requests(request)
-    # body = await request.json()
-    # print(body)
-    response = await call_next(request)
-    response = invoke_middlewares_on_response(response)
-    return response
+# @app.middleware("http")
+# async def run_middlewares_on_route(request: Request, call_next):
+#     request = await invoke_middlewares_on_requests(request)
+#     # if request.method == "POST":
+#     #     body = await request.json()
+#     #     print(body)
+#     #     print("=====================================")
+#     response = await call_next(request)
+#     response = invoke_middlewares_on_response(response)
+#     return response
 
 
 app.include_router(

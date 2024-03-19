@@ -383,6 +383,9 @@ function install_microk8s {
         insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
         echo "${YELLOW}Disable insecure port ...${NC}";
         insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
+        echo "${YELLOW}Enable ValidatingAdmissionPolicy ...${NC}";
+        insert_text "--feature-gates=ValidatingAdmissionPolicy=true" /var/snap/microk8s/current/args/kube-apiserver
+        insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
         
         echo "${YELLOW}Set limit of completed pods to 50 ...${NC}";
         insert_text "--terminated-pod-gc-threshold=50" /var/snap/microk8s/current/args/kube-controller-manager

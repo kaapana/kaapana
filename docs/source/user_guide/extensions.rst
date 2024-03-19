@@ -35,7 +35,7 @@ The section :ref:`workflow_dev_guide` also explains how to write and add your ow
 Uploading Extensions to the Platform
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Kaapana also provides an experimental upload component for extensions. This allows users to upload both Docker images and the Helm charts to the platform. Currently, this component only accepts two file types: ".tar" for exported images and ".tgz" for Helm charts.
+Kaapana also provides an experimental upload component for extensions. This allows users to upload both Docker images and Helm charts to the platform. Currently, this component only accepts two file types: ".tar" for exported images and ".tgz" for Helm charts.
 
 This feature is intended to be used by **developers who have knowledge about configuring Helm charts and Kubernetes resources**. It is strongly recommended to read the following sections before uploading anything to platform: :ref:`helm_charts` and :ref:`how_to_dockerfile`
 

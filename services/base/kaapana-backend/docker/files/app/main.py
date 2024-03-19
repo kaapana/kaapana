@@ -24,6 +24,8 @@ from .workflows.crud import (
     sync_n_clean_qsr_jobs_with_airflow,
 )
 
+from . import middlewares
+
 models.Base.metadata.create_all(bind=engine)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -31,6 +33,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI(root_path="/kaapana-backend")
+
+app.add_middleware(middlewares.SanitizePostBody)
+app.add_middleware(middlewares.SanitizePutBody)
 
 
 @app.on_event("startup")

@@ -35,8 +35,8 @@ logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI(root_path="/kaapana-backend")
 
-app.add_middleware(middlewares.SanitizePostBody)
-app.add_middleware(middlewares.SanitizePutBody)
+app.add_middleware(middlewares.SanitizeBodyInputs)
+app.add_middleware(middlewares.SanitizeQueryParams)
 
 
 @app.on_event("startup")

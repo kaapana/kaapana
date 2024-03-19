@@ -34,8 +34,8 @@ logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI(root_path="/kaapana-backend")
 
-app.add_middleware(middlewares.SanitizePostBody)
-app.add_middleware(middlewares.SanitizePutBody)
+app.add_middleware(middlewares.SanitizeBodyInputs)
+app.add_middleware(middlewares.SanitizeQueryParams)
 
 
 @app.on_event("startup")
@@ -85,6 +85,18 @@ def periodically_sync_states_from_airflow():
 #         except Exception as e:
 #             logging.warning('Something went wrong updating in crud.sync_n_clean_qsr_jobs_with_airflow()')
 #             logging.warning(traceback.format_exc())
+
+
+# @app.middleware("http")
+# async def run_middlewares_on_route(request: Request, call_next):
+#     request = await invoke_middlewares_on_requests(request)
+#     # if request.method == "POST":
+#     #     body = await request.json()
+#     #     print(body)
+#     #     print("=====================================")
+#     response = await call_next(request)
+#     response = invoke_middlewares_on_response(response)
+#     return response
 
 
 app.include_router(

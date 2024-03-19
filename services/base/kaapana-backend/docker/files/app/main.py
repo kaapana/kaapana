@@ -87,18 +87,6 @@ def periodically_sync_states_from_airflow():
 #             logging.warning(traceback.format_exc())
 
 
-# @app.middleware("http")
-# async def run_middlewares_on_route(request: Request, call_next):
-#     request = await invoke_middlewares_on_requests(request)
-#     # if request.method == "POST":
-#     #     body = await request.json()
-#     #     print(body)
-#     #     print("=====================================")
-#     response = await call_next(request)
-#     response = invoke_middlewares_on_response(response)
-#     return response
-
-
 app.include_router(
     admin.router,
 )

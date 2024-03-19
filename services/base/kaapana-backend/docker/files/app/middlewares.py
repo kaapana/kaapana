@@ -101,38 +101,3 @@ class SanitizeQueryParams(BaseHTTPMiddleware):
         # Call the next middleware or the handler
         response = await call_next(request)
         return response
-
-
-async def set_body(request: Request, body: bytes):
-    async def receive() -> Message:
-        return {"type": "http.request", "body": body}
-
-    request._receive = receive
-
-
-async def run_on_post_requests(request: Request):
-    if request.method == "POST":
-        print("=====================================")
-        print("Running on POST Request")
-        body = await request.json()
-
-        body = safe_html_escape(body)
-        # Convert the modified dictionary back to JSON
-        modified_json = json.dumps(body)
-
-        await set_body(request, body=modified_json.encode())
-
-        body = await request.json()
-        print(body)
-        print("=====================================")
-
-    return request
-
-
-async def invoke_middlewares_on_requests(request: Request):
-    request = await run_on_post_requests(request)
-    return request
-
-
-def invoke_middlewares_on_response(response: Response):
-    return response

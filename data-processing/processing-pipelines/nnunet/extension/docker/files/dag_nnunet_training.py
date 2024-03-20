@@ -14,13 +14,13 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from airflow.api.common.experimental import pool as pool_api
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
-from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
 
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from kaapana.operators.LocalModifySegLabelNamesOperator import (
     LocalModifySegLabelNamesOperator,
 )
 from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
+from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
 
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
@@ -105,9 +105,15 @@ ui_forms = {
             "train_network_trainer": {
                 "title": "Network-trainer",
                 "default": train_network_trainer,
-                "description": "nnUNetTrainerV2 or nnUNetTrainerV2CascadeFullRes",
+                "description": "nnUNetTrainerV2, nnUNetTrainerV2CascadeFullRes, nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads",
+                "enum": [
+                    "nnUNetTrainerV2",
+                    "nnUNetTrainerV2CascadeFullRes",
+                    "nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads",
+                ],
                 "type": "string",
                 "readOnly": False,
+                "required": True,
             },
             "prep_modalities": {
                 "title": "Modalities",
@@ -361,7 +367,7 @@ nnunet_preprocess = NnUnetOperator(
     allow_federated_learning=True,
     whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
     trigger_rule=TriggerRule.NONE_FAILED,
-    dev_server=None,  #'code-server'
+    dev_server=None,  # "code-server"
 )
 
 nnunet_train = NnUnetOperator(
@@ -373,15 +379,24 @@ nnunet_train = NnUnetOperator(
     allow_federated_learning=True,
     train_network_trainer=train_network_trainer,
     train_fold="all",
-    dev_server=None,
+    dev_server=None,  # "code-server"
     retries=0,
 )
 
-generate_nnunet_report = NnUnetNotebookOperator(
+get_notebooks_from_minio = LocalMinioOperator(
+    dag=dag,
+    name="nnunet-get-notebook-from-minio",
+    bucket_name="analysis-scripts",
+    action="get",
+    action_files=["run_generate_nnunet_report.ipynb"],
+)
+
+generate_nnunet_report = JupyterlabReportingOperator(
     dag=dag,
     name="generate-nnunet-report",
     input_operator=nnunet_train,
-    arguments=["/kaapana/app/notebooks/nnunet_training/run_generate_nnunet_report.sh"],
+    notebook_filename="run_generate_nnunet_report.ipynb",
+    output_format="html,pdf",
 )
 
 put_to_minio = LocalMinioOperator(
@@ -476,6 +491,7 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
     nnunet_train
+    >> get_notebooks_from_minio
     >> generate_nnunet_report
     >> put_to_minio
     >> put_report_to_minio

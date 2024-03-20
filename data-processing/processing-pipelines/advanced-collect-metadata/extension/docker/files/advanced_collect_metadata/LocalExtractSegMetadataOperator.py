@@ -6,6 +6,7 @@ from pathlib import Path
 import nibabel as nib
 import numpy as np
 from os.path import basename
+import SimpleITK as sitk
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -82,6 +83,8 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
             vox_vol = spacing[0] * spacing[1] * spacing[2]
 
             label_volume_info = {}
+            cca_info = {}
+            non_zero_layers_indices = {}
             for seg_nifti_fname in seg_nifti_fnames:
                 print(f"{seg_nifti_fname=}")
 
@@ -89,17 +92,26 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
                 seg_pixel_data = nib.load(seg_nifti_fname).get_fdata()
 
                 # compute volume per class
-                voxels_per_class = seg_pixel_data.sum()
-                vol_per_class = seg_pixel_data.sum() * vox_vol
-
+                voxels_per_class = np.count_nonzero(seg_pixel_data)
+                vol_per_class = voxels_per_class * vox_vol
                 label_volume_info[basename(seg_nifti_fname)] = {
                     "voxels_per_class": f"{voxels_per_class}",
                     "voxel_volume": f"{vox_vol}",
                     "volume_per_class": f"{vol_per_class}",
                 }
 
+                # get indices of layers that contain annotation labels
+                print(f"Shape of SEG: {seg_pixel_data.shape}")
+                # Find layers with non-zero values and their indices
+                non_zero_layers_i = np.where(np.any(seg_pixel_data != 0, axis=(0, 1)))[
+                    0
+                ].tolist()
+                non_zero_layers_indices[basename(seg_nifti_fname)] = non_zero_layers_i
+
             print(f"{label_volume_info=}")
+            print(f"{non_zero_layers_indices=}")
             json_data.update({"volume_per_class": label_volume_info})
+            json_data.update({"non_zero_layers_indices": non_zero_layers_indices})
             print(f"{json_data=}")
 
             # save to out_dir
@@ -113,7 +125,7 @@ class LocalExtractSegMetadataOperator(KaapanaPythonBaseOperator):
     def __init__(
         self,
         dag,
-        name="extract-voxels-per-class",
+        name="seg-data-characteristics",
         input_operator=None,
         json_operator=None,
         img_operator=None,

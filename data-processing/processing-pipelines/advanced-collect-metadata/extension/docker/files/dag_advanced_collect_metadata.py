@@ -6,6 +6,9 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.ConnectedComponentAnalysisOperator import (
+    ConnectedComponentAnalysisOperator,
+)
 
 from advanced_collect_metadata.LocalExtractImgIntensitiesOperator import (
     LocalExtractImgIntensitiesOperator,
@@ -97,10 +100,16 @@ extract_seg_metadata = LocalExtractSegMetadataOperator(
     img_operator=dcm2nifti_ct,
 )
 
+cca = ConnectedComponentAnalysisOperator(
+    dag=dag,
+    input_operator=dcm2nifti_seg,
+    json_operator=extract_seg_metadata,
+)
+
 concat_metadata = LocalConcatJsonOperator(
     dag=dag,
     name="concatenate-seg-metadata",
-    input_operator=extract_seg_metadata,
+    input_operator=cca,
 )
 
 ### COMMON ###
@@ -118,7 +127,7 @@ put_to_minio = LocalMinioOperator(
     dag=dag,
     action="put",
     action_operators=[merge_branches],
-    bucket_name="downloads",
+    bucket_name="advanced-collect-metadata",
     zip_files=True,
 )
 
@@ -140,6 +149,7 @@ clean = LocalWorkflowCleanerOperator(
     extract_metadata
     >> dcm2nifti_seg
     >> extract_seg_metadata
+    >> cca
     >> concat_metadata
     >> merge_branches
 )

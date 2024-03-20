@@ -13,7 +13,6 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
     The algorithm segments 104 body structures and stores them in single file nifti format.
 
     Expects the pretrained weights already to be downloaded (use LocalGetTotalSegmentatorModels for that).
-    A Nvidia GPU is required to run the algorithm.
 
     - Publication:
       Wasserthal, J., Meyer, M., Breit, H. C., Cyriac, J., Yang, S., & Segeroth, M. (2022).

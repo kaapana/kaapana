@@ -63,35 +63,44 @@ function proxy_environment {
 
 
 function no_proxy_environment {
+    # Note: This script makes sure no_proxy configuration is configured correctly so microk8s doesn't send cluster traffic to the 
+    #       proxy server. The specific settings for ip ranges used by microk8s to request external resource might change in the future
+    #       and are (currently) described here: https://microk8s.io/docs/install-proxy
     echo "${GREEN}Checking no_proxy settings${NC}"
     if [ ! -v no_proxy ] && [ ! -v NO_PROXY ]; then
         echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
-        echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
-        echo "no_proxy=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+        echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
+        echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy"
     else
         echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
 
+        if [ -v no_proxy ]; then
+                no_proxy=$no_proxy
+        else
+                no_proxy=$NO_PROXY
+        fi
+
         # remove any " from no_proxy ENV
         no_proxy=$( echo $no_proxy | sed 's/"//g')
         
-        if [[ $no_proxy == *"10.152.183.0/24"* ]]; then
+        if [[ $no_proxy == *"172.16.0.0/16"* ]]; then
             echo "${GREEN}NO_PROXY is already configured correctly ...${NC}"
             return
         fi
 
         if grep -Fq "NO_PROXY" /etc/environment
         then
-            sed -i "/NO_PROXY/c\NO_PROXY=$no_proxy,10.1.0.0/16,10.152.183.0/24" /etc/environment
+            sed -i "/NO_PROXY/c\NO_PROXY=$no_proxy,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" /etc/environment
         else
-            echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+            echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         fi
 
         if grep -Fq "no_proxy" /etc/environment
         then
-            sed -i "/no_proxy/c\no_proxy=$no_proxy,10.1.0.0/16,10.152.183.0/24" /etc/environment
+            sed -i "/no_proxy/c\no_proxy=$no_proxy,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" /etc/environment
         else
-            echo "no_proxy=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+            echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         fi
     fi
     echo "${GREEN}Source /etc/environment ${NC}"
@@ -211,7 +220,7 @@ function enable_gpu {
 
     if [ $GPU_SUPPORT == true ];then
         echo "${YELLOW}Activating GPU ...${NC}"
-        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU ...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
+        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU ...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable nvidia) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
         echo "${YELLOW}Waiting for nvidia-device-plugin-daemonset ...${NC}"
     else
         echo "${YELLOW}No GPU support.${NC}"
@@ -481,7 +490,7 @@ echo -e "${GREEN}REAL_USER: $REAL_USER ${NC}";
 echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
 echo ""
 
-DEFAULT_MICRO_VERSION=1.26/stable
+DEFAULT_MICRO_VERSION=1.28/stable
 DEFAULT_HELM_VERSION=latest/stable
 
 ### Parsing command line arguments:

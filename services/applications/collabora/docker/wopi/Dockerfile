@@ -18,7 +18,7 @@ COPY --from=build-stage /app/dist /app/ui/dist
 WORKDIR /app
 
 COPY files/requirements.txt /app/
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir -r /app/requirements.txt
+RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /app/requirements.txt
 
 COPY files/run.sh /app
 COPY files/app /app/app

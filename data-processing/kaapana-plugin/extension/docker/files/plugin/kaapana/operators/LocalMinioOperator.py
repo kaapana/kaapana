@@ -18,6 +18,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
+        dag_run = kwargs["dag_run"]
         conf = kwargs["dag_run"].conf
         print("conf", conf)
         if (
@@ -50,10 +51,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         #         session_token = None
         ###################
 
-        access_key = os.environ.get("MINIOUSER")
-        secret_key = os.environ.get("MINIOPASSWORD")
-        session_token = None
-
         # Todo: actually should be in pre_execute, however, when utilizing
         # Airflow PythonOperator pre_execute seems to have no effect...
         # For files coming from Minio hooks!
@@ -63,13 +60,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         else:
             object_names = []
 
-        minio_client = Minio(
-            self.minio_host + ":" + self.minio_port,
-            access_key=access_key,
-            secret_key=secret_key,
-            session_token=session_token,
-            secure=False,
-        )
+        minioClient = HelperMinio(dag_run=dag_run)
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         local_root_dir = self.local_root_dir.format(run_dir=run_dir)
@@ -129,7 +120,9 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
 
-            zip_object_name = f"{kwargs['dag'].dag_id}_{timestamp}.zip"
+            zip_object_name = (
+                f"{kwargs['dag'].dag_id}_{kwargs['dag_run'].run_id}_{timestamp}.zip"
+            )
             zip_file_path = os.path.join(target_dir, zip_object_name)
             with ZipFile(zip_file_path, "w") as zipObj:
                 if not object_dirs:
@@ -154,8 +147,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                             object_name = os.path.join(rel_dir, name)
                             zipObj.write(os.path.join(path, name), object_name)
 
-            HelperMinio.apply_action_to_file(
-                minio_client,
+            minioClient.apply_action_to_file(
                 "put",
                 self.bucket_name,
                 zip_object_name,
@@ -166,8 +158,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
         if object_names:
             print(f'Applying action "{self.action}" to files {object_names}')
-            HelperMinio.apply_action_to_object_names(
-                minio_client,
+            minioClient.apply_action_to_object_names(
                 self.action,
                 self.bucket_name,
                 local_root_dir,
@@ -180,8 +171,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             else:
                 print(f'Applying action "{self.action}" to ' f"files in: {object_dirs}")
 
-            HelperMinio.apply_action_to_object_dirs(
-                minio_client,
+            minioClient.apply_action_to_object_dirs(
                 self.action,
                 self.bucket_name,
                 local_root_dir,

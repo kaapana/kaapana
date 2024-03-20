@@ -7,7 +7,9 @@ global:
   slow_data_dir: ""
   namespace: "{{ .Values.global.services_namespace }}"
   dynamicVolumes:
-  - name: minio
-    mount_path: /kaapana/mounted/minio
+  - name: slicer
+    mount_path: /kaapana/minio
+    host_path: /applications/slicer
+    minio_mirror : true
 
 

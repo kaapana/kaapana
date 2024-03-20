@@ -24,7 +24,7 @@ then
 	echo ""
 	export AIRFLOW_MODE=init
 	airflow db init || { echo 'ERROR: airflow initdb' ; exit 1; }
-	airflow db upgrade || { echo 'ERROR: airflow db upgrade' ; exit 1; }
+	airflow db migrate || { echo 'ERROR: airflow db migrate' ; exit 1; }
 	
 	set +e
 	airflow variables get enable_job_scheduler

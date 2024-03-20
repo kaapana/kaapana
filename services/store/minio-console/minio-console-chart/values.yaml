@@ -1,5 +1,0 @@
----
-global:
-    pull_policy_images: "IfNotPresent"
-    slow_data_dir: /home/kaapana
-    hostname: ""

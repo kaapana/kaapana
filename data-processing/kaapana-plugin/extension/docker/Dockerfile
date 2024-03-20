@@ -18,6 +18,7 @@ COPY files/dags/dag_tag_seg_ct_tuples.py /kaapana/tmp/dags/
 COPY files/dags/dag_tag_train_test_split_dataset.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_extract_metadata_trigger_rule.json /kaapana/tmp/dags/
 COPY files/dags/dag_service_daily_cleanup_jobs.py /kaapana/tmp/dags/
+COPY files/dags/dag_segmentation_evaluation.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_segmentation_thumbnail_trigger_rule.json /kaapana/tmp/dags/
 COPY files/dags/dag_service_segmentation_thumbnail.py /kaapana/tmp/dags/
 COPY files/dags/dag_train_with_pretrained_weights.py /kaapana/tmp/dags/

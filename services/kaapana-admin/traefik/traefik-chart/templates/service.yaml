@@ -15,6 +15,7 @@ spec:
   selector:
     app: traefik
 ---
+{{- if ne (.Values.global.http_port | int) 0 }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -29,4 +30,5 @@ spec:
       nodePort: {{ .Values.global.http_port }}
   selector:
     app: traefik
+{{- end }}
 ---

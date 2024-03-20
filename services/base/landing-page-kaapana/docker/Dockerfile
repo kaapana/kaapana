@@ -11,11 +11,12 @@ RUN npm run build
 ###############################
 ######### Production ##########
 ###############################
-FROM docker.io/nginx:1.23.3-alpine
-
+FROM nginxinc/nginx-unprivileged:1.25.3-alpine
 WORKDIR /kaapana/app
 
-# RUN mkdir -p /kaapana/app
 COPY --from=build-stage /kaapana/app/dist /kaapana/app
 COPY --from=build-stage /kaapana/app/nginx.conf /etc/nginx/nginx.conf
+USER 0
+RUN chown 1000 /etc/nginx/nginx.conf
 
+USER 1000

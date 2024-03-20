@@ -164,7 +164,7 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
 
         super().__init__(
             dag=dag,
-            name="do",
+            name="data-orga",
             python_callable=self.start,
             batch_name=batch_name,
             parallel_id=parallel_id,

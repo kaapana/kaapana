@@ -40,6 +40,7 @@ class BuildUtils:
     platform_last_commit_timestamp = None
     enable_image_stats = None
     trivy_utils = None
+    check_expired_vulnerabilities_database = None
 
     @staticmethod
     def add_container_images_available(container_images_available):
@@ -121,9 +122,7 @@ class BuildUtils:
             if "root" in entry.lower():
                 continue
 
-            name = entry.split(":")[1]
-            version = entry.split(":")[2]
-            entry_id = f"{name}:{version}"
+            entry_id = entry.split(":",1)[1]
 
             if "chart:" in entry:
                 unused_chart = [
@@ -166,7 +165,7 @@ class BuildUtils:
                         f"{entry_id} not found in container_images_unused!"
                     )
 
-            if "local-only" in name or BuildUtils.default_registry in name:
+            if entry_id.startswith("local-only") or entry_id.startswith(BuildUtils.default_registry):
                 build_order.append(entry_id)
 
         return build_order

@@ -46,6 +46,8 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
         concat_json_data = {}
         valid_images = 0
         for batch_element_dir in batch_dirs:
+            print(f"CURRENT BATCH ELEMENT: {batch_element_dir=}")
+
             # check if json_operator is defined; if yes load existing json file from json_operator's dir
             if self.json_operator:
                 batch_element_json_in_dir = os.path.join(
@@ -61,6 +63,8 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
                 if json_data["00000000 CuratedModality_keyword"] not in ["CT", "MR"]:
                     print("sample is not a CT or MR image --> continue w/ next sample")
                     continue
+                else:
+                    print("sample is a CT or MR image!")
             else:
                 json_data = {}
 
@@ -76,6 +80,12 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
 
             # read slices and stack along depth axis
             slices = [pydicom.dcmread(file).pixel_array for file in dcm_fnames]
+            new_slices = []
+            for arr in slices:
+                new_slices.append(
+                    arr
+                )  # Note: should work with arr.ndim=3 and arr.ndim=2
+            slices = new_slices
             volume = np.stack(slices, axis=-1)
 
             # rescale pixel values with slope and intersect (same values for all slices of volume)
@@ -98,7 +108,6 @@ class LocalExtractImgIntensitiesOperator(KaapanaPythonBaseOperator):
                     .RescaleIntercept
                 )
             )  # ds.RescaleIntercept; 	(0028,1052)
-
             volume = volume * slope + intercept
             print(f"MIN Value: {np.min(volume)} ; MAX value: {np.max(volume)}")
             if np.max(volume) > 4095:

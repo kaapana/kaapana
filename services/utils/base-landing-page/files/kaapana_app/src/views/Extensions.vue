@@ -4,7 +4,7 @@
     v-card
       v-card-title
         v-row
-          v-col(cols="12", sm="5")
+          v-col(cols="12", sm="4")
             span Applications and workflows &nbsp;
               v-tooltip(bottom="")
                 template(v-slot:activator="{ on, attrs }")
@@ -18,8 +18,8 @@
                     | mdi-cloud-refresh-outline
                 span Click to download latest extensions, this might take some time.
             br
-            span(style="font-size: 14px") You can find the descriptions of each extension in 
-              a(href="https://kaapana.readthedocs.io/", target="_blank") readthedocs
+            span(style="font-size: 14px") Read more about the extensions in 
+              a(href="https://kaapana.readthedocs.io/", target="_blank") docs
           v-col(cols="12", sm="2")
             v-select(
               label="Kind",
@@ -34,7 +34,14 @@
               v-model="extensionExperimental",
               hide-details=""
             )
-          v-col(cols="12", sm="3")
+          v-col(cols="12", sm="1")
+            v-select(
+              label="Resources",
+              :items="['Any', 'GPU', 'CPU']",
+              v-model="extensionResources",
+              hide-details=""
+            )
+          v-col(cols="12", sm="2")
             v-text-field(
               v-model="search",
               append-icon="mdi-magnify",
@@ -212,6 +219,7 @@ export default Vue.extend({
     launchedAppLinks: [] as any,
     search: "",
     extensionExperimental: "Stable",
+    extensionResources: "Any",
     extensionKind: "All",
     popUpDialog: {} as any,
     popUpItem: {} as any,
@@ -281,6 +289,7 @@ export default Vue.extend({
         return this.launchedAppLinks.filter((i: any) => {
           let devFilter = true;
           let kindFilter = true;
+          let resourceFilter = true;
 
           if (this.extensionExperimental == "Stable" && i.experimental === "yes") {
             devFilter = false;
@@ -293,7 +302,14 @@ export default Vue.extend({
           } else if (this.extensionKind == "Applications" && i.kind === "dag") {
             kindFilter = false;
           }
-          return devFilter && kindFilter;
+
+          if (this.extensionResources == "GPU" && i.resourceRequirement == "cpu") {
+            resourceFilter = false;
+          } else if (this.extensionResources == "CPU" && i.resourceRequirement == "gpu") {
+            resourceFilter = false;
+          }
+
+          return devFilter && kindFilter && resourceFilter;
         });
       } else {
         this.loading = true;

@@ -23,6 +23,7 @@ class PreprocessingOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=4000,
+            labels={"network-access": "opensearch"},
             *args,
             **kwargs,
         )

@@ -1,0 +1,170 @@
+	<project name="ClinicalTrialProcessor" default="all" basedir=".">
+
+	<property name="build" value="${basedir}/build"/>
+	<property name="source" value="${basedir}/source"/>
+	<property name="java" value="${source}/java"/>
+	<property name="files" value="${source}/files"/>
+	<property name="resources" value="${source}/resources"/>
+	<property name="config" value="${source}/config"/>
+	<property name="installer" value="org/rsna/installer"/>
+	<property name="launcher" value="org/rsna/launcher"/>
+	<property name="runner" value="org/rsna/runner"/>
+	<property name="libraries" value="${basedir}/libraries"/>
+	<property name="products" value="${basedir}/products"/>
+	<property name="documentation" value="${basedir}/documentation"/>
+	<property name="title" value="CTP"/>
+	<property name="copyright" value="Copyright 2013 Radiological Society of North America"/>
+
+	<path id="classpath">
+		<pathelement location="${libraries}/util.jar"/>
+		<pathelement location="${libraries}/dcm4che.jar"/>
+		<pathelement location="${libraries}/getopt.jar"/>
+		<!--<pathelement location="${libraries}/log4j.jar"/>-->
+		<pathelement location="${libraries}/log4j/log4j-1.2-api-2.17.2.jar"/>
+		<pathelement location="${libraries}/log4j/log4j-api-2.17.2.jar"/>
+		<pathelement location="${libraries}/log4j/log4j-core-2.17.2.jar"/>
+		<pathelement location="${libraries}/edtftpj.jar"/>
+		<pathelement location="${libraries}/jdbm.jar"/>
+		<pathelement location="${libraries}/commons-compress-1.25.0.jar"/>
+		<pathelement location="${libraries}/imageio/jai_imageio-1.2-pre-dr-b04.jar"/>
+		<pathelement location="${libraries}/imageio/pixelmed_codec.jar"/>
+		<pathelement location="${libraries}/email/mailapi.jar"/>
+		<pathelement location="${libraries}/email/mail.jar"/>
+		<pathelement location="${libraries}/ftp/commons-logging-1.2.jar"/>
+		<pathelement location="${libraries}/ftp/commons-net-3.10.0.jar"/>
+		<pathelement location="${libraries}/ftp/commons-vfs2-2.0.jar"/>
+		<pathelement location="${libraries}/ftp/jsch-0.1.53.jar"/>
+	</path>
+
+	<property name="jarclasspath" value="
+		libraries/util.jar 
+		libraries/log4j.jar
+	"/>
+
+	<target name="clean">
+		<delete dir="${build}" failonerror="false"/>
+		<delete dir="${documentation}" failonerror="false"/>
+	</target>
+
+	<target name="init">
+		<echo message="=================================================="/>
+		<echo message="Building ${ant.project.name}"/>
+		<echo message="=================================================="/>
+		<tstamp>
+			<format property="today" pattern="yyyy.MM.dd"/>
+			<format property="now" pattern="HH:mm:ss z"/>
+		</tstamp>
+		<echo message="Time now ${now}"/>
+		<echo message="ant.java.version = ${ant.java.version}" />
+		<mkdir dir="${build}"/>
+		<mkdir dir="${products}"/>
+	</target>
+
+	<target name="compile" depends="init">
+		<javac destdir="${build}" optimize="on"
+				classpathref="classpath"
+				includeantruntime="false"
+				debug="true" debuglevel="lines,vars,source">
+			<src path="${java}"/>
+			<!--<compilerarg value="-Xlint:unchecked"/>-->
+		</javac>
+	</target>
+
+	<target name="jar" depends="compile">
+		<mkdir dir="${build}/CTP"/>
+
+		<jar jarfile="${build}/CTP/Launcher.jar">
+			<manifest>
+				<attribute name="Main-Class" value="org.rsna.launcher.Launcher"/>
+	            <attribute name="Date" value="${today} at ${now}"/>
+	            <attribute name="Java-Version" value="${ant.java.version}"/>
+				<attribute name="Class-Path" value="${jarclasspath}"/>
+			</manifest>
+			<fileset dir="${build}"
+				includes="${launcher}/**" />
+		</jar>
+
+		<jar jarfile="${build}/CTP/Runner.jar">
+			<manifest>
+				<attribute name="Main-Class" value="org.rsna.runner.Runner"/>
+	            <attribute name="Date" value="${today} at ${now}"/>
+	            <attribute name="Java-Version" value="${ant.java.version}"/>
+			</manifest>
+			<fileset dir="${build}"
+				includes="${runner}/**" />
+		</jar>
+
+		<copy overwrite="true" todir="${build}">
+			<fileset dir="${resources}"/>
+		</copy>
+
+		<jar jarfile="${libraries}/CTP.jar">
+			<manifest>
+				<attribute name="Main-Class" value="org.rsna.ctp.ClinicalTrialProcessor"/>
+	            <attribute name="Date" value="${today} at ${now}"/>
+				<attribute name="Java-Version" value="${ant.java.version}"/>
+				<attribute name="Class-Path" value="util.jar log4j.jar"/>
+			</manifest>
+			<fileset dir="${build}"
+				includes="**"
+				excludes="${installer}/**, ${launcher}/**, ${runner}/** CTP/Launcher.jar CTP/Runner.jar" />
+		</jar>
+
+	</target>
+
+	<target name="installer" depends="jar">
+		<mkdir dir="${build}/CTP/libraries"/>
+		<mkdir dir="${build}/CTP/libraries/email"/>
+		<mkdir dir="${build}/config"/>
+
+		<copy overwrite="true" todir="${build}/CTP">
+			<fileset dir="${files}" includes="**"/>
+		</copy>
+		<copy overwrite="true" todir="${build}/CTP/libraries">
+			<fileset dir="${libraries}" includes="*.*" excludes="jai_imageio.jar"/>
+		</copy>
+		<copy overwrite="true" todir="${build}/CTP/libraries/email">
+			<fileset dir="${libraries}/email" includes="*.*"/>
+		</copy>
+		<copy overwrite="true" todir="${build}/CTP/libraries/ftp">
+			<fileset dir="${libraries}/ftp" includes="*.*"/>
+		</copy>
+		<copy overwrite="true" todir="${build}/CTP/libraries/imageio">
+			<fileset dir="${libraries}/imageio" includes="*.*"/>
+		</copy>
+		<copy overwrite="true" todir="${build}/CTP/libraries/log4j">
+			<fileset dir="${libraries}/log4j" includes="*.*"/>
+		</copy>
+		<copy overwrite="true" todir="${build}/config">
+			<fileset dir="${config}" includes="*.*"/>
+		</copy>
+
+		<jar destfile="${products}/CTP-installer.jar">
+			<manifest>
+				<attribute name="Main-Class" value="org.rsna.installer.Installer"/>
+	            <attribute name="Date" value="${today} at ${now}"/>
+	            <attribute name="Java-Version" value="${ant.java.version}"/>
+            	<attribute name="Description" value="CTP for clinical trials"/>
+			</manifest>
+			<fileset dir="${build}"
+				includes="${installer}/Installer** CTP/** config/**"/>
+		</jar>
+
+	</target>
+
+	<target name="javadocs">
+		<mkdir dir="${documentation}"/>
+		<javadoc destdir="${documentation}" sourcepath="${java}" classpathref="classpath"
+				 doctitle="${title}" windowtitle="${title}" bottom="${copyright}">
+			<package name="org.*"/>
+		</javadoc>
+	</target>
+
+	<target name="all" depends="clean, installer, javadocs">
+		<tstamp>
+			<format property="end" pattern="HH:mm:ss"/>
+		</tstamp>
+		<echo message="Time now ${end}"/>
+	</target>
+
+</project>

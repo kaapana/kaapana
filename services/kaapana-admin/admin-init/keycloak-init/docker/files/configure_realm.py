@@ -30,16 +30,24 @@ if __name__ == "__main__":
     keycloak.post_composite_role("default-roles-kaapana", ["user"])
 
     ### Add group
-    file = "realm_objects/group-all_data.json"
-    with open(file, "r") as f:
-        payload = json.load(f)
-        keycloak.post_group(payload)
+    file = "realm_objects/group-kaapana_admin.json"
+    payload = json.load(open(file, "r"))
+    keycloak.post_group(payload)
 
-    ### Add role mappings to group
+    ### Add role mappings to group kaapana_admin
     roles = ["admin", "user"]
-    keycloak.post_role_mapping(roles, group="all_data")
+    keycloak.post_role_mapping(roles, "kaapana_admin")
 
-    ### Add kaapana user
+    ### Add kaapana_user group kaapana_user
+    file = "realm_objects/group-kaapana_user.json"
+    payload = json.load(open(file, "r"))
+    keycloak.post_group(payload)
+
+    ### Add role mappings to group kaapana_user
+    roles = ["user"]
+    keycloak.post_role_mapping(roles, "kaapana_user")
+
+    ### Add user
     file = "realm_objects/kaapana-user.json"
     with open(file, "r") as f:
         payload = json.load(f)
@@ -67,5 +75,9 @@ if __name__ == "__main__":
         payload["secret"] = oidc_client_secret
         redirect_uris = []
         redirect_uris.append(f"/oauth2/callback")
-        redirect_uris.append(f"/minio-console/oauth_callback/")
+        hostname = os.getenv("HOSTNAME")
+        https_port = os.getenv("HTTPS_PORT")
+        redirect_uris.append(
+            f"https://{hostname}:{https_port}/minio-console/oauth_callback/"
+        )
         keycloak.post_client(payload, redirectUris=redirect_uris)

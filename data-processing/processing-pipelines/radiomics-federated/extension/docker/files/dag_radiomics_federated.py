@@ -1,17 +1,14 @@
-import os
 from datetime import timedelta
-from datetime import datetime
 
 
 from airflow.models import DAG
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
 
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
 
-from radiomics_federated.RadiomicsReportingOperator import RadiomicsReportingOperator
 from radiomics_federated.RadiomicsFederatedOperator import RadiomicsFederatedOperator
 
 log = LoggingMixin().log
@@ -87,8 +84,19 @@ radiomics_federated_central = RadiomicsFederatedOperator(dag=dag)
 put_radiomics_to_minio = LocalMinioOperator(
     dag=dag, action="put", action_operators=[radiomics_federated_central]
 )
-radiomics_reporting = RadiomicsReportingOperator(
-    dag=dag, input_operator=radiomics_federated_central
+
+get_notebook_from_minio = LocalMinioOperator(
+    dag=dag,
+    name="radiomics-get-notebook-from-minio",
+    bucket_name="analysis-scripts",
+    action="get",
+    action_files=["FedRad-Analysis.ipynb"],
+)
+
+radiomics_reporting = JupyterlabReportingOperator(
+    dag=dag,
+    input_operator=radiomics_federated_central,
+    notebook_filename="FedRad-Analysis.ipynb",
 )
 
 put_report_to_minio = LocalMinioOperator(
@@ -103,4 +111,10 @@ put_report_to_minio = LocalMinioOperator(
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 radiomics_federated_central >> put_radiomics_to_minio >> clean
-radiomics_federated_central >> radiomics_reporting >> put_report_to_minio >> clean
+(
+    radiomics_federated_central
+    >> get_notebook_from_minio
+    >> radiomics_reporting
+    >> put_report_to_minio
+    >> clean
+)

@@ -27,8 +27,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
     xauth \
     && rm -rf /var/lib/apt/lists/*
 
-# Slicer 5.2.2
-RUN SLICER_URL="https://download.slicer.org/bitstream/63f5bee68939577d9867b4c7" && \
+# Slicer 5.6.1
+RUN SLICER_URL="https://download.slicer.org/bitstream/657813b183a3201b44d4e6f7" && \
     curl -k -v -s -L $SLICER_URL | tar xz -C /tmp && \
     mv /tmp/Slicer* /opt/slicer
 
@@ -60,8 +60,8 @@ RUN su researcher -c "mkdir /home/researcher/Documents"
 #WORKDIR /data
 
 RUN mkdir -p /home/researcher/Desktop
-RUN ln -s /kaapana/mounted/slicer-data /home/researcher/Desktop/
-WORKDIR /kaapana/mounted/slicer-data
+RUN ln -s /kaapana/minio /home/researcher/Desktop/
+WORKDIR /kaapana/minio
 
 # A supervisord config is used to make the application managed
 COPY files/supervisord.conf /etc/supervisor/conf.d/

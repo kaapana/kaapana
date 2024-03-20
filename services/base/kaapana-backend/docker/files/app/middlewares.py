@@ -11,10 +11,10 @@ def safe_html_escape(value):
     Recursively escape HTML characters in a string, list, or dictionary.
 
     Args:
-        value (str, list, dict): The input value to escape.
+        value (str, list, tuple, dict): The input value to escape.
 
     Returns:
-        str, list, dict: The escaped value.
+        str, list, tuple, dict: The escaped value.
     """
     if isinstance(value, str):
         # If the value is a string, escape HTML characters
@@ -22,12 +22,44 @@ def safe_html_escape(value):
     elif isinstance(value, list):
         # If the value is a list, recursively call safe_html_escape on each element
         return [safe_html_escape(i) for i in value]
+    elif isinstance(value, tuple):
+        # If the value is a tuple, recursively call safe_html_escape on each element
+        # store in a list, then revert it back to tuple and return
+        out = [safe_html_escape(i) for i in value]
+        return tuple(out)
     elif isinstance(value, dict):
         # If the value is a dictionary, recursively call safe_html_escape on each value
         return {key: safe_html_escape(val) for key, val in value.items()}
     else:
         # If the value is not a string, list, or dictionary, return it unchanged
         return value
+
+
+def sanitize_inputs(*inputs):
+    """
+    Function to sanitize input values through different processing e.g. html escaping.
+
+    Args:
+    *inputs: Variable number of input values to be sanitized.
+
+    Returns:
+    Either a single sanitized input value if only one input is provided,
+    or a tuple of sanitized input values if multiple inputs are provided.
+    """
+    # Initialize an empty list to store processed input values
+    processed = []
+    for value in inputs:
+        # Sanitize the input value by escaping HTML special characters
+        value = safe_html_escape(value)
+        processed.append(value)
+
+    # Check if only one input value was provided
+    # Return the single sanitized input value
+    if len(processed) == 1:
+        return processed[0]
+
+    # Return a tuple of sanitized input values if multiple inputs were provided
+    return tuple(processed)
 
 
 class SanitizeBodyInputs:
@@ -75,7 +107,7 @@ class SanitizeBodyInputs:
             # Deserialize the JSON body into a Python dictionary
             data = json.loads(body)
             # Sanitize the data (e.g., escape HTML)
-            data = safe_html_escape(data)
+            data = sanitize_inputs(data)
 
             message["body"] = json.dumps(data).encode()
             return message
@@ -90,8 +122,8 @@ class SanitizeQueryParams(BaseHTTPMiddleware):
         query_params = request.query_params
 
         if query_params:
-            # update the query param values with html escaped values
-            modified_dict = safe_html_escape(query_params._dict)
+            # update the query param values with sanitized values
+            modified_dict = sanitize_inputs(query_params._dict)
             # Reconstruct QueryParams object with modified dictionary
             modified_query_params = QueryParams(modified_dict)
 

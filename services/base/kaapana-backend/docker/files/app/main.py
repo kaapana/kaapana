@@ -34,7 +34,10 @@ logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI(root_path="/kaapana-backend")
 
+# sanitize user inputs from the POST and PUT body
 app.add_middleware(middlewares.SanitizeBodyInputs)
+
+# sanitze user inputs from the query parameters in get requests
 app.add_middleware(middlewares.SanitizeQueryParams)
 
 

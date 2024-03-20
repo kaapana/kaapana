@@ -7,6 +7,7 @@ from build_helper.container_helper import Container, pull_container_image
 from alive_progress import alive_bar
 from shutil import copyfile
 
+
 class OfflineInstallerHelper:
     SNAP_DOWNLOAD_TIMEOUT = 120
     HELM_DOWNLOAD_TIMEOUT = 10
@@ -165,7 +166,7 @@ class OfflineInstallerHelper:
             target_path=microk8s_offline_installer_target_dir,
         )
 
-        DEFAULT_MICRO_VERSION = "1.26/stable"
+        DEFAULT_MICRO_VERSION = "1.28/stable"
         OfflineInstallerHelper.download_snap_package(
             name="microk8s",
             version=DEFAULT_MICRO_VERSION,

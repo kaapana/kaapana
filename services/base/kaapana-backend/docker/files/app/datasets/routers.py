@@ -7,6 +7,7 @@ from app.datasets.utils import (
     get_field_mapping,
 )
 from app.dependencies import get_opensearch
+from app.middlewares import sanitize_inputs
 
 router = APIRouter(tags=["datasets"])
 
@@ -111,6 +112,8 @@ async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
 @router.get("/series/{series_instance_uid}")
 async def get_data(series_instance_uid, os_client=Depends(get_opensearch)):
     metadata = await get_metadata(os_client, series_instance_uid)
+    # sanitize path params
+    series_instance_uid = sanitize_inputs(series_instance_uid)
 
     modality = metadata["Modality"]
 
@@ -243,6 +246,8 @@ async def get_all_values(os_client, item_name, query):
 async def get_query_values_item(
     field_name: str, query: dict = Body(...), os_client=Depends(get_opensearch)
 ):
+    # sanitize field_name path params
+    field_name = sanitize_inputs(field_name)
     if not query or query == {}:
         query = {"query_string": {"query": "*"}}
 

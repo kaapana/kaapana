@@ -4,7 +4,7 @@ from fastapi.responses import PlainTextResponse
 from app.dependencies import get_monitoring_service
 from .schemas import Measurement
 from typing import List
-
+from app.middlewares import sanitize_inputs
 
 router = APIRouter(tags=["monitoring"])
 
@@ -55,6 +55,8 @@ def custom_query(q: str, client=Depends(get_monitoring_service)):
 
     Sometimes the prometheus client library returns an empty response for a non-empty query result.
     """
+    # sanitize query path params
+    q = sanitize_inputs(q)
     result = client.query("custom-query", q)
     if not result:
         raise HTTPException(status_code=204, detail="No content")

@@ -28,9 +28,9 @@
           <v-list-item
             v-if="settings.navigationMode && isAuthenticated"
             :to="{
-              name: 'ew-section-view',
-              params: { ewSection: 'store', ewSubSection: 'minio' },
-            }"
+        name: 'ew-section-view',
+        params: { ewSection: 'store', ewSubSection: 'minio' },
+      }"
           >
             <v-list-item-action>
               <v-icon>mdi-palette-advanced</v-icon>
@@ -68,9 +68,9 @@
             :prepend-icon="section.icon"
             v-if="
               !settings.navigationMode &&
-              isAuthenticated &&
-              checkAuthSection(policyData, section, currentUser)
-            "
+        isAuthenticated &&
+        checkAuthSection(policyData, section, currentUser)
+        "
             v-for="(section, sectionKey) in externalWebpages"
             :key="section.id"
           >
@@ -80,14 +80,14 @@
             <v-list-item
               v-if="
                 section.subSections &&
-                _checkAuthR(policyData, subSection.linkTo, currentUser)
-              "
+        _checkAuthR(policyData, subSection.linkTo, currentUser)
+        "
               v-for="(subSection, subSectionKey) in section.subSections"
               :key="subSection.id"
               :to="{
-                name: 'ew-section-view',
-                params: { ewSection: sectionKey, ewSubSection: subSectionKey },
-              }"
+        name: 'ew-section-view',
+        params: { ewSection: sectionKey, ewSubSection: subSectionKey },
+      }"
             >
               <v-list-item-action></v-list-item-action>
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
@@ -107,6 +107,9 @@
               <v-list-item-title>Extensions</v-list-item-title>
             </v-list-item-content>
             <v-list-item-icon></v-list-item-icon>
+          </v-list-item>
+          <v-list-item>
+            <IdleTracker />
           </v-list-item>
         </v-list>
       </v-navigation-drawer>
@@ -213,12 +216,12 @@
                   :key="subSection.id"
                   :value="subSection.id"
                   :to="{
-                    name: 'ew-section-view',
-                    params: {
-                      ewSection: sectionKey,
-                      ewSubSection: subSectionKey,
-                    },
-                  }"
+        name: 'ew-section-view',
+        params: {
+          ewSection: sectionKey,
+          ewSubSection: subSectionKey,
+        },
+      }"
                 >
                   <v-list-item-title>{{ subSection.label }}</v-list-item-title>
                 </v-list-item>
@@ -250,12 +253,13 @@ import {
   GET_POLICY_DATA,
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
+import IdleTracker from "@/components/IdleTracker.vue"
 import { settings } from "@/static/defaultUIConfig";
 import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   name: "App",
-  components: { Settings },
+  components: { Settings, IdleTracker },
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
@@ -334,20 +338,10 @@ export default Vue.extend({
       });
   },
   onIdle() {
-    console.log("checking", this.$store.getters.isAuthenticated);
-    this.$store
-      .dispatch(CHECK_AUTH)
-      .then(() => {
-        console.log("still online");
-      })
-      .catch((err: any) => {
-        console.log("reloading");
-        location.reload();
-        // this.$router.push({ name: 'home' });
-        // this.$store.dispatch(LOGOUT).then(() => {
-        //   this.$router.push({ name: 'home' });
-        // });
-      });
+    console.log("I was here!")
+    this.$store.dispatch(LOGOUT).then(() => {
+      this.$router.push({ name: '' });
+    });
   },
 });
 </script>

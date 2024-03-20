@@ -40,12 +40,6 @@ INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
-if [ "$DEV_MODE" == "true" ]; then
-    KAAPANA_INIT_PASSWORD="kaapana"
-else
-    KAAPANA_INIT_PASSWORD="Kaapana2020!"
-fi
-
 CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
 CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
 
@@ -405,6 +399,12 @@ function deploy_chart {
         SCRIPT_PATH=$(dirname "$(realpath $0)")
         pull_chart $SCRIPT_PATH
         CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
+    fi
+
+    if [ "$DEV_MODE" == "true" ]; then
+        KAAPANA_INIT_PASSWORD="kaapana"
+    else
+        KAAPANA_INIT_PASSWORD="Kaapana2020!"
     fi
 
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"

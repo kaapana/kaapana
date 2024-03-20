@@ -309,6 +309,8 @@ async def get_all_values(item_name, query):
 
 @router.post("/query_values/{field_name}")
 async def get_query_values_item(field_name: str, query: dict = Body(...)):
+    # sanitize field_name path params
+    field_name = sanitize_inputs(field_name)
     if not query or query == {}:
         query = {"query_string": {"query": "*"}}
 

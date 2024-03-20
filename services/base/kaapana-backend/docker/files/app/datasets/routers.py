@@ -2,6 +2,7 @@ from app.datasets import utils
 from app.dependencies import get_opensearch, get_project_index
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from app.middlewares import sanitize_inputs
 
 router = APIRouter(tags=["datasets"])
 
@@ -172,7 +173,8 @@ async def get_data(
     project_index=Depends(get_project_index),
 ):
     metadata = await utils.get_metadata(os_client, project_index, series_instance_uid)
-
+    # sanitize path params
+    series_instance_uid = sanitize_inputs(series_instance_uid)
     modality = metadata["Modality"]
     dcmweb_endpoint = metadata.get("Source Presentation Address")
     if dcmweb_endpoint:
@@ -321,6 +323,8 @@ async def get_query_values_item(
     os_client=Depends(get_opensearch),
     project_index=Depends(get_project_index),
 ):
+    # sanitize field_name path params
+    field_name = sanitize_inputs(field_name)
     if not query or query == {}:
         query = {"query_string": {"query": "*"}}
 

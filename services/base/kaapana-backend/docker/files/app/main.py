@@ -18,6 +18,8 @@ from .workflows import models
 from .workflows.crud import get_remote_updates, sync_states_from_airflow
 from .workflows.routers import client, remote
 
+from . import middlewares
+
 models.Base.metadata.create_all(bind=engine)
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -26,6 +28,12 @@ logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI(root_path="/kaapana-backend")
 app.add_middleware(SecurityMiddleware)
+
+# sanitize user inputs from the POST and PUT body
+app.add_middleware(middlewares.SanitizeBodyInputs)
+
+# sanitze user inputs from the query parameters in get requests
+app.add_middleware(middlewares.SanitizeQueryParams)
 
 
 @app.on_event("startup")

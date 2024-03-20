@@ -12,6 +12,7 @@ from app.workflows.utils import (
 )
 from app.dependencies import get_minio
 from app.config import settings
+from app.middlewares import sanitize_inputs
 
 router = APIRouter()
 
@@ -126,6 +127,7 @@ def put_aet_access_control_id(aetitle: str, access_control_id: str):
     """
     Add an access control id to an application entity in dcm4chee-archive via ldapmodify.
     """
+    aetitle, access_control_id = sanitize_inputs(aetitle, access_control_id)
     ### Make sure the lines in ldap_config contain no trailing whitespaces
     ldap_config = f'''"dn: dicomAETitle={aetitle},dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
 changetype: modify

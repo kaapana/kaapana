@@ -103,6 +103,9 @@ class SanitizeBodyInputs:
 
             # Extract the body from the message and decode it
             body: bytes = message.get("body", b"")
+            if not body:
+                return message
+
             body: str = body.decode()
             # Deserialize the JSON body into a Python dictionary
             data = json.loads(body)

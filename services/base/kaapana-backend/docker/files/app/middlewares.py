@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request, Response
 from starlette.types import Message, Receive, Scope, Send
 from starlette.datastructures import QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware
+from urllib.parse import urlencode
 
 
 def safe_html_escape(value):
@@ -132,6 +133,11 @@ class SanitizeQueryParams(BaseHTTPMiddleware):
 
             # Update request with modified query parameters
             request._query_params = modified_query_params
+
+            scope_query: bytes = request.scope.get("query_string", b"")
+            # also replace the query from scope if exists
+            if scope_query:
+                request.scope["query_string"] = urlencode(modified_dict).encode("utf-8")
 
         # Call the next middleware or the handler
         response = await call_next(request)

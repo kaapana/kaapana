@@ -74,6 +74,7 @@ import TagChip from "./TagChip.vue";
 
 import { loadSeriesData, updateTags } from "@/common/api.service";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import Cookies from 'js-cookie';
 
 export default {
   name: "SeriesCard",
@@ -99,7 +100,7 @@ export default {
     };
   },
   created() {
-    this.settings = JSON.parse(localStorage["settings"]);
+    this.settings = JSON.parse(Cookies.get('settings'));
   },
   async mounted() {
     this.get_data();

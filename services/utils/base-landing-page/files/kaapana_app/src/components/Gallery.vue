@@ -9,9 +9,9 @@
         <v-lazy
           v-if="index !== 0"
           :options="{
-            threshold: 0.3,
-            delay: 100,
-          }"
+        threshold: 0.3,
+        delay: 100,
+      }"
           transition="fade-transition"
           class="fill-height"
           :min-height="minHeight"
@@ -35,6 +35,8 @@ import SeriesCard from "./SeriesCard";
 import { loadDatasets, updateDataset } from "../common/api.service";
 import ResizeObserver from "resize-observer-polyfill";
 import { debounce } from "@/utils/utils.js";
+import Cookies from 'js-cookie';
+
 
 export default {
   name: "Gallery",
@@ -68,7 +70,7 @@ export default {
   },
   methods: {
     onResize() {
-      const _cols = JSON.parse(localStorage["settings"]).datasets.cols;
+      const _cols = JSON.parse(Cookies.get('settings')).datasets.cols;
       if (_cols !== "auto") {
         this.cols = _cols;
       } else {

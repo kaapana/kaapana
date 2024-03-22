@@ -54,6 +54,7 @@ import { Component, Vue } from "vue-property-decorator";
 import { mapGetters } from "vuex";
 import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
 import Dashboard from "@/components/Dashboard.vue";
+import Cookies from 'js-cookie';
 import {
   loadPatients,
 } from "../common/api.service";
@@ -79,7 +80,7 @@ export default Vue.extend({
     ]),
   },
   created() {
-    this.settings = JSON.parse(localStorage["settings"]);
+    this.settings = JSON.parse(Cookies.get('settings'));
     loadPatients({
         structured: false,
         query: {"bool":{"must":["",{"query_string":{"query":"*"}}]}},

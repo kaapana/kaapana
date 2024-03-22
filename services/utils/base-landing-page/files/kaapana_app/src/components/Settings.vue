@@ -62,6 +62,7 @@
 <script>
 import SettingsTable from "@/components/SettingsTable.vue";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import Cookies from 'js-cookie';
 
 export default {
   data: () => ({
@@ -73,14 +74,17 @@ export default {
     SettingsTable,
   },
   created() {
-    this.settings = JSON.parse(localStorage["settings"]);
+    this.settings = JSON.parse(Cookies.get('settings'));
   },
   methods: {
     restoreDefaultSettings() {
       this.settings = defaultSettings;
     },
     onSave() {
-      localStorage["settings"] = JSON.stringify(this.settings);
+      Cookies.set('settings', JSON.stringify(this.settings), { 
+          sameSite: 'strict', 
+          secure: true 
+      });
       this.dialog = false;
       window.location.reload();
     },

@@ -92,6 +92,8 @@
 <script>
 import { loadValues } from "@/common/api.service";
 import { settings } from "@/static/defaultUIConfig";
+import Cookies from 'js-cookie';
+
 
 export default {
   data() {
@@ -105,7 +107,7 @@ export default {
     };
   },
   mounted() {
-    this.settings = JSON.parse(localStorage["settings"]);
+    this.settings = JSON.parse(Cookies.get('settings'));
     this.multiple = this.settings.datasets.tagBar.multiple;
     this.tags = this.settings.datasets.tagBar.tags;
 
@@ -113,8 +115,8 @@ export default {
 
     loadValues("Tags").then(
       (res) =>
-        (this.availableTags =
-          "items" in res.data ? res.data["items"].map((i) => i["value"]) : [])
+      (this.availableTags =
+        "items" in res.data ? res.data["items"].map((i) => i["value"]) : [])
     );
 
     window.addEventListener("keypress", (event) =>
@@ -180,14 +182,20 @@ export default {
   watch: {
     multiple() {
       this.selection = this.multiple ? [] : null;
-      const settings = JSON.parse(localStorage["settings"]);
+      const settings = JSON.parse(Cookies.get('settings'));
       settings.datasets.tagBar.multiple = this.multiple;
-      localStorage["settings"] = JSON.stringify(settings);
+      Cookies.set('settings', JSON.stringify(settings), {
+        sameSite: 'strict',
+        secure: true
+      });
     },
     tags() {
-      const settings = JSON.parse(localStorage["settings"]);
+      const settings = JSON.parse(Cookies.get('settings'));
       settings.datasets.tagBar.tags = this.tags;
-      localStorage["settings"] = JSON.stringify(settings);
+      Cookies.set('settings', JSON.stringify(settings), {
+        sameSite: 'strict',
+        secure: true
+      });
       this.onChangeSelection();
     },
   },

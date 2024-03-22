@@ -32,6 +32,8 @@
 import Gallery from "./Gallery.vue";
 import { loadDashboard } from "../common/api.service";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import Cookies from 'js-cookie';
+
 
 export default {
   props: {
@@ -51,7 +53,7 @@ export default {
     Gallery,
   },
   created() {
-    this.settings = JSON.parse(localStorage["settings"]);
+    this.settings = JSON.parse(Cookies.get('settings'));
     this.studyProps = this.settings.datasets.props
       .filter((prop) => prop.studyView)
       .map((prop) => prop.name);

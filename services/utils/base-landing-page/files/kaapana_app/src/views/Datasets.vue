@@ -323,6 +323,7 @@ import KeyController from "keycon";
 import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
+import Cookies from 'js-cookie';
 
 const keycon = new KeyController();
 
@@ -364,8 +365,7 @@ export default {
     Pane,
   },
   async created() {
-    this.settings = JSON.parse(localStorage["settings"]);
-    // this.datasetName = JSON.parse(localStorage['Dataset.search.datasetName'] || '')
+    this.settings = JSON.parse(Cookies.get('settings'));
     this.updateDatasetNames();
   },
   mounted() {

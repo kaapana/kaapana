@@ -240,6 +240,7 @@ import {
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
 import { settings } from "@/static/defaultUIConfig";
+import Cookies from 'js-cookie';
 
 export default Vue.extend({
   name: "App",
@@ -268,12 +269,18 @@ export default Vue.extend({
   methods: {
     changeMode(v: boolean) {
       this.settings["darkMode"] = v;
-      localStorage["settings"] = JSON.stringify(this.settings);
+      Cookies.set('settings', JSON.stringify(this.settings), { 
+          sameSite: 'strict', 
+          secure: true 
+      });
       this.$vuetify.theme.dark = v;
     },
     changeNavigation(v: boolean) {
       this.settings["navigationMode"] = v;
-      localStorage["settings"] = JSON.stringify(this.settings);
+      Cookies.set('settings', JSON.stringify(this.settings), { 
+          sameSite: 'strict', 
+          secure: true 
+      });
     },
     login() {
       this.$store
@@ -287,12 +294,20 @@ export default Vue.extend({
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
     this.$store.dispatch(LOAD_COMMON_DATA);
-    if (!localStorage["settings"]) {
-      localStorage["settings"] = JSON.stringify(settings);
+    if (!Cookies.get('settings')) {
+      Cookies.set('settings', JSON.stringify(settings), { 
+          sameSite: 'strict', 
+          secure: true 
+      });
     }
   },
   mounted() {
-    this.settings = JSON.parse(localStorage["settings"]);
+    const settingsString = Cookies.get('settings');
+    if (settingsString) {
+        this.settings = JSON.parse(settingsString);
+    } else {
+        this.settings = settings;
+    }
     this.$vuetify.theme.dark = this.settings["darkMode"];
     request
       .get("/kaapana-backend/get-traefik-routes")

@@ -37,6 +37,7 @@
 import StudyView from "./StudyView.vue";
 import { loadDashboard } from "../common/api.service";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import Cookies from 'js-cookie';
 
 export default {
   props: {
@@ -57,7 +58,7 @@ export default {
     StudyView,
   },
   created() {
-    this.settings = JSON.parse(localStorage["settings"]);
+    this.settings = JSON.parse(Cookies.get('settings'));
     this.patientProps = this.settings.datasets.props
       .filter((prop) => prop.patientView)
       .map((prop) => prop.name);

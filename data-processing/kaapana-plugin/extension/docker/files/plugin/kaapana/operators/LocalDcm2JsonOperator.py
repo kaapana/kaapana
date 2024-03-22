@@ -88,17 +88,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     def _is_radiotherapy_modality(self, metadata: Dict) -> bool:
         """Check if the modality is either RTSTRUCT or SEG."""
         modality_tag = metadata.get("00080060")
-        return bool(
-            modality_tag and modality_tag["Value"][0] in ("RTSTRUCT", "SEG")
-        )
+        return bool(modality_tag and modality_tag["Value"][0] in ("RTSTRUCT", "SEG"))
 
     @cache_operator_output
     def start(self, **kwargs):
         logger.info("Starting module dcm2json...")
 
-        run_dir: Path = Path(
-            self.airflow_workflow_dir, kwargs["dag_run"].run_id
-        )
+        run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder: List[Path] = list((run_dir / self.batch_name).glob("*"))
 
         for batch_element_dir in batch_folder:
@@ -199,15 +195,14 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         if segment_entries:
             update_metadata["00620002 SegmentSequence_object_object"] = {}
             for label_entry in segment_entries:
-                alg_name = label_entry.get("00620009", {}).get("Value", [])[0]
-                alg_type = label_entry.get("00620008", {}).get("Value", [])[0]
+                # setting alg_name, alg_type and value default to None if they do not exist.
+                alg_name = label_entry.get("00620009", {}).get("Value", [None])[0]
+                alg_type = label_entry.get("00620008", {}).get("Value", [None])[0]
                 value = (
                     label_entry.get("00620005", {})
-                    .get("Value", [])[0]
+                    .get("Value", [None])[0]
                     .replace(",", "-")
                     .strip()
-                    if "00620005" in label_entry
-                    else None
                 )
 
                 if alg_name:
@@ -222,13 +217,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                     annotation_label_list.append(value)
 
         update_metadata["00000000 AnnotationLabelsList_keyword"] = (
-            ",".join(sorted(annotation_label_list))
-            if annotation_label_list
-            else None
+            ",".join(sorted(annotation_label_list)) if annotation_label_list else None
         )
-        update_metadata["00000000 AnnotationLabel_keyword"] = (
-            annotation_label_list
-        )
+        update_metadata["00000000 AnnotationLabel_keyword"] = annotation_label_list
         return update_metadata
 
     def _normalize_tag(
@@ -254,9 +245,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             metadata[new_tag] = value_str
 
         elif vr == "DT":
-            datetime_formatted = self._format_datetime_value(
-                new_tag, value_str
-            )
+            datetime_formatted = self._format_datetime_value(new_tag, value_str)
             if datetime_formatted is not None:
                 new_tag += "_datetime"
                 metadata[new_tag] = datetime_formatted
@@ -322,9 +311,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             new_tag = self.dicom_tag_dict.get(tag, None)
 
             if new_tag is None:
-                logger.info(
-                    f"Tag {tag} not found in DICOM TAG database. Skipping ..."
-                )
+                logger.info(f"Tag {tag} not found in DICOM TAG database. Skipping ...")
                 continue
 
             if "vr" in tag_metadata and "Value" in tag_metadata:
@@ -333,9 +320,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 value_str = strip_if_possible(value_str)
 
                 if "nan" in value_str:
-                    logger.info(
-                        f"Found NAN in value_str: {value_str}. Skipping ..."
-                    )
+                    logger.info(f"Found NAN in value_str: {value_str}. Skipping ...")
                     continue
 
                 if isinstance(value_str, list):
@@ -391,9 +376,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # Check for AcquisitionDateTime
         if "0008002A AcquisitionDateTime_datetime" in metadata:
             time_tag_used = "AcquisitionDateTime_datetime"
-            datetime_formatted = metadata[
-                "0008002A AcquisitionDateTime_datetime"
-            ]
+            datetime_formatted = metadata["0008002A AcquisitionDateTime_datetime"]
 
         else:
             # Define a mapping of date and time tags
@@ -425,16 +408,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             if extracted_date is None:
                 logger.warning("NO AcquisitionDate! -> set to today")
                 time_tag_used += "date not found -> arriving date"
-                extracted_date = datetime.now().strftime(
-                    self.kaapana_date_format
-                )
+                extracted_date = datetime.now().strftime(self.kaapana_date_format)
 
             if extracted_time is None:
                 logger.warning("NO AcquisitionTime! -> set to now")
                 time_tag_used += " + time not found -> arriving time"
-                extracted_time = datetime.now().strftime(
-                    self.kaapana_time_format
-                )
+                extracted_time = datetime.now().strftime(self.kaapana_time_format)
 
             datetime_string = f"{extracted_date} {extracted_time}"
             datetime_formatted = parser.parse(datetime_string).strftime(
@@ -454,18 +433,14 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         formatted_utc_datetime = current_utc_datetime.strftime(
             self.kaapana_datetime_format
         )
-        formatted_utc_date = current_utc_datetime.strftime(
-            self.kaapana_date_format
-        )
+        formatted_utc_date = current_utc_datetime.strftime(self.kaapana_date_format)
 
         # Formatted strings
         metadata["00000000 TimestampArrived_datetime"] = formatted_utc_datetime
         metadata["00000000 TimestampArrived_date"] = formatted_utc_date
 
         # Integers
-        metadata["00000000 TimestampArrivedHour_integer"] = (
-            current_utc_datetime.hour
-        )
+        metadata["00000000 TimestampArrivedHour_integer"] = current_utc_datetime.hour
         metadata["00000000 DayOfWeek_integer"] = datetime.strptime(
             datetime_formatted, self.kaapana_datetime_format
         ).weekday()
@@ -477,9 +452,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     def _process_patient_age(self, metadata: Dict) -> Dict:
         if "00100030 PatientBirthDate_date" in metadata:
             birthdate = metadata["00100030 PatientBirthDate_date"]
-            birthday_datetime = datetime.strptime(
-                birthdate, self.kaapana_date_format
-            )
+            birthday_datetime = datetime.strptime(birthdate, self.kaapana_date_format)
             series_datetime = datetime.strptime(
                 metadata["00000000 Timestamp_datetime"],
                 self.kaapana_datetime_format,
@@ -494,14 +467,10 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             )
 
             if "00101010 PatientAge_keyword" in metadata:
-                age_meta = process_age_string(
-                    metadata["00101010 PatientAge_keyword"]
-                )
+                age_meta = process_age_string(metadata["00101010 PatientAge_keyword"])
 
                 if patient_age_scan != age_meta:
-                    logger.error(
-                        highlight_message("Patient AGE inconsistency")
-                    )
+                    logger.error(highlight_message("Patient AGE inconsistency"))
                     logger.error(
                         f"Series datetime - birthday datetime: {patient_age_scan}"
                     )
@@ -510,9 +479,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             metadata["00101010 PatientAge_integer"] = patient_age_scan
         elif "00101010 PatientAge_keyword" in metadata:
             try:
-                age_meta = process_age_string(
-                    metadata["00101010 PatientAge_keyword"]
-                )
+                age_meta = process_age_string(metadata["00101010 PatientAge_keyword"])
                 metadata["00101010 PatientAge_integer"] = age_meta
             except Exception as e:
                 logger.error("Could not extract age-int from metadata.")
@@ -522,9 +489,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     def _process_clinical_trial_protocol_id(self, metadata: Dict) -> Dict:
         if "00120020 ClinicalTrialProtocolID_keyword" in metadata:
-            protocol_ids = metadata[
-                "00120020 ClinicalTrialProtocolID_keyword"
-            ].split(";")
+            protocol_ids = metadata["00120020 ClinicalTrialProtocolID_keyword"].split(
+                ";"
+            )
             logger.info(f"ClinicalTrialProtocolIDs: {protocol_ids}")
             metadata["00120020 ClinicalTrialProtocolID_keyword"] = protocol_ids
         return metadata
@@ -543,9 +510,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 ).strftime(self.kaapana_datetime_format)
             else:
                 logger.info(f"Value: {value_str} not complete dcm date time.")
-                logger.info(
-                    f"Dicom Standard Format: {self.dcm_datetime_format}"
-                )
+                logger.info(f"Dicom Standard Format: {self.dcm_datetime_format}")
 
             if datetime_formatted is None:
                 if len(value_str) > 8:
@@ -554,9 +519,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                         self.kaapana_datetime_format
                     )
                 else:
-                    logger.info(
-                        f"Trying to parse short date format with default time."
-                    )
+                    logger.info(f"Trying to parse short date format with default time.")
                     date = parser.parse(value_str).date()
                     time = parser.parse("01:00:00").time()
                     datetime_formatted = datetime.combine(date, time).strftime(
@@ -589,7 +552,6 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # YYYY.MM.DD for this VR. Use of this format is not compliant.
         # See also DT VR in this table.
         try:
-
             if isinstance(value_str, list):
                 date_formatted = [
                     parser.parse(date_str).strftime(self.kaapana_date_format)
@@ -680,9 +642,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         # HH:mm:ss.SSSSS
         time_string = f"{hour:02}:{minute:02}:{sec:02}.{fsec:06}"
-        time_formatted = parser.parse(time_string).strftime(
-            self.kaapana_time_format
-        )
+        time_formatted = parser.parse(time_string).strftime(self.kaapana_time_format)
 
         return time_formatted
 
@@ -698,9 +658,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             elif isinstance(processed_values, list):
                 for value in processed_values:
                     if isinstance(value, dict):
-                        logger.info(
-                            "Sequence value is nested too much. Skipping..."
-                        )
+                        logger.info("Sequence value is nested too much. Skipping...")
                         logger.info("Nesting: dict -> list -> dict -> ... ")
 
                     else:
@@ -756,9 +714,7 @@ def handle_incomplete_tag_metadata(tag_metadata: Dict):
         if "vr" in tag_metadata:
             logger.error(f"VR: {tag_metadata['vr'].encode('utf-8')}")
         if "Value" in tag_metadata:
-            entry_value = (
-                str(tag_metadata["Value"]).strip("[]").encode("utf-8")
-            )
+            entry_value = str(tag_metadata["Value"]).strip("[]").encode("utf-8")
             logger.error(f"value: {entry_value}")
 
 
@@ -775,9 +731,7 @@ def highlight_message(message: str) -> str:
 
 def check_type(obj, val_type):
     try:
-        if isinstance(obj, val_type) or (
-            val_type is float and isinstance(obj, int)
-        ):
+        if isinstance(obj, val_type) or (val_type is float and isinstance(obj, int)):
             return obj
         elif val_type is float and not isinstance(obj, list):
             obj = float(obj)

@@ -130,13 +130,19 @@ class SanitizeBodyInputs:
             if not body:
                 return message
 
-            body: str = body.decode()
-            # Deserialize the JSON body into a Python dictionary
-            data = json.loads(body)
+            # catch the error if it
+            # fails to decode and load the body to json
+            try:
+                body: str = body.decode()
+                # Deserialize the JSON body into a Python dictionary
+                data = json.loads(body)
+            except ValueError:
+                return message
+
             # Sanitize the data (e.g., escape HTML)
             data = sanitize_inputs(data)
-
             message["body"] = json.dumps(data).encode()
+
             return message
 
         # Pass the modified scope to the next middleware or application

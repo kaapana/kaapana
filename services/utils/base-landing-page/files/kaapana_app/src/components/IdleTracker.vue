@@ -16,17 +16,17 @@ export default Vue.extend({
         },
     },
     mounted() {
-        const { idle } = useIdle(30000)
+        const { idle } = useIdle(30 * 60 * 1000) // 30 min
 
         idle.value = false
 
         this.$watch(() => idle.value, (newValue, oldValue) => {
             if (newValue) {
                 console.log("Got emitted")
-                this.$store.commit('setIsIdle', true) // Dispatch action to set idle state to true
+                this.$store.commit('setIsIdle', true)
             } else {
                 console.log("Not Idle")
-                this.$store.commit('setIsIdle', false) // Dispatch action to set idle state to false
+                this.$store.commit('setIsIdle', false)
             }
         })
     }

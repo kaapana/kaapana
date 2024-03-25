@@ -13,7 +13,15 @@ from repeat_timer import RepeatedTimer
 from config import settings
 from helm_helper import get_extensions_list
 
+from middlewares import SanitizeBodyInputs, SanitizeQueryParams
+
 app = FastAPI(title="Kube-Helm API", root_path=settings.application_root)
+
+# sanitize user inputs from the POST and PUT body
+app.add_middleware(SanitizeBodyInputs)
+
+# sanitze user inputs from the query parameters in get requests
+app.add_middleware(SanitizeQueryParams)
 
 app.include_router(router)
 app.mount(

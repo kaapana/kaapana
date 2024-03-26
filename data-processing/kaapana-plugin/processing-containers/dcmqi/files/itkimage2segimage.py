@@ -10,7 +10,7 @@ import subprocess
 import numpy as np
 import pydicom
 
-from emptyseg.handle import check_n_replace_empty_mask
+from emptyseg.handle import check_n_replace_empty_mask, np_from_nifti
 from emptyseg.create import create_empty_seg
 
 processed_count = 0
@@ -531,8 +531,25 @@ for batch_element_dir in batch_folders:
                 .astype(int)
                 .tolist()
             )
+
+            mask_np = np_from_nifti(seg_filepath)
+            # Extract unique labels from the segmentation mask
+            unique_mask_labels = list(np.unique(mask_np))
+            if 0 in unique_mask_labels:
+                unique_mask_labels.remove(0)
+
+            # set the labelID dynamically from the avaliable
+            # labels in segmentation nifti file
+            labelID = 1
+            if len(unique_mask_labels) > 0:
+                labelID = int(unique_mask_labels[0])
+
             segment_attribute = create_segment_attribute(
-                segment_algorithm_type, segment_algorithm_name, code_meaning, color
+                segment_algorithm_type,
+                segment_algorithm_name,
+                code_meaning,
+                color,
+                labelID=int(unique_mask_labels[0]),
             )
 
             if create_multi_label_dcm_from_single_label_segs.lower() == "true":

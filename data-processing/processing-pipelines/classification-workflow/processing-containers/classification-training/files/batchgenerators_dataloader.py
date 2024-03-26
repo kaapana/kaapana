@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
 import random
-
 import numpy as np
+
 from batchgenerators.dataloading.data_loader import DataLoader
 from batchgenerators.transforms.abstract_transforms import Compose
 from batchgenerators.transforms.color_transforms import (
@@ -21,7 +21,6 @@ from batchgenerators.transforms.spatial_transforms import (
     MirrorTransform,
     SpatialTransform,
 )
-
 
 def configure_rotation_and_mirroring(patch_size):
     dim = len(patch_size)
@@ -83,6 +82,12 @@ class ClassificationDataset(DataLoader):
         self.uid_to_tag_mapping = uid_to_tag_mapping
         self.seed_for_shuffle = seed_for_shuffle
         self.num_classes = num_classes
+
+        # Check if all uids have a tag
+
+        for uid in self._data:
+            if uid not in self.uid_to_tag_mapping:
+                raise ValueError(f"UID {uid} not found in tag mapping")
 
     def __len__(self):
         return len(self._data)

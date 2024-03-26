@@ -106,7 +106,7 @@ else:
 
 
 def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
-    print("=> Saving checkpoint")
+    logger.debug("=> Saving checkpoint")
     checkpoint = {
         "state_dict": model.state_dict(),
         "optimizer": optimizer.state_dict(),
@@ -115,7 +115,7 @@ def save_checkpoint(model, optimizer, filename="my_checkpoint.pth.tar"):
 
 
 def load_checkpoint(checkpoint_file, model, optimizer, lr):
-    print("=> Loading checkpoint")
+    logger.debug("=> Loading checkpoint")
     checkpoint = torch.load(checkpoint_file, map_location=DEVICE)
     model.load_state_dict(checkpoint["state_dict"], strict=False)
     optimizer.load_state_dict(checkpoint["optimizer"])

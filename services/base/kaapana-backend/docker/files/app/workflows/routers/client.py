@@ -245,13 +245,23 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
             status_code=400,
             detail="A username has to be set when you start a job, either as parameter or in the request!",
         )
-    return crud.create_job(db=db, job=job)
+    job = crud.create_job(db=db, job=job)
+    if job.kaapana_instance:
+        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+            job.kaapana_instance
+        )
+    return job
 
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance)
 # also okay: JobWithWorkflow
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
-    return crud.get_job(db, job_id, run_id)
+    job = crud.get_job(db, job_id, run_id)
+    if job.kaapana_instance:
+        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+            job.kaapana_instance
+        )
+    return job
 
 
 @router.get("/jobs", response_model=List[schemas.JobWithWorkflowWithKaapanaInstance])
@@ -263,9 +273,15 @@ def get_jobs(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_jobs(
+    jobs = crud.get_jobs(
         db, instance_name, workflow_name, status, remote=False, limit=limit
     )
+    for job in jobs:
+        if job.kaapana_instance:
+            job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+                job.kaapana_instance
+            )
+    return jobs
 
 
 @router.put("/job", response_model=schemas.JobWithWorkflow)
@@ -682,7 +698,11 @@ def get_workflow(
     dag_id: str = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_workflow(db, workflow_id, workflow_name, dag_id)
+    workflow = crud.get_workflow(db, workflow_id, workflow_name, dag_id)
+    workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+        workflow.kaapana_instance
+    )
+    return workflow
 
 
 # get_workflows
@@ -698,9 +718,15 @@ def get_workflows(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_workflows(
+    workflows = crud.get_workflows(
         db, instance_name, involved_instance_name, workflow_job_id, limit=limit
-    )  # , username=request.headers["x-forwarded-preferred-username"]
+    )
+    for workflow in workflows:
+        if workflow.kaapana_instance:
+            workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+                workflow.kaapana_instance
+            )
+    return workflows  # , username=request.headers["x-forwarded-preferred-username"]
 
 
 # put/update_workflow

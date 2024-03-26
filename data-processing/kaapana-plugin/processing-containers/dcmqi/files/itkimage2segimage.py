@@ -538,6 +538,8 @@ for batch_element_dir in batch_folders:
             if 0 in unique_mask_labels:
                 unique_mask_labels.remove(0)
 
+            # set the labelID dynamically from the avaliable
+            # labels in segmentation nifti file
             labelID = 1
             if len(unique_mask_labels) > 0:
                 labelID = int(unique_mask_labels[0])

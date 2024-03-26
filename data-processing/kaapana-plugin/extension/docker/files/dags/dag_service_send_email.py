@@ -9,7 +9,7 @@ from kaapana.blueprints.kaapana_global_variables import SMTP_PORT
 from kaapana.blueprints.kaapana_global_variables import EMAIL_ADDRESS_SENDER
 
 log = LoggingMixin().log
-smtp_host = SMTP_HOST
+smtp_server = SMTP_HOST
 smtp_port = SMTP_PORT
 sender = EMAIL_ADDRESS_SENDER
 
@@ -20,7 +20,7 @@ ui_forms = {
         "type": "object",
         "properties": {
             "workflow_name_monitor": {
-                "title": "workflow_name_monitor",
+                "title": "Name of the Workflow to monitor",
                 "description": "Specify the workflow to monitor.",
                 "type": "string",
                 "required": True,
@@ -34,31 +34,31 @@ ui_forms = {
                 # "default": receivers,
             },
             "sender": {
-                "title": "sender",
+                "title": "Sender",
                 "description": "Specify the url/IP of the DICOM receiver.",
                 "type": "string",
                 "default": sender,
             },
-            "smtp_host": {
-                "title": "smtp-host",
+            "smtp_server": {
+                "title": "SMTP Host",
                 "description": "Specify the smtp-host.",
                 "type": "string",
-                "default": smtp_host,
+                "default": smtp_server,
             },
             "smtp_port": {
-                "title": "smtp-port",
+                "title": "SMTP Port",
                 "description": "Specify the smtp-port.",
                 "type": "integer",
-                "default": smtp_host,
+                "default": smtp_port,
             },
             "smtp_username": {
-                "title": "smtp_username",
-                "description": "Specify the smtp_username.",
+                "title": "SMTP Username",
+                "description": "Specify the smtp username.",
                 "type": "string",
             },
             "smtp_password": {
-                "title": "smtp-port",
-                "description": "Specify the smtp-port.",
+                "title": "SMTP Password",
+                "description": "Specify the smtp password.",
                 "type": "string",
             },
         },
@@ -84,5 +84,9 @@ dag = DAG(
 )
 
 local_email_send = LocalEmailSendOperator(
-    dag=dag, send_email=True, smtp_server=smtp_host, smtp_port=smtp_port, sender=sender
+    dag=dag,
+    send_email=True,
+    smtp_server=smtp_server,
+    smtp_port=smtp_port,
+    sender=sender,
 )

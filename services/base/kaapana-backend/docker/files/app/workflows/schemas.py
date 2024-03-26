@@ -75,6 +75,13 @@ class KaapanaInstance(KaapanaInstanceBase):
         instance.encryption_key = ""
         return instance
 
+    @classmethod
+    def clean_full_return(cls, instance):
+        instance.encryption_key = ""
+        instance.fernet_key = ""
+        instance.token = ""
+        return instance
+
     class Config:
         orm_mode = True
 

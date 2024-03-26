@@ -102,17 +102,11 @@ def generate_deployment_script(platform_chart):
         open(deployment_script_config_path[0]), Loader=yaml.FullLoader
     )
     platform_params["platform_name"] = platform_chart.name
-    platform_params["platform_build_version"] = (
-        BuildUtils.platform_build_version
-    )
+    platform_params["platform_build_version"] = BuildUtils.platform_build_version
     platform_params["container_registry_url"] = BuildUtils.default_registry
     if BuildUtils.include_credentials:
-        platform_params["container_registry_username"] = (
-            BuildUtils.registry_user
-        )
-        platform_params["container_registry_password"] = (
-            BuildUtils.registry_pwd
-        )
+        platform_params["container_registry_username"] = BuildUtils.registry_user
+        platform_params["container_registry_password"] = BuildUtils.registry_pwd
 
     platform_params["kaapana_collections"] = []
 
@@ -141,9 +135,7 @@ def generate_deployment_script(platform_chart):
                 }
             )
 
-    template = env.get_template(
-        "deploy_platform_template.sh"
-    )  # load template file
+    template = env.get_template("deploy_platform_template.sh")  # load template file
 
     output = template.render(**platform_params)
 
@@ -172,21 +164,19 @@ def generate_tree_node(chart_object, tree, parent):
                 f"{node_id}-{container.image_name}-{container.image_version}"
             )
             tree.create_node(
-                container.build_tag,
-                container_node_id,
-                parent=containers_node_id,
+                container.build_tag, container_node_id, parent=containers_node_id
             )
 
             if len(container.base_images) > 0:
                 base_images_node_id = f"{container_node_id}-base-images"
                 tree.create_node(
-                    "base-images",
-                    base_images_node_id,
-                    parent=container_node_id,
+                    "base-images", base_images_node_id, parent=container_node_id
                 )
 
             for base_image in container.base_images:
-                base_img_node_id = f"{container_node_id}-{base_image.name}-{container.image_version}"
+                base_img_node_id = (
+                    f"{container_node_id}-{base_image.name}-{container.image_version}"
+                )
                 tree.create_node(
                     f"{base_image.name}:{base_image.version}",
                     base_img_node_id,
@@ -247,23 +237,16 @@ def generate_build_graph(platform_chart):
         tree.create_node(
             collections_root, collections_root, parent=root_node_id.lower()
         )
-        for (
-            chart_id,
-            chart_object,
-        ) in platform_chart.kaapana_collections.items():
+        for chart_id, chart_object in platform_chart.kaapana_collections.items():
             tree = generate_tree_node(
                 chart_object=chart_object, tree=tree, parent=collections_root
             )
             nx_build_graph = generate_nx_node(
-                chart_object=chart_object,
-                graph=nx_build_graph,
-                parent=nx_node_id,
+                chart_object=chart_object, graph=nx_build_graph, parent=nx_node_id
             )
 
     tree_json_path = join(
-        BuildUtils.build_dir,
-        platform_chart.name,
-        f"tree-{platform_chart.name}.txt",
+        BuildUtils.build_dir, platform_chart.name, f"tree-{platform_chart.name}.txt"
     )
     tree.save2file(tree_json_path)
     BuildUtils.logger.info("")
@@ -280,22 +263,16 @@ def generate_build_graph(platform_chart):
 
 
 def helm_registry_login(username, password):
-    BuildUtils.logger.info(
-        f"-> Helm registry-logout: {BuildUtils.default_registry}"
-    )
+    BuildUtils.logger.info(f"-> Helm registry-logout: {BuildUtils.default_registry}")
     command = ["helm", "registry", "logout", BuildUtils.default_registry]
-    output = run(
-        command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10
-    )
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
 
     if output.returncode != 0 and "Error: not logged in" not in output.stderr:
         BuildUtils.logger.info(
             f"Helm couldn't logout from registry: {BuildUtils.default_registry} -> not logged in!"
         )
 
-    BuildUtils.logger.info(
-        f"-> Helm registry-login: {BuildUtils.default_registry}"
-    )
+    BuildUtils.logger.info(f"-> Helm registry-login: {BuildUtils.default_registry}")
     command = [
         "helm",
         "registry",
@@ -306,9 +283,7 @@ def helm_registry_login(username, password):
         "--password",
         password,
     ]
-    output = run(
-        command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10
-    )
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=10)
 
     if output.returncode != 0:
         BuildUtils.logger.error("Something went wrong!")
@@ -328,28 +303,19 @@ def helm_registry_login(username, password):
 
 def check_helm_installed():
     command = ["which", "helm"]
-    output = run(
-        command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5
-    )
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
     if output.returncode != 0:
         BuildUtils.logger.error("Helm is not installed!")
         BuildUtils.logger.error("-> install curl 'sudo apt install curl'")
-        BuildUtils.logger.error(
-            "-> install helm 'sudo snap install helm --classic'!"
-        )
+        BuildUtils.logger.error("-> install helm 'sudo snap install helm --classic'!")
         BuildUtils.logger.error(
             "-> install the kubeval 'helm plugin install https://github.com/instrumenta/helm-kubeval'"
         )
         exit(1)
 
     command = ["helm", "kubeval", "--help"]
-    output = run(
-        command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5
-    )
-    if (
-        output.returncode != 0
-        or "The Kubernetes package manager" in output.stdout
-    ):
+    output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=5)
+    if output.returncode != 0 or "The Kubernetes package manager" in output.stdout:
         BuildUtils.logger.error("Helm kubeval is not installed correctly!")
         BuildUtils.logger.error("Make sure Helm kubeval-plugin is installed!")
         BuildUtils.logger.error(
@@ -368,7 +334,7 @@ class HelmChart:
     enable_lint = True
     enable_kubeval = True
     enable_push = True
-    max_tries = 30
+    max_tries = 5
 
     def __eq__(self, other):
         if isinstance(self, HelmChart) and isinstance(other, HelmChart):
@@ -423,9 +389,7 @@ class HelmChart:
         requirements_file = join(self.chart_dir, "requirements.yaml")
         if exists(requirements_file):
             with open(str(requirements_file)) as f:
-                self.requirements_yaml = list(
-                    yaml.load_all(f, yaml.FullLoader)
-                )
+                self.requirements_yaml = list(yaml.load_all(f, yaml.FullLoader))
             self.requirements_yaml = list(filter(None, self.requirements_yaml))
             if len(self.requirements_yaml) > 0:
                 assert len(self.requirements_yaml) == 1
@@ -460,10 +424,7 @@ class HelmChart:
         if "appVersion" in self.chart_yaml:
             self.app_version = self.chart_yaml["appVersion"]
 
-        if (
-            "version" in self.chart_yaml
-            and self.chart_yaml["version"] != "0.0.0"
-        ):
+        if "version" in self.chart_yaml and self.chart_yaml["version"] != "0.0.0":
             self.repo_version = self.chart_yaml["version"]
         else:
             (
@@ -497,18 +458,12 @@ class HelmChart:
             assert len(deployment_config) == 1
 
             deployment_config = deployment_config[0]
-            platform_params = yaml.load(
-                open(deployment_config), Loader=yaml.FullLoader
-            )
+            platform_params = yaml.load(open(deployment_config), Loader=yaml.FullLoader)
             if "kaapana_collections" in platform_params:
-                self.kaapana_collections = platform_params[
-                    "kaapana_collections"
-                ]
+                self.kaapana_collections = platform_params["kaapana_collections"]
 
             if "preinstall_extensions" in platform_params:
-                self.preinstall_extensions = platform_params[
-                    "preinstall_extensions"
-                ]
+                self.preinstall_extensions = platform_params["preinstall_extensions"]
 
         self.check_container_use()
 
@@ -534,8 +489,7 @@ class HelmChart:
             charts_found = [
                 x
                 for x in charts_found
-                if x.name == dependency_name
-                and x.repo_version == dependency_version
+                if x.name == dependency_name and x.repo_version == dependency_version
             ]
             BuildUtils.logger.warning(
                 f"{self.chart_id}: Found {len(charts_found)} charts with version: {dependency_version}"
@@ -594,14 +548,10 @@ class HelmChart:
                 or "dependencies" not in requirements_yaml
                 or requirements_yaml["dependencies"] == None
             ):
-                BuildUtils.logger.debug(
-                    f"{self.chart_id}: -> No dependencies defined"
-                )
+                BuildUtils.logger.debug(f"{self.chart_id}: -> No dependencies defined")
                 return
 
-            self.dependencies_count_all = len(
-                requirements_yaml["dependencies"]
-            )
+            self.dependencies_count_all = len(requirements_yaml["dependencies"])
             for dependency in requirements_yaml["dependencies"]:
                 dependency_version = f"{dependency['version']}"
                 if dependency_version == "0.0.0":
@@ -645,14 +595,12 @@ class HelmChart:
             extension_collection_id = f"{collection['name']}"
             # extension_collection_id = f"{collection['name']}:{collection['version']}"
             collection_chart = [
-                x
-                for x in BuildUtils.charts_available
-                if x == extension_collection_id
+                x for x in BuildUtils.charts_available if x == extension_collection_id
             ]
             if len(collection_chart) == 1:
-                self.kaapana_collections[collection_chart[0].chart_id] = (
-                    collection_chart[0]
-                )
+                self.kaapana_collections[
+                    collection_chart[0].chart_id
+                ] = collection_chart[0]
             else:
                 BuildUtils.generate_issue(
                     component=suite_tag,
@@ -663,13 +611,8 @@ class HelmChart:
                 )
 
     def check_preinstall_extensions(self):
-        BuildUtils.logger.debug(
-            f"{self.chart_id}: check_preinstall_extensions"
-        )
-        if (
-            not self.preinstall_extensions
-            or len(self.preinstall_extensions) == 0
-        ):
+        BuildUtils.logger.debug(f"{self.chart_id}: check_preinstall_extensions")
+        if not self.preinstall_extensions or len(self.preinstall_extensions) == 0:
             BuildUtils.logger.debug(
                 f"{self.chart_id}: no preinstall_extensions -> return"
             )
@@ -681,9 +624,7 @@ class HelmChart:
             preinstall_extension_id = f"{preinstall_extension['name']}"
             # extension_collection_id = f"{collection['name']}:{collection['version']}"
             preinstall_extension_chart = [
-                x
-                for x in BuildUtils.charts_available
-                if x == preinstall_extension_id
+                x for x in BuildUtils.charts_available if x == preinstall_extension_id
             ]
             if len(preinstall_extension_chart) == 1:
                 self.preinstall_extensions[
@@ -704,8 +645,7 @@ class HelmChart:
         containers_found = [
             x
             for x in BuildUtils.container_images_available
-            if x.image_name == container_name
-            and x.registry == container_registry
+            if x.image_name == container_name and x.registry == container_registry
         ]
 
         if len(containers_found) == 1:
@@ -729,10 +669,7 @@ class HelmChart:
                     ]
                     if len(oparator_container_found) == 1:
                         oparator_container_found = oparator_container_found[0]
-                        if (
-                            oparator_container_found.tag
-                            not in self.chart_containers
-                        ):
+                        if oparator_container_found.tag not in self.chart_containers:
                             self.chart_containers[
                                 oparator_container_found.tag
                             ] = oparator_container_found
@@ -759,9 +696,7 @@ class HelmChart:
             )
             if len(containers_found) > 1:
                 for container_found in containers_found:
-                    BuildUtils.logger.error(
-                        f"Dockerfile found: {container_found.path}"
-                    )
+                    BuildUtils.logger.error(f"Dockerfile found: {container_found.path}")
             BuildUtils.generate_issue(
                 component=suite_tag,
                 name=f"{self.chart_id}",
@@ -780,9 +715,7 @@ class HelmChart:
                 container_version=self.repo_version,
             )
 
-        elif (
-            self.values_yaml != None
-        ):  # if self.kaapana_type == "kaapanaworkflow":
+        elif self.values_yaml != None:  # if self.kaapana_type == "kaapanaworkflow":
             if (
                 "global" in self.values_yaml
                 and self.values_yaml["global"] is not None
@@ -813,9 +746,7 @@ class HelmChart:
                 and self.values_yaml["global"]["complete_image"] != None
             ):
                 regex = r"({{\s*\.Values\.global\.registry_url\s+}}\/)(.*)(:{{\s*\.Values\.global\.kaapana_build_version\s*}})"
-                match = re.search(
-                    regex, self.values_yaml["global"]["complete_image"]
-                )
+                match = re.search(regex, self.values_yaml["global"]["complete_image"])
                 assert match
                 self.add_container_by_tag(
                     container_registry=BuildUtils.default_registry,
@@ -870,14 +801,10 @@ class HelmChart:
                             .replace(" ", "")
                         )
                         if "#" in line.split("image:")[0]:
-                            BuildUtils.logger.debug(
-                                f"Commented: {line} -> skip"
-                            )
+                            BuildUtils.logger.debug(f"Commented: {line} -> skip")
                             continue
                         elif "-if." in line and "{{else}}" in line:
-                            BuildUtils.logger.debug(
-                                f"Templated: {line} -> skip"
-                            )
+                            BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 
                         elif (
@@ -887,9 +814,7 @@ class HelmChart:
                             or "collection.name" in line
                             or "kube_helm_collection" in line
                         ):
-                            BuildUtils.logger.debug(
-                                f"Templated image: {line} -> skip"
-                            )
+                            BuildUtils.logger.debug(f"Templated image: {line} -> skip")
                             continue
                         else:
                             container_tag = (
@@ -918,15 +843,9 @@ class HelmChart:
                                     path=self.chart_dir,
                                 )
 
-                            default_registry = "/".join(
-                                container_tag.split("/")[:-1]
-                            )
-                            container_version = container_tag.split("/")[
-                                -1
-                            ].split(":")[-1]
-                            container_name = container_tag.split("/")[
-                                -1
-                            ].split(":")[0]
+                            default_registry = "/".join(container_tag.split("/")[:-1])
+                            container_version = container_tag.split("/")[-1].split(":")[-1]
+                            container_name = container_tag.split("/")[-1].split(":")[0]
                             self.add_container_by_tag(
                                 container_registry=default_registry,
                                 container_name=container_name,
@@ -935,9 +854,7 @@ class HelmChart:
 
     def lint_chart(self, build_version=False):
         if self.helmlint_done:
-            BuildUtils.logger.debug(
-                f"{self.chart_id}: lint_chart already done - skip"
-            )
+            BuildUtils.logger.debug(f"{self.chart_id}: lint_chart already done - skip")
             return
         if HelmChart.enable_lint:
             BuildUtils.logger.info(f"{self.chart_id}: lint_chart")
@@ -994,13 +911,8 @@ class HelmChart:
                 timeout=20,
                 cwd=cwd,
             )
-            if (
-                output.returncode != 0
-                and "A valid hostname" not in output.stderr
-            ):
-                BuildUtils.logger.error(
-                    f"{self.chart_id}: lint_kubeval failed"
-                )
+            if output.returncode != 0 and "A valid hostname" not in output.stderr:
+                BuildUtils.logger.error(f"{self.chart_id}: lint_kubeval failed")
                 BuildUtils.generate_issue(
                     component=suite_tag,
                     name=f"{self.chart_id}",
@@ -1058,9 +970,7 @@ class HelmChart:
                 timeout=60,
             )
             while output.returncode != 0 and try_count < HelmChart.max_tries:
-                BuildUtils.logger.warning(
-                    f"chart push failed -> try: {try_count}"
-                )
+                BuildUtils.logger.warning(f"chart push failed -> try: {try_count}")
                 output = run(
                     command,
                     stdout=PIPE,
@@ -1092,13 +1002,9 @@ class HelmChart:
 
     @staticmethod
     def collect_charts():
-        charts_found = glob(
-            BuildUtils.kaapana_dir + "/**/Chart.yaml", recursive=True
-        )
+        charts_found = glob(BuildUtils.kaapana_dir + "/**/Chart.yaml", recursive=True)
         BuildUtils.logger.info("")
-        BuildUtils.logger.info(
-            f"Found {len(charts_found)} Charts in kaapana_dir"
-        )
+        BuildUtils.logger.info(f"Found {len(charts_found)} Charts in kaapana_dir")
         for external_source_dir in BuildUtils.external_source_dirs:
             BuildUtils.logger.info("")
             BuildUtils.logger.info(
@@ -1128,9 +1034,7 @@ class HelmChart:
         )
 
         BuildUtils.logger.info("")
-        BuildUtils.logger.info(
-            f"--> Found {len(charts_found)} Charts across sources"
-        )
+        BuildUtils.logger.info(f"--> Found {len(charts_found)} Charts across sources")
         BuildUtils.logger.info("")
         BuildUtils.logger.info("Generating Chart objects ...")
         BuildUtils.logger.info("")
@@ -1164,9 +1068,7 @@ class HelmChart:
 
     @staticmethod
     def create_platform_build_files(platform_chart):
-        BuildUtils.logger.info(
-            f"{platform_chart.name}: create_platform_build_files"
-        )
+        BuildUtils.logger.info(f"{platform_chart.name}: create_platform_build_files")
         assert (
             platform_chart.kaapana_type != None
             and platform_chart.kaapana_type == "platform"
@@ -1251,9 +1153,7 @@ class HelmChart:
 
     @staticmethod
     def create_chart_build_version(src_chart, target_build_dir, bar=None):
-        BuildUtils.logger.info(
-            f"{src_chart.chart_id}: create_chart_build_version"
-        )
+        BuildUtils.logger.info(f"{src_chart.chart_id}: create_chart_build_version")
 
         shutil.copytree(src=src_chart.chart_dir, dst=target_build_dir)
 
@@ -1264,9 +1164,7 @@ class HelmChart:
                 build_requirements_lines = f.readlines()
             with open(build_requirements, "w") as f:
                 for build_requirements_line in build_requirements_lines:
-                    if "repository:" not in build_requirements_line.strip(
-                        "\n"
-                    ):
+                    if "repository:" not in build_requirements_line.strip("\n"):
                         f.write(build_requirements_line)
 
         src_chart.build_chart_dir = target_build_dir
@@ -1279,17 +1177,12 @@ class HelmChart:
         with open(src_chart.build_chartfile, "w") as f:
             for chart_file_line in chart_file_lines:
                 if "version:" in chart_file_line.strip("\n"):
-                    f.write(
-                        f'version: "{BuildUtils.platform_build_version}"\n'
-                    )
+                    f.write(f'version: "{BuildUtils.platform_build_version}"\n')
                 else:
                     f.write(chart_file_line)
 
         # Update values.yaml of platform chartsdo to contain build meta information
-        if (
-            src_chart.kaapana_type != None
-            and src_chart.kaapana_type == "platform"
-        ):
+        if src_chart.kaapana_type != None and src_chart.kaapana_type == "platform":
             src_chart.build_valuesfile = join(target_build_dir, "values.yaml")
             if not exists(src_chart.build_valuesfile):
                 values = {}
@@ -1302,22 +1195,16 @@ class HelmChart:
                 values["global"] = {}
 
             values["global"]["kaapana_collections"] = []
-            for idx, kaapana_collection in enumerate(
-                src_chart.kaapana_collections
-            ):
+            for idx, kaapana_collection in enumerate(src_chart.kaapana_collections):
                 values["global"]["kaapana_collections"].append(
                     {
-                        "name": src_chart.kaapana_collections[
-                            kaapana_collection
-                        ].name,
+                        "name": src_chart.kaapana_collections[kaapana_collection].name,
                         "version": BuildUtils.platform_build_version,
                     }
                 )
 
             values["global"]["preinstall_extensions"] = []
-            for idx, preinstall_extension in enumerate(
-                src_chart.preinstall_extensions
-            ):
+            for idx, preinstall_extension in enumerate(src_chart.preinstall_extensions):
                 values["global"]["preinstall_extensions"].append(
                     {
                         "name": src_chart.preinstall_extensions[
@@ -1355,10 +1242,7 @@ class HelmChart:
 
             assert exists(dep_chart.build_chartfile)
 
-        for (
-            chart_container_id,
-            chart_container,
-        ) in src_chart.chart_containers.items():
+        for chart_container_id, chart_container in src_chart.chart_containers.items():
             chart_container.build_tag = f"{BuildUtils.default_registry}/{chart_container.image_name}:{BuildUtils.platform_build_version}"
             chart_container.image_version = BuildUtils.platform_build_version
             chart_container.container_build_status = "None"
@@ -1370,9 +1254,7 @@ class HelmChart:
 
     @staticmethod
     def build_platform(platform_chart):
-        BuildUtils.logger.info(
-            f"-> Start platform-build for: {platform_chart.name}"
-        )
+        BuildUtils.logger.info(f"-> Start platform-build for: {platform_chart.name}")
 
         (
             repo_version,
@@ -1447,9 +1329,7 @@ class HelmChart:
                     local_base_image = True
 
             if container.local_image and not local_base_image:
-                containers_to_built.insert(
-                    0, containers_to_built.pop(org_list_idx)
-                )
+                containers_to_built.insert(0, containers_to_built.pop(org_list_idx))
 
             elif container.local_image and local_base_image:
                 containers_to_built.insert(
@@ -1464,13 +1344,10 @@ class HelmChart:
         build_rounds = 0
 
         containers_to_built = [
-            (x, containers_to_built[x])
-            for x in range(0, len(containers_to_built))
+            (x, containers_to_built[x]) for x in range(0, len(containers_to_built))
         ]
         waiting_containers_to_built = sorted(containers_to_built).copy()
-        with alive_bar(
-            container_count, dual_line=True, title="Container-Build"
-        ) as bar:
+        with alive_bar(container_count, dual_line=True, title="Container-Build") as bar:
             with ThreadPool(BuildUtils.parallel_processes) as threadpool:
                 while (
                     len(waiting_containers_to_built) != 0
@@ -1496,9 +1373,7 @@ class HelmChart:
                             BuildUtils.logger.info(
                                 f"{result_container.build_tag}: Base image {waiting} not ready yet -> waiting list"
                             )
-                            tmp_waiting_containers_to_built.append(
-                                result_container
-                            )
+                            tmp_waiting_containers_to_built.append(result_container)
                         else:
                             bar()
                             BuildUtils.logger.info(
@@ -1519,16 +1394,10 @@ class HelmChart:
                                     name=issue["name"],
                                     level=issue["level"],
                                     msg=issue["msg"],
-                                    output=(
-                                        issue["output"]
-                                        if "output" in issue
-                                        else None
-                                    ),
-                                    path=(
-                                        issue["path"]
-                                        if "path" in issue
-                                        else ""
-                                    ),
+                                    output=issue["output"]
+                                    if "output" in issue
+                                    else None,
+                                    path=issue["path"] if "path" in issue else "",
                                 )
                             else:
                                 bar.text(f"{result_container.build_tag}: ok")
@@ -1537,9 +1406,7 @@ class HelmChart:
                         (x, tmp_waiting_containers_to_built[x])
                         for x in range(0, len(tmp_waiting_containers_to_built))
                     ]
-                    waiting_containers_to_built = (
-                        tmp_waiting_containers_to_built.copy()
-                    )
+                    waiting_containers_to_built = tmp_waiting_containers_to_built.copy()
 
         if (
             build_rounds == BuildUtils.max_build_rounds
@@ -1585,9 +1452,7 @@ class HelmChart:
             trivy_utils.create_sboms(successful_built_containers)
         # Scan for vulnerabilities if enabled
         if BuildUtils.vulnerability_scan:
-            trivy_utils.create_vulnerability_reports(
-                successful_built_containers
-            )
+            trivy_utils.create_vulnerability_reports(successful_built_containers)
         if BuildUtils.create_offline_installation is True:
             OfflineInstallerHelper.generate_microk8s_offline_version()
             images_tarball_path = join(
@@ -1599,9 +1464,7 @@ class HelmChart:
                 images_tarball_path=images_tarball_path,
                 timeout=4000,
             )
-            BuildUtils.logger.info(
-                "Finished: Generating platform images tarball."
-            )
+            BuildUtils.logger.info("Finished: Generating platform images tarball.")
 
     @staticmethod
     def generate_platform_build_tree():
@@ -1637,8 +1500,8 @@ class HelmChart:
                 [x.split(":")[-1] for x in successful_built_containers]
             )
             for container_image_version in container_image_versions:
-                BuildUtils.images_stats[container_image_version] = (
-                    get_image_stats(version=container_image_version)
+                BuildUtils.images_stats[container_image_version] = get_image_stats(
+                    version=container_image_version
                 )
 
         BuildUtils.generate_component_usage_info()
@@ -1662,7 +1525,5 @@ def init_helm_charts(
 
 
 if __name__ == "__main__":
-    print(
-        "Please use the 'start_build.py' script to launch the build-process."
-    )
+    print("Please use the 'start_build.py' script to launch the build-process.")
     exit(1)

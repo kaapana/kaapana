@@ -2,6 +2,7 @@ import os
 import json
 import glob
 import pydicom
+import requests
 from os.path import join, basename, dirname
 from datetime import timedelta
 from pathlib import Path
@@ -30,6 +31,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                     seriesUID=series["reference_series_uid"],
                     target_dir=series["target_dir"],
                     expected_object_count=series["expected_object_count"],
+                    session=self.session,
                 )
                 if not download_successful:
                     raise ValueError("ERROR")
@@ -204,17 +206,17 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                             .value[0][0x3006, 0x0014]
                             .value[0]
                         )
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x3006, 0x0016].value))
 
                     elif incoming_dcm.Modality == "SEG":
                         assert (0x0008, 0x1115) in incoming_dcm
                         ref_object = incoming_dcm[0x0008, 0x1115].value[0]
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x0008, 0x114A].value))
                     else:
                         raise ValueError(
@@ -338,7 +340,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         if self.limit_file_count != None:
             download_series_list = download_series_list[: self.limit_file_count]
-
+        self.session = requests.Session()
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(
                 self.download_series, download_series_list

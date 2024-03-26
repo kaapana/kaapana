@@ -11,6 +11,7 @@ from os.path import join, exists, dirname
 import shutil
 import glob
 import pydicom
+import requests
 from kaapana.operators.HelperCaching import cache_operator_output
 
 
@@ -92,7 +93,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         if self.data_type == "dicom":
             download_successful = HelperDcmWeb.downloadSeries(
-                seriesUID=seriesUID, target_dir=target_dir
+                seriesUID=seriesUID, target_dir=target_dir, session=self.session
             )
             if not download_successful:
                 print("Could not download DICOM data!")
@@ -322,6 +323,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("#####################################################")
             raise ValueError("ERROR")
         series_download_fail = []
+        self.session = requests.Session()
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(self.get_data, download_list)
             for download_successful, series_uid in results:

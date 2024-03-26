@@ -43,11 +43,18 @@ class HelperDcmWeb:
 
     @staticmethod
     def downloadSeries(
-        seriesUID, target_dir, expected_object_count=None, include_series_dir=False
+        seriesUID,
+        target_dir,
+        expected_object_count=None,
+        include_series_dir=False,
+        session=None,
     ):
         payload = {"SeriesInstanceUID": seriesUID}
         url = HelperDcmWeb.pacs_dcmweb + "/rs/instances"
-        httpResponse = requests.get(url, params=payload)
+        if session:
+            httpResponse = session.get(url, params=payload)
+        else:
+            httpResponse = requests.get(url, params=payload)
         # print(f"Requesting URL: {url}")
         # print(f"httpResponse: {httpResponse}")
         # print(f"payload: {payload}")
@@ -84,6 +91,7 @@ class HelperDcmWeb:
                     seriesUID=seriesUID,
                     objectUID=objectUID,
                     target_dir=target_dir,
+                    session=session,
                 )
                 if not result:
                     return False
@@ -100,7 +108,7 @@ class HelperDcmWeb:
             return False
 
     @staticmethod
-    def downloadObject(studyUID, seriesUID, objectUID, target_dir):
+    def downloadObject(studyUID, seriesUID, objectUID, target_dir, session):
         payload = {
             "requestType": "WADO",
             "studyUID": studyUID,
@@ -109,7 +117,10 @@ class HelperDcmWeb:
             "contentType": "application/dicom",
         }
         url = HelperDcmWeb.pacs_dcmweb + "/wado"
-        response = requests.get(url, params=payload)
+        if session:
+            response = session.get(url, params=payload)
+        else:
+            response = requests.get(url, params=payload)
         if response.status_code == 200:
             fileName = objectUID + ".dcm"
             filePath = os.path.join(target_dir, fileName)

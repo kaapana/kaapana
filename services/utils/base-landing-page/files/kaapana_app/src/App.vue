@@ -254,7 +254,6 @@ export default Vue.extend({
       this.$store.dispatch(LOGOUT);
     },
     onIdle() {
-      console.log("I was here!")
       this.$store.dispatch(LOGOUT).then(() => {
         this.$router.push({ name: '' });
       });

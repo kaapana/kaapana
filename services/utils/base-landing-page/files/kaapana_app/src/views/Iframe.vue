@@ -1,6 +1,5 @@
 <template lang="pug">
   div(v-if="hasLoadedData")
-    IdleTracker 
     IFrameWindow(ref="foo" :iFrameUrl="getUrl" width="100%" height="100%")
     #overlay
       a(@click="refreshIFrame()")
@@ -16,12 +15,10 @@ import Vue from 'vue'
 import { mapGetters } from "vuex";
 
 import IFrameWindow from "@/components/IFrameWindow.vue";
-import IdleTracker from "@/components/IdleTracker.vue";
 export default {
   name: 'iframe-view',
   components: {
     IFrameWindow,
-    IdleTracker
   },
   data: function () {
     return {

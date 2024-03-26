@@ -16,8 +16,7 @@ export default Vue.extend({
         },
     },
     mounted() {
-        // const { idle } = useIdle(30 * 60 * 1000) // 30 min
-        const { idle } = useIdle(10 * 1000) // 30 min
+        const { idle } = useIdle(30 * 60 * 1000) // 30 min
 
         idle.value = false
 

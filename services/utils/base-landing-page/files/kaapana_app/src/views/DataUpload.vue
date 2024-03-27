@@ -1,5 +1,6 @@
 <template>
   <div class="dropzone">
+    <IdleTracker/>
     <v-container grid-list-lg text-left fluid>
       <h1>Data upload</h1> 
       <v-row dense>
@@ -105,11 +106,13 @@ import Vue from 'vue';
 import { mapGetters } from "vuex";
 import Upload from "@/components/Upload.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
-
+import IdleTracker from "@/components/IdleTracker.vue";
 export default Vue.extend({
   components: {
     Upload,
-    WorkflowExecution
+    WorkflowExecution,
+    IdleTracker
+
   },
   data: () => ({
     workflowDialog: false,

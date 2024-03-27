@@ -1,37 +1,37 @@
-
 <template lang="pug">
-  v-container(text-left fluid)
-    v-row
-      v-col(cols="3")
-        v-card
-          v-text-field(v-model='search' label='Search directories'  flat hide-details solo clearable clear-icon='mdi-close-circle-outline')
-          v-treeview(v-model="tree" :items="staticUrls" :search="search" item-key="path" selectable return-object activatable open-on-click)
-            template(v-slot:prepend='{ item, open }')
-              v-icon(v-if='!item.file')
-                | {{ open ? 'mdi-folder-open' : 'mdi-folder' }}
-              v-icon(v-else)
-                | {{ files[item.file] }}
-            template(v-slot:label='{ item }')
-              span(class="text-wrap") {{item.name}}
+v-container(text-left fluid)
+  IdleTracker
+  v-row
+    v-col(cols="3")
+      v-card
+        v-text-field(v-model='search' label='Search directories'  flat hide-details solo clearable clear-icon='mdi-close-circle-outline')
+        v-treeview(v-model="tree" :items="staticUrls" :search="search" item-key="path" selectable return-object activatable open-on-click)
+          template(v-slot:prepend='{ item, open }')
+            v-icon(v-if='!item.file')
+              | {{ open ? 'mdi-folder-open' : 'mdi-folder' }}
+            v-icon(v-else)
+              | {{ files[item.file] }}
+          template(v-slot:label='{ item }')
+            span(class="text-wrap") {{item.name}}
 
-      v-col(cols="9")
-        div(v-if="this.tree.length == 0")
-          h1 Workflow results 
-          p Results from the workflows will be shown here!
-          v-icon(class="results-icon") mdi-chart-bar-stacked
-        v-expansion-panels(v-model="panel" accordion)
-          v-expansion-panel(v-for="node in tree" :key="node.path")
-            v-expansion-panel-header
-              span {{ node.name }}
-                v-tooltip(bottom='')
-                  template(v-slot:activator='{ on, attrs }')
-                    v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
-                      | mdi-folder
-                  span {{ node.path }}
-                v-icon(@click="openExternalPage(node.path)" color="primary") mdi-open-in-new
-            v-expansion-panel-content
-              IFrameWindow(ref="foo" :iFrameUrl="node.path" width="100%" height="100%")
-    
+    v-col(cols="9")
+      div(v-if="this.tree.length == 0")
+        h1 Workflow results 
+        p Results from the workflows will be shown here!
+        v-icon(class="results-icon") mdi-chart-bar-stacked
+      v-expansion-panels(v-model="panel" accordion)
+        v-expansion-panel(v-for="node in tree" :key="node.path")
+          v-expansion-panel-header
+            span {{ node.name }}
+              v-tooltip(bottom='')
+                template(v-slot:activator='{ on, attrs }')
+                  v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
+                    | mdi-folder
+                span {{ node.path }}
+              v-icon(@click="openExternalPage(node.path)" color="primary") mdi-open-in-new
+          v-expansion-panel-content
+            IFrameWindow(ref="foo" :iFrameUrl="node.path" width="100%" height="100%")
+  
 </template>
 
 
@@ -42,10 +42,12 @@ import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import IFrameWindow from "@/components/IFrameWindow.vue";
+import IdleTracker from "@/components/IdleTracker.vue";
 export default {
   name: 'iframe-view',
   components: {
-    IFrameWindow
+    IFrameWindow,
+    IdleTracker,
   },
   data: function () {
     return {
@@ -69,13 +71,13 @@ export default {
   computed: {
     ...mapGetters(["currentUser", "isAuthenticated", "externalWebpages"])
   },
-  mounted () {
+  mounted() {
     this.getStaticWebsiteResults()
   },
-  watch:{
+  watch: {
     tree(newValue) {
-      if (newValue.length > 0 ) {
-        this.panel = newValue.length-1
+      if (newValue.length > 0) {
+        this.panel = newValue.length - 1
       }
     }
   },
@@ -98,9 +100,11 @@ export default {
 </script>
 
 <style lang="scss">
-.v-treeview-node__content, .v-treeview-node__label {
+.v-treeview-node__content,
+.v-treeview-node__label {
   flex-shrink: 1;
 }
+
 .v-treeview-node__root {
   height: auto;
 }

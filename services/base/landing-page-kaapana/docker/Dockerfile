@@ -4,13 +4,24 @@ LABEL IMAGE="landing-page-kaapana"
 LABEL VERSION="0.2.1"
 LABEL BUILD_IGNORE="False"
 
-WORKDIR /kaapana/app
 
-RUN npm run build
+################################
+######### Development ##########
+################################
+# USER 0
+# RUN chown 1000 /kaapana/app
+# USER 1000
+
+# WORKDIR /kaapana/app
+# RUN npm run build
+
 
 ###############################
 ######### Production ##########
 ###############################
+WORKDIR /kaapana/app
+RUN npm run build
+
 FROM nginxinc/nginx-unprivileged:1.25.3-alpine
 WORKDIR /kaapana/app
 

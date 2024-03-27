@@ -180,10 +180,15 @@ spec:
           mountPath: /kaapana/mounted/workflows/
         - name: tmpfs
           mountPath: /tmp
+        - name: thumbnails
+          mountPath: /kaapana/app/thumbnails/
         securityContext:
           # readOnlyRootFilesystem: true localexecuter, runs multiproccesse an allocs mem
           allowPrivilegeEscalation: false
       volumes:
+      - name: thumbnails
+        persistentVolumeClaim:
+          claimName: thumbnails-pv-claim
       - name: airflow-configmap
         configMap:
           name: airflow-configmap

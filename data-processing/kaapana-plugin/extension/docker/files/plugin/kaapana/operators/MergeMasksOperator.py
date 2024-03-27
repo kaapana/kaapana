@@ -29,8 +29,6 @@ class MergeMasksOperator(KaapanaBaseOperator):
 
     """
 
-    execution_timeout = timedelta(minutes=60)
-
     def __init__(
         self,
         dag,
@@ -39,12 +37,11 @@ class MergeMasksOperator(KaapanaBaseOperator):
         fuse_labels_key="fuse_labels",
         fused_label_name_key="fused_label_name",
         env_vars=None,
-        execution_timeout=execution_timeout,
+        execution_timeout=timedelta(minutes=60),
+        ram_mem_mb=8000,
+        gpu_mem_mb=None,
         **kwargs,
     ):
-        ram_mem_mb = 8000
-        gpu_mem_mb = None
-
         if env_vars is None:
             env_vars = {}
         envs = {

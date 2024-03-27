@@ -16,7 +16,8 @@ export default Vue.extend({
         },
     },
     mounted() {
-        const { idle } = useIdle(30 * 60 * 1000) // 30 min
+        const idleTime = parseInt(process.env.VUE_APP_IDLE_TIMEOUT as string, 10);
+        const { idle } = useIdle(idleTime);
 
         idle.value = false
 

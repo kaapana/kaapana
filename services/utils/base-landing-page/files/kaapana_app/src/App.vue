@@ -17,13 +17,8 @@
               <v-list-item-title>Workflows</v-list-item-title>
             </template>
             <!-- WORKFLOWS -->
-            <v-list-item
-              v-for="([title, icon, to], i) in workflowsList"
-              :key="i"
-              :to="to"
-              :value="to"
-              v-if="isAuthenticated && _checkAuthR(policyData, to, currentUser)"
-            >
+            <v-list-item v-for="([title, icon, to], i) in workflowsList" :key="i" :to="to" :value="to"
+              v-if="isAuthenticated && _checkAuthR(policyData, to, currentUser)">
               <v-list-item-action></v-list-item-action>
               <v-list-item-title>{{ title }}</v-list-item-title>
               <v-list-item-icon>
@@ -43,18 +38,12 @@
             <template v-slot:activator>
               <v-list-item-title>{{ section.label }}</v-list-item-title>
             </template>
-            <v-list-item
-              v-if="
-                section.subSections &&
-                _checkAuthR(policyData, subSection.linkTo, currentUser)
-              "
-              v-for="(subSection, subSectionKey) in section.subSections"
-              :key="subSection.id"
-              :to="{
-                name: 'ew-section-view',
-                params: { ewSection: sectionKey, ewSubSection: subSectionKey },
-              }"
-            >
+            <v-list-item v-if="section.subSections &&
+        _checkAuthR(policyData, subSection.linkTo, currentUser)
+        " v-for="(subSection, subSectionKey) in section.subSections" :key="subSection.id" :to="{
+        name: 'ew-section-view',
+        params: { ewSection: sectionKey, ewSubSection: subSectionKey },
+      }">
               <v-list-item-action></v-list-item-action>
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
@@ -83,12 +72,7 @@
         <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
         <v-toolbar-title>{{ commonData.name }}</v-toolbar-title>
         <v-spacer></v-spacer>
-        <v-menu
-          v-if="isAuthenticated"
-          :close-on-content-click="false"
-          :nudge-width="200"
-          offset-x="offset-x"
-        >
+        <v-menu v-if="isAuthenticated" :close-on-content-click="false" :nudge-width="200" offset-x="offset-x">
           <template v-slot:activator="{ on }">
             <v-btn v-on="on" icon="icon">
               <v-icon>mdi-account-circle</v-icon>
@@ -98,8 +82,7 @@
             <v-list>
               <v-list-item>
                 <v-list-item-content>
-                  <v-list-item-title
-                    >{{ currentUser.username }}
+                  <v-list-item-title>{{ currentUser.username }}
                     <p>Welcome back!</p>
                   </v-list-item-title>
                 </v-list-item-content>
@@ -108,12 +91,8 @@
                 <Settings></Settings>
               </v-list-item>
               <v-list-item>
-                <v-switch
-                  label="Dark mode"
-                  hide-details
-                  v-model="settings.darkMode"
-                  @change="(v) => changeMode(v)"
-                ></v-switch>
+                <v-switch label="Dark mode" hide-details v-model="settings.darkMode"
+                  @change="(v) => changeMode(v)"></v-switch>
               </v-list-item>
             </v-list>
             <v-card-actions>

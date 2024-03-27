@@ -20,34 +20,36 @@
             br
             span(style="font-size: 14px") Read more about the extensions in 
               a(href="https://kaapana.readthedocs.io/", target="_blank") docs
-          v-col(cols="12", sm="2")
-            v-select(
-              label="Kind",
-              :items="['All', 'Workflows', 'Applications']",
-              v-model="extensionKind",
-              hide-details=""
-            )
-          v-col(cols="12", sm="2")
-            v-select(
-              label="Version",
-              :items="['All', 'Stable', 'Experimental']",
-              v-model="extensionExperimental",
-              hide-details=""
-            )
-          v-col(cols="12", sm="1")
-            v-select(
-              label="Resources",
-              :items="['Any', 'GPU', 'CPU']",
-              v-model="extensionResources",
-              hide-details=""
-            )
-          v-col(cols="12", sm="2")
-            v-text-field(
-              v-model="search",
-              append-icon="mdi-magnify",
-              label="Search",
-              hide-details=""
-            )
+          v-col
+            v-row(justify="end")
+              v-col(cols="12", sm="2")
+                v-select(
+                  label="Kind",
+                  :items="['All', 'Workflows', 'Applications']",
+                  v-model="extensionKind",
+                  hide-details=""
+                )
+              v-col(cols="12", sm="2")
+                v-select(
+                  label="Version",
+                  :items="['All', 'Stable', 'Experimental']",
+                  v-model="extensionExperimental",
+                  hide-details=""
+                )
+              v-col(cols="12", sm="2")
+                v-select(
+                  label="Resources",
+                  :items="['Any', 'GPU', 'CPU']",
+                  v-model="extensionResources",
+                  hide-details=""
+                )
+              v-col(cols="12", sm="2")
+                v-text-field(
+                  v-model="search",
+                  append-icon="mdi-magnify",
+                  label="Search",
+                  hide-details=""
+                )
       //- TODO: set max file size limit
       upload(:labelIdle="labelIdle", url="/kube-helm-api/filepond-upload", :onProcessFileStart="fileStart", :onProcessFile="fileComplete", :acceptedFileTypes="allowedFileTypes")
 

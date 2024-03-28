@@ -134,7 +134,7 @@
           </v-container>
         </v-container>
       </pane>
-      <pane class="sidebar side-navigation" size="30" min-size="20">
+      <pane class="sidebar side-navigation" size="30" min-size="1">
         <DetailView v-if="this.$store.getters.detailViewItem"
           :series-instance-u-i-d="this.$store.getters.detailViewItem" />
         <Dashboard v-else :seriesInstanceUIDs="identifiersOfInterest" :fields="dashboardFields"

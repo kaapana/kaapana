@@ -34,21 +34,13 @@ RUN apt-get update \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* 
 
-# Security fixes
 RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir \ 
-  # Security fix for CVE-2022-40898
   wheel==0.42.0 \
-  # Security fix for CVE-2022-40897
   setuptools==69.0.3 \
-  # Security fix for CVE-2022-21797
   joblib==1.3.2 \
-  # Security fix for CVE-2023-0286
   cryptography==42.0.5 \
-  # Security fix for CVE-2021-23727
   celery==5.3.6 \
-  # Security fix for CVE-2022-28346
   Django==3.2.18 \
-  # Security fix for CVE-2022-29217
   PyJWT==2.8.0
 
 COPY --from=build-stage /doccano/tools/ /opt/bin/

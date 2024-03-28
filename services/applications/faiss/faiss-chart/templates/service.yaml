@@ -1,0 +1,36 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ tpl .Values.global.namespace .  }}
+spec:
+  selector:
+    app-name: {{ .Release.Name }}
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: faiss-http
+      name: log-http-port
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ tpl .Values.global.namespace .  }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: {{ printf "/%s" .Release.Name }}
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: {{ .Release.Name }}
+            port:
+              name: log-http-port
+--- 

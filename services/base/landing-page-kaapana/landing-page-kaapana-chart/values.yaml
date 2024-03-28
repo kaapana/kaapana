@@ -2,7 +2,7 @@
 global:
   dev_files: false
   dynamicVolumes:
-  - name: minio-thumbnails
+  - name: thumbnails
     mount_path: /kaapana/app/thumbnails/
-    host_path: /minio-thumbnails
+    host_path: /thumbnails
     storage: "1Gi"

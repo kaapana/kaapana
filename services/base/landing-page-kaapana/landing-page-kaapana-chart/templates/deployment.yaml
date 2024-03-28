@@ -65,10 +65,6 @@ spec:
       - name: landingpage
         image: "{{ .Values.global.registry_url }}/landing-page-kaapana:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-{{- if .Values.global.dev_files }}
-        command: ["sh"]
-        args: ["/kaapana/app/dev.sh"]
- {{- end }}
         ports:
         - name: landing-http
           containerPort: 5000

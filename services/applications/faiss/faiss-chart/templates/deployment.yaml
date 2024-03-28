@@ -21,9 +21,9 @@ spec:
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
-            memory: "3Gi"
+            memory: "10Mi"
           limits:
-            memory: "10Gi"
+            memory: "200Mi"
         ports:
         - name: faiss-http
           containerPort: 5000

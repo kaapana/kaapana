@@ -1,27 +1,51 @@
 import argparse
 import faiss
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 import uvicorn
+import os
 
-app = FastAPI()
+root_path = os.getenv("INGRESS_PATH", None)
 
-# Initialize a FAISS index
+app = FastAPI(root_path=root_path)
+
+# Filepath for the FAISS index
+index_file = "/kaapana/mounted/faiss/faiss_index.idx"
+
+# Initialize or load a FAISS index
 dimension = 64  # Example dimension size for the vector embeddings
-index = faiss.IndexFlatL2(dimension)  # Using L2 distance for similarity search
-# Adding a couple of vectors to the index for testing
-vectors = np.random.random((2, dimension)).astype("float32")
-index.add(vectors)
+
+if os.path.exists(index_file):
+    index = faiss.read_index(index_file)  # Load the index if it exists
+else:
+    index = faiss.IndexFlatL2(dimension)  # Initialize a new index otherwise
+    # Optionally, add vectors to the index at initialization
+    vectors = np.random.random((2, dimension)).astype("float32")
+    index.add(vectors)
+    # Save the newly created index
+    faiss.write_index(index, index_file)
+
+
+@app.on_event("shutdown")
+def save_index_on_shutdown():
+    """Save the FAISS index to disk when the application shuts down."""
+    faiss.write_index(index, index_file)
 
 
 @app.get("/test")
 async def test():
+    # TODO: this endpoint is not working yet due to the path adjustments done during deployment -> not sure yet how to solve
     # Perform a search for demonstration purposes
     query_vector = np.random.random((1, dimension)).astype("float32")
     k = 2  # Number of nearest neighbors to retrieve
     D, I = index.search(query_vector, k)  # D: Distances, I: Indices of the neighbors
     return JSONResponse(content={"distances": D.tolist(), "indices": I.tolist()})
+
+
+@app.get("/")
+async def default():
+    return "Hello, World!"
 
 
 if __name__ == "__main__":
@@ -36,7 +60,7 @@ if __name__ == "__main__":
         "-p",
         "--port",
         type=int,
-        default="5000",
+        default=5000,
         help="Specify the port where the app should run (localhost:port), default is 5000",
     )
     parser.add_argument(

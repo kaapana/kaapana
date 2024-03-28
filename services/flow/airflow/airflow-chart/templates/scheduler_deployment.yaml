@@ -182,10 +182,15 @@ spec:
           mountPath: /tmp
         - name: thumbnails
           mountPath: /kaapana/app/thumbnails/
+        - name: uploads
+          mountPath: /kaapana/app/uploads/
         securityContext:
           # readOnlyRootFilesystem: true localexecuter, runs multiproccesse an allocs mem
           allowPrivilegeEscalation: false
       volumes:
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: uploads-pv-claim
       - name: thumbnails
         persistentVolumeClaim:
           claimName: thumbnails-pv-claim

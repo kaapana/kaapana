@@ -14,12 +14,19 @@ from threading import Thread
 from pathlib import Path
 import jsonschema
 from app.datasets.utils import execute_opensearch_query
-from app.dependencies import get_db, get_minio
+from app.dependencies import get_db
 from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
 from app.workflows.utils import get_dag_list
-from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
+from fastapi import (
+    APIRouter,
+    Depends,
+    UploadFile,
+    File,
+    Request,
+    HTTPException,
+)
 from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 from pydantic.schema import schema
@@ -30,7 +37,7 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 router = APIRouter(tags=["client"])
 
-UPLOAD_DIR = "/tmp"
+UPLOAD_DIR = "/kaapana/app/uploads"
 
 
 def remove_outdated_tmp_files(search_dir):
@@ -85,7 +92,8 @@ async def post_minio_file_upload(request: Request):
 
 @router.patch("/minio-file-upload")
 async def post_minio_file_upload(
-    request: Request, patch: str, minioClient=Depends(get_minio)
+    request: Request,
+    patch: str,
 ):
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
@@ -106,12 +114,13 @@ async def post_minio_file_upload(
                     f"upload mapping dictionary file {patch_fpath} does not exist"
                 )
             logging.info(f"{patch=}, {filename=}")
-            minioClient.fput_object(
-                bucket_name="uploads", object_name=filename.strip("/"), file_path=fpath
-            )
+            target_path = Path("/kaapana/app/uploads") / filename.strip("/")
+            target_path.parents[0].mkdir(parents=True, exist_ok=True)
+            logging.info(f"Moving file {fpath} to {target_path}")
+            shutil.move(fpath, target_path)
+            logging.info("Successfully moved file!")
             patch_fpath.unlink()
-            # Todo check if fput_objects also needs a long time... if not Minio file mount can be removed and UPLOAD_DIR might be /tmp
-            logging.info(f"Successfully saved file {uname} to Minio")
+            logging.info("Successfully unlinked file!")
             return Response(f"Upload of {filename} succesful!")
         except Exception as e:
             logging.error(f"Upload failed: {e}")

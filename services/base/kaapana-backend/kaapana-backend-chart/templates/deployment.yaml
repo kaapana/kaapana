@@ -112,6 +112,8 @@ spec:
           mountPath: /kaapana/mounted/minio
         - name: tmp
           mountPath: /tmp
+        - name: uploads
+          mountPath: /kaapana/app/uploads
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -127,6 +129,9 @@ spec:
       - name: minio-data
         persistentVolumeClaim:
           claimName: minio-pv-claim
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: uploads-pv-claim
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:

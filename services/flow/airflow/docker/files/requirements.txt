@@ -1,13 +1,12 @@
-apache-airflow==2.8.1
-psycopg2-binary == 2.9.9
+apache-airflow==2.8.4
+psycopg2-binary
 Flask-Admin==1.6.1
-pint == 0.16.1
-dicomweb-client == 0.56.2
-kubernetes==23.6.0
+pint==0.16.1
+dicomweb-client==0.56.2
+kubernetes
 dicom_parser==1.2.3
-statsd==4.0.1
+statsd
 monai==0.7.0
-# Security fix for CVE-2023-0286
-cryptography==42.0.5
-Werkzeug==2.2.3
+cryptography
+Werkzeug
 jupyterlab==4.0.11

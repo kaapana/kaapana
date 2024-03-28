@@ -1,6 +1,7 @@
 
 <template lang="pug">
   v-container(text-left fluid)
+    IdleTracker
     v-row
       v-col(cols="3")
         v-card
@@ -42,10 +43,12 @@ import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import IFrameWindow from "@/components/IFrameWindow.vue";
+import IdleTracker from "@/components/IdleTracker.vue";
 export default {
   name: 'iframe-view',
   components: {
-    IFrameWindow
+    IFrameWindow,
+    IdleTracker
   },
   data: function () {
     return {

@@ -1,5 +1,6 @@
 <template lang="pug">
 .workflow-applications
+  IdleTracker
   v-container(grid-list-lg, text-left, fluid)
     v-card
       v-card-title
@@ -195,10 +196,12 @@ import Vue from "vue";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 import Upload from "@/components/Upload.vue";
+import IdleTracker from "@/components/IdleTracker.vue";
 
 export default Vue.extend({
   components: {
-    Upload
+    Upload,
+    IdleTracker,
   },
   data: () => ({
     file: '' as any,

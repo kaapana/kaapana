@@ -239,16 +239,27 @@ import {
   LOAD_COMMON_DATA,
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
+import IdleTracker from "@/components/IdleTracker.vue"
 import { settings } from "@/static/defaultUIConfig";
 
 export default Vue.extend({
   name: "App",
-  components: { Settings },
+  components: { Settings, IdleTracker },
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
     settings: settings,
   }),
+  created() {
+    this.$store.watch(
+      () => this.$store.getters['isIdle'],
+      (newValue, oldValue) => {
+        if (newValue) {
+          this.onIdle();
+        }
+      }
+    );
+  },
   computed: {
     ...mapGetters([
       "currentUser",
@@ -283,6 +294,11 @@ export default Vue.extend({
     logout() {
       this.$store.dispatch(LOGOUT);
     },
+    onIdle() {
+      this.$store.dispatch(LOGOUT).then(() => {
+        this.$router.push({ name: '' });
+      });
+    },    
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
@@ -304,22 +320,6 @@ export default Vue.extend({
       })
       .catch((error: any) => {
         console.log("Something went wrong with traefik", error);
-      });
-  },
-  onIdle() {
-    console.log("checking", this.$store.getters.isAuthenticated);
-    this.$store
-      .dispatch(CHECK_AUTH)
-      .then(() => {
-        console.log("still online");
-      })
-      .catch((err: any) => {
-        console.log("reloading");
-        location.reload();
-        // this.$router.push({ name: 'home' });
-        // this.$store.dispatch(LOGOUT).then(() => {
-        //   this.$router.push({ name: 'home' });
-        // });
       });
   },
 });

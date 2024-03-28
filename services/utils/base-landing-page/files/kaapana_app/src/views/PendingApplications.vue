@@ -1,5 +1,6 @@
 <template lang="pug">
   .workflow-applications
+    IdleTracker
     v-container(grid-list-lg text-left fluid)
       v-card
         v-card-title
@@ -37,9 +38,13 @@
 import Vue from 'vue';
 import request from '@/request';
 import { mapGetters } from "vuex";
-import kaapanaApiService from '@/common/kaapanaApi.service'
+import kaapanaApiService from '@/common/kaapanaApi.service';
+import IdleTracker from "@/components/IdleTracker.vue";
 
 export default Vue.extend({
+  components: {
+    IdleTracker
+  },
   data: () => ({
     loading: true,
     launchedAppLinks: [] as any,
@@ -73,7 +78,7 @@ export default Vue.extend({
   },
   computed: {
     ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications"])
-  
+
   },
   methods: {
 
@@ -113,5 +118,7 @@ export default Vue.extend({
 </script>
 
 <style lang="scss">
-a {  text-decoration: none;}
+a {
+  text-decoration: none;
+}
 </style>

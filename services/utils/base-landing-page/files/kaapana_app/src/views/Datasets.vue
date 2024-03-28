@@ -1,5 +1,6 @@
 <template>
   <div>
+    <IdleTracker />
     <splitpanes :class="$vuetify.theme.dark ? 'dark-theme' : ''">
       <pane
         ref="mainPane"
@@ -319,6 +320,7 @@ import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import EditDatasetsDialog from "@/components/EditDatasetsDialog.vue";
+import IdleTracker from '@/components/IdleTracker.vue';
 import KeyController from "keycon";
 import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
@@ -349,6 +351,7 @@ export default {
     };
   },
   components: {
+    IdleTracker,
     DetailView,
     StructuredGallery,
     Search,

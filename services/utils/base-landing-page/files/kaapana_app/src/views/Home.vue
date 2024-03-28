@@ -1,5 +1,6 @@
 <template lang="pug">
   .kaapana-intro-header
+    IdleTracker
     v-container(grid-list-lg text-xs-center fluid)
       div(v-if="isAuthenticated")
         v-layout(row='')
@@ -54,6 +55,7 @@ import { Component, Vue } from "vue-property-decorator";
 import { mapGetters } from "vuex";
 import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
 import Dashboard from "@/components/Dashboard.vue";
+import IdleTracker from "@/components/IdleTracker.vue";
 import {
   loadPatients,
 } from "../common/api.service";
@@ -68,6 +70,7 @@ export default Vue.extend({
   components: {
     KaapanaWelcome,
     Dashboard,
+    IdleTracker,
   },
   computed: {
     ...mapGetters([

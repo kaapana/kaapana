@@ -1,5 +1,6 @@
 <template>
   <v-container text-left fluid>
+    <IdleTracker />
     <v-row>
       <v-col cols="12">
         <v-card>
@@ -41,11 +42,13 @@
 
   import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
   import KaapanaInstance  from "@/components/KaapanaInstance.vue";
+  import IdleTracker from "@/components/IdleTracker.vue";
 
   export default Vue.extend({
     components: {
       AddRemoteInstance,
       KaapanaInstance,
+      IdleTracker,
     },
     data: () => ({
       polling: 0,

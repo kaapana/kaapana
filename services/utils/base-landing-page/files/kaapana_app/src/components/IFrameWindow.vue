@@ -1,6 +1,6 @@
 <template lang="pug"> 
-div(:class="fullSize ? (navigationMode ? 'kaapana-iframe-container-side-navigation' : 'kaapana-iframe-container-top-navigation') : ''")
-  iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="fullSize ? (navigationMode ? 'kapaana-side-navigation' : 'kapaana-top-navigation') : ''" class="no-border" :src="iFrameUrl" @load="setIframeUrl(this)")
+div(:class="fullSize ? 'kaapana-iframe-container-side-navigation' : ''")
+  iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="fullSize ? 'kapaana-side-navigation' : ''" class="no-border" :src="iFrameUrl" @load="setIframeUrl(this)")
 </template>
 
 <script>
@@ -9,7 +9,6 @@ export default {
   data: function () {
     return {
       trackedUrl: "",
-      navigationMode: false,
     };
   },
   props: {
@@ -39,9 +38,6 @@ export default {
       this.$refs.iframe.src = this.trackedUrl;
     },
     setIframeUrl: function (url) {
-      // would be nices to react directly on changes in the settings
-      this.navigationMode =
-        !document.getElementsByClassName("v-bottom-navigation").length > 0;
       this.trackedUrl = this.$refs.iframe.contentWindow.location;
     },
     getIframeUrl: function () {

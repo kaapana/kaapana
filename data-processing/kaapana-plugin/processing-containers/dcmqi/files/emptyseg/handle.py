@@ -208,30 +208,36 @@ def check_n_replace_empty_mask(input_dir: str, empty_mask_label: int):
             target=input_dir, filter_pattern=r".*seg(-|_)info.json\b"
         )
         if len(seg_info_files) == 0:
-            raise FileNotFoundError(
-                "No segmentation info file were not found in the directory {}".format(
-                    input_dir
-                )
-            )
+            # raise FileNotFoundError(
+            #     "No segmentation info file were not found in the directory {}".format(
+            #         input_dir
+            #     )
+            # )
+            seg_info_file = os.path.join(input_dir, "seg_info.json")
+            seg_info_json = {}
+            seg_info_json["seg_info"] = [
+                {"label_int": str(empty_mask_label), "label_name": "empty mask"},
+            ]
 
-        seg_info_file = seg_info_files[0]
-        with open(seg_info_file) as f:
-            seg_info_json = json.load(f)
+        else:
+            seg_info_file = seg_info_files[0]
+            with open(seg_info_file) as f:
+                seg_info_json = json.load(f)
 
-        updated_seg_info = []
+            updated_seg_info = []
 
-        for seg in seg_info_json["seg_info"]:
-            label_id = int(seg["label_int"])
-            if label_id == 0:
-                seg["label_int"] = str(empty_mask_label)
-            elif label_id not in segmentation_labels:
-                continue
+            for seg in seg_info_json["seg_info"]:
+                label_id = int(seg["label_int"])
+                if label_id == 0:
+                    seg["label_int"] = str(empty_mask_label)
+                elif label_id not in segmentation_labels:
+                    continue
 
-            updated_seg_info.append(seg)
+                updated_seg_info.append(seg)
 
-        seg_info_json["seg_info"] = updated_seg_info
+            seg_info_json["seg_info"] = updated_seg_info
 
-        with open(seg_info_file, "w", encoding="utf8") as json_file:
+        with open(seg_info_file, "w+", encoding="utf8") as json_file:
             json.dump(seg_info_json, json_file, indent=4)
 
         print("################################")

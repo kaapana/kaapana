@@ -1,0 +1,44 @@
+{{ include "dynamicPersistentVolumes" $ }}
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: faiss-index-pv-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "1Mi" 
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15" # Your NFS server
+    path: /home/kaapana/faiss/ # NFS export path
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /home/kaapana/faiss/
+{{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: faiss-index-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: faiss-index-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: "faiss-index-pv-volume"
+

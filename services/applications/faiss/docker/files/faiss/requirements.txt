@@ -3,3 +3,5 @@ fastapi
 uvicorn
 faiss-cpu
 numpy
+open-clip-torch==2.24.0
+transformers

@@ -1,10 +1,11 @@
 import argparse
 import faiss
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import uvicorn
 import os
+from open_clip import create_model_from_pretrained, get_tokenizer
 
 root_path = os.getenv("INGRESS_PATH", None)
 
@@ -14,7 +15,7 @@ app = FastAPI(root_path=root_path)
 index_file = "/kaapana/mounted/faiss/faiss_index.idx"
 
 # Initialize or load a FAISS index
-dimension = 64  # Example dimension size for the vector embeddings
+dimension = 512  # Example dimension size for the vector embeddings
 
 if os.path.exists(index_file):
     index = faiss.read_index(index_file)  # Load the index if it exists
@@ -31,6 +32,27 @@ else:
 def save_index_on_shutdown():
     """Save the FAISS index to disk when the application shuts down."""
     faiss.write_index(index, index_file)
+
+
+@app.get("/search")
+async def search(prompt: str):
+    device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model, image_processor = create_model_from_pretrained(
+        "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224",
+        # cache_dir=checkpoint_path / "BiomedCLIP",
+    )
+    tokenizer = get_tokenizer(
+        "hf-hub:microsoft/BiomedCLIP-PubMedBERT_256-vit_base_patch16_224"
+    )
+
+    text = tokenizer(prompt).to(device)
+    model.to(device).eval()
+
+    query_vector = model.encode_text(text).detach().numpy()
+
+    k = 2
+    D, I = index.search(query_vector, k)
+    return JSONResponse(content={"distances": D.tolist(), "indices": I.tolist()})
 
 
 @app.get("/test")

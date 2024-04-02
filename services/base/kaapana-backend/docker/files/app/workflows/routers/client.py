@@ -19,7 +19,7 @@ from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
 from app.workflows.utils import get_dag_list
-from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 from pydantic.schema import schema
@@ -74,10 +74,19 @@ async def post_minio_file_upload(request: Request):
     logging.debug(f"{filepath=}")
     return Response(content=patch)
 
+def minio_backgroundtask(minioClient, bucket_name, object_name, file_path):
+    """
+    Upload a file to minio
+    """
+    logging.info("Start background task to upload file to minio")
+    minioClient.fput_object(
+                bucket_name=bucket_name, object_name=object_name, file_path=file_path
+            )
+    logging.info(f"Successfully uploaded file to Minio")
 
 @router.patch("/minio-file-upload")
 async def post_minio_file_upload(
-    request: Request, patch: str, minioClient=Depends(get_minio)
+    request: Request, patch: str, background_tasks: BackgroundTasks, minioClient=Depends(get_minio)
 ):
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
@@ -98,12 +107,8 @@ async def post_minio_file_upload(
                     f"upload mapping dictionary file {patch_fpath} does not exist"
                 )
             logging.info(f"{patch=}, {filename=}")
-            minioClient.fput_object(
-                bucket_name="uploads", object_name=filename.strip("/"), file_path=fpath
-            )
+            background_tasks.add_task(minio_backgroundtask, minioClient, "uploads", filename.strip("/"), fpath)
             patch_fpath.unlink()
-            # Todo check if fput_objects also needs a long time... if not Minio file mount can be removed and UPLOAD_DIR might be /tmp
-            logging.info(f"Successfully saved file {uname} to Minio")
             return Response(f"Upload of {filename} succesful!")
         except Exception as e:
             logging.error(f"Upload failed: {e}")

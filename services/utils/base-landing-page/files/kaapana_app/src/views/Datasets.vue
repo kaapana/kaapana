@@ -2,8 +2,7 @@
   <div>
     <IdleTracker />
     <splitpanes :class="$vuetify.theme.dark ? 'dark-theme' : ''">
-      <pane ref="mainPane" class="main" :class="navigationMode ? 'side-navigation' : 'top-navigation'" size="70"
-        min-size="30">
+      <pane ref="mainPane" class="main side-navigation" size="70" min-size="30">
         <v-container class="pa-0" fluid>
           <v-card class="rounded-0">
             <div style="padding: 10px 10px 10px 10px">
@@ -112,10 +111,7 @@
               </v-card>
             </v-container>
             <!--        property patients in two-ways bound -->
-            <v-container fluid class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area" :class="navigationMode
-        ? 'gallery-side-navigation'
-        : 'gallery-top-navigation'
-      ">
+            <v-container fluid class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area gallery-side-navigation">
               <StructuredGallery v-if="!isLoading &&
       Object.entries(patients).length > 0 &&
       settings.datasets.structured
@@ -138,7 +134,7 @@
           </v-container>
         </v-container>
       </pane>
-      <pane class="sidebar" :class="navigationMode ? 'side-navigation' : 'top-navigation'" size="30" min-size="20">
+      <pane class="sidebar side-navigation" size="30" min-size="20">
         <DetailView v-if="this.$store.getters.detailViewItem"
           :series-instance-u-i-d="this.$store.getters.detailViewItem" />
         <Dashboard v-else :seriesInstanceUIDs="identifiersOfInterest" :fields="dashboardFields"
@@ -504,30 +500,22 @@ export default {
 </script>
 <style scoped>
 .sidebar {
-  /* height: calc(100vh - 81px); */
   overflow-y: auto;
 }
 
 .main {
-  /* height: calc(100vh - 81px); */
   position: relative;
 }
 
 .side-navigation {
   height: calc(100vh - 81px);
-}
-
-.top-navigation {
-  height: calc(100vh - 81px - 56px);
+  overflow-y: auto;
 }
 
 .gallery-side-navigation {
   height: calc(100vh - 258px);
 }
 
-.gallery-top-navigation {
-  height: calc(100vh - 258px - 56px);
-}
 </style>
 
 <style>

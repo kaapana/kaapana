@@ -27,6 +27,15 @@ const routes = [
         },
     },
     {
+        name: 'imagesearch',
+        path: '/imagesearch',
+        component: () => import('@/views/ImageSearch.vue'),
+        title: 'Image Search',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'extensions',
         path: '/extensions',
         component: () => import('@/views/Extensions.vue'),

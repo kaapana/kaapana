@@ -8,6 +8,7 @@
 <script lang="ts">
 import Vue from 'vue'
 import { useIdle } from '@vueuse/core'
+import { VUE_APP_IDLE_TIMEOUT } from '@/app.config';
 
 export default Vue.extend({
     computed: {
@@ -16,8 +17,7 @@ export default Vue.extend({
         },
     },
     mounted() {
-        const idleTime = parseInt(process.env.VUE_APP_IDLE_TIMEOUT as string, 10);
-        const { idle } = useIdle(idleTime);
+        const { idle } = useIdle(VUE_APP_IDLE_TIMEOUT);
 
         idle.value = false
 

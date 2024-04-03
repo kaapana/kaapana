@@ -1,7 +1,8 @@
 import Vue from "vue";
 import httpClient from "./httpClient";
+import { VUE_APP_KAAPANA_BACKEND_ENDPOINT } from '@/app.config';
 
-const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT;
+const KAAPANA_BACKEND_ENDPOINT = VUE_APP_KAAPANA_BACKEND_ENDPOINT;
 
 const updateDataset = async (body) => {
   return await httpClient.put(

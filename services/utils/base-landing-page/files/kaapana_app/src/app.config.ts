@@ -1,0 +1,7 @@
+export const VUE_APP_KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT
+export const VUE_APP_IDLE_TIMEOUT = parseInt(process.env.VUE_APP_IDLE_TIMEOUT as string, 10);
+
+export default {
+    VUE_APP_KAAPANA_BACKEND_ENDPOINT,
+    VUE_APP_IDLE_TIMEOUT,
+}

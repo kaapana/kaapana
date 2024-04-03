@@ -40,7 +40,7 @@ You should also have the following packages installed on your build-system.
 
       .. tab:: AlmaLinux
 
-         | TBD
+         | :code:`sudo dnf update && sudo dnf install -y nano curl git python3 python3-pip`
 
 #. Clone the repository:
 
@@ -63,7 +63,11 @@ You should also have the following packages installed on your build-system.
 
       .. tab:: AlmaLinux
 
-         | TBD
+         | Check if snap is already installed: :code:`snap help --all`
+         | If **not** run the following commands:
+         | :code:`sudo dnf install -y snapd`
+         | A **reboot** is needed afterwards!
+
 
 #. Docker
 

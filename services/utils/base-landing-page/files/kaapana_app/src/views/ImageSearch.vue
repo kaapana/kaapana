@@ -437,12 +437,21 @@ export default {
       query = { bool: { must: ["", { query_string: { query: "*" } }] } };
       if (this.query_string !== "") {
         console.log(`Query string: ${this.query_string}`);
-        const response = await this.queryFAISS(this.query_string);
-        const seriesInstanceUIDs = response.seriesInstanceUIDs;
+        const seriesInstanceUIDs = (await this.queryFAISS(this.query_string))
+          .seriesInstanceUIDs;
         console.log(seriesInstanceUIDs);
-
         this.seriesInstanceUIDs = seriesInstanceUIDs;
         this.isLoading = false;
+        // if (seriesInstanceUIDs.length > 0) {
+        //   query = {
+        //     bool: {
+        //       must: [
+        //         { ids: { values: seriesInstanceUIDs } },
+        //         { query_string: { query: "*" } },
+        //       ],
+        //     },
+        //   };
+        // }
       } else {
         loadPatients({
           structured: this.settings.datasets.structured,

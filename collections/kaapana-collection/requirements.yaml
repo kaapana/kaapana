@@ -80,3 +80,5 @@ dependencies:
     version: 0.0.0
   - name: faiss-chart
     version: 0.0.0
+  - name: faiss-workflow
+    version: 0.0.0

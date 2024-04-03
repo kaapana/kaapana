@@ -1,0 +1,23 @@
+### Allow access to faiss from jobs with label {"network-access": "faiss"}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-faiss-egress
+  namespace: jobs
+spec:
+  podSelector:
+    matchLabels:
+      network-access: "faiss"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: services
+    - podSelector:
+        matchLabels:
+          app-name: faiss
+    ports:
+    - protocol: TCP
+      port: faiss-http

@@ -124,7 +124,7 @@ async def encode_image(
 
 
 @app.get("/search")
-async def search(query: str, k: int = 5):
+async def search(query: str, k: int = 5, only_series_instance_uids: bool = True):
     # Tokenize and encode the query text
     model, tokenizer, _ = ModelUtility.get_model()
     text_tokens = tokenizer([query]).to(DEVICE)
@@ -143,7 +143,12 @@ async def search(query: str, k: int = 5):
     # Split UID pairs into seriesInstanceUID and sopInstanceUID
     uid_pairs = [uid.split("|") for uid in uids if uid is not None]
 
-    return {"distances": D[0].tolist(), "uids": uid_pairs}
+    if only_series_instance_uids:
+        # Get only the seriesInstanceUIDs, i.e. the first element of the UID pair and only unique values
+        series_instance_uids = list(set([uid[0] for uid in uid_pairs]))
+        return {"seriesInstanceUIDs": series_instance_uids}
+    else:
+        return {"distances": D[0].tolist(), "uids": uid_pairs}
 
 
 @app.get("/")

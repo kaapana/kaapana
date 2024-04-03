@@ -144,16 +144,27 @@ async def search(query: str, k: int = 5, only_series_instance_uids: bool = True)
     uid_pairs = [uid.split("|") for uid in uids if uid is not None]
 
     if only_series_instance_uids:
-        # Get only the seriesInstanceUIDs, i.e. the first element of the UID pair and only unique values
-        series_instance_uids = list(set([uid[0] for uid in uid_pairs]))
-        return {"seriesInstanceUIDs": series_instance_uids}
+        # Initialize a list to keep the unique seriesInstanceUIDs in the order they are found
+        unique_seriesUIDs = []
+        # Initialize a set to quickly check if a seriesInstanceUID has already been added
+        seen_seriesUIDs = set()
+
+        # Iterate over the sorted uid_pairs and corresponding distances
+        for seriesUID, _ in uid_pairs:
+            # If the seriesInstanceUID has not been seen before, add it to the results
+            if seriesUID not in seen_seriesUIDs:
+                seen_seriesUIDs.add(seriesUID)
+                unique_seriesUIDs.append(seriesUID)
+
+        # Return the unique, sorted seriesInstanceUIDs
+        return {"seriesInstanceUIDs": unique_seriesUIDs}
     else:
         return {"distances": D[0].tolist(), "uids": uid_pairs}
 
 
 @app.get("/")
 async def root():
-    return {"message": "Hello from the image encoding and searching API"}
+    return {"message": "Hello from the image encoding and searching API service!"}
 
 
 if __name__ == "__main__":

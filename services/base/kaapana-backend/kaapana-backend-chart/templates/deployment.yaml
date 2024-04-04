@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kaapana-backend
+  name: kaapana-{{ .Values.global.backend_type }}
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: kaapana-backend
+      app-name: kaapana-{{ .Values.global.backend_type }}
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: kaapana-backend
+        app-name: kaapana-{{ .Values.global.backend_type }}
     spec:
       initContainers:
         - name: init-kaapana-backend
@@ -38,8 +38,8 @@ spec:
           value: kaapana-secret
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name | default "central" }}
-        - name: FEDERATED_ROLE
-          value: {{ .Values.global.federated_role | default "client"}}
+        - name: BACKEND_TYPE
+          value: {{ .Values.global.backend_type | default "client"}}
         - name: HOSTNAME
           value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT
@@ -80,8 +80,6 @@ spec:
           value: {{ .Values.global.deployment_timestamp }}
         - name: MOUNT_POINTS_TO_MONITOR
           value: {{ .Values.global.mount_points_to_monitor }}
-        - name: APPLICATION_ROOT
-          value: "/kaapana-backend"
         - name: DATABASE_URL
           value: postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432
         - name: REMOTE_SYNC_INTERVAL

@@ -478,13 +478,7 @@ def ui_form_schemas(
             status_code=404,
             detail=f"Dag {dag_id} is not part of the dag list. In remote execution the issue might be that is it not part of the allowed dags, please add it!",
         )
-
-
-@router.get("/check-for-remote-updates")
-def check_for_remote_updates(db: Session = Depends(get_db)):
-    return crud.get_remote_updates(db, periodically=False)
     
-
 
 @router.post("/dataset", response_model=schemas.Dataset)
 def create_dataset(

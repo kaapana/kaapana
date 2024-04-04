@@ -1,0 +1,6 @@
+---
+global:
+  base_namespace: "base"
+  dynamicVolumes:
+  - name: backend
+    host_path: /postgres-backend

@@ -726,7 +726,7 @@ def delete_external_job(db: Session, db_job):
         # if db_remote_kaapana_instance.instance_name == settings.instance_name:
         #     delete_job(db, **params)
         # else:
-        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote"
+        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-remote/remote"
         with requests.Session() as s:
             r = requests_retry_session(session=s).delete(
                 f"{remote_backend_url}/job",
@@ -762,7 +762,7 @@ def update_external_job(db: Session, db_job):
             # if db_remote_kaapana_instance.instance_name == settings.instance_name:
             #     update_job(db, schemas.JobUpdate(**payload))
             # else:
-            remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote"
+            remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-remote/remote"
             with requests.Session() as s:
                 r = requests_retry_session(session=s).put(
                     f"{remote_backend_url}/job",
@@ -788,8 +788,6 @@ def update_external_job(db: Session, db_job):
 
 
 def get_remote_updates(db: Session, periodically=False):
-    if settings.federated_role != "client":
-        return {f"Central is not checking for remote updates!"}
 
     db_client_kaapana = get_kaapana_instance(db)
     if periodically is True and db_client_kaapana.automatic_update is False:
@@ -811,7 +809,7 @@ def get_remote_updates(db: Session, periodically=False):
             "instance_name": db_client_kaapana.instance_name,
             "status": "queued",
         }
-        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote"
+        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-remote/remote"
         with requests.Session() as s:
             r = requests_retry_session(session=s).put(
                 f"{remote_backend_url}/sync-client-remote",
@@ -1644,7 +1642,7 @@ def update_remote_workflow(
             "workflow_status": "scheduled",
         }
         # call rmeote's update_worklfow endpoint
-        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-backend/remote"
+        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-remote/remote"
         with requests.Session() as s:
             r = requests_retry_session(session=s).put(
                 f"{remote_backend_url}/workflow",

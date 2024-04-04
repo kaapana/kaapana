@@ -73,7 +73,6 @@ DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
 
 INSTANCE_NAME="{{ instance_name|default('') }}"
-FEDERATED_ROLE="{{ federated_role|default('client') }}"
 
 {% for item in additional_env %}
 {{ item.name }}="{{ item.default_value }}"{% if item.comment %} # {{item.comment}}{% endif %}
@@ -455,7 +454,6 @@ function deploy_chart {
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     --set-string global.instance_name="$INSTANCE_NAME" \
-    --set-string global.federated_role="$FEDERATED_ROLE" \
     --set-string global.dev_mode="$DEV_MODE" \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     --set-string global.smtp_host="$SMTP_HOST" \

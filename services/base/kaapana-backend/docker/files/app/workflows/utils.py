@@ -167,7 +167,7 @@ def get_utc_timestamp():
 
 
 def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="all"):
-    if kind_of_dags not in ["all", "minio", "dataset"]:
+    if kind_of_dags not in ["all", "minio", "dataset","import"]:
         raise HTTPException("kind_of_dags must be one of [None, 'minio', 'dataset']")
 
     with CachedSession("kaapana_cache", expire_after=5, stale_if_error=True) as s:
@@ -195,6 +195,16 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                 and "data_form" in dag_data["ui_forms"]
                 and "properties" in dag_data["ui_forms"]["data_form"]
                 and "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"]
+            ):
+                dags[dag] = dag_data
+            elif (kind_of_dags == "minio") and (
+                "ui_forms" in dag_data
+                and "data_form" in dag_data["ui_forms"]
+                and "properties" in dag_data["ui_forms"]["data_form"]
+                and "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"]
+            ):
+                dags[dag] = dag_data
+            elif (kind_of_dags in dag_data.get("tags",[])
             ):
                 dags[dag] = dag_data
 

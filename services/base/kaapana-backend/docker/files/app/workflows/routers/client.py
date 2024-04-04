@@ -19,7 +19,7 @@ from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
 from app.workflows.utils import get_dag_list
-from fastapi import APIRouter, Depends, UploadFile, File, Request, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, File, Request, HTTPException
 from fastapi.responses import JSONResponse, Response
 from pydantic import ValidationError
 from pydantic.schema import schema
@@ -30,7 +30,7 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 router = APIRouter(tags=["client"])
 
-UPLOAD_DIR = "/tmp"
+UPLOAD_DIR = "/kaapana/app/uploads"
 
 
 def remove_outdated_tmp_files(search_dir):
@@ -58,9 +58,28 @@ def remove_outdated_tmp_files(search_dir):
                     f"Something went wrong with the removal of {file_found} .. "
                 )
 
+@router.head("/file")
+def head_file_upload(request: Request, patch: str):
+    uoffset = request.headers.get("upload-offset", None)
+    ulength = request.headers.get("upload-length", None)
+    uname = request.headers.get("upload-name", None)
+    fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
+    if fpath.is_file():
+        offset = int(ulength) - fpath.stat().st_size
+    else:
+        offset = 0
+    return Response(str(offset))
 
-@router.post("/minio-file-upload")
-async def post_minio_file_upload(request: Request):
+@router.get("/files")
+async def get_file(request: Request):
+    """
+    Return a list of files in the upload directory.
+    """
+    return os.listdir(UPLOAD_DIR)
+
+
+@router.post("/file")
+async def post_file(request: Request):
     form = await request.form()
     patch = str(uuid.uuid4())
     remove_outdated_tmp_files(UPLOAD_DIR)
@@ -74,19 +93,10 @@ async def post_minio_file_upload(request: Request):
     logging.debug(f"{filepath=}")
     return Response(content=patch)
 
-def minio_backgroundtask(minioClient, bucket_name, object_name, file_path):
-    """
-    Upload a file to minio
-    """
-    logging.info("Start background task to upload file to minio")
-    minioClient.fput_object(
-                bucket_name=bucket_name, object_name=object_name, file_path=file_path
-            )
-    logging.info(f"Successfully uploaded file to Minio")
-
-@router.patch("/minio-file-upload")
-async def post_minio_file_upload(
-    request: Request, patch: str, background_tasks: BackgroundTasks, minioClient=Depends(get_minio)
+@router.patch("/file")
+async def patch_file(
+    request: Request,
+    patch: str,
 ):
     uoffset = request.headers.get("upload-offset", None)
     ulength = request.headers.get("upload-length", None)
@@ -107,8 +117,13 @@ async def post_minio_file_upload(
                     f"upload mapping dictionary file {patch_fpath} does not exist"
                 )
             logging.info(f"{patch=}, {filename=}")
-            background_tasks.add_task(minio_backgroundtask, minioClient, "uploads", filename.strip("/"), fpath)
+            target_path = Path(UPLOAD_DIR) / filename.strip("/")
+            target_path.parents[0].mkdir(parents=True, exist_ok=True)
+            logging.info(f"Moving file {fpath} to {target_path}")
+            shutil.move(fpath, target_path)
+            logging.info("Successfully moved file!")
             patch_fpath.unlink()
+            logging.info("Successfully unlinked file!")
             return Response(f"Upload of {filename} succesful!")
         except Exception as e:
             logging.error(f"Upload failed: {e}")
@@ -121,21 +136,7 @@ async def post_minio_file_upload(
             )
     return Response(patch)
 
-
-@router.head("/minio-file-upload")
-def head_minio_file_upload(request: Request, patch: str):
-    uoffset = request.headers.get("upload-offset", None)
-    ulength = request.headers.get("upload-length", None)
-    uname = request.headers.get("upload-name", None)
-    fpath = Path(UPLOAD_DIR) / f"{patch}.tmpfile"
-    if fpath.is_file():
-        offset = int(ulength) - fpath.stat().st_size
-    else:
-        offset = 0
-    return Response(str(offset))
-
-
-@router.delete("/minio-file-upload")
+@router.delete("/file")
 async def delete_minio_file_upload(request: Request):
     body = await request.body()
     patch = body.decode("utf-8")
@@ -161,17 +162,6 @@ def create_remote_kaapana_instance(
     return crud.create_and_update_remote_kaapana_instance(
         db=db, remote_kaapana_instance=remote_kaapana_instance
     )
-
-
-# @router.post("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
-# def create_client_kaapana_instance(
-#     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
-#     db: Session = Depends(get_db),
-# ):
-#     return crud.create_and_update_client_kaapana_instance(
-#         db=db, client_kaapana_instance=client_kaapana_instance
-#     )
-
 
 @router.put("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 def put_remote_kaapana_instance(

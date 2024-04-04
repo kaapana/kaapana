@@ -16,6 +16,16 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: smtp-credentials
+  namespace: "{{ .Values.global.services_namespace }}"
+type: Opaque
+data:
+  smtp_username: "{{ .Values.global.smtp_username}}"
+  smtp_password: "{{.Values.global.smtp_password}}"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -150,6 +160,16 @@ spec:
           value: "{{ .Values.global.smtp_port }}"
         - name: EMAIL_ADDRESS_SENDER
           value: "{{ .Values.global.email_address_sender }}"
+        - name: SMTP_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: smtp-credentials
+              key: smtp_username
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: smtp-credentials
+              key: smtp_password
         resources:
           requests:
             memory: 3000Mi

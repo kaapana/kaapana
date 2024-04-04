@@ -84,13 +84,13 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         if password:
             smtp_password = password
 
-        smtp_server = None
-        if self.smtp_server:
-            smtp_server = self.smtp_server
-        server = workflow_form.get("smtp_server", None)
+        smtp_host = None
+        if self.smtp_host:
+            smtp_host = self.smtp_host
+        server = workflow_form.get("smtp_host", None)
         if server:
-            smtp_server = server
-        if not smtp_server:
+            smtp_host = server
+        if not smtp_host:
             raise Exception("Cannot send email, no smtp server defined!")
 
         sender = None
@@ -134,7 +134,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
 
         try:
             # Connect to the SMTP server and send the email
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
                 server.starttls()
                 if smtp_username and smtp_password:
                     server.login(smtp_username, smtp_password)
@@ -244,7 +244,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         ],
         sender: str = "",
         receivers: list = [""],
-        smtp_server: str = "",
+        smtp_host: str = "",
         smtp_port: int = 0,
         smtp_username: str = None,
         smtp_password: str = None,
@@ -256,7 +256,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         self.send_email = send_email
         self.sender = sender
         self.receivers = receivers
-        self.smtp_server = smtp_server
+        self.smtp_host = smtp_host
         self.smtp_port = smtp_port
         self.smtp_username = smtp_username
         self.smtp_password = smtp_password

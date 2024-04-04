@@ -19,6 +19,8 @@ ENABLE_NFS = os.getenv("ENABLE_NFS", None)
 SMTP_HOST = os.getenv("SMTP_HOST", None)
 SMTP_PORT = os.getenv("SMTP_PORT", 0)
 EMAIL_ADDRESS_SENDER = os.getenv("EMAIL_ADDRESS_SENDER", None)
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", None)
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", None)
 
 # Deprecated kept for backwards compatibility
 WORKFLOW_DIR = AIRFLOW_WORKFLOW_DIR

@@ -4,15 +4,20 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from kaapana.blueprints.kaapana_global_variables import SMTP_HOST
-from kaapana.blueprints.kaapana_global_variables import SMTP_PORT
-from kaapana.blueprints.kaapana_global_variables import EMAIL_ADDRESS_SENDER
+from kaapana.blueprints.kaapana_global_variables import (
+    SMTP_HOST,
+    SMTP_PORT,
+    EMAIL_ADDRESS_SENDER,
+    SMTP_USERNAME,
+    SMTP_PASSWORD,
+)
 
 log = LoggingMixin().log
-smtp_server = SMTP_HOST
+smtp_host = SMTP_HOST
 smtp_port = SMTP_PORT
 sender = EMAIL_ADDRESS_SENDER
-
+smtp_username = SMTP_USERNAME
+smtp_password = SMTP_PASSWORD
 # receivers = []
 ui_forms = {
     "data_form": {},
@@ -39,11 +44,11 @@ ui_forms = {
                 "type": "string",
                 "default": sender,
             },
-            "smtp_server": {
+            "smtp_host": {
                 "title": "SMTP Host",
                 "description": "Specify the smtp-host.",
                 "type": "string",
-                "default": smtp_server,
+                "default": smtp_host,
             },
             "smtp_port": {
                 "title": "SMTP Port",
@@ -55,6 +60,7 @@ ui_forms = {
                 "title": "SMTP Username",
                 "description": "Specify the smtp username.",
                 "type": "string",
+                "defualt": smtp_username,
             },
             "smtp_password": {
                 "title": "SMTP Password",
@@ -86,7 +92,9 @@ dag = DAG(
 local_email_send = LocalEmailSendOperator(
     dag=dag,
     send_email=True,
-    smtp_server=smtp_server,
+    smtp_host=smtp_host,
     smtp_port=smtp_port,
+    smtp_username=smtp_username,
+    smtp_password=smtp_password,
     sender=sender,
 )

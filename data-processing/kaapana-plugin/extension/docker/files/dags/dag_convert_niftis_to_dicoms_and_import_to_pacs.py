@@ -98,6 +98,7 @@ dag = DAG(
     dag_id="convert-nifitis-to-dicoms-and-import-to-pacs",
     default_args=args,
     schedule_interval=None,
+    tags= ["import"]
 )
 
 

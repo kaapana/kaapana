@@ -6,7 +6,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.blueprints.json_schema_templates import schema_minio_form
@@ -14,8 +14,37 @@ from kaapana.blueprints.json_schema_templates import schema_minio_form
 
 log = LoggingMixin().log
 
+
+def schema_upload_form(whitelisted_file_endings: tuple = ()):
+    """
+    Schema that lists files in FAST_DATA_DIR/uploads
+    """
+    r = requests.get("http://kaapana-backend-service.services.svc:5000/client/files")
+    files_in_upload_dir = r.json()
+    filtered_files = []
+    for f in files_in_upload_dir:
+        for file_format in whitelisted_file_endings:
+            if f.endswith(file_format):
+                filtered_files.append(f)
+
+    return {
+            "data_form": {
+                "type": "object",
+                "properties": {
+                    "action_files": {
+                        "title": "Objects from uploads directory",
+                        "description": "Relative paths to object in upload directory",
+                        "type": "array",
+                        "items": {"type": "string", "enum": filtered_files},
+                        "readOnly": False,
+                    },
+                },
+            }
+        }
+
+
 ui_forms = {
-    **schema_minio_form(whitelist_object_endings=(".zip")),
+    **schema_upload_form(whitelisted_file_endings=(".zip",)),
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -50,26 +79,35 @@ dag = DAG(
     schedule_interval=None,
     concurrency=10,
     max_active_runs=5,
+    tags= ["import"]
 )
 
-get_object_from_minio = LocalMinioOperator(
+get_object_from_mount = LocalVolumeMountOperator(
     dag=dag,
-    local_root_dir="{run_dir}/dicoms",
-    action_operator_dirs=["itk"],
-    file_white_tuples=(".zip"),
+    mount_path="/kaapana/app/uploads",
+    action="get",
+    keep_directory_structure=False,
+    name="get-uploads",
+    whitelisted_file_endings=(".zip",),
+    trigger_rule="none_failed",
     operator_out_dir="dicoms",
 )
 
 unzip_files = ZipUnzipOperator(
-    dag=dag, input_operator=get_object_from_minio, batch_level=True, mode="unzip"
+    dag=dag, input_operator=get_object_from_mount, batch_level=True, mode="unzip"
 )
 
 dicom_send = DcmSendOperator(
     dag=dag, input_operator=unzip_files, ae_title="uploaded", level="batch"
 )
 
-remove_object_from_minio = LocalMinioOperator(
-    dag=dag, action="remove", file_white_tuples=(".zip")
+remove_object_from_file_mount = LocalVolumeMountOperator(
+    dag=dag,
+    name="remove-file-from-volume-mount",
+    mount_path="/kaapana/app/uploads",
+    action="remove",
+    whitelisted_file_endings=(".zip",),
+    trigger_rule="none_failed",
 )
 
 clean = LocalWorkflowCleanerOperator(
@@ -77,22 +115,22 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 
-def branching_cleaning_minio_callable(**kwargs):
+def branching_cleaning_mount_callable(**kwargs):
     conf = kwargs["dag_run"].conf
     delete_original_file = conf["workflow_form"]["delete_original_file"]
     if delete_original_file:
-        return [remove_object_from_minio.name]
+        return [remove_object_from_file_mount.name]
     else:
         return [clean.name]
 
 
-branching_cleaning_minio = BranchPythonOperator(
-    task_id="branching-cleaning-minio",
+branching_cleaning_mount = BranchPythonOperator(
+    task_id="branching-cleaning-mount",
     provide_context=True,
-    python_callable=branching_cleaning_minio_callable,
+    python_callable=branching_cleaning_mount_callable,
     dag=dag,
 )
 
-get_object_from_minio >> unzip_files >> dicom_send >> branching_cleaning_minio
-branching_cleaning_minio >> remove_object_from_minio >> clean
-branching_cleaning_minio >> clean
+get_object_from_mount >> unzip_files >> dicom_send >> branching_cleaning_mount
+branching_cleaning_mount >> remove_object_from_file_mount >> clean
+branching_cleaning_mount >> clean

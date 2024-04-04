@@ -38,6 +38,8 @@ spec:
           value: kaapana-secret
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name | default "central" }}
+        - name: FEDERATED_ROLE
+          value: {{ .Values.global.federated_role | default "client"}}
         - name: HOSTNAME
           value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT

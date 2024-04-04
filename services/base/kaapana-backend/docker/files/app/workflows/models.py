@@ -39,6 +39,7 @@ class Dataset(Base):
     identifiers = relationship(
         "Identifier", secondary=identifiers2dataset, back_populates="datasets"
     )
+    meta_information = Column(mutable_json_type(dbtype=JSONB, nested=True), default={})
 
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
@@ -56,7 +57,6 @@ class KaapanaInstance(Base):
     port = Column(Integer(), index=True)
     ssl_check = Column(Boolean(), index=True)
     fernet_key = Column(String(100))
-    encryption_key = Column(String(100), default="")
     allowed_dags = Column(mutable_json_type(dbtype=JSONB, nested=True), default={})
     allowed_datasets = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
     time_created = Column(DateTime(timezone=True))

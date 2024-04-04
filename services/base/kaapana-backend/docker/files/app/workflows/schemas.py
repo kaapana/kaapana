@@ -44,7 +44,6 @@ class KaapanaInstance(KaapanaInstanceBase):
     instance_name: str
     port: int
     fernet_key: str
-    encryption_key: str
     remote: bool
     allowed_dags: Optional[NestedMutableDict] = ...
     allowed_datasets: Optional[NestedMutableList] = ...
@@ -71,13 +70,7 @@ class KaapanaInstance(KaapanaInstanceBase):
             return datetime.datetime.timestamp(v)
 
     @classmethod
-    def clean_return(cls, instance):
-        instance.encryption_key = ""
-        return instance
-
-    @classmethod
     def clean_full_return(cls, instance):
-        instance.encryption_key = ""
         instance.fernet_key = ""
         instance.token = ""
         return instance
@@ -201,6 +194,7 @@ class Dataset(DatasetBase):
     time_updated: datetime.datetime
     username: str = None
     identifiers: Optional[List[str]]
+    meta_information: Optional[NestedMutableDict] = {}
 
     @validator("time_updated")
     def convert_time_updated(cls, v):

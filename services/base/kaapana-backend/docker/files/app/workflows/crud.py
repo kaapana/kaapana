@@ -182,7 +182,6 @@ def create_and_update_client_kaapana_instance(
             port=int(os.getenv("HTTPS_PORT", 443)),
             ssl_check=client_kaapana_instance.ssl_check,
             fernet_key=_get_fernet_key(client_kaapana_instance.fernet_encrypted),
-            encryption_key=Fernet.generate_key().decode(),
             remote=False,
             time_created=utc_timestamp,
             time_updated=utc_timestamp,
@@ -196,20 +195,47 @@ def create_and_update_client_kaapana_instance(
             filter_allowed_dags=client_kaapana_instance.allowed_dags,
         )
 
-        fernet = Fernet(db_client_kaapana_instance.encryption_key)
         allowed_datasets = []
         for dataset_name in client_kaapana_instance.allowed_datasets:
             db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
             if db_dataset:
                 dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
-                dataset["identifiers"] = [
+                identifiers = [
                     identifier.id for identifier in db_dataset.identifiers
                 ]
-                if "identifiers" in dataset:
-                    dataset["identifiers"] = [
-                        fernet.encrypt(identifier.encode()).decode()
-                        for identifier in dataset["identifiers"]
-                    ]
+                meta_information = {}
+                # Todo add here unique studies and patients to the db_dataset object!
+                meta_data, tagging = get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=False)
+                dataset["identifiers_count"] = len(meta_data)
+                meta_information.update({
+                    "identifiers": {
+                        "identifiers": list(meta_data.keys()),
+                        "meta_data": meta_data,
+                        "tagging_series_uids": list(tagging.keys())
+                    }
+                })
+                meta_data, tagging = get_meta_data(identifiers, drop_duplicate_studies=True, drop_duplicated_patients=False)
+                dataset["series_uids_with_unique_study_uids_count"] = len(meta_data)
+                meta_information.update({
+                    "series_uids_with_unique_study_uids_count": {
+                        "identifiers": list(meta_data.keys()),
+                        "meta_data": meta_data,
+                        "tagging_series_uids": list(tagging.keys())
+                    }
+                })
+                meta_data, tagging = get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=True)
+                dataset["series_ids_with_unique_patient_ids_count"] = len(meta_data)
+                meta_information.update({
+                    "series_ids_with_unique_patient_ids_count": {
+                        "identifiers": list(meta_data.keys()),
+                        "meta_data": meta_data,
+                        "tagging_series_uids": list(tagging.keys())
+                    }
+                })
+                db_dataset.meta_information = meta_information
+
+                db.commit()
+                db.refresh(db_dataset)
                 allowed_datasets.append(dataset)
 
         db_client_kaapana_instance.instance_name = (settings.instance_name,)
@@ -762,6 +788,9 @@ def update_external_job(db: Session, db_job):
 
 
 def get_remote_updates(db: Session, periodically=False):
+    if settings.federated_role != "client":
+        return {f"Central is not checking for remote updates!"}
+
     db_client_kaapana = get_kaapana_instance(db)
     if periodically is True and db_client_kaapana.automatic_update is False:
         return
@@ -842,7 +871,6 @@ def get_remote_updates(db: Session, periodically=False):
                 logging.debug(f"Created incoming remote workflow: {db_workflow}")
 
         # create incoming jobs
-        fernet = Fernet(db_client_kaapana.encryption_key)
         db_jobs = []
         for incoming_job in incoming_jobs:
             if (
@@ -850,12 +878,31 @@ def get_remote_updates(db: Session, periodically=False):
                 and "data_form" in incoming_job["conf_data"]
                 and "identifiers" in incoming_job["conf_data"]["data_form"]
             ):
-                incoming_job["conf_data"]["data_form"]["identifiers"] = [
-                    fernet.decrypt(identifier.encode()).decode()
-                    for identifier in incoming_job["conf_data"]["data_form"][
-                        "identifiers"
-                    ]
-                ]
+                drop_duplicate_studies = incoming_job["conf_data"].get("workflow_form", {}).get(
+                    "series_uids_with_unique_study_uids", False
+                )
+                drop_duplicated_patients = incoming_job["conf_data"].get("workflow_form", {}).get(
+                    "series_ids_with_unique_patient_ids", False
+                )
+
+                dataset_name = incoming_job["conf_data"]["data_form"]["dataset_name"]
+                db_dataset = get_dataset(db, dataset_name)
+                if drop_duplicate_studies:
+                    identifiers = db_dataset.meta_information["series_uids_with_unique_study_uids_count"]["identifiers"]
+                    meta_data = db_dataset.meta_information["series_uids_with_unique_study_uids_count"]["meta_data"]
+                    tagging_series_uids = db_dataset.meta_information["series_uids_with_unique_study_uids_count"]["tagging_series_uids"]
+                elif drop_duplicated_patients:
+                    identifiers = db_dataset.meta_information["series_ids_with_unique_patient_ids_count"]["identifiers"]
+                    meta_data = db_dataset.meta_information["series_ids_with_unique_patient_ids_count"]["meta_data"]
+                    tagging_series_uids = db_dataset.meta_information["series_ids_with_unique_patient_ids_count"]["tagging_series_uids"]
+                else:
+                    identifiers = db_dataset.meta_information["identifiers"]["identifiers"]
+                    meta_data = db_dataset.meta_information["identifiers"]["meta_data"]
+                    tagging_series_uids = db_dataset.meta_information["identifiers"]["tagging_series_uids"]
+
+                incoming_job["conf_data"]["data_form"]["identifiers"] = [identifiers[idx] for idx in incoming_job["conf_data"]["data_form"]["identifiers"]]
+                incoming_job["conf_data"]["data_form"]["meta_data"] = [meta_data[identifier] for identifier in incoming_job["conf_data"]["data_form"]["identifiers"]]
+                incoming_job["conf_data"]["data_form"]["tagging_series_uids"] = tagging_series_uids
 
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
             incoming_job["owner_kaapana_instance_name"] = (
@@ -886,8 +933,7 @@ def get_remote_updates(db: Session, periodically=False):
             db_workflow = put_workflow_jobs(db, workflow_update)
             logging.debug(f"Updated remote workflow: {db_workflow}")
 
-    return  # schemas.RemoteKaapanaInstanceUpdateExternal(**udpate_instance_payload)
-
+    return {f"Federated backend is up and running!"}
 
 def sync_states_from_airflow(db: Session, status: str = None, periodically=False):
     # get list from airflow for jobs in status=status: {'dag_run_id': 'state'} -> airflow_jobs_in_qsr_state
@@ -1329,26 +1375,28 @@ def queue_generate_jobs_and_add_to_workflow(
             if not db_kaapana_instance.remote:
                 db_dataset = get_dataset(db, dataset_name)
                 identifiers = [idx.id for idx in db_dataset.identifiers]
+                conf_data["data_form"].update({"identifiers": identifiers})
             else:
                 for dataset_info in db_kaapana_instance.allowed_datasets:
                     if dataset_info["name"] == dataset_name:
-                        identifiers = (
-                            dataset_info["identifiers"]
-                            if "identifiers" in dataset_info
-                            else []
+                        conf_data["data_form"].update(
+                            {
+                                "identifiers_count": dataset_info["identifiers_count"],
+                                "series_uids_with_unique_study_uids_count": dataset_info["series_uids_with_unique_study_uids_count"],
+                                "series_ids_with_unique_patient_ids_count": dataset_info["series_ids_with_unique_patient_ids_count"]
+                            }
                         )
                         break
 
-            conf_data["data_form"].update({"identifiers": identifiers})
-
+        drop_duplicate_studies = conf_data.get("workflow_form", {}).get(
+            "series_uids_with_unique_study_uids", False
+        )
+        drop_duplicated_patients = conf_data.get("workflow_form", {}).get(
+            "series_ids_with_unique_patient_ids", False
+        )
+        
         if "data_form" in conf_data and "identifiers" in conf_data["data_form"]:
-
-            drop_duplicate_studies = conf_data.get("workflow_form", {}).get(
-                "series_uids_with_unique_study_uids", False
-            )
-            drop_duplicated_patients = conf_data.get("workflow_form", {}).get(
-                "series_ids_with_unique_patient_ids", False
-            )
+            # Local instance
             meta_data, tagging = get_meta_data(
                 conf_data["data_form"]["identifiers"],
                 drop_duplicate_studies,
@@ -1361,6 +1409,13 @@ def queue_generate_jobs_and_add_to_workflow(
 
             # TODO dag running tagging for running series_uids
             # os_processor.queue_operations(instance_ids=tagging, dags_running=[json_schema_data.dag_id])
+        elif db_kaapana_instance.remote and "data_form" in conf_data and "identifiers_count" in conf_data["data_form"]:
+            if drop_duplicate_studies:
+                conf_data["data_form"]["identifiers"] = list(range(0, conf_data["data_form"]["series_uids_with_unique_study_uids_count"]))
+            elif drop_duplicated_patients:
+                conf_data["data_form"]["identifiers"] = list(range(0, conf_data["data_form"]["series_ids_with_unique_patient_ids_count"]))
+            else:
+                conf_data["data_form"]["identifiers"] = list(range(0, conf_data["data_form"]["identifiers_count"]))
 
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []
@@ -1369,9 +1424,10 @@ def queue_generate_jobs_and_add_to_workflow(
                 # Copying due to reference?!
                 single_conf_data = copy.deepcopy(conf_data)
                 single_conf_data["data_form"]["identifiers"] = [identifier]
-                single_conf_data["data_form"]["meta_data"] = {
-                    identifier: meta_data[identifier]
-                }
+                if "meta_data" in conf_data["data_form"]:
+                    single_conf_data["data_form"]["meta_data"] = {
+                        identifier: conf_data["data_form"]["meta_data"][identifier]
+                    }
                 queued_jobs.append(
                     {
                         "conf_data": single_conf_data,

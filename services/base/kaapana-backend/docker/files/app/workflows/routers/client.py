@@ -75,7 +75,8 @@ async def get_file(request: Request):
     """
     Return a list of files in the upload directory.
     """
-    return os.listdir(UPLOAD_DIR)
+    absolute_file_paths = list(Path(UPLOAD_DIR).rglob("*"))
+    return [file.relative_to(UPLOAD_DIR) for file in absolute_file_paths]
 
 
 @router.post("/file")

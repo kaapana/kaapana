@@ -65,7 +65,7 @@ get_object_from_uploads = LocalVolumeMountOperator(
 )
 
 unzip_files = ZipUnzipOperator(
-    dag=dag, input_operator=get_object_from_mount, batch_level=True, mode="unzip"
+    dag=dag, input_operator=get_object_from_uploads, batch_level=True, mode="unzip"
 )
 
 wsi_conv = WSIconvOperator(

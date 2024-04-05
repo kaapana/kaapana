@@ -1,6 +1,6 @@
 import functools
 from pathlib import Path
-
+import requests
 
 def properties_filter(func):
     @functools.wraps(func)

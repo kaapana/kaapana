@@ -16,7 +16,7 @@ log = LoggingMixin().log
 
 
 ui_forms = {
-    **schema_upload_form(whitelisted_file_endings=(".zip",)),
+    **schema_upload_form(whitelisted_file_formats=(".zip",)),
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -54,7 +54,7 @@ dag = DAG(
     tags= ["import"]
 )
 
-get_object_from_mount = LocalVolumeMountOperator(
+get_object_from_uploads = LocalVolumeMountOperator(
     dag=dag,
     mount_path="/kaapana/app/uploads",
     action="get",
@@ -66,16 +66,16 @@ get_object_from_mount = LocalVolumeMountOperator(
 )
 
 unzip_files = ZipUnzipOperator(
-    dag=dag, input_operator=get_object_from_mount, batch_level=True, mode="unzip"
+    dag=dag, input_operator=get_object_from_uploads, batch_level=True, mode="unzip"
 )
 
 dicom_send = DcmSendOperator(
     dag=dag, input_operator=unzip_files, ae_title="uploaded", level="batch"
 )
 
-remove_object_from_file_mount = LocalVolumeMountOperator(
+remove_object_from_file_uploads = LocalVolumeMountOperator(
     dag=dag,
-    name="remove-file-from-volume-mount",
+    name="remove-file-from-volume-uploads",
     mount_path="/kaapana/app/uploads",
     action="remove",
     whitelisted_file_endings=(".zip",),
@@ -87,22 +87,22 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 
-def branching_cleaning_mount_callable(**kwargs):
+def branching_cleaning_uploads_callable(**kwargs):
     conf = kwargs["dag_run"].conf
     delete_original_file = conf["workflow_form"]["delete_original_file"]
     if delete_original_file:
-        return [remove_object_from_file_mount.name]
+        return [remove_object_from_file_uploads.name]
     else:
         return [clean.name]
 
 
-branching_cleaning_mount = BranchPythonOperator(
-    task_id="branching-cleaning-mount",
+branching_cleaning_uploads = BranchPythonOperator(
+    task_id="branching-cleaning-uploads",
     provide_context=True,
-    python_callable=branching_cleaning_mount_callable,
+    python_callable=branching_cleaning_uploads_callable,
     dag=dag,
 )
 
-get_object_from_mount >> unzip_files >> dicom_send >> branching_cleaning_mount
-branching_cleaning_mount >> remove_object_from_file_mount >> clean
-branching_cleaning_mount >> clean
+get_object_from_uploads >> unzip_files >> dicom_send >> branching_cleaning_uploads
+branching_cleaning_uploads >> remove_object_from_file_uploads >> clean
+branching_cleaning_uploads >> clean

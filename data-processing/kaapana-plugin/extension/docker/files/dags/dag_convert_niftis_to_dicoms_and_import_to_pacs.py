@@ -16,7 +16,6 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR
 from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
-import requests
 
 from pathlib import Path
 
@@ -68,7 +67,7 @@ dag = DAG(
     tags= ["import"]
 )
 
-get_object_from_mount = LocalVolumeMountOperator(
+get_object_from_uploads = LocalVolumeMountOperator(
     dag=dag,
     mount_path="/kaapana/app/uploads",
     action="get",
@@ -81,7 +80,7 @@ get_object_from_mount = LocalVolumeMountOperator(
 
 unzip_files = ZipUnzipOperator(
     dag=dag,
-    input_operator=get_object_from_mount,
+    input_operator=get_object_from_uploads,
     batch_level=True,
     mode="unzip",
 )
@@ -111,8 +110,8 @@ dcm_send_img = DcmSendOperator(
     input_operator=convert,
 )
 
-remove_object_from_mount = LocalVolumeMountOperator(
-    dag=dag, name="removing-object-from-mount", mount_path="/kaapana/app/uploads", action="remove", whitelisted_file_endings=(".zip",)
+remove_object_from_uploads = LocalVolumeMountOperator(
+    dag=dag, name="removing-object-from-uploads", mount_path="/kaapana/app/uploads", action="remove", whitelisted_file_endings=(".zip",)
 )
 
 clean = LocalWorkflowCleanerOperator(
@@ -124,7 +123,7 @@ def branching_zipping_callable(**kwargs):
     download_dir = (
         Path(AIRFLOW_WORKFLOW_DIR)
         / kwargs["dag_run"].run_id
-        / get_object_from_mount.operator_out_dir
+        / get_object_from_uploads.operator_out_dir
     )
     conf = kwargs["dag_run"].conf
     if "action_files" in conf["data_form"]:
@@ -160,29 +159,29 @@ branching_sending = BranchPythonOperator(
 )
 
 
-def branching_cleaning_mount_callable(**kwargs):
+def branching_cleaning_uploads_callable(**kwargs):
     conf = kwargs["dag_run"].conf
     delete_original_file = conf["workflow_form"]["delete_original_file"]
     if delete_original_file:
-        return [remove_object_from_mount.name]
+        return [remove_object_from_uploads.name]
     else:
         return [clean.name]
 
 
-branching_cleaning_mount = BranchPythonOperator(
-    task_id="branching-cleaning-mount",
+branching_cleaning_uploads = BranchPythonOperator(
+    task_id="branching-cleaning-uploads",
     provide_context=True,
     trigger_rule="none_failed_min_one_success",
-    python_callable=branching_cleaning_mount_callable,
+    python_callable=branching_cleaning_uploads_callable,
     dag=dag,
 )
 
 
-get_object_from_mount >> branching_zipping
+get_object_from_uploads >> branching_zipping
 branching_zipping >> unzip_files >> convert
 branching_zipping >> convert
 convert >> branching_sending
-branching_sending >> convert_seg >> dcm_send_seg >> branching_cleaning_mount
-branching_sending >> dcm_send_img >> branching_cleaning_mount
-branching_cleaning_mount >> remove_object_from_mount >> clean
-branching_cleaning_mount >> clean
+branching_sending >> convert_seg >> dcm_send_seg >> branching_cleaning_uploads
+branching_sending >> dcm_send_img >> branching_cleaning_uploads
+branching_cleaning_uploads >> remove_object_from_uploads >> clean
+branching_cleaning_uploads >> clean

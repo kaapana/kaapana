@@ -71,12 +71,13 @@ def head_file_upload(request: Request, patch: str):
     return Response(str(offset))
 
 @router.get("/files")
-async def get_file(request: Request):
+async def get_file(request: Request, pattern: str="*"):
     """
-    Return a list of files in the upload directory.
+    Return a list of file paths relative to UPLOAD_DIR matching the provided pattern.
+    List only files with resolved filepaths being a subpath of UPLOAD_DIR.
     """
-    absolute_file_paths = list(Path(UPLOAD_DIR).rglob("*"))
-    return [file.relative_to(UPLOAD_DIR) for file in absolute_file_paths]
+    absolute_file_paths = list(Path(UPLOAD_DIR).rglob(pattern))
+    return [file.relative_to(UPLOAD_DIR) for file in absolute_file_paths if file.is_file() and file.resolve().parts[:len(Path(UPLOAD_DIR).parts)] == Path(UPLOAD_DIR).parts]
 
 
 @router.post("/file")

@@ -640,6 +640,19 @@ function preflight_checks {
         RESULT_MSGS+=("Kubectl could not communicate with the server.\nHave a look at the output,\nCheck if the correct server certificate file is in place @ ~/.kube/config,\nCheck if the IP address in the certificate matches the IP address of the server\nand try again.")
     fi
 
+    SEVERITY+=(100) # This is a check that translates not well to a multinode setup, since hugepages have to be disabled on the system where kubectl is deployed, not on the one the admin node, but right now they are the same anyways.
+    TEST_NAMES+=("Check if huge pages are enabled")
+    hugepages=$(cat /proc/sys/vm/nr_hugepages)
+    if [ "$hugepages" -eq 0 ]; then
+        TEST_FAILDS+=(false)
+        RESULT_MSGS+=("")
+    elif [ "$hugepages" -eq 0 ]; then
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Hugepages seem to be enabled. This setting is known to cause issues with postgres running inside a Kubernetes cluster. Consider disabling hugepages.")
+    else
+        TEST_FAILDS+=(true)
+        RESULT_MSGS+=("Could not determine if Hugepages are enabled on the system. Note that postgres pods might run into issues with hugepages enabled.")
+    fi
 
     # Reporting Table
     printf "%-4s %-60s %-15s\n" "Sev" "Test" "Result"

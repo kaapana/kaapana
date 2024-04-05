@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
   ant \
   && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y ant
+
 WORKDIR /build-ctp
 
 RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout 867f8933de7ce99a035a32639261a3af72ae91e0
@@ -59,5 +61,3 @@ COPY /files/config.xml ./config.xml
 COPY --from=build /build-ctp/build/CTP/ ./
 
 CMD ["java","-jar","Runner.jar"]
-
-

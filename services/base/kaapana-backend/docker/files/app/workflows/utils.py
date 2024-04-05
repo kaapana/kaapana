@@ -2,7 +2,6 @@ import json
 import os
 import requests
 import logging
-import functools
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from requests_cache import CachedSession
@@ -10,15 +9,16 @@ from datetime import timezone, timedelta
 import datetime
 from fastapi import HTTPException
 from app.config import settings
-
-from opensearchpy import OpenSearch
 from minio import Minio
 from urllib3.util import Timeout
 import xml.etree.ElementTree as ET
+from opensearchpy import OpenSearch
+
+import threading
+from time import sleep
 
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
@@ -167,8 +167,15 @@ def get_utc_timestamp():
 
 
 def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="all"):
-    if kind_of_dags not in ["all", "minio", "dataset"]:
-        raise HTTPException("kind_of_dags must be one of [None, 'minio', 'dataset']")
+    if kind_of_dags not in [
+        "all",
+        "minio",
+        "dataset",
+        "noDataset",
+    ] and not kind_of_dags.startswith("viewNames"):
+        raise HTTPException(
+            "kind_of_dags must be one of [None, 'minio', 'dataset', 'noDataset'] or start with 'viewNames'!"
+        )
 
     with CachedSession(
         "kaapana_cache", expire_after=5, stale_if_error=True, use_temp=True
@@ -192,6 +199,13 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                 and "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"]
             ):
                 dags[dag] = dag_data
+            elif (kind_of_dags == "noDataset") and not (
+                "ui_forms" in dag_data
+                and "data_form" in dag_data["ui_forms"]
+                and "properties" in dag_data["ui_forms"]["data_form"]
+                and "dataset_name" in dag_data["ui_forms"]["data_form"]["properties"]
+            ):
+                dags[dag] = dag_data
             elif (kind_of_dags == "minio") and (
                 "ui_forms" in dag_data
                 and "data_form" in dag_data["ui_forms"]
@@ -199,6 +213,11 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                 and "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"]
             ):
                 dags[dag] = dag_data
+            elif kind_of_dags.startswith("viewNames:"):
+                requested_view_names = kind_of_dags.split(":")[1].split(",")
+                dag_view_names = dag_data.get("ui_forms", {}).get("viewNames", [])
+                if bool(set(dag_view_names) & set(requested_view_names)):
+                    dags[dag] = dag_data
 
     if only_dag_names is True:
         return sorted(list(dags.keys()))
@@ -328,3 +347,99 @@ def raise_kaapana_connection_error(r):
         raise HTTPException(
             f"Something was not okay with your request code {r}: {r.text}!"
         )
+
+
+class OsBatchProcessor:
+    def __init__(self):
+        self.operations_queue = {}  # Operations queue for instance_id -> tags
+        self.lock = threading.Lock()  # Thread lock to manage concurrent access
+        self.batch_processor_thread = threading.Thread(
+            target=self.batch_process_operations
+        )
+        self.batch_processor_thread.daemon = (
+            True  # Ensures thread exits when main program does
+        )
+        self.batch_processor_thread.start()
+        self.os_tag_template = "00000000 dag-<dag-id>-state_keyword"
+        self.host = f"opensearch-service.services.svc"
+        self.port = "9200"
+        self.index = "meta-index"
+        self.auth = None
+
+        self.os_client = OpenSearch(
+            hosts=[{"host": self.host, "port": self.port}],
+            http_compress=True,  # enables gzip compression for request bodies
+            http_auth=self.auth,
+            use_ssl=False,
+            verify_certs=False,
+            ssl_assert_hostname=False,
+            ssl_show_warn=True,
+            timeout=2,
+            pool_maxsize=20,
+        )
+
+    def queue_operations(self, instance_ids, dags_running):
+        logger.info(f"Queuing operations for {instance_ids}")
+        logger.info(f"DAGs running to add: {dags_running}")
+        with self.lock:
+            for instance_id in instance_ids:
+                if instance_id in self.operations_queue:
+                    self.operations_queue[instance_id].extend(dags_running)
+                else:
+                    self.operations_queue[instance_id] = dags_running
+        return True
+
+    def batch_process_operations(self):
+        while True:
+            sleep(3)  # Process every 3 seconds, adjust as needed
+            if self.operations_queue:
+                with self.lock:
+                    logger.info("Processing operations queue.")
+                    bulk_operations = self.operations_queue.copy()
+                    self.operations_queue.clear()
+
+                if bulk_operations:
+                    logger.info("Updating tags in series.")
+                    success = self.update_tags_in_series_bulk(
+                        bulk_operations, mode="add"
+                    )
+                    if not success:
+                        logger.error("Failed to process some bulk operations.")
+
+    def update_tags_in_series_bulk(self, bulk_operations, mode="add", tries=0):
+        try:
+            actions = []
+            for series_instance_uid, dags_running in bulk_operations.items():
+                entries_to_update = [
+                    self.os_tag_template.replace("<dag-id>", x) for x in dags_running
+                ]
+                if mode == "add":
+                    running_state = "running"
+                elif mode == "remove":
+                    running_state = "finished"
+                else:
+                    logger.error("Invalid mode specified. Must be 'add' or 'remove'.")
+                    return False
+                action = {"update": {"_index": self.index, "_id": series_instance_uid}}
+                data = {"doc": {}}
+                for entry in entries_to_update:
+                    data["doc"][entry] = str(running_state)
+                actions.extend([action, data])
+
+            if actions:
+                responses = self.os_client.bulk(body=actions, index=self.index)
+                if responses.get("errors", False):
+                    logger.error("Bulk operation failed.")
+                    return False
+                else:
+                    return True
+        except Exception as e:
+            logger.error(f"Error in bulk operation: {e}")
+            if "version conflict" in str(e) and tries < 3:
+                logger.info(f"Retrying bulk {mode} operation due to version conflict.")
+                return self.update_tags_in_series_bulk(bulk_operations, mode, tries + 1)
+            else:
+                return False
+
+
+os_processor = OsBatchProcessor()

@@ -11,14 +11,11 @@ from app.workflows.utils import (
     requests_retry_session,
     TIMEOUT,
     raise_kaapana_connection_error,
+    os_processor
 )
 from app.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
-
-
-#  from kaapana.operators.HelperOpensearch import HelperOpensearch
-
 
 def execute_opensearch_query(
     query: Dict = dict(),
@@ -46,25 +43,32 @@ def execute_opensearch_query(
     """
 
     def _execute_opensearch_query(search_after=None, size=10000) -> List:
-        res = OpenSearch(
-            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-        ).search(
-            body={
-                "query": query,
-                "size": size,
-                "_source": source,
-                "sort": sort,
-                **({"search_after": search_after} if search_after else {}),
-            },
-            index=index,
-        )
-        if len(res["hits"]["hits"]) > 0:
-            return [
-                *res["hits"]["hits"],
-                *_execute_opensearch_query(res["hits"]["hits"][-1]["sort"], size),
-            ]
-        else:
-            return res["hits"]["hits"]
+        try:
+            res = OpenSearch(
+                hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+            ).search(
+                body={
+                    "query": query,
+                    "size": size,
+                    "_source": source,
+                    "sort": sort,
+                    **({"search_after": search_after} if search_after else {}),
+                },
+                index=index,
+            )
+            if len(res["hits"]["hits"]) > 0:
+                return [
+                    *res["hits"]["hits"],
+                    *_execute_opensearch_query(res["hits"]["hits"][-1]["sort"], size),
+                ]
+            else:
+                return res["hits"]["hits"]
+        except Exception as e:
+            if "No mapping found for [0020000E SeriesInstanceUID_keyword.keyword]" in str(e):
+                print("No mapping found for [0020000E SeriesInstanceUID_keyword.keyword] -> empty index -> skipping")
+                return []
+            else:
+                raise
 
     return _execute_opensearch_query()
 
@@ -193,24 +197,31 @@ async def get_field_mapping(index="meta-index") -> Dict:
 
     res = OpenSearch(
         hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).indices.get_mapping(index=index)[index]["mappings"]["properties"]
+    ).indices.get_mapping(index=index)[index]["mappings"]
 
-    name_field_map = {
-        camel_case_to_space(k): k + type_suffix(v) for k, v in res.items()
-    }
+    if "properties" in res:
+        res = res["properties"]
+        name_field_map = {
+            camel_case_to_space(k): k + type_suffix(v) for k, v in res.items()
+        }
 
-    name_field_map = {
-        k: v
-        for k, v in name_field_map.items()
-        if len(re.findall("\d", k)) == 0 and k != "" and v != ""
-    }
-    return name_field_map
+        name_field_map = {
+            k: v
+            for k, v in name_field_map.items()
+            if (len(re.findall("\d", k)) == 0 or "is2" in k) and k != "" and v != ""
+        }
+        return name_field_map
+    else:
+        return {}
 
 
-def get_meta_data(identifiers, drop_duplicate_studies=False):
+def get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=False):
     import pandas as pd
 
-    query = {"ids": {"values": identifiers}}
+    if drop_duplicate_studies or drop_duplicated_patients:
+        query = {"query_string": {"query": "*"}}
+    else:
+        query = {"ids": {"values": identifiers}}
     hits = execute_opensearch_query(
         query=query,
         source={
@@ -219,6 +230,7 @@ def get_meta_data(identifiers, drop_duplicate_studies=False):
                 "0020000D StudyInstanceUID_keyword",
                 "0020000E SeriesInstanceUID_keyword",
                 "00081030 StudyDescription_keyword",
+                "00000000 Tags_keyword"
             ]
         },
     )
@@ -228,6 +240,7 @@ def get_meta_data(identifiers, drop_duplicate_studies=False):
             hit["_source"].get("0020000D StudyInstanceUID_keyword", "N/A"),
             hit["_source"].get("0020000E SeriesInstanceUID_keyword", "N/A"),
             hit["_source"].get("00081030 StudyDescription_keyword", "N/A"),
+            hit["_source"].get("00000000 Tags_keyword", []),            
         ]
         for hit in hits
     ]
@@ -239,8 +252,20 @@ def get_meta_data(identifiers, drop_duplicate_studies=False):
             "Study Instance UID",
             "Series Instance UID",
             "Study Description",
+            "Tags",
         ],
     )
     if drop_duplicate_studies:
-        df = df.drop_duplicates("Study Instance UID")
-    return df.set_index("Series Instance UID").to_dict(orient="index")
+        df_filtered = df[df["Series Instance UID"].isin(identifiers)]
+        study_instance_uids = df_filtered["Study Instance UID"].tolist()
+        df_tagging = df[df["Study Instance UID"].isin(study_instance_uids)][["Series Instance UID", "Tags"]]
+        df = df_filtered.drop_duplicates("Study Instance UID")
+    elif drop_duplicated_patients:
+        df_filtered = df[df["Series Instance UID"].isin(identifiers)]
+        patient_ids = df_filtered["Patient ID"].tolist()
+        df_tagging = df[df["Patient ID"].isin(patient_ids)][["Series Instance UID", "Tags"]]
+        df = df_filtered.drop_duplicates("Patient ID")
+    else:
+        df_tagging = df[["Series Instance UID", "Tags"]]
+
+    return df.set_index("Series Instance UID").to_dict(orient="index"), df_tagging.set_index("Series Instance UID")["Tags"].to_dict()

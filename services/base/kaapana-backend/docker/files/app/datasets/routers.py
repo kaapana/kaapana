@@ -1,6 +1,12 @@
 import json
+from typing import Dict, List
+import re
+import ast
 from typing import Union
 import base64
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Body
 from fastapi.responses import JSONResponse
@@ -11,6 +17,7 @@ from app.datasets.utils import (
     get_metadata,
     execute_opensearch_query,
     get_field_mapping,
+    camel_case_to_space
 )
 from app.middlewares import sanitize_inputs
 
@@ -70,52 +77,193 @@ async def tag_data(data: list = Body(...)):
 # we use a post request
 @router.post("/series")
 async def get_series(data: dict = Body(...)):
-    import pandas as pd
+
+    def _get_field_mapping(index="meta-index") -> Dict:
+        """
+        Returns a mapping of field for a given index form open search.
+        This looks like:
+        # {
+        #   'Specific Character Set': '00080005 SpecificCharacterSet_keyword.keyword',
+        #   'Image Type': '00080008 ImageType_keyword.keyword'
+        #   ...
+        # }
+        """
+        res = OpenSearch(
+            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+        ).indices.get_mapping(index=index)[index]["mappings"]
+
+        if "properties" in res:
+            res = res["properties"]
+            name_field_map = {
+                camel_case_to_space(k): k for k, v in res.items()
+            }
+
+            name_field_map = {
+                k: v
+                for k, v in name_field_map.items()
+                if len(re.findall("\d", k)) == 0 and k != "" and v != ""
+            }
+            return name_field_map
+        else:
+            return {}
+
+    def curate_criteria(criteria):
+        key = criteria["key"]
+        if key is None:
+            return {}
+        curated_criteria = {}
+        for value, condition, count in zip(criteria["values"], criteria["conditions"], criteria["counts"]):
+            if None in [value, condition, count, key]:
+                continue
+            else:             
+                if not curated_criteria:
+                    curated_criteria = {
+                        "key": key,
+                        "values": [],
+                        "conditions": [],
+                        "counts": []
+                    }
+                curated_criteria["key"] = key
+                curated_criteria["values"].append(value)
+                curated_criteria["conditions"].append(condition)
+                curated_criteria["counts"].append(count)
+        return curated_criteria
+
+    def get_count(info, value):
+        item_count = 0
+        if value in info:
+            item_count = int(info[value])
+        elif isinstance(value, float):
+            tolerance = 1e-9
+            close_keys = info.index[np.isclose(list(info.index.drop("N/A", errors="ignore")), value, atol=tolerance)]
+            if len(close_keys) > 0:
+                item_count = int(info[close_keys[0]])
+        elif isinstance(value, int):
+            if str(value) in info:
+                item_count = int(info[str(value)])
+        else:
+            for format_time in ["%Y-%m-%d %H:%M:%S.%f", "%H:%M:%S.%f"]:
+                try:
+                    d_value = datetime.strptime(value, format_time)
+                    tolerance = timedelta(milliseconds=10)
+                    # Finding keys close to the target value within the given tolerance
+                    info.index = pd.to_datetime(info.index, format=format_time)
+                    close_keys = [key for key in info.index if abs(key - d_value) <= tolerance]
+                    if len(close_keys) > 0:
+                        item_count = int(info[close_keys[0]])
+                except:
+                    continue
+        return item_count
+
+    def check_info_and_or_criteria(info, criteria):
+        for value, condition, count in zip(criteria["values"], criteria["conditions"], criteria["counts"]):
+            item_count = get_count(info, value)
+            if condition == '=':
+                if item_count == int(count):
+                    return True
+            elif condition == '!=':
+                if item_count != int(count):
+                    return True
+            elif condition == '<' or condition == '&lt;':
+                if item_count < int(count):
+                    return True
+            elif condition == '>' or condition == '&gt;':
+                if item_count > int(count):
+                    return True
+            else:
+                return True
+        return False  # No criteria met
+
+    def check_and_or_criteria(group, filterSubProps, target="Series Instance UID"):
+        def _is_nested_list(element):
+            if isinstance(element, list):
+                return True
+            return False
+
+        if target == "Series Instance UID":
+            for criteria in filterSubProps:
+                if _is_nested_list(group[criteria["key"]]):
+                    value_counts = group.to_frame().transpose().explode(criteria["key"])[criteria["key"]].value_counts()
+                else:
+                    value_counts = pd.Series(1, index=[group[criteria["key"]]])
+                    
+                if not check_info_and_or_criteria(value_counts, criteria):
+                    return False
+            return True
+        else:
+            for criteria in filterSubProps:
+                if group[criteria["key"]].apply(_is_nested_list).any():
+                    if target == "Patient ID":
+                        value_counts = group.explode(criteria["key"]).drop_duplicates(["Study Instance UID", criteria["key"]])[criteria["key"]].value_counts()
+                    else:
+                        value_counts = group.explode(criteria["key"])[criteria["key"]].value_counts()
+                else:
+                    if target == "Patient ID":
+                        value_counts = group.drop_duplicates(["Study Instance UID", criteria["key"]])[criteria["key"]].value_counts()
+                    elif target == "Study Instance UID":
+                        value_counts = group[criteria["key"]].value_counts()
+                if not check_info_and_or_criteria(value_counts, criteria):
+                    return group[group.index != group.index]
+            return group
 
     structured: bool = data.get("structured", False)
     query: dict = data.get("query", {"query_string": {"query": "*"}})
+    filterProperties: dict = data.get("filterProperties", {})
 
     if structured:
+        columns = list(set([
+            "Patient ID",
+            "Study Instance UID",
+            "Series Instance UID",
+            "Modality",
+            "Series Number",
+            "Study Description",
+            "Series Description"
+            ] + [
+                criteria["key"] for inner_list in filterProperties.values() for criteria in inner_list if criteria["key"] is not None
+            ]))
+        
+        name_field_map = _get_field_mapping()
+        includes = [name_field_map[c] if c in name_field_map else c for c in columns]
+
         hits = execute_opensearch_query(
             query=query,
             source={
-                "includes": [
-                    "00100020 PatientID_keyword",
-                    "0020000D StudyInstanceUID_keyword",
-                    "0020000E SeriesInstanceUID_keyword",
-                    "00080060 Modality_keyword",
-                    "00200011 SeriesNumber_integer",
-                    "00081030 StudyDescription_keyword",
-                    "0008103E SeriesDescription_keyword",
-                ]
+                "includes": includes
             },
         )
-
         res_array = [
-            [
-                hit["_source"].get("00100020 PatientID_keyword", "N/A"),
-                hit["_source"].get("0020000D StudyInstanceUID_keyword", "N/A"),
-                hit["_source"].get("0020000E SeriesInstanceUID_keyword", "N/A"),
-                hit["_source"].get("00080060 Modality_keyword", "N/A"),
-                hit["_source"].get("00200011 SeriesNumber_integer", "N/A"),
-                hit["_source"].get("00081030 StudyDescription_keyword", "N/A"),
-                hit["_source"].get("0008103E SeriesDescription_keyword", "N/A"),
+            [*[ hit["_source"].get(k, "N/A") for k in includes]
             ]
             for hit in hits
         ]
 
         df = pd.DataFrame(
             res_array,
-            columns=[
-                "Patient ID",
-                "Study Instance UID",
-                "Series Instance UID",
-                "Modality",
-                "Series Number",
-                "Study Description",
-                "Series Description",
-            ],
+            columns=columns,
         )
+
+        curated_filter_properties = {}
+        for k, filterSubProps in filterProperties.items():
+            curated_filter_properties[k] = []
+            for criteria in filterSubProps:
+                c = curate_criteria(criteria)
+                if c:
+                    curated_filter_properties[k].append(c)
+
+        # The order matters!!
+        if curated_filter_properties.get("patientFilterProperties", []):
+            df = df.groupby("Patient ID").apply(check_and_or_criteria, curated_filter_properties.get("patientFilterProperties", []), target="Patient ID").reset_index(drop=True)
+        if curated_filter_properties.get("studyFilterProperties", []):
+            df = df.groupby("Study Instance UID").apply(check_and_or_criteria, curated_filter_properties.get("studyFilterProperties", []), target="Study Instance UID").reset_index(drop=True)
+        if curated_filter_properties.get("seriesFilterProperties", []):
+            mask = df.apply(lambda s: check_and_or_criteria(s, curated_filter_properties.get("seriesFilterProperties", []), target="Series Instance UID"), axis=1)
+            df = df[mask].reset_index(drop=True)
+            
+        if df.empty:
+            print("No results found after filtering -> returning empty list")
+            return JSONResponse({})
+
         return JSONResponse(
             {
                 k: f.groupby("Study Instance UID")["Series Instance UID"]
@@ -290,6 +438,10 @@ async def get_all_values(item_name, query):
     ]
 
     if "buckets" in item and len(item["buckets"]) > 0:
+        filtered_buckets = [
+            bucket for bucket in item["buckets"]
+            if not isinstance(bucket["key"], str) or (not bucket["key"].startswith("[") and not bucket["key"].endswith("]"))
+        ]
         return {
             "items": (
                 [
@@ -298,7 +450,7 @@ async def get_all_values(item_name, query):
                         value=bucket.get("key_as_string", bucket["key"]),
                         count=bucket["doc_count"],
                     )
-                    for bucket in item["buckets"]
+                    for bucket in filtered_buckets
                 ]
             ),
             "key": item_key,

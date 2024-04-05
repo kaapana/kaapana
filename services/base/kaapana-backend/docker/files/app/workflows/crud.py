@@ -1,14 +1,11 @@
 import json
 import os
 import logging
-import traceback
 import uuid
 import copy
 from typing import List
 import datetime
 import string
-import random
-
 import requests
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
@@ -17,9 +14,7 @@ from sqlalchemy import desc
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, String, JSON
-
 from urllib3.util import Timeout
-
 from app.config import settings
 from app.database import SessionLocal
 from . import models, schemas
@@ -36,9 +31,9 @@ from .utils import (
     get_dag_list,
     raise_kaapana_connection_error,
     requests_retry_session,
+    # os_processor,
 )
 from app.datasets.utils import get_meta_data
-
 logging.getLogger().setLevel(logging.INFO)
 
 TIMEOUT_SEC = 5
@@ -1054,66 +1049,6 @@ def create_and_update_service_workflows_and_jobs(
             logging.info(f"Updated service workflow: {db_service_workflow}")
 
 
-# def sync_states_from_airflow(db: Session, status: str = None, periodically=False):
-
-#     # get list from airflow for jobs in states 'queued', 'scheduled', 'running': {'dag_run_id': 'state'} -> airflow_jobs_in_qsr_state
-#     states = ["queued", "scheduled", "running"]
-#     airflow_jobs_in_qsr_state = get_dagruns_airflow(tuple(states))
-#     # extract list of run_ids of jobs in qsr states
-#     airflow_jobs_qsr_runids = []
-#     for airflow_job in airflow_jobs_in_qsr_state:
-#         airflow_jobs_qsr_runids.append(airflow_job['run_id'])
-
-#     # get list from db with all db_jobs in states 'queued', 'scheduled', 'running'
-#     db_jobs_in_q_state = get_jobs(db, status="queued")
-#     db_jobs_in_s_state = get_jobs(db, status="scheduled")
-#     db_jobs_in_r_state = get_jobs(db, status="running")
-#     db_jobs_in_qsr_state = db_jobs_in_q_state + db_jobs_in_s_state + db_jobs_in_r_state
-#     # extract list of dag_run_ids from db_jobs_in_qsr_state
-#     db_jobs_qsr_runids = []
-#     for db_job in db_jobs_in_qsr_state:
-#         db_jobs_qsr_runids.append(db_job.run_id)
-
-#     # find elements which are in current airflow_jobs_in_qsr_state but not in db_jobs_in_qsr_state from previous round
-#     diff_airflow_to_db = [elem for elem in airflow_jobs_qsr_runids if elem not in db_jobs_qsr_runids]
-#     # find elements which are in db_jobs_in_qsr_state from previous round but not in current airflow_jobs_in_qsr_state
-#     diff_db_to_airflow = [elem for elem in db_jobs_qsr_runids if elem not in airflow_jobs_qsr_runids]
-
-#     if len(diff_airflow_to_db) > 0:
-#         # request airflow for states of all jobs in diff_airflow_to_db && update db_jobs of all jobs in diff_airflow_to_db
-#         for diff_job_runid in diff_airflow_to_db:
-#             # get db_job from db via 'run_id'
-#             db_job = get_job(db, run_id=diff_job_runid) # fails for all airflow jobs which aren't user-created aka service-jobs
-#             if db_job is not None:
-#                 # update db_job w/ updated state
-#                 job_update = schemas.JobUpdate(**{
-#                         'job_id': db_job.id,
-#                         })
-#                 update_job(db, job_update, remote=False)
-
-#     elif len(diff_db_to_airflow) > 0:
-#         # request airflow for states of all jobs in diff_db_to_airflow && update db_jobs of all jobs in diff_db_to_airflow
-#         for diff_job_runid in diff_db_to_airflow:
-#             if diff_job_runid is None:
-#                 logging.info("Remote db_job --> created to be executed on remote instance!")
-#                 pass
-#             # get db_job from db via 'run_id'
-#             db_job = get_job(db, run_id=diff_job_runid)
-#             # get runner kaapana instance of db_job
-#             if db_job is not None:
-#                 # update db_job w/ updated state
-#                 job_update = schemas.JobUpdate(**{
-#                         'job_id': db_job.id,
-#                         })
-#                 update_job(db, job_update, remote=False)
-
-#     elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
-#         pass    # airflow and db in sync :)
-
-#     else:
-#         logging.error("Error while syncing kaapana-backend with Airflow")
-
-
 def sync_n_clean_qsr_jobs_with_airflow(db: Session, periodically=False):
     """
     Function to clean up unsuccessful synced jobs between airflow and backend.
@@ -1411,11 +1346,21 @@ def queue_generate_jobs_and_add_to_workflow(
             drop_duplicate_studies = conf_data.get("workflow_form", {}).get(
                 "series_uids_with_unique_study_uids", False
             )
-            meta_data = get_meta_data(
-                conf_data["data_form"]["identifiers"], drop_duplicate_studies
+            drop_duplicated_patients = conf_data.get("workflow_form", {}).get(
+                "series_ids_with_unique_patient_ids", False
             )
+            meta_data, tagging = get_meta_data(
+                conf_data["data_form"]["identifiers"],
+                drop_duplicate_studies,
+                drop_duplicated_patients,
+            )
+            tagging = list(tagging.keys())
             conf_data["data_form"]["identifiers"] = list(meta_data.keys())
             conf_data["data_form"]["meta_data"] = meta_data
+            conf_data["data_form"]["tagging_series_uids"] = tagging
+
+            # TODO dag running tagging for running series_uids
+            # os_processor.queue_operations(instance_ids=tagging, dags_running=[json_schema_data.dag_id])
 
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []

@@ -9,38 +9,10 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.blueprints.json_schema_templates import schema_minio_form
+from kaapana.blueprints.json_schema_templates import schema_upload_form
 
 
 log = LoggingMixin().log
-
-
-def schema_upload_form(whitelisted_file_endings: tuple = ()):
-    """
-    Schema that lists files in FAST_DATA_DIR/uploads
-    """
-    r = requests.get("http://kaapana-backend-service.services.svc:5000/client/files")
-    files_in_upload_dir = r.json()
-    filtered_files = []
-    for f in files_in_upload_dir:
-        for file_format in whitelisted_file_endings:
-            if f.endswith(file_format):
-                filtered_files.append(f)
-
-    return {
-            "data_form": {
-                "type": "object",
-                "properties": {
-                    "action_files": {
-                        "title": "Objects from uploads directory",
-                        "description": "Relative paths to object in upload directory",
-                        "type": "array",
-                        "items": {"type": "string", "enum": filtered_files},
-                        "readOnly": False,
-                    },
-                },
-            }
-        }
 
 
 ui_forms = {
@@ -56,7 +28,7 @@ ui_forms = {
                 "required": True,
             },
             "delete_original_file": {
-                "title": "Delete file from Minio after successful upload?",
+                "title": "Delete file from file system after successful import?",
                 "type": "boolean",
                 "default": True,
             },

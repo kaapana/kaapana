@@ -6,16 +6,17 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.blueprints.json_schema_templates import schema_minio_form
+from kaapana.blueprints.json_schema_templates import schema_upload_form
 
 
 log = LoggingMixin().log
 
+
 ui_forms = {
-    **schema_minio_form(whitelist_object_endings=(".zip")),
+    **schema_upload_form(whitelisted_file_formats=(".zip",)),
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -27,7 +28,7 @@ ui_forms = {
                 "required": True,
             },
             "delete_original_file": {
-                "title": "Delete file from Minio after successful upload?",
+                "title": "Delete file from file system after successful import?",
                 "type": "boolean",
                 "default": True,
             },
@@ -50,26 +51,35 @@ dag = DAG(
     schedule_interval=None,
     concurrency=10,
     max_active_runs=5,
+    tags= ["import"]
 )
 
-get_object_from_minio = LocalMinioOperator(
+get_object_from_uploads = LocalVolumeMountOperator(
     dag=dag,
-    local_root_dir="{run_dir}/dicoms",
-    action_operator_dirs=["itk"],
-    file_white_tuples=(".zip"),
+    mount_path="/kaapana/app/uploads",
+    action="get",
+    keep_directory_structure=False,
+    name="get-uploads",
+    whitelisted_file_endings=(".zip",),
+    trigger_rule="none_failed",
     operator_out_dir="dicoms",
 )
 
 unzip_files = ZipUnzipOperator(
-    dag=dag, input_operator=get_object_from_minio, batch_level=True, mode="unzip"
+    dag=dag, input_operator=get_object_from_uploads, batch_level=True, mode="unzip"
 )
 
 dicom_send = DcmSendOperator(
     dag=dag, input_operator=unzip_files, ae_title="uploaded", level="batch"
 )
 
-remove_object_from_minio = LocalMinioOperator(
-    dag=dag, action="remove", file_white_tuples=(".zip")
+remove_object_from_file_uploads = LocalVolumeMountOperator(
+    dag=dag,
+    name="remove-file-from-volume-uploads",
+    mount_path="/kaapana/app/uploads",
+    action="remove",
+    whitelisted_file_endings=(".zip",),
+    trigger_rule="none_failed",
 )
 
 clean = LocalWorkflowCleanerOperator(
@@ -77,22 +87,22 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 
-def branching_cleaning_minio_callable(**kwargs):
+def branching_cleaning_uploads_callable(**kwargs):
     conf = kwargs["dag_run"].conf
     delete_original_file = conf["workflow_form"]["delete_original_file"]
     if delete_original_file:
-        return [remove_object_from_minio.name]
+        return [remove_object_from_file_uploads.name]
     else:
         return [clean.name]
 
 
-branching_cleaning_minio = BranchPythonOperator(
-    task_id="branching-cleaning-minio",
+branching_cleaning_uploads = BranchPythonOperator(
+    task_id="branching-cleaning-uploads",
     provide_context=True,
-    python_callable=branching_cleaning_minio_callable,
+    python_callable=branching_cleaning_uploads_callable,
     dag=dag,
 )
 
-get_object_from_minio >> unzip_files >> dicom_send >> branching_cleaning_minio
-branching_cleaning_minio >> remove_object_from_minio >> clean
-branching_cleaning_minio >> clean
+get_object_from_uploads >> unzip_files >> dicom_send >> branching_cleaning_uploads
+branching_cleaning_uploads >> remove_object_from_file_uploads >> clean
+branching_cleaning_uploads >> clean

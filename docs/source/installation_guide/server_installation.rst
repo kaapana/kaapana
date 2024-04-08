@@ -6,7 +6,7 @@ Server Installation
    | You will need some kind of :term:`server` to run the platform on.
    | Minimum specs:
 
-   - OS: Ubuntu 20.04/22.04 or Ubuntu Server 20.04/22.04
+   - OS: Ubuntu 20.04/22.04, Ubuntu Server 20.04/22.04 or AlmaLinux 9.3
    - CPU: 8 cores (recommended 16+)
    - RAM: 64GB+ (recommended 128GB+) 
    - Storage for application-data (fast-dir): 100GB (recommended >200GB) 
@@ -15,7 +15,7 @@ Server Installation
 
 #. **Access to a container registry or a tarball with built  containers**
 
-   Before proceeding with further installation steps, make sure you have access to a container registry or a tarball with built Kaapana containers, otherwise please visit :ref:`build`.
+   Before proceeding with further installation steps, make sure you have access to a container registry or a tarball with built Kaapana containers, otherwise please visit :ref:`build`. 
 
    .. hint::
 
@@ -29,7 +29,6 @@ Server Installation
 
 Server Config
 =============
-
 
 Port Configuration
 ^^^^^^^^^^^^^^^^^^
@@ -112,8 +111,15 @@ To do this, you can use the :term:`server-installation-script`, located at :code
    | :code:`chmod +x server_installation.sh`
 
 3. Execute the script:
+   .. tabs::
 
-   | :code:`sudo ./server_installation.sh`
+      .. tab:: Ubuntu
+
+         | :code:`sudo ./server_installation.sh`
+      
+      .. tab:: AlmaLinux
+
+         | :code:`sudo -E ./server-installation.sh`
    
    
 4. Reboot the system 

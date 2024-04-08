@@ -19,8 +19,9 @@ Potential fixes:
 
 2. If installation script was terminated after installing microk8s, but before configuration, then before re-run either uninstall or script modification as following is necessary:
 
-
 .. code-block:: bash
 
     # if microk8s status > /dev/null
     if false
+
+3. Try adding ``sleep 60`` command in the script directly after ``snap install microk8s`` and ``microk8s start`` commands

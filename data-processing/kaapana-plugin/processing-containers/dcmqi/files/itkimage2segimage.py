@@ -400,6 +400,30 @@ def update_seg_attribute_props_single_segment(
     return seg_attributes
 
 
+def verify_meta_properties_with_labels(
+    meta_json: str, mask_labels: list, empty_mask: int
+):
+    with open(meta_json) as f:
+        meta_data = json.load(f)
+
+    if "segmentAttributes" in meta_data:
+        seg_attributes = meta_data["segmentAttributes"][0]
+        updated = False
+        for seg in seg_attributes:
+            labelId = seg["labelID"]
+            if (labelId not in mask_labels) and (empty_mask in mask_labels):
+                seg["labelID"] = empty_mask
+                updated = True
+                break
+
+        if updated:
+            with open(meta_json, "w") as write_file:
+                print("Updating JSON with empty mask label:: {}".format(meta_json))
+                json.dump(meta_data, write_file, indent=4, sort_keys=True)
+
+    return
+
+
 # Additional meta props environment variable value
 meta_props_value = os.environ.get("ADDITIONAL_META_PROPS", "")
 # Create a dictionary from the key-value pairs
@@ -549,7 +573,7 @@ for batch_element_dir in batch_folders:
                 segment_algorithm_name,
                 code_meaning,
                 color,
-                labelID=int(unique_mask_labels[0]),
+                labelID=labelID,
             )
 
             if create_multi_label_dcm_from_single_label_segs.lower() == "true":
@@ -564,6 +588,11 @@ for batch_element_dir in batch_folders:
             meta_data_file = f"{input_image_list_input_dir}/{rootname}.json"
             if os.path.isfile(meta_data_file):
                 print("Wow, meta data file exsists already, taking this one!")
+                verify_meta_properties_with_labels(
+                    meta_json=meta_data_file,
+                    mask_labels=unique_mask_labels,
+                    empty_mask=empty_segmentation_label,
+                )
             else:
                 with open(meta_data_file, "w") as write_file:
                     print("Writing JSON:: {}".format(meta_data_file))

@@ -28,15 +28,11 @@ Copy the script to your target-system (server) and **adjust it as described belo
 **You need to do at least the following customizations:**
 Note: If you have already built the platform, these variables should have been filled in.
 
-.. tabs::
+.. code-block:: python
 
-   .. tab:: Private registry
-
-      .. code-block:: python
-
-         ...
-         CONTAINER_REGISTRY_URL="<registry-url>"
-         ...
+   ...
+   CONTAINER_REGISTRY_URL="<registry-url>"
+   ...
 
 3. Make it executable with :code:`chmod +x deploy_platform.sh`
 4. Execute the script:
@@ -48,9 +44,7 @@ Note: If you have already built the platform, these variables should have been f
    .. code-block:: python
 
       ...
-      OFFLINE_MODE="true"
-      DEV_MODE="false"
-      CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
+      CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>" # e.g. "registry.local/offline/offline"
       ...
 
 .. tabs::
@@ -61,7 +55,7 @@ Note: If you have already built the platform, these variables should have been f
 
    .. tab:: Tarball
 
-      :code:`./deploy_platform.sh --upload-tar <path-to-tarball-file>`
+      See :ref:`kaapana_offline`
 
 You may be asked the following questions:
 

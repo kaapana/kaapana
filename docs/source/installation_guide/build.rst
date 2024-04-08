@@ -195,7 +195,7 @@ Start Build
 
       .. tab:: Offline
 
-         See :ref:`kaapana_offline`
+         :ref:`kaapana_offline`
 
 #. After the configuration has been adjusted, the build process can be started with:
 

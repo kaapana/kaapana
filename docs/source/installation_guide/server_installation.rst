@@ -13,13 +13,17 @@ Server Installation
    - Storage for imaging-data (slow-dir): depends on your needs 
 
 
-#. **Access to a container registry or a tarball with built  containers**
 
-   Before proceeding with further installation steps, make sure you have access to a container registry or a tarball with built Kaapana containers, otherwise please visit :ref:`build`. 
+#. **Access to a container registry (online) or a prebuild installer and tarball (offline)**
+
+   Before proceeding with further installation steps, make sure you have access either to:
+   
+   - Container registry -> :ref:`build`
+   - Tarball -> For further information about offline tarball installation visit :ref:`kaapana_offline`.
 
    .. hint::
 
-      | **Accessing container Registry or Tarball with Pre-built  Containers**
+      | **Accessing container Registry or Tarball with Pre-built Containers**
       | If you are interested in exploring our platform, we encourage you to get in touch with us (:ref:`contact`). Should you choose to do so, we will gladly offer you two options for accessing it. You can either receive credentials for our container registry or receive a tarball that includes the necessary  containers. With these options, you can directly deploy the platform without the need to go through the building process.
 
    To provide the services in Kaapana, the corresponding containers are needed.
@@ -111,6 +115,7 @@ To do this, you can use the :term:`server-installation-script`, located at :code
    | :code:`chmod +x server_installation.sh`
 
 3. Execute the script:
+   
    .. tabs::
 
       .. tab:: Ubuntu
@@ -119,7 +124,7 @@ To do this, you can use the :term:`server-installation-script`, located at :code
       
       .. tab:: AlmaLinux
 
-         | :code:`sudo -E ./server-installation.sh`
+         | :code:`sudo -E ./server_installation.sh`
    
    
 4. Reboot the system 

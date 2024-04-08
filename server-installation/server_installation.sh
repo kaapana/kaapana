@@ -370,8 +370,6 @@ function install_microk8s {
         else
             echo "${YELLOW}Installing microk8s v$DEFAULT_MICRO_VERSION ...${NC}"
             snap install microk8s --classic --channel=$DEFAULT_MICRO_VERSION
-            echo "${YELLOW}Wait 60s for microk8s to finish setting-up ..."
-            sleep 60
         fi
 
         echo "${YELLOW}Stopping microk8s for configuration ...${NC}"
@@ -407,10 +405,7 @@ function install_microk8s {
         set -e
         
         echo "${YELLOW}Starting microk8s${NC}"
-        microk8s.start
-        
-        echo "${YELLOW}Wait 60s for microk8s to finish setting-up ..."
-        sleep 60
+        microk8s.start        
         
         echo "${YELLOW}Wait until microk8s is ready ...${NC}"
         microk8s.status --wait-ready >/dev/null 2>&1

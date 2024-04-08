@@ -38,14 +38,6 @@ Note: If you have already built the platform, these variables should have been f
          CONTAINER_REGISTRY_URL="<registry-url>"
          ...
 
-   .. tab:: Tarball
-
-      .. code-block:: python
-
-         ...
-         CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
-         ...
-
 3. Make it executable with :code:`chmod +x deploy_platform.sh`
 4. Execute the script:
 

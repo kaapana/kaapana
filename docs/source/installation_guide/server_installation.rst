@@ -114,7 +114,8 @@ To do this, you can use the :term:`server-installation-script`, located at :code
 3. Execute the script:
 
    | :code:`sudo ./server_installation.sh`
-
+   
+   
 4. Reboot the system 
 
    | :code:`sudo reboot`

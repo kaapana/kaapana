@@ -358,6 +358,10 @@ def get_dags_endpoint():
         del dag_dict["_sa_instance_state"]
 
         dags[dag_id] = parse_ui_dict(dag_dict)
+        try:
+            dags[dag_id]["tags"] = dag_objects[dag_id].tags
+        except KeyError as e:
+            dags[dag_id]["tags"] = []
 
     return jsonify(dags)
 

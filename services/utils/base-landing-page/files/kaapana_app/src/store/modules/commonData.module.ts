@@ -27,6 +27,7 @@ const getters = {
   workflowsList(state: any) {
     return [
       ["Data Upload", "mdi-cloud-upload", "/data-upload"],
+      ["Data Validation", "mdi-view-gallery-outline", "/validation"],
       ["Datasets", "mdi-view-gallery-outline", "/datasets"],
       ["Workflow Execution", "mdi-play", "/workflow-execution"],
       ["Workflow List", "mdi-clipboard-text-outline", "/workflows"],

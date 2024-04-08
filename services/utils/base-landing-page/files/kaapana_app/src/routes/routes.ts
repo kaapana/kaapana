@@ -27,6 +27,15 @@ const routes = [
         },
     },
     {
+        name: 'validation',
+        path: '/validation',
+        component: () => import('@/views/DataValidation.vue'),
+        title: 'Data Validation',
+        permissions: {
+            isPublic: false,
+        },
+    },
+    {
         name: 'extensions',
         path: '/extensions',
         component: () => import('@/views/Extensions.vue'),

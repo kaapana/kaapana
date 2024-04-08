@@ -52,6 +52,8 @@ spec:
               name: slapd
             - mountPath: /import
               name: ldif
+          securityContext:
+            allowPrivilegeEscalation: false
       volumes:
       - name: ldap
         persistentVolumeClaim:

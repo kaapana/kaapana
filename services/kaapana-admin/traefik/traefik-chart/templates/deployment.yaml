@@ -70,6 +70,9 @@ spec:
               name: traefiklog
             - mountPath: /ssl
               name: ssl
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
       volumes:
         - name: traefiklog
           persistentVolumeClaim:

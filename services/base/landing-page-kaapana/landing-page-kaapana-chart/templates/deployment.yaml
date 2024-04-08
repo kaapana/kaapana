@@ -60,8 +60,13 @@ spec:
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
           value: {{ .Values.global.credentials_minio_password | default ""}}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
+          - name: tmpfs
+            mountPath: /home/kaapana
       - name: landingpage
         image: "{{ .Values.global.registry_url }}/landing-page-kaapana:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
@@ -94,6 +99,11 @@ spec:
           - name: landing-dev-files
             mountPath: /kaapana/app/src
  {{- end }}
+          - name: tmp
+            mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
 {{ include "dynamicVolumes" $ | indent 6 }}
       - name: common-data-file
@@ -104,6 +114,10 @@ spec:
         persistentVolumeClaim:
           claimName: landing-dev-pv-claim
 {{- end }}
+      - name: tmpfs
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

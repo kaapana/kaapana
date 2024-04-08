@@ -85,7 +85,15 @@ async def post_file(request: Request):
     form = await request.form()
     patch = str(uuid.uuid4())
     remove_outdated_tmp_files(UPLOAD_DIR)
-    filepath = json.loads(form["filepond"])["filepath"]
+
+    json_form = json.loads(form["filepond"])
+    if "filepath" in json_form:
+        filepath = json_form["filepath"]
+    else:
+        # If no filepath is provided, the uploaded file will just be stored by the generated {uuid}.zip
+        # FIXME This assumes zip files are uploaded.
+        # A more generenic way would be to add a file extension to the json_form, which could then be used here
+        filepath = f"{patch}.zip"
 
     patch_fpath = Path(UPLOAD_DIR) / f"{patch}.tmppatch"
     with open(patch_fpath, "w") as fp:
@@ -161,8 +169,10 @@ def create_remote_kaapana_instance(
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return crud.create_and_update_remote_kaapana_instance(
-        db=db, remote_kaapana_instance=remote_kaapana_instance
+    return schemas.KaapanaInstance.clean_return(
+        crud.create_and_update_remote_kaapana_instance(
+            db=db, remote_kaapana_instance=remote_kaapana_instance
+        )
     )
 
 @router.put("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
@@ -170,8 +180,10 @@ def put_remote_kaapana_instance(
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return crud.create_and_update_remote_kaapana_instance(
-        db=db, remote_kaapana_instance=remote_kaapana_instance, action="update"
+    return schemas.KaapanaInstance.clean_return(
+        crud.create_and_update_remote_kaapana_instance(
+            db=db, remote_kaapana_instance=remote_kaapana_instance, action="update"
+        )
     )
 
 
@@ -180,14 +192,18 @@ def put_client_kaapana_instance(
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return crud.create_and_update_client_kaapana_instance(
-        db=db, client_kaapana_instance=client_kaapana_instance, action="update"
+    return schemas.KaapanaInstance.clean_return(
+        crud.create_and_update_client_kaapana_instance(
+            db=db, client_kaapana_instance=client_kaapana_instance, action="update"
+        )
     )
 
 
 @router.get("/kaapana-instance", response_model=schemas.KaapanaInstance)
 def get_kaapana_instance(instance_name: str = None, db: Session = Depends(get_db)):
-    return crud.get_kaapana_instance(db, instance_name)
+    return schemas.KaapanaInstance.clean_return(
+        crud.get_kaapana_instance(db, instance_name)
+    )
 
 
 @router.post("/get-kaapana-instances", response_model=List[schemas.KaapanaInstance])
@@ -195,9 +211,13 @@ def get_kaapana_instances(
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_kaapana_instances(
+    kaapana_instances = crud.get_kaapana_instances(
         db, filter_kaapana_instances=filter_kaapana_instances
     )
+
+    for instance in kaapana_instances:
+        schemas.KaapanaInstance.clean_return(instance)
+    return kaapana_instances
 
 
 @router.delete("/kaapana-instance")
@@ -222,13 +242,23 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
             status_code=400,
             detail="A username has to be set when you start a job, either as parameter or in the request!",
         )
-    return crud.create_job(db=db, job=job)
+    job = crud.create_job(db=db, job=job)
+    if job.kaapana_instance:
+        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+            job.kaapana_instance
+        )
+    return job
 
 
 @router.get("/job", response_model=schemas.JobWithKaapanaInstance)
 # also okay: JobWithWorkflow
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
-    return crud.get_job(db, job_id, run_id)
+    job = crud.get_job(db, job_id, run_id)
+    if job.kaapana_instance:
+        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+            job.kaapana_instance
+        )
+    return job
 
 
 @router.get("/jobs", response_model=List[schemas.JobWithWorkflowWithKaapanaInstance])
@@ -240,9 +270,15 @@ def get_jobs(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_jobs(
+    jobs = crud.get_jobs(
         db, instance_name, workflow_name, status, remote=False, limit=limit
     )
+    for job in jobs:
+        if job.kaapana_instance:
+            job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+                job.kaapana_instance
+            )
+    return jobs
 
 
 @router.put("/job", response_model=schemas.JobWithWorkflow)
@@ -597,9 +633,11 @@ def create_workflow(
             "username": username,
             "workflow_id": workflow_id,
             "workflow_name": workflow_name,
-            "involved_instances": json_schema_data.instance_names
-            if json_schema_data.federated == False
-            else involved_instance_names,  # instances on which workflow is created!
+            "involved_instances": (
+                json_schema_data.instance_names
+                if json_schema_data.federated == False
+                else involved_instance_names
+            ),  # instances on which workflow is created!
             "runner_instances": json_schema_data.instance_names,  # instances on which jobs of workflow are created!
         }
     )
@@ -656,7 +694,11 @@ def get_workflow(
     dag_id: str = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_workflow(db, workflow_id, workflow_name, dag_id)
+    workflow = crud.get_workflow(db, workflow_id, workflow_name, dag_id)
+    workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+        workflow.kaapana_instance
+    )
+    return workflow
 
 
 # get_workflows
@@ -672,9 +714,15 @@ def get_workflows(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    return crud.get_workflows(
+    workflows = crud.get_workflows(
         db, instance_name, involved_instance_name, workflow_job_id, limit=limit
-    )  # , username=request.headers["x-forwarded-preferred-username"]
+    )
+    for workflow in workflows:
+        if workflow.kaapana_instance:
+            workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+                workflow.kaapana_instance
+            )
+    return workflows  # , username=request.headers["x-forwarded-preferred-username"]
 
 
 # put/update_workflow

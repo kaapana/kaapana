@@ -177,7 +177,12 @@ spec:
           mountPath: /kaapana/mounted/workflows/data
         - name: dicomdir
           mountPath: /kaapana/mounted/pacsdata
+        - name: uploads
+          mountPath: /kaapana/app/uploads/
       volumes:
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: uploads-pv-claim
       - name: airflow-configmap
         configMap:
           name: airflow-configmap

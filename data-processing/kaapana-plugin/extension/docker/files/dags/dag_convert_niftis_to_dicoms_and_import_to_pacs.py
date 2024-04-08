@@ -5,7 +5,7 @@ from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-from kaapana.blueprints.json_schema_templates import schema_minio_form
+from kaapana.blueprints.json_schema_templates import schema_upload_form
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -13,49 +13,15 @@ from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.Itk2DcmOperator import Itk2DcmOperator
 from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR
+from kaapana.operators.LocalVolumeMountOperator import LocalVolumeMountOperator
 
 from pathlib import Path
 
-try:
-    minioClient = HelperMinio(username="system")
-
-    objects = minioClient.list_objects(
-        "uploads",
-        prefix="itk",
-        recursive=True,
-    )
-
-    object_names = [obj.object_name for obj in objects]
-    itk_zip_objects = [
-        object_name for object_name in object_names if object_name.endswith(".zip")
-    ]
-
-    itk_directories = []
-    for object_name in object_names:
-        object_directory = str(Path(object_name).parents[0])
-        if not object_directory.endswith(
-            ("imagesTr", "imagesTs", "labelsTr", "labelsTs", "cases", "segs")
-        ):
-            itk_directories.append(str(Path(object_name).parents[0]))
-except Exception as e:
-    itk_directories = ["Something does not work :/"]
-    itk_zip_objects = ["Something does not work :/"]
-
 ui_forms = {
-    **schema_minio_form(
-        select_options="both",
-        blacklist_directory_endings=(
-            "imagesTr",
-            "imagesTs",
-            "labelsTr",
-            "labelsTs",
-            "cases",
-            "segs",
-        ),
-        whitelist_object_endings=(".zip"),
+    **schema_upload_form(
+        whitelisted_file_formats=(".zip"),
     ),
     "workflow_form": {
         "type": "object",
@@ -75,7 +41,7 @@ ui_forms = {
                 "required": True,
             },
             "delete_original_file": {
-                "title": "Delete file from Minio after successful upload?",
+                "title": "Delete file from file system after successful import?",
                 "type": "boolean",
                 "default": True,
             },
@@ -98,17 +64,23 @@ dag = DAG(
     dag_id="convert-nifitis-to-dicoms-and-import-to-pacs",
     default_args=args,
     schedule_interval=None,
+    tags= ["import"]
 )
 
-
-get_object_from_minio = LocalMinioOperator(
-    action="get", dag=dag, local_root_dir="{run_dir}/itk", operator_out_dir="itk"
+get_object_from_uploads = LocalVolumeMountOperator(
+    dag=dag,
+    mount_path="/kaapana/app/uploads",
+    action="get",
+    keep_directory_structure=False,
+    name="get-uploads",
+    whitelisted_file_endings=(".zip",),
+    trigger_rule="none_failed",
+    operator_out_dir="itk",
 )
 
 unzip_files = ZipUnzipOperator(
     dag=dag,
-    input_operator=get_object_from_minio,
-    # operator_out_dir="itk",
+    input_operator=get_object_from_uploads,
     batch_level=True,
     mode="unzip",
 )
@@ -116,7 +88,6 @@ unzip_files = ZipUnzipOperator(
 convert = Itk2DcmOperator(
     dag=dag,
     name="convert-itk2dcm",
-    # dev_server='code-server',
     trigger_rule="none_failed_min_one_success",
     input_operator=unzip_files,
 )
@@ -129,7 +100,6 @@ convert_seg = Itk2DcmSegOperator(
     input_type="multi_label_seg",
     skip_empty_slices=True,
     fail_on_no_segmentation_found=False
-    # dev_server='code-server',
 )
 
 dcm_send_seg = DcmSendOperator(name="dcm-send-seg", dag=dag, input_operator=convert_seg)
@@ -140,8 +110,8 @@ dcm_send_img = DcmSendOperator(
     input_operator=convert,
 )
 
-remove_object_from_minio = LocalMinioOperator(
-    dag=dag, name="removing-object-from-minio", action="remove"
+remove_object_from_uploads = LocalVolumeMountOperator(
+    dag=dag, name="removing-object-from-uploads", mount_path="/kaapana/app/uploads", action="remove", whitelisted_file_endings=(".zip",)
 )
 
 clean = LocalWorkflowCleanerOperator(
@@ -153,7 +123,7 @@ def branching_zipping_callable(**kwargs):
     download_dir = (
         Path(AIRFLOW_WORKFLOW_DIR)
         / kwargs["dag_run"].run_id
-        / get_object_from_minio.operator_out_dir
+        / get_object_from_uploads.operator_out_dir
     )
     conf = kwargs["dag_run"].conf
     if "action_files" in conf["data_form"]:
@@ -189,29 +159,29 @@ branching_sending = BranchPythonOperator(
 )
 
 
-def branching_cleaning_minio_callable(**kwargs):
+def branching_cleaning_uploads_callable(**kwargs):
     conf = kwargs["dag_run"].conf
     delete_original_file = conf["workflow_form"]["delete_original_file"]
     if delete_original_file:
-        return [remove_object_from_minio.name]
+        return [remove_object_from_uploads.name]
     else:
         return [clean.name]
 
 
-branching_cleaning_minio = BranchPythonOperator(
-    task_id="branching-cleaning-minio",
+branching_cleaning_uploads = BranchPythonOperator(
+    task_id="branching-cleaning-uploads",
     provide_context=True,
     trigger_rule="none_failed_min_one_success",
-    python_callable=branching_cleaning_minio_callable,
+    python_callable=branching_cleaning_uploads_callable,
     dag=dag,
 )
 
 
-get_object_from_minio >> branching_zipping
+get_object_from_uploads >> branching_zipping
 branching_zipping >> unzip_files >> convert
 branching_zipping >> convert
 convert >> branching_sending
-branching_sending >> convert_seg >> dcm_send_seg >> branching_cleaning_minio
-branching_sending >> dcm_send_img >> branching_cleaning_minio
-branching_cleaning_minio >> remove_object_from_minio >> clean
-branching_cleaning_minio >> clean
+branching_sending >> convert_seg >> dcm_send_seg >> branching_cleaning_uploads
+branching_sending >> dcm_send_img >> branching_cleaning_uploads
+branching_cleaning_uploads >> remove_object_from_uploads >> clean
+branching_cleaning_uploads >> clean

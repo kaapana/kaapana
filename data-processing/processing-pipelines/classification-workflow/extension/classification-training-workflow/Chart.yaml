@@ -1,10 +1,9 @@
 ---
 apiVersion: v1
 appVersion: "0.1.0"
-description: Train a cnn to do classification on 2D or 3D images from tags
+description: Train a ResNet18 to do classification on 2D or 3D images from tags
 name: classification-training-workflow
 version: "0.0.0"
 keywords:
 - kaapanaworkflow
-- kaapanaexperimental
 - gpurequired

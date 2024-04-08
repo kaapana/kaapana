@@ -473,8 +473,9 @@ batch_path = os.path.join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAM
 if allow_empty_segmentation:
     create_empty_seg(
         batch_path,
-        os.environ.get("BASE_NIFTI_DIR", ""),
         os.environ["OPERATOR_IMAGE_LIST_INPUT_DIR"],
+        nifti_dir=os.environ.get("BASE_NIFTI_DIR", ""),
+        dicom_dir=os.environ.get("OPERATOR_IN_DIR", ""),
     )
 
 

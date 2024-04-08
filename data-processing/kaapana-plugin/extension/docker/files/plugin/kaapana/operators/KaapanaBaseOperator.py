@@ -660,6 +660,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             if self.xcom_push:
                 return result
 
+    def on_kill(self) -> None:
+        logging.info(
+            "##################################################### ON KILL!"
+        )
+        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=self.kube_name)
+
     def delete_operator_out_dir(self, run_id, operator_dir):
         logging.info(f"#### deleting {operator_dir} folders...!")
         run_dir = os.path.join(self.airflow_workflow_dir, run_id)

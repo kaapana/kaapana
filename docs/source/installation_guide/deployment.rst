@@ -166,7 +166,7 @@ Deployment configurations
 
 | :code:`CHART_PATH` `(default: "", type=string)` 
 | Absolute path for .tgz file of platform chart. Setting this path will not necessarilly deploy the platform in offline mode.
-| However is necessary in `OFFLINE_MODE`. Providing a chart path will also set :code:`PREFETCH_EXTENSIONS="false"`.
+| NOTE: If `OFFLINE_MODE="true"`, `CHART_PATH` configuration is required. Providing a chart path will also set :code:`PREFETCH_EXTENSIONS="false"`.
 |
 
 | :code:`NO_HOOKS` `(default: "", type=string)`
@@ -178,7 +178,8 @@ Deployment configurations
 |
 
 | :code:`OFFLINE_MODE` `(default: false, tpye=bool)`
-| Is automatically set to true, if :code:`CHART_PATH` is set.
+| If set to `"true"`, `CHART_PATH` is required. 
+| If `OFFLINE_MODE="true"`, the `imagePullPolicy="IfNotPresent"`. 
 |
 
 Namespace configurations

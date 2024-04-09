@@ -288,6 +288,11 @@ function deploy_chart {
         exit 1
     fi
 
+    if [ "$OFFLINE_MODE" == "true" ] && [ -z "$CHART_PATH" ]; then
+        echo "${RED}ERROR: CHART_PATH needs to be set when in OFFLINE_MODE!${NC}"
+        exit 1
+    fi
+
     get_domain
     
     if [ -z "$INSTANCE_NAME" ]; then
@@ -335,26 +340,19 @@ function deploy_chart {
         fi
     fi
 
-    if [ ! -z "$OFFLINE_MODE" ] && [ -z "$CHART_PATH" ]; then
-        echo "${RED}ERROR: Chart file specified without setting OFFLINE_MODE.${NC}"
-        exit 1
-    fi
-    
-    # Set password
     if [ "$DEV_MODE" == "true" ]; then
         KAAPANA_INIT_PASSWORD="kaapana"
     else
         KAAPANA_INIT_PASSWORD="Kaapana2020!"
     fi
 
-    # Set pull policy
     if [ "$OFFLINE_MODE" == "true" ] || [ "$DEV_MODE" == "false" ]; then
         PULL_POLICY_IMAGES="IfNotPresent"
     else
         PULL_POLICY_IMAGES="Always"
     fi
         
-    if [ ! -z "$OFFLINE_MODE" || ! -z "$CHART_PATH"]; then
+    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH 
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 

@@ -281,33 +281,62 @@ Code server
 
 .. _extensions_jupyterlab:
 
-Jupyter lab
+JupyterLab
 -----------
-| **What's going on?**
-| The Jupyter lab can be used to quickly analyse data that are saved to the object store Minio. We tried to preinstall most of the common python packages. Please do not use the Jupyter notebook for sophisticated calculations. Here, it is better to write an Airflow DAG
+The `JupyterLab <https://jupyter.org/>`__ is an excellent tool to swiftly analyse data stored to the MinIO object store.
+It comes preinstalled with a wide array of commonly used Python packages for data analysis.
+You can deploy multiple instances of JupyterLab simultaneously, each with its dedicated MinIO bucket named after the respective JupyterLab instance.
+Data stored within this bucket is available to the JupyterLab application through the `/minio/jupyterlab` directory.
+You can save your `.ipynb` analysis-scripts to the directory `/minio/analysis-scripts`.
+Files in this directory will be automatically transfered to the MinIO bucket named `analysis-scripts` and are available to the `JupyterlabReportingOperator`.
+While JupyterLab is great for exploratory data analysis, for more complex calculations, consider developing a dedicated Airflow DAG.
 
 | **Mount point:**  
-| <slow_data_dir>/minio
+| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/jupyterlab
+| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/analysis-scripts
 
 .. _extensions_mitk_workbench:
 
 MITK Workbench
 --------------
-| **What's going on?**
-| The MITK Workbench is an instance of `MITK <https://www.mitk.org>`__ running in a pod.
-
+The MITK Workbench is an instance of `MITK <https://www.mitk.org>`__ running in a container and available to users via Virtual Network Computing (VNC).
+Multiple instances of MITK can be deployed simultaneously.
+For each deployment a dedicated MinIO bucket is created, named after the respective MITK instance.
+To import data into the running MITK container, upload your data to the `/input` directory within this MinIO bucket.
+All data stored at this path of the MinIO bucket will be transferred to the `/input` directory of the MITK container.
+If you wish to retrieve your results from the MITK application, ensure to save them to the `/output` directory within the MITK container.
+Any data placed in this directory will be automatically transferred to the `/output` directory within the dedicated MinIO bucket.
 
 | **Mount point:**  
-| <slow_data_dir>/minio
+| <slow_data_dir>/applications/mitk/<mitk-instance-name>/input
+| <slow_data_dir>/applications/mitk/<mitk-instance-name>/output
+
+.. _extensions_slicer_workbench:
+
+Slicer Workbench
+----------------
+The Slicer workbench is an instance of `3D Slicer <https://slicer.org/>`__ running in a container and available to users via Virtual Network Computing (VNC).
+Multiple instances of Slicer can be deployed simultaneously.
+For each deployment a dedicated MinIO bucket is created, named after the respective Slicer instance.
+To import data into the running Slicer container, upload your data to the `/input` directory within this MinIO bucket.
+All data stored at this path of the MinIO bucket will be transferred to the `/input` directory of the Slicer container.
+If you wish to retrieve your results from the Slicer application, ensure to save them to the `/output` directory within the Slicer container.
+Any data placed in this directory will be automatically transferred to the `/output` directory within the dedicated MinIO bucket.
+
+| **Mount point:**  
+| <slow_data_dir>/applications/slicer/<slicer-instance-name>/input
+| <slow_data_dir>/applications/slicer/<slicer-instance-name>/output
 
 .. _extensions_tensorboard:
 
 Tensorboard
 -----------
-| **What's going on?**
-| Tensorboard can be launched to analyse generated results during a training, which will come in the future. It also mounts to the Minio directory.
+`Tensorboard <https://www.tensorflow.org/tensorboard>`__ can be launched to analyse results generated during a training.
+Multiple instances of Tensorboard can be deployed simultaneously.
+For each deployment a dedicated MinIO bucket is created, named after the respective Tensorboard instance.
+Data stored within this bucket are available to the Tensorboard application.
 
 | **Mount point:**  
-| <slow_data_dir>/minio
+| <slow_data_dir>/applications/tensorboard/<tensorboard-instance-name>
 
 

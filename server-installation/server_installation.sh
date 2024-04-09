@@ -405,8 +405,7 @@ function install_microk8s {
         set -e
         
         echo "${YELLOW}Starting microk8s${NC}"
-        microk8s.start        
-        
+        microk8s.start
         echo "${YELLOW}Wait until microk8s is ready ...${NC}"
         microk8s.status --wait-ready >/dev/null 2>&1
         

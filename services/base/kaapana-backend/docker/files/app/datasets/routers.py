@@ -253,9 +253,9 @@ async def get_series(data: dict = Body(...)):
 
         # The order matters!!
         if curated_filter_properties.get("patientFilterProperties", []):
-            df = df.groupby("Patient ID").apply(check_and_or_criteria, curated_filter_properties.get("patientFilterProperties", []), target="Patient ID").reset_index(drop=True)
+            df = df.groupby("Patient ID", sort=False).apply(check_and_or_criteria, curated_filter_properties.get("patientFilterProperties", []), target="Patient ID").reset_index(drop=True)
         if curated_filter_properties.get("studyFilterProperties", []):
-            df = df.groupby("Study Instance UID").apply(check_and_or_criteria, curated_filter_properties.get("studyFilterProperties", []), target="Study Instance UID").reset_index(drop=True)
+            df = df.groupby("Study Instance UID", sort=False).apply(check_and_or_criteria, curated_filter_properties.get("studyFilterProperties", []), target="Study Instance UID").reset_index(drop=True)
         if curated_filter_properties.get("seriesFilterProperties", []):
             mask = df.apply(lambda s: check_and_or_criteria(s, curated_filter_properties.get("seriesFilterProperties", []), target="Series Instance UID"), axis=1)
             df = df[mask].reset_index(drop=True)
@@ -264,19 +264,25 @@ async def get_series(data: dict = Body(...)):
             print("No results found after filtering -> returning empty list")
             return JSONResponse({})
 
+        df['uid_prefix'] = df['Study Instance UID'].apply(lambda x: ".".join(x.split(".")[:-1]))
+        df['uid_last_section'] = df['Study Instance UID'].apply(lambda x: int(x.split(".")[-1]))
+
         return JSONResponse(
             {
-                k: f.groupby("Study Instance UID")["Series Instance UID"]
+                k: f.groupby("Study Instance UID", sort=False)["Series Instance UID"]
                 .apply(list)
                 .to_dict()
                 for k, f in df.sort_values(
                     [
+                        "Patient ID",
+                        "uid_prefix",
+                        "uid_last_section",
                         "Modality",
                         "Series Number",
                         "Study Description",
                         "Series Description",
                     ]
-                ).groupby("Patient ID")
+                ).groupby("Patient ID", sort=False)
             }
         )
     elif not structured:

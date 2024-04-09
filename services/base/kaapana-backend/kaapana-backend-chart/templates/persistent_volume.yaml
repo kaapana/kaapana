@@ -1,4 +1,6 @@
+{{- if eq .Values.global.backend_type "backend" }}
 {{ include "dynamicPersistentVolumes" $ }}
+{{- end }}
 # dev-files
 {{- if .Values.global.dev_files }}
 ---

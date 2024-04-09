@@ -170,10 +170,9 @@ def create_remote_kaapana_instance(
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return schemas.KaapanaInstance.clean_return(
-        crud.create_and_update_remote_kaapana_instance(
-            db=db, remote_kaapana_instance=remote_kaapana_instance
-        )
+
+    return crud.create_and_update_remote_kaapana_instance(
+        db=db, remote_kaapana_instance=remote_kaapana_instance
     )
 
 
@@ -192,30 +191,23 @@ def put_remote_kaapana_instance(
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return schemas.KaapanaInstance.clean_return(
-        crud.create_and_update_remote_kaapana_instance(
-            db=db, remote_kaapana_instance=remote_kaapana_instance, action="update"
-        )
+    return crud.create_and_update_remote_kaapana_instance(
+        db=db, remote_kaapana_instance=remote_kaapana_instance, action="update"
     )
-
 
 @router.put("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
 def put_client_kaapana_instance(
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-    return schemas.KaapanaInstance.clean_return(
-        crud.create_and_update_client_kaapana_instance(
-            db=db, client_kaapana_instance=client_kaapana_instance, action="update"
-        )
+    return crud.create_and_update_client_kaapana_instance(
+        db=db, client_kaapana_instance=client_kaapana_instance, action="update"
     )
 
 
 @router.get("/kaapana-instance", response_model=schemas.KaapanaInstance)
 def get_kaapana_instance(instance_name: str = None, db: Session = Depends(get_db)):
-    return schemas.KaapanaInstance.clean_return(
-        crud.get_kaapana_instance(db, instance_name)
-    )
+    return crud.get_kaapana_instance(db, instance_name)
 
 
 @router.post("/get-kaapana-instances", response_model=List[schemas.KaapanaInstance])
@@ -227,8 +219,6 @@ def get_kaapana_instances(
         db, filter_kaapana_instances=filter_kaapana_instances
     )
 
-    for instance in kaapana_instances:
-        schemas.KaapanaInstance.clean_return(instance)
     return kaapana_instances
 
 
@@ -266,10 +256,6 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
 # also okay: JobWithWorkflow
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     job = crud.get_job(db, job_id, run_id)
-    if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-            job.kaapana_instance
-        )
     return job
 
 
@@ -424,7 +410,6 @@ def ui_form_schemas(
     #     and "dataset_name" in schemas["data_form"]["properties"]
     # ):
     datasets = {}
-    dataset_size = {}
     for instance_name in filter_kaapana_instances.instance_names:
         # check if whether instance_name is client_instance --> datasets = crud.get_datasets(db, username=username)
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
@@ -432,15 +417,11 @@ def ui_form_schemas(
             # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
             client_datasets = crud.get_datasets(db, username=username)
             allowed_dataset = [ds.name for ds in client_datasets]
-            dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
+            # dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
         else:
             allowed_dataset = list(
                 ds["name"] for ds in db_kaapana_instance.allowed_datasets
             )
-            dataset_size = {
-                ds["name"]: len(ds["identifiers"])
-                for ds in db_kaapana_instance.allowed_datasets
-            }
         datasets[db_kaapana_instance.instance_name] = allowed_dataset
 
     if len(datasets) > 1:
@@ -497,13 +478,7 @@ def ui_form_schemas(
             status_code=404,
             detail=f"Dag {dag_id} is not part of the dag list. In remote execution the issue might be that is it not part of the allowed dags, please add it!",
         )
-
-
-@router.get("/check-for-remote-updates")
-def check_for_remote_updates(db: Session = Depends(get_db)):
-    crud.get_remote_updates(db, periodically=False)
-    return {f"Federated backend is up and running!"}
-
+    
 
 @router.post("/dataset", response_model=schemas.Dataset)
 def create_dataset(

@@ -10,5 +10,4 @@ Installation Guide
     installation_guide/build
     installation_guide/server_installation
     installation_guide/deployment
-    installation_guide/advanced_offline
     installation_guide/advanced_build_system

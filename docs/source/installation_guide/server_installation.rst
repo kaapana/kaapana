@@ -1,3 +1,5 @@
+.. _server_installation:
+
 Server Installation
 *******************
 
@@ -16,10 +18,7 @@ Server Installation
 
 #. **Access to a container registry (online) or a prebuild installer and tarball (offline)**
 
-   Before proceeding with further installation steps, make sure you have access either to:
-   
-   - Container registry -> :ref:`build`
-   - Tarball -> For further information about offline tarball installation visit :ref:`kaapana_offline`.
+   Before proceeding with further installation steps, make sure you have access either to container registry or image tarball and microk8s installer installer visit :ref:`build`.
 
    .. hint::
 
@@ -103,30 +102,46 @@ Besides a few required software packages, mainly Microk8s is installed, to setup
   | GPU support requires the installation of Nvidia drivers.
   | Please make sure the :code:`nvidia-smi` command is working as expected!
 
-Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server. 
-To do this, you can use the :term:`server-installation-script`, located at :code:`kaapana/server-installation/server_installation.sh`, by following the steps listed below.
+Before the example platform "Kaapana-platform" can be deployed, all dependencies must be installed on the server.
+To do this, you can use the :term:`server-installation-script`. 
 
-.. hint:: 
+.. hint::
    | If you don't want to clone the Kaapana repository, you can copy the :code:`server_installation.sh` script from `Github <https://github.com/kaapana/kaapana/blob/master/server-installation/server_installation.sh>`_.
 
 1. Copy the script to your target-system (server)
+
+   .. tabs::
+
+      .. tab:: Online
+
+         Script location\: ``kaapana/server-installation/``
+
+      .. tab:: Tarball
+
+         | Script location\: ``kaapana/build/microk8s-offline-installer/``
+         | The directory is created in :ref:`build`.
+         | Copy the whole directory, as it contains installers for microk8s and helm.
+
 2. Make it executable:
 
    | :code:`chmod +x server_installation.sh`
 
-3. Execute the script:
+3. Execute the server installation script:
    
    .. tabs::
 
-      .. tab:: Ubuntu
-
+      .. tab:: Online
          | :code:`sudo ./server_installation.sh`
-      
-      .. tab:: AlmaLinux
+   
+      .. tab:: Tarball
+         | Use ``--offline`` flag.
+         | :code:`sudo ./server_installation.sh --offline`
 
-         | :code:`sudo -E ./server_installation.sh`
-   
-   
+   .. note::
+
+      | On Almalinux it is recommended to set `-E` flag to preserve user's environmental variables.
+      | :code:`sudo -E ./server_installation.sh`
+
 4. Reboot the system 
 
    | :code:`sudo reboot`

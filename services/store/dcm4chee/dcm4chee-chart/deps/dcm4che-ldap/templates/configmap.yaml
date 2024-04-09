@@ -1,8 +1,43 @@
----
 apiVersion: v1
-data:
-{{ (.Files.Glob "files/dcm4che-iid.ldif").AsConfig | indent 2 }}
+data: 
+  dcm4che-iid.ldif: |-
+    version: 1
+    dn: dcmWebAppName=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    changetype: modify
+    add: dcmProperty
+    dcmProperty: IID_PATIENT_URL=/ohif
+    -
+
+    dn: dcmWebAppName=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    changetype: modify
+    add: dcmProperty
+    dcmProperty: IID_STUDY_URL=/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{ "{{" }}studyUID{{ "}}" }}
+
+    dn: cn=JPEG LS Lossless,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    objectClass: dcmArchiveCompressionRule
+    cn: JPEG LS Lossless
+    dicomTransferSyntax: 1.2.840.10008.1.2.4.80
+    dcmImageWriteParam: maxPixelValueError=0.0
+    dcmProperty: Modality=MR|CT
+
+    dn: dcmWebAppName=KAAPANA,dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    changetype: modify
+    add: dcmProperty
+    dcmProperty: IID_URL_TARGET=_self
+
+    dn: dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    changetype: modify
+    replace: dcmRemapRetrieveURL
+    dcmRemapRetrieveURL: https://{{ .Values.global.hostname  }}
+
+    version: 1
+    dn: dicomDeviceName=kaapana,cn=Devices,cn=DICOM Configuration,dc=dcm4che,dc=org
+    changetype: modify
+    replace: dcmQidoMaxNumberOfResults
+    dcmQidoMaxNumberOfResults: 0
+    -
 kind: ConfigMap
 metadata:
   name: dcm4che-iid-config
   namespace: "{{ .Values.global.services_namespace }}"
+---

@@ -1,5 +1,10 @@
 from fastapi import APIRouter, Depends
-from app.dependencies import get_document_store, get_connection_manager, get_wopi
+from app.dependencies import (
+    get_document_store,
+    get_connection_manager,
+    get_wopi,
+    get_minio_client,
+)
 from app.model.wopi import WOPI
 from app.model.documents import DocumentStore
 from app.config import get_settings
@@ -12,9 +17,12 @@ async def refresh_documents(
     doc_store: DocumentStore = Depends(get_document_store),
     wopi_srv=Depends(get_wopi),
     con_mgr=Depends(get_connection_manager),
+    minio=Depends(get_minio_client),
 ):
     doc_store.find_documents(
-        wopi_srv.supported_extensions(), get_settings().document_path_ignore_regex
+        minio,
+        wopi_srv.supported_extensions(),
+        get_settings().document_path_ignore_regex,
     )
     await con_mgr.announce_documents()
 

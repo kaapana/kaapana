@@ -46,7 +46,7 @@ Note: If you have already built the platform, these variables should have been f
 
    .. tab:: Tarball
 
-      Assure yourself that you have both files generated in :ref:`build`
+      Assure yourself that you have files generated in :ref:`build`
       
       - Built images: ``kaapana-admin-chart-<version>-images.tar``
       - Chart file: ``kaapana-admin-chart-<version>.tgz``

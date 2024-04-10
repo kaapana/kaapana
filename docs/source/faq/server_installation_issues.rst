@@ -5,9 +5,8 @@ Server Installation Issues
 
 **Script terminated by SIGINT (Almalinux)**
 
-Red Hat Linux, and Almalinux have specific issues where microk8s command executed
-inside of a bash script are killed with SIGINT with exit code 143 as mentioned `here <https://github.com/canonical/microk8s/issues/3386>`_:
-The script exits with error message `Terminated`.
+| Red Hat Linux, and Almalinux have specific issues where microk8s command executed inside of a bash script are killed with SIGINT with exit code 143 as mentioned `here <https://github.com/canonical/microk8s/issues/3386>`_.
+| The script exits with error message `Terminated`.
 
 Potential fixes:
 

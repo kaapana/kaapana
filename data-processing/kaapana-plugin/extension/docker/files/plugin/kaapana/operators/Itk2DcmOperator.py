@@ -15,6 +15,7 @@ class Itk2DcmOperator(KaapanaBaseOperator):
 
         Unimodal datasets can also be parsed directly with the following structure.
 
+        ```
         path
         |----dataset
         |    | meta_data.json
@@ -24,6 +25,7 @@ class Itk2DcmOperator(KaapanaBaseOperator):
         |    | series2.nii.gz
         |    | series2_seg.nii.gz
         |    | ...
+        ```
 
     **Outputs:**
         Converted Dicoms. Associated segmentations are not converted yet, but prepared to be converted by the Itk2DcmSegOperator.

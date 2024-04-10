@@ -3,8 +3,12 @@
 User Guide
 ############
 
+The following sections describe the different parts of the user interface and their functionalities.
+
+
+
 .. toctree::
-    :maxdepth: 3
+    :maxdepth: 2
 
     user_guide/workflows
     user_guide/store

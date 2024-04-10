@@ -1,6 +1,6 @@
-.. _storage:
+.. _store:
 
-Storage
+Store
 *******
 
 In general, the platform is a processing platform, which means that it is not a persistent data storage. Ideally, all the data on the platform should only form a copy of the original data.

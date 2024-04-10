@@ -136,9 +136,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("# Starting module LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs["dag_run"].conf
-        self.dcmweb_helper = HelperDcmWeb(
-            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
-        )
         dag_run_id = kwargs["dag_run"].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get("seriesInstanceUID")
@@ -341,6 +338,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("#####################################################")
             raise ValueError("ERROR")
         series_download_fail = []
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+        )
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(self.get_data, download_list)
             for download_successful, series_uid in results:
@@ -378,7 +378,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         :param data_form: 'json'
         :param check_modality: 'True' or 'False'
         :param dataset_limit: limits the download list
-        :param include_custom_tag_property: key in workflow_form for filtering with tags that must exist  
+        :param include_custom_tag_property: key in workflow_form for filtering with tags that must exist
         :param exclude_custom_tag_property: key in workflow_form for filtering with tags that must not exist
         :param parallel_downloads: default 3, number of parallel downloads
         """

@@ -13,8 +13,8 @@ We commonly refer to these containers as `processing-containers`.
 Furthermore, Airflow functions as the scheduling system for the data-processing-pipelines.
 The Airflow user interface offers comprehensive insights into DAGs, DAG runs, and their scheduling details.
 
-The platform comes with several DAGs that can be used for data-management.
-Additional DAGs can be installed as `ẁorkflow-extensions` in the `Extensions` page.
+The platform comes with several preinstalled DAGs and a large set of :ref:`custom operators<operators>`.
+Additional DAGs can be installed as :ref:`ẁorkflow-extensions<extensions_workflows>` in the `Extensions` page.
 
 collect-metadata
 ******************

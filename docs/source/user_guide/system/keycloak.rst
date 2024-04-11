@@ -6,11 +6,12 @@ Keycloak
 Keycloak is an open source identity and access management solution that we integrated in our platform for identity and access management. 
 It can be accessed via *System* tab in the web interface.
 
-Access to features of the platform is separated into two groups:
+Access to platform features is segmented into two groups:
 
-* Members of the **kaapana_admin** group have unlimited access to all features of the platform.
-* Members of the **kaapana_user** group have access to the all features of the `Workflows Management System` without the `Instance Overview`. Furhtermore, they have limited access to the `PACS` and `MinIO`. They have full access to `Meta`.
+* **kaapana_admin**: Members of this group inherit the `admin` role and the MinIO policy `consoleAdmin`. They have unrestricted access to all platform features.
+* **kaapana_user**: Members of this group inherit the `user` role and the MinIO policy `kaapanaUser`. They can access all features within the `Workflows Management System` except for the `Instance Overview`. Additionally, their access to `PACS` and `MinIO` is limited, while they retain full access to `Meta`.
 
+.. _how_to_create_a_user:
 
 How to create a new user
 *************************
@@ -23,19 +24,12 @@ How to create a new user
 6. Click `Create`
 7. Change to the `Credentials` tab of the new user and set a password.
 
-
-Any user in the `kaapana_admin` group has unrestricted access to all features of the platform.
-Users in the `kaapana_user` group have only limited access.
-I.e. they have only access 
-
-
 Authorization
 ***************
 
-Traefik routes each request through a authorization middleware.
-This middleware forwards each request to a authorization server.
-The authorization server asks the Policy Decision Point (DPD), if the user has sufficient permissions to make the request.
-We deploy `Open Policy Agent (OPA) <https://www.openpolicyagent.org/docs/latest/http-api-authorization/>`_ as DPD.
+Traefik directs every request through an authorization middleware, which in turn forwards the request to an authorization server. 
+This server consults the Policy Decision Point (PDP) to determine whether the user has the requisite permissions for the request. 
+For our Policy Decision Point (PDP), we deploy `Open Policy Agent (OPA) <https://www.openpolicyagent.org/docs/latest/http-api-authorization/>`_.
 
 
 Connecting an Active Directory

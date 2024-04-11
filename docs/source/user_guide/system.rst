@@ -12,8 +12,12 @@ To monitor the platform's health and status, we offer `Prometheus <https://prome
 These tools provide comprehensive insights into various metrics and performance indicators.
 All data-processing in the platform is based on Directed-Acyclic-Graphs (DAGs) defined in `Airflow <https://airflow.apache.org/docs/apache-airflow/stable/index.html>`_
 
-.. include:: system/airflow.rst
-.. include:: system/kubernetes.rst
-.. include:: system/keycloak.rst
-.. include:: system/traefik.rst
-.. include:: system/monitoring.rst
+
+.. toctree::
+    :maxdepth: 2
+
+    system/airflow
+    system/kubernetes
+    system/keycloak
+    system/traefik
+    system/monitoring

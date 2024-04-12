@@ -57,7 +57,7 @@ As an example, let’s say you run a DAG like TotalSegmentator on CT data and ge
 
 a. Evaluation metrics available**: select the metrics you want to run on the data. More details about the metrics can be found in Monai Metrics docs.
 b. **Tag**: the tag that you use to separate ground truth from predictions, for this example we use :code:`pred`.
-c. **Filter GT**: for filter operator, use :code:`Keep:\` or :code:`Ignore:\` to specify annotation labels that you want to filter in ground truth data. You can check the annotation labels of data by double clicking on them in Datasets view. Can also leave empty if you want to use all labels downstream.
+c. **Filter GT**: for filter operator, use :code:`Keep` or :code:`Ignore` to specify annotation labels that you want to filter in ground truth data. You can check the annotation labels of data by double clicking on them in Datasets view. Can also leave empty if you want to use all labels downstream.
 d. **Filter Test Seg**: same with test data. Here we only select the ones we are interested in, because TotalSegmentator generates a lot of segmentations that are not useful for us in this case.
 e. **GT Fuse Labels**: the label(s) that you want to fuse into a new label. In this example we are fusing :code:`lung` labels (each segmentation has two with same name)
 f. **GT Fuse New Label Name**: the name of the new label created by fusing the labels above. :code:`lungsgt` for this example. Note that all the special characters will be removed from this label.
@@ -135,3 +135,8 @@ tag-train-test-split-dataset
 
 train-with-pretrained-weights
 """""""""""""""""""""""""""""""
+This DAG allows users to run available training DAGs starting with a previously trained model weights. It expects at least one of the two following DAGs to be installed: :code:`nnunet-workflow` or :code:`classification-workflow`. After selecting one, it is possible to choose a pretrained model for warm start. All the other fields will be the same as in the original DAG.
+
+The parent DAG will trigger one of the two child DAGs, passing the pretrained model path as parameter, and the child DAG run will be shown as a service workflow in the workflow list. It is only possible to start/stop individual jobs of a service workflow.
+
+Note that if either :code:`nnunet-workflow` or :code:`classification-workflow` is not visible under *Training Workflow* option, even though they are installed as extensions, it can be the case that :code:`airflow-webserver` did not refresh and pick up the changes yet. You can just wait, use the refresh button in the workflow execution form or delete :code:`airflow-webserver` pod via kubernetes to make sure the changes are up to date.

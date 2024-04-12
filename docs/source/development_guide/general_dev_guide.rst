@@ -10,6 +10,18 @@ The part :ref:`workflow_dev_guide` focuses on the integration of custom processi
 It will be explained how to formulate workflows in Airflow-DAGs and further how to integrate workflows as extensions into the Kaapana technology stack.
 The last section :ref:`application_dev_guide` gives step by step instructions how to deploy a general--purpose web application within Kaapana as an example how new components can be added to the platform.
 
+Pre-commit
+^^^^^^^^^^
+
+| Before commiting to the codebase, it is important to install `pre-commit hook <https://pre-commit.com/>`_. 
+| This hook check if your files follow `black <https://black.readthedocs.io/en/stable/>`_ formatting and formats them accordingly if not. 
+| You can find the pre-commit hook in ``kaapana/utils/pre-commit``.
+| To install hook run this in the root of the repository: 
+
+   .. code-block:: bash
+      
+      pip install pre-commit && pre-commit
+
 
 List of the technologies
 ^^^^^^^^^^^^^^^^^^^^^^^^

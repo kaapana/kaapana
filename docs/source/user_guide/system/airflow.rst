@@ -16,50 +16,55 @@ The Airflow user interface offers comprehensive insights into DAGs, DAG runs, an
 The platform comes with several preinstalled DAGs and a large set of :ref:`custom operators<operators>`.
 Additional DAGs can be installed as :ref:`ẁorkflow-extensions<extensions_workflows>` in the `Extensions` page.
 
+.. _preinstalled_dags:
+
+Preinstalled DAGs
+*******************
+
 collect-metadata
-******************
+""""""""""""""""""
 
 convert-niftis-to-dicom-and-import-to-pacs
-********************************************
+""""""""""""""""""""""""""""""""""""""""""""
 
 delete-series-from-platform
-******************************
+""""""""""""""""""""""""""""""
 
 download-selected-files
-***************************
+"""""""""""""""""""""""""""
 
 evaluate-segmentations
-************************
+""""""""""""""""""""""""
 
 import-dicoms-in-zip-to-internal-pacs
-***************************************
+"""""""""""""""""""""""""""""""""""""""
 
 send-dicom
-************
+""""""""""""
 
 service-daily-cleanup-jobs
-***************************
+"""""""""""""""""""""""""""
 
 service-extract-metadata
-***************************
+"""""""""""""""""""""""""""
 
 service-process-incoming-dcm
-*****************************
+"""""""""""""""""""""""""""""
 
 service-re-index-dicom-data
-*****************************
+"""""""""""""""""""""""""""""
 
 service-segmentation-thumbnail
-********************************
+""""""""""""""""""""""""""""""""
 
 tag-dataset
-************
+""""""""""""
 
 tag-seg-ct-tuples
-******************
+""""""""""""""""""
 
 tag-train-test-split-dataset
-*****************************
+"""""""""""""""""""""""""""""
 
 train-with-pretrained-weights
-*******************************
+"""""""""""""""""""""""""""""""

@@ -147,9 +147,9 @@ Start Build
       .. tab:: Build With Local Registry
 
          | Not recommended. 
-         | If private registry is not available, it is possible to setup a local registry. 
+         | If a private registry is not available, it is possible to setup a local registry. 
          | This may be helpful for one-time show-casing, testing, developing, or if there are any issues with connection to the remote registry.
-         | This solution is only persistent while the docker container containing registry running. It also works only locally and cannot be distributed. 
+         | This solution is only persistent while the docker container containing the registry is running. It also works only locally and cannot be distributed. 
          | For building with a local registry, you need to set up a local Docker registry with basic authentication with following steps:
 
          1. Create credentials (replace **<registry user>** and **<registry password>**):
@@ -180,7 +180,7 @@ Start Build
       .. tab:: Build Tarball
 
          | Not recommended.
-         | In case platfrom should be deployed in the machine without internet access, 
+         | In case platfrom should be deployed in the machine without internet access (i.e. offline), 
          | installation files, containers and helm charts need to be pre-build on the server 
          | with internet access and copied on the server, where requirements can be installed and platfrom deployed. 
          | This configuration creates an image tarball and offline microk8s installer

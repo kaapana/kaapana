@@ -36,6 +36,73 @@ download-selected-files
 evaluate-segmentations
 """"""""""""""""""""""""
 
+This workflow is designed to compare two sets of segmentations, a ground truth and a prediction. All of the segmentations should be in the same dataset, the distinction between ground truth and test data is done via a :code:`test_tag`. More information about tagging data can be found in :ref:`datasets`. Note that you can either tag images manually, or use :code:`tag-dataset` workflow to apply to an entire dataset. 
+
+As an example, let’s say you run a DAG like TotalSegmentator on CT data and get predicted segmentations. First, you can create a new test dataset with all new segmentations (by filtering for :code:`Series Description`, and more, to get all relevant segmentations and click on :code:`Save as Dataset`). Then you can go to this dataset and run the :code:`tag-dataset` workflow. Now that all the predicted segmentations are tagged, you can create a new dataset with ground truth segmentations. After selecting this gt dataset, you can click on the :code:`Add to Dataset` button to add the test dataset on top of it.
+
+1. Select the dataset that contains both test and gt segmentations. In the screenshot below, the predicted segmentations from TotalSegmentator are tagged with “pred”. 
+
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/eval-seg-1.png
+   :alt: Tagging for segmentation evaluation
+   :align: center
+
+|
+
+2. In the workflow form, fill in the parameters as follows:
+
+.. image:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/eval-seg-2.png
+   :alt: Segmentation evaluation form
+   :width: 50%
+   :align: center
+
+a. Evaluation metrics available**: select the metrics you want to run on the data. More details about the metrics can be found in Monai Metrics docs.
+b. **Tag**: the tag that you use to separate ground truth from predictions, for this example we use :code:`pred`.
+c. **Filter GT**: for filter operator, use :code:`Keep:\` or :code:`Ignore:\` to specify annotation labels that you want to filter in ground truth data. You can check the annotation labels of data by double clicking on them in Datasets view. Can also leave empty if you want to use all labels downstream.
+d. **Filter Test Seg**: same with test data. Here we only select the ones we are interested in, because TotalSegmentator generates a lot of segmentations that are not useful for us in this case.
+e. **GT Fuse Labels**: the label(s) that you want to fuse into a new label. In this example we are fusing :code:`lung` labels (each segmentation has two with same name)
+f. **GT Fuse New Label Name**: the name of the new label created by fusing the labels above. :code:`lungsgt` for this example. Note that all the special characters will be removed from this label.
+g. **Test Fuse Labels**: same with test data. In the example here we are fusing all the lung parts into a single “lungstest” label
+h. **Test Fuse New Label Name**: same with test data
+i. **Label Mappings**: in the format of :code:`gtlabelx:testlabely,gtlabelz:testlabelt`, include all the label mapping that you want to evaluate from GT and test data.
+
+3. In Minio, the results should be available under the :code:`evaluate-segmentations` folder.
+
+.. code-block::
+   :caption: metrics.json
+
+    {
+        "1.2.276.0.7230010.3.1.3.17448391.39.1711634044.28207": {
+            "dice_score": {
+                "lungsgt:lungstest": [
+                    0.9780710339546204
+                ]
+            },
+            "surface_dice": {
+                "lungsgt:lungstest": [
+                    [
+                        0.5737958550453186
+                    ]
+                ]
+            },
+            "hausdorff_distance": {
+                "lungsgt:lungstest": [
+                    [
+                        25.475479125976562
+                    ]
+                ]
+            },
+            "asd": { // average surface distance
+                "lungsgt:lungstest": [
+                    [
+                        0.44900786876678467
+                    ]
+                ]
+            }
+        },
+        ...
+    }
+
+
 import-dicoms-in-zip-to-internal-pacs
 """""""""""""""""""""""""""""""""""""""
 

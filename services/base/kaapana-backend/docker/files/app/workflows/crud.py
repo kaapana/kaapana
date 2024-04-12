@@ -373,6 +373,22 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         )
         job.conf_data["federated_form"]["minio_urls"] = minio_urls
 
+    if "operator_out_dir" in job.conf_data:
+        minio_urls = job.conf_data.get("minio_urls", {})
+        operator_out_dir = job.conf_data["operator_out_dir"]
+        run_id = job.conf_data["run_id"]
+        object_name_in = f'{run_id}/{operator_out_dir}_in.tar.gz'
+        object_name_out = f'{run_id}/{operator_out_dir}_out.tar.gz'
+        minioClient = HelperMinio()
+        minioClient.get_custom_presigend_url("GET", "remote", object_name_in)["path"]
+        minio_urls.update(
+            {
+                f"{operator_out_dir}_in.tar.gz": minioClient.get_custom_presigend_url("GET", "remote", object_name_in)["path"],
+                f"{operator_out_dir}_out.tar.gz": minioClient.get_custom_presigend_url("PUT", "remote", object_name_out)["path"],
+            }
+        )
+        job.conf_data["minio_urls"] = minio_urls
+        
     utc_timestamp = get_utc_timestamp()
 
     db_job = models.Job(
@@ -454,7 +470,7 @@ def delete_job(db: Session, job_id: int, remote: bool = True):
     ]:
         raise HTTPException(
             status_code=401,
-            detail="You are not allowed to delete this job, since its on the client site",
+            detail="You are not allowed to delete this job, since its in the state queued, finished or failed.",
         )
     delete_external_job(db, db_job)
     db.delete(db_job)

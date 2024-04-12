@@ -27,6 +27,9 @@ TIMEOUT = Timeout(TIMEOUT_SEC)
 
 router = APIRouter(tags=["remote"])
 
+@router.get("/health-check")
+def health_check():
+    return {f"Kaapana remote backend is up and running!"}
 
 @router.get("/minio-presigned-url")
 async def get_minio_presigned_url(presigned_url: str = Header(...)):
@@ -72,7 +75,7 @@ def get_jobs(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    jobs = crud.get_jobs(db, instance_name, status, remote=True, limit=limit)
+    jobs = crud.get_jobs(db, instance_name=instance_name, status=status, remote=True, limit=limit)
     for job in jobs:
         if job.kaapana_instance:
             job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(

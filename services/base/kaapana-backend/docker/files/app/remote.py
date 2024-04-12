@@ -24,10 +24,6 @@ app.add_middleware(middlewares.SanitizeBodyInputs)
 # sanitze user inputs from the query parameters in get requests
 app.add_middleware(middlewares.SanitizeQueryParams)
 
-@app.get("/health-check")
-def health_check():
-    return {f"Kaapana remote backend is up and running!"}
-
 app.include_router(
     remote.router,
     prefix="/remote",

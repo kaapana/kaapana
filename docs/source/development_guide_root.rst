@@ -12,6 +12,7 @@ Development Guide
     development_guide/operators
     development_guide/helm_charts
     development_guide/how_to_Dockerfile
+    development_guide/black_formatter
 
 
     

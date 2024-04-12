@@ -145,17 +145,19 @@ Start Build
 
 
       .. tab:: Build With Local Registry
-         
-         Not recommended
 
-         For building with a local registry, you need to set up a Docker registry with basic authentication with following steps:
+         | Not recommended. 
+         | If a private registry is not available, it is possible to setup a local registry. 
+         | This may be helpful for one-time show-casing, testing, developing, or if there are any issues with connection to the remote registry.
+         | This solution is only persistent while the docker container containing the registry is running. It also works only locally and cannot be distributed. 
+         | For building with a local registry, you need to set up a local Docker registry with basic authentication with following steps:
 
-         1. Create credentials:
+         1. Create credentials (replace **<registry user>** and **<registry password>**):
 
             .. code-block:: bash
             
                mkdir auth
-               docker run --entrypoint htpasswd httpd:2.4.58 -Bbn <testuser> <testpassword> > auth/htpasswd
+               docker run --entrypoint htpasswd httpd:2.4.58 -Bbn <registry user> <registry password> > auth/htpasswd
             
 
          2. Start the Docker registry with basic authentication:
@@ -177,15 +179,17 @@ Start Build
 
       .. tab:: Build Tarball
 
-         Not recommended
-
-         This configuration creates an image tarball and offline microk8s installer
+         | Not recommended.
+         | In case platfrom should be deployed in the machine without internet access (i.e. offline), 
+         | installation files, containers and helm charts need to be pre-build on the server 
+         | with internet access and copied on the server, where requirements can be installed and platfrom deployed. 
+         | This configuration creates an image tarball and offline microk8s installer
          
          .. code-block:: python
             :emphasize-lines: 2, 4, 5, 6
                
             ...
-            default_registry: "<registry-url-you-got-from-developer>" # e.g. "registry.local/offline/offline"
+            default_registry: "registry.local/offline/offline" # dummy registry user for tagging purposes only
             ...
             build_only: true # charts and containers will only be build and not pushed to the registry
             create_offline_installation: true # Advanced feature - whether to create a docker dump from which the platform can be deployed offline (file-size ~50GB)

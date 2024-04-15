@@ -7,7 +7,7 @@ Introduction
 ^^^^^^^^^^^^
 
 .. note::
-  This section explains the types of Kaapana extensions and how they work. For descriptions of available workflows and applications, refer to the  :ref:`extensions_workflows` and :ref:`extensions_applications`. 
+  This section explains the types of Kaapana extensions and how they work. For descriptions of available workflow and application extensions, refer to the  :ref:`extensions_workflows` and :ref:`extensions_applications`. 
   To learn how to integrate custom components into the platform as extensions, refer to the :ref:`application_dev_guide` and :ref:`workflow_dev_guide`.
 
 
@@ -15,10 +15,10 @@ The *Extension* functional unit in Kaapana serves as an app store. It allows use
 
 Each extension in the Kaapana repository consists of two folders: :code:`docker` and :code:`<extension-name>-chart`. For more information about the file structure, refer to the Helm Charts section :ref:`helm_charts`.
 
-There are two types of extensions (excluding the experimental "platforms"):
+There are two types of extensions:
 
-1. Workflows: These are algorithms executed via `Apache Airflow <https://airflow.apache.org/>`_.
-2. Applications: These provide additional functionalities such as opening a VS Code server, a JupyterLab notebook, or an MITK Workbench instance.
+1. **Workflow Extensions**: Consist of single or multiple executable DAGs in `Apache Airflow <https://airflow.apache.org/>`_. After installing a workflow extension, you can see the DAGs available under Workflow Execution menu.
+2. **Applications**: These provide additional functionalities such as opening a VS Code server, a JupyterLab notebook, or an MITK Workbench instance.
 
 In addition to the distinction in kinds, there is also an distinction in versions, namely *stable* or *experimental*. Stable extensions **have been tested and maintained**, while experimental extensions are not. The filters on the Extensions page allow users to filter extensions based on the version. The extension list is updated in real time based on the selected filters. The Extensions page also displays the current Helm and Kubernetes status of each extension, such as :code:`Running`, :code:`Completed`, :code:`Failed`, or :code:`Error`.
 
@@ -65,6 +65,8 @@ This feature is intended to be used by **developers who have knowledge about con
 .. hint::
     Since the images uploaded via this component are not already available in a registry, the imagePullPolicy field in the corresponding Kubernetes resource yaml files (`example value to be changed <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/services/hello-world/hello-world-chart/templates/deployment.yaml#L24>`_) should be changed to :code:`IfNotPresent`.
 
+
+If you have any issues regarding the upload mechanism, check :ref:`extension_container_upload_fail`.
 
 Extension Parameters
 ^^^^^^^^^^^^^^^^^^^^

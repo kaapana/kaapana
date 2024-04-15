@@ -150,6 +150,13 @@ def create_index():
                     }
                 },
                 {
+                    "check_double": {
+                        "match_pattern": "regex",
+                        "match": "^.*_double.*$",
+                        "mapping": {"type": "double"},
+                    }
+                },
+                {
                     "check_datetime": {
                         "match_pattern": "regex",
                         "match": "^.*_datetime.*$",

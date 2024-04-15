@@ -25,8 +25,6 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
     :type task: str
     """
 
-    execution_timeout = timedelta(minutes=120)
-
     def __init__(
         self,
         dag,
@@ -46,7 +44,7 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
         nr_thr_resamp=1,
         nr_thr_saving=6,
         env_vars=None,
-        execution_timeout=execution_timeout,
+        execution_timeout=timedelta(minutes=120),
         **kwargs,
     ):
         if env_vars is None:

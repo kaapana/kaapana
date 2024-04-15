@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, load_only, make_transient, selectinload
+from sqlalchemy.orm import load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -162,7 +162,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
 
     job_type = "SchedulerJob"
-    heartrate: int = conf.getint("scheduler", "SCHEDULER_HEARTBEAT_SEC")
 
     def __init__(
         self,
@@ -647,34 +646,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     task_instance=task_instance, logger=self.log
                 )
 
-                if gpu_device is not None:
+                if util_service_success and gpu_device is not None:
                     self.log.info("-> setting gpu_device in executor_config ...")
                     new_config = dict(task_instance.executor_config)
                     new_config["gpu_device"] = gpu_device
                     task_instance.executor_config = new_config
                     session.merge(task_instance)
                     session.flush()
-
-                if (
-                    "gpu_mem_mb" in task_instance.executor_config
-                    and task_instance.executor_config["gpu_mem_mb"] != None
-                    and "gpu_device" not in task_instance.executor_config
-                ):
-                    self.log.error(
-                        "###########################################################################"
-                    )
-                    self.log.error("")
-                    self.log.error("")
-                    self.log.error(
-                        f"# {task_instance.task_id=} -> GPU requirement found - but no device set!"
-                    )
-                    self.log.error("")
-                    self.log.error(f"{task_instance.executor_config=}")
-                    self.log.error("")
-                    self.log.error(
-                        "###########################################################################"
-                    )
-                    util_service_success = False
 
                 if not util_service_success:
                     starved_tasks.add((task_instance.dag_id, task_instance.task_id))
@@ -1644,27 +1622,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-        # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
-        query = (
-            select(DagModel)
-            .where(DagModel.dag_id == dag_run.dag_id)
-            .options(joinedload(DagModel.parent_dag))
-        )
-        dag_model = session.scalars(
-            with_row_locks(
-                query, of=DagModel, session=session, **skip_locked(session=session)
-            )
-        ).one_or_none()
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
 
-        if not dag:
+        if not dag or not dag_model:
             self.log.error(
                 "Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id
-            )
-            return callback
-        if not dag_model:
-            self.log.info(
-                "DAG %s scheduling was skipped, probably because the DAG record was locked",
-                dag_run.dag_id,
             )
             return callback
 

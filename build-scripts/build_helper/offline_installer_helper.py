@@ -7,6 +7,7 @@ from build_helper.container_helper import Container, pull_container_image
 from alive_progress import alive_bar
 from shutil import copyfile
 
+
 class OfflineInstallerHelper:
     SNAP_DOWNLOAD_TIMEOUT = 120
     HELM_DOWNLOAD_TIMEOUT = 10
@@ -152,7 +153,7 @@ class OfflineInstallerHelper:
             )
 
     @staticmethod
-    def generate_microk8s_offline_version():
+    def generate_microk8s_offline_version(build_chart_dir):
         microk8s_offline_installer_target_dir = join(
             BuildUtils.build_dir, "microk8s-offline-installer"
         )
@@ -165,7 +166,7 @@ class OfflineInstallerHelper:
             target_path=microk8s_offline_installer_target_dir,
         )
 
-        DEFAULT_MICRO_VERSION = "1.26/stable"
+        DEFAULT_MICRO_VERSION = "1.28/stable"
         OfflineInstallerHelper.download_snap_package(
             name="microk8s",
             version=DEFAULT_MICRO_VERSION,
@@ -179,9 +180,7 @@ class OfflineInstallerHelper:
             target_path=microk8s_offline_installer_target_dir,
         )
 
-        OfflineInstallerHelper.download_gpu_operator_chart(
-            target_path=microk8s_offline_installer_target_dir
-        )
+        OfflineInstallerHelper.download_gpu_operator_chart(target_path=build_chart_dir)
 
         micok8s_base_img_json_path = join(
             BuildUtils.kaapana_dir,
@@ -223,7 +222,7 @@ class OfflineInstallerHelper:
         )
         assert exists(offline_enable_gpu_script_path)
         dst_script_path = join(
-            microk8s_offline_installer_target_dir,
+            build_chart_dir,
             basename(offline_enable_gpu_script_path),
         )
         copyfile(src=offline_enable_gpu_script_path, dst=dst_script_path)

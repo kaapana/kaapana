@@ -177,6 +177,8 @@ def parse_label_mapping_env() -> list[tuple[str, str]]:
         assert (
             len(split_lm) == 2
         ), f"ERROR: expected two labels per mapping, i.e. 'gt_label_x:test_label_y,gt_label_z:test_label_t'. Got {split_lm}"
+        # lower strings in label mappings
+        split_lm = [lm.lower() for lm in split_lm]
         gt, test = split_lm
         res.append((gt, test))
     return res

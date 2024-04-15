@@ -40,12 +40,6 @@ INCLUDE_REVERSE_PROXY=false
 ######################################################
 # Individual platform configuration
 ######################################################
-if [ "$DEV_MODE" == "true" ]; then
-    KAAPANA_INIT_PASSWORD="kaapana"
-else
-    KAAPANA_INIT_PASSWORD="Kaapana2020!"
-fi
-
 CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
 CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
 
@@ -203,13 +197,6 @@ function get_domain {
         exit 1
     else
         echo -e "${GREEN}Server domain (FQDN): $DOMAIN ${NC}" > /dev/stderr;
-        # Probably no necessary, can be removed in the future!
-        # if [[ $DOMAIN =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        #     echo "${YELLOW}Detected an IP address as server domain, adding the IP: $DOMAIN to no_proxy"
-        #     INSERTLINE="no_proxy=$no_proxy,$DOMAIN"
-        #     grep -q '\bno_proxy\b.*\b'${DOMAIN}'\b' /etc/environment || sed -i '/no_proxy=/d' /etc/environment
-        #     grep -q '\bno_proxy\b.*\b'${DOMAIN}'\b' /etc/environment  && echo "$DOMAIN already part of no_proxy ...." ||  sh -c "echo '$INSERTLINE' >> /etc/environment"
-        # fi
     fi
 }
 
@@ -301,6 +288,11 @@ function deploy_chart {
         exit 1
     fi
 
+    if [ "$OFFLINE_MODE" == "true" ] && [ -z "$CHART_PATH" ]; then
+        echo "${RED}ERROR: CHART_PATH needs to be set when in OFFLINE_MODE!${NC}"
+        exit 1
+    fi
+
     get_domain
     
     if [ -z "$INSTANCE_NAME" ]; then
@@ -347,9 +339,20 @@ function deploy_chart {
             fi
         fi
     fi
-    
-    if [ ! -z "$CHART_PATH" ]; then
-        echo -e "${YELLOW}Please note, since you have specified a chart file, you deploy the platform in OFFLINE_MODE='true'.${NC}"
+
+    if [ "$DEV_MODE" == "true" ]; then
+        KAAPANA_INIT_PASSWORD="kaapana"
+    else
+        KAAPANA_INIT_PASSWORD="Kaapana2020!"
+    fi
+
+    if [ "$OFFLINE_MODE" == "true" ] || [ "$DEV_MODE" == "false" ]; then
+        PULL_POLICY_IMAGES="IfNotPresent"
+    else
+        PULL_POLICY_IMAGES="Always"
+    fi
+        
+    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH 
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
@@ -384,21 +387,10 @@ function deploy_chart {
             echo -e "${GREEN}PRESENT_IMAGE_COUNT: OK ${NC}"
         fi
 
-        OFFLINE_MODE=true
-        DEV_MODE="false"
-        PULL_POLICY_IMAGES="IfNotPresent"
         PREFETCH_EXTENSIONS=false
-
         CONTAINER_REGISTRY_USERNAME=""
         CONTAINER_REGISTRY_PASSWORD=""
     else
-        
-        PULL_POLICY_IMAGES="IfNotPresent"
-
-        if [ "$DEV_MODE" == "true" ]; then
-            PULL_POLICY_IMAGES="Always"
-        fi
-
         echo "${YELLOW}Helm login registry...${NC}"
         check_credentials
         echo "${GREEN}Pulling platform chart from registry...${NC}"
@@ -862,6 +854,7 @@ _Flag: --remove-all-images-docker will delete all Docker images from the system
 _Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
 _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
 _Flag: --quiet, meaning non-interactive operation
+_Flag: --offline, using prebuilt tarball and chart (--chart-path required!)
 
 _Argument: --username [Docker registry username]
 _Argument: --password [Docker registry password]
@@ -922,6 +915,12 @@ do
 
         --quiet)
             QUIET=true
+            shift # past argument
+        ;;
+        
+        --offline)
+            OFFLINE_MODE=true
+            echo -e "${GREEN}Deploying in offline mode!${NC}"
             shift # past argument
         ;;
 

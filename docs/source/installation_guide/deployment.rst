@@ -26,40 +26,17 @@ Copy the script to your target-system (server) and **adjust it as described belo
 2. Have a look at the variables on top of the script. An explanation for all of the variables can be found below under **Platform configuration**.
    
 **You need to do at least the following customizations:**
+
 Note: If you have already built the platform, these variables should have been filled in.
 
-.. tabs::
+.. code-block:: python
 
-   .. tab:: Private registry
-
-      .. code-block:: python
-
-         ...
-         CONTAINER_REGISTRY_URL="<registry-url>"
-         ...
-
-   .. tab:: Tarball
-
-      .. code-block:: python
-
-         ...
-         CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
-         ...
+   ...
+   CONTAINER_REGISTRY_URL="<registry-url>"
+   ...
 
 3. Make it executable with :code:`chmod +x deploy_platform.sh`
 4. Execute the script:
-
-.. note:: 
-
-   If you are use a tarball make sure that you also make the following changes to the :code:`deploy_platform.sh` file:
-
-   .. code-block:: python
-
-      ...
-      OFFLINE_MODE="true"
-      DEV_MODE="false"
-      CONTAINER_REGISTRY_URL="<registry-url-you-got-from-developer>"
-      ...
 
 .. tabs::
 
@@ -69,7 +46,18 @@ Note: If you have already built the platform, these variables should have been f
 
    .. tab:: Tarball
 
-      :code:`./deploy_platform.sh --upload-tar <path-to-tarball-file>`
+      Assure yourself that you have files generated in :ref:`build`
+      
+      - Built images: ``kaapana-admin-chart-<version>-images.tar``
+      - Chart file: ``kaapana-admin-chart-<version>.tgz``
+      
+      1. Run the deployment script to import images into the microk8s registry.
+
+      ``./deploy_platform.sh --import-images-tar kaapana-admin-chart-<version>-images.tar``
+
+      2. Run the deployment script with the offline flag and chart.
+
+      ``./deploy_platform.sh --offline --chart-path kaapana-admin-chart-<version>.tgz``
 
 You may be asked the following questions:
 
@@ -165,6 +153,7 @@ Deployment configurations
 | :code:`DEV_MODE` `(default: "true", type=string)` 
 | If true, it will set :code:`imagePullPolicy: "Always"` for all kubernetes deployments and jobs. In other words, after every pod restart, associated images will be re-downloaded.
 | If false, :code:`imagePullPolicy: "IfNotPresent"` and several password policies will be pre-configured in keycloak.
+| NOTE: If `OFFLINE_MODE="true"`, the `imagePullPolicy="IfNotPresent"`, regardless `DEV_MODE`. 
 |
 
 | :code:`GPU_SUPPORT` `(default: "false", type=string)` 
@@ -176,8 +165,8 @@ Deployment configurations
 |
 
 | :code:`CHART_PATH` `(default: "", type=string)` 
-| Absolute path for .tgz file of platform chart. Setting this path will deploy the platform in offline mode, in which case the images should be already present inside microk8s. 
-| Providing a chart path will also set :code:`PREFETCH_EXTENSIONS="false"` and :code:`DEV_MODE="false"` and :code:`OFFLINE_MODE=true`.
+| Absolute path for .tgz file of platform chart. Setting this path will not necessarilly deploy the platform in offline mode.
+| NOTE: If `OFFLINE_MODE="true"`, `CHART_PATH` configuration is required. Providing a chart path will also set :code:`PREFETCH_EXTENSIONS="false"`.
 |
 
 | :code:`NO_HOOKS` `(default: "", type=string)`
@@ -189,7 +178,8 @@ Deployment configurations
 |
 
 | :code:`OFFLINE_MODE` `(default: false, tpye=bool)`
-| Is automatically set to true, if :code:`CHART_PATH` is set.
+| If set to `"true"`, `CHART_PATH` is required. 
+| If `OFFLINE_MODE="true"`, the `imagePullPolicy="IfNotPresent"`. 
 |
 
 Namespace configurations

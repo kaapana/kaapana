@@ -82,6 +82,8 @@ class HelperDcmWeb:
             url=f"{self.dcmweb_endpoint}/{self.application_entity}/rs",
             headers=self.auth_headers,
         )
+        self.session = requests.Session()
+        self.session.headers.update(self.auth_headers)
 
     def get_system_user_token(
         self,
@@ -155,11 +157,8 @@ class HelperDcmWeb:
                 f"{self.dcmweb_endpoint}/{self.application_entity}/rs/instances"
             )
             payload = {"SeriesInstanceUID": seriesUID}
-            httpResponse = requests.get(
-                pacs_dcmweb_endpoint,
-                params=payload,
-                timeout=2,
-                headers=self.auth_headers,
+            httpResponse = self.session.get(
+                pacs_dcmweb_endpoint, params=payload, timeout=2
             )
             if httpResponse.status_code == 200:
                 break
@@ -180,7 +179,7 @@ class HelperDcmWeb:
     ):
         payload = {"SeriesInstanceUID": series_uid}
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/instances"
-        httpResponse = requests.get(url, params=payload, headers=self.auth_headers)
+        httpResponse = self.session.get(url, params=payload)
         if httpResponse.status_code == 200:
             response = httpResponse.json()
             objectUIDList = []
@@ -189,9 +188,11 @@ class HelperDcmWeb:
                     [
                         resultObject["0020000D"]["Value"][0],  # StudyInstanceUID
                         resultObject["00080018"]["Value"][0],  # SOPInstanceUID
-                        resultObject["00280008"]["Value"][0]
-                        if "Value" in resultObject["00280008"]
-                        else None,  # NumberOfFrames
+                        (
+                            resultObject["00280008"]["Value"][0]
+                            if "Value" in resultObject["00280008"]
+                            else None
+                        ),  # NumberOfFrames
                     ]
                 )  # objectUID
 
@@ -254,7 +255,7 @@ class HelperDcmWeb:
             "contentType": "application/dicom",
         }
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/wado"
-        response = requests.get(url, params=payload, headers=self.auth_headers)
+        response = self.session.get(url, params=payload)
         if response.status_code == 200:
             fileName = object_uid + ".dcm"
             filePath = os.path.join(target_dir, fileName)
@@ -282,7 +283,7 @@ class HelperDcmWeb:
         """
         application_entity = application_entity or self.application_entity
         rejectionURL = f"{self.dcmweb_endpoint}/{application_entity}/rs/studies/{study_uid}/reject/113001%5EDCM"
-        response = requests.post(rejectionURL, verify=False, headers=self.auth_headers)
+        response = self.session.post(rejectionURL, verify=False)
         response.raise_for_status()
         return response
 
@@ -317,7 +318,7 @@ class HelperDcmWeb:
             f"{self.dcmweb_endpoint}/{aet_rejection_stage}/rs/studies/{study_uid}"
         )
         logger.info("Sending delete request %s", deletionURL)
-        response = requests.delete(deletionURL, verify=False, headers=self.auth_headers)
+        response = self.session.delete(deletionURL, verify=False)
         if response.status_code != requests.codes.ok and response.status_code != 204:
             raise DcmWebException(
                 f"Error deleting study from {aet_rejection_stage} errorcode: {response.status_code} content {response.content}"
@@ -352,7 +353,7 @@ class HelperDcmWeb:
         Get all instances of a specific series of a specific study
         """
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies/{study_uid}/series/{series_uid}/instances"
-        response = requests.get(url, headers=self.auth_headers)
+        response = self.session.get(url)
         if response.status_code == 204:
             return []
         elif response.status_code == 404:
@@ -366,7 +367,7 @@ class HelperDcmWeb:
         Get all series of a study
         """
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies/{study_uid}/series"
-        r = requests.get(url, headers=self.auth_headers)
+        r = self.session.get(url)
         if r.status_code == 204:
             return []
         elif r.status_code == 404:

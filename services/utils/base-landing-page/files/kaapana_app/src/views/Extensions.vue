@@ -1,5 +1,6 @@
 <template lang="pug">
 .workflow-applications
+  IdleTracker
   v-container(grid-list-lg, text-left, fluid)
     v-card
       v-card-title
@@ -20,34 +21,36 @@
             br
             span(style="font-size: 14px") Read more about the extensions in 
               a(href="https://kaapana.readthedocs.io/", target="_blank") docs
-          v-col(cols="12", sm="2")
-            v-select(
-              label="Kind",
-              :items="['All', 'Workflows', 'Applications']",
-              v-model="extensionKind",
-              hide-details=""
-            )
-          v-col(cols="12", sm="2")
-            v-select(
-              label="Version",
-              :items="['All', 'Stable', 'Experimental']",
-              v-model="extensionExperimental",
-              hide-details=""
-            )
-          v-col(cols="12", sm="1")
-            v-select(
-              label="Resources",
-              :items="['Any', 'GPU', 'CPU']",
-              v-model="extensionResources",
-              hide-details=""
-            )
-          v-col(cols="12", sm="2")
-            v-text-field(
-              v-model="search",
-              append-icon="mdi-magnify",
-              label="Search",
-              hide-details=""
-            )
+          v-col
+            v-row(justify="end")
+              v-col(cols="12", sm="2")
+                v-select(
+                  label="Kind",
+                  :items="['All', 'Workflows', 'Applications']",
+                  v-model="extensionKind",
+                  hide-details=""
+                )
+              v-col(cols="12", sm="2")
+                v-select(
+                  label="Version",
+                  :items="['All', 'Stable', 'Experimental']",
+                  v-model="extensionExperimental",
+                  hide-details=""
+                )
+              v-col(cols="12", sm="2")
+                v-select(
+                  label="Resources",
+                  :items="['Any', 'GPU', 'CPU']",
+                  v-model="extensionResources",
+                  hide-details=""
+                )
+              v-col(cols="12", sm="2")
+                v-text-field(
+                  v-model="search",
+                  append-icon="mdi-magnify",
+                  label="Search",
+                  hide-details=""
+                )
       //- TODO: set max file size limit
       upload(:labelIdle="labelIdle", url="/kube-helm-api/filepond-upload", :onProcessFileStart="fileStart", :onProcessFile="fileComplete", :acceptedFileTypes="allowedFileTypes")
 
@@ -202,17 +205,24 @@ import Vue from "vue";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 import Upload from "@/components/Upload.vue";
+import IdleTracker from "@/components/IdleTracker.vue";
 
 export default Vue.extend({
   components: {
-    Upload
+    Upload,
+    IdleTracker,
   },
   data: () => ({
-    file: '' as any,
-    fileResponse: '',
+    file: "" as any,
+    fileResponse: "",
     dragging: false,
     loadingFile: false,
-    allowedFileTypes: ["application/x-compressed", "application/x-tar", "application/gzip", "application/x-compressed-tar"],
+    allowedFileTypes: [
+      "application/x-compressed",
+      "application/x-tar",
+      "application/gzip",
+      "application/x-compressed-tar",
+    ],
     conn: null as WebSocket | null,
     loading: true,
     polling: 0,
@@ -225,14 +235,12 @@ export default Vue.extend({
     popUpItem: {} as any,
     popUpChartName: "",
     popUpExtension: {} as any,
-    popUpRulesStr: [
-      (v: any) => v && v.length > 0 || 'Empty string field'
-    ],
+    popUpRulesStr: [(v: any) => (v && v.length > 0) || "Empty string field"],
     popUpRulesSingleList: [
-      (v: any) => v && v.length > 0 || "Empty single-selectable list field"
+      (v: any) => (v && v.length > 0) || "Empty single-selectable list field",
     ],
     popUpRulesMultiList: [
-      (v: any) => v.length > 0 || "Empty multi-selectable list field"
+      (v: any) => v.length > 0 || "Empty multi-selectable list field",
     ],
     headers: [
       {
@@ -293,7 +301,10 @@ export default Vue.extend({
 
           if (this.extensionExperimental == "Stable" && i.experimental === "yes") {
             devFilter = false;
-          } else if (this.extensionExperimental == "Experimental" && i.experimental === "no") {
+          } else if (
+            this.extensionExperimental == "Experimental" &&
+            i.experimental === "no"
+          ) {
             devFilter = false;
           }
 
@@ -317,11 +328,11 @@ export default Vue.extend({
       }
     },
     fileExtension(): any {
-      return (this.file) ? this.file.name.split('.').pop() : '';
+      return this.file ? this.file.name.split(".").pop() : "";
     },
     labelIdle(): any {
       // return "Drop files - allowed types: " + this.allowedFileTypes.join(", ")
-      return "Upload chart (.tgz) or container (.tar) files"
+      return "Upload chart (.tgz) or container (.tar) files";
     },
 
     ...mapGetters([
@@ -333,58 +344,71 @@ export default Vue.extend({
     ]),
   },
   methods: {
-    getHref(link: string){
-      return link.match(/^:(\d+)(.*)/) ? "http://" + window.location.hostname + link : link
+    getHref(link: string) {
+      return link.match(/^:(\d+)(.*)/)
+        ? "http://" + window.location.hostname + link
+        : link;
     },
     fileStart(file: any) {
-      console.log("filestart", file)
+      console.log("filestart", file);
     },
     fileComplete(error: any, file: any) {
       if (error !== null) {
-        console.log("filepond file upload error", error)
-        return
+        console.log("filepond file upload error", error);
+        return;
       } else {
-        console.log("successfully uploaded file", file)
+        console.log("successfully uploaded file", file);
         let fname = file.filename;
         let fExt = file.fileExtension;
         if (fExt == "tar") {
-          console.log("importing container...")
+          console.log("importing container...");
           kaapanaApiService
             .helmApiGet("/import-container", { filename: fname }, 120000)
             .then((response: any) => {
-              console.log(response.data)
+              console.log(response.data);
             })
             .catch((err: any) => {
-              console.log("Failed to import container " + fname, "error: ", err.response.data)
+              console.log(
+                "Failed to import container " + fname,
+                "error: ",
+                err.response.data
+              );
             });
         }
       }
     },
     checkDeploymentReady(item: any) {
-      if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
-        return false
+      if (
+        item["multiinstallable"] == "yes" &&
+        item["chart_name"] == item["releaseName"]
+      ) {
+        return false;
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        return item["available_versions"][item.version]["deployments"][0].ready
+        return item["available_versions"][item.version]["deployments"][0].ready;
       }
-      return false
+      return false;
     },
     getKubeStatus(item: any) {
-      if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
-        return ""
+      if (
+        item["multiinstallable"] == "yes" &&
+        item["chart_name"] == item["releaseName"]
+      ) {
+        return "";
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        let statArr: any = item["available_versions"][item.version]["deployments"][0]["kube_status"]
-        if (typeof (statArr) != "string" && statArr.length > 3) {
-          let count: any = {}
-          let s = ""
+        let statArr: any =
+          item["available_versions"][item.version]["deployments"][0]["kube_status"];
+        if (typeof statArr != "string" && statArr.length > 3) {
+          let count: any = {};
+          let s = "";
           for (let i = 0; i < statArr.length; i++) {
-            let key = ""
-            if (typeof (statArr[i]) == "string") {
-              let stat = statArr[i]
+            let key = "";
+            if (typeof statArr[i] == "string") {
+              let stat = statArr[i];
               key = stat.charAt(0).toUpperCase() + stat.slice(1);
             } else {
-              let stat = statArr[i]
+              let stat = statArr[i];
               key += stat.charAt(0).toUpperCase() + stat.slice(1);
             }
 
@@ -395,46 +419,50 @@ export default Vue.extend({
             }
           }
           for (let k in count) {
-            s += k + ": " + String(count[k]) + " ,\n"
-          }
-          return s.slice(0, s.length - 2)
-        } else if (typeof (statArr) != "string" && statArr.length > 0) {
-          let s = ""
-          for (let i = 0; i < statArr.length; i++) {
-            let stat = statArr[i]
-            let key = stat.charAt(0).toUpperCase() + stat.slice(1);
-            s += key + ", "
+            s += k + ": " + String(count[k]) + " ,\n";
           }
           return s.slice(0, s.length - 2);
-        } else if (typeof (statArr) == "string" && statArr.length > 0) {
-          let s = statArr
+        } else if (typeof statArr != "string" && statArr.length > 0) {
+          let s = "";
+          for (let i = 0; i < statArr.length; i++) {
+            let stat = statArr[i];
+            let key = stat.charAt(0).toUpperCase() + stat.slice(1);
+            s += key + ", ";
+          }
+          return s.slice(0, s.length - 2);
+        } else if (typeof statArr == "string" && statArr.length > 0) {
+          let s = statArr;
           return s.charAt(0).toUpperCase() + s.slice(1);
         } else {
-          return ""
+          return "";
         }
-
-
       }
-      return ""
+      return "";
     },
     getHelmStatus(item: any) {
-      if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
-        return ""
+      if (
+        item["multiinstallable"] == "yes" &&
+        item["chart_name"] == item["releaseName"]
+      ) {
+        return "";
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        let s = item["available_versions"][item.version]["deployments"][0]["helm_status"]
+        let s = item["available_versions"][item.version]["deployments"][0]["helm_status"];
         return s.charAt(0).toUpperCase() + s.slice(1);
       }
-      return ""
+      return "";
     },
     checkInstalled(item: any) {
-      if (item["multiinstallable"] == "yes" && item["chart_name"] == item["releaseName"]) {
-        return "no"
+      if (
+        item["multiinstallable"] == "yes" &&
+        item["chart_name"] == item["releaseName"]
+      ) {
+        return "no";
       }
       if (item["available_versions"][item.version]["deployments"].length > 0) {
-        return "yes"
+        return "yes";
       }
-      return "no"
+      return "no";
     },
     getHelmCharts() {
       let params = {
@@ -476,34 +504,34 @@ export default Vue.extend({
           console.log(err);
         });
     },
-    deleteChart(item: any, helmCommandAddons: any = '') {
+    deleteChart(item: any, helmCommandAddons: any = "") {
       let params = {
         release_name: item.releaseName,
         release_version: item.version,
-        helm_command_addons: helmCommandAddons
+        helm_command_addons: helmCommandAddons,
       };
-      console.log("params", params)
+      console.log("params", params);
       this.loading = true;
       this.clearExtensionsInterval();
       this.startExtensionsInterval();
       kaapanaApiService
         .helmApiPost("/helm-delete-chart", params)
         .then((response: any) => {
-          console.log("helm delete response", response)
+          console.log("helm delete response", response);
           item.installed = "no";
           item.successful = "pending";
         })
         .catch((err: any) => {
-          console.log("helm delete error", err)
+          console.log("helm delete error", err);
           this.loading = false;
         });
     },
 
     resetFormInfo(key: any) {
-      this.popUpDialog[key] = false
+      this.popUpDialog[key] = false;
       if (this.$refs.popUpForm !== undefined) {
         this.popUpExtension = {} as any;
-        (this.$refs.popUpForm as Vue & { reset: () => any }).reset()
+        (this.$refs.popUpForm as Vue & { reset: () => any }).reset();
       }
     },
 
@@ -515,8 +543,7 @@ export default Vue.extend({
         this.popUpDialog[item.releaseName] = true;
         this.popUpItem = item;
         for (let key of Object.keys(item["extension_params"])) {
-          this.popUpExtension[key] = item["extension_params"][key]["default"]
-
+          this.popUpExtension[key] = item["extension_params"][key]["default"];
         }
       } else {
         this.installChart(item);
@@ -529,12 +556,11 @@ export default Vue.extend({
         this.popUpDialog[key] = false;
         this.installChart(this.popUpItem);
       }
-
     },
 
     addExtensionParams(payload: any) {
-      let params = JSON.parse(JSON.stringify(this.popUpExtension))
-      console.log("add parameters", params)
+      let params = JSON.parse(JSON.stringify(this.popUpExtension));
+      console.log("add parameters", params);
 
       let res = {} as any;
       for (let key of Object.keys(params)) {
@@ -546,7 +572,8 @@ export default Vue.extend({
             s += String(vv) + ",";
           }
           s = s.slice(0, s.length - 1);
-        } else { // string or single selectable list item
+        } else {
+          // string or single selectable list item
           s = v;
         }
 
@@ -563,7 +590,7 @@ export default Vue.extend({
         keywords: item.keywords,
       } as any;
 
-      console.log("payload", payload)
+      console.log("payload", payload);
       if (Object.keys(this.popUpExtension).length > 0) {
         payload = this.addExtensionParams(payload);
       }
@@ -574,16 +601,16 @@ export default Vue.extend({
       kaapanaApiService
         .helmApiPost("/helm-install-chart", payload)
         .then((response: any) => {
-          console.log("helm install response", response)
+          console.log("helm install response", response);
           item.installed = "yes";
-          if (item.multiinstallable === 'yes') {
+          if (item.multiinstallable === "yes") {
             item.successful = "justLaunched";
           } else {
             item.successful = "pending";
           }
         })
         .catch((err: any) => {
-          console.log("helm install error", err)
+          console.log("helm install error", err);
           this.loading = false;
         });
     },
@@ -613,11 +640,11 @@ a {
 }
 
 .dragdrop:hover .dragdrop-title {
-  color: #1975A0;
+  color: #1975a0;
 }
 
 .dragdrop-info {
-  color: #A8A8A8;
+  color: #a8a8a8;
   position: absolute;
   top: 50%;
   width: 100%;
@@ -648,7 +675,7 @@ a {
 }
 
 .dragdrop-over {
-  background: #5C5C5C;
+  background: #5c5c5c;
   opacity: 0.8;
 }
 
@@ -665,7 +692,7 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: #A8A8A8;
+  color: #a8a8a8;
   position: absolute;
   top: 50%;
   width: 100%;

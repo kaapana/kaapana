@@ -3,3 +3,4 @@ fastapi==0.109.2
 uvicorn[standard]==0.24.0.post1
 pydantic-settings==2.1.0
 websockets==12.0
+minio==7.2.5

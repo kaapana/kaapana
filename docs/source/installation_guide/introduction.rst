@@ -12,11 +12,4 @@ Refer to the flowchart below for deciding which section of the installation guid
 .. mermaid::
 
     flowchart TB
-        a1(Do you want to use a remote container registry or a tarball for your Kaapana deployment?)
-        a1-->|Yes| a2(Do you already have access to a registry or a tarball containing all containers?)
-        a1-->|No| b1
-        a2-->|Yes| c1
-        a2-->|No| b1
-        b1(Build Kaapana) --> c1
-        c1(Server Installation) --> c2
-        c2(Platform Deployment)
+        a1["Build Kaapana"]-->a2["Push charts and containers to a remote registry or store locally in a tarball"]-->a3["Server Installation"]-->a4["Platform Deployment"]

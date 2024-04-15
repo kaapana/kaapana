@@ -7,7 +7,7 @@ Introduction
 ^^^^^^^^^^^^
 
 .. note::
-  This section explains the types of Kaapana extensions and how they work. For descriptions of available workflows and applications, refer to the  :ref:`extensions_workflows` and :ref:`extensions_applications`. 
+  This section explains the types of Kaapana extensions and how they work. For descriptions of available workflow and application extensions, refer to the  :ref:`extensions_workflows` and :ref:`extensions_applications`. 
   To learn how to integrate custom components into the platform as extensions, refer to the :ref:`application_dev_guide` and :ref:`workflow_dev_guide`.
 
 
@@ -15,10 +15,10 @@ The *Extension* functional unit in Kaapana serves as an app store. It allows use
 
 Each extension in the Kaapana repository consists of two folders: :code:`docker` and :code:`<extension-name>-chart`. For more information about the file structure, refer to the Helm Charts section :ref:`helm_charts`.
 
-There are two types of extensions (excluding the experimental "platforms"):
+There are two types of extensions:
 
-1. Workflows: These are algorithms executed via `Apache Airflow <https://airflow.apache.org/>`_.
-2. Applications: These provide additional functionalities such as opening a VS Code server, a JupyterLab notebook, or an MITK Workbench instance.
+1. **Workflow Extensions**: Consist of single or multiple executable DAGs in `Apache Airflow <https://airflow.apache.org/>`_. After installing a workflow extension, you can see the DAGs available under Workflow Execution menu.
+2. **Applications**: These provide additional functionalities such as opening a VS Code server, a JupyterLab notebook, or an MITK Workbench instance.
 
 In addition to the distinction in kinds, there is also an distinction in versions, namely *stable* or *experimental*. Stable extensions **have been tested and maintained**, while experimental extensions are not. The filters on the Extensions page allow users to filter extensions based on the version. The extension list is updated in real time based on the selected filters. The Extensions page also displays the current Helm and Kubernetes status of each extension, such as :code:`Running`, :code:`Completed`, :code:`Failed`, or :code:`Error`.
 
@@ -65,6 +65,8 @@ This feature is intended to be used by **developers who have knowledge about con
 .. hint::
     Since the images uploaded via this component are not already available in a registry, the imagePullPolicy field in the corresponding Kubernetes resource yaml files (`example value to be changed <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/templates_and_examples/examples/services/hello-world/hello-world-chart/templates/deployment.yaml#L24>`_) should be changed to :code:`IfNotPresent`.
 
+
+If you have any issues regarding the upload mechanism, check :ref:`extension_container_upload_fail`.
 
 Extension Parameters
 ^^^^^^^^^^^^^^^^^^^^
@@ -281,33 +283,62 @@ Code server
 
 .. _extensions_jupyterlab:
 
-Jupyter lab
+JupyterLab
 -----------
-| **What's going on?**
-| The Jupyter lab can be used to quickly analyse data that are saved to the object store Minio. We tried to preinstall most of the common python packages. Please do not use the Jupyter notebook for sophisticated calculations. Here, it is better to write an Airflow DAG
+The `JupyterLab <https://jupyter.org/>`__ is an excellent tool to swiftly analyse data stored to the MinIO object store.
+It comes preinstalled with a wide array of commonly used Python packages for data analysis.
+You can deploy multiple instances of JupyterLab simultaneously, each with its dedicated MinIO bucket named after the respective JupyterLab instance.
+Data stored within this bucket is available to the JupyterLab application through the `/minio/jupyterlab` directory.
+You can save your `.ipynb` analysis-scripts to the directory `/minio/analysis-scripts`.
+Files in this directory will be automatically transfered to the MinIO bucket named `analysis-scripts` and are available to the `JupyterlabReportingOperator`.
+While JupyterLab is great for exploratory data analysis, for more complex calculations, consider developing a dedicated Airflow DAG.
 
 | **Mount point:**  
-| <slow_data_dir>/minio
+| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/jupyterlab
+| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/analysis-scripts
 
 .. _extensions_mitk_workbench:
 
 MITK Workbench
 --------------
-| **What's going on?**
-| The MITK Workbench is an instance of `MITK <https://www.mitk.org>`__ running in a pod.
-
+The MITK Workbench is an instance of `MITK <https://www.mitk.org>`__ running in a container and available to users via Virtual Network Computing (VNC).
+Multiple instances of MITK can be deployed simultaneously.
+For each deployment a dedicated MinIO bucket is created, named after the respective MITK instance.
+To import data into the running MITK container, upload your data to the `/input` directory within this MinIO bucket.
+All data stored at this path of the MinIO bucket will be transferred to the `/input` directory of the MITK container.
+If you wish to retrieve your results from the MITK application, ensure to save them to the `/output` directory within the MITK container.
+Any data placed in this directory will be automatically transferred to the `/output` directory within the dedicated MinIO bucket.
 
 | **Mount point:**  
-| <slow_data_dir>/minio
+| <slow_data_dir>/applications/mitk/<mitk-instance-name>/input
+| <slow_data_dir>/applications/mitk/<mitk-instance-name>/output
+
+.. _extensions_slicer_workbench:
+
+Slicer Workbench
+----------------
+The Slicer workbench is an instance of `3D Slicer <https://slicer.org/>`__ running in a container and available to users via Virtual Network Computing (VNC).
+Multiple instances of Slicer can be deployed simultaneously.
+For each deployment a dedicated MinIO bucket is created, named after the respective Slicer instance.
+To import data into the running Slicer container, upload your data to the `/input` directory within this MinIO bucket.
+All data stored at this path of the MinIO bucket will be transferred to the `/input` directory of the Slicer container.
+If you wish to retrieve your results from the Slicer application, ensure to save them to the `/output` directory within the Slicer container.
+Any data placed in this directory will be automatically transferred to the `/output` directory within the dedicated MinIO bucket.
+
+| **Mount point:**  
+| <slow_data_dir>/applications/slicer/<slicer-instance-name>/input
+| <slow_data_dir>/applications/slicer/<slicer-instance-name>/output
 
 .. _extensions_tensorboard:
 
 Tensorboard
 -----------
-| **What's going on?**
-| Tensorboard can be launched to analyse generated results during a training, which will come in the future. It also mounts to the Minio directory.
+`Tensorboard <https://www.tensorflow.org/tensorboard>`__ can be launched to analyse results generated during a training.
+Multiple instances of Tensorboard can be deployed simultaneously.
+For each deployment a dedicated MinIO bucket is created, named after the respective Tensorboard instance.
+Data stored within this bucket are available to the Tensorboard application.
 
 | **Mount point:**  
-| <slow_data_dir>/minio
+| <slow_data_dir>/applications/tensorboard/<tensorboard-instance-name>
 
 

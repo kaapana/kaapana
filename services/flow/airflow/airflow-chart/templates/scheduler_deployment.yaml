@@ -177,7 +177,19 @@ spec:
           mountPath: /kaapana/mounted/workflows/data
         - name: dicomdir
           mountPath: /kaapana/mounted/pacsdata
+        - name: uploads
+          mountPath: /kaapana/app/uploads/
+        - name: tmp
+          mountPath: /kaapana/mounted/workflows/
+        - name: tmpfs
+          mountPath: /tmp
+        securityContext:
+          # readOnlyRootFilesystem: true localexecuter, runs multiproccesse an allocs mem
+          allowPrivilegeEscalation: false
       volumes:
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: uploads-pv-claim
       - name: airflow-configmap
         configMap:
           name: airflow-configmap
@@ -208,6 +220,10 @@ spec:
       - name: dicomdir
         persistentVolumeClaim:
           claimName: dcm4chee-dicom-pv-claim
+      - name: tmp 
+        emptyDir: {}
+      - name: tmpfs
+        emptyDir: {}
       serviceAccountName: kaapana-kube-admin
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

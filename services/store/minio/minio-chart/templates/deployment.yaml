@@ -57,10 +57,13 @@ spec:
           requests:
             memory: 200Mi
           limits:
-            memory: 1000Mi
+            memory: 5500Mi
         volumeMounts:
         - name: minio-data
           mountPath: "/kaapana/mounted/minio"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - name: minio-data
         persistentVolumeClaim:

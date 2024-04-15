@@ -1,40 +1,28 @@
 {
-    "description": "Kaapana release v0.2.6",
-    "title": "kaapana/kaapana: v0.2.6",
-    "version": "0.2.6",
+    "description": "Kaapana release v0.3.0",
+    "title": "kaapana/kaapana: v0.3.0",
+    "version": "0.3.0",
     "license": {
         "id": "AGPL-3.0"
     },
     "upload_type": "software",
-    "publication_date": "2023-10-26",
+    "publication_date": "2024-04-15",
     "creators": [
         {
             "affiliation": "German Cancer Research Center",
-            "name": "Jonas Scherer"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Klaus Kades"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Hanno Gao"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Philipp Schader"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Kaushal Parekh"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Santhosh Parampottupadam"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
             "name": "Ünal Akünal"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Rajesh Baidya"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Mikulas Bankovic"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Jens Beyermann"
         },
         {
             "affiliation": "German Cancer Research Center",
@@ -50,23 +38,7 @@
         },
         {
             "affiliation": "German Cancer Research Center",
-            "name": "Jens Beyermann"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Benjamin Hamm"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Jonas Reinwald"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
             "name": "Maximilian Fischer"
-        },
-        {
-            "affiliation": "German Cancer Research Center",
-            "name": "Peter Neher"
         },
         {
             "affiliation": "German Cancer Research Center",
@@ -74,11 +46,35 @@
         },
         {
             "affiliation": "German Cancer Research Center",
-            "name": "Marco Nolden"
+            "name": "Hanno Gao"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Benjamin Hamm"
         },
         {
             "affiliation": "German Cancer Research Center",
             "name": "Klaus Maier-Hein"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Jasmin Metzger"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Peter Neher"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Marco Nolden"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Santhosh Parampottupadam"
+        },
+        {
+            "affiliation": "German Cancer Research Center",
+            "name": "Philipp Schader"
         }
     ],
     "keywords": [
@@ -88,7 +84,8 @@
         "ai",
         "processing",
         "cloud-computing",
-        "kubernetes"
+        "kubernetes",
+        "federated"
     ],
     "access_right": "open",
     "references": [

@@ -1,6 +1,6 @@
 .. _how_to_dockerfile:
 
-Best Practices: Writing Dockerfile
+Writing Dockerfile
 **********************************
 
 .. important:: 

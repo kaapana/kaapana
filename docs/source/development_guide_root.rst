@@ -11,7 +11,7 @@ Development Guide
     development_guide/application_dev_guide
     development_guide/operators
     development_guide/helm_charts
-    best_practices_root
+    development_guide/best_practices_root
 
 
     

@@ -1,21 +1,33 @@
 import Vue from 'vue'
-import Router from 'vue-router'
+import VueRouter from 'vue-router'
 import store from '@/store'
-import { CHECK_AUTH } from '@/store/actions.type'
+import { CHECK_AUTH, GET_POLICY_DATA } from '@/store/actions.type'
 import routes from './routes'
+import { checkAuthR } from '@/utils/utils'
 
-Vue.use(Router)
+Vue.use(VueRouter)
 
 // Guard the route from unauthorized users.
-function guardRoute(to: any, from: any, next: any) {
+export function guardRoute(to: any, from: any, next: any) {
+  //// Check if the user is authenticated and authorized
   if (!store.getters.isAuthenticated) {
     next({ name: 'home' })
   } else {
-    next()
+    authorizeRoute(to, from, next)
   }
 }
 
-const router = new Router({
+function authorizeRoute(to: any, from: any, next: any) {
+  //// Check if the route is allowed for the current user
+  if (checkAuthR(store.getters.policyData, to.path, store.getters.currentUser)) {
+    return next()
+  } else {
+    return next({ name: 'home' })
+  }
+}
+
+const router = new VueRouter({
+  mode: 'history',
   routes: routes.map((route: any) => ({
     name: route.name,
     path: route.path,
@@ -47,6 +59,15 @@ router.beforeEach((to, from, next) => {
     // href also reloads, might be that reload is enough to refresh token then the next url will be successfully entered,
     // otherwise the user is redirected to the login page
     // location.reload() // works but the user is not redirected to the correct site
+  });
+})
+
+
+router.beforeEach((to, from, next) => {
+  //// Get user infor before changing the route
+  Promise.all([store.dispatch(GET_POLICY_DATA)]).then(() => {
+    next()
+  }).catch((err: any) => {
   });
 })
 

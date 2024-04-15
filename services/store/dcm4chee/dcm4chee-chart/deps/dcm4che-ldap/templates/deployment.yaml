@@ -36,8 +36,6 @@ spec:
             value: /storage/fs1
           - name: IMPORT_LDIF
             value: /import/dcm4che-iid.ldif
-          # - name: EXT_INIT_CONFIG
-          #   value: /import/dcm4che-iid.ldif
           ports:
             - containerPort: 389
           resources:
@@ -52,6 +50,8 @@ spec:
               name: slapd
             - mountPath: /import
               name: ldif
+          securityContext:
+            allowPrivilegeEscalation: false
       volumes:
       - name: ldap
         persistentVolumeClaim:

@@ -32,6 +32,9 @@ spec:
           - name: alertmanager-config-file
             mountPath: /conf/alertmanager.yml
             subPath: alertmanager.yml
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - name: alertmanager-config-file
         configMap:

@@ -9,7 +9,7 @@ Introduction
 
 This dev-guide introduces how to integrate your custom workflow into your Kaapana platform.
 By doing so, you can leverage Kaapana's infrastructure and extend the platforms capabilities to process data with your workflow.
-The platform's data (provided by Kaapana's :ref:`storage stack<storage>`) can be explored and curated to specific datasets in the "Datasets" view, 
+The platform's data (provided by Kaapana's :ref:`storage stack<store>`) can be explored and curated to specific datasets in the "Datasets" view, 
 or further inspected via the Meta-Dashboard.
 In order to integrate your custom workflow, we will use the python API for Apache Airflow to create Directed Acyclic Graphs (DAGs).
 
@@ -85,7 +85,7 @@ Since we provide the algorithm as a python script, we start with a minimal pytho
     FROM local-only/base-python-cpu:latest
     LABEL IMAGE="python-template"
     LABEL VERSION="0.1.0"
-    LABEL CI_IGNORE="True"
+    LABEL BUILD_IGNORE="True"
 
 .. important::
    To access the base images for our container (like ``local-only/base-python-cpu:latest``) we can either build them individualy following :ref:`faq_build_base_img` or build the whole platform :ref:`build`.
@@ -424,7 +424,7 @@ Create the three files :ref:`otsus-method-chart` and :ref:`otsus-chart-requireme
 
 .. important:: 
     The field :code:`repository` in :ref:`otsus-chart-requirements` must be the relative path to the directory that contains the :code:`Chart.yaml` file for the dag-installer chart. 
-    This file is located in the subdirectory :code:`services/utils/dag-installer/dag-installer-chart/` of the kaapana repository.
+    This file is located in the subdirectory :code:`services/utils/dag-installer-chart/` of the kaapana repository.
 
 Update helm dependencies and package the chart.
 

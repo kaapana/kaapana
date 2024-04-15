@@ -1,5 +1,5 @@
-FROM docker.io/bitnami/prometheus:2.34.0
+FROM ubuntu/prometheus:2.49.1-22.04_stable
 
 LABEL IMAGE="prometheus"
-LABEL VERSION="v2.34.0"
-LABEL CI_IGNORE="False"
+LABEL VERSION="v2.49.1"
+LABEL BUILD_IGNORE="False"

@@ -1,0 +1,14 @@
+services:
+  auth-backend:
+    url: "http://auth-backend-service.${ADMIN_NAMESPACE}.svc:5000/opa-bundles/"
+
+bundles:
+  authz:
+    service: auth-backend
+    resource: /authz/endpoints.tar.gz
+    persist: true
+    polling:
+      min_delay_seconds: 10
+      max_delay_seconds: 20
+
+default_decision: /httpapi/authz/allow

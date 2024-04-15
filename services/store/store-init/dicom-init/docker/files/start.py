@@ -9,6 +9,7 @@ import json
 from zipfile import ZipFile
 from subprocess import PIPE, run
 from opensearchpy import OpenSearch
+import HelperDcmWeb
 
 tmp_data_dir = "/slow_data_dir/TMP"
 ctp_url = os.getenv("CTP_URL", None)
@@ -179,20 +180,9 @@ def check_file_on_platform(examples_send):
     for file in examples_send:
         max_counter = 100
         counter = 0
-        quido_success = False
-        while counter < max_counter:
-            # quido file
-            r = requests.get(
-                f"{dcm4chee_host}/dcm4chee-arc/aets/{aet}/rs/studies/{file['study_uid']}/series/{file['series_uid']}/instances",
-                verify=False,
-            )
-            if r.status_code != requests.codes.ok:
-                counter += 1
-                time.sleep(10)
-            else:
-                quido_success = True
-                print("File successfully found in PACs")
-                break
+        quido_success = HelperDcmWeb.check_file_on_platform(
+            file, application_entity="KAAPANA"
+        )
         if not quido_success:
             print("File not found in PACs!")
             exit(1)
@@ -261,6 +251,7 @@ def trigger_delete_dag(examples_send):
                 "delete_complete_study": False,
                 "single_execution": False,
             },
+            "form_data": {"username": "system"},
         }
         dag_id = "delete-series-from-platform"
         print("data", conf)

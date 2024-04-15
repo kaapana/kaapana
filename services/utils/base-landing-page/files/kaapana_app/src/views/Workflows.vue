@@ -1,5 +1,6 @@
 <template lang="pug">
   .federated-panel
+    IdleTracker
     v-container(text-left fluid)
       workflow-table(:workflows="clientWorkflows" :extLoading="workflowTableLoading" @refreshView="getClientWorkflows()")
 </template>
@@ -9,11 +10,12 @@ import Vue from "vue";
 import { mapGetters } from "vuex";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 
-import WorkflowTable from "@/components/WorkflowTable.vue"
-
+import WorkflowTable from "@/components/WorkflowTable.vue";
+import IdleTracker from "@/components/IdleTracker.vue";
 export default Vue.extend({
   components: {
     WorkflowTable,
+    IdleTracker
   },
   data: () => ({
     polling: 0,

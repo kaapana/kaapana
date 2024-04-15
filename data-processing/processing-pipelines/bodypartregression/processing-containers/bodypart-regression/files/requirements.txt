@@ -1,7 +1,7 @@
 opencv-python==4.5.5.64
 opencv-python-headless==4.7.0.72
 pytorch-lightning==1.9.4
-scipy==1.7.3
+scipy==1.10.0
 albumentations==0.5.2
 dataclasses
 pandas==2.0.1

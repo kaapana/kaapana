@@ -2,4 +2,4 @@ FROM docker.io/klakadkfz/mhubai-totalsegmentator:nocuda-210623
 
 LABEL IMAGE="mhubai-totalsegmentator-nocuda"
 LABEL VERSION="0.0.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"

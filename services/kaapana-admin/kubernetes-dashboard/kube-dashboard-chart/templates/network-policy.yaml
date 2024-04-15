@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kubernetes-dashboard-allow-ingress-traefik
+  namespace: admin
+spec:
+  podSelector:
+    matchLabels:
+      app-name: 'kubernetes-dashboard'
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: 'traefik'
+    ports:
+    - protocol: TCP
+      port: 9090
+  egress:
+  - {}

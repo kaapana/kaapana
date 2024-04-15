@@ -50,7 +50,12 @@ ui_forms = {
     "external_schema_federated_form": {
         "type": "object",
         "properties": {
-            **properties_external_federated_form(["federated_total_rounds"]),
+            **properties_external_federated_form(
+                [
+                    "federated_total_rounds",
+                    "aggregation_strategy",
+                ]
+            ),
             "remote_dag_id": {
                 "type": "string",
                 "title": "Remote dag id",
@@ -102,7 +107,10 @@ dag = DAG(
     schedule_interval=None,
 )
 
-nnunet_federated = nnUNetFederatedOperator(dag=dag, dev_server=None)
+nnunet_federated = nnUNetFederatedOperator(
+    dag=dag,
+    # dev_server="code-server"
+)
 
 zip_model = ZipUnzipOperator(
     dag=dag,

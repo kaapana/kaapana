@@ -27,7 +27,9 @@
     "protocolMapper" : "oidc-usermodel-attribute-mapper",
     "consentRequired" : false,
     "config" : {
+      "aggregate.attrs": "true",
       "userinfo.token.claim" : "true",
+      "multivalued": "true",
       "user.attribute" : "policy",
       "id.token.claim" : "true",
       "access.token.claim" : "true",
@@ -45,6 +47,22 @@
       "access.token.claim" : "true",
       "included.custom.audience" : "kaapana",
       "userinfo.token.claim" : "true"
+    }
+  },
+  {
+    "name": "dcm4chee-archive-api",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-usermodel-attribute-mapper",
+    "consentRequired": false,
+    "config": {
+      "aggregate.attrs": "true",
+      "userinfo.token.claim": "false",
+      "multivalued": "true",
+      "user.attribute": "application_entity",
+      "id.token.claim": "false",
+      "access.token.claim": "true",
+      "claim.name": "application_entity",
+      "jsonType.label": "String"
     }
   } ]
   }

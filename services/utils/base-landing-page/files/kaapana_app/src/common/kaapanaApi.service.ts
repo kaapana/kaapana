@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import request from '@/request'
 import AuthService from '@/common/auth.service'
-
+import routes from '@/routes/routes'
 
 
 
@@ -30,6 +30,17 @@ import AuthService from '@/common/auth.service'
     })
   }
 
+  const getPolicyData = () => {
+    return new Promise((resolve, reject) => {
+      request.get('/kaapana-backend/open-policy-data').then((response: { data: any }) => {
+        const policyData = response.data
+        resolve(policyData)
+      }).catch((error:any) => {
+        console.log('Something went wrong with open policy agent ', error)
+      })
+    })
+  }
+
   const getExternalWebpages = () => {
     return new Promise((resolve, reject) => {
 
@@ -51,7 +62,10 @@ import AuthService from '@/common/auth.service'
             }
           }
         }
-
+        
+        
+        //// The following section checks, if the routes listed in the config file externalWebpages.json is also available, enabled and correctly configured in traefik.
+        //// I.E. if there is a service in traefik that routes to the configured endpoint
         request.get('/kaapana-backend/get-traefik-routes').then((response: { data: {} }) => {
           trainingJson = response.data
 
@@ -67,7 +81,8 @@ import AuthService from '@/common/auth.service'
             }
           }
         }).then(() => {
-
+          
+          //// Get a list of the available dashboards in opensearch and add them as subsections to the meta section.
           let osDashboardsUrl = '/kaapana-backend/get-os-dashboards'
           request.get(osDashboardsUrl)
             .then((response: { data: any }) => {
@@ -247,6 +262,7 @@ import AuthService from '@/common/auth.service'
   const kaapanaApiService = {
     helmApiPost,
     helmApiGet,
+    getPolicyData,
     getExternalWebpages,
     checkUrl,
     federatedClientApiPost,

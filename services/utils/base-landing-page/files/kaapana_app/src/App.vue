@@ -12,49 +12,17 @@
               <v-list-item-title>Home</v-list-item-title>
             </v-list-item-content>
           </v-list-item>
-          <!-- top navigation -->
-          <v-list-item
-            v-if="settings.navigationMode && isAuthenticated"
-            :to="'/datasets'"
-          >
-            <v-list-item-action>
-              <v-icon>mdi-gamepad-variant</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Workflows</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <v-list-item
-            v-if="settings.navigationMode && isAuthenticated"
-            :to="{
-              name: 'ew-section-view',
-              params: { ewSection: 'store', ewSubSection: 'minio' },
-            }"
-          >
-            <v-list-item-action>
-              <v-icon>mdi-palette-advanced</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>Advanced</v-list-item-title>
-            </v-list-item-content>
-            <v-list-item-icon></v-list-item-icon>
-          </v-list-item>
-          <!-- Default navigation mode -->
-          <v-list-group
-            v-if="!settings.navigationMode"
-            prepend-icon="mdi-gamepad-variant"
-            :value="true"
-          >
+          <v-list-group prepend-icon="mdi-gamepad-variant" :value="true">
             <template v-slot:activator>
               <v-list-item-title>Workflows</v-list-item-title>
             </template>
+            <!-- WORKFLOWS -->
             <v-list-item
               v-for="([title, icon, to], i) in workflowsList"
               :key="i"
               :to="to"
               :value="to"
-              v-if="isAuthenticated"
+              v-if="isAuthenticated && _checkAuthR(policyData, to, currentUser)"
             >
               <v-list-item-action></v-list-item-action>
               <v-list-item-title>{{ title }}</v-list-item-title>
@@ -66,9 +34,8 @@
           <v-list-group
             :prepend-icon="section.icon"
             v-if="
-              !settings.navigationMode &&
               isAuthenticated &&
-              section.roles.indexOf(currentUser.role) > -1
+              checkAuthSection(policyData, section, currentUser)
             "
             v-for="(section, sectionKey) in externalWebpages"
             :key="section.id"
@@ -77,7 +44,10 @@
               <v-list-item-title>{{ section.label }}</v-list-item-title>
             </template>
             <v-list-item
-              v-if="section.subSections"
+              v-if="
+                section.subSections &&
+                _checkAuthR(policyData, subSection.linkTo, currentUser)
+              "
               v-for="(subSection, subSectionKey) in section.subSections"
               :key="subSection.id"
               :to="{
@@ -89,7 +59,14 @@
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
           </v-list-group>
-          <v-list-item :to="'/extensions'" v-if="isAuthenticated">
+          <!-- EXTENSIONS -->
+          <v-list-item
+            :to="'/extensions'"
+            v-if="
+              isAuthenticated &&
+              _checkAuthR(policyData, '/extensions', currentUser)
+            "
+          >
             <v-list-item-action>
               <!-- <v-icon>mdi-view-comfy</v-icon> -->
               <!-- <v-icon>mdi-toy-brick-plus</v-icon> -->
@@ -138,14 +115,6 @@
                   @change="(v) => changeMode(v)"
                 ></v-switch>
               </v-list-item>
-              <v-list-item>
-                <v-switch
-                  label="Top navigation"
-                  hide-details
-                  v-model="settings.navigationMode"
-                  @change="(v) => changeNavigation(v)"
-                ></v-switch>
-              </v-list-item>
             </v-list>
             <v-card-actions>
               <v-spacer></v-spacer>
@@ -157,70 +126,11 @@
         </v-menu>
       </v-app-bar>
       <v-main id="v-main-content">
-        <div v-if="settings.navigationMode">
-          <v-bottom-navigation
-            v-if="workflowNavigation && drawer"
-            color="primary"
-            :elevation="0"
-            inset
-            mode="shift"
-          >
-            <v-btn
-              v-for="([title, icon, to], i) in workflowsList"
-              :key="i"
-              :to="to"
-              :value="to"
-            >
-              <v-icon>{{ icon }}</v-icon>
-              {{ title }}
-            </v-btn>
-          </v-bottom-navigation>
-          <v-bottom-navigation
-            v-if="advancedNavigation && drawer"
-            color="primary"
-            :elevation="0"
-            inset
-            mode="shift"
-          >
-            <v-menu
-              offset-y
-              v-for="(section, sectionKey) in externalWebpages"
-              :key="section.id"
-            >
-              <template v-slot:activator="{ on, attrs }">
-                <v-btn v-bind="attrs" v-on="on">
-                  <v-icon>{{ section.icon }}</v-icon>
-                  {{ section.label }}
-                </v-btn>
-              </template>
-              <v-list>
-                <v-list-item
-                  v-for="(
-                    subSection, subSectionKey
-                  ) in section.subSections"
-                  :key="subSection.id"
-                  :value="subSection.id"
-                  :to="{
-                    name: 'ew-section-view',
-                    params: {
-                      ewSection: sectionKey,
-                      ewSubSection: subSectionKey,
-                    },
-                  }"
-                >
-                  <v-list-item-title>{{
-                    subSection.label
-                  }}</v-list-item-title>
-                </v-list-item>
-              </v-list>
-            </v-menu>
-          </v-bottom-navigation>
-        </div>
         <router-view></router-view>
       </v-main>
       <v-footer color="primary" app inset>
         <span class="white--text">
-          &copy; DKFZ 2018 - DKFZ 2023 | {{ commonData.version }}
+          &copy; DKFZ 2018 - DKFZ 2024 | {{ commonData.version }}
         </span>
       </v-footer>
     </v-app>
@@ -237,18 +147,32 @@ import { LOGIN, LOGOUT, CHECK_AUTH } from "@/store/actions.type";
 import {
   CHECK_AVAILABLE_WEBSITES,
   LOAD_COMMON_DATA,
+  GET_POLICY_DATA,
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
+import IdleTracker from "@/components/IdleTracker.vue";
 import { settings } from "@/static/defaultUIConfig";
+import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   name: "App",
-  components: { Settings },
+  components: { Settings, IdleTracker },
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
     settings: settings,
   }),
+  created() {
+    this.$store.watch(
+      () => this.$store.getters["isIdle"],
+      (newValue, oldValue) => {
+        if (newValue) {
+          this.onIdle();
+        }
+      }
+    );
+  },
+
   computed: {
     ...mapGetters([
       "currentUser",
@@ -256,24 +180,27 @@ export default Vue.extend({
       "externalWebpages",
       "workflowsList",
       "commonData",
+      "policyData",
     ]),
-    workflowNavigation() {
-      let routerPath = ["/", "/extensions"]
-      return !this.$route.path.startsWith("/web/") && !routerPath.includes(this.$route.path);
-    },
-    advancedNavigation() {
-      return this.$route.path.startsWith("/web/");
-    },
   },
   methods: {
+    _checkAuthR(policyData: any, endpoint: string, currentUser: any): boolean {
+      "Check if the user has a role that authorizes him to access the requested endpoint";
+      return checkAuthR(policyData, endpoint, currentUser);
+    },
+    checkAuthSection(policyData: any, section: any, currentUser: any): boolean {
+      "Check if the user has a role that grants access to any subsection of the section";
+      let endpoints = Object.values(section.subSections).map(
+        (subsection: any) => subsection.linkTo
+      );
+      return endpoints.some((endpoint: string) =>
+        this._checkAuthR(policyData, endpoint, currentUser)
+      );
+    },
     changeMode(v: boolean) {
       this.settings["darkMode"] = v;
       localStorage["settings"] = JSON.stringify(this.settings);
       this.$vuetify.theme.dark = v;
-    },
-    changeNavigation(v: boolean) {
-      this.settings["navigationMode"] = v;
-      localStorage["settings"] = JSON.stringify(this.settings);
     },
     login() {
       this.$store
@@ -283,10 +210,16 @@ export default Vue.extend({
     logout() {
       this.$store.dispatch(LOGOUT);
     },
+    onIdle() {
+      this.$store.dispatch(LOGOUT).then(() => {
+        this.$router.push({ name: "" });
+      });
+    },
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
     this.$store.dispatch(LOAD_COMMON_DATA);
+    this.$store.dispatch(GET_POLICY_DATA);
     if (!localStorage["settings"]) {
       localStorage["settings"] = JSON.stringify(settings);
     }
@@ -304,22 +237,6 @@ export default Vue.extend({
       })
       .catch((error: any) => {
         console.log("Something went wrong with traefik", error);
-      });
-  },
-  onIdle() {
-    console.log("checking", this.$store.getters.isAuthenticated);
-    this.$store
-      .dispatch(CHECK_AUTH)
-      .then(() => {
-        console.log("still online");
-      })
-      .catch((err: any) => {
-        console.log("reloading");
-        location.reload();
-        // this.$router.push({ name: 'home' });
-        // this.$store.dispatch(LOGOUT).then(() => {
-        //   this.$router.push({ name: 'home' });
-        // });
       });
   },
 });
@@ -342,33 +259,22 @@ export default Vue.extend({
   height: calc(100vh - 105px);
 }
 
-.kaapana-iframe-container-top-navigation {
-  height: calc(100vh - 105px - 56px);
-}
-
 .kapaana-side-navigation {
   min-height: calc(100vh - 81px);
-}
-
-.kapaana-top-navigation {
-  min-height: calc(100vh - 81px - 56px);
 }
 
 .v-item-group.v-bottom-navigation {
   border-bottom-width: 1px;
   border-bottom-style: solid;
-  border-bottom-color: rgba(0,0,0,.12);
-  -moz-box-shadow: none!important;
-  -webkit-box-shadow: none!important;
-  box-shadow: none!important;
-  
+  border-bottom-color: rgba(0, 0, 0, 0.12);
+  -moz-box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
 }
 
-@media (min-width: 2100px)
-{
+@media (min-width: 2100px) {
   .container--fluid {
-    max-width: 2100px!important;
+    max-width: 2100px !important;
   }
 }
-
 </style>

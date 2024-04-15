@@ -20,6 +20,9 @@ spec:
       - name: auth-backend
         image: "{{ .Values.global.registry_url }}/auth-backend:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        env:
+          - name: ADMIN_NAMESPACE
+            value: "{{ .Values.global.admin_namespace }}"
         ports:
           - containerPort: 5000
         resources:
@@ -27,17 +30,9 @@ spec:
             memory: "100Mi"
           requests:
             memory: "50Mi"
-        volumeMounts:
-        - name: auth-config
-          mountPath: /kaapana/app/auth_role_mapping.json
-          subPath: auth_role_mapping.json
-      volumes:
-      - name: auth-config
-        configMap:
-          name: auth-check-config
-          items:
-          - key: auth_role_mapping.json
-            path: auth_role_mapping.json
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret

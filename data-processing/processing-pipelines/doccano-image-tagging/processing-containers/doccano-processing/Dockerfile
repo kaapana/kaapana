@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="doccano-processing"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/ /kaapana/app/
 

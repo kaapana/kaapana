@@ -326,9 +326,13 @@ def helm_install(
             if isinstance(value, str) and value != "":
                 default_sets.update({f"global.{key}": value})
             elif isinstance(value, list) and value:
-                for idx, sub_dict in enumerate(value):
-                    for k, v in sub_dict.items():
-                        default_sets[f"global.{key}[{idx}].{k}"] = v
+                for idx, obj in enumerate(value):
+                    if isinstance(obj, dict):
+                        # more keys to be parsed since this is a sub-dictionary
+                        for k, v in obj.items():
+                            default_sets[f"global.{key}[{idx}].{k}"] = v
+                    else:
+                        default_sets[f"global.{key}[{idx}]"] = obj
 
     if "sets" not in payload:
         payload["sets"] = default_sets
@@ -416,9 +420,9 @@ def helm_install(
             logger.error(
                 f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}"
             )
-    timeout = 5
+    timeout = 15
     if platforms:
-        timeout = 15
+        timeout = 45 # plaforms usually take longer due to multiple sub-charts involved
     success, stdout = helm_helper.execute_shell_command(
         helm_command, shell=shell, blocking=blocking, timeout=timeout
     )

@@ -52,32 +52,29 @@
             ></v-text-field>
           </div>
         </template>
-
         <template v-slot:item.conf_data="{ item }">
           <v-icon color="secondary" dark="" @click="openConfData(item.conf_data)">
               mdi-email
           </v-icon>
         </template>
         <template v-slot:item.status="{ item }">
-          <v-chip
-            :color="getStatusColor(item.status, $vuetify.theme.dark)"
-            class="my-chip"
-            dark=""
-            dense
-            outlined
-          >
-            {{ item.status }}
-          </v-chip>
-        </template>
-        <template v-slot:item.airflow="{ item }">
-          <!-- <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
+          <v-tooltip bottom>
             <template v-slot:activator="{ on, attrs }">
-              <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_graph(item)' small icon>
-                <v-icon color="secondary" dark>mdi-chart-timeline-variant</v-icon>
+              <v-btn 
+               v-bind="attrs" 
+               v-on="on"
+               :color="getStatusColor(item.status, $vuetify.theme.dark)"
+               rounded
+               outlined
+               small
+              >
+                {{ item.status }}
               </v-btn>
             </template>
-            <span>airflow's dag_run graph view</span>
-          </v-tooltip> -->
+            <pre class="custom-tooltip-content">{{ formatJson(item.description) }}</pre>
+          </v-tooltip>
+        </template>
+        <template v-slot:item.airflow="{ item }">
           <v-tooltip v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name || item.external_job_id" bottom>
             <template v-slot:activator="{ on, attrs }">
               <v-btn v-bind="attrs" v-on="on" @click='direct_airflow_grid_details(item)' small icon>
@@ -104,15 +101,13 @@
             </v-tooltip>
         </template>
         <template v-slot:item.actions="{ item }">
-          <div v-if="item.service_job">
-            <v-tooltip bottom>
+          <v-col v-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
+            <v-tooltip v-if="item.service_job" bottom>
               <template v-slot:activator="{ on }">
                 <v-icon v-on="on" color="secondary" dark>mdi-account-hard-hat-outline</v-icon>
               </template>
-              <span> No actions for service jobs! </span>
+              <span>This is an auto triggered service job</span>
             </v-tooltip>
-          </div>
-          <v-col v-else-if="item.kaapana_instance.instance_name == item.owner_kaapana_instance_name" >
             <v-tooltip bottom>
               <template v-slot:activator="{ on, attrs }">
                 <v-btn v-bind="attrs" v-on="on" @click='abortJob(item)' small icon>
@@ -198,6 +193,7 @@
 
     computed: {
       filteredJobs() {
+        console.log("jobs: ", this.jobs)
         if (this.jobs !== null) {
           return this.jobs.filter((i) => {
             let statusFilter = false;
@@ -264,6 +260,7 @@
         this.dialogConfData = false
       },
       getStatusColor(status, darkTheme) {
+        console.log("job status: ", status)
         if (status == 'queued') {
           return 'grey'
         } else if (status == 'pending') {
@@ -278,6 +275,43 @@
           return 'brown'
         } else {
           return 'red'
+        }
+      },
+      formatJson(jsonString) {
+        if (jsonString == null) {
+          console.error('Given JSON is NULL');
+          return jsonString; // Return original JSON string if parsing fails
+        }
+        else {
+          // translate to valid json string
+          const validjsonString = jsonString.replace(/'/g, '"');
+
+          try {
+            const jsonObject = JSON.parse(validjsonString);
+
+            // sort by start_date
+            const sortedEntries = Object.entries(jsonObject).sort((a, b) => {
+              const dateA = a[1].start_date;
+              const dateB = b[1].start_date;
+              if (!dateA && !dateB) return 0; // Keep the order unchanged for both empty start_date entries
+              if (!dateA) return 1; // Move entry with empty start_date to the end
+              if (!dateB) return -1; // Move entry with empty start_date to the end
+              return new Date(dateA).getTime() - new Date(dateB).getTime();
+            });
+            const sortedData = Object.fromEntries(sortedEntries);
+
+            // reformat to json with linebreaks
+            const formattedJson = JSON.stringify(sortedData, null, 2)
+              .replace(/:/g, ': ')
+              .replace(/,/g, ',\n')
+              .replace(/{/g, '{\n')
+              .replace(/}/g, '\n}');
+            
+            return formattedJson
+          } catch (error) {
+            console.error('Invalid JSON:', error);
+            return jsonString; // Return original JSON string if parsing fails
+          }
         }
       },
       abortJob(item) {
@@ -388,5 +422,10 @@
 <style scoped lang="scss">
 .my-chip {
   border-width: 3px;
+}
+
+.custom-tooltip-content {
+  line-height: 0.5; /* Adjust line height as needed */
+  padding: 4px; /* Adjust padding value as needed */
 }
 </style>

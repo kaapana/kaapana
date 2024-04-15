@@ -90,7 +90,7 @@ def set_ohif_template():
             + domain
             + ":"
             + https_port
-            + '/ohif/IHEInvokeImageDisplay?requestType=STUDY&studyUID={{value}}","labelTemplate":"{{value}}"}}}',
+            + '/ohif/viewer?StudyInstanceUIDs={{value}}","labelTemplate":"{{value}}"}}}',
         }
     }
     try:
@@ -147,6 +147,13 @@ def create_index():
                         "match_pattern": "regex",
                         "match": "^.*_float.*$",
                         "mapping": {"type": "float"},
+                    }
+                },
+                {
+                    "check_double": {
+                        "match_pattern": "regex",
+                        "match": "^.*_double.*$",
+                        "mapping": {"type": "double"},
                     }
                 },
                 {

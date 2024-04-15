@@ -127,7 +127,7 @@
   },
   "Task089_Fluo-N2DH-SIM_thickborder_time": {
     "id": "089",
-    "models": ["3d_fullres"],
+    "models": ["2d"],
     "check_file": "default",
     "download_link": "https://zenodo.org/record/4003545/files/Task089_Fluo-N2DH-SIM_thickborder_time.zip?download=1"
   },

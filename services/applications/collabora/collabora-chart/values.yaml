@@ -1,0 +1,11 @@
+---
+global:
+  registry_url: ""
+  pull_policy_images: ""
+  base_namespace: ""
+  namespace: "{{ .Values.global.services_namespace }}"
+  collabora_username: admin
+  collabora_password: admin
+  collabora_prefix: /collabora
+  links:
+    - /web/store/Documents

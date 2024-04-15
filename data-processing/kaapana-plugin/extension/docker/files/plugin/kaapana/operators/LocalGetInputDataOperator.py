@@ -27,6 +27,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     * data_form: 'json'
     * data_type: 'dicom' or 'json'
     * dataset_limit: limit the download series list number
+    * include_custom_tag_property: Key in workflow_form used to specify tags that must be present in the data for inclusion
+    * exclude_custom_tag_property: Key in workflow_form used to specify tags that, if present in the data, lead to exclusion
 
     **Outputs:**
 
@@ -91,8 +93,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            download_successful = HelperDcmWeb.downloadSeries(
-                seriesUID=seriesUID, target_dir=target_dir
+            download_successful = self.dcmweb_helper.downloadSeries(
+                series_uid=seriesUID, target_dir=target_dir
             )
             if not download_successful:
                 print("Could not download DICOM data!")
@@ -134,7 +136,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         print("# Starting module LocalGetInputDataOperator...")
         print("#")
         self.conf = kwargs["dag_run"].conf
-
         dag_run_id = kwargs["dag_run"].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
             series_uid = self.conf.get("seriesInstanceUID")
@@ -245,8 +246,23 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.dataset_limit = dataset_limit if dataset_limit > 0 else None
 
         if len(self.data_form["identifiers"]) > 0:
+            print(
+                f"{self.include_custom_tag_property=}, {self.exclude_custom_tag_property=}"
+            )
+            include_custom_tag = ""
+            exclude_custom_tag = ""
+            if self.include_custom_tag_property != "":
+                include_custom_tag = self.conf["workflow_form"][
+                    self.include_custom_tag_property
+                ]
+            if self.exclude_custom_tag_property != "":
+                exclude_custom_tag = self.conf["workflow_form"][
+                    self.exclude_custom_tag_property
+                ]
             self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(
-                self.data_form["identifiers"]
+                self.data_form["identifiers"],
+                include_custom_tag=include_custom_tag,
+                exclude_custom_tag=exclude_custom_tag,
             )
         else:
             print("# Issue with data form -> exit. ")
@@ -322,6 +338,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("#####################################################")
             raise ValueError("ERROR")
         series_download_fail = []
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+        )
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(self.get_data, download_list)
             for download_successful, series_uid in results:
@@ -349,6 +368,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         check_modality=False,
         dataset_limit=None,
         parallel_downloads=3,
+        include_custom_tag_property="",
+        exclude_custom_tag_property="",
         batch_name=None,
         **kwargs,
     ):
@@ -357,6 +378,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         :param data_form: 'json'
         :param check_modality: 'True' or 'False'
         :param dataset_limit: limits the download list
+        :param include_custom_tag_property: key in workflow_form for filtering with tags that must exist
+        :param exclude_custom_tag_property: key in workflow_form for filtering with tags that must not exist
         :param parallel_downloads: default 3, number of parallel downloads
         """
 
@@ -365,6 +388,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.dataset_limit = dataset_limit
         self.check_modality = check_modality
         self.parallel_downloads = parallel_downloads
+
+        self.include_custom_tag_property = include_custom_tag_property
+        self.exclude_custom_tag_property = exclude_custom_tag_property
 
         super().__init__(
             dag=dag,

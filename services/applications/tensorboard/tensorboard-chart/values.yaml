@@ -15,4 +15,5 @@ global:
     host_path: /workflows/data
   - name: tb-minio
     mount_path: /kaapana/mounted/tb-logs/minio
-    host_path: /minio/tensorboard
+    host_path: /applications/tensorboard
+    minio_mirror : true

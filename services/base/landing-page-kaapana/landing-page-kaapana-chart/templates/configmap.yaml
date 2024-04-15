@@ -14,7 +14,6 @@ data:
         "label": "Store",
         "icon": "mdi-store",
         "linkTo": "/api",
-        "roles": ["admin", "user"],
         "description": "The Store is the place where the data like images, object, etc. are stored. I.e. the platform has its own PACS system to which one can send images from another PACS. All application running within the platofmr will communicate with the PACS of the platform. Besides the PACS there can be other storage applications or tools like XNAT or Minio activated.",
         "subSections": {
           "dcm4che": {
@@ -27,10 +26,20 @@ data:
             "endpoint": "/ohif",
             "linkTo": "/ohif/"
           },
+          "slim": {
+            "label": "SLIM",
+            "endpoint": "/slim",
+            "linkTo": "/slim/"
+          },
           "minio": {
             "label": "Minio",
             "endpoint": "/minio-console",
-            "linkTo": "/minio-console"
+            "linkTo": "/minio-console/"
+          },
+          "Documents": {
+            "label": "Documents",
+            "endpoint": "/collabora-wopi",
+            "linkTo": "/collabora-wopi/"
           },
           "persistence": {
             "label": "Persistence Layer",
@@ -43,7 +52,6 @@ data:
         "label": "Meta",
         "icon": "mdi-chart-bar",
         "linkTo": "/meta",
-        "roles": ["admin", "user"],
         "description": "Meta defines the section from where data of the Store are evaluated and displayed. The central application are OpenSearch and OpenSearch Dashboards, from which one can query and filter the existing data as well as create dashboards with a wide variety of plots. In order to use the functionalities of OpenSearch Dashboards, the data must be made available to OpenSearch first.",
         "subSections": {
 
@@ -53,7 +61,6 @@ data:
         "label": "System",
         "icon": "mdi-view-dashboard-variant ",
         "linkTo": "/system",
-        "roles": ["admin"],
         "description": "The system is the core of the platform. From here all applications and services are configured, started and maintained with the core application Kubernetes. Additionally the traffic on the page as well as the authentification with user roles is managed here",
         "subSections": {
           "airflow": {
@@ -69,7 +76,7 @@ data:
           "keycloak": {
             "label": "Keycloak",
             "endpoint": "/auth",
-            "linkTo": "/auth"
+            "linkTo": "/auth/admin/master/console/#/kaapana"
           },
           "traefik": {
             "label": "Traefik",

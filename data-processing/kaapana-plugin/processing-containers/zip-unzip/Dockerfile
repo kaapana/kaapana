@@ -2,7 +2,7 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="zip-unzip"
 LABEL VERSION="3.0.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 COPY files/ /kaapana/app/
 

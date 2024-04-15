@@ -15,17 +15,26 @@ class KeycloakHelper:
     The base api endpoint is based on KEYCLOAK environment variables.
     """
 
-    def __init__(self):
-        self.KEYCLOAK_USER = os.environ["KEYCLOAK_USER"]
-        self.KEYCLOAK_PASSWORD = os.environ["KEYCLOAK_PASSWORD"]
-        self.KEYCLOAK_HOST = os.environ["KEYCLOAK_HOST"]
-        self.auth_url = f"https://{self.KEYCLOAK_HOST}/auth/admin/realms/"
+    def __init__(
+        self,
+        keycloak_user=None,
+        keycloak_password=None,
+        keycloak_host=None,
+        keycloak_https_port=None,
+    ):
+        self.keycloak_user = keycloak_user or os.environ["KEYCLOAK_USER"]
+        self.keycloak_password = keycloak_password or os.environ["KEYCLOAK_PASSWORD"]
+        self.keycloak_host = keycloak_host or os.environ["KEYCLOAK_HOST"]
+        self.keycloak_https_port = keycloak_https_port or os.getenv(
+            "KEYCLOAK_HTTPS_PORT", 443
+        )
+        self.auth_url = f"https://{self.keycloak_host}:{self.keycloak_https_port}/auth/admin/realms/"
         self.master_access_token = self.get_access_token(
-            self.KEYCLOAK_USER,
-            self.KEYCLOAK_PASSWORD,
+            self.keycloak_user,
+            self.keycloak_password,
             "https",
-            self.KEYCLOAK_HOST,
-            443,
+            self.keycloak_host,
+            self.keycloak_https_port,
             False,
             "admin-cli",
         )
@@ -138,19 +147,38 @@ class KeycloakHelper:
         url = self.auth_url + "kaapana/roles"
         return self.make_authorized_request(url, requests.get)
 
-    def post_role_mapping(self, roles_to_add: list, group: str):
-        group_id = self.get_group_id(group)
+    def post_role_mapping(
+        self, roles_to_add: list, group: str = None, user: str = None
+    ):
+        assert group or user
+        if group:
+            group_id = self.get_group_id(group)
+            url = self.auth_url + f"kaapana/groups/{group_id}/role-mappings/realm"
+        elif user:
+            user_id = self.get_user_by_name(user).get("id")
+            url = self.auth_url + f"kaapana/users/{user_id}/role-mappings/realm"
         payload = []
         roles = self.get_realm_roles().json()
         for role in roles:
             if role["name"] in roles_to_add:
                 payload.append(role)
-        url = self.auth_url + f"kaapana/groups/{group_id}/role-mappings/realm"
         return self.make_authorized_request(url, requests.post, payload)
 
-    def post_user(self, payload, **kwargs):
+    def post_user(self, payload, reset_password=False, **kwargs):
         url = self.auth_url + "kaapana/users"
-        return self.make_authorized_request(url, requests.post, payload, **kwargs)
+        response = self.make_authorized_request(url, requests.post, payload, **kwargs)
+        if response.status_code == 409 and reset_password:
+            logger.warning(f"Reset password!")
+            user = self.get_user_by_name(payload.get("username"))
+            user_id = user.get("id")
+            url = self.auth_url + f"kaapana/users/{user_id}/reset-password"
+            reset_payload = payload.get("credentials")[0]
+            reset_payload["temporary"] = False
+            reset_response = self.make_authorized_request(
+                url, requests.put, reset_payload, **kwargs
+            )
+            reset_response.raise_for_status()
+            logger.info(f"Reset password for user {user_id} ")
 
     def get_client_id(self, client_name: str):
         all_clients = self.make_authorized_request(
@@ -175,3 +203,64 @@ class KeycloakHelper:
         return self.make_authorized_request(
             url, requests.post, payload=payload, update_url=update_url, **kwargs
         )
+
+    def post_composite_role(self, composite_role: str, roles_to_add: list):
+        roles = self.get_realm_roles().json()
+        role_id = [
+            available_role.get("id")
+            for available_role in roles
+            if available_role.get("name") == composite_role
+        ][0]
+
+        payload = [
+            role_to_add
+            for role_to_add in roles
+            if role_to_add.get("name") in roles_to_add
+        ]
+
+        url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
+        return self.make_authorized_request(url, requests.post, payload)
+
+    def get_composite_role(self, role):
+        roles = self.get_realm_roles().json()
+        role_id = [
+            available_role.get("id")
+            for available_role in roles
+            if available_role.get("name") == role
+        ][0]
+        url = self.auth_url + f"kaapana/roles-by-id/{role_id}/composites"
+        return self.make_authorized_request(url, requests.get)
+
+    def post_client_role_mapping(self, client: str, client_role: str, username: str):
+        """
+        Post a role mapping for a client role
+        client: the client of the role
+        client_role: the name of the role
+        username: Name of the user
+        """
+        client_id = self.get_client_id(client)
+        role_representation = self.get_client_role(client_id, client_role)
+        user_id = self.get_user_by_name(username).get("id")
+        url = (
+            self.auth_url + f"kaapana/users/{user_id}/role-mappings/clients/{client_id}"
+        )
+        return self.make_authorized_request(url, requests.post, [role_representation])
+
+    def get_client_role(self, client_id: str, client_role: str):
+        """
+        Get the role represenation of a client role
+        client_id: the id of the client the role belongs to (not the name)
+        client_role: the name of the client
+        """
+        url = self.auth_url + f"kaapana/clients/{client_id}/roles"
+        r = self.make_authorized_request(url, requests.get)
+        client_roles = r.json()
+        return [role for role in client_roles if role.get("name") == client_role][0]
+
+    def get_user_by_name(self, username: str):
+        """
+        Get the user representation by the username
+        """
+        url = self.auth_url + f"kaapana/users?username={username}"
+        r = self.make_authorized_request(url, requests.get)
+        return r.json()[0]

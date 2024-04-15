@@ -1,4 +1,3 @@
-
 <template lang="pug">
   div(v-if="hasLoadedData")
     IFrameWindow(ref="foo" :iFrameUrl="getUrl" width="100%" height="100%")
@@ -19,7 +18,7 @@ import IFrameWindow from "@/components/IFrameWindow.vue";
 export default {
   name: 'iframe-view',
   components: {
-    IFrameWindow
+    IFrameWindow,
   },
   data: function () {
     return {
@@ -28,7 +27,7 @@ export default {
   },
   computed: {
     ...mapGetters(["currentUser", "isAuthenticated", "externalWebpages"]),
-    hasLoadedData () {
+    hasLoadedData() {
       // Or whatever criteria you decide on to represent that the
       // app state has finished loading.
       return this.externalWebpages !== null
@@ -48,7 +47,7 @@ export default {
     refreshIFrame: function () {
       this.$refs.foo.refreshIFrame()
     },
-    openExternalPage: function() {
+    openExternalPage: function () {
       window.open(this.$refs.foo.getIframeUrl(), '_blank');
     }
   }
@@ -65,10 +64,12 @@ export default {
   padding: 2px;
   z-index: 2147483647;
 }
-#overlay > a {
+
+#overlay>a {
   line-height: 0px;
 }
-#overlay > a > i {
+
+#overlay>a>i {
   margin: 2px;
 }
 </style>

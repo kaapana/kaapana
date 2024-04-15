@@ -14,7 +14,14 @@ from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from airflow.api.common.experimental import pool as pool_api
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
-from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
+
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.LocalModifySegLabelNamesOperator import (
+    LocalModifySegLabelNamesOperator,
+)
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
+from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
+
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.utils.trigger_rule import TriggerRule
@@ -28,6 +35,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
+label_filter = ""
 prep_modalities = "CT"
 default_model = "3d_lowres"
 train_network_trainer = "nnUNetTrainerV2"
@@ -97,9 +105,15 @@ ui_forms = {
             "train_network_trainer": {
                 "title": "Network-trainer",
                 "default": train_network_trainer,
-                "description": "nnUNetTrainerV2 or nnUNetTrainerV2CascadeFullRes",
+                "description": "nnUNetTrainerV2, nnUNetTrainerV2CascadeFullRes, nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads",
+                "enum": [
+                    "nnUNetTrainerV2",
+                    "nnUNetTrainerV2CascadeFullRes",
+                    "nnUNetTrainerV2_Loss_DiceCE_noSmooth_warmupSegHeads",
+                ],
                 "type": "string",
                 "readOnly": False,
+                "required": True,
             },
             "prep_modalities": {
                 "title": "Modalities",
@@ -112,6 +126,37 @@ ui_forms = {
                 "title": "Seg",
                 "default": seg_filter,
                 "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
+                "type": "string",
+                "readOnly": False,
+            },
+            "label_filter": {
+                "title": "Filter Seg Masks with keyword 'Ignore' or 'Keep'",
+                "default": label_filter,
+                "description": "'Ignore' or 'Keep' labels of multi-label DICOM SEGs for segmentation task: e.g. 'Keep: liver' or 'Ignore: spleen,liver'",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fuse_labels": {
+                "title": "Fuse Segmentation Labels",
+                "description": "Segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fused_label_name": {
+                "title": "Fuse Segmentation Label: New Label Name",
+                "description": "Segmentation label name of segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "old_labels": {
+                "title": "Rename Label Names: Old Labels",
+                "description": "Old segmentation label names which should be overwritten (all special characters are removed); SAME ORDER AS NEW LABEL NAMES REQUIRED!!!",
+                "type": "string",
+                "readOnly": False,
+            },
+            "new_labels": {
+                "title": "Rename Label Names: New Labels",
+                "description": "New segmentation label names which should overwrite the old segmentation label names (all special characters are removed); SAME ORDER AS OLD LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
             },
@@ -263,13 +308,37 @@ dcm2nifti_seg = Mask2nifitiOperator(
     seg_filter=seg_filter,
 )
 
+mask_filter = LocalFilterMasksOperator(
+    dag=dag,
+    name="filter-masks",
+    input_operator=dcm2nifti_seg,
+)
+
+fuse_masks = MergeMasksOperator(
+    dag=dag,
+    name="fuse-masks",
+    input_operator=mask_filter,
+    mode="fuse",
+    trigger_rule="all_done",
+)
+
+modify_seg_label_names = LocalModifySegLabelNamesOperator(
+    dag=dag,
+    input_operator=fuse_masks,
+    metainfo_input_operator=fuse_masks,
+    results_to_in_dir=False,
+    write_seginfo_results=False,
+    write_metainfo_results=True,
+    trigger_rule="all_done",
+)
+
 dcm2nifti_ct = DcmConverterOperator(
     dag=dag, input_operator=get_ref_ct_series_from_seg, output_format="nii.gz"
 )
 
 check_seg = SegCheckOperator(
     dag=dag,
-    input_operator=dcm2nifti_seg,
+    input_operator=modify_seg_label_names,
     original_img_operator=dcm2nifti_ct,
     parallel_processes=3,
     delete_merged_data=True,
@@ -277,6 +346,7 @@ check_seg = SegCheckOperator(
     fail_if_label_already_present=False,
     fail_if_label_id_not_extractable=False,
     force_same_labels=False,
+    max_overlap_percentage=0.003,
 )
 
 nnunet_preprocess = NnUnetOperator(
@@ -297,7 +367,7 @@ nnunet_preprocess = NnUnetOperator(
     allow_federated_learning=True,
     whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
     trigger_rule=TriggerRule.NONE_FAILED,
-    dev_server=None,  #'code-server'
+    dev_server=None,  # "code-server"
 )
 
 nnunet_train = NnUnetOperator(
@@ -309,15 +379,24 @@ nnunet_train = NnUnetOperator(
     allow_federated_learning=True,
     train_network_trainer=train_network_trainer,
     train_fold="all",
-    dev_server=None,
+    dev_server=None,  # "code-server"
     retries=0,
 )
 
-generate_nnunet_report = NnUnetNotebookOperator(
+get_notebooks_from_minio = LocalMinioOperator(
+    dag=dag,
+    name="nnunet-get-notebook-from-minio",
+    bucket_name="analysis-scripts",
+    action="get",
+    action_files=["run_generate_nnunet_report.ipynb"],
+)
+
+generate_nnunet_report = JupyterlabReportingOperator(
     dag=dag,
     name="generate-nnunet-report",
     input_operator=nnunet_train,
-    arguments=["/kaapana/app/notebooks/nnunet_training/run_generate_nnunet_report.sh"],
+    notebook_filename="run_generate_nnunet_report.ipynb",
+    output_format="html,pdf",
 )
 
 put_to_minio = LocalMinioOperator(
@@ -392,7 +471,15 @@ dcm_send_int = DcmSendOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> check_seg
+(
+    get_input
+    >> get_ref_ct_series_from_seg
+    >> dcm2nifti_seg
+    >> mask_filter
+    >> fuse_masks
+    >> modify_seg_label_names
+    >> check_seg
+)
 (
     get_input
     >> get_ref_ct_series_from_seg
@@ -404,6 +491,7 @@ get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> check_seg
 
 (
     nnunet_train
+    >> get_notebooks_from_minio
     >> generate_nnunet_report
     >> put_to_minio
     >> put_report_to_minio

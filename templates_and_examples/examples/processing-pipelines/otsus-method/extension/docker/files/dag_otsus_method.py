@@ -66,7 +66,6 @@ generate_report = OtsusNotebookOperator(
     dag=dag,
     name="generate-otsus-report",
     input_operator=otsus_method,
-    # dev_server='jupyterlab',
     cmds=["/bin/bash"],
     arguments=["/kaapana/app/otsus_notebooks/run_otsus_report_notebook.sh"],
 )

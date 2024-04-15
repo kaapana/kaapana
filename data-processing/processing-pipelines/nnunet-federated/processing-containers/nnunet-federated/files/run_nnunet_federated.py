@@ -1,7 +1,6 @@
 import os
 import sys
 from pathlib import Path
-import uuid
 from multiprocessing import Pool
 import torch
 import json
@@ -65,8 +64,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         p.join()
         return results
 
-    def __init__(self, workflow_dir=None, use_minio_mount=None):
-        super().__init__(workflow_dir=workflow_dir, use_minio_mount=use_minio_mount)
+    def __init__(self, workflow_dir=None):
+        super().__init__(workflow_dir=workflow_dir)
 
         if (
             "federated_round" in self.remote_conf_data["federated_form"]
@@ -269,51 +268,35 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             )
             print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
-            # Not 100% sure if it is necessary to put those into functions, I did this to be sure to not allocated unnecssary memory...
-            def _sum_state_dicts(fname, idx):
-                checkpoint = torch.load(fname, map_location=torch.device("cpu"))
-                if idx == 0:
-                    sum_state_dict = checkpoint["state_dict"]
+            ### FL Aggregation during training ###
+            # load state_dicts
+            site_statedict_dict = self.load_state_dicts(current_federated_round_dir)
+            # process state_dicts according to aggregation method
+            if self.aggregation_strategy == "fedavg":
+                # FedAvg
+                processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
+            elif self.aggregation_strategy == "feddc":
+                if federated_round == -1:
+                    # average in fl_round=-1 to initialize everywhere w/ same model
+                    processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
                 else:
-                    sum_state_dict = torch.load("tmp_state_dict.pt")
-                    for key, value in checkpoint["state_dict"].items():
-                        sum_state_dict[key] = (
-                            sum_state_dict[key] + checkpoint["state_dict"][key]
-                        )
-                torch.save(sum_state_dict, "tmp_state_dict.pt")
+                    # FedDC
+                    processed_site_statedict_dict = self.fed_dc(
+                        site_statedict_dict, federated_round
+                    )
+            else:
+                raise ValueError(
+                    "No Federated Learning method is given. Choose between 'fedavg', 'feddc'."
+                )
+            # save state_dicts to server's minio
+            fname = self.save_state_dicts(
+                current_federated_round_dir, processed_site_statedict_dict
+            )
 
-            def _save_state_dict(fname, averaged_state_dict):
-                checkpoint = torch.load(fname, map_location=torch.device("cpu"))
-                checkpoint["state_dict"] = averaged_state_dict
-                torch.save(checkpoint, fname)
-
-            print("Loading averaged checkpoints")
-            for idx, fname in enumerate(
-                current_federated_round_dir.rglob("model_final_checkpoint.model")
-            ):
-                print(fname)
-                _sum_state_dicts(fname, idx)
-                print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
-
-            sum_state_dict = torch.load("tmp_state_dict.pt")
-            os.remove("tmp_state_dict.pt")
-
-            averaged_state_dict = collections.OrderedDict()
-            for key, value in sum_state_dict.items():
-                averaged_state_dict[key] = sum_state_dict[key] / (idx + 1.0)
-
-            print("Saving averaged checkpoints")
-            for idx, fname in enumerate(
-                current_federated_round_dir.rglob("model_final_checkpoint.model")
-            ):
-                print(fname)
-                _save_state_dict(fname, averaged_state_dict)
-                print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
-
+            # last fl_round
             if (
                 self.remote_conf_data["federated_form"]["federated_total_rounds"]
                 == federated_round + 1
-                and self.use_minio_mount is not None
             ):
                 src = (
                     current_federated_round_dir
@@ -344,7 +327,10 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             ] = self.remote_conf_data["federated_form"]["skip_operators"] + [
                 "get-input-data",
                 "get-ref-series-ct",
-                "dcmseg2nrrd",
+                "mask2nifti",
+                "filter-masks",
+                "fuse-masks",
+                "rename-seg-label-names",
                 "dcm-converter-ct",
                 "seg-check",
             ]
@@ -368,7 +354,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
 
 
 if __name__ == "__main__":
-    kaapana_ft = nnUNetFederatedTraining(use_minio_mount="/minio")
+    kaapana_ft = nnUNetFederatedTraining()
     if (
         "federated_round" in kaapana_ft.remote_conf_data["federated_form"]
         and kaapana_ft.remote_conf_data["federated_form"]["federated_round"] >= 0

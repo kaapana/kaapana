@@ -6,3 +6,4 @@ name: nnunet-workflow
 version: "0.0.0"
 keywords:
 - kaapanaworkflow
+- gpurequired

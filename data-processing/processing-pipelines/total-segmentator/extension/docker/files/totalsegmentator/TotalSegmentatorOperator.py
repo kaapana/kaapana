@@ -13,7 +13,6 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
     The algorithm segments 104 body structures and stores them in single file nifti format.
 
     Expects the pretrained weights already to be downloaded (use LocalGetTotalSegmentatorModels for that).
-    A Nvidia GPU is required to run the algorithm.
 
     - Publication:
       Wasserthal, J., Meyer, M., Breit, H. C., Cyriac, J., Yang, S., & Segeroth, M. (2022).
@@ -25,8 +24,6 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
     :param task: Task to execute. Currently, on 'total' is supported.
     :type task: str
     """
-
-    execution_timeout = timedelta(minutes=120)
 
     def __init__(
         self,
@@ -47,7 +44,7 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
         nr_thr_resamp=1,
         nr_thr_saving=6,
         env_vars=None,
-        execution_timeout=execution_timeout,
+        execution_timeout=timedelta(minutes=120),
         **kwargs,
     ):
         if env_vars is None:
@@ -107,5 +104,6 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
             env_vars=env_vars,
             ram_mem_mb=ram_mem_mb,
             gpu_mem_mb=gpu_mem_mb,
+            retries=3,
             **kwargs,
         )

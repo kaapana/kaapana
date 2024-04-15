@@ -1,5 +1,5 @@
-FROM docker.io/traefik:v2.9.9
+FROM docker.io/traefik:v2.11@sha256:da7114f99f3e99ade8490e93550c8106cb62b8ab105d3d6c072cb26ae5111866
 
 LABEL IMAGE="traefik"
-LABEL VERSION="v2.9.9"
-LABEL CI_IGNORE="False"
+LABEL VERSION="v2.11"
+LABEL BUILD_IGNORE="False"

@@ -1,4 +1,3 @@
-from argparse import Namespace
 from cryptography.fernet import Fernet
 import requests
 import time
@@ -7,6 +6,9 @@ import json
 import os
 import uuid
 import shutil
+import collections
+import torch
+import random
 import tarfile
 import functools
 from minio import Minio
@@ -187,9 +189,7 @@ class KaapanaFederatedTrainingBase(ABC):
         secret_key="Kaapana2020",
         minio_host=f"minio-service.{SERVICES_NAMESPACE}.svc",
         minio_port="9000",
-        use_minio_mount=None,
     ):
-        self.use_minio_mount = use_minio_mount
         self.run_in_parallel = False
         self.federated_dir = os.getenv("RUN_ID", str(uuid.uuid4()))
         self.workflow_dir = workflow_dir or os.getenv("WORKFLOW_DIR")
@@ -212,18 +212,11 @@ class KaapanaFederatedTrainingBase(ABC):
             else:
                 self.local_conf_data[k] = v
 
-        if self.use_minio_mount is None:
-            self.fl_working_dir = os.path.join(
-                "/",
-                self.workflow_dir,
-                os.getenv("OPERATOR_OUT_DIR", "federated-operator"),
-            )
-        else:
-            self.fl_working_dir = os.path.join(
-                self.use_minio_mount,
-                self.remote_conf_data["federated_form"]["remote_dag_id"],
-                self.remote_conf_data["federated_form"]["federated_dir"],
-            )
+        self.fl_working_dir = os.path.join(
+            "/",
+            self.workflow_dir,
+            os.getenv("OPERATOR_OUT_DIR", "federated-operator"),
+        )
         print(self.fl_working_dir)
 
         self.json_writer = JsonWriter(log_dir=self.fl_working_dir)
@@ -264,12 +257,28 @@ class KaapanaFederatedTrainingBase(ABC):
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.remote_sites = r.json()
 
+        # instantiate Minio client
         self.minioClient = Minio(
             minio_host + ":" + minio_port,
             access_key=access_key,
             secret_key=secret_key,
             secure=False,
         )
+
+        # FL aggregation strategy
+        if "aggregation_strategy" in self.remote_conf_data["federated_form"]:
+            # get defined FL aggregation strategy
+            self.aggregation_strategy = self.remote_conf_data["federated_form"][
+                "aggregation_strategy"
+            ]["agg_strategy_method"]
+            # special params for FedDC
+            if self.aggregation_strategy == "feddc":
+                self.agg_rate = self.remote_conf_data["federated_form"][
+                    "aggregation_strategy"
+                ]["feddc_aggregation_rate"]
+                self.dc_rate = self.remote_conf_data["federated_form"][
+                    "aggregation_strategy"
+                ]["feddc_daisychaining_rate"]
 
     @timeit
     def distribute_jobs(self, federated_round):
@@ -415,10 +424,9 @@ class KaapanaFederatedTrainingBase(ABC):
                     )
                     file_dir = os.path.dirname(file_path)
                     os.makedirs(file_dir, exist_ok=True)
-                    if self.use_minio_mount is None:
-                        self.minioClient.fget_object(
-                            federated_bucket, obj.object_name, file_path
-                        )
+                    self.minioClient.fget_object(
+                        federated_bucket, obj.object_name, file_path
+                    )
                     KaapanaFederatedTrainingBase.fernet_decryptfile(
                         file_path, tmp_site_info["fernet_key"]
                     )
@@ -431,10 +439,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     )
             print("Removing objects from previous federated_round_dir on Minio")
 
-            if (
-                previous_federated_round_dir is not None
-                and self.use_minio_mount is None
-            ):
+            if previous_federated_round_dir is not None:
                 minio_rmtree(
                     self.minioClient,
                     federated_bucket,
@@ -445,6 +450,130 @@ class KaapanaFederatedTrainingBase(ABC):
     @timeit
     def update_data(self, federated_round, tmp_central_site_info):
         pass
+
+    # @timeit
+    def load_state_dicts(self, current_federated_round_dir=None):
+        """
+        Load checkpoints and return as dict.
+        """
+        print("Load checkpoints and return as dict.")
+        site_statedict_dict = collections.OrderedDict()
+        for idx, fname in enumerate(
+            current_federated_round_dir.rglob("model_final_checkpoint.model")
+        ):
+            print(f"Loading state_dict from: {fname}")
+            checkpoint = torch.load(fname, map_location=torch.device("cpu"))
+
+            # retrieve site_name from current_federated_round_dir
+            modified_fname = str(fname).replace(str(current_federated_round_dir), "")
+            site_name = modified_fname.split("/")[1]
+
+            site_statedict_dict[site_name] = checkpoint["state_dict"]
+        return site_statedict_dict
+
+    # @timeit
+    def fed_avg(self, site_statedict_dict=None):
+        """
+        FedAvg: Communication-efficient Learning of Deep networks from Decentralized Data (https://arxiv.org/abs/1602.05629)
+        Sum state_dicts up.
+        Divide summed state_dict by num_sites.
+        Return a site_statedict_dict with always the same statedict per site.
+        """
+        # sum state_dicts up
+        # site_statedict_dict = {"<siteA>": <state_dict_0> , "<siteA>": <state_dict_1>, ...}
+        sum_state_dict = collections.OrderedDict()
+        for site_key, site_value in site_statedict_dict.items():
+            for key, value in site_value.items():
+                if key not in sum_state_dict:
+                    sum_state_dict[key] = value
+                else:
+                    sum_state_dict[key] = sum_state_dict[key] + value
+
+        num_sites = len(site_statedict_dict)
+        # average state_dicts
+        averaged_state_dict = collections.OrderedDict()
+        for key, value in sum_state_dict.items():
+            averaged_state_dict[key] = sum_state_dict[key] / num_sites
+
+        # return site_statedict_dict with same averaged model per site
+        return_statedict_dict = collections.OrderedDict()
+        for site in site_statedict_dict.keys():
+            return_statedict_dict[site] = averaged_state_dict
+
+        return return_statedict_dict
+
+    # @timeit
+    def fed_dc(
+        self,
+        site_statedict_dict=None,
+        federated_round=None,
+    ):
+        """
+        FedDC: Federated Learning from Small Datasets (https://arxiv.org/abs/2110.03469)
+        Daisy chaining if (federated_round % dc_rate) == (dc_rate - 1).
+        Aggregate local models if (federated_round % agg_rate) == (agg_rate - 1).
+
+        Input:
+        * site_statedict_dict: site_statedict_dict = {"<siteA>": <state_dict_0> , "<siteA>": <state_dict_1>, ...}
+        * federated_round: current federated communication round
+        * agg_rate: aggregation rate; defines how often local model weights are aggregated (avereaged)
+        * dc_rate: daisy chaining rate; defines how often local models are randomly sent to other site
+
+        Output:
+        * return_statedict_dict: with eiter just randomly permuted site keys or aggregated state_dicts.
+        """
+
+        # do either daisy-chaining or aggregation
+        if (federated_round % self.dc_rate) == (self.dc_rate - 1):
+            # daisy chaining
+            site_keys = list(site_statedict_dict.keys())
+            shuffled_site_keys = random.sample(site_keys, len(site_keys))
+            return_statedict_dict = dict(
+                zip(
+                    shuffled_site_keys,
+                    [site_statedict_dict[key] for key in shuffled_site_keys],
+                )
+            )
+        if (federated_round % self.agg_rate) == (self.agg_rate - 1):
+            # aggregation via FedAvg
+            return_statedict_dict = self.fed_avg(site_statedict_dict)
+        if ((federated_round % self.agg_rate) != (self.agg_rate - 1)) and (
+            (federated_round % self.dc_rate) != (self.dc_rate - 1)
+        ):
+            raise ValueError(
+                "Error while FedDC: Neither Daisy Chaining nor Aggregation was computed!"
+            )
+        return return_statedict_dict
+
+    # @timeit
+    def _save_state_dict(self, fname=None, state_dict=None):
+        """
+        Saves state_dict to checkpoint in fname.
+        """
+        checkpoint = torch.load(str(fname), map_location=torch.device("cpu"))
+        checkpoint["state_dict"] = state_dict
+        torch.save(checkpoint, str(fname))
+
+    # @timeit
+    def save_state_dicts(
+        self, current_federated_round_dir=None, processed_site_statedict_dict=None
+    ):
+        """
+        Save processed model to site-corresponding minio folders.
+        """
+        print("Saving processed model checkpoints")
+        for idx, fname in enumerate(
+            current_federated_round_dir.rglob("model_final_checkpoint.model")
+        ):
+            # retrieve site_name from current_federated_round_dir
+            modified_fname = str(fname).replace(str(current_federated_round_dir), "")
+            site_name = modified_fname.split("/")[1]
+
+            print(f"Save centrally processed model to {site_name}")
+
+            self._save_state_dict(str(fname), processed_site_statedict_dict[site_name])
+
+        return str(fname)
 
     @timeit
     def upload_workflow_dir_to_minio_object(
@@ -461,20 +590,11 @@ class KaapanaFederatedTrainingBase(ABC):
                     file_path, self.client_network["fernet_key"]
                 )
                 print(f"Uploading {file_path } to {next_object_name}")
-                if self.use_minio_mount is None:
-                    self.minioClient.fput_object(
-                        self.remote_conf_data["federated_form"]["federated_bucket"],
-                        next_object_name,
-                        file_path,
-                    )
-                else:
-                    dst = os.path.join(
-                        self.use_minio_mount,
-                        self.remote_conf_data["federated_form"]["federated_bucket"],
-                        next_object_name,
-                    )
-                    os.makedirs(os.path.dirname(dst), exist_ok=True)
-                    shutil.copyfile(file_path, dst)
+                self.minioClient.fput_object(
+                    self.remote_conf_data["federated_form"]["federated_bucket"],
+                    next_object_name,
+                    file_path,
+                )
         print("Finished round", federated_round)
 
     @timeit
@@ -567,17 +687,6 @@ class KaapanaFederatedTrainingBase(ABC):
                 print(f"Removing previous round files {previous_fl_working_round_dir}")
                 if os.path.isdir(previous_fl_working_round_dir):
                     shutil.rmtree(previous_fl_working_round_dir)
-        print("Cleaning up minio")
-
-        if self.use_minio_mount is not None:
-            dst = os.path.join(
-                "/",
-                self.workflow_dir,
-                os.getenv("OPERATOR_OUT_DIR", "federated-operator"),
-                os.path.basename(self.json_writer.filename),
-            )
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copyfile(self.json_writer.filename, dst)
 
     def clean_up_minio(self):
         minio_rmtree(

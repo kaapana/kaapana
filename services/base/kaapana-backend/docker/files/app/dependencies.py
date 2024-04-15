@@ -1,5 +1,5 @@
 import os
-from fastapi import Header, HTTPException, Depends
+from fastapi import Header, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from minio import Minio
 from .monitoring.services import MonitoringService
@@ -9,6 +9,7 @@ from .users.services import UserService
 from .workflows.models import KaapanaInstance
 from .config import settings
 from .database import SessionLocal
+from .workflows.utils import HelperMinio
 
 
 def get_db():
@@ -31,13 +32,9 @@ def get_user_service() -> UserService:
     )
 
 
-def get_minio() -> Minio:
-    yield Minio(
-        settings.minio_url,
-        access_key=settings.minio_username,
-        secret_key=settings.minio_password,
-        secure=False,
-    )
+def get_minio(request: Request) -> HelperMinio:
+    x_auth_token = request.headers.get("x-forwarded-access-token")
+    yield HelperMinio(x_auth_token)
 
 
 # def get_workflow_service() -> WorkflowService:

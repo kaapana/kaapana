@@ -27,8 +27,8 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         # ctpet-prep batch 1.3.12.2.1107.5.8.15.101314.30000019092314381173500002262normalization
 
         object_dirs = [join(self.batch_name, series_uid, cache_operator)]
-        HelperMinio.apply_action_to_object_dirs(
-            HelperMinio.minioClient,
+        minio_client = HelperMinio(dag_run=self.dag_run)
+        minio_client.apply_action_to_object_dirs(
             "get",
             self.target_bucket,
             output_dir,
@@ -217,13 +217,14 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 raise Exception("Directory not copied. Error: %s" % e)
                 raise ValueError("ERROR")
 
-    def trigger_dag(self, ds, **kwargs):
+    def trigger_dag_dicom_helper(self):
+        """
+        Triggers Airflow workflows passed with the input DICOM data.
+
+        Returns:
+            pending_dags (list): List containing information about triggered DAGs that are still pending.
+        """
         pending_dags = []
-        done_dags = []
-
-        self.conf = kwargs["dag_run"].conf
-        self.dag_run_id = kwargs["dag_run"].run_id
-
         dicom_info_list = self.get_dicom_list()
         print(f"DICOM-LIST: {dicom_info_list}")
         trigger_series_list = []
@@ -244,35 +245,6 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 print("#############################################################")
                 print()
                 raise ValueError("ERROR")
-            # if self.use_dcm_files:
-            #     if self.from_data_dir:
-            #         break
-            #     elif self.trigger_mode == "batch":
-            #         if len(trigger_series_list) == 0:
-            #             trigger_series_list.append([])
-            #         trigger_series_list[0].append(dicom_series)
-            #     elif self.trigger_mode == "single":
-            #         trigger_series_list.append([dicom_series])
-            # elif len(self.cache_operators) > 0:
-            #     for cache_operator in self.cache_operators:
-            #         cache_found = self.check_cache(dicom_series=dicom_series, cache_operator=cache_operator)
-            #         if not cache_found and self.trigger_mode == "batch":
-            #             if len(trigger_series_list) == 0:
-            #                 trigger_series_list.append([])
-            #             trigger_series_list[0].append(dicom_series)
-            #         elif not cache_found and self.trigger_mode == "single":
-            #             trigger_series_list.append([dicom_series])
-            #         elif not cache_found:
-            #             print()
-            #             print("#############################################################")
-            #             print()
-            #             print("TRIGGER_MODE: {} is not supported!".format(self.trigger_mode))
-            #             print("Please use: 'single' or 'batch' -> abort.")
-            #             print()
-            #             print("#############################################################")
-            #             print()
-            #             raise ValueError('ERROR')
-            # else:
 
         print()
         print("#############################################################")
@@ -328,35 +300,83 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
             )
             pending_dags.append(triggered_dag)
 
+        return pending_dags
+
+    def trigger_dag(self, ds, **kwargs):
+        """
+        Orchestrates triggering of Airflow workflows.
+
+        Parameters:
+            ds (str): Datestamp parameter for Airflow.
+            kwargs: Additional keyword arguments, including `dag_run` information.
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If any triggered DAG fails or encounters unexpected behavior.
+        """
+        pending_dags = []
+        done_dags = []
+        self.dag_run = kwargs["dag_run"]
+        self.conf = kwargs["dag_run"].conf
+        self.dag_run_id = kwargs["dag_run"].run_id
+
+        if self.trigger_dag_id == "":
+            print(
+                f"trigger_dag_id is empty, setting to {self.conf['workflow_form']['trigger_dag_id']}"
+            )
+            self.trigger_dag_id = self.conf["workflow_form"]["trigger_dag_id"]
+
+        print(f"{self.use_dcm_files=}")
+        print(f"{self.dag_run_id=}")
+        print(f"{self.trigger_dag_id=}")
+
+        if not self.use_dcm_files:
+            print("just running the dag without moving any dicom files beforehand")
+            dag_run_id = generate_run_id(self.trigger_dag_id)
+            triggered_dag = trigger(
+                dag_id=self.trigger_dag_id,
+                run_id=dag_run_id,
+                conf=self.conf,
+                replace_microseconds=False,
+            )
+            pending_dags.append(triggered_dag)
+        else:
+            pending_dags = self.trigger_dag_dicom_helper()
+
         while self.wait_till_done and len(pending_dags) > 0:
             print(f"Some triggered DAGs are still pending -> waiting {self.delay} s")
             for pending_dag in list(pending_dags):
                 pending_dag.update_state()
                 state = pending_dag.get_state()
+                print(f"{pending_dag=} , {state=}")
                 if state == "running":
                     continue
                 elif state == "success":
                     done_dags.append(pending_dag)
                     pending_dags.remove(pending_dag)
-                    for series in pending_dag.conf["inputs"]:
-                        for cache_operator in self.cache_operators:
-                            if not self.check_cache(
-                                dicom_series=series, cache_operator=cache_operator
-                            ):
-                                print()
-                                print(
-                                    "#############################################################"
-                                )
-                                print()
-                                print(
-                                    "Could still not find the data after the sub-dag."
-                                )
-                                print("This is unexpected behaviour -> error")
-                                print()
-                                print(
-                                    "#############################################################"
-                                )
-                                raise ValueError("ERROR")
+                    # keep the same functionality if triggering with dicom
+                    if self.use_dcm_files:
+                        for series in pending_dag.conf["inputs"]:
+                            for cache_operator in self.cache_operators:
+                                if not self.check_cache(
+                                    dicom_series=series, cache_operator=cache_operator
+                                ):
+                                    print()
+                                    print(
+                                        "#############################################################"
+                                    )
+                                    print()
+                                    print(
+                                        "Could still not find the data after the sub-dag."
+                                    )
+                                    print("This is unexpected behaviour -> error")
+                                    print()
+                                    print(
+                                        "#############################################################"
+                                    )
+                                    raise ValueError("ERROR")
 
                 elif state == "failed":
                     print()

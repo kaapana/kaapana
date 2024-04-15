@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: open-policy-agent
+  namespace: "{{ .Values.global.admin_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: open-policy-agent
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: open-policy-agent
+    spec:
+      containers:
+      - name: open-policy-agent
+        image: "{{ .Values.global.registry_url }}/open-policy-agent:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        #args: ["run", "--server","--log-format=json-pretty", "--set=decision_logs.console=true", "-c /kaapana/opa/config.yaml" ]
+        env:
+          - name: ADMIN_NAMESPACE
+            value: "{{ .Values.global.admin_namespace }}"
+        ports:
+        - containerPort: 8181
+        resources:
+          limits:
+            memory: "100Mi"
+          requests:
+            memory: "10Mi"
+      imagePullSecrets:
+        - name: registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-policy-agent-service
+  namespace: "{{ .Values.global.admin_namespace }}"
+  labels:
+    app-name: open-policy-agent
+spec:
+  selector:
+    app-name: open-policy-agent
+  ports:
+    - name: bundle-http
+      port: 8181 
+  type: ClusterIP

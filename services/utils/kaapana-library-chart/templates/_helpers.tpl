@@ -39,6 +39,7 @@
 # Iteration
 {{- range $volume := .Values.global.dynamicVolumes }}
 {{- $postfix := and (has "kaapanamultiinstallable" $keywords) (hasKey $volume "host_path") | ternary (printf "-%s" $release_name) "" }}
+{{- $minio_mirror := and (hasKey $volume "minio_mirror") ($volume.minio_mirror) }}
 {{- if $volume.host_path }}
 apiVersion: v1
 kind: PersistentVolume
@@ -61,7 +62,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath: 
-    path: {{ regexMatch "^(/minio|/dcm4che/dicom_data|/dcm4che/server_data)" $volume.host_path | ternary $.Values.global.slow_data_dir $.Values.global.fast_data_dir }}{{ $volume.host_path }}
+    path: {{ regexMatch "^(/minio|/dcm4che/dicom_data|/dcm4che/server_data)" $volume.host_path | ternary $.Values.global.slow_data_dir $.Values.global.fast_data_dir }}{{ $volume.host_path }}{{ $minio_mirror | ternary (printf "/%s" $release_name) ""}}
 {{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:

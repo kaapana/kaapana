@@ -1,0 +1,3 @@
+ansible == 9..0
+openstacksdk == 3.0.0
+lxml == 5.1.0

@@ -3,7 +3,7 @@ FROM local-only/base-python-gpu:latest
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-nnunet"
 LABEL VERSION="latest"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 ENV OMP_NUM_THREADS=1
 ENV PYTHONUNBUFFERED=1
@@ -22,9 +22,13 @@ COPY files/patched/nnUNetTrainer.py /nnunet-pip-package/nnunet/training/network_
 COPY files/patched/nnUNetTrainerV2.py /nnunet-pip-package/nnunet/training/network_training/nnUNetTrainerV2.py
 COPY files/patched/predict.py /nnunet-pip-package/nnunet/inference/predict.py
 COPY files/patched/run_training.py /nnunet-pip-package/nnunet/run/run_training.py
+COPY files/patched/nnUNetTrainerV2_warmup.py /nnunet-pip-package/nnunet/training/network_training/nnUNet_variants/loss_function/nnUNetTrainerV2_warmup.py
 
-RUN cd /nnunet-pip-package && pip3 install ./
+RUN cd /nnunet-pip-package && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt ./
 
-RUN pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt tensorboard==2.8.0
+
+
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt tensorboard==2.15.1
+
 
 WORKDIR /kaapana/app

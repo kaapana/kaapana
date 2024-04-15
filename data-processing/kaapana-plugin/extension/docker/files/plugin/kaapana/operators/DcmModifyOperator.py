@@ -17,6 +17,10 @@ class DcmModifyOperator(KaapanaBaseOperator):
     This operator serves to modify DICOM tags of DICOM files.
     The operator relies on DCMTK's "dcmodify" function.
 
+    Note: This operator edits the DICOM files in-place. Therefore, the original DICOM files are modified.
+    Furthermore, it creates a backup of the original DICOM files in the same directory with ending "{filename}.bak".
+    If the filename ends with ".dcm", the backup file will be named "{filename}.dcm.bak".
+
     **Inputs:**
 
     * DICOM files which should be modified.
@@ -27,15 +31,12 @@ class DcmModifyOperator(KaapanaBaseOperator):
     * Modified DICOM files according to DICOM tags.
     """
 
-    execution_timeout = timedelta(seconds=60)
-
     def __init__(
         self,
         dag,
         dicom_tags_to_modify,  # eg: "(0008,0016)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0017)=1.2.840.10008.5.1.4.1.1.88.11;(0008,0018)=1.2.840.10008.5.1.4.1.1.88.11"
         name="DcmModify",
         env_vars={},
-        execution_timeout=execution_timeout,
         **kwargs,
     ):
         """
@@ -52,7 +53,6 @@ class DcmModifyOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/dcmodify:{KAAPANA_BUILD_VERSION}",
             name=name,
             image_pull_secrets=["registry-secret"],
-            execution_timeout=execution_timeout,
             keep_parallel_id=False,
             env_vars=env_vars,
             ram_mem_mb=100,

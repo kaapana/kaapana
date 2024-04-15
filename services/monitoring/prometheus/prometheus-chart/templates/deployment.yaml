@@ -31,6 +31,7 @@ spec:
         - name: prometheus
           image: "{{ .Values.global.registry_url }}/prometheus:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          command: ["/bin/prometheus"]
           args:
             - "--config.file=/etc/prometheus.yaml"
             - "--log.level=warn"
@@ -41,9 +42,9 @@ spec:
             - containerPort: 9090
           resources:
             requests:
-              memory: 300Mi
+              memory: 400Mi
             limits:
-              memory: 5000Mi
+              memory: 7000Mi
           volumeMounts:
             - name: prometheus-alerts-vol
               mountPath: /etc/prometheus/
@@ -52,6 +53,9 @@ spec:
               subPath: prometheus.yaml
             - name: prometheus-storage-volume
               mountPath: /prometheus/
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           livenessProbe:
             httpGet:
               path: /

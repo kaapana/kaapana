@@ -3,12 +3,12 @@ FROM local-only/base-python-cpu:latest
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-installer"
 LABEL VERSION="latest"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir -r /kaapana/app/requirements.txt
+RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
 COPY files/run.py /kaapana/app/run.py
 

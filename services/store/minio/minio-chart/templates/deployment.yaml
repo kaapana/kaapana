@@ -22,7 +22,7 @@ spec:
           imagePullPolicy: {{ .Values.global.pull_policy_images }}
           env:
             - name: WAIT
-              value: "keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+              value: "keycloak,keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc,80,/auth/realms/kaapana/.well-known/openid-configuration"
             - name: DELAY
               value: "3"
             - name: TIMEOUT
@@ -32,10 +32,8 @@ spec:
         image: "{{ .Values.global.registry_url }}/minio:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         command: ["minio"]
-        args: ["server", "/kaapana/mounted/minio", "--address", "0.0.0.0:9000"]
+        args: ["server", "--console-address", ":9090", "/kaapana/mounted/minio"]
         env:
-        - name: MINIO_BROWSER
-          value: "off"
         - name: MINIO_ROOT_USER
           value: "{{ .Values.global.credentials_minio_username }}"
         - name: MINIO_ROOT_PASSWORD
@@ -50,18 +48,22 @@ spec:
           value: "policy"
         - name: MINIO_IDENTITY_OPENID_REDIRECT_URI
           value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/oauth_callback/"
-        # - name: MINIO_SERVER_DEBUG
-        #   value: "on"
+        - name:  MINIO_BROWSER_REDIRECT_URL
+          value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/"
         ports:
         - containerPort: 9000
+        - containerPort: 9090
         resources:
           requests:
             memory: 200Mi
           limits:
-            memory: 1000Mi
+            memory: 5500Mi
         volumeMounts:
         - name: minio-data
           mountPath: "/kaapana/mounted/minio"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - name: minio-data
         persistentVolumeClaim:

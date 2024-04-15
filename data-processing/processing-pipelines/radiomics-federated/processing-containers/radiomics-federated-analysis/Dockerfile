@@ -1,9 +1,8 @@
-FROM local-only/base-installer:latest
-
+FROM local-only/base-minio-mc:latest
 LABEL IMAGE="radiomics-federated-analysis"
 LABEL VERSION="0.1.0"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
+USER 0 
 COPY files/ /files
-
-CMD ["cp","-r","/files/.", "/target"]
+CMD ["/bin/bash","/files/put_to_minio.sh"]

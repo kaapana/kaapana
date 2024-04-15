@@ -1,0 +1,12 @@
+{
+    "username" : "system",
+    "enabled" : true,
+    "emailVerified" : false,
+    "firstName" : "System",
+    "lastName" : "User",
+    "email" : "",
+    "attributes" : { "policy": ["consoleAdmin"]
+      },
+    "requiredActions" : [ ],
+    "realmRoles" : [ "dcm4chee-admin" ]
+  }

@@ -1,0 +1,3 @@
+# OUTPUT DIRECTORY
+
+Files in this directory will be mirrored from the files system of the container to the MinIO.

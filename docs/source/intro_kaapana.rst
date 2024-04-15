@@ -35,9 +35,9 @@ Core components of Kaapana:
 * :ref:`wms_start`: Large-scale image processing with SOTA deep learning algorithms, such as `nnU-Net <https://github.com/MIC-DKFZ/nnunet>`_ image segmentation and `TotalSegmentator <https://github.com/wasserth/TotalSegmentator>`_
 * :ref:`datasets`: Exploration, visualization and curation of medical images
 * :ref:`extensions`: Simple integration of new, customized algorithms and applications
-* :ref:`storage`: An integrated PACS system and Minio for other types of data
+* :ref:`store`: An integrated PACS system and Minio for other types of data
 * :ref:`monitoring`: Extensive resource and system monitoring for administrators
-* :ref:`user_management`: Simple user management via `Keycloak <https://www.keycloak.org/>`_
+* :ref:`keycloak`: Simple user management via `Keycloak <https://www.keycloak.org/>`_
 
 Core technologies used in Kaapana:
 

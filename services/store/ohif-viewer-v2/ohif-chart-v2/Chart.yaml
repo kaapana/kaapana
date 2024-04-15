@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "4.12.26"
+description: OHIF Medical Imaging Viewer
+name: ohif-chart-v2
+version: "0.0.0"
+

@@ -11,8 +11,7 @@ Development Guide
     development_guide/application_dev_guide
     development_guide/operators
     development_guide/helm_charts
-    development_guide/how_to_Dockerfile
-    development_guide/black_formatter
+    best_practices_root
 
 
     

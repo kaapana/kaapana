@@ -1,6 +1,6 @@
 .. _black_formatter:
 
-Best Practices: Code Formatting
+Code Formatting
 **********************************
 Black Code Formatter
 ---------------------

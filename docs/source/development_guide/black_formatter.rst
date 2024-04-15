@@ -31,5 +31,14 @@ To know more about black code style you can visit to their `Documentation <https
 Pre-commit hook
 -----------------
 
+.. important:: 
+  Before commiting to the codebase, it is important to install `pre-commit hook <https://pre-commit.com/>`_. This hook check if your files follow `black <https://black.readthedocs.io/en/stable/>`_ formatting and 
+  formats them accordingly if not. To install hook run this in the root of the repository: 
+
+  .. code-block:: bash
+    
+      pip install pre-commit && pre-commit
+
+
 Pre-commit script can be found in :code:`kaapana/utils/pre-commit`. This script uses the black formatter to detect files that do not follow 
-the formatting standard while making git commits, and prevent from committing.
+the formatting standard while making git commits and prevent the unformatted changes from committing.

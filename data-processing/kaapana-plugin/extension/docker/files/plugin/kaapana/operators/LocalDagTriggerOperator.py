@@ -308,7 +308,7 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
 
         Parameters:
             ds (str): Datestamp parameter for Airflow.
-            **kwargs: Additional keyword arguments, including `dag_run` information.
+            kwargs: Additional keyword arguments, including `dag_run` information.
 
         Returns:
             None

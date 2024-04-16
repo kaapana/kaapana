@@ -48,6 +48,9 @@ spec:
         - name: airflow-statsd-config
           mountPath: /tmp/statsd_mapping.yaml
           subPath: statsd_mapping.yaml
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
       volumes:
       - name: airflow-statsd-config
         configMap:

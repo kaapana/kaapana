@@ -60,6 +60,8 @@ spec:
             - name: sec-config
               mountPath: plugins/opensearch-security/securityconfig/config.yml
               subPath: config.yml
+          securityContext:
+            allowPrivilegeEscalation: false
       volumes:
       - name: osdata
         persistentVolumeClaim:

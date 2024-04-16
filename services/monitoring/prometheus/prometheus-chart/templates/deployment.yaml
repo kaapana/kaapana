@@ -53,6 +53,9 @@ spec:
               subPath: prometheus.yaml
             - name: prometheus-storage-volume
               mountPath: /prometheus/
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
           livenessProbe:
             httpGet:
               path: /

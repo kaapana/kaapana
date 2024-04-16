@@ -37,10 +37,17 @@ spec:
           volumeMounts:
             - mountPath: /db
               name: postgresdata
+            - mountPath: /var/run/postgresql
+              name:  unix-socket-dir
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
       volumes:
       - name: postgresdata
         persistentVolumeClaim:
           claimName: keycloak-pv-claim
+      - name: unix-socket-dir
+        emptyDir: {}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

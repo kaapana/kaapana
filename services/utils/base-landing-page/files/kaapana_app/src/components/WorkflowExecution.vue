@@ -529,7 +529,7 @@ export default {
             title: "Workflow successfully created!",
           });
           this.reset();
-          if (this.identifiers.length > 0) {
+          if (this.identifiers.length > 0 || this.$route.name == "data-upload") {
             this.$emit("successful");
           } else {
             this.$router.push({ name: "workflows" });

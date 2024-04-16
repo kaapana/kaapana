@@ -1,5 +1,6 @@
 .. _faq_extensions:
 
+.. _failed_to_install:
 
 Failed to Install or Launch an Extension
 ****************************************
@@ -35,11 +36,14 @@ If you encounter this issue, follow these steps:
        helm uninstall --no-hooks <release-name>
 
 
+.. _failed_to_uninstall:
+
 Failed to Uninstall or Delete an Extension
 ******************************************
 
 Follow the same steps as for the installation failure. Check the logs and run the same commands to manually uninstall the extension. It is also possible to force uninstall an extension if it is stuck in a Pending state.
 
+.. _extension_not_available:
 
 No Extensions Available
 ***********************
@@ -50,6 +54,7 @@ If there are no extensions available on the frontend, it is possible that the fo
 
 2. Wait for a minute or so. The extensions should now be visible on the webpage.
 
+.. _extension_stuck:
 
 Extensions Page Stuck in Loading
 ********************************
@@ -59,6 +64,7 @@ To resolve this issue, manually delete some of the unused older versions of char
 
 Note that there is no hard limit for the number of extensions or versions that will cause this issue. It will vary based on the state of resources for every instance.
 
+.. _extension_chart_upload_fail:
 
 Chart Upload Failed
 *******************
@@ -69,6 +75,7 @@ Additionally, if any Kubernetes resource inside the Helm package is configured t
 
 If the issue persists, check the logs by going to `<hostname>/kubernetes/#/pod?namespace=admin` and searching for the pod named `kube-helm-deployment-<random-id>`.
 
+.. _extension_container_upload_fail:
 
 Container Upload Failed
 ***********************

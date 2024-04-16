@@ -1,7 +1,7 @@
 .. _init_extensions_pod_error:
 
 Pod `init-extensions` fails with Error status
-*******************************************
+*********************************************
 
 If :code:`init-extensions` pod has Error status, and the only namespace available in the platform is :code:`admin` (this can be checked via :code:`kubectl get namespaces`), it is likely that the :code:`kaapana-platform-chart` is not uninstalled correctly from the previous deployment.
 

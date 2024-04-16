@@ -50,7 +50,7 @@
                     <h3>Upload of DICOM data</h3>
                     <p>DICOM data should be uploaded in a single compressed zip-file containing folder(s) with DICOM files.</p>
                     <h3>Upload NIfTI data</h3>
-                    <p>Since the platform works with the DICOM standard, NIfTI data is converted to DICOMs by triggering the workflow `convert-nifitis-to-dicoms-and-import-to-pacs`. If you have only NIfTI files without segmentations, the files with file endings `.nii.gz` or `.nii` can be uploaded either in a compressed zip-file or directly in a folder.
+                    <p>Since the platform works with the DICOM standard, NIfTI data is converted to DICOMs by triggering the workflow `convert-nifitis-to-dicoms-and-import-to-pacs`. If you have only NIfTI files without segmentations, the files with file endings `.nii.gz` or `.nii` can be uploaded in a compressed zip-file.
                     </p>
                     <p>
                       For NIfTI data kaapana supports multiple ways to specify metadata for volumes and segmentations. Depending on the use case the data has to be formated in one of the directory structures described in the <a href="https://kaapana.readthedocs.io/en/stable/user_guide/workflows.html#import-uploaded-nifti-files" target="_blank">Kaapana documentation</a>.
@@ -89,7 +89,7 @@
         <WorkflowExecution
           :key="componentKey"
           :onlyLocal=true
-          kind_of_dags="minio"
+          kind_of_dags="import"
           :isDialog=true
           @successful="() => (workflowDialog = false)"
           @cancel="() => (workflowDialog = false)"

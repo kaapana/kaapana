@@ -70,6 +70,18 @@ class KaapanaInstance(KaapanaInstanceBase):
         else:
             return datetime.datetime.timestamp(v)
 
+    @classmethod
+    def clean_return(cls, instance):
+        instance.encryption_key = ""
+        return instance
+
+    @classmethod
+    def clean_full_return(cls, instance):
+        instance.encryption_key = ""
+        instance.fernet_key = ""
+        instance.token = ""
+        return instance
+
     class Config:
         orm_mode = True
 
@@ -81,7 +93,9 @@ class JobBase(BaseModel):
     description: str = None
     external_job_id: int = None  # job_id on another system
     # kaapana_instance_id: int
-    owner_kaapana_instance_name: str = None  # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
+    owner_kaapana_instance_name: str = (
+        None  # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
+    )
     service_job: Optional[bool] = False
 
 
@@ -136,7 +150,9 @@ class JobCreate(JobBase):
 
 
 class JobUpdate(JobBase):
-    job_id: int  # not defined in model Workflow but still needed in client.py and crud.py
+    job_id: (
+        int  # not defined in model Workflow but still needed in client.py and crud.py
+    )
     # status: str
     # run_id: str = None
     # description: str = None

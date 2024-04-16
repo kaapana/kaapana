@@ -30,6 +30,9 @@ spec:
             memory: "100Mi"
           requests:
             memory: "50Mi"
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret

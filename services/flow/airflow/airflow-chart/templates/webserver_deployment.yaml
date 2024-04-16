@@ -109,6 +109,15 @@ spec:
           mountPath: /kaapana/mounted/workflows/dags
         - name: modeldata
           mountPath: /kaapana/mounted/workflows/models
+        - name: airflow-logs
+          mountPath: /kaapana/mounted/workflows/logs
+        - name: tmp
+          mountPath: /kaapana/mounted/workflows/
+        - name: tmpfs
+          mountPath: /tmp
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
         # readinessProbe:
         #   initialDelaySeconds: 120
         #   timeoutSeconds: 5
@@ -140,12 +149,17 @@ spec:
       - name: modeldata
         persistentVolumeClaim:
           claimName: models-pv-claim
+      - name: airflow-logs
+        persistentVolumeClaim:
+          claimName: af-logs-pv-claim
+      - name: tmp 
+        emptyDir: {}
+      - name: tmpfs
+        emptyDir: {}
       # - name: airflow-statsd-config
       #   configMap:
       #     name: airflow-statsd-config
-      # - name: airflow-logs
-      #   persistentVolumeClaim:
-      #     claimName: af-logs-pv-claim
+
       # - name: modeldata
       #   persistentVolumeClaim:
       #     claimName: models-pv-claim

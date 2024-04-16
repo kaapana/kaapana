@@ -166,11 +166,26 @@ def get_utc_timestamp():
     return utc_time
 
 
-def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="all"):
-    if kind_of_dags not in ["all", "minio", "dataset"]:
-        raise HTTPException("kind_of_dags must be one of [None, 'minio', 'dataset']")
+def get_dag_list(
+    only_dag_names: bool = True,
+    filter_allowed_dags: list = None,
+    kind_of_dags: str = "all",
+):
+    """
+    Return a dictionary of airflow DAGs with meta information or a list of DAG ids.
 
-    with CachedSession("kaapana_cache", expire_after=5, stale_if_error=True) as s:
+    :param: only_dag_names: If True return a list of DAG ids.
+    :param: filter_allowed_dags: None or a list of DAG ids, that are returned exclusively, if they exist in Airflow. If None apply no filter.
+    :param: kind_of_dags: One of ['all', 'minio', 'dataset','import']. If 'minio' or 'dataset' only include DAGs with specific properties in the ui-form. If 'import' include only DAGs with tag 'import'.
+    """
+    if kind_of_dags not in ["all", "minio", "dataset", "import"]:
+        raise HTTPException(
+            "kind_of_dags must be one of ['all', 'minio', 'dataset','import']"
+        )
+
+    with CachedSession(
+        "kaapana_cache", expire_after=5, stale_if_error=True, use_temp=True
+    ) as s:
         r = requests_retry_session(session=s, retries=1).get(
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdags",
             timeout=TIMEOUT,
@@ -196,6 +211,15 @@ def get_dag_list(only_dag_names=True, filter_allowed_dags=None, kind_of_dags="al
                 and "properties" in dag_data["ui_forms"]["data_form"]
                 and "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"]
             ):
+                dags[dag] = dag_data
+            elif (kind_of_dags == "minio") and (
+                "ui_forms" in dag_data
+                and "data_form" in dag_data["ui_forms"]
+                and "properties" in dag_data["ui_forms"]["data_form"]
+                and "bucket_name" in dag_data["ui_forms"]["data_form"]["properties"]
+            ):
+                dags[dag] = dag_data
+            elif kind_of_dags in dag_data.get("tags", []):
                 dags[dag] = dag_data
 
     if only_dag_names is True:

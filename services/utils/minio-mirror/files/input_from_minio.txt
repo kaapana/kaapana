@@ -1,0 +1,3 @@
+# INPUT DIRECTORY
+
+Files in this directory will be mirrored from the file system of the container.

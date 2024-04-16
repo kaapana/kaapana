@@ -5,6 +5,8 @@ dependencies:
     version: 0.0.0
   - name: kaapana-backend-chart
     version: 0.0.0
+  - name: kaapana-backend-postgres
+    version: 0.0.0
   - name: static-website-chart
     version: 0.0.0
 # MONITORING

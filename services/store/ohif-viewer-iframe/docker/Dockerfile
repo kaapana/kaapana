@@ -31,7 +31,7 @@ ENV APP_CONFIG "config/kaapana.js"
 RUN yarn install
 RUN yarn run build
 
-FROM docker.io/nginx:1.24.0-alpine@sha256:0ec1c862eb0bca5cce922ea40fe9f6f08361b4e57d9376b3a6c0db622735cc5e as production-stage
+FROM docker.io/nginx:1.25.4-alpine@sha256:31bad00311cb5eeb8a6648beadcf67277a175da89989f14727420a80e2e76742 as production-stage
 
 
 COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif-iframe/

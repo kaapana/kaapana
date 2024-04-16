@@ -27,7 +27,7 @@ COPY /files/log4j.properties ./source/files/
 # fixing: CVE-2021-23792  CVE-2021-35515 CVE-2021-37533
 # some unused piplines (e.g. FtpExporter serivce) are untested with this fixes
 # but are not used in kaapana
-COPY /files/security-fix-libraries/commons-compress-1.25.0.jar ./libraries/
+COPY /files/security-fix-libraries/commons-compress-1.26.1.jar ./libraries/
 COPY /files/security-fix-libraries/commons-net-3.10.0.jar ./libraries/ftp
 RUN rm -f ./libraries/commons-compress-1.0.jar
 RUN rm -f ./libraries/imageio/twelvemonkeys-imageio-metadata-3.6-SNAPSHOT.jar

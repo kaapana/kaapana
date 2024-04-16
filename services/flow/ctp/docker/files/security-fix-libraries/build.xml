@@ -25,7 +25,7 @@
 		<pathelement location="${libraries}/log4j/log4j-core-2.17.2.jar"/>
 		<pathelement location="${libraries}/edtftpj.jar"/>
 		<pathelement location="${libraries}/jdbm.jar"/>
-		<pathelement location="${libraries}/commons-compress-1.25.0.jar"/>
+		<pathelement location="${libraries}/commons-compress-1.26.1.jar"/>
 		<pathelement location="${libraries}/imageio/jai_imageio-1.2-pre-dr-b04.jar"/>
 		<pathelement location="${libraries}/imageio/pixelmed_codec.jar"/>
 		<pathelement location="${libraries}/email/mailapi.jar"/>

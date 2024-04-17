@@ -9,14 +9,16 @@ LABEL BUILD_IGNORE="False"
 ######### Development ##########
 ################################
 # USER 0
-# RUN chown 1000 /kaapana/app && \
+# RUN chown -R 1000:1000 /kaapana/app && \
+#     chown -R 1000:1000 /kaapana/app/public && \
 #     ln -s /kaapana/app/jsons /kaapana/app/public && \
-#     ln -s /kaapana/app/thumbnails /kaapana/app/public && \
-#     chown -R 1000:1000 /kaapana/app/public
-# USER 1000
+#     ln -s /kaapana/app/thumbnails /kaapana/app/public
 
+# USER 1000
 # WORKDIR /kaapana/app
+
 # RUN npm run build
+
 # CMD ["npm", "run", "serve"]
 
 

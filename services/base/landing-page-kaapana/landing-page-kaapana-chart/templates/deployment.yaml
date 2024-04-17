@@ -103,7 +103,7 @@ spec:
             mountPath: /tmp
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: false
       volumes:
 {{ include "dynamicVolumes" $ | indent 6 }}
       - name: common-data-file

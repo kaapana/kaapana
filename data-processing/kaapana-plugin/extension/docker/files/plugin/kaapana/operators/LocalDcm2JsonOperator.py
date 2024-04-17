@@ -1,7 +1,8 @@
 import os
 import json
-from typing import Dict, List
+from typing import Any, Dict, List, Union
 import pydicom
+from pydicom.tag import Tag
 from pathlib import Path
 from datetime import datetime
 from dateutil import parser
@@ -145,7 +146,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         ]
 
         for elem in pixel_data_elements:
-            tag = pydicom.tag.Tag(*elem)
+            tag = Tag(*elem)
             if tag in dcm:
                 del dcm[tag]
         return dcm
@@ -223,7 +224,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         return update_metadata
 
     def _normalize_tag(
-        self, new_tag: str, vr: str, value_str: str, metadata: Dict
+        self, new_tag: str, vr: str, value_str: Any, metadata: Dict
     ) -> Dict:
         if vr in (
             "AE",
@@ -449,42 +450,51 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         metadata["00000000 TimeTagUsed_keyword"] = time_tag_used
         return metadata
 
+    def _calculate_patient_age(self, metadata: Dict) -> int:
+        birthdate = metadata["00100030 PatientBirthDate_date"]
+        birthday_datetime = datetime.strptime(birthdate, self.kaapana_date_format)
+        series_datetime = datetime.strptime(
+            metadata["00000000 Timestamp_datetime"],
+            self.kaapana_datetime_format,
+        )
+        patient_age_scan = (
+            series_datetime.year
+            - birthday_datetime.year
+            - (
+                (series_datetime.month, series_datetime.day)
+                < (birthday_datetime.month, birthday_datetime.day)
+            )
+        )
+        return patient_age_scan
+
     def _process_patient_age(self, metadata: Dict) -> Dict:
+        if "00101010 PatientAge_keyword" in metadata:
+            dcm_patient_age = process_age_string(
+                metadata["00101010 PatientAge_keyword"]
+            )
+        else:
+            dcm_patient_age = None
+
         if "00100030 PatientBirthDate_date" in metadata:
-            birthdate = metadata["00100030 PatientBirthDate_date"]
-            birthday_datetime = datetime.strptime(birthdate, self.kaapana_date_format)
-            series_datetime = datetime.strptime(
-                metadata["00000000 Timestamp_datetime"],
-                self.kaapana_datetime_format,
-            )
-            patient_age_scan = (
-                series_datetime.year
-                - birthday_datetime.year
-                - (
-                    (series_datetime.month, series_datetime.day)
-                    < (birthday_datetime.month, birthday_datetime.day)
+            calculated_patient_age = self._calculate_patient_age(metadata)
+            metadata["00000000 DerivedPatientAge_integer"] = calculated_patient_age
+
+            if dcm_patient_age and calculated_patient_age != dcm_patient_age:
+                logger.error(highlight_message("Patient AGE inconsistency"))
+                logger.error(
+                    f"00000000 Timestamp: {metadata['00000000 Timestamp_datetime']}"
                 )
-            )
+                logger.error(
+                    f"00100030 PatientBirthDate: {metadata['00100030 PatientBirthDate_date']}"
+                )
+                logger.error(f"Timestamp - PatientBirthDate: {calculated_patient_age}")
+                logger.error(
+                    f"00101010 PatientAge_keyword: {metadata['00101010 PatientAge_keyword']}"
+                )
+                logger.error(f"PatientAge: {dcm_patient_age}")
 
-            if "00101010 PatientAge_keyword" in metadata:
-                age_meta = process_age_string(metadata["00101010 PatientAge_keyword"])
-
-                if patient_age_scan != age_meta:
-                    logger.error(highlight_message("Patient AGE inconsistency"))
-                    logger.error(
-                        f"Series datetime - birthday datetime: {patient_age_scan}"
-                    )
-                    logger.error(f"PatientBirthDate: {age_meta}")
-
-            metadata["00101010 PatientAge_integer"] = patient_age_scan
-        elif "00101010 PatientAge_keyword" in metadata:
-            try:
-                age_meta = process_age_string(metadata["00101010 PatientAge_keyword"])
-                metadata["00101010 PatientAge_integer"] = age_meta
-            except Exception as e:
-                logger.error("Could not extract age-int from metadata.")
-                logger.error(traceback.format_exc())
-                logger.error(e)
+        elif "00101010 PatientAge_keyword" in metadata and dcm_patient_age:
+            metadata["00000000 DerivedPatientAge_integer"] = dcm_patient_age
         return metadata
 
     def _process_clinical_trial_protocol_id(self, metadata: Dict) -> Dict:
@@ -514,12 +524,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
             if datetime_formatted is None:
                 if len(value_str) > 8:
-                    logger.info(f"Trying to parse long datetime format.")
+                    logger.info("Trying to parse long datetime format.")
                     datetime_formatted = parser.parse(value_str).strftime(
                         self.kaapana_datetime_format
                     )
                 else:
-                    logger.info(f"Trying to parse short date format with default time.")
+                    logger.info("Trying to parse short date format with default time.")
                     date = parser.parse(value_str).date()
                     time = parser.parse("01:00:00").time()
                     datetime_formatted = datetime.combine(date, time).strftime(
@@ -531,7 +541,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             )
             return datetime_formatted
         except Exception as e:
-            logger.error(highlight_message(f"COULD NOT EXTRACT DATETIME"))
+            logger.error(highlight_message("COULD NOT EXTRACT DATETIME"))
             logger.error(f"Tag  : {new_tag}")
             logger.error(f"Value: {value_str}")
             logger.error(f"Size : {len(value_str)}")
@@ -569,7 +579,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             return date_formatted
 
         except Exception as e:
-            logger.error(highlight_message(f"COULD NOT EXTRACT DATE"))
+            logger.error(highlight_message("COULD NOT EXTRACT DATE"))
             logger.error(f"Value: {value_str}")
             logger.error(f"Size : {len(value_str)}")
             logger.error(traceback.format_exc())
@@ -786,13 +796,20 @@ def strip_if_possible(value_str):
         return value_str
 
 
-def process_age_string(age_string):
-    unit = age_string[-1]  # Unit can be 'D', 'M', or 'Y'
-    quantity = age_meta = int(age_string[:-1])
-    if unit == "D":
-        age_meta = quantity // 365
-    elif unit == "M":
-        age_meta = quantity // 12
-    else:
-        age_meta = quantity
-    return age_meta
+def process_age_string(age_string: str) -> Union[int, None]:
+    try:
+        unit = age_string[-1]  # Unit can be 'D', 'M', or 'Y'
+        quantity = age_meta = int(age_string[:-1])
+        if unit == "D":
+            age_meta = quantity // 365
+        elif unit == "M":
+            age_meta = quantity // 12
+        else:
+            age_meta = quantity
+        return age_meta
+
+    except Exception as e:
+        logger.error("Could not extract age-int from metadata.")
+        logger.error(traceback.format_exc())
+        logger.error(e)
+        return None

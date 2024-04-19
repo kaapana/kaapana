@@ -365,7 +365,7 @@ grpcio-gcp==0.2.2
 grpcio-status==1.62.1
 grpcio==1.62.1
 gssapi==1.8.3
-gunicorn==21.2.0
+gunicorn==22.0.0
 h11==0.14.0
 hatch==1.9.4
 hatchling==1.21.1
@@ -641,7 +641,7 @@ sqlalchemy-bigquery==1.10.0
 sqlalchemy-drill==1.1.4
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.6.2
-sqlparse==0.4.4
+sqlparse==0.5.0
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0

@@ -1,12 +1,10 @@
 import glob
 import os
-import time
 from datetime import timedelta
 from pathlib import Path
 from subprocess import PIPE, run
 
 import pydicom
-import requests
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
@@ -53,7 +51,9 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             for line in str(output).split("\\n"):
                 print(line)
             print("##################################################")
-            raise ValueError("ERROR")
+            raise ValueError(
+                "dcmsend exited with non-zero code or without success message!"
+            )
         else:
             print(f"Success! output: {output}")
             print("")
@@ -61,7 +61,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             seriesUID=series_uid
         ):
             print(f"Arrival check failed!")
-            raise ValueError("ERROR")
+            raise ValueError("Checkick arrival of dicoms failed!")
 
     def start(self, **kwargs):
         self.conf = kwargs["dag_run"].conf

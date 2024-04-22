@@ -1,0 +1,50 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hapi-fhir-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: hapi-fhir
+spec:
+  selector:
+    app-name: hapi-fhir
+  type: ClusterIP
+  ports:
+    - name: hapi-fhir-port
+      port: 8080
+      protocol: TCP
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: fhir-strip-prefix
+  namespace: "{{  .Values.global.services_namespace  }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /fhir
+    forceSlash: true
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hapi-fhir-ip
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-fhir-strip-prefix@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /fhir
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: hapi-fhir-service
+            port:
+              number: 8080
+---

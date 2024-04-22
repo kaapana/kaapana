@@ -1,0 +1,60 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hapi-fhir-postgres-deployment
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: hapi-fhir-postgres
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: hapi-fhir-postgres
+    spec:
+      containers:
+      - name: hapi-fhir-postgres
+        image: "{{ .Values.global.registry_url }}/postgres-15.6-alpine:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env:
+        - name: POSTGRES_DB
+          value: hapi-fhir
+        - name: POSTGRES_USER
+          value: kaapanauser
+        - name: POSTGRES_PASSWORD
+          value: kaapanapassword
+        ports:
+          - containerPort: 5432
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "100Mi"
+        volumeMounts:
+          - name: hapi-fhir-postgres-data # key of volume mount
+            mountPath: "/var/lib/postgresql/data" # path in container
+      volumes:
+      - name: hapi-fhir-postgres-data # key of volume mount
+        hostPath:
+          path: {{ .Values.global.fast_data_dir }}/hapi-fhir-postgres
+          type: DirectoryOrCreate
+      imagePullSecrets:
+        - name: registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hapi-fhir-postgres-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: hapi-fhir-postgres
+spec:
+  selector:
+    app-name: hapi-fhir-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

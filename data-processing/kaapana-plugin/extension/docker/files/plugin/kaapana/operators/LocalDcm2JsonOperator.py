@@ -75,9 +75,6 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         os.environ["PYTHONIOENCODING"] = "utf-8"
         self.load_dicom_tag_dict()
 
-        if "testing" in kwargs:
-            logging.disable(logging.ERROR)
-
         super().__init__(
             dag=dag,
             name="dcm2json",
@@ -201,7 +198,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 alg_type = label_entry.get("00620008", {}).get("Value", [None])[0]
                 value = (
                     label_entry.get("00620005", {})
-                    .get("Value", [None])[0]
+                    .get("Value", [""])[0]
                     .replace(",", "-")
                     .strip()
                 )

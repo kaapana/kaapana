@@ -10,7 +10,7 @@ spec:
   ports:
     - protocol: TCP
       port: {{ .Values.global.port }}
-      # targetPort: 6080
+      targetPort: 6080
       name: pt-spe-novnc
   type: ClusterIP
   selector:
@@ -23,8 +23,8 @@ metadata:
   namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   stripPrefixRegex:
-    regex: "^.*/{{ .Release.Name }}([^\/]*)$"
-    # replacement: {{ printf "/%s/" .Release.Name }}
+    regex: ^.*/{{ .Release.Name }}([^\/]*)$
+    replacement: {{ printf "/%s/" .Release.Name }}
 ---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress

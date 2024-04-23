@@ -59,10 +59,6 @@ spec:
             value: "true"
           - name: MANAGEMENT_SERVER_PORT # todo middleware
             value: "8081"
-          #- name: HAPI_FHIR_FHIR_VERSION
-          #  value: "R5"
-          #- name: spring.main.allow-bean-definition-overriding
-          #  value: "true"
           
       imagePullSecrets:
         - name: registry-secret

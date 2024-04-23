@@ -50,16 +50,19 @@ spec:
           - name: SPRING_DATASOURCE_DRIVERCLASSNAME
             value: org.postgresql.Driver
           - name: spring.jpa.properties.hibernate.dialect
-            value: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
+            value: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
           - name: SERVER_SERVLET_CONTEXT_PATH
             value: /
           - name: HAPI_FHIR_USE_APACHE_ADDRESS_STRATEGY
             value: "true"
           - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ADD_ADDITIONAL_PATHS
             value: "true"
-          - name: MANAGEMENT_SERVER_PORT
+          - name: MANAGEMENT_SERVER_PORT # todo middleware
             value: "8081"
-          - name: hapi.fhir.version
-            value: "R5"
+          #- name: HAPI_FHIR_FHIR_VERSION
+          #  value: "R5"
+          #- name: spring.main.allow-bean-definition-overriding
+          #  value: "true"
+          
       imagePullSecrets:
         - name: registry-secret

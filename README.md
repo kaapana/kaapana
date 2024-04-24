@@ -50,9 +50,9 @@ For more information, please also take a look at our publication of the Kaapana-
 Check out the [documentation](https://kaapana.readthedocs.io/en/latest/) for further information about how Kaapana works, for instructions on how to build, deploy, use and further develop the platform.
 
 ## Where to find us
-* [GitLab](https://gitlab.hzdr.de/kaapana/kaapana/): The main repository of Kaapana, mirrored on GitHub
-* [Slack](https://kaapana.slack.com/): Join the community for discussions and updates
-* [Youtube channel](https://www.youtube.com/@KaapanaAI): Tutorials, demos and more in-depth presentations
+* [GitLab](https://gitlab.hzdr.de/kaapana/kaapana/): The main Kaapana repository, mirrored on GitHub.
+* [Slack](https://kaapana.slack.com/): Join the community for discussions and updates.
+* [YouTube](https://www.youtube.com/@KaapanaAI): Tutorials, demos and more in-depth presentations.
 * [Website](https://kaapana.ai/)
 
 ## Versioning

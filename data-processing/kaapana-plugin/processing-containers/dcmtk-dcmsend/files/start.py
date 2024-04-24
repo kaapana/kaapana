@@ -8,8 +8,8 @@ import pydicom
 import requests
 from pathlib import Path
 
-HOST = os.getenv("HOST")
-PORT = os.getenv("PORT")
+PACS_HOST = os.getenv("PACS_HOST")
+PACS_PORT = os.getenv("PACS_PORT")
 HTTP_PORT = os.getenv("HTTP_PORT", "8080")
 ### If the environment variable AETITLE is "NONE", then I want to set AETITLE = None
 AETITLE = os.getenv("AETITLE", "NONE")
@@ -68,14 +68,14 @@ def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
                     aetitle = "KAAPANA export"
                     print(f"Using default aetitle {aetitle}")
 
-        print(f"Sending {dicom_dir} to {HOST} {PORT} with aetitle {aetitle}")
+        print(f"Sending {dicom_dir} to {PACS_HOST} {PACS_PORT} with aetitle {aetitle}")
         # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
         env = dict(os.environ)
         command = [
             "dcmsend",
             "-v",
-            f"{HOST}",
-            f"{PORT}",
+            f"{PACS_HOST}",
+            f"{PACS_PORT}",
             "-aet",
             "kaapana",
             "-aec",

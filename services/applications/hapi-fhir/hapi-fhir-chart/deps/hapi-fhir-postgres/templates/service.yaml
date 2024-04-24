@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hapi-fhir-postgres-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app-name: hapi-fhir-postgres
+spec:
+  selector:
+    app-name: hapi-fhir-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

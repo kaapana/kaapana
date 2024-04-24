@@ -2,8 +2,8 @@ dag_id: "send-dicom"
 conf_data:
   workflow_form:
     aetitle: Send2OwnPacs
-    host: ""
-    port: 11112
+    pacs_host: ""
+    pacs_port: 11112
     single_execution: false
   data_form:
     dataset_name: test-CT

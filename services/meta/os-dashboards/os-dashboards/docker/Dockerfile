@@ -39,7 +39,7 @@ COPY files/kaapana_mono.svg /usr/share/opensearch-dashboards/src/core/server/cor
 COPY files/kaapana_mono_2.svg /usr/share/opensearch-dashboards/src/core/server/core_app/assets/kaapana_mono_2.svg
 COPY files/loading.png /usr/share/opensearch-dashboards/src/core/server/core_app/assets/loading.png
 
-RUN /usr/share/opensearch-dashboards/bin/opensearch-dashboards-plugin remove securityDashboards
+#RUN /usr/share/opensearch-dashboards/bin/opensearch-dashboards-plugin remove securityDashboards
 # # COPY --chown=opensearch-dashboards:opensearch-dashboards opensearch_dashboards.yml /usr/share/opensearch-dashboards/config/
 USER root
 RUN dnf upgrade nspr nss-softokn nss-softoken-freebl nss-sysinit nss-util curl-minimal libcurl-minimal ncurses-base ncurses-libs openssl-libs python3-pip-wheel sqlite-libs --security --assumeyes --releasever=latest

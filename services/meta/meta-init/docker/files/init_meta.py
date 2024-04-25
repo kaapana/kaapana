@@ -38,6 +38,7 @@ def import_dashboards():
             f"{dashboards_url}/api/saved_objects/_import",
             headers={"osd-xsrf": "true"},
             files=files,
+            auth=("admin", "admin"),
         )
 
         if response.status_code == 200:
@@ -99,6 +100,7 @@ def set_ohif_template():
             data=json.dumps(index_pattern),
             verify=False,
             headers=osd_xsrf,
+            auth=("admin", "admin"),
         )
         print(f"# response_code: {response.status_code}")
         if response.status_code == 200:
@@ -295,15 +297,15 @@ if __name__ == "__main__":
         print("DOMAIN env not set -> exiting..")
         exit(1)
 
-    # auth = ('admin', 'admin')
-    auth = None
+    auth = ("admin", "admin")
+    # auth = None
     os_client = OpenSearch(
         hosts=[{"host": os_host, "port": os_port}],
         http_compress=True,  # enables gzip compression for request bodies
         http_auth=auth,
         # client_cert = client_cert_path,
         # client_key = client_key_path,
-        use_ssl=False,
+        use_ssl=True,
         verify_certs=False,
         ssl_assert_hostname=False,
         ssl_show_warn=False,

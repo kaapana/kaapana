@@ -8,7 +8,14 @@ data:
   opensearch_dashboards.yml: |+
     #OpenSearch Dashboards is served by a back end server. This setting specifies the port to use.
     #server.port: 5601
-
+    #openid connect configuration.
+    opensearch_security.auth.type: "openid"
+    opensearch_security.openid.connect_url:  "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+    opensearch_security.openid.client_id: "kaapana"
+    opensearch_security.openid.client_secret: "{{ .Values.global.oidc_client_secret }}"
+    opensearch_security.openid.base_redirect_url: "https://{{  .Values.global.hostname  }}/meta"
+    opensearch_security.openid.verify_hostnames: false
+    opensearch.requestHeadersWhitelist: ["Authorization","securitytenant","x-forwarded-access-token"]
     # Specifies the address to which the OpenSearch Dashboards server will bind. IP addresses and host names are both valid values.
     # The default is 'localhost', which usually means remote machines will not be able to connect.
     # To allow connections from remote users, set this parameter to a non-loopback address.
@@ -31,7 +38,7 @@ data:
     server.name: "Meta"
 
     # The URLs of the OpenSearch instances to use for all your queries.
-    opensearch.hosts: ["http://opensearch-service.{{  .Values.global.services_namespace  }}.svc:9200"]
+    opensearch.hosts: ["https://opensearch-service.{{  .Values.global.services_namespace  }}.svc:9200"]
 
     # OpenSearch Dashboards uses an index in OpenSearch to store saved searches, visualizations and
     # dashboards. OpenSearch Dashboards creates a new index if the index doesn't already exist.

@@ -16,8 +16,8 @@ class HelperOpensearch:
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
     port = "9200"
     index = "meta-index"
-    auth = None
-    # auth = ('admin', 'admin') # For testing only. Don't store credentials in code.
+    # auth = None
+    auth = ("admin", "admin")  # For testing only. Don't store credentials in code.
 
     os_client = OpenSearch(
         hosts=[{"host": host, "port": port}],
@@ -25,7 +25,7 @@ class HelperOpensearch:
         http_auth=auth,
         # client_cert = client_cert_path,
         # client_key = client_key_path,
-        use_ssl=False,
+        use_ssl=True,
         verify_certs=False,
         ssl_assert_hostname=False,
         ssl_show_warn=False,

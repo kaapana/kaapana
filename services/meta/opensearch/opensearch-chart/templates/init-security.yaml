@@ -1,0 +1,64 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-opensearch-security
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  template:
+    metadata:
+        name: init-opensearch-security
+    spec:
+      initContainers:
+      - name: init
+        image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        env:
+        - name: WAIT
+          value: "opensearch,opensearch-service.{{ .Values.global.services_namespace }}.svc,9200"
+        - name: DELAY
+          value: "1"
+        - name: TIMEOUT
+          value: "10"
+      securityContext:
+        runAsUser: 1000
+      containers:
+        - name: opensearch-container
+          image: "{{ .Values.global.registry_url }}/opensearch:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: {{ .Values.global.pull_policy_images }}
+          command: ["/bin/bash"]
+          args:
+          - /usr/share/opensearch/plugins/opensearch-security/tools/securityadmin.sh
+          - -icl 
+          - -nhnv
+          - -cacert 
+          - /usr/share/opensearch/config/root-ca.pem
+          - -cert 
+          - /usr/share/opensearch/config/admin.pem
+          - -key 
+          - /usr/share/opensearch/config/admin-key.pem
+          - -f
+          - /usr/share/opensearch/config/opensearch-security/config.yml
+          - --hostname
+          - opensearch-service.{{ .Values.global.services_namespace }}.svc
+          resources:
+            requests:
+              memory: 100Mi
+            limits:
+              memory: 200Mi
+          volumeMounts:
+            - name: sec-config
+              mountPath: /usr/share/opensearch/config/opensearch-security/config.yml
+              subPath: config.yml
+      restartPolicy: Never
+      volumes:
+      - name: sec-config
+        configMap:
+          name: os-config
+          items:
+          - key: config.yml
+            path: config.yml
+      imagePullSecrets:
+      - name: registry-secret
+  backoffLimit: 10
+---

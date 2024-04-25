@@ -46,9 +46,27 @@ def execute_opensearch_query(
     """
 
     def _execute_opensearch_query(search_after=None, size=10000) -> List:
-        res = OpenSearch(
-            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-        ).search(
+        hosts = [
+            {
+                "host": f"opensearch-service.{settings.services_namespace}.svc",
+                "port": "9200",
+            }
+        ]
+        auth = ("admin", "admin")
+        os_client = OpenSearch(
+            hosts=hosts,
+            http_compress=True,  # enables gzip compression for request bodies
+            http_auth=auth,
+            # client_cert = client_cert_path,
+            # client_key = client_key_path,
+            use_ssl=True,
+            verify_certs=False,
+            ssl_assert_hostname=False,
+            ssl_show_warn=False,
+            timeout=2,
+            # ca_certs = ca_certs_path
+        )
+        res = os_client.search(
             body={
                 "query": query,
                 "size": size,
@@ -100,9 +118,27 @@ def type_suffix(v):
 
 
 async def get_metadata_opensearch(series_instance_uid: str) -> dict:
-    data = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).get(index="meta-index", id=series_instance_uid)["_source"]
+    hosts = [
+        {
+            "host": f"opensearch-service.{settings.services_namespace}.svc",
+            "port": "9200",
+        }
+    ]
+    auth = ("admin", "admin")
+    os_client = OpenSearch(
+        hosts=hosts,
+        http_compress=True,  # enables gzip compression for request bodies
+        http_auth=auth,
+        # client_cert = client_cert_path,
+        # client_key = client_key_path,
+        use_ssl=True,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False,
+        timeout=2,
+        # ca_certs = ca_certs_path
+    )
+    data = os_client.get(index="meta-index", id=series_instance_uid)["_source"]
 
     # filter for dicoms tags
     return {
@@ -191,9 +227,27 @@ async def get_field_mapping(index="meta-index") -> Dict:
     """
     import re
 
-    res = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).indices.get_mapping(index=index)[index]["mappings"]["properties"]
+    hosts = [
+        {
+            "host": f"opensearch-service.{settings.services_namespace}.svc",
+            "port": "9200",
+        }
+    ]
+    auth = ("admin", "admin")
+    os_client = OpenSearch(
+        hosts=hosts,
+        http_compress=True,  # enables gzip compression for request bodies
+        http_auth=auth,
+        # client_cert = client_cert_path,
+        # client_key = client_key_path,
+        use_ssl=True,
+        verify_certs=False,
+        ssl_assert_hostname=False,
+        ssl_show_warn=False,
+        timeout=2,
+        # ca_certs = ca_certs_path
+    )
+    res = os_client.indices.get_mapping(index=index)[index]["mappings"]["properties"]
 
     name_field_map = {
         camel_case_to_space(k): k + type_suffix(v) for k, v in res.items()

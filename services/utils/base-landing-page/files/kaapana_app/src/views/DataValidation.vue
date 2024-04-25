@@ -5,22 +5,32 @@
       <v-col><h1>Data Validation</h1> </v-col>      
     </v-row>
     <v-row>
-      <v-col cols="6">
+      <v-col cols="4">
         <v-card>
           <v-list dense>
-            <v-list-item v-for="item in allSeriesData" :key="item.SeriesID" @click="openValidationResults(item.SeriesID)">
-              <v-list-item-icon>
-                <v-icon>mdi-database-alert-outline</v-icon>
-              </v-list-item-icon>
-              <v-list-item-content>
-                <v-list-item-title>{{item.SeriesDescription}}</v-list-item-title>
-                <v-list-item-subtitle>{{ item.PatientName }}, Sex: {{ item.PatientSex }}</v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>            
+            <v-list-item-group
+              :value="activeIdx"
+              active-class="border"
+              color="primary"
+            >
+              <v-list-item v-for="item in allSeriesData" 
+                :key="item.SeriesID" 
+                :disabled="!seriesHasResult(item.SeriesID)"
+                @click="openValidationResults(item.SeriesID)"
+              >
+                <v-list-item-icon>
+                  <v-icon>mdi-database-alert-outline</v-icon>
+                </v-list-item-icon>
+                <v-list-item-content>
+                  <v-list-item-title>{{item.SeriesDescription}}</v-list-item-title>
+                  <v-list-item-subtitle>{{ item.PatientName }}, Sex: {{ item.PatientSex }}</v-list-item-subtitle>
+                </v-list-item-content>
+              </v-list-item>      
+            </v-list-item-group>      
           </v-list>
         </v-card>
       </v-col>
-      <v-col cols="6">
+      <v-col cols="8">
         <IFrameWindow ref="foo" 
           :iFrameUrl="selectedValidationResult" 
           width="100%" height="100%"/>
@@ -50,7 +60,7 @@ export default Vue.extend({
     allSeriesData: [],
     staticUrls: [],
     resultPaths: {},
-    selectedValidationResult: ""
+    selectedValidationResult: "",
   }),
   mounted() {
     this.getStaticWebsiteResults();
@@ -80,15 +90,32 @@ export default Vue.extend({
           })
       });
     },
-    allSeriesData: {
-      handler: function(allSeries) {
-        console.log(allSeries)
-      },
-      deep: true,
-    }
+    // allSeriesData: {
+    //   handler: function(allSeries) {
+    //     // console.log(allSeries)
+    //   },
+    //   deep: true,
+    // },
+    // resultPaths: {
+    //   handler: function(newVal) {
+    //     console.log(newVal)
+    //   },
+    //   deep: true,
+    // }
   },
   computed: {
-
+    activeIdx() {
+      if (this.selectedValidationResult != "") {
+        let idx = 0;
+        for (let d in this.allSeriesData) {
+          if (this.selectedValidationResult == d.SeriesID) {
+            return idx;
+          }
+          idx++;
+        }
+      }
+      return -1
+    }
   },
   methods: {
     getProcessedSeriesData(data) {
@@ -120,19 +147,35 @@ export default Vue.extend({
     },
     extractChildPaths(urlObjs){
       urlObjs.forEach(i => {
-        let rootPath = this.extractRootPath(i)
-        let seriesID = this.extractSeriesId(rootPath)
-        this.resultPaths[seriesID] = rootPath
+        let rootPaths = this.extractRootPath(i);
+        for (let path of rootPaths){
+          let seriesID = this.extractSeriesId(path);
+          this.resultPaths[seriesID] = path;
+          this.readAndParseHTML(path)
+        }
       })
+      this.resultPaths.__ob__.dep.notify()
+    },
+    seriesHasResult(seriesId) {
+      return this.resultPaths.hasOwnProperty(seriesId)
     },
     extractRootPath(urlObj) {
-      if ('children' in urlObj){
-        return this.extractRootPath(urlObj.children[0]);
-      } else if ('path' in urlObj) {
-        return urlObj.path
-      } else {
-        return undefined
+      let paths = []
+
+      function traverseChild(node){
+        if ('children' in node) {          
+          for (let child of node.children) {
+            traverseChild(child);
+          }
+        }  else if ('path' in node) {
+          paths.push(node.path);
+        } else {
+          paths.push(undefined);
+        }
       }
+
+      traverseChild(urlObj)
+      return paths
     },
     extractSeriesId(urlStr) {
       const seriesIdRegx = "^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$"
@@ -145,7 +188,30 @@ export default Vue.extend({
         }
       }
       return matched
-    }
+    },
+    readAndParseHTML(htmlUrl) {
+      fetch(htmlUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text(); // Extract the text body from the response
+        })
+        .then(html => {
+            const body = this.extractBody(html);
+            console.log(body);
+        })
+        .catch(error => {
+            console.error('There was a problem with the fetch operation:', error);
+        });      
+      return
+    },
+    extractBody(htmlText) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, "text/html");
+        const body = doc.body;
+        return body.innerHTML; // Returns the inner HTML of the <body> element
+    },
   }
 })
 </script>

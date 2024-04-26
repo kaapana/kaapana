@@ -1,32 +1,21 @@
-<template lang="pug">
-    div(:class="fullSize ? 'kaapana-iframe-container-side-navigation' : ''")
-        iframe(ref="iframe" :width="width" :height="height" :style="customStyle" :class="fullSize ? 'kapaana-side-navigation' : ''" class="no-border" :src="iFrameUrl" @load="setIframeUrl(this)")
+<template>
+    <div>
+        <div :style="customStyle" v-html="rawHtmlContent"/>
+    </div>
 </template>
 
 <script>
 export default {
-    name: "IFrameWindow",
+    name: "ElementsFromHTML",
     data: function () {
         return {
-            trackedUrl: "",
+            rawHtmlContent: "",
         };
     },
     props: {
-        iFrameUrl: {
+        rawHtmlURL: {
             type: String,
             required: true,
-        },
-        fullSize: {
-            type: Boolean,
-            default: true,
-        },
-        width: {
-            type: String,
-            default: "100%",
-        },
-        height: {
-            type: String,
-            default: "100%",
         },
         customStyle: {
             type: String,
@@ -34,14 +23,28 @@ export default {
         },
     },
     methods: {
-        refreshIFrame: function (event) {
-            this.$refs.iframe.src = this.trackedUrl;
+        readAndParseHTML(htmlUrl) {
+            fetch(htmlUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text(); // Extract the text body from the response
+                })
+                .then(html => {
+                    const body = this.extractBody(html);
+                    this.rawHtmlContent = body;
+                })
+                .catch(error => {
+                    console.error('There was a problem with the fetch operation:', error);
+                });      
+            return
         },
-        setIframeUrl: function (url) {
-            this.trackedUrl = this.$refs.iframe.contentWindow.location;
-        },
-        getIframeUrl: function () {
-            return this.$refs.iframe.contentWindow.location;
+        extractBody(htmlText) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlText, "text/html");
+            const body = doc.body;
+            return body.innerHTML; // Returns the inner HTML of the <body> element
         },
     },
     beforeRouteUpdate(to, from, next) {
@@ -49,6 +52,17 @@ export default {
         // Since this happens on the same route, beforeRoute navigation guards are not triggered.
         return guardRoute(to, from, next);
     },
+    watch: {
+        rawHtmlURL: {
+            immediate: true, 
+            handler (val, oldVal) {
+                // do your stuff
+                if (val != oldVal) {
+                    this.readAndParseHTML(this.rawHtmlURL);
+                }
+            },
+        }
+    }
 };
 </script>
 

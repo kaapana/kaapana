@@ -9,8 +9,8 @@
     <v-row>
       <v-col cols="4">
         <v-card>
-          <v-list dense>
-            <v-list-item-group :value="activeIdx" active-class="border" color="primary">
+          <v-list dense v-if="sorted">
+            <v-list-item-group v-model="activeIdx" active-class="border" color="primary">
               <v-list-item v-for="item in allSeriesData" :key="item.SeriesID"
                 :disabled="!seriesHasResult(item.SeriesID)" @click="openValidationResults(item.SeriesID)">
                 <v-list-item-icon>
@@ -27,7 +27,7 @@
       </v-col>
       <v-col cols="8">
         <v-card>
-          <v-card-text>
+          <v-card-text v-if="selectedValidationResult != ''">
             <ElementsFromHTML :rawHtmlURL="selectedValidationResult" />
           </v-card-text>
         </v-card>
@@ -57,12 +57,19 @@ export default Vue.extend({
     allSeriesData: [],
     staticUrls: [],
     resultPaths: {},
+    activeIdx: -1,
+    selectedSeriesId: "",
     selectedValidationResult: "",
+    sorted: false,
   }),
   mounted() {
     this.getStaticWebsiteResults();
+    if(this.$route.query["series"]) {
+      this.selectedSeriesId = this.$route.query["series"];
+    }
   },
   async created() {
+    this.sorted = false;
     loadPatients({
       structured: false,
       query: { "query_string": { "query": '*' } },
@@ -85,59 +92,55 @@ export default Vue.extend({
               ...item,
             })
             if(this.allSeriesData.length == uids.length) {
-              this.sortSeriesData()
+              this.sortSeriesData();
             }
           })
       });
     },
-    // allSeriesData: {
-    //   handler: function(allSeries) {
-    //     // console.log(allSeries)
-    //   },
-    //   deep: true,
-    // },
-    // resultPaths: {
-    //   handler: function(newVal) {
-    //     console.log(newVal)
-    //   },
-    //   deep: true,
-    // }
+    resultPaths: function(paths) {
+      if (Object.keys(paths).length > 0 && this.selectedSeriesId != "") {
+        this.openValidationResults(this.selectedSeriesId);
+      }
+    },
   },
   computed: {
-    activeIdx() {
-      if (this.selectedValidationResult != "") {
-        let idx = 0;
-        for (let d in this.allSeriesData) {
-          if (this.selectedValidationResult == d.SeriesID) {
-            return idx;
-          }
-          idx++;
-        }
-      }
-      return -1
-    }
+
   },
   methods: {
     getProcessedSeriesData(data) {
       const { metadata } = data;
       return {
-        SeriesDescription: metadata["Series Description"] ?? "",
-        PatientName: metadata["Patient Name"] ?? "",
-        PatientSex: metadata["Patient Sex"] ?? "",
+        SeriesDescription: metadata["Series Description"] ?? "N/A",
+        PatientName: metadata["Patient Name"] ?? "N/A",
+        PatientSex: metadata["Patient Sex"] ?? "N/A",
       }
     },
     sortSeriesData(){
+
       this.allSeriesData.sort(
-        (a, b) => (a['SeriesID'] > b['SeriesID']) ? 1 : ((b['SeriesID'] > a['SeriesID']) ? -1 : 0)
+        (a, b) => (a['SeriesID'] < b['SeriesID']) ? 1 : ((b['SeriesID'] < a['SeriesID']) ? -1 : 0)
       );
+
+      if (this.allSeriesData.length > 0) {
+        for (let i in this.allSeriesData) { 
+          let d = this.allSeriesData[i];
+          if (this.selectedSeriesId == d.SeriesID) {
+            this.activeIdx = Number(i);
+          }
+        }
+      }
+      this.sorted = true;
+
     },
     openValidationResults(seriesID) {
       if (seriesID in this.resultPaths) {
-        this.selectedValidationResult = this.resultPaths[seriesID]
+        this.selectedSeriesId = seriesID;
+        this.selectedValidationResult = this.resultPaths[seriesID];        
       } else {
         console.log(seriesID + " not found.")
         this.selectedValidationResult = ""
       }
+      this.updateRouteWithParam({series: seriesID});
     },
     getStaticWebsiteResults() {
       kaapanaApiService
@@ -194,6 +197,14 @@ export default Vue.extend({
       }
       return matched
     },
+    updateRouteWithParam(params) {
+      if (params.series != this.$route.query["series"]) {
+        this.$router.replace({
+          path: this.$route.path,
+          query: params,
+        })
+      }
+    },
   }
 })
 </script>
@@ -212,8 +223,8 @@ export default Vue.extend({
 }
 
 /deep/ .item-count-label {
-  padding: 2px 8px;
-  border-radius: 50%;
+  padding: 2px 16px;
+  border-radius: 15px;
   margin-left: 8px;
 }
 </style>

@@ -12,14 +12,48 @@
           <v-list dense v-if="sorted">
             <v-list-item-group v-model="activeIdx" active-class="border" color="primary">
               <v-list-item v-for="item in allSeriesData" :key="item.SeriesID"
-                :disabled="!seriesHasResult(item.SeriesID)" @click="openValidationResults(item.SeriesID)">
-                <v-list-item-icon>
+                :disabled="!seriesHasResult(item.SeriesID)" 
+                :class="{ 'disabled-item': !seriesHasResult(item.SeriesID) }" 
+                @click="openValidationResults(item.SeriesID)">
+                <v-list-item-icon class="mt-4">
                   <v-icon>mdi-database-alert-outline</v-icon>
                 </v-list-item-icon>
                 <v-list-item-content>
                   <v-list-item-title>{{ item.SeriesDescription }}</v-list-item-title>
                   <v-list-item-subtitle>{{ item.PatientName }}, Sex: {{ item.PatientSex }}</v-list-item-subtitle>
                 </v-list-item-content>
+                
+                <!-- More Icon with Menu -->
+                <v-list-item-action>
+                  <v-menu bottom left>
+                    <template v-slot:activator="{ on, attrs }">
+                      <v-btn icon v-bind="attrs" v-on="on" :disabled="false">
+                        <v-icon>mdi-dots-vertical</v-icon>
+                      </v-btn>
+                    </template>
+                    <v-list>
+                      <v-list-item @click="runValidationWorkflow(item)">
+                        <v-list-item-title v-if="seriesHasResult(item.SeriesID)">Rerun Validation</v-list-item-title>
+                        <v-list-item-title v-else>Run Validation</v-list-item-title>
+                        <v-list-item-icon class="mt-4">
+                          <v-icon>mdi-cog-play</v-icon>
+                        </v-list-item-icon>
+                      </v-list-item>
+                      <v-list-item @click="deleteValidationResult(item)" v-if="seriesHasResult(item.SeriesID)">
+                        <v-list-item-title>Delete Result</v-list-item-title>
+                        <v-list-item-icon class="mt-4">
+                          <v-icon>mdi-delete-empty</v-icon>
+                        </v-list-item-icon>
+                      </v-list-item>
+                      <v-list-item @click="deleteValidationResult(item)" v-if="seriesHasResult(item.SeriesID)">
+                        <v-list-item-title>Download Report</v-list-item-title>
+                        <v-list-item-icon class="mt-4">
+                          <v-icon>mdi-file-download</v-icon>
+                        </v-list-item-icon>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
+                </v-list-item-action>
               </v-list-item>
             </v-list-item-group>
           </v-list>
@@ -33,6 +67,14 @@
         </v-card>
       </v-col>
     </v-row>
+    <v-dialog v-model="workflowDialog" width="500">
+      <WorkflowExecution 
+        :identifiers="getSeriesIdentifiers" 
+        :onlyLocal="true" :isDialog="true"
+        kind_of_dags="dataset" :validDags="['example-dcm-validate']" 
+        @successful="() => (this.workflowDialog = false)"
+        @cancel="() => (this.workflowDialog = false)" />
+    </v-dialog>
   </v-container>
 </template>
 
@@ -44,13 +86,15 @@ import {
   loadSeriesData
 } from "@/common/api.service";
 import kaapanaApiService from "@/common/kaapanaApi.service";
+import WorkflowExecution from "@/components/WorkflowExecution.vue";
 import ElementsFromHTML from "@/components/ElementsFromHTML.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
 
 export default Vue.extend({
   components: {
     ElementsFromHTML,
-    IdleTracker
+    IdleTracker,
+    WorkflowExecution
   },
   data: () => ({
     seriesInstanceUIDs: [],
@@ -61,6 +105,8 @@ export default Vue.extend({
     selectedSeriesId: "",
     selectedValidationResult: "",
     sorted: false,
+    workflowDialog: false,
+    runWorkflowOnSeries: "",
   }),
   mounted() {
     this.getStaticWebsiteResults();
@@ -104,7 +150,9 @@ export default Vue.extend({
     },
   },
   computed: {
-
+    getSeriesIdentifiers() {
+      return [this.runWorkflowOnSeries]
+    }
   },
   methods: {
     getProcessedSeriesData(data) {
@@ -205,11 +253,26 @@ export default Vue.extend({
         })
       }
     },
+    runValidationWorkflow(item) {
+      console.log(item.SeriesID + " validation workflow should run.");
+      this.runWorkflowOnSeries = item.SeriesID;
+      this.workflowDialog = true;
+    },
+    deleteValidationResult(item) {
+      console.log(item.SeriesID + " would be deleted.");
+    }
   }
 })
 </script>
 
 <style scoped>
+.disabled-item {
+  pointer-events: none; /* Disable pointer events where list items are disabled */
+}
+.disabled-item .v-list-item__action { /* Re-enable pointer events on the action button */
+  pointer-events: auto;
+}
+
 /deep/ .item-label {
   display: inline-flex;
   line-height: 20px;

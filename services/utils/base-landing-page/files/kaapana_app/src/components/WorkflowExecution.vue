@@ -175,6 +175,10 @@ export default {
       type: String,
       default: "all",
     },
+    validDags: {
+      type: Array,
+      default: () => [],
+    },
   },
   created() {},
   mounted() {
@@ -191,8 +195,8 @@ export default {
           this.available_kaapana_instance_names[0],
         ];
       }
-      this.getDags();
       this.getUiFormSchemas();
+      this.getDags();      
       // reset dag_id and external_dag_id if instance changes
       this.dag_id = null;
       this.external_dag_id = null;
@@ -201,6 +205,16 @@ export default {
       // this.resetExternalFormData()
       if (this.selected_remote_instances_w_external_dag_available.length) {
         this.getExternalUiFormSchemas();
+      }
+    },
+    available_dags(dagsList) {
+      if (dagsList.length == 1 && this.schemas_dict.hasOwnProperty(dagsList[0])) {
+        this.dag_id = dagsList[0];
+      }
+    },
+    schemas_dict(newDict) {
+      if (this.available_dags.length == 1 && newDict.hasOwnProperty(this.available_dags[0])) {
+        this.dag_id = this.available_dags[0];
       }
     },
     // watchers for dags
@@ -227,7 +241,7 @@ export default {
         this.external_dag_id = null;
       }
       this.datasets_available = true;
-      if (this.schemas["data_form"] !== null ) {
+      if (this.schemas["data_form"] !== null && this.schemas["data_form"] !== undefined) {
         Object.entries(this.schemas["data_form"]).forEach(([key, value]) => {
           if ( key.startsWith("__emtpy__") ) {
             this.datasets_available = false;
@@ -464,6 +478,9 @@ export default {
         })
         .then((response) => {
           this.available_dags = response.data;
+          if (this.validDags.length > 0) {
+            this.available_dags = response.data.filter(item => this.validDags.includes(item));
+          }
         })
         .catch((err) => {
           console.log(err);

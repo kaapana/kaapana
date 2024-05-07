@@ -1,0 +1,201 @@
+default:
+  tags:
+  - shell
+  - ci
+  - kaapana
+  interruptible: true
+
+stages:
+- prepare
+- build
+- deploy_and_test
+- clean
+
+workflow:
+  rules:
+  - if: $CI_PIPELINE_SOURCE == "web"
+    when: always
+  - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
+    when: always
+  - if: $CI_PIPELINE_SOURCE == "schedule"
+    when: always
+  - if: $CI_PIPELINE_SOURCE == "trigger"
+    when: always
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
+    when: always
+  - when: never
+
+variables:
+  ### OPENSTACK
+  OS_CREATE: $OS_CREATE
+  OS_DELETE: $OS_DELETE
+  OS_AUTH_URL: $OS_AUTH_URL
+  OS_PROJECT_NAME: $OS_PROJECT_NAME ### Name of the openstack project for the deployment instance 
+  OS_INSTANCE_FLAVOR: $OS_INSTANCE_FLAVOR
+  OS_KEY_NAME: $OS_KEY_NAME
+  OS_IMAGE: $OS_IMAGE
+  OS_TENANT_ID: $OS_TENANT_ID
+  OS_USERNAME: $OS_USERNAME
+  OS_FLOATING_IP_POOLS: $OS_FLOATING_IP_POOLS
+  OS_INSTANCE_VOLUME_SIZE: $OS_INSTANCE_VOLUME_SIZE
+
+  ### PIPELINE
+  DOCKER_PRUNE: $DOCKER_PRUNE
+  DEPLOY_PLATFORM: $DEPLOY_PLATFORM ### Set this variable to "false" if you do not want to deploy the platform; Default: "true"
+  EXECUTE_BUILD: $EXECUTE_BUILD ### Set this variable to "false" if you do not want to build the platform; Default: "true"
+  TEST_STAGE: $TEST_STAGE
+  BUILD_ARGUMENTS: $BUILD_ARGUMENTS
+
+  ### CONFIGURABLE
+  DOCKER_IO_USER: $DOCKER_IO_USER ### username for docker.io
+  DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD ### password for docker.io
+  USER: $USER ### username on the CI instance
+  DEPLOYMENT_INSTANCE_NAME: $DEPLOYMENT_INSTANCE_NAME
+  DEPLOYMENT_INSTANCE_IP: $DEPLOYMENT_INSTANCE_IP ### Set in order to reuse an instance
+  DEPLOYMENT_INSTANCE_USER: $DEPLOYMENT_INSTANCE_USER ### Username on the deployment instance
+  HTTP_PROXY: $HTTP_PROXY
+  HTTPS_PROXY: $HTTPS_PROXY
+  SSH_FILE: $SSH_FILE ### Path to the ssh file used for connecting to the deployment instance
+  REGISTRY_TOKEN: $REGISTRY_TOKEN
+  REGISTRY_URL: $REGISTRY_URL
+  KAAPANA_READTHEDOCS_TOKEN: $KAAPANA_READTHEDOCS_TOKEN
+  REGISTRY_USER: $GITLAB_USER_LOGIN
+
+  ### FIXED VARIABLES
+  #REGISTRY_TOKEN: $CI_REGISTRY_PASSWORD                        
+  GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
+  # GIT_CLONE_PATH: $CI_BUILDS_DIR/$CI_PIPELINE_ID
+  GIT_CLONE_PATH: /home/ubuntu/builds/$CI_COMMIT_SHORT_SHA
+  KAAPANA_DIR: $GIT_CLONE_PATH
+  REPO_URL: codebase.helmholtz.cloud/kaapana/kaapana-ci ### Url to the repository with the ci-code
+  ANSIBLE_VERBOSITY: 0
+
+#############################################
+############## PREPARE ######################
+#############################################
+prepare_pipeline: ### This is the only job, where I clone the project repo
+  stage: prepare
+  before_script: # Necessary because otherwise HEAD is detached and the build fails
+  - |-
+    if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+      git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+    else
+      git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
+    fi
+  - git status
+  - git fetch --tags
+  variables:
+    GIT_STRATEGY: clone
+  script:
+  - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+  - export VERSION_TAG=$( if [[ $BUILD_ARGUMENTS == *"--latest"* ]]; then echo "0.0.0-latest"; else echo $( git describe ); fi)
+  - echo VERSION_TAG=$VERSION_TAG >> prepare.env
+  - export ARTIFACTS_DIR="/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
+  - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
+  - rm -rf $ARTIFACTS_DIR
+  - mkdir -p $ARTIFACTS_DIR
+  - export REPO_DIR=/home/$USER/ci-repo/
+  - echo "REPO_DIR=$REPO_DIR" >> prepare.env
+  - echo clone repository $REPO_URL into $REPO_DIR
+  - |-
+    if [ ! -d $REPO_DIR ]; then
+      git clone https://$CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD@$REPO_URL.git $REPO_DIR
+    else
+      cd $REPO_DIR && git pull https://$CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD@$REPO_URL.git
+    fi
+  artifacts:
+    reports:
+      dotenv: prepare.env
+
+unit_tests:
+  stage: prepare
+  needs:
+  - prepare_pipeline
+  script:
+  - pip install -r $KAAPANA_DIR/tests/requirements.txt
+  - pytest $KAAPANA_DIR/tests/ --unitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+
+#############################################
+############## BUILD ########################
+#############################################
+build_packages:
+  stage: build
+  needs:
+  - prepare_pipeline
+  script:
+  - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
+  - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml; fi
+  retry: 1
+  resource_group: build-1
+  environment: build-1
+
+build_documentation:
+  stage: build
+  needs:
+  - prepare_pipeline
+  script:
+  - cd $REPO_DIR/ci-code/build
+  - ansible-playbook build_documentation.yaml
+  - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
+  rules:
+  - if: $EXECUTE_BUILD == "false"
+    when: never
+  - when: on_success
+
+#############################################
+############## DEPLOY AND TEST ##############
+#############################################
+prepare_deployment_instance:
+  stage: deploy_and_test
+  needs:
+  - prepare_pipeline
+  script:
+  - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml
+  - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+  artifacts:
+    reports:
+      dotenv: prepare.env
+  rules:
+  - if: $DEPLOY_PLATFORM == "false"
+    when: never
+  - when: on_success
+  resource_group: $DEPLOYMENT_INSTANCE_NAME-1
+  environment: $DEPLOYMENT_INSTANCE_NAME-1
+  retry: 1
+
+deploy_and_test:
+  stage: deploy_and_test
+  needs:
+  - prepare_deployment_instance
+  - build_packages
+  trigger:
+    include:
+    - project: kaapana/kaapana-ci
+      file: '/templates/.deploy_stage.yaml'
+      ref: main
+    strategy: depend
+    forward:
+      pipeline_variables: true
+      yaml_variables: true
+  rules:
+  - if: $DEPLOY_PLATFORM == "false"
+    when: never
+  - when: on_success
+  resource_group: $DEPLOYMENT_INSTANCE_NAME-1
+  environment: $DEPLOYMENT_INSTANCE_NAME-1
+
+#############################################
+############## CLEAN ########################
+#############################################
+logs:
+  stage: clean
+  script: cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/
+  artifacts:
+    name: pipeline
+    paths:
+    - artifacts/
+  when: always

@@ -113,7 +113,7 @@ unit_tests:
   - prepare_pipeline
   script:
   - pip install -r $KAAPANA_DIR/tests/requirements.txt
-  - pytest $KAAPANA_DIR/tests/ --unitxml=report.xml
+  - pytest $KAAPANA_DIR/tests/ > $ARTIFACTS_DIR/unit_tests.txt 2>&1
   artifacts:
     when: always
     reports:

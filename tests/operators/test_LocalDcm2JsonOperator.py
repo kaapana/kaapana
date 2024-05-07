@@ -1,4 +1,3 @@
-from datetime import datetime
 import json
 import os
 import sys
@@ -8,9 +7,6 @@ from unittest.mock import patch
 from attr import dataclass
 import pytest
 
-
-from airflow.models.skipmixin import SkipMixin
-from airflow.operators.python import PythonOperator
 
 from .utils import mock_modules, PLUGIN_DIR, DICOM_TAG_DICT
 from .generator import (
@@ -65,13 +61,14 @@ def op(request):
         return wrapper
 
     mock1 = patch.object(KaapanaPythonBaseOperator, "__init__", __init__)
-    mock2 = patch.object(SkipMixin, "__init__", __init__)
-    mock3 = patch.object(PythonOperator, "__init__", __init__)
+    # mock2 = patch.object(SkipMixin, "__init__", __init__)
+    # mock3 = patch.object(PythonOperator, "__init__", __init__)
     mock4 = patch(
         "kaapana.operators.HelperCaching.cache_operator_output",
         mock_decorator_function,
     )
-    with mock1, mock2, mock3, mock4:
+    # with mock1, mock2, mock3, mock4:
+    with mock1, mock4:
         from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 
         op = LocalDcm2JsonOperator(dag="", exit_on_error=True)
@@ -184,28 +181,27 @@ def test_process_age_string(input_age, expected_output):
 
 
 @pytest.mark.parametrize(
-    "new_tag, vr, value_str, expected_value, expected_type",
+    "vr, value_str, expected_value, expected_type",
     [
         # Keyword
-        ("00000000 TestTag", "AE", "value", "value", "keyword"),
-        ("00000000 TestTag", "AE", "value", "value", "keyword"),
-        ("00000000 TestTag", "AS", "value", "value", "keyword"),
-        ("00000000 TestTag", "AT", "value", "value", "keyword"),
-        ("00000000 TestTag", "CS", "value", "value", "keyword"),
-        ("00000000 TestTag", "LO", "value", "value", "keyword"),
-        ("00000000 TestTag", "LT", "value", "value", "keyword"),
-        ("00000000 TestTag", "OB", "value", "value", "keyword"),
-        ("00000000 TestTag", "OW", "value", "value", "keyword"),
-        ("00000000 TestTag", "SH", "value", "value", "keyword"),
-        ("00000000 TestTag", "ST", "value", "value", "keyword"),
-        ("00000000 TestTag", "UC", "value", "value", "keyword"),
-        ("00000000 TestTag", "UI", "value", "value", "keyword"),
-        ("00000000 TestTag", "UN", "value", "value", "keyword"),
-        ("00000000 TestTag", "UT", "value", "value", "keyword"),
+        ("AE", "value", "value", "keyword"),
+        ("AE", "value", "value", "keyword"),
+        ("AS", "value", "value", "keyword"),
+        ("AT", "value", "value", "keyword"),
+        ("CS", "value", "value", "keyword"),
+        ("LO", "value", "value", "keyword"),
+        ("LT", "value", "value", "keyword"),
+        ("OB", "value", "value", "keyword"),
+        ("OW", "value", "value", "keyword"),
+        ("SH", "value", "value", "keyword"),
+        ("ST", "value", "value", "keyword"),
+        ("UC", "value", "value", "keyword"),
+        ("UI", "value", "value", "keyword"),
+        ("UN", "value", "value", "keyword"),
+        ("UT", "value", "value", "keyword"),
         # DCM_DATETIME_FORMAT = "%Y%m%d%H%M%S.%f"
         # KAAPANA_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
         (
-            "00000000 TestTag",
             "DT",
             "20240101120000",
             # From UTC to Berlin
@@ -213,7 +209,6 @@ def test_process_age_string(input_age, expected_output):
             "datetime",
         ),
         (
-            "00000000 TestTag",
             "DT",
             "20240101",
             "2024-01-01 00:00:00.000000",
@@ -222,7 +217,6 @@ def test_process_age_string(input_age, expected_output):
         # DCM_TIME_FORMAT = "%H%M%S.%f"
         # KAAPANA_TIME_FORMAT = "%H:%M:%S.%f"
         (
-            "00000000 TestTag",
             "TM",
             "120000",
             # Not from UTC to Berlin
@@ -230,7 +224,6 @@ def test_process_age_string(input_age, expected_output):
             "time",
         ),
         (
-            "00000000 TestTag",
             "TM",
             "000000",
             "00:00:00.000000",
@@ -239,34 +232,33 @@ def test_process_age_string(input_age, expected_output):
         # DCM_DATE_FORMAT = "%Y%m%d"
         # KAAPANA_DATE_FORMAT = "%Y-%m-%d"
         (
-            "00000000 TestTag",
             "DA",
             "20240505",
             "2024-05-05",
             "date",
         ),
         (
-            "00000000 TestTag",
             "DA",
             "20240101",
             "2024-01-01",
             "date",
         ),
         # Float
-        ("00000000 TestTag", "DS", 0.001, 0.001, "float"),
-        ("00000000 TestTag", "FL", 0.001, 0.001, "float"),
-        ("00000000 TestTag", "FD", 2, 2.0, "float"),
-        ("00000000 TestTag", "OD", "0.001", 0.001, "float"),
-        ("00000000 TestTag", "OF", 0.001, 0.001, "float"),
+        ("DS", 0.001, 0.001, "float"),
+        ("FL", 0.001, 0.001, "float"),
+        ("FD", 2, 2.0, "float"),
+        ("OD", "0.001", 0.001, "float"),
+        ("OF", 0.001, 0.001, "float"),
         # Int
-        ("00000000 TestTag", "IS", 0, 0, "integer"),
-        ("00000000 TestTag", "SL", "1", 1, "integer"),
-        ("00000000 TestTag", "SS", "0.5", 0, "integer"),
-        ("00000000 TestTag", "UL", "0.sd5", "0.sd5", "integer"),
-        ("00000000 TestTag", "US", 0.001, 0, "integer"),
+        ("IS", 0, 0, "integer"),
+        ("SL", "1", 1, "integer"),
+        ("SS", "0.5", 0, "integer"),
+        ("UL", "0.sd5", "0.sd5", "integer"),
+        ("US", 0.001, 0, "integer"),
     ],
 )
-def test_normalize_tag(op, new_tag, vr, value_str, expected_value, expected_type):
+def test_normalize_tag(op, vr, value_str, expected_value, expected_type):
+    new_tag = "00000000 TestTag"
     metadata = op._normalize_tag(new_tag, vr, value_str, {})
     if expected_type is None:
         assert f"{new_tag}_{expected_type}" not in metadata.keys()
@@ -288,27 +280,22 @@ def test_normalize_tag(op, new_tag, vr, value_str, expected_value, expected_type
 
 
 @pytest.mark.parametrize(
-    "new_tag, vr, value_str, expected_value, expected_type",
+    "vr, value_str, expected_value, expected_type",
     [
-        # Sequence
-        # ("00000000 TestTag", "SQ", [], [], "object"),
         # Person Name
         (
-            "00000000 TestTag",
             "PN",
-            {"Alphabetic": "FamilyName"},
-            "FamilyName",
+            {"Alphabetic": "My\\{Int\\}io+n-12345678900-==][]' @!@##$%^&*()_"},
+            "My\\{Int\\}io+n-12345678900-==][]' @!@##$%^&*()_",
             "keyword_alphabetic",
         ),
         (
-            "00000000 TestTag",
             "PN",
             {"Ideographic": "FamilyName"},
             "FamilyName",
             "keyword_ideographic",
         ),
         (
-            "00000000 TestTag",
             "PN",
             {"Phonetic": "FamilyName"},
             "FamilyName",
@@ -316,8 +303,22 @@ def test_normalize_tag(op, new_tag, vr, value_str, expected_value, expected_type
         ),
     ],
 )
-def test_normalize_tag_complex(
-    op, new_tag, vr, value_str, expected_value, expected_type
-):
+def test_normalize_tag_personname(op, vr, value_str, expected_value, expected_type):
+    new_tag = "00000000 TestTag"
     metadata = op._normalize_tag(new_tag, vr, value_str, {})
     assert metadata[f"{new_tag}_{expected_type}"] == expected_value
+
+
+# @pytest.mark.parametrize(
+#     "vr, value_str, expected_value, expected_type",
+#     [
+#         # Sequence
+#         ("SQ", [], [], "object"),
+#     ],
+# )
+# def test_normalize_tag_sequence(
+#     op, vr, value_str, expected_value, expected_type
+# ):
+#     new_tag = "00000000 TestTag"
+#     metadata = op._normalize_tag(new_tag, vr, value_str, {})
+#     assert metadata[f"{new_tag}_{expected_type}"] == expected_value

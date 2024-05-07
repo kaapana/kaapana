@@ -116,8 +116,11 @@ unit_tests:
   - pytest $KAAPANA_DIR/tests/ --junitxml=$ARTIFACTS_DIR/unittest_report.xml
   artifacts:
     when: always
+    paths:
+    - $ARTIFACTS_DIR/unittest_report.xml
     reports:
       junit: $ARTIFACTS_DIR/unittest_report.xml
+
 
 #############################################
 ############## BUILD ########################

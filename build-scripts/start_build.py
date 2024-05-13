@@ -35,14 +35,6 @@ if __name__ == "__main__":
         help="Password",
     )
     parser.add_argument(
-        "-gc",
-        "--gcloud-token",
-        dest="gcloud_token",
-        default=None,
-        required=False,
-        help="Token for google cloud services",
-    )
-    parser.add_argument(
         "-dr",
         "--default-registry",
         dest="default_registry",
@@ -214,8 +206,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-cevdatabase,"
-        "--vulnerability-database",
+        "-cevdatabase," "--vulnerability-database",
         dest="check_expired_vulnerabilities_database",
         default=False,
         action="store_true",
@@ -226,7 +217,7 @@ if __name__ == "__main__":
 
     kaapana_dir = (
         args.kaapana_dir
-        if args.kaapana_dir != None  # shouldn't it be args.kaapana_dir is not None?
+        if args.kaapana_dir != None
         else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     )
     build_dir = (
@@ -402,13 +393,6 @@ if __name__ == "__main__":
     conf_registry_password = (
         conf_registry_password if conf_registry_password != "" else None
     )
-    conf_gcloud_token = (
-        configuration["gcloud_token"]
-        if "gcloud_token" in configuration
-        else template_configuration["gcloud_token"]
-    )
-    conf_gcloud_token = conf_gcloud_token if conf_gcloud_token != "" else None
-
     conf_include_credentials = (
         configuration["include_credentials"]
         if "include_credentials" in configuration
@@ -457,10 +441,6 @@ if __name__ == "__main__":
     registry_pwd = (
         args.password if args.password is not None else conf_registry_password
     )
-    gcloud_token = (
-        args.gcloud_token if args.gcloud_token is not None else conf_gcloud_token
-    )
-
     build_only = args.build_only if args.build_only != None else conf_build_only
     create_offline_installation = (
         args.create_offline_installation
@@ -678,8 +658,9 @@ if __name__ == "__main__":
     BuildUtils.version_latest = version_latest
     BuildUtils.enable_image_stats = enable_image_stats
     BuildUtils.create_sboms = create_sboms
-    BuildUtils.check_expired_vulnerabilities_database = conf_check_expired_vulnerabilities_database
-    
+    BuildUtils.check_expired_vulnerabilities_database = (
+        conf_check_expired_vulnerabilities_database
+    )
 
     if (
         BuildUtils.vulnerability_scan

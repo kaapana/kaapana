@@ -17,7 +17,6 @@ CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}
 ######################################################
 # Deployment configuration
 ######################################################
-GCLOUD_TOKEN="{{ gcloud_token|default('', true) }}"
 
 DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will always be re-downloaded after pod-restart
 GPU_SUPPORT="{{ gpu_support|default('false') }}"
@@ -406,7 +405,6 @@ function deploy_chart {
     --set-string global.base_namespace="base" \
     --set-string global.credentials_registry_username="$CONTAINER_REGISTRY_USERNAME" \
     --set-string global.credentials_registry_password="$CONTAINER_REGISTRY_PASSWORD" \
-    --set-string global.credentials_gcloud_token="$GCLOUD_TOKEN" \
     --set-string global.credentials_minio_username="$CREDENTIALS_MINIO_USERNAME" \
     --set-string global.credentials_minio_password="$CREDENTIALS_MINIO_PASSWORD" \
     --set-string global.credentials_grafana_username="$GRAFANA_USERNAME" \

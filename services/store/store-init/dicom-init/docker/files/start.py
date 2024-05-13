@@ -28,7 +28,7 @@ example_files = os.getenv("EXAMPLE", "/example/Winfried_phantom.zip")
 
 index = "meta-index"
 auth = None
-# auth = ('admin', 'admin') # For testing only. Don't store credentials in code.
+auth = ("admin", "admin")  # For testing only. Don't store credentials in code.
 
 os_client = OpenSearch(
     hosts=[{"host": os_host, "port": os_port}],
@@ -36,7 +36,7 @@ os_client = OpenSearch(
     http_auth=auth,
     # client_cert = client_cert_path,
     # client_key = client_key_path,
-    use_ssl=False,
+    use_ssl=True,
     verify_certs=False,
     ssl_assert_hostname=False,
     ssl_show_warn=False,

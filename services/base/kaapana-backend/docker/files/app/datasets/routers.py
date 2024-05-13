@@ -97,8 +97,7 @@ async def get_series(data: dict = Body(...)):
 
         df = pd.DataFrame(
             res_array,
-            columns=["Patient ID", "Study Instance UID",
-                     "Series Instance UID"],
+            columns=["Patient ID", "Study Instance UID", "Series Instance UID"],
         )
         return JSONResponse(
             {
@@ -248,8 +247,7 @@ async def get_all_values(item_name, query):
         body={
             "size": 0,
             # {"query":"D","field":"00000000 Tags_keyword.keyword","boolFilter":[]}
-            # {"query": {"ids": {"values": series_instance_uids}}}
-            "query": query,
+            "query": query,  # {"query": {"ids": {"values": series_instance_uids}}}
             "aggs": {item_name: {"terms": {"field": item_key, "size": 10000}}},
         }
     )[

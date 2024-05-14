@@ -72,7 +72,6 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         batch_folders = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
         ]
-        study_instance_uids = set()
         for batch_element_dir in batch_folders:
             print("input operator ", self.operator_in_dir)
             element_input_dir = os.path.join(batch_element_dir, self.operator_in_dir)
@@ -90,7 +89,6 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
             ds = pydicom.dcmread(dcm_file)
             series_uid = str(ds[0x0020, 0x000E].value)
             self.send_dicom_data(element_input_dir, series_uid)
-            study_instance_uids.add(str(ds[0x0020, 0x000D].value))
 
     def __init__(
         self,

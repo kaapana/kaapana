@@ -46,12 +46,12 @@ spec:
           - name: cluster.initial_cluster_manager_nodes
             value: "{{ .Values.global.hostname }}"
           - name: OPENSEARCH_JAVA_OPTS
-            value: '-Xms512m -Xmx512m'
+            value: {{ quote (index .Values.opensearchResources .Values.global.platform_size).javaOpts }}
           resources:
             requests:
-              memory: 1000Mi
+              memory: {{ quote (index .Values.opensearchResources .Values.global.platform_size).requests.memory }}
             limits:
-              memory: 2000Mi
+              memory: {{ quote (index .Values.opensearchResources .Values.global.platform_size).limits.memory }}
           volumeMounts:
             - name: osdata
               mountPath: /usr/share/opensearch/data

@@ -56,6 +56,9 @@ HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
 HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 
+# defining resources needed for the platform "small", "medium" or "high"
+PLATFORM_SIZE="{{ platform_size|default('medium')}}"
+
 VERSION_IMAGE_COUNT="20"
 DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
 MOUNT_POINTS_TO_MONITOR="{{ mount_points_to_monitor }}"
@@ -442,6 +445,7 @@ function deploy_chart {
     --set-string global.instance_name="$INSTANCE_NAME" \
     --set-string global.dev_mode="$DEV_MODE" \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
+    --set-string global.platform_size="$PLATFORM_SIZE" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

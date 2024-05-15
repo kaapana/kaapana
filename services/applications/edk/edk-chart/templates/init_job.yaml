@@ -1,0 +1,1 @@
+# TODO: init job that pulls kaapana repo using the branch and commit hash, then builds and pushes the base operators  to the registry

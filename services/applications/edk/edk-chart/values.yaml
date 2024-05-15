@@ -3,8 +3,14 @@ global:
   ingress_path: "edk"
   complete_image: "{{ .Values.global.registry_url }}/edk:{{ .Values.global.kaapana_build_version  }}"
   namespace: "{{ .Values.global.services_namespace }}"
+  registry_disk_space: 30Gi
   dynamicVolumes:
   - name: edk-data
-    mount_path: /kaapana/mounted/extensions
-    host_path: /extensions
+    mount_path: /kaapana/app/dev/edk-data
+    host_path: /edk
+  envVars:
+  - name: WORKSPACE
+    value: "/kaapana/app/dev"
+  links:
+    - /edk/
     

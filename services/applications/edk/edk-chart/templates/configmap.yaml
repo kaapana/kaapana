@@ -1,0 +1,33 @@
+apiVersion: v1
+data:
+  user_settings.json: |-
+    {
+        "workbench.colorTheme": "Default Dark+"
+    }
+  launch.json: |-
+    {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Python: Remote Attach",
+                "type": "python",
+                "request": "attach",
+                "connect": {
+                    "host": "airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc",
+                    "port": 5678
+                },
+                "justMyCode": false,
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}",
+                        "remoteRoot": "/home/airflow"
+                    }
+                ]
+            }
+        ]
+    }
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+---

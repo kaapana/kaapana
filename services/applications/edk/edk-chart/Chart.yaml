@@ -1,0 +1,8 @@
+apiVersion: v1
+appVersion: "4.10.1"
+description: Extension Development Kit
+name: edk
+version: "0.0.0"
+keywords:
+- kaapanaapplication
+- kaapanaint

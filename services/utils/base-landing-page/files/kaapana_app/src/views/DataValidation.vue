@@ -273,8 +273,11 @@ export default Vue.extend({
   pointer-events: auto;
 }
 
+.row+.row{
+  margin-top: 0px;
+}
+
 /deep/ .item-label {
-  display: inline-flex;
   line-height: 20px;
   max-width: 100%;
   outline: none;
@@ -283,6 +286,7 @@ export default Vue.extend({
   position: relative;
   border-radius: 12px;
   margin-right: 4px;
+  text-align: center;
 }
 
 /deep/ .item-count-label {

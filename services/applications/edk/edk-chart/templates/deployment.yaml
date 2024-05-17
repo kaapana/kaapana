@@ -17,6 +17,7 @@ spec:
     spec:
       securityContext:
         runAsUser: 0
+      serviceAccountName: edk-serviceaccount
       containers:
       - name: edk
         image: "{{ tpl .Values.global.complete_image . }}"

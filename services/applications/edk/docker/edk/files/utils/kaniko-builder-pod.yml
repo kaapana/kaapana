@@ -7,18 +7,26 @@ spec:
   containers:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
+    imagePullPolicy: IfNotPresent
+    resources:
+      limits:
+        memory: 30Gi
+      requests:
+        memory: 4Gi
     args:
-    - "--dockerfile=/workflows/dags/Dockerfile"
-    - "--context=dir:///workflows/dags"
-    - "--destination=registry.container-registry.svc.cluster.local:5000/testpy:0.0.0"
+    - "--dockerfile=DOCKERFILE_PATH"
+    - "--context=dir://CONTEXT_DIR"
+    - "--destination=DEST"
+    - "--compressed-caching=false"
+    - "--single-snapshot"
     env:
       - name: NO_PROXY
         value: "localhost,127.0.0.1,.svc,.cluster.local"
     volumeMounts:
-    - name: dags
-      mountPath: /workflows/dags
+    - name: edk-data
+      mountPath: /kaapana/app/edk-data
   restartPolicy: Never
   volumes:
-  - name: dags
+  - name: edk-data
     persistentVolumeClaim:
-      claimName: dags-pv-claim
+      claimName: edk-data-pv-claim

@@ -15,4 +15,5 @@ global:
     value: "/kaapana/app"
   links:
     - /edk/
+    - /local-registry-ui/
     

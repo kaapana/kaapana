@@ -42,6 +42,13 @@ class DicomValidator:
         return
 
     def validate_dicom(self, dicom_path: str) -> tuple:
+        """
+        Args:
+            dicom_path (str): The file path of the DICOM file to be validated.
+
+        Returns:
+            Tuple[List[ValidationItem], List[ValidationItem]]: Two lists containing error and warning ValidationItems respectively.
+        """
         return NotImplementedError
 
 
@@ -57,6 +64,23 @@ def ensure_dir(target: str):
 
 
 def merge_similar_validation_items(all_items: dict):
+    """
+    Merge similar validation items across multiple DICOM files.
+
+    This function takes a dictionary of DICOM files path and their corresponding validation items,
+    then merges the items with similar tags (and indices, if present). Each unique tag (and
+    index combination) is combined, and the list of DICOM files where they appear is updated.
+
+    If an item appears in all DICOM files, its list of DICOM files is replaced with ["all"].
+
+    Args:
+        all_items (dict): A dictionary where keys are DICOM file identifiers and values are
+                          lists of validation items from the class ValidationItem
+
+    Returns:
+        dict: A dictionary where keys are tag/index combinations (as strings) and values are
+              the merged validation items with updated lists of associated DICOM files.
+    """
     tag_item_pair = {}
     # tag_dicom_pair = {}
     for dicom in all_items.keys():

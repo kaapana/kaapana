@@ -10,6 +10,15 @@ class DCIodValidator(DicomValidator):
 
     @staticmethod
     def process_dciodvfy_output(output: str):
+        """
+        Process the output from the dciodvfy command.
+
+        Args:
+            output (str): The raw output string from the dciodvfy command.
+
+        Returns:
+            List[Tuple[str]]: A list of tuples, where each tuple contains parts of an error or warning message.
+        """
         lines = output.split("\n")
         outputs = []
 
@@ -25,6 +34,16 @@ class DCIodValidator(DicomValidator):
 
     @staticmethod
     def get_validataion_item_from_err_tuple(source: tuple, ref: int = -1):
+        """
+        Extract a ValidationItem from an error tuple.
+
+        Args:
+            source (Tuple[str]): A tuple containing parts of an error or warning message.
+            ref (int, optional): A reference index used for naming general tags. Defaults to -1.
+
+        Returns:
+            Union[ValidationItem, None]: A ValidationItem instance if extraction is successful, otherwise None.
+        """
         valid_tag_regex = re.compile(r"<\/|[A-Za-z0-9]*\([0-9]{4},[0-9]{4}\)\[\d\]>")
 
         def extract_tag(target: str):
@@ -89,6 +108,15 @@ class DCIodValidator(DicomValidator):
         return None
 
     def validate_dicom(self, dicom_path: str) -> tuple:
+        """
+        Validate a DICOM file using the dciodvfy tool.
+
+        Args:
+            dicom_path (str): The file path of the DICOM file to be validated.
+
+        Returns:
+            Tuple[List[ValidationItem], List[ValidationItem]]: Two lists containing error and warning ValidationItems respectively.
+        """
         cmd = ["dciodvfy", "-new", dicom_path]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         _, err = process.communicate()

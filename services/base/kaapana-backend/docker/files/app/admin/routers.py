@@ -2,7 +2,6 @@ import requests
 import subprocess
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
-from opensearchpy import OpenSearch
 import uuid
 import jwt
 from datetime import datetime, timezone
@@ -10,7 +9,7 @@ from app.workflows.utils import (
     raise_kaapana_connection_error,
     requests_retry_session,
 )
-from app.dependencies import get_minio
+from app.dependencies import get_minio, get_opensearch
 from app.config import settings
 
 router = APIRouter()
@@ -78,11 +77,9 @@ def get_static_website_results(
 
 
 @router.get("/get-os-dashboards")
-def get_os_dashboards():
+def get_os_dashboards(opensearchClient=Depends(get_opensearch)):
     try:
-        res = OpenSearch(
-            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-        ).search(
+        res = opensearchClient.search(
             body={
                 "query": {"exists": {"field": "dashboard"}},
                 "_source": ["dashboard.title"],
@@ -91,7 +88,7 @@ def get_os_dashboards():
             from_=0,
         )
     except Exception as e:
-        print("ERROR in OpenSearch search!")
+        print("ERROR in opensearch search!")
         return {"Error message": str(e)}, 500
 
     hits = res["hits"]["hits"]

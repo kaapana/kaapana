@@ -11,7 +11,6 @@ import datetime
 from fastapi import HTTPException
 from app.config import settings
 
-from opensearchpy import OpenSearch
 from minio import Minio
 from urllib3.util import Timeout
 import xml.etree.ElementTree as ET

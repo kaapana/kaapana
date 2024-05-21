@@ -3,6 +3,7 @@
 
 import os
 from opensearchpy import OpenSearch
+from opensearchpy.exceptions import TransportError
 import requests
 import traceback
 import json
@@ -220,23 +221,42 @@ def create_index():
     # print("# INDEX-BODY:")
     # print(json.dumps(index_body, indent=4))
     # print("#")
-    try:
-        response = os_client.indices.create(index_name, body=index_body)
+
+    def _create_index(index_name, index_body):
+        try:
+            response = os_client.indices.create(index_name, body=index_body)
+            return response
+        except TransportError as e:
+            print(f"# Warning: {str(e)}")
+            print(" Retry ...")
+            return False
+        except Exception as e:
+            if str(e.error) == "resource_already_exists_exception":
+                print("#")
+                print("# Index already exists ...")
+                print("#")
+                return True
+            else:
+                print("# ")
+                print("# Unknown issue while creating the META index ...")
+                print("# Error:")
+                print(str(e))
+                print("#")
+                exit(1)
+
+    counter = 0
+    max_retries = 60
+    while not _create_index(index_name, index_body) and counter <= max_retries:
+        time.sleep(1)
+        counter += 1
+
+    if counter > max_retries:
         print("#")
-        print("# Response:")
-        print(response)
-    except Exception as e:
-        if str(e.error) == "resource_already_exists_exception":
-            print("#")
-            print("# Index already exists ...")
-            print("#")
-        else:
-            print("# ")
-            print("# Unknown issue while creating the META index ...")
-            print("# Error:")
-            print(str(e))
-            print("#")
-            exit(1)
+        print(f"#Error: {counter=} > {max_retries=}")
+        print("# Error: Max retries exceeded!")
+        print("# Error: Index not successfully created!")
+        print("#")
+        exit(1)
 
     print("#")
     print("# Success! ")

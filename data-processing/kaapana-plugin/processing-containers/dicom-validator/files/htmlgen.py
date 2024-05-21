@@ -139,6 +139,18 @@ def get_attributes_html_from_dict(attrs: dict):
 
 
 def generate_html(title: str, attrs: dict, errors: list, warnings: list):
+    """
+    Generate an HTML string from the given title, attributes, errors, and warnings.
+
+    Args:
+        title (str): The title of the HTML document.
+        attrs (dict): A dictionary of attributes to be included in the HTML.
+        errors (list): A list of ValidationItem objects representing errors.
+        warnings (list): A list of ValidationItem objects representing warnings.
+
+    Returns:
+        str: The generated HTML as a string.
+    """
     html = Template(html_template)
 
     attrs_str = get_attributes_html_from_dict(attrs)

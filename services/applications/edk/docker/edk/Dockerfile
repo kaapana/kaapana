@@ -11,10 +11,9 @@ RUN mkdir -p /kaapana/app/dag
 RUN mkdir -p /kaapana/app/utils
 
 COPY files/utils /kaapana/app/utils
-COPY files/requirements.txt /kaapana/app
 COPY files/init.sh /kaapana/app
 
-RUN pip install -r requirements.txt
+RUN pip install -r /kaapana/app/utils/requirements.txt
 
 RUN chmod +x /kaapana/app/init.sh
 

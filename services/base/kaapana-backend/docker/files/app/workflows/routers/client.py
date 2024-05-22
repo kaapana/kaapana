@@ -13,8 +13,7 @@ from threading import Thread
 
 from pathlib import Path
 import jsonschema
-from app.datasets.utils import execute_opensearch_query
-from app.dependencies import get_db, get_minio
+from app.dependencies import get_db, get_opensearch
 from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
@@ -58,6 +57,7 @@ def remove_outdated_tmp_files(search_dir):
                     f"Something went wrong with the removal of {file_found} .. "
                 )
 
+
 @router.head("/file")
 def head_file_upload(request: Request, patch: str):
     uoffset = request.headers.get("upload-offset", None)
@@ -70,14 +70,21 @@ def head_file_upload(request: Request, patch: str):
         offset = 0
     return Response(str(offset))
 
+
 @router.get("/files")
-async def get_file(request: Request, pattern: str="*"):
+async def get_file(request: Request, pattern: str = "*"):
     """
     Return a list of file paths relative to UPLOAD_DIR matching the provided pattern.
     List only files with resolved filepaths being a subpath of UPLOAD_DIR.
     """
     absolute_file_paths = list(Path(UPLOAD_DIR).rglob(pattern))
-    return [file.relative_to(UPLOAD_DIR) for file in absolute_file_paths if file.is_file() and file.resolve().parts[:len(Path(UPLOAD_DIR).parts)] == Path(UPLOAD_DIR).parts]
+    return [
+        file.relative_to(UPLOAD_DIR)
+        for file in absolute_file_paths
+        if file.is_file()
+        and file.resolve().parts[: len(Path(UPLOAD_DIR).parts)]
+        == Path(UPLOAD_DIR).parts
+    ]
 
 
 @router.post("/file")
@@ -102,6 +109,7 @@ async def post_file(request: Request):
     logging.debug(f"post_minio_file_upload returns {patch=}")
     logging.debug(f"{filepath=}")
     return Response(content=patch)
+
 
 @router.patch("/file")
 async def patch_file(
@@ -146,6 +154,7 @@ async def patch_file(
             )
     return Response(patch)
 
+
 @router.delete("/file")
 async def delete_minio_file_upload(request: Request):
     body = await request.body()
@@ -174,6 +183,7 @@ def create_remote_kaapana_instance(
             db=db, remote_kaapana_instance=remote_kaapana_instance
         )
     )
+
 
 @router.put("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 def put_remote_kaapana_instance(
@@ -498,13 +508,15 @@ def create_dataset(
     dataset: Union[schemas.DatasetCreate, None] = None,
     query: Union[str, None] = None,
     db: Session = Depends(get_db),
+    opensearchClient=Depends(get_opensearch),
 ):
     if not dataset and query:
         query_dict = json.loads(query)
         dataset = schemas.DatasetCreate(
             name=query_dict["name"],
             identifiers=[
-                d["_id"] for d in execute_opensearch_query(query_dict["query"])
+                d["_id"]
+                for d in opensearchClient.execute_opensearch_query(query_dict["query"])
             ],
         )
     dataset.username = request.headers["x-forwarded-preferred-username"]

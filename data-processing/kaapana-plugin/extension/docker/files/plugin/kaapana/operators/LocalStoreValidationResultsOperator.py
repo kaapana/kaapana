@@ -43,23 +43,35 @@ def get_file_creation_time(file_path):
 
 
 class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
-    class Action(Enum):
-        ADD = "add"
-        DELETE = "delete"
-        ADD_FROM_FILE = "add_from_file"
+    """
+    This Operator extracts validation results from HTML files from the operator input dir
+    and stores these results as metadata for DICOM files in OpenSearch.
+    """
 
     @staticmethod
     def _get_next_hex_tag(current_tag: str):
+        """
+        Generates the next hexadecimal tag based on the current tag.
+
+        :param current_tag: The current hexadecimal tag as a string.
+        :return: The next hexadecimal tag as a string.
+        """
+        # Split the current tag into the first and second parts
         first_part = current_tag[0:4]
         second_part = current_tag[-4:]
 
+        # Convert the second part to an integer
         item_num = int(second_part, 16)
 
+        # Increment the integer
         item_num += 1
-        item_hex = hex(item_num)
-        item_hex = item_hex[2:]
 
+        # Convert the incremented number back to a hexadecimal string
+        item_hex = hex(item_num)[2:]
+
+        # Combine the first part and the new hexadecimal number to form the next tag
         next_tag = f"{first_part}{item_hex}"
+
         return next_tag
 
     def tagging(
@@ -68,6 +80,13 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
         validation_tags: List[tuple],
         clear_results: bool = False,
     ):
+        """
+        Updates the tags for a given series instance UID in OpenSearch.
+
+        :param series_instance_uid: The series instance UID for which the tags are to be updated.
+        :param validation_tags: A list of tuples containing the validation tags to add.
+        :param clear_results: Boolean indicating whether to clear existing results.
+        """
         print(series_instance_uid)
         print(f"Tags 2 add: {validation_tags}")
 
@@ -113,6 +132,12 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
         os_client.update(index=self.opensearch_index, id=series_instance_uid, body=body)
 
     def _extract_validation_results_from_html(self, html_output_path: str):
+        """
+        Extracts validation results from an HTML file.
+
+        :param html_output_path: The path to the HTML file containing validation results.
+        :return: A tuple containing the number of errors, number of warnings, and the validation time.
+        """
         error_parser = ClassHTMLParser("item-count-label error")
         with open(html_output_path, "r") as file:
             error_parser.feed(file.read())
@@ -207,7 +232,12 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
         **kwargs,
     ):
         """
-        :param tag_field: the field of the opensearch object where the tags are stored
+        :param validator_output_dir: Directory where validation output files are stored.
+        :param validation_tag: Base tag used for validation (default: "00111001").
+        :param name: Name of the operator (default: "results-to-open-search").
+        :param opensearch_host: Hostname of the OpenSearch service.
+        :param opensearch_port: Port of the OpenSearch service.
+        :param opensearch_index: Index in OpenSearch where metadata will be stored.
         """
 
         self.tag_field = f"{validation_tag} ValidationResults_object"

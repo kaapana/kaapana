@@ -4,10 +4,10 @@ from pathlib import Path
 from dicom_validator.spec_reader.edition_reader import EditionReader
 from dicom_validator.validator.dicom_file_validator import DicomFileValidator
 
-from base import DicomValidator, ValidationItem
+from base import DicomValidatorInterface, ValidationItem
 
 
-class PyDicomValidator(DicomValidator):
+class PyDicomValidator(DicomValidatorInterface):
     def __init__(
         self,
         dicom_definition_root: str = "/kaapana/dicom-revisions",

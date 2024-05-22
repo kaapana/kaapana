@@ -1,10 +1,10 @@
 import re
 import subprocess
 
-from base import ValidationItem, DicomValidator
+from base import ValidationItem, DicomValidatorInterface
 
 
-class DCIodValidator(DicomValidator):
+class DCIodValidator(DicomValidatorInterface):
     def __init__(self) -> None:
         super().__init__()
 

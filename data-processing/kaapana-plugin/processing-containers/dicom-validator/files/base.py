@@ -37,7 +37,7 @@ class ValidationItem:
         self.list_of_dicoms.append(dicom_name)
 
 
-class DicomValidator:
+class DicomValidatorInterface:
     def __init__(self) -> None:
         return
 

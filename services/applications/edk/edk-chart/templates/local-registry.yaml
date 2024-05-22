@@ -10,7 +10,7 @@ spec:
   volumeMode: Filesystem
   resources:
     requests:
-      storage: {{ .Values.global.registry_disk_space }}
+      storage: {{ .Values.global.local_registry_disk_space }}
 ---
 apiVersion: apps/v1
 kind: Deployment

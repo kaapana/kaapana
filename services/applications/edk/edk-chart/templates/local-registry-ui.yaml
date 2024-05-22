@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: local-registry-ui
-  namespace: services
+  namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   replicas: 1
   selector:
@@ -20,11 +20,11 @@ spec:
             - containerPort: 80
           env:
             - name: NGINX_PROXY_PASS_URL
-              value: "http://local-registry.services.svc.cluster.local:5000"
+              value: "http://{{ tpl .Values.global.local_registry_url . }}"
             - name: SINGLE_REGISTRY
               value: "true"
             - name: BASE_PATH
-              value: "/local-registry-ui"
+              value: "{{ .Values.global.local_registry_ui_path }}"
             - name: DELETE_IMAGES
               value: "true"
             - name: HTTP_PROXY
@@ -51,7 +51,7 @@ spec:
     - host:
       http:
         paths:
-          - path: /local-registry-ui
+          - path: "{{ .Values.global.local_registry_ui_path }}"
             pathType: ImplementationSpecific
             backend:
               service:
@@ -67,7 +67,7 @@ metadata:
 spec:
   stripPrefix:
     prefixes:
-    - /local-registry-ui
+    - "{{ .Values.global.local_registry_ui_path }}"
     forceSlash: false
 ---
 apiVersion: v1

@@ -5,11 +5,14 @@ global:
   namespace: "{{ .Values.global.services_namespace }}"
   service_account_name: edk-serviceaccount
   role_name: pod-creator-edk
-  registry_disk_space: 30Gi
+  local_registry_url: "local-registry.{{ .Values.global.services_namespace }}.svc.cluster.local:5000"
+  local_registry_disk_space: 30Gi
+  local_registry_ui_path: /local-registry-ui
   dynamicVolumes:
   - name: edk-data
     mount_path: /kaapana/app/edk-data
     host_path: /edk
+    storage: 1Gi
   envVars:
   - name: WORKSPACE
     value: "/kaapana/app"

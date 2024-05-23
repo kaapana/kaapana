@@ -229,18 +229,6 @@ def create_index():
     print("#")
 
 
-def delete_index(index):
-    global os_client
-    print("#")
-    print(f"# -> Deleting index: {index} ...")
-    print("#")
-    response = os_client.indices.delete(index=index)
-
-    print("# Response: ")
-    print(response)
-    print("#")
-
-
 print("#")
 print("# Started init-container")
 print("#")
@@ -257,8 +245,8 @@ if __name__ == "__main__":
     domain = os.getenv("DOMAIN", None)
     https_port = os.getenv("HTTPS_PORT", None)
     index = os.getenv("INDEX", None)
-    os_host = os.getenv("OS_HOST", None)
-    os_port = os.getenv("OS_PORT", None)
+    os_host = os.getenv("OPENSEARCH_HOST", None)
+    os_port = os.getenv("OPENSEARCH_POST", None)
     dashboards_url = os.getenv("DASHBOARDS_URL", None)
     export_ndjson_path = os.getenv("EXPORT_NDJSON", None)
 
@@ -281,8 +269,6 @@ if __name__ == "__main__":
         print("DOMAIN env not set -> exiting..")
         exit(1)
 
-    auth = ("admin", "admin")
-    # auth = None
     os_client = get_opensearch_client()
 
     if init_os:

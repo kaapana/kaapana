@@ -1,8 +1,8 @@
 import re
 from typing import Dict, List
-
 from kaapanapy.settings import OpensearchSettings
 from opensearchpy import OpenSearch
+from opensearchpy.exceptions import TransportError
 
 
 class KaapanaOpensearchHelper(OpenSearch):

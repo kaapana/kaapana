@@ -5,10 +5,6 @@ import os
 class KaapanaSettings(BaseSettings):
     """
     These settings are imported in every module of the kaapana-pip library
-
-    Settings are populated using environment variables
-    https://fastapi.tiangolo.com/advanced/settings/#pydantic-settings
-    https://pydantic-docs.helpmanual.io/usage/settings/#environment-variable-names
     """
 
     hostname: str = os.getenv("HOSTNAME")
@@ -29,9 +25,11 @@ class KaapanaSettings(BaseSettings):
 
 
 class KeycloakSettings(KaapanaSettings):
-    keycloak_url: str
-    keycloak_admin_username: str
-    keycloak_admin_password: str
+    keycloak_url: str = os.getenv(
+        "KEYCLOAK_URL", "http://keycloak-external-service.admin.svc:80"
+    )
+    client_secret: str = os.getenv("KAAPANA_CLIENT_SECRET")
+    client_id: str = os.getenv("KAAPANA_CLIENT_ID", "kaapana")
 
 
 class MinioSettings(KaapanaSettings):
@@ -47,3 +45,13 @@ class OpensearchSettings(KaapanaSettings):
 
     opensearch_host: str = os.getenv("OPENSEARCH_HOST")
     opensearch_port: str = os.getenv("OPENSEARCH_PORT")
+
+
+class ProjectSettings(KaapanaSettings):
+    """
+    Project specific settings
+    """
+
+    project_name: str = os.getenv("KAAPANA_PROJECT_NAME", "admin_project")
+    project_user_name: str = os.getenv("KAAPANA_PROJECT_USER_NAME", "system")
+    project_user_password: str = os.getenv("KAAPANA_PROJECT_USER_PASSWORD")

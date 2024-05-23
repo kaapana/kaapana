@@ -3,10 +3,8 @@ import yaml
 import shutil
 import os
 from datetime import datetime
-import threading
 from typing import List, Dict, Any, Union
 from kubernetes import client, config, watch
-from kubernetes.client.rest import ApiException
 
 # kube config
 config.load_incluster_config()

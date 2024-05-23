@@ -3,15 +3,6 @@ from typing import Literal, Optional
 
 
 class ValidationItem:
-    tag: str
-    type: Literal["Error", "Warning"]
-    message: str
-    name: str
-    module: str
-    index: Optional[int]
-    raw: str
-    list_of_dicoms: list
-    # print_raw: bool
 
     def __init__(
         self, tag, type, message, name="", module="", index=None, raw=""

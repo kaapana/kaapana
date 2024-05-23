@@ -97,22 +97,22 @@ if __name__ == "__main__":
 
             if len(errors.keys()) > 0 or len(warnings.keys()) > 0:
                 htmlout = generate_html(
-                    title=f"Error Report for dataset {get_series_description(dcm_files)}",
+                    title=f"Validation Report for dataset {get_series_description(dcm_files)}",
                     attrs=attributes,
                     errors=[errors[tag] for tag in errors.keys()],
                     warnings=[warnings[tag] for tag in warnings.keys()],
                 )
 
                 with open(
-                    os.path.join(element_output_dir, f"errors-{run_id}.html"), "w"
+                    os.path.join(element_output_dir, f"validations-{run_id}.html"), "w"
                 ) as f:
                     f.write(htmlout)
 
                 print(
-                    f"Error file created in {element_output_dir} with the name errors-{run_id}.html"
+                    f"Validation Results file created in {element_output_dir} with the name validations-{run_id}.html"
                 )
 
             if len(errors.keys()) > 0 and exit_on_error:
                 raise ValueError(
-                    f"Dicom Validation Failed. Stopping Executions. Error file created in {element_output_dir} with the name errors-{run_id}.html listing all the errors."
+                    f"Dicom Validation Failed. Stopping Executions. Validation Results file created in {element_output_dir} with the name validations-{run_id}.html listing all the errors."
                 )

@@ -1,28 +1,21 @@
-import requests
-import urllib3
-import os
 import logging
+import os
 import traceback
-import psutil
 
-from fastapi import Depends, FastAPI, Request
+import psutil
+import urllib3
+from fastapi import Depends, FastAPI
 
 from .admin import routers as admin
-from .datasets import routers
-from .workflows.routers import remote, client
-from .monitoring import routers as monitoring
-from .storage import routers as storage
-from .users import routers as users
-
-from .dependencies import get_query_token, get_token_header
 from .database import SessionLocal, engine
+from .datasets import routers
 from .decorators import repeat_every
+from .dependencies import get_token_header
+from .middlewares import SecurityMiddleware
+from .monitoring import routers as monitoring
 from .workflows import models
-from .workflows.crud import (
-    get_remote_updates,
-    sync_states_from_airflow,
-    sync_n_clean_qsr_jobs_with_airflow,
-)
+from .workflows.crud import get_remote_updates, sync_states_from_airflow
+from .workflows.routers import client, remote
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -31,6 +24,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI(root_path="/kaapana-backend")
+app.add_middleware(SecurityMiddleware)
 
 
 @app.on_event("startup")

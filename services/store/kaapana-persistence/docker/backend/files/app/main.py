@@ -3,15 +3,15 @@ import logging
 from glob import glob
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from .config import get_settings
 from .dependencies import get_schema_service
-from .logger import get_logger
-from .middlewares import SecurityMiddleware
+from .logger import function_logger_factory, get_logger
 from .routers.cas import router as cas_router
 from .routers.dicomweb import router as dicomweb_router
 from .routers.health import router as health_router
+from .routers.mnt import router as mnt_router
 from .routers.object import router as object_router
 from .routers.schema import router as schema_router
 from .routers.urn import router as urn_router
@@ -23,10 +23,9 @@ else:
 
 
 app = FastAPI(title=get_settings().app_name, docs_url="/")
-app.add_middleware(SecurityMiddleware)
 
 if get_settings().dev:
-    logger.info("Persistence Layer is running in dev mode")
+    logger.info(f"Persistence Layer is running in dev mode")
     from fastapi.middleware.cors import CORSMiddleware
 
     origins = [
@@ -56,10 +55,10 @@ async def load_schemas():
             with open(schema_file) as fd:
                 data = json.load(fd)
                 await schema_service.register(data)
-        except json.decoder.JSONDecodeError:
-            logger.error("Invalid Json in %s", schema_file, exc_info=True)
-        except Exception:
-            logger.error("Failed to register schema %s", schema_file, exc_info=True)
+        except json.decoder.JSONDecodeError as e:
+            logger.error("Invalid Json in %s", schema_file, exc_info=1)
+        except Exception as e:
+            logger.error("Failed to register schema %s", schema_file, exc_info=1)
 
     logger.info("Loading of schemas done")
 

@@ -2,6 +2,7 @@ import re
 from string import Template
 from html import escape
 
+from base import ValidationItem
 
 html_template = """
 <!DOCTYPE html>
@@ -116,7 +117,7 @@ def replace_html_like_tags(target: str):
     return target
 
 
-def get_html_from_validation_item(vitem, htmlclass: str = "error"):
+def get_html_from_validation_item(vitem: ValidationItem, htmlclass: str = "error"):
     validtn_dicoms = ""
     if len(vitem.list_of_dicoms) > 0 and vitem.list_of_dicoms[0] != "all":
         validtn_dicoms = "</br>" + ", ".join(vitem.list_of_dicoms)

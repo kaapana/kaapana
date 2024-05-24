@@ -124,28 +124,6 @@ class HelperDcmWeb:
         impersonated_access_token = r.json()["access_token"]
         return impersonated_access_token
 
-    def set_access_control_id_of_study(self, access_control_id: str):
-        """
-        Set the access control id of a study in dcm4chee
-        """
-        url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies/{access_control_id}/access/{access_control_id}"
-        r = requests.put(
-            url,
-            headers=self.auth_headers,
-        )
-        r.raise_for_status()
-
-    def add_access_control_id_to_ae(self, access_control_id: str):
-        """
-        Add access control id to an application entity in dcm4chee
-        """
-        url = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/aets/{self.application_entity}/access-control-id/{access_control_id}"
-        r = requests.put(
-            url,
-            headers=self.auth_headers,
-        )
-        r.raise_for_status()
-
     def check_if_series_in_archive(self, seriesUID):
         """
         Check if a series exists in the archive and belongs to the application entity

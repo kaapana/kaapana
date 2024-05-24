@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-pyradiomics-extract-features"
+    action: "copy"

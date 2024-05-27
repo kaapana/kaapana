@@ -2,31 +2,29 @@ import json
 from http import HTTPStatus
 
 from airflow import settings
-from airflow.api.common.trigger_dag import trigger_dag as trigger
 from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed as set_dag_run_failed,
 )
+from airflow.api.common.trigger_dag import trigger_dag as trigger
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun, DagModel, DagBag, DAG
+from airflow.models import DAG, DagBag, DagModel, DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.utils.state import State, TaskInstanceState, DagRunState
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.www.app import csrf
 from airflow.utils import timezone
-
-from flask import Blueprint, request, jsonify, Response
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.www.app import csrf
+from flask import Blueprint, Response
 from flask import current_app as app
-
-from sqlalchemy import and_
-from sqlalchemy.orm.exc import NoResultFound
-
+from flask import jsonify, request
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import (
-    generate_run_id,
     generate_minio_credentials,
+    generate_run_id,
     parse_ui_dict,
 )
 from kaapana.operators.HelperOpensearch import HelperOpensearch
+from sqlalchemy import and_
+from sqlalchemy.orm.exc import NoResultFound
 
 _log = LoggingMixin().log
 parallel_processes = 1
@@ -52,18 +50,6 @@ def trigger_dag(dag_id):
         tmp_conf["x_auth_token"] = data["x_auth_token"]
     else:
         tmp_conf["x_auth_token"] = request.headers.get("X-Auth-Token")
-
-    ################################################################################################
-    #### Deprecated! Will be removed with the next version 0.3.0
-
-    if (
-        "workflow_form" in tmp_conf
-    ):  # in the future only workflow_form should be included in the tmp_conf
-        tmp_conf["form_data"] = tmp_conf["workflow_form"]
-    elif "form_data" in tmp_conf:
-        tmp_conf["workflow_form"] = tmp_conf["form_data"]
-
-    ################################################################################################
 
     run_id = generate_run_id(dag_id)
 

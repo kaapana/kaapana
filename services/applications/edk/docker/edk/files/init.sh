@@ -14,10 +14,23 @@ clone_repo() {
   fi
 }
 
+# clone repo
 if ! clone_repo "$KAAPANA_BUILD_BRANCH"; then
   echo "git clone failed, retrying with 'feature/' prefix"
   clone_repo "feature/$KAAPANA_BUILD_BRANCH"
+  sleep 2
 fi
 
+# change to commit hash that the current platform is built from
+KAAPANA_REPO_PATH="$PWD/kaapana"
+cd $KAAPANA_REPO_PATH
 KAAPANA_COMMIT_HASH=$(echo $KAAPANA_BUILD_VERSION | sed 's/.*-g//')
 git checkout $KAAPANA_COMMIT_HASH
+cd ..
+
+# copy example DAG from repo to /dag folder
+cp -r $KAAPANA_REPO_PATH/templates_and_examples/examples/processing-pipelines/pyradiomics-feature-extractor /kaapana/app/dag/
+
+# build base images
+BASE_PYTHON_CPU="$KAAPANA_REPO_PATH/data-processing/base-images/base-python-cpu"
+/usr/bin/bash /kaapana/app/build_image.sh --dir $BASE_PYTHON_CPU --image-name base-python-cpu --image-version latest

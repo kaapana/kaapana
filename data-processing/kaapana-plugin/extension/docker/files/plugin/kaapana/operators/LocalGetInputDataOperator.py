@@ -119,6 +119,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
+        self.os_client = KaapanaOpensearchHelper()
         logger.info("# Starting module LocalGetInputDataOperator...")
         self.conf = kwargs["dag_run"].conf
         dag_run_id = kwargs["dag_run"].run_id
@@ -334,7 +335,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.include_custom_tag_property = include_custom_tag_property
         self.exclude_custom_tag_property = exclude_custom_tag_property
 
-        self.os_client = KaapanaOpensearchHelper()
         super().__init__(
             dag=dag,
             name=name,

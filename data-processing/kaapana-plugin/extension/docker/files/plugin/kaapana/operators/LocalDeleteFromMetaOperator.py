@@ -20,6 +20,7 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
     """
 
     def start(self, ds, **kwargs):
+        self.os_client = KaapanaOpensearchHelper()
         conf = kwargs["dag_run"].conf
         if (
             "form_data" in conf
@@ -104,7 +105,6 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
 
         self.delete_all_documents = delete_all_documents
         self.delete_complete_study = delete_complete_study
-        self.os_client = KaapanaOpensearchHelper()
         super().__init__(
             dag=dag, name="delete-meta", python_callable=self.start, **kwargs
         )

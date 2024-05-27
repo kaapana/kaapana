@@ -83,6 +83,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.dcmweb_helper = HelperDcmWeb(
             application_entity="KAAPANA", dag_run=kwargs["dag_run"]
         )
+        self.os_client = KaapanaOpensearchHelper()
 
         self.ti = kwargs["ti"]
         print("# Starting module json2meta")
@@ -204,7 +205,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.no_update = no_update
         self.instanceUID = None
         self.check_in_pacs = check_in_pacs
-        self.os_client = KaapanaOpensearchHelper()
 
         super().__init__(
             dag=dag,

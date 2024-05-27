@@ -59,6 +59,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
+        self.os_client = KaapanaOpensearchHelper()
         self.dcmweb_helper = HelperDcmWeb(
             application_entity=self.aetitle, dag_run=kwargs["dag_run"]
         )
@@ -406,7 +407,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         )
         self.parallel_downloads = parallel_downloads
         self.batch_name = batch_name
-        self.os_client = KaapanaOpensearchHelper()
+
         super().__init__(
             dag=dag,
             name=name,

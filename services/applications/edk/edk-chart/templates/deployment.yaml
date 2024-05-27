@@ -36,11 +36,11 @@ spec:
         - name: NAMESPACE
           value: {{ tpl .Values.global.namespace . }}
         - name: REGISTRY_URL
-          value: "{{ .Values.global.registry_url . }}"
+          value: "{{ .Values.global.registry_url }}"
         - name: LOCAL_REGISTRY_URL
           value: "{{ tpl .Values.global.local_registry_url . }}"
         - name: VOLUME_PATH
-          value: /kaapana/app/edk-data
+          value: /kaapana/minio/edk
         - name: KUBE_HELM_URL
           value: "http://kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000/kube-helm-api"
         resources:

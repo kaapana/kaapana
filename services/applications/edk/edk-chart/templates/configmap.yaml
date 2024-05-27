@@ -7,24 +7,7 @@ data:
   launch.json: |-
     {
         "version": "0.2.0",
-        "configurations": [
-            {
-                "name": "Python: Remote Attach",
-                "type": "python",
-                "request": "attach",
-                "connect": {
-                    "host": "airflow-webserver-service.{{ tpl .Values.global.namespace . }}.svc",
-                    "port": 5678
-                },
-                "justMyCode": false,
-                "pathMappings": [
-                    {
-                        "localRoot": "${workspaceFolder}",
-                        "remoteRoot": "/home/airflow"
-                    }
-                ]
-            }
-        ]
+        "configurations": []
     }
 kind: ConfigMap
 metadata:

@@ -9,13 +9,14 @@ global:
   local_registry_disk_space: 30Gi
   local_registry_ui_path: /local-registry-ui
   dynamicVolumes:
-  - name: edk-data
-    mount_path: /kaapana/app/edk-data
-    host_path: /edk
+  - name: edk
+    mount_path: /kaapana/minio/
+    host_path: /applications
     storage: 1Gi
+    minio_mirror : true
   envVars:
   - name: WORKSPACE
-    value: "/kaapana/app"
+    value: "/kaapana"
   links:
     - /edk/
     - /local-registry-ui/

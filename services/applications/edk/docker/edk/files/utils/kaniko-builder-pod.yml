@@ -22,10 +22,10 @@ spec:
       - name: NO_PROXY
         value: "localhost,127.0.0.1,.svc,.cluster.local"
     volumeMounts:
-    - name: edk-data
-      mountPath: /kaapana/app/edk-data
+    - name: edk
+      mountPath: /kaapana/minio
   restartPolicy: Never
   volumes:
-  - name: edk-data
+  - name: edk
     persistentVolumeClaim:
-      claimName: edk-data-pv-claim
+      claimName: edk-pv-claim

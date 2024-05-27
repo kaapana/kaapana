@@ -1,27 +1,23 @@
-import requests
 import urllib3
 import os
 import logging
 import traceback
 import psutil
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI
 
 from .admin import routers as admin
 from .datasets import routers
 from .workflows.routers import remote, client
 from .monitoring import routers as monitoring
-from .storage import routers as storage
-from .users import routers as users
 
-from .dependencies import get_query_token, get_token_header
+from .dependencies import get_token_header
 from .database import SessionLocal, engine
 from .decorators import repeat_every
 from .workflows import models
 from .workflows.crud import (
     get_remote_updates,
     sync_states_from_airflow,
-    sync_n_clean_qsr_jobs_with_airflow,
 )
 
 models.Base.metadata.create_all(bind=engine)
@@ -71,17 +67,6 @@ def periodically_sync_states_from_airflow():
                 logging.warning(traceback.format_exc())
 
 
-# @app.on_event("startup")
-# @repeat_every(seconds=float(60.0))
-# def periodically_sync_n_clean_qsr_jobs_with_airflow():
-#     with SessionLocal() as db:
-#         try:
-#             sync_n_clean_qsr_jobs_with_airflow(db, periodically=True)
-#         except Exception as e:
-#             logging.warning('Something went wrong updating in crud.sync_n_clean_qsr_jobs_with_airflow()')
-#             logging.warning(traceback.format_exc())
-
-
 app.include_router(
     admin.router,
 )
@@ -100,9 +85,3 @@ app.include_router(
 
 app.include_router(routers.router, prefix="/dataset")
 app.include_router(monitoring.router, prefix="/monitoring")
-
-# # Not used yet
-# app.include_router(users.router, prefix="/users")
-
-# # Not used yet
-# app.include_router(storage.router, prefix="/storage")

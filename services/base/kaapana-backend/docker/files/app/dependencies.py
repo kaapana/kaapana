@@ -19,9 +19,8 @@ def get_db():
         db.close()
 
 
-def get_monitoring_service(request: Request) -> MonitoringService:
-    x_auth_token = request.headers.get("x-forwarded-access-token")
-    opensearchClient = KaapanaOpensearchHelper(x_auth_token)
+def get_monitoring_service() -> MonitoringService:
+    opensearchClient = KaapanaOpensearchHelper()
     yield MonitoringService(
         prometheus_url=settings.prometheus_url, opensearchClient=opensearchClient
     )

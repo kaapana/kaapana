@@ -16,7 +16,6 @@ import jsonschema
 from app.dependencies import get_db, get_opensearch
 from app.workflows import crud
 from app.workflows import schemas
-from app.config import settings
 from app.workflows.utils import get_dag_list
 from fastapi import APIRouter, Depends, File, Request, HTTPException
 from fastapi.responses import JSONResponse, Response

@@ -1,11 +1,10 @@
 import logging
-from app.dependencies import get_db
 from app.workflows.crud import (
     create_and_update_client_kaapana_instance,
     get_kaapana_instances,
 )
 from app.workflows.schemas import ClientKaapanaInstanceCreate
-from app.database import SessionLocal, engine
+from app.database import SessionLocal
 from app.config import settings
 
 logging.getLogger().setLevel(logging.INFO)

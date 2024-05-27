@@ -4,7 +4,7 @@ import pydicom
 import json
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapanapy.Clients.OpensearchHelper import KaapanaOpensearchHelper
 
 
 class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
@@ -31,7 +31,7 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
         if self.delete_all_documents:
             print("Deleting all documents from META ...")
             query = {"query": {"match_all": {}}}
-            HelperOpensearch.delete_by_query(query)
+            self.os_client.delete_by_query(query)
         else:
             run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
             batch_folder = [
@@ -86,7 +86,7 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
             else:
                 query = {"query": {"terms": {"_id": dicoms_to_delete}}}
 
-            HelperOpensearch.delete_by_query(query)
+            self.os_client.delete_by_query(query)
 
     def __init__(
         self,
@@ -104,7 +104,7 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
 
         self.delete_all_documents = delete_all_documents
         self.delete_complete_study = delete_complete_study
-
+        self.os_client = KaapanaOpensearchHelper()
         super().__init__(
             dag=dag, name="delete-meta", python_callable=self.start, **kwargs
         )

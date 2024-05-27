@@ -51,6 +51,8 @@ spec:
             secretKeyRef:
               name: system-user-password
               key: system-user-password
+        - name: KAAPANA_PROJECT_USER_NAME
+          value: "system"
         volumeMounts:
         - name: slowdir
           mountPath: /slow_data_dir

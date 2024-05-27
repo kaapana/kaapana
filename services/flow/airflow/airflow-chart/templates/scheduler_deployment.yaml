@@ -151,6 +151,21 @@ spec:
             secretKeyRef:
               name: system-user-password
               key: system-user-password
+        - name: OPENSEARCH_HOST
+          value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
+        - name: OPENSEARCH_PORT
+          value: "9200"
+        - name: KAAPANA_PROJECT_USER_NAME
+          value: "system"
+        - name: KAAPANA_PROJECT_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: system-user-password
+              key: system-user-password
+        - name: KAAPANA_CLIENT_SECRET
+          value: "{{ .Values.global.oidc_client_secret }}"
+        - name: KEYCLOAK_URL
+          value: "http://keycloak-external-service.{{ .Values.global.admin_namespace }}.svc:80"
         resources:
           requests:
             memory: 3000Mi

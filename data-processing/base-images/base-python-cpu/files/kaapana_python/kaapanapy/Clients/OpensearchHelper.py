@@ -1,8 +1,42 @@
 import re
-from typing import Dict, List
-from kaapanapy.settings import OpensearchSettings
+from typing import Dict, List, NamedTuple
+from kaapanapy.settings import OpensearchSettings, ProjectSettings
+from kaapanapy.logger import get_logger
+from kaapanapy.Clients.KaapanaAuthorization import get_project_user_access_token
 from opensearchpy import OpenSearch
-from opensearchpy.exceptions import TransportError
+from dataclasses import dataclass
+
+logger = get_logger(__file__)
+
+
+class DicomKeywords(NamedTuple):
+    """
+    Collection of dicom tags.
+    """
+
+    study_uid_tag: str = "0020000D StudyInstanceUID_keyword"
+    series_uid_tag: str = "0020000E SeriesInstanceUID_keyword"
+    SOPInstanceUID_tag: str = "00080018 SOPInstanceUID_keyword"
+    modality_tag: str = "00080060 Modality_keyword"
+    protocol_name: str = "00181030 ProtocolName_keyword"
+    curated_modality_tag: str = "00000000 CuratedModality_keyword"
+    custom_tag: str = "00000000 Tags_keyword"
+
+
+class DicomUid(dict):
+    """
+    Custom response object.
+    """
+
+    def __init__(self, study_uid, series_uid, modality, curated_modality):
+        super().__init__(
+            {
+                "study-uid": study_uid,
+                "series-uid": series_uid,
+                "modality": modality,
+                "curated_modality": curated_modality,
+            }
+        )
 
 
 class KaapanaOpensearchHelper(OpenSearch):
@@ -10,10 +44,25 @@ class KaapanaOpensearchHelper(OpenSearch):
     A helper class for retrieving data from an opensearch backend.
     """
 
-    def __init__(self, x_auth_token, index="meta-index"):
+    def __init__(self, x_auth_token=None, index="meta-index"):
+        if not x_auth_token:
+            try:
+                x_auth_token = get_project_user_access_token()
+            except Exception as e:
+                logger.error("No access token provided and env variables missing!")
+                raise e
         self.settings = OpensearchSettings()
         auth_headers = {"Authorization": f"Bearer {x_auth_token}"}
-        self.index = index
+        if not index:
+            try:
+                project_settings = ProjectSettings()
+                index = project_settings.project_name
+            except Exception as e:
+                logger.WARNING("Could not fetch index name from environment variables.")
+                index = "meta-index"
+                logger.WARNING(f"Set {index=}")
+        self.target_index = index
+        self.dicom_keywords = DicomKeywords()
         super().__init__(
             hosts=[
                 {
@@ -30,29 +79,21 @@ class KaapanaOpensearchHelper(OpenSearch):
             headers=auth_headers,
         )
 
-    def execute_opensearch_query(
+    def aggregate_search_results(
         self,
         query: Dict = dict(),
         source=dict(),
         sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
-        scroll=False,
         search_after=None,
         size=10000,
     ) -> List:
         """
         Since Opensearch has a strict size limit of 10000 but sometimes scrolling or
-        pagination is not desirable, this helper function aggregates paginated results
-        into a single one.
-
-        Caution: Removing or adding entries between requests will lead to inconsistencies.
-        Opensearch offers the 'scroll' functionality which prevents this, but creating
-        the required sessions takes too much time for most requests.
-        Therefore, it is not implemented yet
+        pagination is not desirable, this function aggregates paginated results.
 
         :param query: query to execute
-        :param source: opensearch _source parameter
-        :param sort: TODO
-        :param scroll: use scrolling or pagination -> scrolling currently not impelmented
+        :param source: opensearch _source parameter; specify which fields to include from the document in the search response.
+        :param sort: The sort parameter in the body of the request to opensearch.
         :return: aggregated search results
         """
 
@@ -64,16 +105,15 @@ class KaapanaOpensearchHelper(OpenSearch):
                 "sort": sort,
                 **({"search_after": search_after} if search_after else {}),
             },
-            index=self.index,
+            index=self.target_index,
         )
         if len(res["hits"]["hits"]) > 0:
             return [
                 *res["hits"]["hits"],
-                *self.execute_opensearch_query(
+                *self.aggregate_search_results(
                     query=query,
                     source=source,
                     sort=sort,
-                    scroll=scroll,
                     search_after=res["hits"]["hits"][-1]["sort"],
                     size=size,
                 ),
@@ -81,13 +121,13 @@ class KaapanaOpensearchHelper(OpenSearch):
         else:
             return res["hits"]["hits"]
 
-    async def get_metadata_for_series(self, series_instance_uid: str) -> dict:
+    async def get_sanitized_metadata(self, series_instance_uid: str) -> dict:
         """
         Return dictionary of all meta data associated to a series.
 
         Format the keys to be space separated uppercase expressions.
         """
-        data = self.get(index=self.index, id=series_instance_uid)["_source"]
+        data = self.get(index=self.target_index, id=series_instance_uid)["_source"]
         return {
             sanitize_field_name(key): value for key, value in data.items() if key != ""
         }
@@ -103,9 +143,9 @@ class KaapanaOpensearchHelper(OpenSearch):
         # }
         """
 
-        res = self.indices.get_mapping(index=self.index)[self.index]["mappings"][
-            "properties"
-        ]
+        res = self.indices.get_mapping(index=self.target_index)[self.target_index][
+            "mappings"
+        ]["properties"]
         name_field_map = {
             sanitize_field_name(k): k + type_suffix(v) for k, v in res.items()
         }
@@ -167,30 +207,142 @@ class KaapanaOpensearchHelper(OpenSearch):
         Update the 00000000 Tags_keyword field of the series with series_instance_uid.
 
         :param: series_instance_uid: The series instance uid of the series of which the tags will be updated.
-        :param: tags: List of tags that will be added to the series.
+        :param: tags: List of tags that will be added to the series, if not in tags2delete.
         :param: tags2add: A second list of tags that will be added to the series.
-        :param: tags2delete: A list of dags that will be removed from the series.
+        :param: tags2delete: A list of tags that will be removed from the series.
         """
-        print(series_instance_uid)
-        print(f"Tags 2 add: {tags2add}")
-        print(f"Tags 2 delete: {tags2delete}")
+        logger.debug(series_instance_uid)
+        logger.debug(f"Tags 2 add: {tags2add}")
+        logger.debug(f"Tags 2 delete: {tags2delete}")
 
         # Read Tags
-        doc = self.get(index=self.index, id=series_instance_uid)
-        print(doc)
+        doc = self.get(index=self.target_index, id=series_instance_uid)
+        logger.debug(doc)
         index_tags = doc["_source"].get("00000000 Tags_keyword", [])
 
-        final_tags = list(
-            set(tags)
-            .union(set(index_tags))
-            .difference(set(tags2delete))
-            .union(set(tags2add))
+        final_tags = combine_tags(
+            tags=tags,
+            tags2add=tags2add,
+            tags2delete=tags2delete,
+            original_tags=index_tags,
         )
-        print(f"Final tags: {final_tags}")
+        logger.debug(f"Final tags: {final_tags}")
 
         # Write Tags back
         body = {"doc": {"00000000 Tags_keyword": final_tags}}
-        self.update(index=self.index, id=series_instance_uid, body=body)
+        self.update(index=self.target_index, id=series_instance_uid, body=body)
+
+    def delete_by_query(self, query):
+        """
+        Delete the queried items from Opensearch index.
+        """
+        try:
+            res = super().delete_by_query(index=self.target_index, body=query)
+            logger.info(f"{res=}")
+        except Exception as e:
+            logger.error(f"Deleting from Opensearch failed for {query=}: {str(e)}")
+            raise e
+
+    def get_series_metadata(self, series_instance_uid):
+        """
+        Get metadata of a series.
+        """
+        res = self.get(index=self.target_index, id=series_instance_uid)
+        return res["_source"]
+
+    def get_dcm_uid_objects(
+        self,
+        series_instance_uids: list,
+        include_custom_tag: str = None,
+        exclude_custom_tag: str = None,
+    ) -> List[DicomUid]:
+        """
+        From HelperOpensearch
+
+        :param: series_instance_uids
+        :param: include_customn_tag
+        :param_exclude_custom_tag
+        """
+        # defauly query for fetching via identifiers
+        query = {"bool": {"must": [{"ids": {"values": series_instance_uids}}]}}
+        # must have custom tag
+        if include_custom_tag:
+            query["bool"]["must"].append(
+                {"term": {"00000000 Tags_keyword.keyword": include_custom_tag}}
+            )
+        # must_not have custom tag
+        if exclude_custom_tag:
+            if "must_not" in query["bool"]:
+                query["bool"]["must_not"].append(
+                    {"term": {"00000000 Tags_keyword.keyword": exclude_custom_tag}}
+                )
+            else:
+                query["bool"]["must_not"] = [
+                    {"term": {"00000000 Tags_keyword.keyword": exclude_custom_tag}}
+                ]
+
+        res = self.aggregate_search_results(
+            query=query,
+            source={
+                "includes": [
+                    self.dicom_keywords.study_uid_tag,
+                    self.dicom_keywords.series_uid_tag,
+                    self.dicom_keywords.SOPInstanceUID_tag,
+                    self.dicom_keywords.modality_tag,
+                    self.dicom_keywords.curated_modality_tag,
+                ]
+            },
+        )
+
+        return [
+            DicomUid(
+                study_uid=hit["_source"][self.dicom_keywords.study_uid_tag],
+                series_uid=hit["_source"][self.dicom_keywords.series_uid_tag],
+                modality=hit["_source"][self.dicom_keywords.modality_tag],
+                curated_modality=hit["_source"][
+                    self.dicom_keywords.curated_modality_tag
+                ],
+            )
+            for hit in res
+        ]
+
+    def get_query_dataset(
+        self,
+        query: dict,
+        only_uids: bool = False,
+        include_custom_tag: str = None,
+    ):
+        """
+        Return the aggregated opensearch result of query exclusively including fields specified in DicomKeywords and include_custom_tag.
+
+        :param: query: The query for opensearch.
+        :param: only_uids: If True return a list of uids.
+        :param: include_custom_tag: Include this field in the response.
+        """
+        logger.info("Getting dataset for query: {}".format(query))
+        logger.info("index: {}".format(self.target_index))
+        includes = [
+            self.dicom_keywords.study_uid_tag,
+            self.dicom_keywords.series_uid_tag,
+            self.dicom_keywords.SOPInstanceUID_tag,
+            self.dicom_keywords.modality_tag,
+            self.dicom_keywords.protocol_name,
+            self.dicom_keywords.curated_modality_tag,
+        ]
+        if include_custom_tag:
+            includes.append(include_custom_tag)
+        try:
+            hits = self.aggregate_search_results(
+                query=query, source={"includes": includes}
+            )
+        except Exception as e:
+            logger.error(f"ERROR in search: {str(e)}")
+            return None
+
+        if only_uids:
+            return [hit["_id"] for hit in hits]
+        else:
+            return hits
 
 
 def sanitize_field_name(field_name: str) -> str:
@@ -221,3 +373,22 @@ def type_suffix(v):
         return "" if type_ != "text" and type_ != "keyword" else ".keyword"
     else:
         return ""
+
+
+def combine_tags(tags, tags2add, tags2delete, original_tags) -> list:
+    """
+    Create a list of strings, that
+    * includes all strings in tags and original_tags that are not in tags2delete
+    * includes all strings in tags2add
+
+    :param: tags: List of tags that will be added to the series, if not in tags2delete.
+    :param: tags2add: A second list of tags that will be added to the series.
+    :param: tags2delete: A list of tags that will be removed from the series.
+    :param: original_tags:
+    """
+    return list(
+        set(tags)
+        .union(set(original_tags))
+        .difference(set(tags2delete))
+        .union(set(tags2add))
+    )

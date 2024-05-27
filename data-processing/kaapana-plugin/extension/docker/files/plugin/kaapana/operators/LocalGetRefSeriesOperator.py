@@ -7,10 +7,13 @@ from datetime import timedelta
 from pathlib import Path
 from multiprocessing.pool import ThreadPool
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapanapy.Clients.OpensearchHelper import KaapanaOpensearchHelper
+from kaapanapy.logger import get_logger
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+
+logger = get_logger(__file__)
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
@@ -35,7 +38,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 message = f"OK: Series {series['reference_series_uid']}"
             elif self.data_type == "json":
                 Path(series["target_dir"]).mkdir(parents=True, exist_ok=True)
-                meta_data = HelperOpensearch.get_series_metadata(
+                meta_data = self.os_client.get_series_metadata(
                     series_instance_uid=series["reference_series_uid"]
                 )
                 json_path = join(series["target_dir"], "metadata.json")
@@ -203,17 +206,17 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                             .value[0][0x3006, 0x0014]
                             .value[0]
                         )
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x3006, 0x0016].value))
 
                     elif incoming_dcm.Modality == "SEG":
                         assert (0x0008, 0x1115) in incoming_dcm
                         ref_object = incoming_dcm[0x0008, 0x1115].value[0]
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x0008, 0x114A].value))
                     else:
                         raise ValueError(
@@ -403,7 +406,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         )
         self.parallel_downloads = parallel_downloads
         self.batch_name = batch_name
-
+        self.os_client = KaapanaOpensearchHelper()
         super().__init__(
             dag=dag,
             name=name,

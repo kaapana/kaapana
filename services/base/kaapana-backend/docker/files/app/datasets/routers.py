@@ -32,7 +32,7 @@ async def get_series(data: dict = Body(...), opensearchClient=Depends(get_opense
     query: dict = data.get("query", {"query_string": {"query": "*"}})
 
     if structured:
-        hits = opensearchClient.execute_opensearch_query(
+        hits = opensearchClient.aggregate_search_results(
             query=query,
             source={
                 "includes": [
@@ -66,13 +66,13 @@ async def get_series(data: dict = Body(...), opensearchClient=Depends(get_opense
         )
     elif not structured:
         return JSONResponse(
-            [d["_id"] for d in opensearchClient.execute_opensearch_query(query)]
+            [d["_id"] for d in opensearchClient.aggregate_search_results(query)]
         )
 
 
 @router.get("/series/{series_instance_uid}")
 async def get_data(series_instance_uid, opensearchClient=Depends(get_opensearch)):
-    metadata = await opensearchClient.get_metadata_for_series(series_instance_uid)
+    metadata = await opensearchClient.get_sanitized_metadata(series_instance_uid)
 
     modality = metadata["Modality"]
 

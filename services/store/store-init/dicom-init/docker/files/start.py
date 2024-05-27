@@ -16,10 +16,6 @@ dcm_port = "11112"
 dcm4chee_host = os.getenv("DCM4CHEE", None)
 assert dcm4chee_host
 aet = os.getenv("AET", "KAAPANA")
-os_host = os.getenv("OPENSEARCH_HOST", None)
-assert os_host
-os_port = os.getenv("OPENSEARCH_PORT", "9200")
-assert os_port
 airflow_host = os.getenv("AIRFLOW_TRIGGER", None)
 assert airflow_host
 example_files = os.getenv("EXAMPLE", "/example/Winfried_phantom.zip")

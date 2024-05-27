@@ -516,7 +516,7 @@ def create_dataset(
             name=query_dict["name"],
             identifiers=[
                 d["_id"]
-                for d in opensearchClient.execute_opensearch_query(query_dict["query"])
+                for d in opensearchClient.aggregate_search_results(query_dict["query"])
             ],
         )
     dataset.username = request.headers["x-forwarded-preferred-username"]

@@ -1,5 +1,7 @@
 from kaapana.operators.HelperMinio import HelperMinio
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapanapy.Clients.OpensearchHelper import KaapanaOpensearchHelper
+from kaapanapy.logger import get_logger
+
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 from kaapana.blueprints.kaapana_utils import generate_run_id
@@ -13,6 +15,8 @@ from glob import glob
 import shutil
 import pydicom
 from datetime import timedelta
+
+logger = get_logger(__file__)
 
 
 class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
@@ -60,33 +64,31 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         return loaded_from_cache
 
     def get_dicom_list(self):
+        os_client = KaapanaOpensearchHelper()
         batch_dir = join(self.airflow_workflow_dir, self.dag_run_id, "batch", "*")
         batch_folders = sorted([f for f in glob(batch_dir)])
-        print("##################################################################")
-        print(" Get DICOM list ...")
-        print(f"{batch_dir=}")
-        print(f"{batch_folders=}")
-        print("##################################################################")
+        logger.info(
+            "##################################################################"
+        )
+        logger.info(" Get DICOM list ...")
+        logger.info(f"{batch_dir=}")
+        logger.info(f"{batch_folders=}")
+        logger.info(
+            "##################################################################"
+        )
 
         dicom_info_list = []
         if self.use_dcm_files:
-            print("Search for DICOM files in input-dir ...")
+            logger.info("Search for DICOM files in input-dir ...")
             no_data_processed = True
             for batch_element_dir in batch_folders:
                 input_dir = join(batch_element_dir, self.operator_in_dir)
                 dcm_file_list = glob(input_dir + "/*.dcm", recursive=True)
                 if len(dcm_file_list) == 0:
-                    print()
-                    print(
-                        "#############################################################"
+
+                    logger.warning(
+                        "Couldn't find any DICOM file in dir: {}".format(input_dir)
                     )
-                    print()
-                    print("Couldn't find any DICOM file in dir: {}".format(input_dir))
-                    print()
-                    print(
-                        "#############################################################"
-                    )
-                    print()
                     continue
                 no_data_processed = False
                 dicom_file = pydicom.dcmread(dcm_file_list[0])
@@ -108,17 +110,13 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                         }
                     )
             if no_data_processed:
-                print("No files processed in any batch folder!")
-                raise ValueError("ERROR")
+                logger.error("No files processed in any batch folder!")
+                raise AssertionError
         else:
-            print("Using DAG-conf for series ...")
+            logger.info("Using DAG-conf for series ...")
             if self.conf == None or not "inputs" in self.conf:
-                print("No config or inputs in config found!")
-                print("Abort.")
-                raise ValueError("ERROR")
-
-            # print("DAG-RUN config:")
-            # print(json.dumps(self.conf, indent=4))
+                logger.error("No config or inputs in config found!")
+                raise AssertionError
 
             dataset_limit = self.conf["dataset_limit"]
             inputs = self.conf["inputs"]
@@ -129,33 +127,29 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                 if "opensearch-query" in input:
                     opensearch_query = input["opensearch-query"]
                     if "query" not in opensearch_query:
-                        print(
+                        logger.error(
                             "'query' not found in 'opensearch-query': {}".format(input)
                         )
-                        print("abort...")
-                        raise ValueError("ERROR")
+                        raise AssertionError
                     if "index" not in opensearch_query:
-                        print(
+                        logger.error(
                             "'index' not found in 'opensearch-query': {}".format(input)
                         )
-                        print("abort...")
-                        raise ValueError("ERROR")
+                        raise AssertionError
 
                     query = opensearch_query["query"]
                     index = opensearch_query["index"]
 
-                    dataset = HelperOpensearch.get_query_dataset(
-                        index=index, query=query
-                    )
+                    dataset = os_client.get_query_dataset(query=query)
                     print(f"opensearch-query: found {len(dataset)} results.")
                     if dataset_limit is not None:
                         print(f"Limiting dataset to: {dataset_limit}")
                         dataset = dataset[:dataset_limit]
                     for series in dataset:
                         series = series["_source"]
-                        study_uid = series[HelperOpensearch.study_uid_tag]
-                        series_uid = series[HelperOpensearch.series_uid_tag]
-                        modality = series[HelperOpensearch.modality_tag]
+                        study_uid = series[os_client.dicom_keywords.study_uid_tag]
+                        series_uid = series[os_client.dicom_keywords.series_uid_tag]
+                        modality = series[os_client.dicom_keywords.modality_tag]
                         dicom_info_list.append(
                             {
                                 "dcm-uid": {
@@ -215,7 +209,6 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
             else:
                 print(("Directory not copied. Error: %s" % e))
                 raise Exception("Directory not copied. Error: %s" % e)
-                raise ValueError("ERROR")
 
     def trigger_dag_dicom_helper(self):
         """

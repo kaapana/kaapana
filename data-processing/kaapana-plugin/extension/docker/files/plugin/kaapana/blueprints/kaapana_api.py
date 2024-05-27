@@ -26,7 +26,6 @@ from kaapana.blueprints.kaapana_utils import (
     generate_minio_credentials,
     parse_ui_dict,
 )
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 _log = LoggingMixin().log
 parallel_processes = 1

@@ -1,18 +1,15 @@
 import os
 import json
 import glob
-import traceback
-import logging
 import pydicom
-import errno
 import time
-
-import requests
 
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperOpensearch import HelperOpensearch
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapanapy.Clients.OpensearchHelper import KaapanaOpensearchHelper
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__file__)
 
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
@@ -35,42 +32,37 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     """
 
     def push_json(self, json_dict):
-        print("# Pushing JSON ...")
+        logger.info("Pushing JSON ...")
         if "0020000E SeriesInstanceUID_keyword" in json_dict:
             id = json_dict["0020000E SeriesInstanceUID_keyword"]
         elif self.instanceUID is not None:
             id = self.instanceUID
         else:
-            print("# No ID found! - exit")
+            logger.error("No ID found! - exit")
             exit(1)
         try:
             json_dict = self.produce_inserts(json_dict)
-            response = HelperOpensearch.os_client.index(
-                index=HelperOpensearch.index, body=json_dict, id=id, refresh=True
+            response = self.os_client.index(
+                index=self.os_client.target_index, body=json_dict, id=id, refresh=True
             )
         except Exception as e:
-            print("#")
-            print("# Error while pushing JSON ...")
-            print("#")
-            print(e)
-            exit(1)
+            logger.error("Error while pushing JSON ...")
+            raise e
 
-        print("#")
-        print("# Success")
-        print("#")
+        logger.info("Success")
 
     def produce_inserts(self, new_json):
-        print("INFO: get old json from index.")
+        logger.info("get old json from index.")
         try:
-            old_json = HelperOpensearch.os_client.get(
-                index=HelperOpensearch.index, id=self.instanceUID
+            old_json = self.os_client.get(
+                index=self.os_client.target_index, id=self.instanceUID
             )["_source"]
-            print("Series already found in OS")
+            logger.warning("Series already found in OS")
             if self.no_update:
                 raise ValueError("ERROR")
         except Exception as e:
-            print("doc is not updated! -> not found in os")
-            print(e)
+            logger.warning("doc is not updated! -> not found in os")
+            logger.warning(str(e))
             old_json = {}
 
         # special treatment for bodypart regression since keywords don't match
@@ -152,12 +144,12 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         if dcm_file is not None:
             self.instanceUID = pydicom.dcmread(dcm_file)[0x0020, 0x000E].value
             self.patient_id = pydicom.dcmread(dcm_file)[0x0010, 0x0020].value
-            print(("Dicom instanceUID: %s" % self.instanceUID))
-            print(("Dicom Patient ID: %s" % self.patient_id))
+            logger.info(f"Dicom instanceUID: {self.instanceUID}")
+            logger.info(f"Dicom Patient ID: {self.patient_id}")
         elif self.set_dag_id:
             self.instanceUID = self.run_id
         else:
-            print("dicom_operator and dct_to_push not specified!")
+            logger.info("dicom_operator and dct_to_push not specified!")
 
     def check_pacs_availability(self, instanceUID: str):
         print("#")
@@ -212,6 +204,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.no_update = no_update
         self.instanceUID = None
         self.check_in_pacs = check_in_pacs
+        self.os_client = KaapanaOpensearchHelper()
 
         super().__init__(
             dag=dag,

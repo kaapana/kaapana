@@ -64,5 +64,21 @@
       "claim.name": "application_entity",
       "jsonType.label": "String"
     }
-  } ]
+  },
+  {
+    "name": "lucky-number-mapper",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-lucky-number-mapper",
+    "consentRequired": false,
+    "config": 
+    {
+      "lowerBound": "1",
+      "upperBound": "100",
+      "claim.name": "lucky_number",
+      "id.token.claim": "true",
+      "access.token.claim": "true",
+      "userinfo.token.claim": "true"
+    }
   }
+ ]
+}

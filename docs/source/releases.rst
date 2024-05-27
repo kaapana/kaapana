@@ -3,6 +3,31 @@
 Changelog
 #########
 
+.. _release-0.3.2:
+
+-------------------------
+
+********************
+Release Notes v0.3.2
+********************
+
+May 24, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fixes landing page UI dev-mode
+* Removes mechanism to add access control ids from HelperDcmWeb and LocalDicomSendOperator
+* Fixes patient age inconsistency bug in LocalDcm2JsonOperator
+* Adds local tests to CI/CD pipeline
+
+Documentation
+-------------
+
+* Adds links of main GitLab repository and YouTube channel in README
+
 .. _release-0.3.1:
 
 -------------------------

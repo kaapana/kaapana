@@ -374,7 +374,8 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         job.conf_data["federated_form"]["minio_urls"] = minio_urls
 
     if "task_id" in job.conf_data:
-        minio_urls = job.conf_data.get("minio_urls", {})
+        task_io = job.conf_data.get("task_io", {})
+        minio_urls = task_io.get("minio_urls", {})
         task_id = job.conf_data["task_id"]
         object_name_in = f'{task_id}_in.tar.gz'
         object_name_out = f'{task_id}_out.tar.gz'
@@ -383,10 +384,11 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         minio_urls.update(
             {
                 f"{object_name_in}": minioClient.get_custom_presigend_url("GET", "remote", object_name_in)["path"],
-                f"{object_name_out}": minioClient.get_custom_presigend_url("PUT", "remote", object_name_out)["path"],
+                f"{object_name_out}": minioClient.get_custom_presigend_url("PUT", "remote", object_name_in)["path"],
             }
         )
-        job.conf_data["minio_urls"] = minio_urls
+        task_io["minio_urls"] = minio_urls
+        job.conf_data["task_io"].update(task_io)
         
     utc_timestamp = get_utc_timestamp()
 

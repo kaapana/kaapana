@@ -1,2 +1,1 @@
-pydicom>=2.4.4
 dicom-validator==0.5.0

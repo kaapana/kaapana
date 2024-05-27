@@ -1,4 +1,4 @@
-package dasniko.keycloak.tokenmapper;
+package kaapana.keycloak.tokenmapper;
 
 import org.keycloak.models.ClientSessionContext;
 import org.keycloak.models.KeycloakSession;
@@ -15,9 +15,6 @@ import org.keycloak.representations.IDToken;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * @author Niko Köbler, https://www.n-k.de, @dasniko
- */
 public class LuckyNumberMapper extends AbstractOIDCProtocolMapper
 	implements OIDCAccessTokenMapper, OIDCIDTokenMapper, UserInfoTokenMapper {
 

@@ -25,6 +25,6 @@ LABEL VERSION="23.0.4"
 LABEL BUILD_IGNORE="False"
 
 COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana
-COPY --from=maven-builder /app/token-mapper/target/dasniko-keycloak-tokenmapper-1.0-SNAPSHOT.jar /opt/keycloak/providers/dasniko-keycloak-tokenmapper-1.0-SNAPSHOT.jar
+COPY --from=maven-builder /app/token-mapper/target/kaapana-keycloak-tokenmapper-1.0-SNAPSHOT.jar /opt/keycloak/providers/kaapana-keycloak-tokenmapper-1.0-SNAPSHOT.jar
 
 RUN /opt/keycloak/bin/kc.sh build

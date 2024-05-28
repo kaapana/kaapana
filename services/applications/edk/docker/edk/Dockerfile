@@ -16,10 +16,12 @@ RUN mkdir -p /kaapana/app/utils
 COPY files/utils /kaapana/app/utils
 COPY files/init.sh /kaapana/app
 COPY files/build_image.sh /kaapana/app
+COPY files/import_image.sh /kaapana/app
 
 RUN pip install -r /kaapana/app/utils/requirements.txt
 
 RUN chmod +x /kaapana/app/init.sh
 RUN chmod +x /kaapana/app/build_image.sh
+RUN chmod +x /kaapana/app/import_image.sh
 
 CMD ["/usr/bin/bash", "init.sh"]

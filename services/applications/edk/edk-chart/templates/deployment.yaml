@@ -33,7 +33,7 @@ spec:
         - name: MINIO_SERVICE
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
         - name: LOCAL_PATH
-          value: /kaapana/minio/edk/edk-to-minio
+          value: /kaapana/minio/edk-to-minio
         - name: MINIO_PATH
           value: {{ .Release.Name }}/edk-to-minio
         - name: MINIO_USER
@@ -56,7 +56,7 @@ spec:
         - name: MINIO_SERVICE
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
         - name: LOCAL_PATH
-          value: /kaapana/minio/edk/minio-to-edk
+          value: /kaapana/minio/minio-to-edk
         - name: MINIO_PATH
           value: {{ .Release.Name }}/minio-to-edk
         - name: MINIO_USER
@@ -86,7 +86,7 @@ spec:
         - name: LOCAL_REGISTRY_URL
           value: "{{ tpl .Values.global.local_registry_url . }}"
         - name: VOLUME_PATH
-          value: /kaapana/minio/edk
+          value: /kaapana/minio/edk-to-minio
         - name: KUBE_HELM_URL
           value: "http://kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000/kube-helm-api"
         resources:

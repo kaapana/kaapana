@@ -78,6 +78,6 @@ fi
 python3 /kaapana/app/utils/create_kaniko_pod.py /kaapana/app/utils/kaniko-builder-pod.yml --dockerfile "$dockerfile" --context "$context_path" --image_name "$image_name" --image_version "$image_version"
 
 # run skopeo command to copy from local reg to a tarball
-skopeo copy --tls-verify=false docker://$LOCAL_REGISTRY_URL/$image_name:$image_version oci-archive:/kaapana/minio/edk/$image_name.tar:$REGISTRY_URL/$image_name:$image_version
+skopeo copy --tls-verify=false docker://$LOCAL_REGISTRY_URL/$image_name:$image_version oci-archive:/kaapana/minio/edk-to-minio/$image_name.tar:$REGISTRY_URL/$image_name:$image_version
 
 # TODO: send req to kube-helm /import-container endpoint for importing container tar into ctr 

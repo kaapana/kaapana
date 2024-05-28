@@ -59,6 +59,8 @@ spec:
 {{- end }}
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
+          - name: edk
+            mountPath: "/kaapana/mounted/edk/edk-to-minio"
           - name: helmplatforms
             mountPath: "/kaapana/mounted/platforms"
           - name: containerd-socket
@@ -77,6 +79,9 @@ spec:
       - name: helmextensions
         persistentVolumeClaim:
           claimName: extensions-pv-claim
+      - name: edk
+        persistentVolumeClaim:
+          claimName: edk-pv-claim
       - name: helmplatforms
         hostPath:
           path: "{{ $.Values.global.fast_data_dir }}/platforms"

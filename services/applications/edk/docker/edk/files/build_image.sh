@@ -6,6 +6,19 @@ context_path=""
 image_name=""
 image_version=""
 
+# help message
+print_help() {
+    echo "Usage: $0 --dir <context-path> --image-name <imagename> [--dockerfile <dockerfile>] [--image-version <imageversion>]"
+    echo
+    echo "Arguments:"
+    echo "  --dir             Path to the context directory (required)"
+    echo "  --dockerfile      Path to the Dockerfile (optional, defaults to <context-path>/Dockerfile)"
+    echo "  --image-name      Name of the Docker image (required)"
+    echo "  --image-version   Version of the Docker image (optional, defaults to KAAPANA_BUILD_VERSION)"
+    echo "  --help            Display this help message"
+    echo
+}
+
 # parse args, order doesn't matter, --dir and --image-name have to be provided
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -13,7 +26,8 @@ while [[ "$#" -gt 0 ]]; do
         --dockerfile) dockerfile="$2"; shift ;;
         --image-name) image_name="$2"; shift ;;
         --image-version) image_version="$2"; shift ;;
-        *) echo "Unknown argument: $1"; exit 1 ;;
+        --help) print_help; exit 0 ;;
+        *) echo "Unknown argument: $1"; print_help; exit 1 ;;
     esac
     shift
 done
@@ -21,6 +35,7 @@ done
 # check if context_path is empty
 if [ -z "$context_path" ]; then
     echo "ERROR: Context path is required. Use --dir <context-path>"
+    print_help
     exit 1
 fi
 
@@ -31,11 +46,12 @@ fi
 
 # check if image-name is empty
 if [ -z "$image_name" ]; then
-    echo "Error: Image name is required. Use --image-name <imagename>"
+    echo "ERROR: Image name is required. Use --image-name <imagename>"
+    print_help
     exit 1
 fi
 
-# if --image-versiın is empty use KAAPANA_BUILD_VERSION
+# if --image-version is empty use KAAPANA_BUILD_VERSION
 if [ -z "$image_version" ]; then
     image_version="$KAAPANA_BUILD_VERSION"
 fi

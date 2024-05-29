@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock
 
 
@@ -20,3 +21,12 @@ def mock_modules():
     # Caching and intercommunication
     sys.modules["kaapana.operators.HelperMinio"] = MagicMock()
     sys.modules["kaapana.operators.HelperFederated"] = MagicMock()
+
+
+KAAPANA_DIR = Path(__file__).resolve().parents[2]
+PLUGIN_DIR = (
+    KAAPANA_DIR / "data-processing/kaapana-plugin/extension/docker/files/plugin/"
+)
+DICOM_TAG_DICT = (
+    KAAPANA_DIR / "services/flow/airflow/docker/files/scripts/dicom_tag_dict.json"
+)

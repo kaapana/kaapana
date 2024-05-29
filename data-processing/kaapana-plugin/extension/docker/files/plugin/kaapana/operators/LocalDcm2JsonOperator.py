@@ -1,7 +1,8 @@
 import os
 import json
-from typing import Dict, List
+from typing import Any, Dict, List, Union
 import pydicom
+from pydicom.tag import Tag
 from pathlib import Path
 from datetime import datetime
 from dateutil import parser
@@ -36,6 +37,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     MODALITY_TAG = "00080060 Modality_keyword"
     IMAGE_TYPE_TAG = "00080008 ImageType_keyword"
+    KAAPANA_TIME_FORMAT = "%H:%M:%S.%f"
+    KAAPANA_DATE_FORMAT = "%Y-%m-%d"
+    KAAPANA_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+    DCM_DATETIME_FORMAT = "%Y%m%d%H%M%S.%f"
+    DCM_DATE_FORMAT = "%Y%m%d"
+    DCM_TIME_FORMAT = "%H%M%S.%f"
 
     def load_dicom_tag_dict(self):
         dicom_tag_dict_path = os.getenv("DICT_PATH", None)
@@ -60,22 +67,12 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         :param bulk: 'True' or 'False' (default). Process all files of a series or only the first one.
         """
 
-        self.kaapana_time_format = "%H:%M:%S.%f"
-        self.kaapana_date_format = "%Y-%m-%d"
-        self.kaapana_datetime_format = "%Y-%m-%d %H:%M:%S.%f"
-        self.dcm_datetime_format = "%Y%m%d%H%M%S.%f"
-        self.dcm_date_format = "%Y%m%d"
-        self.dcm_time_format = "%H%M%S.%f"
-
         self.bulk = bulk
         self.exit_on_error = exit_on_error
         self.delete_pixel_data = delete_pixel_data
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
         self.load_dicom_tag_dict()
-
-        if "testing" in kwargs:
-            logging.disable(logging.ERROR)
 
         super().__init__(
             dag=dag,
@@ -145,7 +142,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         ]
 
         for elem in pixel_data_elements:
-            tag = pydicom.tag.Tag(*elem)
+            tag = Tag(*elem)
             if tag in dcm:
                 del dcm[tag]
         return dcm
@@ -200,7 +197,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 alg_type = label_entry.get("00620008", {}).get("Value", [None])[0]
                 value = (
                     label_entry.get("00620005", {})
-                    .get("Value", [None])[0]
+                    .get("Value", [""])[0]
                     .replace(",", "-")
                     .strip()
                 )
@@ -223,7 +220,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         return update_metadata
 
     def _normalize_tag(
-        self, new_tag: str, vr: str, value_str: str, metadata: Dict
+        self, new_tag: str, vr: str, value_str: Any, metadata: Dict
     ) -> Dict:
         if vr in (
             "AE",
@@ -263,13 +260,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 metadata[new_tag] = time_formatted
 
         elif vr in ("DS", "FL", "FD", "OD", "OF"):
-            checked_val = check_type(value_str, float)
+            checked_val = convert(value_str, float)
             if checked_val is not None:
                 new_tag += "_float"
                 metadata[new_tag] = checked_val
 
         elif vr in ("IS", "SL", "SS", "UL", "US"):
-            checked_val = check_type(value_str, int)
+            checked_val = convert(value_str, int)
             if checked_val is not None:
                 new_tag += "_integer"
                 metadata[new_tag] = checked_val
@@ -408,21 +405,21 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             if extracted_date is None:
                 logger.warning("NO AcquisitionDate! -> set to today")
                 time_tag_used += "date not found -> arriving date"
-                extracted_date = datetime.now().strftime(self.kaapana_date_format)
+                extracted_date = datetime.now().strftime(self.KAAPANA_DATE_FORMAT)
 
             if extracted_time is None:
                 logger.warning("NO AcquisitionTime! -> set to now")
                 time_tag_used += " + time not found -> arriving time"
-                extracted_time = datetime.now().strftime(self.kaapana_time_format)
+                extracted_time = datetime.now().strftime(self.KAAPANA_TIME_FORMAT)
 
             datetime_string = f"{extracted_date} {extracted_time}"
             datetime_formatted = parser.parse(datetime_string).strftime(
-                self.kaapana_datetime_format
+                self.KAAPANA_DATETIME_FORMAT
             )
 
         # TODO NAIVE! Expects BerlinTime datetime and convert to UTC
         datetime_formatted = self.convert_time_to_utc(
-            datetime_formatted, self.kaapana_datetime_format
+            datetime_formatted, self.KAAPANA_DATETIME_FORMAT
         )
 
         # Update the metadata with the formatted datetime
@@ -431,9 +428,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # Update the metadata with arrival time
         current_utc_datetime = datetime.utcnow()
         formatted_utc_datetime = current_utc_datetime.strftime(
-            self.kaapana_datetime_format
+            self.KAAPANA_DATETIME_FORMAT
         )
-        formatted_utc_date = current_utc_datetime.strftime(self.kaapana_date_format)
+        formatted_utc_date = current_utc_datetime.strftime(self.KAAPANA_DATE_FORMAT)
 
         # Formatted strings
         metadata["00000000 TimestampArrived_datetime"] = formatted_utc_datetime
@@ -442,49 +439,58 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # Integers
         metadata["00000000 TimestampArrivedHour_integer"] = current_utc_datetime.hour
         metadata["00000000 DayOfWeek_integer"] = datetime.strptime(
-            datetime_formatted, self.kaapana_datetime_format
+            datetime_formatted, self.KAAPANA_DATETIME_FORMAT
         ).weekday()
 
         # Keywords
         metadata["00000000 TimeTagUsed_keyword"] = time_tag_used
         return metadata
 
+    def _calculate_patient_age(self, metadata: Dict) -> int:
+        birthdate = metadata["00100030 PatientBirthDate_date"]
+        birthday_datetime = datetime.strptime(birthdate, self.KAAPANA_DATE_FORMAT)
+        series_datetime = datetime.strptime(
+            metadata["00000000 Timestamp_datetime"],
+            self.KAAPANA_DATETIME_FORMAT,
+        )
+        patient_age_scan = (
+            series_datetime.year
+            - birthday_datetime.year
+            - (
+                (series_datetime.month, series_datetime.day)
+                < (birthday_datetime.month, birthday_datetime.day)
+            )
+        )
+        return patient_age_scan
+
     def _process_patient_age(self, metadata: Dict) -> Dict:
+        if "00101010 PatientAge_keyword" in metadata:
+            dcm_patient_age = process_age_string(
+                metadata["00101010 PatientAge_keyword"]
+            )
+        else:
+            dcm_patient_age = None
+
         if "00100030 PatientBirthDate_date" in metadata:
-            birthdate = metadata["00100030 PatientBirthDate_date"]
-            birthday_datetime = datetime.strptime(birthdate, self.kaapana_date_format)
-            series_datetime = datetime.strptime(
-                metadata["00000000 Timestamp_datetime"],
-                self.kaapana_datetime_format,
-            )
-            patient_age_scan = (
-                series_datetime.year
-                - birthday_datetime.year
-                - (
-                    (series_datetime.month, series_datetime.day)
-                    < (birthday_datetime.month, birthday_datetime.day)
+            calculated_patient_age = self._calculate_patient_age(metadata)
+            metadata["00000000 DerivedPatientAge_integer"] = calculated_patient_age
+
+            if dcm_patient_age and calculated_patient_age != dcm_patient_age:
+                logger.error(highlight_message("Patient AGE inconsistency"))
+                logger.error(
+                    f"00000000 Timestamp: {metadata['00000000 Timestamp_datetime']}"
                 )
-            )
+                logger.error(
+                    f"00100030 PatientBirthDate: {metadata['00100030 PatientBirthDate_date']}"
+                )
+                logger.error(f"Timestamp - PatientBirthDate: {calculated_patient_age}")
+                logger.error(
+                    f"00101010 PatientAge_keyword: {metadata['00101010 PatientAge_keyword']}"
+                )
+                logger.error(f"PatientAge: {dcm_patient_age}")
 
-            if "00101010 PatientAge_keyword" in metadata:
-                age_meta = process_age_string(metadata["00101010 PatientAge_keyword"])
-
-                if patient_age_scan != age_meta:
-                    logger.error(highlight_message("Patient AGE inconsistency"))
-                    logger.error(
-                        f"Series datetime - birthday datetime: {patient_age_scan}"
-                    )
-                    logger.error(f"PatientBirthDate: {age_meta}")
-
-            metadata["00101010 PatientAge_integer"] = patient_age_scan
-        elif "00101010 PatientAge_keyword" in metadata:
-            try:
-                age_meta = process_age_string(metadata["00101010 PatientAge_keyword"])
-                metadata["00101010 PatientAge_integer"] = age_meta
-            except Exception as e:
-                logger.error("Could not extract age-int from metadata.")
-                logger.error(traceback.format_exc())
-                logger.error(e)
+        elif "00101010 PatientAge_keyword" in metadata and dcm_patient_age:
+            metadata["00000000 DerivedPatientAge_integer"] = dcm_patient_age
         return metadata
 
     def _process_clinical_trial_protocol_id(self, metadata: Dict) -> Dict:
@@ -504,34 +510,34 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # "%Y-%m-%d %H:%M:%S.%f"
         try:
             datetime_formatted = None
-            if validate_format(value_str, self.dcm_datetime_format):
+            if validate_format(value_str, self.DCM_DATETIME_FORMAT):
                 datetime_formatted = datetime.strptime(
-                    value_str, self.dcm_datetime_format
-                ).strftime(self.kaapana_datetime_format)
+                    value_str, self.DCM_DATETIME_FORMAT
+                ).strftime(self.KAAPANA_DATETIME_FORMAT)
             else:
                 logger.info(f"Value: {value_str} not complete dcm date time.")
-                logger.info(f"Dicom Standard Format: {self.dcm_datetime_format}")
+                logger.info(f"Dicom Standard Format: {self.DCM_DATETIME_FORMAT}")
 
             if datetime_formatted is None:
                 if len(value_str) > 8:
-                    logger.info(f"Trying to parse long datetime format.")
+                    logger.info("Trying to parse long datetime format.")
                     datetime_formatted = parser.parse(value_str).strftime(
-                        self.kaapana_datetime_format
+                        self.KAAPANA_DATETIME_FORMAT
                     )
                 else:
-                    logger.info(f"Trying to parse short date format with default time.")
+                    logger.info("Trying to parse short date format with default time.")
                     date = parser.parse(value_str).date()
                     time = parser.parse("01:00:00").time()
                     datetime_formatted = datetime.combine(date, time).strftime(
-                        self.kaapana_datetime_format
+                        self.KAAPANA_DATETIME_FORMAT
                     )
 
             datetime_formatted = self.convert_time_to_utc(
-                datetime_formatted, self.kaapana_datetime_format
+                datetime_formatted, self.KAAPANA_DATETIME_FORMAT
             )
             return datetime_formatted
         except Exception as e:
-            logger.error(highlight_message(f"COULD NOT EXTRACT DATETIME"))
+            logger.error(highlight_message("COULD NOT EXTRACT DATETIME"))
             logger.error(f"Tag  : {new_tag}")
             logger.error(f"Value: {value_str}")
             logger.error(f"Size : {len(value_str)}")
@@ -554,13 +560,13 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         try:
             if isinstance(value_str, list):
                 date_formatted = [
-                    parser.parse(date_str).strftime(self.kaapana_date_format)
+                    parser.parse(date_str).strftime(self.KAAPANA_DATE_FORMAT)
                     for date_str in value_str
                     if date_str != ""
                 ]
             elif isinstance(value_str, str):
                 date_formatted = parser.parse(value_str).strftime(
-                    self.kaapana_date_format
+                    self.KAAPANA_DATE_FORMAT
                 )
             else:
                 raise TypeError(
@@ -569,7 +575,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             return date_formatted
 
         except Exception as e:
-            logger.error(highlight_message(f"COULD NOT EXTRACT DATE"))
+            logger.error(highlight_message("COULD NOT EXTRACT DATE"))
             logger.error(f"Value: {value_str}")
             logger.error(f"Size : {len(value_str)}")
             logger.error(traceback.format_exc())
@@ -608,9 +614,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         return time_formatted
 
     def _get_time(self, time_str):
-        if validate_format(time_str, self.dcm_time_format):
-            return datetime.strptime(time_str, self.dcm_time_format).strftime(
-                self.kaapana_time_format
+        if validate_format(time_str, self.DCM_TIME_FORMAT):
+            return datetime.strptime(time_str, self.DCM_TIME_FORMAT).strftime(
+                self.KAAPANA_TIME_FORMAT
             )
 
         hour = 0
@@ -642,7 +648,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         # HH:mm:ss.SSSSS
         time_string = f"{hour:02}:{minute:02}:{sec:02}.{fsec:06}"
-        time_formatted = parser.parse(time_string).strftime(self.kaapana_time_format)
+        time_formatted = parser.parse(time_string).strftime(self.KAAPANA_TIME_FORMAT)
 
         return time_formatted
 
@@ -729,43 +735,31 @@ def highlight_message(message: str) -> str:
     return highlighted_message
 
 
-def check_type(obj, val_type):
+def can_be_type(value, value_type):
     try:
-        if isinstance(obj, val_type) or (val_type is float and isinstance(obj, int)):
-            return obj
-        elif val_type is float and not isinstance(obj, list):
-            obj = float(obj)
-            return obj
-        elif val_type is int and not isinstance(obj, list):
-            obj = int(obj)
-            return obj
+        value_type(value)
+        return True
+    except ValueError:
+        return False
 
-        elif isinstance(obj, list):
-            for element in obj:
-                if val_type is float:
-                    element = float(element)
-                elif val_type is int:
-                    element = int(element)
 
-                elif not isinstance(element, val_type):
-                    logger.error("Error list entry value type!")
-                    logger.error(f"Needed-Type: {val_type}")
-                    logger.error(f"List: {str(obj)}")
-                    logger.error(f"Value: {element}")
-                    logger.error(f"Type: {type(element)}")
+def convert(obj: Any, val_type: type):
+    if isinstance(obj, val_type):
+        return obj
 
-        else:
-            logger.error("Wrong data type!!")
-            logger.error(f"Needed-Type: {val_type}")
-            logger.error(f"Value: {obj}")
+    if isinstance(obj, list):
+        return [val_type(element) for element in obj]
 
-    except Exception as e:
-        logger.error("Error check value type!")
-        logger.error(f"Needed-Type: {val_type}")
-        logger.error(f"Found-Type:  {type(obj)}")
-        logger.error(f"Value: {obj}")
-        logger.error(traceback.format_exc())
-        logger.error(e)
+    if can_be_type(obj, val_type):
+        return val_type(obj)
+
+    if val_type is int and can_be_type(obj, float):
+        return val_type(float(obj))
+
+    logger.error("Cannot convert!")
+    logger.error(f"Value: {obj}")
+    logger.error(f"Needed-Type: {val_type}")
+    logger.error(f"Found-Type:  {type(obj)}")
     return obj
 
 
@@ -786,13 +780,24 @@ def strip_if_possible(value_str):
         return value_str
 
 
-def process_age_string(age_string):
-    unit = age_string[-1]  # Unit can be 'D', 'M', or 'Y'
-    quantity = age_meta = int(age_string[:-1])
-    if unit == "D":
-        age_meta = quantity // 365
-    elif unit == "M":
-        age_meta = quantity // 12
-    else:
-        age_meta = quantity
-    return age_meta
+def process_age_string(age_string: str) -> Union[int, None]:
+    try:
+        unit = age_string[-1]  # Unit can be 'D', 'M', or 'Y'
+        quantity = age_meta = int(age_string[:-1])
+        if unit == "D":
+            age_meta = quantity // 365
+        elif unit == "M":
+            age_meta = quantity // 12
+        elif unit == "W":
+            age_meta = quantity // 7
+        elif unit == "Y":
+            age_meta = quantity
+        else:
+            raise ValueError(f"Unknown patient age unit {age_string}")
+        return age_meta
+
+    except Exception as e:
+        logger.error(f"Could not extract age-int from metadata. {age_string}")
+        logger.error(traceback.format_exc())
+        logger.error(e)
+        return None

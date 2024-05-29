@@ -16,14 +16,14 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "host": {
+            "pacs_host": {
                 "title": "Receiver host",
                 "description": "Specify the url/IP of the DICOM receiver.",
                 "type": "string",
                 "default": pacs_host,
                 "required": True,
             },
-            "port": {
+            "pacs_port": {
                 "title": "Receiver port",
                 "description": "Specify the port of the DICOM receiver.",
                 "type": "integer",

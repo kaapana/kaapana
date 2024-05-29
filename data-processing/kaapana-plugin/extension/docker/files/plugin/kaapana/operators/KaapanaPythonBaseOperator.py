@@ -1,15 +1,9 @@
-import os
-import glob
-import functools
 from datetime import timedelta
 
 from airflow.operators.python import PythonOperator
 from airflow.models.skipmixin import SkipMixin
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import (
-    DEFAULT_REGISTRY,
-    KAAPANA_BUILD_VERSION,
-)
+
 
 class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
     def __init__(

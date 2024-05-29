@@ -3,6 +3,23 @@
 Changelog
 #########
 
+.. _release-0.3.1:
+
+-------------------------
+
+********************
+Release Notes v0.3.1
+********************
+
+April 22, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fixes dcm4chee import image bug, by pinning image container hash and dcm4chee-postgres git commit hash
+
 .. _release-0.3.0:
 
 -------------------------
@@ -11,7 +28,7 @@ Changelog
 Release Notes v0.3.0
 ********************
 
-April, 2024
+April 15, 2024
 
 -------------------------
  

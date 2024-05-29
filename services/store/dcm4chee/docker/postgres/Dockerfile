@@ -3,7 +3,7 @@ FROM local-only/base-python-cpu:latest as postgres
 WORKDIR /dcm4chee
 
 RUN git clone https://github.com/dcm4che-dockerfiles/postgres-dcm4chee.git . \
-    && git checkout b26b19ef9f90120a970d06408dfd97f8c80b90ef
+    && git checkout d0c78f5d16b047b7a8a6053deec17d86254af108
 
 
 FROM local-only/postgres-base:latest

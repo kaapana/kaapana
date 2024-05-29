@@ -32,6 +32,7 @@ Core components of Kaapana:
 
 Core technologies used in Kaapana:
 * [Kubernetes](https://kubernetes.io/): Container orchestration system
+* [Helm](https://helm.sh/): The package manager for Kubernetes
 * [Airflow](https://airflow.apache.org/): Workflow management system enabling complex and flexible data processing workflows
 * [OpenSearch](https://opensearch.org/): Search engine for DICOM metadata-based searches
 * [dcm4chee](https://www.dcm4che.org/): Open source PACS system serving as a central DICOM data storage
@@ -40,13 +41,19 @@ Core technologies used in Kaapana:
 * [Keycloak](https://www.keycloak.org/): User authentication
 
 
-Currently, Kaapana is used in multiple projects in which a Kaapana-based platform is deployed at multiple clinical sites with the objective of distributed radiological image analysis and quantification. The projects include [RACOON](https://racoon.network/) initiated by [NUM](https://www.netzwerk-universitaetsmedizin.de) with all 37 German university clinics participating, the Joint Imaging Platform ([JIP](https://jip.dktk.dkfz.de/jiphomepage/)) initiated by the German Cancer Consortium ([DKTK](https://dktk.dkfz.de/)) with 11 university clinics participating as well as [DART](https://cce-dart.com) initiated by the [Cancer Core Europe](https://cancercoreeurope.eu/) with 7 cancer research centers participating.
+Currently, Kaapana is used in multiple projects in which a Kaapana-based platform is deployed at multiple clinical sites with the objective of distributed radiological image analysis and quantification. The projects include [RACOON](https://racoon.network/) initiated by [NUM](https://www.netzwerk-universitaetsmedizin.de) with all 38 German university clinics participating, the Joint Imaging Platform ([JIP](https://jip.dktk.dkfz.de/jiphomepage/)) initiated by the German Cancer Consortium ([DKTK](https://dktk.dkfz.de/)) with 11 university clinics participating as well as [DART](https://cce-dart.com) initiated by the [Cancer Core Europe](https://cancercoreeurope.eu/) with 7 cancer research centers participating.
 
 For more information, please also take a look at our publication of the Kaapana-based [Joint Imaging Platform in JCO Clinical Cancer Informatics](https://ascopubs.org/doi/full/10.1200/CCI.20.00045).
 
 ## Documentation
 
 Check out the [documentation](https://kaapana.readthedocs.io/en/latest/) for further information about how Kaapana works, for instructions on how to build, deploy, use and further develop the platform.
+
+## Where to find us
+* [GitLab](https://gitlab.hzdr.de/kaapana/kaapana/): The main Kaapana repository, mirrored on GitHub.
+* [Slack](https://kaapana.slack.com/): Join the community for discussions and updates.
+* [YouTube](https://www.youtube.com/@KaapanaAI): Tutorials, demos and more in-depth presentations.
+* [Website](https://kaapana.ai/)
 
 ## Versioning
 

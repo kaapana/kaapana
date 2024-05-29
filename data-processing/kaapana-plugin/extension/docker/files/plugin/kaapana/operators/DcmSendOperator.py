@@ -48,8 +48,8 @@ class DcmSendOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "HOST": str(pacs_host),
-            "PORT": str(pacs_port),
+            "PACS_HOST": str(pacs_host),
+            "PACS_PORT": str(pacs_port),
             "AETITLE": str(ae_title),
             "LEVEL": str(level),
         }

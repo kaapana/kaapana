@@ -1,28 +1,11 @@
 <template>
   <v-container class="pa-0" fluid style="height: 100%">
-    <v-card
-      @click="onClick"
-      height="100%"
-      :id="seriesInstanceUID"
-      class="seriesCard"
-    >
-      <v-img
-        :src="src"
-        aspect-ratio="1"
-        @error="() => (this.img_loading_error = true)"
-      >
+    <v-card @click="onClick" height="100%" :id="seriesInstanceUID" class="seriesCard">
+      <v-img :src="src" aspect-ratio="1" @error="() => (this.img_loading_error = true)">
         <template v-slot:placeholder>
-          <v-row
-            class="fill-height ma-0"
-            align="center"
-            justify="center"
-            :style="img_loading_error ? 'background-color: darkgray' : ''"
-          >
-            <v-progress-circular
-              v-if="!img_loading_error"
-              indeterminate
-              color="#0088cc"
-            ></v-progress-circular>
+          <v-row class="fill-height ma-0" align="center" justify="center"
+            :style="img_loading_error ? 'background-color: darkgray' : ''">
+            <v-progress-circular v-if="!img_loading_error" indeterminate color="#0088cc"></v-progress-circular>
             <div v-else style="text-align: center">
               <p></p>
               <v-icon>mdi-alert-circle-outline</v-icon>
@@ -31,28 +14,37 @@
           </v-row>
         </template>
 
-        <v-app-bar flat dense color="rgba(0, 0, 0, 0)">
-          <Chip :items="[modality]" />
-          <v-spacer></v-spacer>
-          <v-btn icon @click.stop="() => showDetails()" color="white">
-            <v-icon>mdi-eye</v-icon>
-          </v-btn>
-        </v-app-bar>
+        <v-row class="fill-height ma-0 pa-0">
+          <v-app-bar flat dense color="rgba(0, 0, 0, 0)">
+            <Chip :items="[modality]" />
+            <v-spacer></v-spacer>
+            <v-btn icon @click.stop="() => showDetails()" color="white">
+              <v-icon>mdi-eye</v-icon>
+            </v-btn>
+          </v-app-bar>
+          <v-bottom-navigation 
+            v-if="Object.keys(validationResults).length > 0"
+            absolute height="30" 
+            background-color="transparent" 
+            horizontal class="result-container"
+          >
+              <v-btn small class="v-btn--error-rslt pa-0" v-if="'errors' in validationResults && validationResults['errors'] != 0">
+                {{ validationResults['errors'] }} <v-icon left class="mr-1" color="error">mdi-close-circle</v-icon>
+              </v-btn>
+              <v-btn small class="v-btn--error-rslt pa-0" v-if="'warnings' in validationResults && validationResults['warnings'] != 0">
+                {{ validationResults['warnings'] }} <v-icon left class="mr-1" color="warning">mdi-alert-circle</v-icon>
+              </v-btn>
+          </v-bottom-navigation>
+        </v-row>
       </v-img>
       <v-card-text v-if="settings.datasets.cardText">
-        <div
-          v-for="prop in settings.datasets.props.filter((prop) => prop.display)"
-        >
+        <div v-for="prop in settings.datasets.props.filter((prop) => prop.display)">
           <v-row no-gutters style="font-size: x-small">
             <v-col style="margin-bottom: -5px">
               {{ prop["name"] }}
             </v-col>
           </v-row>
-          <v-row
-            no-gutters
-            style="font-size: small; padding-top: 0"
-            align="start"
-          >
+          <v-row no-gutters style="font-size: small; padding-top: 0" align="start">
             <v-col>
               <div :class="prop['truncate'] ? 'text-truncate' : ''">
                 {{ seriesData[prop["name"]] || "N/A" }}
@@ -87,6 +79,7 @@ export default {
     return {
       src: "",
       seriesData: {},
+      validationResults: {},
       modality: null,
       tags: [],
       settings: defaultSettings,
@@ -119,6 +112,9 @@ export default {
             this.modality = data["metadata"]["Modality"] || "";
             this.seriesData = data["metadata"] || {};
             this.tags = data["metadata"]["Tags"] || [];
+            if ("Validation Results" in this.seriesData) {
+              this.processValidationResults(this.seriesData["Validation Results"]);
+            }
           }
         });
       }
@@ -135,6 +131,26 @@ export default {
       updateTags(request_body).then(
         () => (this.tags = this.tags.filter((_tag) => _tag !== tag))
       );
+    },
+    processValidationResults(results) {
+      for (let key in results) {
+        const key_without_tagid = key.split(" ")[1];
+        let [tagname, tagtype] = key_without_tagid.split("_", 2);
+        tagname = tagname.toLowerCase();
+        tagname = tagname.replace("validation", "");
+        let tagvalue = 0;
+        if (tagtype == "integer") {
+          tagvalue = parseInt(results[key]);
+          if(isNaN(tagvalue)) {
+            tagvalue = 0;
+          }
+        } else if (tagtype == "datetime") {
+          tagvalue = Date.parse(results[key]);
+        }else {
+          tagvalue = results[key];
+        }
+        this.validationResults[tagname] = tagvalue
+      }
     },
     modifyTags() {
       let request_body = [];
@@ -216,5 +232,11 @@ export default {
 }
 .v-card__text {
   padding: 8px;
+}
+.v-btn--error-rslt{
+  min-width: 50px !important;
+}
+.result-container{
+  justify-content: right;
 }
 </style>

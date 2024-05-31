@@ -22,14 +22,14 @@ try:
     from nnunet.getTasks import get_all_checkpoints
 
     training_dags.append("nnunet-training")
-except Exception as e:
+except ModuleNotFoundError:
     print("nnunet-training is not installed")
 try:
     from dag_classification_training_workflow import ui_forms as clf_form
     from classification_training_workflow.getCheckpoints import getCheckpoints
 
     training_dags.append("classification-training-workflow")
-except Exception as e:
+except ModuleNotFoundError:
     print("classification-training-workflow is not installed")
 
 ui_forms = {
@@ -78,9 +78,9 @@ for training_dag in training_dags:
         checkpoints = get_all_checkpoints()
 
         val = selection["properties"]["pretrained_weights"]
-        val[
-            "description"
-        ] = "Select pretrained weights from installed tasks. Use nnunet-model-management DAG to install more tasks. NOTE: please select the right 'network/task/trainer/fold' combination for your training, otherwise it will fail."
+        val["description"] = (
+            "Select pretrained weights from installed tasks. Use nnunet-model-management DAG to install more tasks. NOTE: please select the right 'network/task/trainer/fold' combination for your training, otherwise it will fail."
+        )
         for checkpoint in checkpoints:
             val["enum"].append(checkpoint)
 
@@ -95,9 +95,9 @@ for training_dag in training_dags:
         checkpoints = getCheckpoints()
 
         val = selection["properties"]["pretrained_weights"]
-        val[
-            "description"
-        ] = "Select pretrained weights from previous classification training runs"
+        val["description"] = (
+            "Select pretrained weights from previous classification training runs"
+        )
         for checkpoint in checkpoints:
             val["enum"].append(checkpoint)
 

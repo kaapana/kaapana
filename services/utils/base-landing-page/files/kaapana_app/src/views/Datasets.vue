@@ -190,6 +190,7 @@ import {
   loadDatasets,
   loadPatients,
 } from "../common/api.service";
+import kaapanaApiService from "@/common/kaapanaApi.service";
 import Dashboard from "@/components/Dashboard.vue";
 import { settings } from "@/static/defaultUIConfig";
 import { VueSelecto } from "vue-selecto";
@@ -225,6 +226,8 @@ export default {
       datasetToAddTo: null,
       debouncedIdentifiers: [],
       navigationMode: false,
+      staticUrls: [],
+      resultPaths: {},
     };
   },
   components: {
@@ -256,6 +259,8 @@ export default {
 
     this.navigationMode =
       !document.getElementsByClassName("v-bottom-navigation").length > 0;
+    
+    this.getStaticWebsiteResults();
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) =>
@@ -345,6 +350,58 @@ export default {
       loadDatasets().then(
         (_datasetNames) => (this.datasetNames = _datasetNames)
       );
+    },
+    getStaticWebsiteResults() {
+      kaapanaApiService
+        .kaapanaApiGet("/get-static-website-results")
+        .then((response) => {
+          this.staticUrls = response.data;
+          this.extractChildPaths(this.staticUrls)
+        })
+        .catch((err) => {
+          this.staticUrls = []
+        });
+    },
+    extractChildPaths(urlObjs) {
+      urlObjs.forEach(i => {
+        let rootPaths = this.extractRootPath(i);
+        for (let path of rootPaths) {
+          let seriesID = this.extractSeriesId(path);
+          this.resultPaths[seriesID] = path;
+          // this.readAndParseHTML(path)
+        }
+      })
+      this.resultPaths.__ob__.dep.notify();
+    },
+    extractRootPath(urlObj) {
+      let paths = []
+
+      function traverseChild(node) {
+        if ('children' in node) {
+          for (let child of node.children) {
+            traverseChild(child);
+          }
+        } else if ('path' in node) {
+          paths.push(node.path);
+        } else {
+          paths.push(undefined);
+        }
+      }
+
+      traverseChild(urlObj)
+      return paths
+    },
+    extractSeriesId(urlStr) {
+      const seriesIdRegx = "^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$"
+      const subDirs = urlStr.split('/')
+      let matched = ''
+      for (let dir of subDirs.reverse()) {
+        if (dir.match(seriesIdRegx)) {
+          matched = dir;
+          break;
+        }
+      }
+      return matched
     },
     async updateDataset(name, identifiers, action = "UPDATE") {
       try {

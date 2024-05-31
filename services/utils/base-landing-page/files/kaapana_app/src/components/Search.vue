@@ -162,7 +162,7 @@ export default {
           ],
         },
       };
-      console.log(JSON.stringify(query));
+      // console.log(JSON.stringify(query));
       return query;
     },
     async search(onMount = false) {

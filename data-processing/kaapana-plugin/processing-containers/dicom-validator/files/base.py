@@ -1,5 +1,8 @@
 import os
+import sys
 from typing import Literal, Optional
+
+from dicom_validator.spec_reader.edition_reader import EditionReader
 
 
 class ValidationItem:
@@ -90,3 +93,47 @@ def merge_similar_validation_items(all_items: dict):
             tag_item_pair[tag].list_of_dicoms = ["all"]
 
     return tag_item_pair
+
+
+def download_revision(revision="2024a", revisions_root="/kaapana/dicom-revisions"):
+    """
+    Download and convert a specified DICOM revision to JSON format.
+
+    This function ensures that the specified revisions root directory exists,
+    uses the EditionReader to download the specified revision, and converts
+    it to JSON format.
+
+    Args:
+        revision (str): The revision identifier to download. Defaults to '2024a'.
+        revisions_root (str): The root directory where revisions are stored. Defaults to "/kaapana/dicom-revisions".
+
+    Returns:
+        None
+    """
+    ensure_dir(revisions_root)
+    edition_reader = EditionReader(revisions_root)
+    destination = edition_reader.get_revision(revision, recreate_json=False)
+
+    print(f"Revision downloaded and converted to json in {destination}")
+
+
+if __name__ == "__main__":
+    """
+    Execute a specified function with an argument from the command line.
+
+    This script allows calling a function by its name with a single argument passed via command line.
+    The function name and its argument should be provided as command line arguments.
+
+    Usage:
+        python base.py function_name argument
+
+    Args:
+        sys.argv[1] (str): The name of the function to be called. The function should be defined in the global scope.
+        sys.argv[2] (str): The argument to be passed to the function. This will be passed as a single string argument.
+
+    Example:
+        python script_name.py download_revision 2024a
+
+    This will call the function `download_revision` with the argument '2024a'.
+    """
+    globals()[sys.argv[1]](sys.argv[2])

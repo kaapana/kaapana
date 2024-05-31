@@ -104,15 +104,15 @@ if __name__ == "__main__":
                 )
 
                 with open(
-                    os.path.join(element_output_dir, f"validations-{run_id}.html"), "w"
+                    os.path.join(element_output_dir, f"results-{run_id}.html"), "w"
                 ) as f:
                     f.write(htmlout)
 
                 print(
-                    f"Validation Results file created in {element_output_dir} with the name validations-{run_id}.html"
+                    f"Validation Results file created in {element_output_dir} with the name results-{run_id}.html"
                 )
 
             if len(errors.keys()) > 0 and exit_on_error:
                 raise ValueError(
-                    f"Dicom Validation Failed. Stopping Executions. Validation Results file created in {element_output_dir} with the name validations-{run_id}.html listing all the errors."
+                    f"Dicom Validation Failed. Stopping Executions. Validation Results file created in {element_output_dir} with the name results-{run_id}.html listing all the errors."
                 )

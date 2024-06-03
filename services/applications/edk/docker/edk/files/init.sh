@@ -22,7 +22,6 @@ if ! clone_repo "$KAAPANA_BUILD_BRANCH"; then
 fi
 
 # change to commit hash that the current platform is built from
-KAAPANA_REPO_PATH="$PWD/kaapana"
 cd $KAAPANA_REPO_PATH
 KAAPANA_COMMIT_HASH=$(echo $KAAPANA_BUILD_VERSION | sed 's/.*-g//')
 git checkout $KAAPANA_COMMIT_HASH
@@ -33,4 +32,9 @@ cp -r $KAAPANA_REPO_PATH/templates_and_examples/examples/processing-pipelines/py
 
 # build base images
 BASE_PYTHON_CPU="$KAAPANA_REPO_PATH/data-processing/base-images/base-python-cpu"
-/usr/bin/bash /kaapana/app/build_image.sh --dir $BASE_PYTHON_CPU --image-name base-python-cpu --image-version latest
+echo "Building base-python-cpu..."
+/usr/bin/bash /kaapana/app/build_image.sh --dir $BASE_PYTHON_CPU --image-name base-python-cpu --image-version latest --no-import
+
+BASE_PYTHON_GPU="$KAAPANA_REPO_PATH/data-processing/base-images/base-python-gpu"
+echo "Building base-python-gpu..."
+/usr/bin/bash /kaapana/app/build_image.sh --dir $BASE_PYTHON_GPU --image-name base-python-gpu --image-version latest --no-import

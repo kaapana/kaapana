@@ -1,39 +1,37 @@
+import copy
+import datetime
 import json
-import os
 import logging
+import os
+import random
+import string
 import traceback
 import uuid
-import copy
 from typing import List
-import datetime
-import string
-import random
 
 import requests
+from app.config import settings
+from app.database import SessionLocal
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
-from sqlalchemy import desc
+from sqlalchemy import JSON, String, cast, desc, func
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, String, JSON
-
 from urllib3.util import Timeout
 
-from app.config import settings
-from app.database import SessionLocal
 from . import models, schemas
 from .schemas import DatasetCreate
 from .utils import (
-    execute_job_airflow,
-    abort_job_airflow,
-    get_dagrun_tasks_airflow,
-    get_dagrun_details_airflow,
-    get_dagruns_airflow,
-    check_dag_id_and_dataset,
-    get_utc_timestamp,
     HelperMinio,
+    abort_job_airflow,
+    check_dag_id_and_dataset,
+    execute_job_airflow,
     get_dag_list,
+    get_dagrun_details_airflow,
+    get_dagrun_tasks_airflow,
+    get_dagruns_airflow,
+    get_utc_timestamp,
     raise_kaapana_connection_error,
     requests_retry_session,
 )
@@ -854,9 +852,9 @@ def get_remote_updates(db: Session, periodically=False):
                 ]
 
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
-            incoming_job[
-                "owner_kaapana_instance_name"
-            ] = db_remote_kaapana_instance.instance_name
+            incoming_job["owner_kaapana_instance_name"] = (
+                db_remote_kaapana_instance.instance_name
+            )
             incoming_job["external_job_id"] = incoming_job["id"]
             incoming_job["status"] = "pending"
             job = schemas.JobCreate(**incoming_job)
@@ -1417,9 +1415,11 @@ def queue_generate_jobs_and_add_to_workflow(
         db,
         filter_kaapana_instances=schemas.FilterKaapanaInstances(
             **{
-                "instance_names": conf_data["workflow_form"]["runner_instances"]
-                if not json_schema_data.federated
-                else json_schema_data.instance_names,
+                "instance_names": (
+                    conf_data["workflow_form"]["runner_instances"]
+                    if not json_schema_data.federated
+                    else json_schema_data.instance_names
+                ),
             }
         ),
     )
@@ -1519,7 +1519,8 @@ def get_workflows(
     instance_name: str = None,
     involved_instance_name: str = None,
     workflow_job_id: int = None,
-    limit=None,
+    limit: int = None,
+    offset: int = None,
 ):
     if instance_name is not None:
         return (
@@ -1528,6 +1529,7 @@ def get_workflows(
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Workflow.time_updated))
             .limit(limit)
+            .offset(offset)
             .all()
         )
     elif involved_instance_name is not None:
@@ -1538,6 +1540,7 @@ def get_workflows(
                     involved_instance_name
                 )
             )
+            .offset(offset)
             .all()
         )
     elif workflow_job_id is not None:
@@ -1545,6 +1548,7 @@ def get_workflows(
             db.query(models.Workflow)
             .join(models.Workflow.workflow_jobs, aliased=True)
             .filter_by(id=workflow_job_id)
+            .offset(offset)
             .all()
         )
     else:
@@ -1553,6 +1557,7 @@ def get_workflows(
             .join(models.Workflow.kaapana_instance)
             .order_by(desc(models.Workflow.time_updated))
             .limit(limit)
+            .offset(offset)
             .all()
         )  # , aliased=True
 

@@ -175,11 +175,11 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
         res, msg = await file_handler.run_containerd_import(
             filename, platforms=platforms
         )
-        logger.info(f"Successfully imported {filename}")
         logger.debug(f"returned {res=}, {msg=}")
         if not res:
             logger.error(f"/import-container failed {msg}")
             return Response(f"Container import failed {msg}", 500)
+        logger.info(f"Successfully imported {filename}")
         return Response(msg, 200)
     except AssertionError as e:
         logger.error(f"/import-container failed: {str(e)}")

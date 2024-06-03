@@ -5,16 +5,18 @@ dockerfile=""
 context_path=""
 image_name=""
 image_version=""
+no_import=""
 
 # help message
 print_help() {
-    echo "Usage: $0 --dir <context-path> --image-name <imagename> [--dockerfile <dockerfile>] [--image-version <imageversion>]"
+    echo "Usage: $0 --dir <context-path> --image-name <imagename> [--dockerfile <dockerfile>] [--image-version <imageversion>] [--no-import]"
     echo
     echo "Arguments:"
     echo "  --dir             Path to the context directory (required)"
     echo "  --dockerfile      Path to the Dockerfile (optional, defaults to <context-path>/Dockerfile)"
     echo "  --image-name      Name of the Docker image (required)"
     echo "  --image-version   Version of the Docker image (optional, defaults to KAAPANA_BUILD_VERSION)"
+    echo "  --no-import       Skip importing container inside microk8s ctr"
     echo "  --help            Display this help message"
     echo
 }
@@ -26,6 +28,7 @@ while [[ "$#" -gt 0 ]]; do
         --dockerfile) dockerfile="$2"; shift ;;
         --image-name) image_name="$2"; shift ;;
         --image-version) image_version="$2"; shift ;;
+        --no-import) no_import="true"; shift ;;
         --help) print_help; exit 0 ;;
         *) echo "Unknown argument: $1"; print_help; exit 1 ;;
     esac
@@ -80,4 +83,11 @@ python3 /kaapana/app/utils/create_kaniko_pod.py /kaapana/app/utils/kaniko-builde
 # run skopeo command to copy from local reg to a tarball
 skopeo copy --tls-verify=false docker://$LOCAL_REGISTRY_URL/$image_name:$image_version oci-archive:/kaapana/minio/edk-to-minio/$image_name.tar:$REGISTRY_URL/$image_name:$image_version
 
-# TODO: send req to kube-helm /import-container endpoint for importing container tar into ctr 
+# check if --no-import is passed
+if [ "$no_import" != "true" ]; then
+    # send req to kube-helm /import-container endpoint for importing container tar into ctr
+    echo "Importing container tar into ctr..."
+    /usr/bin/bash /kaapana/app/import_image.sh --tar-file $image_name.tar
+else
+    echo "Skipping import."
+fi

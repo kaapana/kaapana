@@ -1,20 +1,20 @@
-import logging
 import json
-
+import logging
 from glob import glob
 from pathlib import Path
-from fastapi import FastAPI, Depends
+
+from fastapi import Depends, FastAPI
 
 from .config import get_settings
 from .dependencies import get_schema_service
-from .routers.health import router as health_router
-from .routers.schema import router as schema_router
-from .routers.object import router as object_router
-from .routers.urn import router as urn_router
-from .routers.dicomweb import router as dicomweb_router
+from .logger import function_logger_factory, get_logger
 from .routers.cas import router as cas_router
+from .routers.dicomweb import router as dicomweb_router
+from .routers.health import router as health_router
 from .routers.mnt import router as mnt_router
-from .logger import get_logger, function_logger_factory
+from .routers.object import router as object_router
+from .routers.schema import router as schema_router
+from .routers.urn import router as urn_router
 
 if get_settings().dev:
     logger = get_logger(__name__, logging.DEBUG)

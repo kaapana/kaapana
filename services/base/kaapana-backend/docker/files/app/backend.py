@@ -1,27 +1,23 @@
+import logging
+import os
+import traceback
+
+import psutil
 import requests
 import urllib3
-import os
-import logging
-import traceback
-import psutil
-
 from fastapi import Depends, FastAPI, Request
 
+from . import middlewares
 from .admin import routers as admin
+from .database import SessionLocal, engine
 from .datasets import routers
-from .workflows.routers import remote, client
+from .decorators import repeat_every
 from .monitoring import routers as monitoring
 from .storage import routers as storage
 from .users import routers as users
-
-from .database import SessionLocal, engine
-from .decorators import repeat_every
 from .workflows import models
-from .workflows.crud import (
-    sync_states_from_airflow,
-)
-
-from . import middlewares
+from .workflows.crud import sync_states_from_airflow
+from .workflows.routers import client, remote
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -36,6 +32,10 @@ app.add_middleware(middlewares.SanitizeBodyInputs)
 
 # sanitze user inputs from the query parameters in get requests
 app.add_middleware(middlewares.SanitizeQueryParams)
+
+# Adds security headers to the requests
+app.add_middleware(middlewares.SecurityMiddleware)
+
 
 @app.on_event("startup")
 @repeat_every(seconds=float(os.getenv("AIRFLOW_SYNC_INTERVAL", 10.0)))

@@ -271,6 +271,11 @@ export default {
         }
       });
     },
+    validDags(dags, olddags) {
+      if (dags.length != olddags.length){
+        this.getDags();
+      }
+    },
   },
   computed: {
     ...mapGetters(["currentUser", "isAuthenticated"]),

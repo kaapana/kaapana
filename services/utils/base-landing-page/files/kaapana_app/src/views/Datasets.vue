@@ -38,12 +38,12 @@
 
           <!-- Data available -->
           <v-container fluid class="pa-0" v-else-if="(!isLoading &&
-        Object.entries(patients).length > 0 &&
-        settings.datasets.structured) ||
-      (!isLoading &&
-        seriesInstanceUIDs.length > 0 &&
-        !settings.datasets.structured)
-      ">
+            Object.entries(patients).length > 0 &&
+            settings.datasets.structured) ||
+            (!isLoading &&
+              seriesInstanceUIDs.length > 0 &&
+              !settings.datasets.structured)
+          ">
             <VueSelecto dragContainer=".elements" :selectableTargets="['.selecto-area .seriesCard']" :hitRate="0"
               :selectByClick="true" :selectFromInside="true" :continueSelect="false"
               :toggleContinueSelect="continueSelectKey" :ratio="0" @dragStart="onDragStart" @select="onSelect">
@@ -82,8 +82,8 @@
                         <template v-slot:activator="{ on }">
                           <span v-on="on">
                             <v-btn :disabled="identifiersOfInterest.length == 0 ||
-      !datasetName
-      " icon>
+                              !datasetName
+                              " icon>
                               <v-icon v-on="on" color="red" @click="removeFromDatasetDialog = true">
                                 mdi-folder-minus-outline
                               </v-icon>
@@ -111,16 +111,17 @@
               </v-card>
             </v-container>
             <!--        property patients in two-ways bound -->
-            <v-container fluid class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area gallery-side-navigation">
+            <v-container fluid
+              class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area gallery-side-navigation">
               <StructuredGallery v-if="!isLoading &&
-      Object.entries(patients).length > 0 &&
-      settings.datasets.structured
-      " :patients.sync="patients" />
+                Object.entries(patients).length > 0 &&
+                settings.datasets.structured
+              " :patients.sync="patients" />
               <!--        seriesInstanceUIDs is not bound due to issues with the Gallery embedded in StructuredGallery-->
               <Gallery v-else-if="!isLoading &&
-      seriesInstanceUIDs.length > 0 &&
-      !settings.datasets.structured
-      " :seriesInstanceUIDs="seriesInstanceUIDs" />
+                seriesInstanceUIDs.length > 0 &&
+                !settings.datasets.structured
+              " :seriesInstanceUIDs="seriesInstanceUIDs" />
             </v-container>
           </v-container>
 
@@ -170,10 +171,69 @@
       </v-dialog>
       <v-dialog v-model="workflowDialog" width="500">
         <WorkflowExecution :identifiers="identifiersOfInterest" :onlyLocal="true" :isDialog="true"
-          kind_of_dags="dataset" @successful="() => (this.workflowDialog = false)"
-          @cancel="() => (this.workflowDialog = false)" />
+          kind_of_dags="dataset" :validDags="filteredDags" 
+          @successful="onWorkflowSubmit"
+          @cancel="onWorkflowSubmit" />
       </v-dialog>
       <EditDatasetsDialog v-model="editDatasetsDialog" @close="(reloadDatasets) => editedDatasets(reloadDatasets)" />
+      <v-dialog v-model="this.$store.getters.showValidationResults" width="850" persistent
+        @click:outside="onValidationResultClose">
+        <v-card>
+          <v-app-bar flat color="rgba(0, 0, 0, 0)">
+            <v-toolbar-title class="text-h6 white--text pl-0">
+              Reports
+            </v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-menu bottom left>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn icon v-bind="attrs" v-on="on" :disabled="false">
+                  <v-icon>mdi-dots-vertical</v-icon>
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item @click="runValidationWorkflow(validationResultItem)">
+                  <v-list-item-title>Rerun Validation</v-list-item-title>
+                  <!-- <v-list-item-title v-else>Run Validation</v-list-item-title> -->
+                  <v-list-item-icon class="mt-4">
+                    <v-icon>mdi-cog-play</v-icon>
+                  </v-list-item-icon>
+                </v-list-item>
+                <v-list-item @click="deleteValidationResult(item)">
+                  <v-list-item-title>Delete Result</v-list-item-title>
+                  <v-list-item-icon class="mt-4">
+                    <v-icon>mdi-delete-empty</v-icon>
+                  </v-list-item-icon>
+                </v-list-item>
+                <v-list-item @click="deleteValidationResult(item)">
+                  <v-list-item-title>Download Report</v-list-item-title>
+                  <v-list-item-icon class="mt-4">
+                    <v-icon>mdi-file-download</v-icon>
+                  </v-list-item-icon>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </v-app-bar>
+          <v-card-text v-if="validationResultItem != null">
+            <ElementsFromHTML v-if="validationResultItem in resultPaths" :rawHtmlURL="resultPaths[validationResultItem]"/>
+            <div class="container" v-else>
+              <h1 class="pb-5">Validation Report</h1>
+              <p class="text--primary">
+                Report not found, or earlier report has been deleted from workflow results. 
+                Please re-run the dicom validation workflow to have up-to-date report.
+              </p>
+              <v-btn
+                class="ma-2 ml-0"
+                outlined
+                color="light"
+                @click="runValidationWorkflow(validationResultItem)"
+              >
+                <v-icon left>mdi-cog-play</v-icon>
+                Re-run Validation
+              </v-btn>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
     </div>
   </div>
 </template>
@@ -203,6 +263,7 @@ import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
 import IdleTracker from '@/components/IdleTracker.vue';
+import ElementsFromHTML from "@/components/ElementsFromHTML.vue";
 
 const keycon = new KeyController();
 
@@ -228,6 +289,7 @@ export default {
       navigationMode: false,
       staticUrls: [],
       resultPaths: {},
+      filteredDags: [],
     };
   },
   components: {
@@ -245,6 +307,7 @@ export default {
     VueSelecto,
     Splitpanes,
     Pane,
+    ElementsFromHTML,
   },
   async created() {
     this.settings = JSON.parse(localStorage["settings"]);
@@ -259,7 +322,7 @@ export default {
 
     this.navigationMode =
       !document.getElementsByClassName("v-bottom-navigation").length > 0;
-    
+
     this.getStaticWebsiteResults();
   },
   beforeDestroy() {
@@ -310,6 +373,16 @@ export default {
         el.classList.remove("selected");
       });
       this.debouncedIdentifiers = e.selected.map((el) => el.id);
+    },
+    onValidationResultClose() {
+      this.$store.commit('setShowValidationResults', false);
+      this.$store.commit('setValidationResultItem', null);
+    },
+    onWorkflowSubmit(){
+      this.workflowDialog = false;
+      if (this.filteredDags.length > 0) {
+        this.filteredDags = [];
+      }
     },
     addFilterToSearch(selectedFilterItem) {
       this.$refs.search.addFilterItem(
@@ -526,6 +599,13 @@ export default {
       }
       this.editDatasetsDialog = false;
     },
+    runValidationWorkflow(resultItemID) {
+      this.selectedSeriesInstanceUIDs = [resultItemID];
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs)
+      this.filteredDags = ['example-dcm-validate'];
+      this.onValidationResultClose();
+      this.workflowDialog = true;
+    },
   },
   watch: {
     debouncedIdentifiers: debounce(function (val) {
@@ -552,6 +632,9 @@ export default {
         .filter((i) => i.dashboard)
         .map((i) => i.name);
     },
+    validationResultItem() {
+      return this.$store.getters.validationResultItem;
+    }
   },
 };
 </script>
@@ -573,6 +656,23 @@ export default {
   height: calc(100vh - 258px);
 }
 
+/deep/ .item-label {
+  line-height: 20px;
+  max-width: 100%;
+  outline: none;
+  overflow: hidden;
+  padding: 2px 12px;
+  position: relative;
+  border-radius: 12px;
+  margin-right: 4px;
+  text-align: center;
+}
+
+/deep/ .item-count-label {
+  padding: 2px 16px;
+  border-radius: 15px;
+  margin-left: 8px;
+}
 </style>
 
 <style>

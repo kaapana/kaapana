@@ -28,10 +28,18 @@
             background-color="transparent" 
             horizontal class="result-container"
           >
-              <v-btn small class="v-btn--error-rslt pa-0" v-if="'errors' in validationResults && validationResults['errors'] != 0">
+              <v-btn 
+                small class="v-btn--error-rslt pa-0" 
+                v-if="'errors' in validationResults && validationResults['errors'] != 0"
+                @click="triggerValidationResultDetails"
+              >
                 {{ validationResults['errors'] }} <v-icon left class="mr-1" color="error">mdi-close-circle</v-icon>
               </v-btn>
-              <v-btn small class="v-btn--error-rslt pa-0" v-if="'warnings' in validationResults && validationResults['warnings'] != 0">
+              <v-btn 
+                small class="v-btn--error-rslt pa-0" 
+                v-if="'warnings' in validationResults && validationResults['warnings'] != 0"
+                @click="triggerValidationResultDetails"
+              >
                 {{ validationResults['warnings'] }} <v-icon left class="mr-1" color="warning">mdi-alert-circle</v-icon>
               </v-btn>
           </v-bottom-navigation>
@@ -217,9 +225,16 @@ export default {
       // double click
       this.showDetails();
     },
+    triggerValidationResultDetails() {
+      this.$store.commit("setValidationResultItem", this.seriesInstanceUID);
+      this.$store.commit("setShowValidationResults", true);
+    },
     showDetails() {
       this.$store.commit("setDetailViewItem", this.seriesInstanceUID);
     },
+    showValidationResults() {
+      this.$store.commit("setShowValidationResults", true);
+    }
   },
 };
 </script>

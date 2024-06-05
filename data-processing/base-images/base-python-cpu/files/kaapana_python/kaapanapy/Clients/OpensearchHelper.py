@@ -1,26 +1,25 @@
 import re
-from typing import Dict, List, NamedTuple
+from typing import Dict, List
 from kaapanapy.settings import OpensearchSettings, ProjectSettings
 from kaapanapy.logger import get_logger
 from kaapanapy.Clients.KaapanaAuthorization import get_project_user_access_token
 from opensearchpy import OpenSearch
-from dataclasses import dataclass
 
 logger = get_logger(__file__)
 
 
-class DicomKeywords(NamedTuple):
+class DicomKeywords:
     """
     Collection of dicom tags.
     """
 
-    study_uid_tag: str = "0020000D StudyInstanceUID_keyword"
-    series_uid_tag: str = "0020000E SeriesInstanceUID_keyword"
-    SOPInstanceUID_tag: str = "00080018 SOPInstanceUID_keyword"
-    modality_tag: str = "00080060 Modality_keyword"
-    protocol_name: str = "00181030 ProtocolName_keyword"
-    curated_modality_tag: str = "00000000 CuratedModality_keyword"
-    custom_tag: str = "00000000 Tags_keyword"
+    study_uid_tag = "0020000D StudyInstanceUID_keyword"
+    series_uid_tag = "0020000E SeriesInstanceUID_keyword"
+    SOPInstanceUID_tag = "00080018 SOPInstanceUID_keyword"
+    modality_tag = "00080060 Modality_keyword"
+    protocol_name = "00181030 ProtocolName_keyword"
+    curated_modality_tag = "00000000 CuratedModality_keyword"
+    custom_tag = "00000000 Tags_keyword"
 
 
 class DicomUid(dict):
@@ -62,7 +61,6 @@ class KaapanaOpensearchHelper(OpenSearch):
                 index = "meta-index"
                 logger.WARNING(f"Set {index=}")
         self.target_index = index
-        self.dicom_keywords = DicomKeywords()
         super().__init__(
             hosts=[
                 {
@@ -285,23 +283,21 @@ class KaapanaOpensearchHelper(OpenSearch):
             query=query,
             source={
                 "includes": [
-                    self.dicom_keywords.study_uid_tag,
-                    self.dicom_keywords.series_uid_tag,
-                    self.dicom_keywords.SOPInstanceUID_tag,
-                    self.dicom_keywords.modality_tag,
-                    self.dicom_keywords.curated_modality_tag,
+                    DicomKeywords.study_uid_tag,
+                    DicomKeywords.series_uid_tag,
+                    DicomKeywords.SOPInstanceUID_tag,
+                    DicomKeywords.modality_tag,
+                    DicomKeywords.curated_modality_tag,
                 ]
             },
         )
 
         return [
             DicomUid(
-                study_uid=hit["_source"][self.dicom_keywords.study_uid_tag],
-                series_uid=hit["_source"][self.dicom_keywords.series_uid_tag],
-                modality=hit["_source"][self.dicom_keywords.modality_tag],
-                curated_modality=hit["_source"][
-                    self.dicom_keywords.curated_modality_tag
-                ],
+                study_uid=hit["_source"][DicomKeywords.study_uid_tag],
+                series_uid=hit["_source"][DicomKeywords.series_uid_tag],
+                modality=hit["_source"][DicomKeywords.modality_tag],
+                curated_modality=hit["_source"][DicomKeywords.curated_modality_tag],
             )
             for hit in res
         ]
@@ -322,12 +318,12 @@ class KaapanaOpensearchHelper(OpenSearch):
         logger.info("Getting dataset for query: {}".format(query))
         logger.info("index: {}".format(self.target_index))
         includes = [
-            self.dicom_keywords.study_uid_tag,
-            self.dicom_keywords.series_uid_tag,
-            self.dicom_keywords.SOPInstanceUID_tag,
-            self.dicom_keywords.modality_tag,
-            self.dicom_keywords.protocol_name,
-            self.dicom_keywords.curated_modality_tag,
+            DicomKeywords.study_uid_tag,
+            DicomKeywords.series_uid_tag,
+            DicomKeywords.SOPInstanceUID_tag,
+            DicomKeywords.modality_tag,
+            DicomKeywords.protocol_name,
+            DicomKeywords.curated_modality_tag,
         ]
         if include_custom_tag:
             includes.append(include_custom_tag)
@@ -353,7 +349,7 @@ def sanitize_field_name(field_name: str) -> str:
     """
     removed_tag = field_name.split(" ")[-1]
     removed_type = removed_tag.split("_")[0]
-    spaceCase = " ".join(
+    sanitized_field_name = " ".join(
         re.sub(
             "([A-Z][a-z]+)",
             r" \1",
@@ -364,7 +360,7 @@ def sanitize_field_name(field_name: str) -> str:
             ),
         ).split()
     )
-    return spaceCase
+    return sanitized_field_name
 
 
 def type_suffix(v):

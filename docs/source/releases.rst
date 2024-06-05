@@ -3,6 +3,24 @@
 Changelog
 #########
 
+.. _release-0.3.3:
+
+-------------------------
+
+********************
+Release Notes v0.3.3
+********************
+
+May 29, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fixes broken build due to breaking changes in vueuse/core 10.10.0
+
+
 .. _release-0.3.2:
 
 -------------------------

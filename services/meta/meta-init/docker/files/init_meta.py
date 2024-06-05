@@ -8,7 +8,6 @@ from opensearchpy.exceptions import TransportError
 import requests
 import traceback
 import json
-import logging
 import time
 
 tries = 0
@@ -27,8 +26,7 @@ def import_dashboards():
         "file": open(export_ndjson_path, "rb"),
     }
     if tries > 5:
-        print("# ")
-        print(f"# Too many tries: {tries} -> abort.")
+        logger.error(f"Too many tries: {tries} -> abort.")
         exit(1)
 
     try:
@@ -46,22 +44,32 @@ def import_dashboards():
         logger.debug(response.status_code)
         response.raise_for_status()
 
+        if response.status_code == 200:
+            logger.info(f"# {export_ndjson_path}: OK!")
+
+        elif response.text == "OpenSearch Dashboards server is not ready yet":
+            logger.info("OpenSearch Dashboards server is not ready yet")
+            logger.info("waiting ...")
+            tries += 1
+            time.sleep(10)
+            logger.info("restart import_dashboards() ...")
+            import_dashboards()
+            return
+
+        else:
+            logger.error(f"Could not import dashboard: {export_ndjson_path}")
+            logger.error(response.text)
+            exit(1)
     except Exception as e:
-        logging.error(traceback.format_exc())
-        print("#")
-        print(f"# Could not import dashboard: {export_ndjson_path} -> Exception")
-        print("#")
+        logger.warning(traceback.format_exc())
+        logger.warning(f"Could not import dashboard: {export_ndjson_path} -> Exception")
         tries += 1
-        print("# waiting ...")
+        logger.warning("waiting ...")
         time.sleep(10)
-        print("# restart import_dashboards() ...")
+        logger.warning("restart import_dashboards() ...")
         import_dashboards()
 
-    print("#")
-    print("#")
-    print("# Dashboard import successful!")
-    print("#")
-    print("#")
+    logger.info("Dashboard import successful!")
 
 
 def set_ohif_template():
@@ -88,26 +96,24 @@ def set_ohif_template():
                 "Authorization": f"Bearer {access_token}",
             },
         )
-        print(f"# response_code: {response.status_code}")
+        logger.info(f"response_code: {response.status_code}")
         if response.status_code == 200:
-            print("# OHIF-template: OK!")
+            logger.info("OHIF-template: OK!")
         else:
-            print("# OHIF-template: Error!")
-            print(response.text)
-            print(response.content)
+            logger.error("OHIF-template: Error!")
+            logger.error(response.text)
+            logger.error(response.content)
             exit(1)
 
     except Exception as e:
-        logging.error(traceback.format_exc())
-        print("# OHIF-template: Error!")
+        logger.error(traceback.format_exc())
+        logger.error("OHIF-template: Error!")
         exit(1)
 
 
 def create_index():
     global os_client, index
-    print("#")
-    print(f"# -> Creating index: {index} ...")
-    print("#")
+    logger.info(f"Creating index: {index} ...")
     index_name = index
     index_body = {
         "settings": {
@@ -202,39 +208,40 @@ def create_index():
             ],
         },
     }
-    print("#")
-    # print("# INDEX-BODY:")
-    # print(json.dumps(index_body, indent=4))
-    # print("#")
-    try:
-        response = os_client.indices.create(index_name, body=index_body)
-        print("#")
-        print("# Response:")
-        print(response)
-    except Exception as e:
-        if str(e.error) == "resource_already_exists_exception":
-            print("#")
-            print("# Index already exists ...")
-            print("#")
-        else:
-            print("# ")
-            print("# Unknown issue while creating the META index ...")
-            print("# Error:")
-            print(str(e))
-            print("#")
-            exit(1)
 
-    print("#")
-    print("# Success! ")
-    print("#")
+    def _create_index(index_name, index_body):
+        try:
+            response = os_client.indices.create(index_name, body=index_body)
+            return response
+        except TransportError as e:
+            if str(e.error) == "resource_already_exists_exception":
+                logger.warning("# Index already exists ...")
+                return True
+            else:
+                logger.warning("Retry ...")
+                return False
+        except Exception as e:
+            logger.error("Unknown issue while creating the META index ...")
+            raise e
+
+    counter = 0
+    max_retries = 60
+    while not _create_index(index_name, index_body) and counter <= max_retries:
+        time.sleep(1)
+        counter += 1
+
+    if counter > max_retries:
+        logger.error("Max retries exceeded:  {counter=} > {max_retries=}")
+        logger.error("Index not successfully created!")
+        exit(1)
+
+    logger.info("Index created successfully!")
 
 
-print("#")
-print("# Started init-container")
-print("#")
+logger.info("Started init-container")
 
 if __name__ == "__main__":
-    print("# Provisioning...")
+    logger.info("# Provisioning...")
 
     init_dashboards = (
         True if os.getenv("INIT_DASHBOARDS", False).lower() == "true" else False
@@ -250,40 +257,32 @@ if __name__ == "__main__":
     dashboards_url = os.getenv("DASHBOARDS_URL", None)
     export_ndjson_path = os.getenv("EXPORT_NDJSON", None)
 
-    print("#")
-    print("# Configuration:")
-    print("#")
-    print(f"# domain:          {domain}")
-    print(f"# https_port:      {https_port}")
-    print(f"# index:           {index}")
-    print(f"# os_host:         {os_host}")
-    print(f"# os_port:         {os_port}")
-    print(f"# dashboards_url:  {dashboards_url}")
-    print(f"# init_dashboards: {init_dashboards}")
-    print(f"# init_os:         {init_os}")
-    print("#")
-    print(f"# export_ndjson_path: {export_ndjson_path}")
-    print("#")
+    logger.info("Configuration:")
+    logger.info(f"domain:          {domain}")
+    logger.info(f"https_port:      {https_port}")
+    logger.info(f"index:           {index}")
+    logger.info(f"os_host:         {os_host}")
+    logger.info(f"os_port:         {os_port}")
+    logger.info(f"dashboards_url:  {dashboards_url}")
+    logger.info(f"init_dashboards: {init_dashboards}")
+    logger.info(f"init_os:         {init_os}")
+    logger.info(f"export_ndjson_path: {export_ndjson_path}")
 
     if domain is None:
-        print("DOMAIN env not set -> exiting..")
+        logger.error("DOMAIN env not set -> exiting..")
         exit(1)
 
     os_client = get_opensearch_client()
 
     if init_os:
-        print("# Initializing OpenSearch indices...")
+        logger.info("Initializing OpenSearch indices...")
         create_index()
-        print("# Done.")
+        logger.info("Done.")
 
     if init_dashboards:
-        print("# Initializing Dashboards...")
+        logger.info("Initializing Dashboards...")
         import_dashboards()
         set_ohif_template()
-        print("# Done.")
+        logger.info("Done.")
 
-    print("#")
-    print("#")
-    print("# All done - End of init-container.")
-    print("#")
-    print("#")
+    logger.info("All done - End of init-container.")

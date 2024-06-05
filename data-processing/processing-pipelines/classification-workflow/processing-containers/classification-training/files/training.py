@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import torch
@@ -14,9 +15,40 @@ from batchgenerators.transforms.sample_normalization_transforms import (
 )
 from batchgenerators_dataloader import ClassificationDataset
 from monai.networks.nets import resnet18
-from opensearch_helper import OpenSearchHelper
 from torch.utils.tensorboard import SummaryWriter
 from torchmetrics import Accuracy, F1Score
+
+from kaapanapy.Clients.OpensearchHelper import KaapanaOpensearchHelper
+
+os_client = KaapanaOpensearchHelper()
+
+
+def get_list_of_uids_of_tag(os_client: KaapanaOpensearchHelper, tag: str) -> List[str]:
+    try:
+        patient_uids = []
+        from_index = 0
+        size = 10
+        while True:
+            response = os_client.search(
+                index=os_client.target_index,
+                body={
+                    "query": {"term": {"00000000 Tags_keyword.keyword": tag}},
+                    "from": from_index,
+                    "size": size,
+                },
+            )
+            hits = response["hits"]["hits"]
+            patient_uids.extend([hit["_id"] for hit in hits])
+            total_hits = response["hits"]["total"]["value"]
+            if from_index + size >= total_hits:
+                break
+            from_index += size
+    except Exception as e:
+        logger.error(f"Error while fetching patient UIDs for tag {tag}: {e}")
+        exit(1)
+
+    return patient_uids
+
 
 os.environ["FOLD"] = "0"
 
@@ -195,7 +227,7 @@ if __name__ == "__main__":
     tag_to_uid_mapping = {}
 
     for tag in TAG_TO_CLASS_MAPPING.keys():
-        tag_to_uid_mapping[tag] = OpenSearchHelper.get_list_of_uids_of_tag(tag)
+        tag_to_uid_mapping[tag] = get_list_of_uids_of_tag(os_client, tag)
 
     # uids to class mapping
 

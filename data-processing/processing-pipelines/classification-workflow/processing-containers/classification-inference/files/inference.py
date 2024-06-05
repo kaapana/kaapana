@@ -14,7 +14,9 @@ from batchgenerators.transforms.sample_normalization_transforms import (
 )
 from batchgenerators_dataloader import ClassificationDataset
 from monai.networks.nets import resnet18
-from opensearch_helper import OpenSearchHelper
+from kaapanapy.Clients.OpensearchHelper import KaapanaOpensearchHelper
+
+os_client = KaapanaOpensearchHelper()
 
 RESULTS_DIR = Path("/models", os.environ["DAG_ID"], os.environ["RUN_ID"])
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -91,6 +93,24 @@ def inference(model, mt_val):
     return final_predictions
 
 
+def add_tag_to_id(os_client: KaapanaOpensearchHelper, doc_id: str, tag: str) -> None:
+    # Fetch the current tags of the document
+    response = os_client.get(
+        index=os_client.target_index,
+        id=doc_id,
+        _source_includes=["00000000 Tags_keyword"],
+    )
+    current_tags = response["_source"].get("00000000 Tags_keyword", [])
+
+    # Check if the tag is not already in the list
+    if tag not in current_tags:
+        current_tags.append(tag)
+        update_body = {"doc": {"00000000 Tags_keyword": current_tags}}
+
+        # Execute the update
+        os_client.update(index=os_client.target_index, id=doc_id, body=update_body)
+
+
 if __name__ == "__main__":
     spatial_dims = int(CONFIG["DIMENSIONS"][0])
 
@@ -158,4 +178,4 @@ if __name__ == "__main__":
             if TAG_POSTFIX
             else tag
         )
-        OpenSearchHelper.add_tag_to_id(id, tag)
+        add_tag_to_id(os_client, id, tag)

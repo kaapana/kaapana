@@ -721,6 +721,7 @@ def get_workflows(
     workflow_job_id: int = None,
     limit: int = -1,  # v-data-table return -1 for option `all`
     offset: int = 0,
+    search: str = None,
     db: Session = Depends(get_db),
 ):
     workflows, total_items = crud.get_workflows(
@@ -730,6 +731,7 @@ def get_workflows(
         workflow_job_id,
         limit=limit,
         offset=offset,
+        search=search,
     )
     for workflow in workflows:
         if workflow.kaapana_instance:

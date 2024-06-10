@@ -1521,6 +1521,7 @@ def get_workflows(
     workflow_job_id: Optional[int] = None,
     limit: Optional[int] = -1,  # v-data-table return -1 for option `all
     offset: int = 0,
+    search: Optional[str] = None,
 ):
     if limit == -1:
         limit = None
@@ -1532,7 +1533,6 @@ def get_workflows(
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Workflow.time_updated))
         )
-
     elif involved_instance_name is not None:
         query = base_query.filter(
             models.Workflow.involved_kaapana_instances.contains(involved_instance_name)
@@ -1545,6 +1545,9 @@ def get_workflows(
         query = base_query.join(models.Workflow.kaapana_instance).order_by(
             desc(models.Workflow.time_updated)
         )
+    if search is not None:
+        query = query.filter(models.Workflow.workflow_name.ilike(f"%{search}%"))
+
     workflows = (
         query.order_by(desc(models.Workflow.time_updated))
         .limit(limit)

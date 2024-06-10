@@ -60,7 +60,6 @@
       :items="filteredWorkflows"
       item-key="workflow_name"
       class="elevation-1"
-      :search="search"
       :expanded="expanded"
       @click:row="expandRow"
       :loading="loading"
@@ -240,14 +239,15 @@ export default {
       localInstance: {},
       loading: false,
       options: {
-        page :1,
+        page: 1,
         itemsPerPage: 10,
-      }
+        search: ''
+      },
     };
   },
 
   mounted() {
-    this.refreshClient();
+    // this.refreshClient();
     this.getLocalInstance();
   },
 
@@ -284,18 +284,27 @@ export default {
     extLoading() {
       this.loading = this.extLoading;
     },
+    search(newValue, oldValue) {
+      console.log("Search backend for: ", newValue);
+      this.loading = true;
+      this.options.search = newValue;
+      console.log("Search backend for: ", this.options);
+      this.$emit("update:options", this.options);
+    },
   },
 
   methods: {
     // General Methods
     refreshClient() {
+      console.log("Refresh Button");
       this.$emit("refreshView");
     },
     checkForRemoteUpdates() {
       kaapanaApiService.syncRemoteInstances().then((successful) => {});
     },
     updateOptions(options) {
-      this.loading=true;
+      console.log("Table options changed.");
+      this.loading = true;
       this.options = options;
       this.$emit("update:options", options);
     },
@@ -372,7 +381,6 @@ export default {
       console.log("Delete Workflow: ", this.deleteID, "Item:", item);
       this.deleteClientWorkflowAPI(this.deleteID);
     },
-
 
     // API Calls
     getLocalInstance() {

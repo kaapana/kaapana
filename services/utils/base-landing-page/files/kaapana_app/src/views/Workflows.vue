@@ -6,9 +6,9 @@
         :workflows="clientWorkflows"
         :extLoading="workflowTableLoading"
         :total-items="totalItems"
-        @refreshView="getClientWorkflows"
         :options.sync="options"
-        @update:options=""
+        @refreshView="getClientWorkflows"
+        @update:options="getClientWorkflows"
       ></workflow-table>
     </v-container>
   </div>
@@ -31,10 +31,12 @@ export default {
     clientWorkflows: [],
     workflowTableLoading: false,
     totalItems: 0,
+    search_string: "",
     options: {
       page: 1,
       itemsPerPage: 5,
-    }
+      search: "",
+    },
   }),
   created() {},
   mounted() {
@@ -46,21 +48,26 @@ export default {
   },
   methods: {
     getClientWorkflows() {
+      console.log("Fetching workflows");
       this.workflowTableLoading = true;
-      const { page, itemsPerPage } = this.options;
+      const { page, itemsPerPage, search } = this.options;
+      console.log("Search: ", search);
       kaapanaApiService
         .federatedClientApiGet("/workflows", {
           limit: itemsPerPage,
           offset: (page - 1) * itemsPerPage,
+          search: search,
         })
         .then((response) => {
           this.workflowTableLoading = false;
           this.clientWorkflows = response.data[0];
           this.totalItems = response.data[1];
-          this.$notify({
-            title: "Sucessfully refreshed workflow list.",
-            type: "success",
-          });
+          if (search === "") {
+            this.$notify({
+              title: "Sucessfully refreshed workflow list.",
+              type: "success",
+            });
+          }
         })
         .catch((err) => {
           this.workflowTableLoading = false;
@@ -75,8 +82,9 @@ export default {
     clearExtensionsInterval() {
       window.clearInterval(this.polling);
     },
+    // TODO Workflow list auto-refresh variable exported into settings/config.
     startExtensionsInterval() {
-      console.log("Surprise refresh")
+      console.log("Surprise refresh");
       this.polling = window.setInterval(() => {
         this.getClientWorkflows();
       }, 15000);

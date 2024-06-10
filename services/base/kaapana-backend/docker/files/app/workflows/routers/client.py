@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import jsonschema
 from app.datasets.utils import execute_opensearch_query
@@ -710,7 +710,8 @@ def get_workflow(
 
 # get_workflows
 @router.get(
-    "/workflows", response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
+    "/workflows",
+    response_model=Tuple[List[schemas.WorkflowWithKaapanaInstanceWithJobs], int],
 )
 # also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
 def get_workflows(
@@ -718,11 +719,11 @@ def get_workflows(
     instance_name: str = None,
     involved_instance_name: str = None,
     workflow_job_id: int = None,
-    limit: int = None,
-    offset: int = None,
+    limit: int = -1,  # v-data-table return -1 for option `all`
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
-    workflows = crud.get_workflows(
+    workflows, total_items = crud.get_workflows(
         db,
         instance_name,
         involved_instance_name,
@@ -735,7 +736,8 @@ def get_workflows(
             workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
                 workflow.kaapana_instance
             )
-    return workflows  # , username=request.headers["x-forwarded-preferred-username"]
+
+    return workflows, total_items
 
 
 # put/update_workflow

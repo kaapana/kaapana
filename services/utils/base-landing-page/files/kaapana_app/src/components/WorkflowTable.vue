@@ -65,8 +65,9 @@
       @click:row="expandRow"
       :loading="loading"
       loading-text="Request is processed - wait a few seconds."
-      @update:options="getItemPerPage($event.itemsPerPage)"
-      @update:page="getCurrentPage($event)"
+      :options.sync="options"
+      @update:options="updateOptions"
+      :server-items-length="totalItems"
     >
       <template v-slot:item.time_created="{ item }">
         {{ new Date(item.time_created).toLocaleString() }}
@@ -195,7 +196,7 @@
 </template>
 
 <script>
-import kaapanaApiService from "@/common/kaapanaApi.service";
+import kaapanaApiService from "@/common/kaapanaApi.service.ts";
 import JobTable from "./JobTable.vue";
 
 export default {
@@ -238,8 +239,10 @@ export default {
       shouldCollapse: true,
       localInstance: {},
       loading: false,
-      itemsPerPage: 10,
-      currentPage: 10,
+      options: {
+        page :1,
+        itemsPerPage: 10,
+      }
     };
   },
 
@@ -255,6 +258,10 @@ export default {
     },
     extLoading: {
       type: Boolean,
+      required: true,
+    },
+    totalItems: {
+      type: Number,
       required: true,
     },
   },
@@ -286,6 +293,11 @@ export default {
     },
     checkForRemoteUpdates() {
       kaapanaApiService.syncRemoteInstances().then((successful) => {});
+    },
+    updateOptions(options) {
+      this.loading=true;
+      this.options = options;
+      this.$emit("update:options", options);
     },
     expandRow(item) {
       if (this.shouldExpand == true) {
@@ -360,17 +372,7 @@ export default {
       console.log("Delete Workflow: ", this.deleteID, "Item:", item);
       this.deleteClientWorkflowAPI(this.deleteID);
     },
-    // Pagination
-    getItemPerPage(val) {
-      this.itemsPerPage = val;
-      this.$emit("update:itemsPerPage", val); // Emit event to parent
-      console.log("itemPerPage", val);
-    },
-    getCurrentPage(val) {
-      this.currentPage = val * this.itemsPerPage;
-      this.$emit("update:page", val); // Emit event to parent
-      console.log("page:", val);
-    },
+
 
     // API Calls
     getLocalInstance() {

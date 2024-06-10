@@ -5,9 +5,10 @@
       <workflow-table
         :workflows="clientWorkflows"
         :extLoading="workflowTableLoading"
-        @refreshView="getClientWorkflows()"
-        @update:itemsPerPage="updateItemsPerPage" 
-        @update:page="updateCurrentPage"
+        :total-items="totalItems"
+        @refreshView="getClientWorkflows"
+        :options.sync="options"
+        @update:options=""
       ></workflow-table>
     </v-container>
   </div>
@@ -16,7 +17,7 @@
 <script>
 import Vue from "vue";
 import { mapGetters } from "vuex";
-// import kaapanaApiService from "@/common/kaapanaApi.service";
+import kaapanaApiService from "@/common/kaapanaApi.service";
 
 import WorkflowTable from "@/components/WorkflowTable.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
@@ -29,6 +30,11 @@ export default {
     polling: 0,
     clientWorkflows: [],
     workflowTableLoading: false,
+    totalItems: 0,
+    options: {
+      page: 1,
+      itemsPerPage: 5,
+    }
   }),
   created() {},
   mounted() {
@@ -41,14 +47,16 @@ export default {
   methods: {
     getClientWorkflows() {
       this.workflowTableLoading = true;
+      const { page, itemsPerPage } = this.options;
       kaapanaApiService
         .federatedClientApiGet("/workflows", {
-          limit: this.itemsPerPage,
-          offset: this.currentPage * this.itemsPerPage,
+          limit: itemsPerPage,
+          offset: (page - 1) * itemsPerPage,
         })
         .then((response) => {
           this.workflowTableLoading = false;
-          this.clientWorkflows = response.data;
+          this.clientWorkflows = response.data[0];
+          this.totalItems = response.data[1];
           this.$notify({
             title: "Sucessfully refreshed workflow list.",
             type: "success",
@@ -63,26 +71,14 @@ export default {
           console.log(err);
         });
     },
-    updateItemsPerPage(newItemsPerPage) {
-      this.itemsPerPage = newItemsPerPage;
-      this.currentPage = 1; // Reset to the first page when itemsPerPage changes
-      this.getClientWorkflows();
-    },
-
-    updateCurrentPage(newPage) {
-      this.currentPage = newPage;
-      this.getClientWorkflows(); // Re-fetch workflows with the new page
-    },
 
     clearExtensionsInterval() {
       window.clearInterval(this.polling);
     },
     startExtensionsInterval() {
+      console.log("Surprise refresh")
       this.polling = window.setInterval(() => {
-        // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
-        // if (!this.$refs.workflowexecution.dialogOpen) {
         this.getClientWorkflows();
-        // }
       }, 15000);
     },
   },

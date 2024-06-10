@@ -7,7 +7,7 @@ import random
 import string
 import traceback
 import uuid
-from typing import List
+from typing import List, Optional
 
 import requests
 from app.config import settings
@@ -656,7 +656,7 @@ def sync_client_remote(
             continue
         outgoing_jobs.append(schemas.Job(**db_outgoing_job.__dict__).dict())
 
-        db_outgoing_workflow = get_workflows(db, workflow_job_id=db_outgoing_job.id)
+        db_outgoing_workflow, _ = get_workflows(db, workflow_job_id=db_outgoing_job.id)
         outgoing_workflow = (
             [
                 schemas.Workflow(**workflow.__dict__).dict()
@@ -1511,55 +1511,51 @@ def get_workflow(
         return db.query(models.Workflow).filter_by(dag_id=dag_id).first()
     # if not db_workflow:
     #     raise HTTPException(status_code=404, detail="Workflow not found")
-    # return db_workflow
+    # return db_workfloq
 
 
 def get_workflows(
     db: Session,
-    instance_name: str = None,
-    involved_instance_name: str = None,
-    workflow_job_id: int = None,
-    limit: int = None,
-    offset: int = None,
+    instance_name: Optional[str] = None,
+    involved_instance_name: Optional[str] = None,
+    workflow_job_id: Optional[int] = None,
+    limit: Optional[int] = -1,  # v-data-table return -1 for option `all
+    offset: int = 0,
 ):
+    if limit == -1:
+        limit = None
+    base_query = db.query(models.Workflow)
+
     if instance_name is not None:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.kaapana_instance, aliased=True)
+        query = (
+            base_query.join(models.Workflow.kaapana_instance, aliased=True)
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Workflow.time_updated))
-            .limit(limit)
-            .offset(offset)
-            .all()
         )
+
     elif involved_instance_name is not None:
-        return (
-            db.query(models.Workflow)
-            .filter(
-                models.Workflow.involved_kaapana_instances.contains(
-                    involved_instance_name
-                )
-            )
-            .offset(offset)
-            .all()
+        query = base_query.filter(
+            models.Workflow.involved_kaapana_instances.contains(involved_instance_name)
         )
     elif workflow_job_id is not None:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.workflow_jobs, aliased=True)
-            .filter_by(id=workflow_job_id)
-            .offset(offset)
-            .all()
+        query = base_query.join(models.Workflow.workflow_jobs, aliased=True).filter_by(
+            id=workflow_job_id
         )
     else:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.kaapana_instance)
-            .order_by(desc(models.Workflow.time_updated))
-            .limit(limit)
-            .offset(offset)
-            .all()
-        )  # , aliased=True
+        query = base_query.join(models.Workflow.kaapana_instance).order_by(
+            desc(models.Workflow.time_updated)
+        )
+    workflows = (
+        query.order_by(desc(models.Workflow.time_updated))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    total_count_subquery = query.statement.with_only_columns([func.count()]).order_by(
+        None
+    )
+    total_count = db.execute(total_count_subquery).scalar()
+    return workflows, total_count
 
 
 def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):

@@ -266,10 +266,12 @@ def get_jobs(
     workflow_name: str = None,
     status: str = None,
     limit: int = None,
+    dag_id: str = None,
+    username: str = None,
     db: Session = Depends(get_db),
 ):
     jobs = crud.get_jobs(
-        db, instance_name, workflow_name, status, remote=False, limit=limit
+        db, instance_name, workflow_name, status, remote=False, limit=limit, dag_id=dag_id, username=username
     )
     for job in jobs:
         if job.kaapana_instance:

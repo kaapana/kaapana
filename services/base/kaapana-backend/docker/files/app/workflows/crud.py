@@ -484,10 +484,19 @@ def get_jobs(
     status: str = None,
     remote: bool = True,
     limit=None,
+    dag_id: str =None,
+    username: str = None,
 ):
+    query = db.query(models.Job)
+    if dag_id is not None:
+        query = query.filter_by(dag_id=dag_id)
+    if username is not None:
+        query = query.filter_by(username=username)
+        
+    # The rest could be cleaned up someday, but it needs to be assessed what really needs to be returned depending on the if conditions...
     if instance_name is not None and status is not None:
         return (
-            db.query(models.Job)
+            query
             .filter_by(status=status)
             .join(models.Job.kaapana_instance, aliased=True)
             .filter_by(instance_name=instance_name)
@@ -497,7 +506,7 @@ def get_jobs(
         )  # same as org but w/o filtering by remote
     elif workflow_name is not None and status is not None:
         return (
-            db.query(models.Job)
+            query
             .filter_by(status=status)
             .join(models.Job.workflow, aliased=True)
             .filter_by(workflow_name=workflow_name)
@@ -507,7 +516,7 @@ def get_jobs(
         )
     elif instance_name is not None:
         return (
-            db.query(models.Job)
+            query
             .join(models.Job.kaapana_instance, aliased=True)
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
@@ -516,7 +525,7 @@ def get_jobs(
         )  # same as org but w/o filtering by remote
     elif workflow_name is not None:
         return (
-            db.query(models.Job)
+            query
             .join(models.Job.workflow, aliased=True)
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
@@ -525,7 +534,7 @@ def get_jobs(
         )
     elif status is not None:
         return (
-            db.query(models.Job)
+            query
             .filter_by(status=status)
             .join(models.Job.kaapana_instance, aliased=True)
             .order_by(desc(models.Job.time_updated))
@@ -534,7 +543,7 @@ def get_jobs(
         )  # same as org but w/o filtering by remote
     else:
         return (
-            db.query(models.Job)
+            query
             .join(models.Job.workflow, aliased=True)
             .join(models.Workflow.kaapana_instance, aliased=True)
             .filter_by(remote=remote)

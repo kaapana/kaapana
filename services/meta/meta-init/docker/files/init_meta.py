@@ -3,6 +3,7 @@
 
 import os
 from kaapanapy.Clients.OpensearchHelper import KaapanaOpensearchHelper
+from kaapanapy.Clients.KaapanaAuthorization import get_project_user_access_token
 from kaapanapy.logger import get_logger
 from opensearchpy.exceptions import TransportError
 import requests
@@ -19,7 +20,7 @@ logger = get_logger(__name__)
 
 
 def import_dashboards():
-    global dashboards_url, export_ndjson_path, osd_xsrf, tries
+    global dashboards_url, export_ndjson_path, tries
     logger.info(f"Importing dashboards from {export_ndjson_path} ...")
     time.sleep(5)
 
@@ -31,29 +32,20 @@ def import_dashboards():
         exit(1)
 
     try:
+        access_token = get_project_user_access_token()
+        logger.debug(f"{access_token=}")
         response = requests.post(
             f"{dashboards_url}/api/saved_objects/_import",
-            headers={"osd-xsrf": "true"},
+            headers={
+                "osd-xsrf": "true",
+                "Authorization": f"Bearer {access_token}",
+            },
             files=files,
-            auth=("admin", "admin"),
         )
+        logger.debug(response.text)
+        logger.debug(response.status_code)
+        response.raise_for_status()
 
-        if response.status_code == 200:
-            logger.info(f"# {export_ndjson_path}: OK!")
-
-        elif response.text == "OpenSearch Dashboards server is not ready yet":
-            logger.info("OpenSearch Dashboards server is not ready yet")
-            logger.info("waiting ...")
-            tries += 1
-            time.sleep(10)
-            logger.info("restart import_dashboards() ...")
-            import_dashboards()
-            return
-
-        else:
-            logger.error(f"Could not import dashboard: {export_ndjson_path}")
-            logger.error(response.text)
-            exit(1)
     except Exception as e:
         logger.warning(traceback.format_exc())
         logger.warning(f"Could not import dashboard: {export_ndjson_path} -> Exception")
@@ -67,7 +59,7 @@ def import_dashboards():
 
 
 def set_ohif_template():
-    global dashboards_url, domain, https_port, index, osd_xsrf
+    global dashboards_url, domain, https_port, index
     logger.info(f"Creating OHIF template ...")
     index_pattern = {
         "attributes": {
@@ -80,12 +72,15 @@ def set_ohif_template():
         }
     }
     try:
+        access_token = get_project_user_access_token()
         response = requests.put(
             f"{dashboards_url}/api/saved_objects/index-pattern/{index}?overwrite=true",
             data=json.dumps(index_pattern),
             verify=False,
-            headers=osd_xsrf,
-            auth=("admin", "admin"),
+            headers={
+                "osd-xsrf": "true",
+                "Authorization": f"Bearer {access_token}",
+            },
         )
         logger.info(f"response_code: {response.status_code}")
         if response.status_code == 200:
@@ -238,8 +233,6 @@ if __name__ == "__main__":
         True if os.getenv("INIT_DASHBOARDS", False).lower() == "true" else False
     )
     init_os = True if os.getenv("INIT_OPENSEARCH", False).lower() == "true" else False
-
-    osd_xsrf = {"osd-xsrf": "true"}
 
     # stack_version = os.getenv('STACKVERSION', '6.8.12')
     domain = os.getenv("DOMAIN", None)

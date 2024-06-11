@@ -37,8 +37,8 @@ spec:
           - /usr/share/opensearch/config/admin.pem
           - -key 
           - /usr/share/opensearch/config/admin-key.pem
-          - -f
-          - /usr/share/opensearch/config/opensearch-security/config.yml
+          - -cd
+          - /usr/share/opensearch/config/opensearch-security
           - --hostname
           - opensearch-service.{{ .Values.global.services_namespace }}.svc
           resources:
@@ -50,6 +50,9 @@ spec:
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch-security/config.yml
               subPath: config.yml
+            - name: sec-config
+              mountPath: /usr/share/opensearch/config/opensearch-security/internal_users.yml
+              subPath: internal_users.yml
       restartPolicy: Never
       volumes:
       - name: sec-config
@@ -58,6 +61,8 @@ spec:
           items:
           - key: config.yml
             path: config.yml
+          - key: internal_users.yml
+            path: internal_users.yml
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 10

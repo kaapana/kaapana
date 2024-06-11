@@ -2,7 +2,9 @@
 # -*- coding: utf-8; mode: python; indent-tabs-mode: nil; -*-
 
 import os
-from opensearchpy import OpenSearch
+from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
+from kaapanapy.logger import get_logger
+from opensearchpy.exceptions import TransportError
 import requests
 import traceback
 import json
@@ -13,16 +15,12 @@ tries = 0
 # TODO https://discuss.elastic.co/t/reloading-the-index-field-list-automatically/116687
 # https://<domain>/meta/api/index_patterns/_fields_for_wildcard?pattern=meta-index&meta_fields=%5B%22_source%22%2C%22_id%22%2C%22_type%22%2C%22_index%22%2C%22_score%22%5D
 
-logging.basicConfig(
-    format="%(asctime)s : %(levelname)s : %(message)s", level=logging.INFO
-)
+logger = get_logger(__name__)
 
 
 def import_dashboards():
-    global dashboards_url, export_ndjson_path, osd_xsrf, tries
-    print("#")
-    print(f"# -> Importing dashboards from {export_ndjson_path} ...")
-    print("#")
+    global dashboards_url, export_ndjson_path, tries
+    logger.info(f"Importing dashboards from {export_ndjson_path} ...")
     time.sleep(5)
 
     files = {
@@ -34,33 +32,20 @@ def import_dashboards():
         exit(1)
 
     try:
+        access_token = get_project_user_access_token()
+        logger.debug(f"{access_token=}")
         response = requests.post(
             f"{dashboards_url}/api/saved_objects/_import",
-            headers={"osd-xsrf": "true"},
+            headers={
+                "osd-xsrf": "true",
+                "Authorization": f"Bearer {access_token}",
+            },
             files=files,
-            auth=("admin", "admin"),
         )
+        logger.debug(response.text)
+        logger.debug(response.status_code)
+        response.raise_for_status()
 
-        if response.status_code == 200:
-            print(f"# {export_ndjson_path}: OK!")
-            print("#")
-
-        elif response.text == "OpenSearch Dashboards server is not ready yet":
-            print("#")
-            print("# -> OpenSearch Dashboards server is not ready yet")
-            print("# waiting ...")
-            tries += 1
-            time.sleep(10)
-            print("# restart import_dashboards() ...")
-            import_dashboards()
-            return
-
-        else:
-            print("#")
-            print(f"# Could not import dashboard: {export_ndjson_path}")
-            print(response.text)
-            print("#")
-            exit(1)
     except Exception as e:
         logging.error(traceback.format_exc())
         print("#")
@@ -80,10 +65,8 @@ def import_dashboards():
 
 
 def set_ohif_template():
-    global dashboards_url, domain, https_port, index, osd_xsrf
-    print("#")
-    print(f"# -> Creating OHIF template ...")
-    print("#")
+    global dashboards_url, domain, https_port, index
+    logger.info(f"Creating OHIF template ...")
     index_pattern = {
         "attributes": {
             "title": "{}".format(index),
@@ -95,12 +78,15 @@ def set_ohif_template():
         }
     }
     try:
+        access_token = get_project_user_access_token()
         response = requests.put(
             f"{dashboards_url}/api/saved_objects/index-pattern/{index}?overwrite=true",
             data=json.dumps(index_pattern),
             verify=False,
-            headers=osd_xsrf,
-            auth=("admin", "admin"),
+            headers={
+                "osd-xsrf": "true",
+                "Authorization": f"Bearer {access_token}",
+            },
         )
         print(f"# response_code: {response.status_code}")
         if response.status_code == 200:
@@ -267,8 +253,6 @@ if __name__ == "__main__":
     )
     init_os = True if os.getenv("INIT_OPENSEARCH", False).lower() == "true" else False
 
-    osd_xsrf = {"osd-xsrf": "true"}
-
     # stack_version = os.getenv('STACKVERSION', '6.8.12')
     domain = os.getenv("DOMAIN", None)
     https_port = os.getenv("HTTPS_PORT", None)
@@ -299,19 +283,7 @@ if __name__ == "__main__":
 
     auth = ("admin", "admin")
     # auth = None
-    os_client = OpenSearch(
-        hosts=[{"host": os_host, "port": os_port}],
-        http_compress=True,  # enables gzip compression for request bodies
-        http_auth=auth,
-        # client_cert = client_cert_path,
-        # client_key = client_key_path,
-        use_ssl=True,
-        verify_certs=False,
-        ssl_assert_hostname=False,
-        ssl_show_warn=False,
-        timeout=10,
-        # ca_certs = ca_certs_path
-    )
+    os_client = get_opensearch_client()
 
     if init_os:
         print("# Initializing OpenSearch indices...")

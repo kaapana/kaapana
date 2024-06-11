@@ -23,8 +23,7 @@ SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
 
 index = "meta-index"
 
-access_token = get_project_user_access_token()
-os_client = KaapanaOpensearchHelper(access_token, index)
+os_client = KaapanaOpensearchHelper(index=index)
 
 
 def send_file():
@@ -33,82 +32,72 @@ def send_file():
     counter = 0
     if os.path.exists(tmp_data_dir):
         print("Found existing dicom data!")
-        while counter < max_count:
-            dcm_dirs = []
-            counter += 1
+    else:
+        print(f"Dicom data not found: {tmp_data_dir=}")
+        return None
 
-            file_list = glob.glob(tmp_data_dir + "/**/*", recursive=True)
-            for fi in file_list:
-                if os.path.isfile(fi):
-                    dcm_dirs.append(os.path.dirname(fi))
-            dcm_dirs = list(set(dcm_dirs))
+    while counter < max_count:
+        dcm_dirs = []
+        counter += 1
 
-            print("Files found: {}".format(len(file_list)))
-            print("Dcm dirs found: {}".format(len(dcm_dirs)))
-            if len(dcm_dirs) == 0:
-                print("Delete TMP dir!")
-                shutil.rmtree(tmp_data_dir)
-                break
+        file_list = glob.glob(tmp_data_dir + "/**/*", recursive=True)
+        for fi in file_list:
+            if os.path.isfile(fi):
+                dcm_dirs.append(os.path.dirname(fi))
+        dcm_dirs = list(set(dcm_dirs))
 
-            for dcm_dir in dcm_dirs:
-                try:
-                    dcm_file = os.path.join(dcm_dir, os.listdir(dcm_dir)[0])
-                    print("dcm-file: {}".format(dcm_file))
-                    dataset = pydicom.dcmread(dcm_file)[0x0012, 0x0020].value
+        print("Files found: {}".format(len(file_list)))
+        print("Dcm dirs found: {}".format(len(dcm_dirs)))
+        if len(dcm_dirs) == 0:
+            print("Delete TMP dir!")
+            shutil.rmtree(tmp_data_dir)
+            break
 
-                    command = [
-                        "dcmsend",
-                        "+sd",
-                        "+r",
-                        "-v",
-                        ctp_url,
-                        dcm_port,
-                        "-aet",
-                        "re-index",
-                        "-aec",
-                        dataset,
-                        dcm_dir,
-                    ]
-                    # output = run(command)
-                    output = run(
-                        command, stdout=PIPE, stderr=PIPE, universal_newlines=True
-                    )
-                    if output.returncode == 0:
-                        files_sent += 1
-                        print(
-                            "############################ success: {}".format(
-                                files_sent
-                            )
-                        )
-                        shutil.rmtree(dcm_dir)
-                    else:
-                        print("error sending img: {}!".format(dcm_dir))
-                        print(
-                            "############################################################################################################## STDOUT:"
-                        )
-                        print(output.stdout)
-                        print(
-                            "############################################################################################################## STDERR:"
-                        )
-                        print(output.stderr)
-                        raise
-                except Exception as e:
-                    print(e)
-                    error_dcm_path = dcm_dir.replace("TMP", "TMP_ERROR")
-                    print("Error while sending dcm... ")
-                    print("Moving data to {}".format(error_dcm_path))
-                    if not os.path.exists(error_dcm_path):
-                        os.makedirs(error_dcm_path)
-                    shutil.move(dcm_dir, error_dcm_path)
+        for dcm_dir in dcm_dirs:
+            try:
+                dcm_file = os.path.join(dcm_dir, os.listdir(dcm_dir)[0])
+                print("dcm-file: {}".format(dcm_file))
+                dataset = pydicom.dcmread(dcm_file)[0x0012, 0x0020].value
 
-            if counter >= max_count:
-                print(
-                    "------------------------------------------------------------------> Max loops exception!"
-                )
-                print("Sent dicoms: {}".format(files_sent))
-                exit(0)
+                command = [
+                    "dcmsend",
+                    "+sd",
+                    "+r",
+                    "-v",
+                    ctp_url,
+                    dcm_port,
+                    "-aet",
+                    "re-index",
+                    "-aec",
+                    dataset,
+                    dcm_dir,
+                ]
+                # output = run(command)
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+                if output.returncode == 0:
+                    files_sent += 1
+                    print(f"Success: {files_sent}")
+                    shutil.rmtree(dcm_dir)
+                else:
+                    print(f"Error sending img: {dcm_dir}!")
+                    print(output.stdout)
+                    print(output.stderr)
+                    raise AssertionError("Error during dcmsend!")
+            except Exception as e:
+                print(e)
+                error_dcm_path = dcm_dir.replace("TMP", "TMP_ERROR")
+                print("Error while sending dcm... ")
+                print("Moving data to {}".format(error_dcm_path))
+                if not os.path.exists(error_dcm_path):
+                    os.makedirs(error_dcm_path)
+                shutil.move(dcm_dir, error_dcm_path)
 
-        print("Sent dicoms: {}".format(files_sent))
+        if counter >= max_count:
+            print("Max loops exception!")
+            print(f"Sent dicoms: {files_sent}")
+            exit(1)
+
+    print(f"Sent dicoms: {files_sent}")
 
 
 # first file will init meta
@@ -132,7 +121,7 @@ def send_meta_init():
     ]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
-        print("############################ Push init meta dicom -> success")
+        print("Push init meta dicom -> success")
         example_file_list = glob.glob(
             "/dicom_test_data/init_data" + "/*.dcm", recursive=True
         )
@@ -147,75 +136,57 @@ def send_meta_init():
         return examples_send
     else:
         print("error sending example dicom!")
-        print(
-            "############################################################################################################## STDOUT:"
-        )
         print(output.stdout)
-        print(
-            "############################################################################################################## STDERR:"
-        )
         print(output.stderr)
         exit(1)
 
 
 def check_file_on_platform(examples_send):
     for file in examples_send:
-        max_counter = 100
-        counter = 0
         quido_success = wait_for_file_in_pacs(file, application_entity="KAAPANA")
         if not quido_success:
             print("File not found in PACs!")
             exit(1)
-        max_counter = 20
-        counter = 0
-        meta_query_success = False
-        while True:
-            if counter > max_counter:
-                print("# Could not find series in META!")
-                print(f"# counter {counter} > max_counter {max_counter} !")
-                exit(1)
 
-            queryDict = {}
-            queryDict["query"] = {
-                "bool": {
-                    "must": [
-                        {"match_all": {}},
-                        {
-                            "match_phrase": {
-                                "0020000E SeriesInstanceUID_keyword.keyword": {
-                                    "query": file["series_uid"]
-                                }
-                            }
-                        },
-                    ],
-                    "filter": [],
-                    "should": [],
-                    "must_not": [],
-                }
-            }
-
-            queryDict["_source"] = {}
-            try:
-                res = os_client.search(
-                    index=[index], body=queryDict, size=10000, from_=0
-                )
-            except Exception as e:
-                print("Could not request Opensearch! Error:")
-                print(e)
-                counter += 1
-                time.sleep(10)
-
-            hits = res["hits"]["hits"]
-            print(("GOT %s results, wait and retry!" % len(hits)))
-            if len(hits) == 1:
-                meta_query_success = True
-                break
-            else:
-                counter += 1
-                time.sleep(5)
+        meta_query_success = wait_for_file_in_opensearch(file)
         if not meta_query_success:
             print("File not found in META!")
-            exit(0)
+            exit(1)
+
+
+def wait_for_file_in_opensearch(file):
+    queryDict = {}
+    queryDict["query"] = {
+        "bool": {
+            "must": [
+                {"match_all": {}},
+                {
+                    "match_phrase": {
+                        "0020000E SeriesInstanceUID_keyword.keyword": {
+                            "query": file["series_uid"]
+                        }
+                    }
+                },
+            ],
+            "filter": [],
+            "should": [],
+            "must_not": [],
+        }
+    }
+    queryDict["_source"] = {}
+    for _ in range(20):
+        try:
+            res = os_client.search(index=[index], body=queryDict, size=10000, from_=0)
+            hits = res["hits"]["hits"]
+            print(f"GOT {len(hits)} results, wait and retry!")
+            if len(hits) == 1:
+                return True
+        except Exception as e:
+            print("Could not request Opensearch! Error:")
+            print(e)
+        finally:
+            time.sleep(10)
+    return False
 
 
 def trigger_delete_dag(examples_send):
@@ -269,16 +240,10 @@ def send_example():
     ]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if output.returncode == 0:
-        print("############################ success send example")
+        print("Success send example")
     else:
         print("error sending img: {}!".format(example_dir))
-        print(
-            "############################################################################################################## STDOUT:"
-        )
         print(output.stdout)
-        print(
-            "############################################################################################################## STDERR:"
-        )
         print(output.stderr)
 
 

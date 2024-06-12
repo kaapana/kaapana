@@ -1,5 +1,5 @@
 global:
-  dev_files: /home/m395c/kaapana/services/utils/base-landing-page/files/kaapana_app/src
+  dev_files: false
   dynamicVolumes:
   - name: minio-thumbnails
     mount_path: /kaapana/app/thumbnails/

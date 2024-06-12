@@ -56,7 +56,7 @@ class OfflineInstallerHelper:
             )
 
         name = "nvidia/gpu-operator"
-        version = "v22.9.2"
+        version = "v22.9.1"
         command = [
             "helm",
             "pull",

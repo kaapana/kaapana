@@ -1,5 +1,5 @@
 # crud.py
-from sqlalchemy.future import select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from models import (
@@ -7,8 +7,6 @@ from models import (
     Projects,
     Data,
     Rights,
-    DICOMSeries,
-    DummyDataType,
     UsersProjectsRoles,
     DataProjects,
     RolesRights,

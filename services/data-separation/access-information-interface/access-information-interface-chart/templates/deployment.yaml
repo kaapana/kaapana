@@ -24,10 +24,10 @@ spec:
         - name: POSTGRES_USER
           value: {{ .Values.global.postgres_user }}
         - name: POSTGRES_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: access-information-point-postgres-password
-                key: access-information-point-postgres-password
+          valueFrom:
+            secretKeyRef:
+              name: access-information-point-postgres-password
+              key: access-information-point-postgres-password
         - name: PORT
           value: "8080"
         - name: WORKERS

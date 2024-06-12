@@ -1,6 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="kaapana-persistence-backend"
+LABEL IMAGE="access-information-interface"
 LABEL VERSION="0.1.0"
 LABEL BUILD_IGNORE="False"
 

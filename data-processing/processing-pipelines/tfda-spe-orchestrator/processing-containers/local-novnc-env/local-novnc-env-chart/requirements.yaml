@@ -1,0 +1,6 @@
+---
+dependencies:
+- name: kaapana-library-chart
+  version: 0.0.0
+  # repository: file://../../../../../../services/utils/kaapana-library-chart
+  

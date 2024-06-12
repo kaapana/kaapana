@@ -18,7 +18,7 @@ Base = declarative_base()
 class Users(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    keycloak_id = Column(String)
+    keycloak_id = Column(String, unique=True, nullable=False)
     projects = relationship("Projects", secondary="users_projects_roles")
 
 
@@ -43,8 +43,8 @@ class Rights(Base):
     __tablename__ = "rights"
     id = Column(Integer, primary_key=True, autoincrement=True)
     description = Column(String)
-    claim_key = Column(String)
-    claim_value = Column(String)
+    claim_key = Column(String, nullable=False)
+    claim_value = Column(String, nullable=False)
     roles = relationship("Roles", secondary="roles_rights")
 
 
@@ -59,7 +59,8 @@ class Data(Base):
 
 class DICOMSeries(Base):
     __tablename__ = "dicom_series"
-    series_instance_uid = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    series_instance_uid = Column(String, unique=True, nullable=False)
     data_id = Column(Integer, ForeignKey("data.id"), unique=True)
     data = relationship("Data", uselist=False)
 

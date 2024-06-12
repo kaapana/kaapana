@@ -5,7 +5,7 @@ import pathlib
 import subprocess
 
 chart_name = "gpu-operator"
-chart_version = "v22.9.2"
+chart_version = "v22.9.1"
 chart_path = "/home/kaapana/installation-scripts/gpu-operator.tgz"
 
 try:

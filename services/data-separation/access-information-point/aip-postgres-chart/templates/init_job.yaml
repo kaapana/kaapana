@@ -1,0 +1,44 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "aip-database-init"
+  namespace: "{{ .Values.global.admin_namespace }}"
+spec:
+  template:
+    metadata:
+      name: aip-database-init
+    spec:
+        initContainers:
+        - name: init
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+          env:
+            - name: WAIT
+              value: "aip-postgres-service,aip-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432"
+            - name: DELAY
+              value: "3"
+            - name: TIMEOUT
+              value: "10"
+        containers:
+        - name: aip-database-init
+          image: "{{ .Values.global.registry_url }}/access-information-point-init:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  "{{ .Values.global.pull_policy_images }}"
+          env:
+          - name: POSTGRES_USER
+            value: {{ .Values.global.postgres_user }}
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: access-information-point-postgres-password
+                key: access-information-point-postgres-password
+          resources:
+            requests:
+              memory: 200Mi
+            limits:
+              memory: 200Mi
+          env:
+        restartPolicy: Never
+        serviceAccountName: kaapana-kube-admin
+        imagePullSecrets:
+        - name: registry-secret

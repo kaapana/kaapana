@@ -2,5 +2,5 @@
 global:
   dynamicVolumes:
   - name: access-information-point
-      host_path: /postgres-access-information-point
+    host_path: /postgres-access-information-point
   postgres_user: kaapanauser

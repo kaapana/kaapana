@@ -1,15 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String, Sequence
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
-
-from config import (
-    POSTGRES_USERNAME,
-    POSTGRES_PASSWORD,
-    POSTGRES_HOST,
-    POSTGRES_PORT,
-    DATABASE_NAME,
-)
 
 Base = declarative_base()
 
@@ -50,28 +42,15 @@ class Rights(Base):
 
 class Data(Base):
     __tablename__ = "data"
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(
+        Integer, primary_key=True, autoincrement=True
+    )  # For faster querying (Int vs String)
     description = Column(String)
     data_type = Column(String)
+    data_storage_id = Column(
+        String, nullable=False, unique=True
+    )  # In case of DICOM data, this is the SeriesInstanceUID
     projects = relationship("Projects", secondary="data_projects")
-    dicom_series = relationship("DICOMSeries", uselist=False)
-    dummy_data_type = relationship("DummyDataType", uselist=False)
-
-
-class DICOMSeries(Base):
-    __tablename__ = "dicom_series"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    series_instance_uid = Column(String, unique=True, nullable=False)
-    data_id = Column(Integer, ForeignKey("data.id"), unique=True)
-    data = relationship("Data", uselist=False)
-
-
-class DummyDataType(Base):
-    __tablename__ = "dummy_data_type"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    data_id = Column(Integer, ForeignKey("data.id"), unique=True)
-    dummy_text = Column(String, nullable=False)
-    data = relationship("Data", uselist=False)
 
 
 # Relationship tables
@@ -100,16 +79,3 @@ class DataProjects(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     data_id = Column(Integer, ForeignKey("data.id"))
     project_id = Column(Integer, ForeignKey("projects.id"))
-
-
-engine = create_engine(
-    f"postgresql+psycopg2://{POSTGRES_USERNAME}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{DATABASE_NAME}"
-)
-
-Base.metadata.create_all(engine)
-
-# TODO: Prepared statements
-# TODO: Indexes
-# TODO: Seperation of concerns
-# TODO: Concept: Partitioning (Maybe creation date)
-# TODO: Hashing and Cache

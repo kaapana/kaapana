@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-from .schemas import Projects, Data, Rights
+from ..schemas import Projects, Data, Rights
 from .crud import get_user_projects, get_project_data, get_user_rights
 
-from .database import get_session
+from ..database import get_session
 
 router = APIRouter()
 

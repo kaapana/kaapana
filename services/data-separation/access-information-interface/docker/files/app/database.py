@@ -1,16 +1,16 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
 from typing import AsyncGenerator
 
-from config import (
-    POSTGRES_USERNAME,
+from .config import (
+    POSTGRES_USER,
     POSTGRES_PASSWORD,
     POSTGRES_HOST,
     POSTGRES_PORT,
-    DATABASE_NAME,
 )
 
-DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USERNAME}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{DATABASE_NAME}"
+DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}"
 
 async_engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = sessionmaker(
@@ -21,3 +21,8 @@ async_session = sessionmaker(
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
+
+
+engine = create_engine(
+    f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}"
+) # TODO async engine

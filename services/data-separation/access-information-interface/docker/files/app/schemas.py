@@ -5,23 +5,23 @@ class OrmBaseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class Users(OrmBaseModel):
+class User(OrmBaseModel):
     id: int
     keycloak_id: str
 
 
-class Projects(OrmBaseModel):
+class Project(OrmBaseModel):
     id: int
     name: str
     description: str
 
 
-class Roles(OrmBaseModel):
+class Role(OrmBaseModel):
     description: str
     name: str
 
 
-class Rights(OrmBaseModel):
+class Right(OrmBaseModel):
     description: str
     claim_key: str
     claim_value: str

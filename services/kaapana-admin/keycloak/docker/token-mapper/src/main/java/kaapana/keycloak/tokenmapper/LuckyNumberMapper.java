@@ -60,11 +60,19 @@ public class LuckyNumberMapper extends AbstractOIDCProtocolMapper
 
 	@Override
 	protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession, KeycloakSession keycloakSession, ClientSessionContext clientSessionCtx) {
+		// Get Keycloak ID of the user
+		String userId = userSession.getUser().getId();
+		
 		int lower = Integer.parseInt(mappingModel.getConfig().get(LOWER_BOUND));
 		int upper = Integer.parseInt(mappingModel.getConfig().get(UPPER_BOUND));
 
 		int luckyNumber = (int) (Math.random() * (upper - lower)) + lower;
-
+		
+		// Set the lucky number claim
 		OIDCAttributeMapperHelper.mapClaim(token, mappingModel, luckyNumber);
+		
+		// Set claims directly on the token
+		token.getOtherClaims().put("customClaim1", "value1");
+		token.getOtherClaims().put("customClaim2", "value2");
 	}
 }

@@ -26,10 +26,10 @@ spec:
         - name: POSTGRES_USER
           value: {{ .Values.global.postgres_user }}
         - name: POSTGRES_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: access-information-point-postgres-password
-                key: access-information-point-postgres-password
+          valueFrom:
+            secretKeyRef:
+              name: access-information-point-postgres-password
+              key: access-information-point-postgres-password
         ports: # Port(s) on which your application runs
           - containerPort: 5432
         resources:
@@ -38,17 +38,14 @@ spec:
           requests:
             memory: "100Mi"
         volumeMounts:
-          - name: postgres-data # key of volume mount
-            mountPath: "/var/lib/postgresql/data" # path in container
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
           - name:  unix-socket-dir
             mountPath: /var/run/postgresql
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
       volumes:
-      - name: postgres-data # key of volume mount
-        persistentVolumeClaim:
-          claimName: access-information-point-pv-claim
+{{ include "dynamicVolumes" $ | indent 6 }}
       - name: unix-socket-dir
         emptyDir: {}
       priorityClassName: kaapana-high-priority

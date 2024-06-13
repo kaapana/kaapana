@@ -1,12 +1,10 @@
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from ..models import (
-    Users,
-    Projects,
-    Data,
-    Rights,
-    UsersProjectsRoles,
-    DataProjects,
-    RolesRights,
-)
+from ..models import Projects
+from . import schemas
+
+
+async def create_project(session: AsyncSession, project: schemas.CreateProject):
+    new_project = Projects(name=project.name, description=project.description)
+    session.add(new_project)
+    await session.commit()
+    return new_project

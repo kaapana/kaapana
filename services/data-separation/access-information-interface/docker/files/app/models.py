@@ -6,14 +6,6 @@ from sqlalchemy.orm import relationship
 Base = declarative_base()
 
 
-# Object tables
-class Users(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    keycloak_id = Column(String, unique=True, nullable=False)
-    projects = relationship("Projects", secondary="users_projects_roles")
-
-
 class Projects(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -35,6 +27,7 @@ class Rights(Base):
     __tablename__ = "rights"
     id = Column(Integer, primary_key=True, autoincrement=True)
     description = Column(String)
+    name = Column(String)
     claim_key = Column(String, nullable=False)
     claim_value = Column(String, nullable=False)
     roles = relationship("Roles", secondary="roles_rights")
@@ -60,9 +53,9 @@ class Data(Base):
 class UsersProjectsRoles(Base):
     __tablename__ = "users_projects_roles"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
     project_id = Column(Integer, ForeignKey("projects.id"))
     role_id = Column(Integer, ForeignKey("roles.id"))
+    keycloak_id = Column(String(length=36), nullable=False)
 
 
 # Roles have a set of rights

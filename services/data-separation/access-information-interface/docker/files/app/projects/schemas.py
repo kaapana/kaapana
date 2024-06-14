@@ -14,3 +14,16 @@ class Project(OrmBaseModel):
     id: int
     name: str
     description: str
+
+class CreateRight(OrmBaseModel):
+    claim_key: str
+    claim_value: str
+    name: str
+    description: str
+
+class Right(OrmBaseModel):
+    id: int
+    name: str
+    description: str
+    claim_key: str
+    claim_value: str

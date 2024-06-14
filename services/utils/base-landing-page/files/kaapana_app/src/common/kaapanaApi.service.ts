@@ -277,4 +277,4 @@ import routes from '@/routes/routes'
     syncRemoteInstances
   }
 
-export default kaapanaApiService
+export default kaapanaApiService;

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    # await init_scripts.initial_database_population()
+    await init_scripts.initial_database_population()
     yield  # This yield separates startup from shutdown code
     # Code here would run after the application stops
 

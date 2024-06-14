@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from sqlalchemy import select
-from ..models import Projects, Rights, Roles
+from ..models import Projects, Rights, Roles, RolesRights
 from . import schemas
 
 
@@ -30,3 +30,8 @@ async def create_roles(session: AsyncSession, role: schemas.CreateRole):
 async def get_roles(session: AsyncSession):
     result = await session.execute(select(Roles))
     return result.scalars().all()
+
+async def create_roles_rights_mapping(session: AsyncSession, role_id: int, right_id: int):
+    await session.execute(RolesRights.insert().values(role_id=role_id, right_id=right_id))
+    await session.commit()
+    return True

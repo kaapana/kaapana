@@ -15,6 +15,7 @@ import logging
 import json
 from keycloak import KeycloakAdmin
 import os
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -98,26 +99,53 @@ async def initial_database_population():
             verify=False,  # Set to False to disable SSL verification
         )
 
-        keycloak_admin.get_realms() # I dont know why, but without this line it throws authentication errors
+        # Wait for the realm to be available
+        for i in range(10):  # Try 10 times
+            realms = keycloak_admin.get_realms()
+            if kaapana_realm in [
+                realm["realm"] for realm in realms
+            ]:  # If kaaapana realm is available
+                logger.info(f"Realm {kaapana_realm} is available")
+                break
+            logger.info(
+                f"Waiting for realm {kaapana_realm} to be available, attempt {i+1}/10"
+            )
+            time.sleep(5)  # Wait 5 seconds
 
         # Switch to the kaapana realm
         keycloak_admin.change_current_realm(kaapana_realm)
 
-        # Give admin user the admin role in the admin project
-        admin_user_keycloak_id = keycloak_admin.get_user_id(
-            username=admin_user_in_kaapana_realm
-        )
-
-        if not admin_user_keycloak_id:
-            logger.error(f"User {admin_user_in_kaapana_realm} not found in keycloak")
-            return
+        # Wait for the admin user to be available
+        for i in range(10):  # Try 10 times
+            admin_user_keycloak_id = (
+                keycloak_admin.get_user_id(  # Get the keycloak id of the admin user
+                    username=admin_user_in_kaapana_realm
+                )
+            )
+            if admin_user_keycloak_id:  # Jump out of the loop if the user is found
+                logger.info(f"User {admin_user_in_kaapana_realm} found in keycloak")
+                break
+            logger.info(
+                f"Waiting for user {admin_user_in_kaapana_realm} to be available, attempt {i+1}/10"
+            )  # Log the attempt
+            time.sleep(5)
+            if i == 9:
+                logger.error(
+                    f"User {admin_user_in_kaapana_realm} not found in keycloak"
+                )  # Log an error if the user is not found
+                raise Exception(
+                    f"User {admin_user_in_kaapana_realm} not found in keycloak"
+                )
 
         admin_role = await get_roles(session, name="admin")
         admin_project = await get_projects(session, name="admin")
 
         try:
             await create_users_projects_roles_mapping(
-                session=session, keycloak_id=admin_user_keycloak_id, project_id=admin_project[0].id, role_id=admin_role[0].id
+                session=session,
+                keycloak_id=admin_user_keycloak_id,
+                project_id=admin_project[0].id,
+                role_id=admin_role[0].id,
             )
         except IntegrityError:
             logger.warning(

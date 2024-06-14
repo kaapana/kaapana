@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import List
 from sqlalchemy import select
-from ..models import Projects, Rights
+from ..models import Projects, Rights, Roles
 from . import schemas
 
 
@@ -18,4 +19,14 @@ async def create_rights(session: AsyncSession, right: schemas.CreateRight):
 
 async def get_rights(session: AsyncSession):
     result = await session.execute(select(Rights))
+    return result.scalars().all()
+
+async def create_roles(session: AsyncSession, role: schemas.CreateRole):
+    new_role = Roles(name=role.name, description=role.description)
+    session.add(new_role)
+    await session.commit()
+    return new_role
+
+async def get_roles(session: AsyncSession):
+    result = await session.execute(select(Roles))
     return result.scalars().all()

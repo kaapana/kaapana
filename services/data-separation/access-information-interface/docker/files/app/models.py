@@ -9,7 +9,7 @@ Base = declarative_base()
 class Projects(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String)
+    name = Column(String, unique=True)
     description = Column(String)
     data = relationship("Data", secondary="data_projects")
 
@@ -18,7 +18,7 @@ class Roles(Base):
     __tablename__ = "roles"
     id = Column(Integer, primary_key=True, autoincrement=True)
     description = Column(String)
-    name = Column(String)
+    name = Column(String, unique=True)
     rights = relationship("Rights", secondary="roles_rights")
 
 
@@ -26,7 +26,7 @@ class Rights(Base):
     __tablename__ = "rights"
     id = Column(Integer, primary_key=True, autoincrement=True)
     description = Column(String)
-    name = Column(String)
+    name = Column(String, unique=True)
     claim_key = Column(String, nullable=False)
     claim_value = Column(String, nullable=False)
     roles = relationship("Roles", secondary="roles_rights")
@@ -71,3 +71,6 @@ class DataProjects(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     data_id = Column(Integer, ForeignKey("data.id"))
     project_id = Column(Integer, ForeignKey("projects.id"))
+
+
+### TODO We might need indices to avoid duplicated rows in the relationship tables

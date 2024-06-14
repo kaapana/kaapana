@@ -16,9 +16,9 @@ async def projects(
     return await crud.create_project(session, project)
 
 @router.get("/rights", response_model=List[Right], tags=["Projects"])
-async def get_rights(session: AsyncSession = Depends(get_session)):
-    return await crud.get_rights(session)
+async def get_rights(session: AsyncSession = Depends(get_session), name: str = None):
+    return await crud.get_rights(session, name=name)
 
 @router.get("/roles", response_model=List[Role], tags=["Projects"])
-async def get_roles(session: AsyncSession = Depends(get_session)):
-    return await crud.get_roles(session)
+async def get_roles(session: AsyncSession = Depends(get_session), name: str = None):
+    return await crud.get_roles(session, name=name)

@@ -12,7 +12,6 @@ class Projects(Base):
     name = Column(String)
     description = Column(String)
     data = relationship("Data", secondary="data_projects")
-    users = relationship("Users", secondary="users_projects_roles")
 
 
 class Roles(Base):

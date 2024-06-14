@@ -24,6 +24,11 @@ TIMEOUT_SEC = 5
 TIMEOUT = Timeout(TIMEOUT_SEC)
 
 
+def generate_run_id(dag_id):
+    run_id = datetime.datetime.now().strftime("%y%m%d%H%M%S%f")
+    run_id = "{}-{}".format(dag_id, run_id)
+    return run_id
+
 class HelperMinio(Minio):
     """
     Helper class for making authorized requests to the minio API
@@ -258,7 +263,8 @@ def execute_job_airflow(conf_data, db_job):
             json={
                 "conf": {
                     **conf_data,
-                }
+                },
+                "run_id": db_job.run_id,
             },
         )
     raise_kaapana_connection_error(resp)

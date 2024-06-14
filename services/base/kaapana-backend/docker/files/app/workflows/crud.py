@@ -20,6 +20,7 @@ from app.database import SessionLocal
 from . import models, schemas
 from .schemas import DatasetCreate
 from .utils import (
+    generate_run_id,
     execute_job_airflow,
     abort_job_airflow,
     get_dagrun_tasks_airflow,
@@ -384,7 +385,7 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         username=job.username,
         dag_id=job.dag_id,
         # run_id only for service-jobs which are already running in airflow w/known run_id before corresponding db_job is created
-        run_id=job.run_id,
+        run_id= job.run_id if job.run_id else generate_run_id(job.dag_id),
         kaapana_id=job.kaapana_instance_id,
         owner_kaapana_instance_name=job.owner_kaapana_instance_name,
         # replaced addressed_kaapana_instance_name w/ owner_kaapana_instance_name or None

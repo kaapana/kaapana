@@ -67,13 +67,18 @@ async def lifespan(app: FastAPI):
                 await session.rollback()
         # init role mappings
         role_admin = await get_roles(session, name="admin")
-        right_read = await get_rights(session, name="read")
-        right_write = await get_rights(session, name="write")
-        right_delete = await get_rights(session, name="delete")
-
-        await create_roles_rights_mapping(session, role_admin[0].id, right_read[0].id)
-        await create_roles_rights_mapping(session, role_admin[0].id, right_write[0].id)
-        await create_roles_rights_mapping(session, role_admin[0].id, right_delete[0].id)
+        for right_name in ["read", "write", "delete"]:
+            right = await get_rights(session, name=right_name)
+            try:
+                await create_roles_rights_mapping(
+                    session, role_admin[0].id, right[0].id
+                )
+            except IntegrityError:
+                logger.warning(
+                    f"RolesRights mapping for {role_admin[0]} and {right[0]} already exists"
+                )
+                await session.rollback()
+                role_admin = await get_roles(session, name="admin")
 
         # init project
         try:
@@ -90,12 +95,16 @@ async def lifespan(app: FastAPI):
             admin_project = await get_projects(session, name="admin")
             admin_project = admin_project[0]
 
-        await create_users_projects_roles_mapping(
-            session,
-            project_id=admin_project.id,
-            role_id=role_admin[0].id,
-            keycloak_id="bd1d8eb5-49f1-48b9-828b-9f3771691eb5",
-        )
+        try:
+            await create_users_projects_roles_mapping(
+                session,
+                project_id=admin_project.id,
+                role_id=role_admin[0].id,
+                keycloak_id="bd1d8eb5-49f1-48b9-828b-9f3771691eb5",
+            )
+        except IntegrityError:
+            logger.warning(f"Initial UsersProjectsRoles mapping already exists")
+            await session.rollback()
 
         # TODO cread from configmap
     yield  # This yield separates startup from shutdown code

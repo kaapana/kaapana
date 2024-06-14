@@ -2,7 +2,6 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  # This name uniquely identifies the Deployment
   name: access-information-point
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
@@ -20,9 +19,8 @@ spec:
       containers:
       - name: access-information-point
         image: "{{ .Values.global.registry_url }}/postgres-15.6-alpine:{{ .Values.global.kaapana_build_version  }}"
-        # imagePullPolicy: Always
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-        env: # Environment variables
+        env: 
         - name: POSTGRES_USER
           value: {{ .Values.global.postgres_user }}
         - name: POSTGRES_PASSWORD
@@ -30,7 +28,7 @@ spec:
             secretKeyRef:
               name: access-information-point-postgres-password
               key: access-information-point-postgres-password
-        ports: # Port(s) on which your application runs
+        ports: 
           - containerPort: 5432
         resources:
           limits:

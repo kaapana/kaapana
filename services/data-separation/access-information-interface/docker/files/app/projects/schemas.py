@@ -27,3 +27,12 @@ class Right(OrmBaseModel):
     description: str
     claim_key: str
     claim_value: str
+
+class CreateRole(OrmBaseModel):
+    name: str
+    description: str
+
+class Role(OrmBaseModel):
+    id: int
+    description: str
+    name: str

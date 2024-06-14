@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
-from .schemas import Project, CreateProject, Right
+from .schemas import Project, CreateProject, Right, Role
 from . import crud
 
 from ..database import get_session
@@ -18,3 +18,7 @@ async def projects(
 @router.get("/rights", response_model=List[Right], tags=["Projects"])
 async def get_rights(session: AsyncSession = Depends(get_session)):
     return await crud.get_rights(session)
+
+@router.get("/roles", response_model=List[Role], tags=["Projects"])
+async def get_roles(session: AsyncSession = Depends(get_session)):
+    return await crud.get_roles(session)

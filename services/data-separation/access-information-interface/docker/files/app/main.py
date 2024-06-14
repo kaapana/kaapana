@@ -12,11 +12,14 @@ async def lifespan(app: FastAPI):
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with async_session() as session:
-        await create_rights(session, CreateRight(name="read", description="Read rights", claim_key="read", claim_value="true"))
-        await create_rights(session, CreateRight(name="write", description="Write rights", claim_key="write", claim_value="true"))
-        await create_rights(session, CreateRight(name="delete", description="Delete rights", claim_key="delete", claim_value="true"))
+        # init rights
+        await create_rights(session, CreateRight(name="read", description="Read rights", claim_key="aii_test1", claim_value="lol"))
+        await create_rights(session, CreateRight(name="write", description="Write rights", claim_key="aii_test1", claim_value="rofl"))
+        await create_rights(session, CreateRight(name="delete", description="Delete rights", claim_key="aii_test2", claim_value="hdgdl"))
+        # init roles
         await create_roles(session, CreateRole(name="admin", description="Admin role"))
         await create_roles(session, CreateRole(name="read-only", description="Read only role"))
+        # TODO cread from configmap
     yield  # This yield separates startup from shutdown code
     # Code here would run after the application stops
 

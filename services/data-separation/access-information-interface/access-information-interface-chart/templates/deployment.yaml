@@ -16,6 +16,17 @@ spec:
       labels:
         app-name: access-information-interface
     spec:
+      initContainers:
+          - name: init-access-information-interface
+            image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
+            imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+            env:
+              - name: WAIT
+                value: "access-information-point,aip-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+              - name: DELAY
+                value: "2"
+              - name: TIMEOUT
+                value: "10"
       containers:
       - name: access-information-interface
         image: "{{ .Values.global.registry_url }}/access-information-interface:{{ .Values.global.kaapana_build_version  }}"
@@ -32,6 +43,16 @@ spec:
           value: "8080"
         - name: WORKERS
           value: "4"
+        - name: KEYCLOAK_URL
+          value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
+        - name: KEYCLOAK_REALM
+          value: "kaapana"
+        - name: KEYCLOAK_KAAPANA_REALM_USER_NAME
+          value: "kaapana"
+        - name: KEYCLOAK_ADMIN_USER_NAME
+          value: "{{ .Values.global.credentials_keycloak_admin_username }}"
+        - name: KEYCLOAK_ADMIN_USER_PASSWORD
+          value: "{{ .Values.global.credentials_keycloak_admin_password }}"
         ports:
           - containerPort: 8080
         resources:
@@ -42,6 +63,14 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+        volumeMounts:
+        - name: access-information-interface-config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+        - name: access-information-interface-config
+          configMap:
+            name: access-information-interface-config
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret

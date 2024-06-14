@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from sqlalchemy import select
-from ..models import Projects, Rights, Roles, RolesRights
+from ..models import Projects, Rights, Roles, RolesRights, UsersProjectsRoles
 from . import schemas
 
 
@@ -10,6 +10,13 @@ async def create_project(session: AsyncSession, project: schemas.CreateProject):
     session.add(new_project)
     await session.commit()
     return new_project
+
+
+async def get_projects(session: AsyncSession, name: str = None):
+    stmt = select(Projects)
+    stmt = stmt.filter(Projects.name == name) if name else stmt
+    result = await session.execute(stmt)
+    return result.scalars().all()
 
 
 async def create_rights(session: AsyncSession, right: schemas.CreateRight):
@@ -22,11 +29,6 @@ async def create_rights(session: AsyncSession, right: schemas.CreateRight):
     session.add(new_right)
     await session.commit()
     return new_right
-
-
-async def get_rights(session: AsyncSession):
-    result = await session.execute(select(Rights))
-    return result.scalars().all()
 
 
 async def get_rights(session: AsyncSession, name: str = None):
@@ -55,5 +57,16 @@ async def create_roles_rights_mapping(
 ):
     new_role_rights = RolesRights(role_id=role_id, right_id=right_id)
     session.add(new_role_rights)
+    await session.commit()
+    return True
+
+
+async def create_users_projects_roles_mapping(
+    session: AsyncSession, project_id: int, role_id: int, keycloak_id
+):
+    new_user_project_role = UsersProjectsRoles(
+        project_id=project_id, role_id=role_id, keycloak_id=keycloak_id
+    )
+    session.add(new_user_project_role)
     await session.commit()
     return True

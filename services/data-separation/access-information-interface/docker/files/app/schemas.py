@@ -6,7 +6,6 @@ class OrmBaseModel(BaseModel):
 
 
 class User(OrmBaseModel):
-    id: int
     keycloak_id: str
 
 

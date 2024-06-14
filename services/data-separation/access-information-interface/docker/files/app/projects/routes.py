@@ -9,7 +9,7 @@ from ..database import get_session
 router = APIRouter()
 
 
-@router.post("", response_model=Project)  # POST /projects
+@router.post("", response_model=Project, tags=["Projects"])  # POST /projects
 async def projects(
     project: CreateProject, session: AsyncSession = Depends(get_session)
 ):

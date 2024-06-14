@@ -16,7 +16,6 @@ async def get_user_projects(session: AsyncSession, keycloak_id: str):
         select(Projects)
         .join(UsersProjectsRoles, Projects.id == UsersProjectsRoles.project_id)
         .filter(UsersProjectsRoles.keycloak_id == keycloak_id)
-        .options(selectinload(Projects.users))
     )
     return result.scalars().all()
 

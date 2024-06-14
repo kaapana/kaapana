@@ -7,8 +7,11 @@ from .projects.crud import (
     create_roles_rights_mapping,
     get_roles,
     get_rights,
+    create_project,
+    create_users_projects_roles_mapping,
+    get_projects,
 )
-from .projects.schemas import CreateRight, CreateRole
+from .projects.schemas import CreateRight, CreateRole, CreateProject
 from .database import async_session, async_engine
 from .models import Base
 from contextlib import asynccontextmanager
@@ -71,6 +74,28 @@ async def lifespan(app: FastAPI):
         await create_roles_rights_mapping(session, role_admin[0].id, right_read[0].id)
         await create_roles_rights_mapping(session, role_admin[0].id, right_write[0].id)
         await create_roles_rights_mapping(session, role_admin[0].id, right_delete[0].id)
+
+        # init project
+        try:
+            admin_project = await create_project(
+                session,
+                project=CreateProject(
+                    name="admin", description="Initial admin project"
+                ),
+            )
+        except IntegrityError:
+            logger.warning(f"Initial admin project already exists")
+            await session.rollback()
+            role_admin = await get_roles(session, name="admin")
+            admin_project = await get_projects(session, name="admin")
+            admin_project = admin_project[0]
+
+        await create_users_projects_roles_mapping(
+            session,
+            project_id=admin_project.id,
+            role_id=role_admin[0].id,
+            keycloak_id="bd1d8eb5-49f1-48b9-828b-9f3771691eb5",
+        )
 
         # TODO cread from configmap
     yield  # This yield separates startup from shutdown code

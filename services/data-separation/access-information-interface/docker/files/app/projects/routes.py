@@ -14,3 +14,4 @@ async def projects(
     project: CreateProject, session: AsyncSession = Depends(get_session)
 ):
     return await create_project(session, project)
+

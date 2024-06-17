@@ -1,17 +1,15 @@
 from datetime import timedelta
 
 from airflow.models import DAG
-from airflow.utils.dates import days_ago
-from airflow.utils.log.logging_mixin import LoggingMixin
-from dicomvalidator.DicomValidatorOperator import DicomValidatorOperator
-from dicomvalidator.LocalClearValidationResultOperator import (
+from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
+from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
-)
-from dicomvalidator.LocalValidationResult2MetaOperator import (
-    LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.LocalValidationResult2MetaOperator import (
+    LocalValidationResult2MetaOperator,
+)
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 ui_forms = {
@@ -46,7 +44,7 @@ dag = DAG(dag_id="example-dcm-validate", default_args=args, schedule_interval=No
 
 get_input = LocalGetInputDataOperator(dag=dag)
 
-validate = DicomValidatorOperator(
+validate = DcmValidatorOperator(
     dag=dag,
     input_operator=get_input,
     exit_on_error=False,

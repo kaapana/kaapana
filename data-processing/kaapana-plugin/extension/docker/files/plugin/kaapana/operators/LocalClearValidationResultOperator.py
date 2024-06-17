@@ -1,14 +1,8 @@
 import os
-import time
 import re
-from datetime import datetime
-from pytz import timezone
 import json
 import glob
-from html.parser import HTMLParser
 from opensearchpy import OpenSearch
-from enum import Enum
-from typing import List
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperOpensearch import HelperOpensearch

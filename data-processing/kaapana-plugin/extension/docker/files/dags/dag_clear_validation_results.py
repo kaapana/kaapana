@@ -4,12 +4,8 @@ from datetime import timedelta
 from airflow.models import DAG
 
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
-from kaapana.operators.LocalValidationResult2MetaOperator import (
-    LocalValidationResult2MetaOperator,
-)
+
 from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )

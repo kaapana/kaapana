@@ -2,11 +2,6 @@ import glob
 import json
 import os
 import re
-import time
-from datetime import datetime
-from enum import Enum
-from html.parser import HTMLParser
-from typing import List
 
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperMinio import HelperMinio

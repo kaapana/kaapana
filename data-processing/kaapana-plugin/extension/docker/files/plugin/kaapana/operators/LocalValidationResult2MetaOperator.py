@@ -1,7 +1,6 @@
 import glob
 import json
 import os
-import time
 from datetime import datetime
 from enum import Enum
 from html.parser import HTMLParser

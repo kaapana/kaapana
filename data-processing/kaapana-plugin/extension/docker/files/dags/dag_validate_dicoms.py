@@ -6,11 +6,11 @@ from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from dicomvalidator.DicomValidatorOperator import DicomValidatorOperator
-from dicomvalidator.LocalValidationResult2MetaOperator import (
+from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
+from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
-from dicomvalidator.LocalClearValidationResultOperator import (
+from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )
 
@@ -47,7 +47,7 @@ dag = DAG(dag_id="example-dcm-validate", default_args=args, schedule_interval=No
 
 get_input = LocalGetInputDataOperator(dag=dag)
 
-validate = DicomValidatorOperator(
+validate = DcmValidatorOperator(
     dag=dag,
     input_operator=get_input,
     exit_on_error=False,

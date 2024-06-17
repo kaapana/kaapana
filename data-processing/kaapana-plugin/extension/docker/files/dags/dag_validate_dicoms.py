@@ -39,7 +39,7 @@ args = {
     "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(dag_id="example-dcm-validate", default_args=args, schedule_interval=None)
+dag = DAG(dag_id="validate-dicoms", default_args=args, schedule_interval=None)
 
 
 get_input = LocalGetInputDataOperator(dag=dag)

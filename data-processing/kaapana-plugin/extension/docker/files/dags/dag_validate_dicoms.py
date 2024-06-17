@@ -20,12 +20,18 @@ ui_forms = {
         "type": "object",
         "properties": {
             "validator_algorithm": {
-                "title": "Action",
+                "title": "Validator Algorithm",
                 "description": "Choose the algorithm to validate your dicoms",
                 "enum": ["dicom-validator", "dciodvfy"],
                 "type": "string",
                 "default": "dicom-validator",
                 "required": True,
+            },
+            "exit_on_error": {
+                "title": "Stop execution on Validation Error",
+                "description": "Validator will raise an error and stop executing on validation fail if set to True",
+                "type": "boolean",
+                "default": False,
             },
         },
     }
@@ -71,16 +77,16 @@ save_to_meta = LocalValidationResult2MetaOperator(
     validation_tag="00111001",
 )
 
-put_to_minio_html = LocalMinioOperator(
+put_html_to_minio = LocalMinioOperator(
     dag=dag,
     action_operator_dirs=[validate.operator_out_dir],
-    name="put-errors-html-to-minio",
+    name="put-results-html-to-minio",
     action="put",
     bucket_name="staticwebsiteresults",
     file_white_tuples=(".html"),
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
     get_input
@@ -88,6 +94,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
     >> get_input_json
     >> clear_validation_results
     >> save_to_meta
-    >> put_to_minio_html
+    >> put_html_to_minio
     >> clean
 )

@@ -43,7 +43,7 @@ spec:
           requests:
             memory: 50Mi
           limits:
-            memory: 50Mi
+            memory: 1000Mi
         volumeMounts:
         - name: airflow-statsd-config
           mountPath: /tmp/statsd_mapping.yaml

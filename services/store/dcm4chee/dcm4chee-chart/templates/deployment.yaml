@@ -86,7 +86,7 @@ spec:
             requests:
               memory: 800Mi
             limits:
-              memory: 1500Mi
+              memory: 6000Mi
           volumeMounts:
             - mountPath: /opt/wildfly/standalone
               name: standalone-data

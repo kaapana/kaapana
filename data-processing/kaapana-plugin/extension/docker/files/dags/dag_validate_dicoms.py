@@ -6,9 +6,12 @@ from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
-from kaapana.operators.LocalStoreValidationResultsOperator import (
-    LocalStoreValidationResultsOperator,
+from dicomvalidator.DicomValidatorOperator import DicomValidatorOperator
+from dicomvalidator.LocalValidationResult2MetaOperator import (
+    LocalValidationResult2MetaOperator,
+)
+from dicomvalidator.LocalClearValidationResultOperator import (
+    LocalClearValidationResultOperator,
 )
 
 
@@ -39,11 +42,12 @@ args = {
     "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(dag_id="validate-dicoms", default_args=args, schedule_interval=None)
+dag = DAG(dag_id="example-dcm-validate", default_args=args, schedule_interval=None)
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
-validate = DcmValidatorOperator(
+
+validate = DicomValidatorOperator(
     dag=dag,
     input_operator=get_input,
     exit_on_error=False,
@@ -52,7 +56,15 @@ validate = DcmValidatorOperator(
 get_input_json = LocalGetInputDataOperator(
     dag=dag, name="get-json-input-data", data_type="json"
 )
-save_to_opensearch = LocalStoreValidationResultsOperator(
+
+clear_validation_results = LocalClearValidationResultOperator(
+    dag=dag,
+    name="clear-validation-results",
+    input_operator=get_input_json,
+    result_bucket="staticwebsiteresults",
+)
+
+save_to_meta = LocalValidationResult2MetaOperator(
     dag=dag,
     input_operator=get_input_json,
     validator_output_dir=validate.operator_out_dir,
@@ -74,7 +86,8 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
     get_input
     >> validate
     >> get_input_json
-    >> save_to_opensearch
+    >> clear_validation_results
+    >> save_to_meta
     >> put_to_minio_html
     >> clean
 )

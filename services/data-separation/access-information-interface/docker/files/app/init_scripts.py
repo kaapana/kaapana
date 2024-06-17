@@ -19,6 +19,8 @@ import time
 
 logger = logging.getLogger(__name__)
 
+NUM_RETRIES = 10
+DURATION_BETWEEN_RETRIES = 5
 
 def load_config(file_path):
     with open(file_path, "r") as file:
@@ -100,7 +102,7 @@ async def initial_database_population():
         )
 
         # Wait for the realm to be available
-        for i in range(10):  # Try 10 times
+        for i in range(NUM_RETRIES):  # Try 10 times
             realms = keycloak_admin.get_realms()
             if kaapana_realm in [
                 realm["realm"] for realm in realms
@@ -110,13 +112,16 @@ async def initial_database_population():
             logger.info(
                 f"Waiting for realm {kaapana_realm} to be available, attempt {i+1}/10"
             )
-            time.sleep(5)  # Wait 5 seconds
+            time.sleep(DURATION_BETWEEN_RETRIES)  # Wait 5 seconds
+            if i == NUM_RETRIES - 1:
+                logger.error(f"Realm {kaapana_realm} not found in keycloak")
+                raise Exception(f"Realm {kaapana_realm} not found in keycloak")
 
         # Switch to the kaapana realm
         keycloak_admin.change_current_realm(kaapana_realm)
 
         # Wait for the admin user to be available
-        for i in range(10):  # Try 10 times
+        for i in range(NUM_RETRIES):  # Try 10 times
             admin_user_keycloak_id = (
                 keycloak_admin.get_user_id(  # Get the keycloak id of the admin user
                     username=admin_user_in_kaapana_realm
@@ -128,8 +133,8 @@ async def initial_database_population():
             logger.info(
                 f"Waiting for user {admin_user_in_kaapana_realm} to be available, attempt {i+1}/10"
             )  # Log the attempt
-            time.sleep(5)
-            if i == 9:
+            time.sleep(DURATION_BETWEEN_RETRIES)
+            if i == NUM_RETRIES - 1:
                 logger.error(
                     f"User {admin_user_in_kaapana_realm} not found in keycloak"
                 )  # Log an error if the user is not found

@@ -1,15 +1,17 @@
+import glob
+import json
 import os
 import time
 from datetime import datetime
-from pytz import timezone
-import json
-import glob
-from html.parser import HTMLParser
-from opensearchpy import OpenSearch
 from enum import Enum
+from html.parser import HTMLParser
 from typing import List
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from opensearchpy import OpenSearch
+from pytz import timezone
 
 
 class ClassHTMLParser(HTMLParser):
@@ -42,14 +44,44 @@ def get_file_creation_time(file_path):
     return readable_time
 
 
-class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
+class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
+    """
+    This Operator extracts validation results from HTML files in the operator input directory
+    and stores these results as metadata for DICOM files in OpenSearch.
+
+    Attributes:
+        validator_output_dir (str): Directory where validation output files are stored.
+        validation_tag (str): Base tag used for validation.
+        tag_field (str): Field in the OpenSearch index used for validation results.
+        opensearch_host (str): Hostname of the OpenSearch service.
+        opensearch_port (int): Port of the OpenSearch service.
+        opensearch_index (str): Index in OpenSearch where metadata is stored.
+        os_client (OpenSearch): OpenSearch client for interacting with the OpenSearch service.
+
+    Methods:
+        _get_next_hex_tag(current_tag): Generates the next hexadecimal tag based on the current tag.
+        add_tags_to_opensearch(series_instance_uid, validation_tags, clear_results): Adds validation tags to OpenSearch.
+        _extract_validation_results_from_html(html_output_path): Extracts validation results from an HTML file.
+        _init_client(): Initializes the OpenSearch client.
+        start(ds, **kwargs): Main execution method called by Airflow to run the operator.
+    """
+
     class Action(Enum):
         ADD = "add"
         DELETE = "delete"
-        ADD_FROM_FILE = "add_from_file"
 
     @staticmethod
     def _get_next_hex_tag(current_tag: str):
+        """
+        Generates the next hexadecimal tag based on the current tag.
+
+        Args:
+            current_tag (str): The current hexadecimal tag as a string.
+
+        Returns:
+            str: The next hexadecimal tag as a string.
+        """
+        # Split the current tag into the first and second parts
         first_part = current_tag[0:4]
         second_part = current_tag[-4:]
 
@@ -62,38 +94,33 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
         next_tag = f"{first_part}{item_hex}"
         return next_tag
 
-    def tagging(
+    def add_tags_to_opensearch(
         self,
         series_instance_uid: str,
         validation_tags: List[tuple],
         clear_results: bool = False,
     ):
+        """
+        Adds validation tags to a document in OpenSearch.
+
+        Args:
+            series_instance_uid (str): The unique identifier for the series in OpenSearch.
+            validation_tags (List[tuple]): A list of tuples containing validation tags to be added.
+            clear_results (bool): Whether to clear existing validation results before adding new ones. Defaults to False.
+
+        Returns:
+            None
+        """
         print(series_instance_uid)
         print(f"Tags 2 add: {validation_tags}")
 
-        # Read Tags
-        auth = None
-        os_client = OpenSearch(
-            hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
-            http_compress=True,  # enables gzip compression for request bodies
-            http_auth=auth,
-            # client_cert = client_cert_path,
-            # client_key = client_key_path,
-            use_ssl=False,
-            verify_certs=False,
-            ssl_assert_hostname=False,
-            ssl_show_warn=False,
-            timeout=2,
-            # ca_certs = ca_certs_path
-        )
-
-        doc = os_client.get(index=self.opensearch_index, id=series_instance_uid)
+        doc = self.os_client.get(index=self.opensearch_index, id=series_instance_uid)
         print(doc)
 
         if clear_results:
             # Write Tags back
             body = {"doc": {self.tag_field: None}}
-            os_client.update(
+            self.os_client.update(
                 index=self.opensearch_index, id=series_instance_uid, body=body
             )
 
@@ -108,11 +135,22 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
 
         print(f"Final tags: {final_tags}")
 
-        # Write Tags back
+        # Write validation results to doc
         body = {"doc": {self.tag_field: final_tags}}
-        os_client.update(index=self.opensearch_index, id=series_instance_uid, body=body)
+        self.os_client.update(
+            index=self.opensearch_index, id=series_instance_uid, body=body
+        )
 
     def _extract_validation_results_from_html(self, html_output_path: str):
+        """
+        Extracts validation results from an HTML file.
+
+        Args:
+            html_output_path (str): Path to the HTML file containing validation results.
+
+        Returns:
+            tuple: A tuple containing the number of errors, number of warnings, and the validation time.
+        """
         error_parser = ClassHTMLParser("item-count-label error")
         with open(html_output_path, "r") as file:
             error_parser.feed(file.read())
@@ -127,7 +165,39 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
 
         return n_errors, n_warnings, validation_time
 
+    def _init_client(self):
+        """
+        Initializes the OpenSearch client.
+
+        Returns:
+            None
+        """
+        auth = None
+        self.os_client = OpenSearch(
+            hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
+            http_compress=True,  # enables gzip compression for request bodies
+            http_auth=auth,
+            # client_cert = client_cert_path,
+            # client_key = client_key_path,
+            use_ssl=False,
+            verify_certs=False,
+            ssl_assert_hostname=False,
+            ssl_show_warn=False,
+            timeout=2,
+            # ca_certs = ca_certs_path
+        )
+
     def start(self, ds, **kwargs):
+        """
+        Main execution method called by Airflow to run the operator.
+
+        Args:
+            ds (str): The execution date as a string.
+            **kwargs: Additional keyword arguments provided by Airflow.
+
+        Returns:
+            None
+        """
         print("Start tagging")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
@@ -135,10 +205,9 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
         ]
 
-        print(self.batch_name, batch_folder)
+        self._init_client()
 
         for batch_element_dir in batch_folder:
-
             html_outputs = []
             if self.validator_output_dir != "":
                 html_outputs = sorted(
@@ -167,7 +236,6 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
                 )
             )
 
-            # tags = n_errors
             tags_tuple = [
                 ("Errors", "integer", n_errors),  # (key, opensearch datatype, value)
                 ("Warnings", "integer", n_warnings),
@@ -178,7 +246,9 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
                 print(f"Do tagging for file {meta_files}")
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
-                    series_uid = metadata["0020000E SeriesInstanceUID_keyword"]
+                    series_uid = metadata[
+                        HelperOpensearch.series_uid_tag
+                    ]  # "0020000E SeriesInstanceUID_keyword"
                     existing_tags = metadata.get(self.tag_field, None)
 
                     clear_old_results = False
@@ -188,7 +258,7 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
                         )
                         clear_old_results = True
 
-                    self.tagging(
+                    self.add_tags_to_opensearch(
                         series_uid,
                         validation_tags=tags_tuple,
                         clear_results=clear_old_results,
@@ -207,14 +277,31 @@ class LocalStoreValidationResultsOperator(KaapanaPythonBaseOperator):
         **kwargs,
     ):
         """
-        :param tag_field: the field of the opensearch object where the tags are stored
+        Initializes the LocalValidationResult2MetaOperator.
+
+        Args:
+            dag (DAG): The DAG to which the operator belongs.
+            validator_output_dir (str): Directory where validation output files are stored.
+            validation_tag (str): Base tag used for validation (default: "00111001").
+                    Multiple items of the validation results will be tagged by incrementing
+                    this tag. e.g. 00111002, 00111003, ..
+            name (str): Name of the operator (default: "results-to-open-search").
+            opensearch_host (str): Hostname of the OpenSearch service (default: "opensearch-service.{SERVICES_NAMESPACE}.svc").
+            opensearch_port (int): Port of the OpenSearch service (default: 9200).
+            opensearch_index (str): Index in OpenSearch where metadata will be stored (default: "meta-index").
+            *args: Additional arguments for the parent class.
+            **kwargs: Additional keyword arguments for the parent class.
+
+        Returns:
+            None
         """
 
-        self.tag_field = f"{validation_tag} ValidationResults_object"
         self.validator_output_dir = validator_output_dir
         self.validation_tag = validation_tag
+        self.tag_field = f"{validation_tag} ValidationResults_object"
         self.opensearch_host = opensearch_host
         self.opensearch_port = opensearch_port
         self.opensearch_index = opensearch_index
+        self.os_client = None
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

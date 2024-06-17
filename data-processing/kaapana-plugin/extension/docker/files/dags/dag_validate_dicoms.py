@@ -51,7 +51,6 @@ dag = DAG(dag_id="validate-dicoms", default_args=args, schedule_interval=None)
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
-
 validate = DcmValidatorOperator(
     dag=dag,
     input_operator=get_input,

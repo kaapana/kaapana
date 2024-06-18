@@ -13,17 +13,6 @@ class KaapanaSettings(BaseSettings):
 
     hostname: str = os.getenv("HOSTNAME")
     instance_name: str = os.getenv("INSTANCE_NAME")
-    prometheus_url: str = os.getenv("PROMETHEUS_URL")
-    kaapana_build_timestamp: str = os.getenv("KAAPANA_BUILD_TIMESTAMP")
-    kaapana_build_version: str = os.getenv("KAAPANA_BUILD_VERSION")
-    kaapana_platform_build_branch: str = os.getenv("KAAPANA_BUILD_BRANCH")
-    kaapana_platform_last_commit_timestamp: str = os.getenv(
-        "KAAPANA_LAST_COMMIT_TIMESTAMP"
-    )
-    kaapana_deployment_timestamp: str = os.getenv("DEPLOYMENT_TIMESTAMP")
-    mount_points: "list[str]" = str(os.getenv("MOUNT_POINTS_TO_MONITOR")).split(",")
-    traefik_url: str = os.getenv("TRAEFIK_URL")
-    airflow_url: str = os.getenv("AIRFLOW_URL")
     services_namespace: str = os.getenv("SERVICES_NAMESPACE")
     admin_namespace: str = os.getenv("ADMIN_NAMESPACE", "admin")
 

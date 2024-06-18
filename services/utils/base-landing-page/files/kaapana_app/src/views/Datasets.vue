@@ -31,8 +31,17 @@
           </v-card>
         </v-container>
         <!-- Gallery View -->
+      <v-container fluid class="pa-0">
+        <template>
+        <div>
+          <Paginate ref="paginate" :pageLength="settings.datasets.itemsPerPagePagination" :aggregatedSeriesNum="aggregatedSeriesNum" @updateData="updateData" @onPageIndexChange="onPageIndexChange"/>
+        </div>
+      </template>
+
+      </v-container>
         <v-container fluid class="pa-0">
           <!-- Loading -->
+
           <v-skeleton-loader v-if="isLoading" class="mx-auto" type="list-item@100">
           </v-skeleton-loader>
 
@@ -53,7 +62,7 @@
                 <v-card-title style="padding-left: 30px; padding-right: 30px">
                   <v-row class="pa-0">
                     <v-col class="pa-0" align="right">
-                      {{ this.identifiersOfInterest.length }} selected
+                      {{ displaySelectedItems }}
                       <v-tooltip bottom>
                         <template v-slot:activator="{ on }">
                           <span v-on="on">
@@ -137,7 +146,7 @@
       <pane class="sidebar side-navigation" size="30" min-size="20">
         <DetailView v-if="this.$store.getters.detailViewItem"
           :series-instance-u-i-d="this.$store.getters.detailViewItem" />
-        <Dashboard v-else :seriesInstanceUIDs="identifiersOfInterest" :fields="dashboardFields"
+        <Dashboard v-else :seriesInstanceUIDs="identifiersOfInterest" :allPatients="allPatients" :fields="dashboardFields" :searchQuery="searchQuery"
           @dataPointSelection="(d) => addFilterToSearch(d)" />
         <!--      </ErrorBoundary>-->
       </pane>
@@ -188,7 +197,8 @@ import {
   createDataset,
   updateDataset,
   loadDatasets,
-  loadPatients,
+  loadPatientsPage,
+  getAggregatedSeriesNum,
 } from "../common/api.service";
 import Dashboard from "@/components/Dashboard.vue";
 import { settings } from "@/static/defaultUIConfig";
@@ -202,6 +212,7 @@ import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
 import IdleTracker from '@/components/IdleTracker.vue';
+import Paginate from '@/components/Paginate.vue';
 
 const keycon = new KeyController();
 
@@ -225,6 +236,10 @@ export default {
       datasetToAddTo: null,
       debouncedIdentifiers: [],
       navigationMode: false,
+      aggregatedSeriesNum: 100,
+      pageIndex: 1,
+      searchQuery: {},
+      allPatients: true
     };
   },
   components: {
@@ -242,6 +257,7 @@ export default {
     VueSelecto,
     Splitpanes,
     Pane,
+    Paginate
   },
   async created() {
     this.settings = JSON.parse(localStorage["settings"]);
@@ -312,15 +328,27 @@ export default {
         selectedFilterItem["value"]
       );
     },
-    async updateData(query = {}) {
+    async updateData(query = {}, useLastquery = false) {     
+      if(!useLastquery){
+        this.searchQuery = { ...query };
+      }       
       this.isLoading = true;
       this.selectedSeriesInstanceUIDs = [];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
       this.$store.dispatch("resetDetailViewItem");
-
-      loadPatients({
+      getAggregatedSeriesNum({
+        query: this.searchQuery
+      }).then(data => {
+          this.aggregatedSeriesNum = data;
+          this.allPatients = this.aggregatedSeriesNum > this.settings.datasets.itemsPerPagePagination;
+      });
+      loadPatientsPage({
         structured: this.settings.datasets.structured,
-        query: query,
+        query: this.searchQuery ,
+        sort: this.settings.datasets.sort,
+        sortDirection: this.settings.datasets.sortDirection,
+        pageIndex: this.pageIndex,
+        pageLength: this.settings.datasets.itemsPerPagePagination
       })
         .then((data) => {
           // TODO: this is not ideal...
@@ -330,7 +358,7 @@ export default {
               .map((studies) => Object.values(studies))
               .flat(Infinity);
           } else {
-            this.seriesInstanceUIDs = data;
+              this.seriesInstanceUIDs = data;
           }
           if (this.seriesInstanceUIDs.length === 0)
             this.message = "No data found.";
@@ -458,6 +486,9 @@ export default {
         return false;
       }
     },
+    onPageIndexChange(newPageIndex){
+      this.pageIndex = newPageIndex;
+    },
     editedDatasets(reloadDatasets) {
       if (reloadDatasets) {
         loadDatasets().then((_datasetNames) => {
@@ -478,9 +509,11 @@ export default {
   },
   computed: {
     identifiersOfInterest() {
-      return this.selectedSeriesInstanceUIDs.length > 0
-        ? this.selectedSeriesInstanceUIDs
-        : this.seriesInstanceUIDs;
+      if(this.selectedSeriesInstanceUIDs.length > 0){
+        return this.selectedSeriesInstanceUIDs;
+      }
+      return this.seriesInstanceUIDs;
+
     },
     continueSelectKey() {
       return window.navigator.userAgent.indexOf("Mac") !== -1
@@ -495,6 +528,14 @@ export default {
         .filter((i) => i.dashboard)
         .map((i) => i.name);
     },
+    displaySelectedItems() {
+      const selected = this.identifiersOfInterest.length
+      const from = (this.pageIndex - 1) * this.settings.datasets.itemsPerPagePagination + 1;
+      const to = Math.min(from + this.identifiersOfInterest.length, this.aggregatedSeriesNum);
+      return this.aggregatedSeriesNum > 0 && this.aggregatedSeriesNum > this.identifiersOfInterest.length
+        ? `${selected} selected from ${from} to ${to} of ${this.aggregatedSeriesNum}`
+        : `${selected} selected`;
+    }
   },
 };
 </script>

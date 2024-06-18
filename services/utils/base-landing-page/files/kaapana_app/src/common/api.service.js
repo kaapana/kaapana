@@ -98,11 +98,46 @@ const loadSeriesData = async (seriesInstanceUID) => {
   }
 };
 
+
+const loadPatientsPage = async (data) => {
+  try {
+    const res = await httpClient.post(
+      KAAPANA_BACKEND_ENDPOINT + "dataset/seriesOnPage",
+      data
+    );
+    return res.data;
+  } catch (error) {
+    Vue.notify({
+      title: "Error",
+      text:
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : error,
+      type: "error",
+    });
+    throw error;
+  }
+};
+
+const getAggregatedSeriesNum = async (data) => {
+  const res = await httpClient.post(
+    KAAPANA_BACKEND_ENDPOINT + "dataset/aggregatedSeriesNum",
+    data
+  );
+  return res.data;
+};
+
 const loadPatients = async (data) => {
   try {
     const res = await httpClient.post(
       KAAPANA_BACKEND_ENDPOINT + "dataset/series",
-      data
+      data,
+      {
+        params: {
+          page_index: 1,
+          page_length: 100
+        }
+      }
     );
     return res.data;
   } catch (error) {
@@ -163,11 +198,12 @@ const updateTags = async (data) => {
   // TODO: ideally this should return the new tags which are then assigned
 };
 
-const loadDashboard = async (seriesInstanceUIDs, fields) => {
+const loadDashboard = async (seriesInstanceUIDs, fields, query = {}) => {
   return (
     await httpClient.post(KAAPANA_BACKEND_ENDPOINT + "dataset/dashboard", {
       series_instance_uids: seriesInstanceUIDs,
       names: fields,
+      query: query
     })
   ).data;
 };
@@ -177,9 +213,12 @@ const loadDicomTagMapping = async () => {
     .data;
 };
 
+
+
 export {
   updateTags,
   loadPatients,
+  loadPatientsPage,
   loadSeriesData,
   createDataset,
   updateDataset,
@@ -190,4 +229,5 @@ export {
   loadDicomTagMapping,
   loadFieldNames,
   loadValues,
+  getAggregatedSeriesNum,
 };

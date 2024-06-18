@@ -10,6 +10,7 @@ from app.config import settings
 from app.datasets.utils import (
     get_metadata,
     execute_opensearch_query,
+    execute_opensearch_query_paginated,
     get_field_mapping,
 )
 
@@ -65,6 +66,78 @@ async def tag_data(data: list = Body(...)):
         raise HTTPException(500, e)
 
 
+from typing import Dict, Any
+from fastapi import Query
+
+
+# This should actually be a get request but since the body is too large for a get request
+# we use a post request
+@router.post("/seriesOnPage")
+async def get_series_on_page(data: dict = Body(...)):
+    import pandas as pd
+
+    structured: bool = data.get("structured", False)
+    query: dict = data.get("query", {"query_string": {"query": "*"}})
+    page_index: int = data.get("pageIndex", 1)
+    page_length: int = data.get("pageLength", 100)
+    sort_param: str = data.get("sort", "0020000E SeriesInstanceUID_keyword.keyword")
+    sort_direction: str = data.get("sortDirection", "desc").lower()
+    if sort_direction not in ["asc", "desc"]:
+        sort_direction = "desc"
+    # limit page_length to 10000 (opensearch maximum)
+    if page_length > 10000:
+        page_length = 10000
+    sort = [{sort_param: sort_direction}]
+    if structured:
+        hits = execute_opensearch_query_paginated(
+            query=query,
+            source={
+                "includes": [
+                    "00100020 PatientID_keyword",
+                    "0020000D StudyInstanceUID_keyword",
+                    "0020000E SeriesInstanceUID_keyword",
+                ]
+            },
+            sort=sort,
+            page_index=page_index,
+            page_length=page_length,
+        )
+
+        res_array = [
+            [
+                hit["_source"].get("00100020 PatientID_keyword") or "N/A",
+                hit["_source"]["0020000D StudyInstanceUID_keyword"],
+                hit["_source"]["0020000E SeriesInstanceUID_keyword"],
+            ]
+            for hit in hits
+        ]
+
+        df = pd.DataFrame(
+            res_array,
+            columns=["Patient ID", "Study Instance UID", "Series Instance UID"],
+        )
+        return JSONResponse(
+            {
+                k: f.groupby("Study Instance UID")["Series Instance UID"]
+                .apply(list)
+                .to_dict()
+                for k, f in df.groupby("Patient ID")
+            }
+        )
+    elif not structured:
+        return JSONResponse(
+            [
+                d["_id"]
+                for d in execute_opensearch_query_paginated(
+                    query=query,
+                    sort=sort,
+                    page_index=page_index,
+                    page_length=page_length,
+                )
+            ]
+        )
+
+
 # This should actually be a get request but since the body is too large for a get request
 # we use a post request
 @router.post("/series")
@@ -109,6 +182,35 @@ async def get_series(data: dict = Body(...)):
         )
     elif not structured:
         return JSONResponse([d["_id"] for d in execute_opensearch_query(query)])
+
+
+@router.post("/aggregatedSeriesNum")
+async def get_aggregatedSeriesNum(data: dict = Body(...)):
+    query: dict = data.get("query", {"query_string": {"query": "*"}})
+    res = OpenSearch(
+        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+    ).search(
+        body={
+            "size": 0,
+            "query": query,
+            "aggs": {
+                "Series": {
+                    "cardinality": {
+                        "field": "0020000E SeriesInstanceUID_keyword.keyword",
+                    }
+                },
+            },
+            "_source": False,
+        }
+    )[
+        "aggregations"
+    ][
+        "Series"
+    ][
+        "value"
+    ]
+
+    return JSONResponse(res)
 
 
 @router.get("/series/{series_instance_uid}")
@@ -159,22 +261,27 @@ async def get_field_values(query, field, size=10000):
 async def get_dashboard(config: dict = Body(...)):
     series_instance_uids = config.get("series_instance_uids")
     names = config.get("names", [])
-
+    print(names)
     name_field_map = await get_field_mapping()
     filtered_name_field_map = {
         name: name_field_map[name] for name in names if name in name_field_map
     }
+
+    search_query = config.get("query", {})
+
+    if series_instance_uids:
+        query = {"query": {"ids": {"values": series_instance_uids}}}
+    elif search_query:
+        query = {"query": search_query}
+    else:
+        query = {}
 
     res = OpenSearch(
         hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
     ).search(
         body={
             "size": 0,
-            **(
-                {"query": {"ids": {"values": series_instance_uids}}}
-                if series_instance_uids
-                else {}
-            ),
+            **(query),
             "aggs": {
                 "Series": {
                     "cardinality": {
@@ -230,7 +337,6 @@ async def get_dashboard(config: dict = Body(...)):
         Studies=res["Studies"]["value"],
         Patients=res["Patients"]["value"],
     )
-
     return JSONResponse(dict(histograms=histograms, metrics=metrics))
 
 

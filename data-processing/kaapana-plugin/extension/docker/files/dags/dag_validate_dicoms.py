@@ -7,8 +7,11 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
-from kaapana.operators.LocalStoreValidationResultsOperator import (
-    LocalStoreValidationResultsOperator,
+from kaapana.operators.LocalValidationResult2MetaOperator import (
+    LocalValidationResult2MetaOperator,
+)
+from kaapana.operators.LocalClearValidationResultOperator import (
+    LocalClearValidationResultOperator,
 )
 
 
@@ -17,12 +20,18 @@ ui_forms = {
         "type": "object",
         "properties": {
             "validator_algorithm": {
-                "title": "Action",
+                "title": "Validator Algorithm",
                 "description": "Choose the algorithm to validate your dicoms",
                 "enum": ["dicom-validator", "dciodvfy"],
                 "type": "string",
                 "default": "dicom-validator",
                 "required": True,
+            },
+            "exit_on_error": {
+                "title": "Stop execution on Validation Error",
+                "description": "Validator will raise an error and stop executing on validation fail if set to True",
+                "type": "boolean",
+                "default": False,
             },
         },
     }
@@ -43,6 +52,7 @@ dag = DAG(dag_id="validate-dicoms", default_args=args, schedule_interval=None)
 
 
 get_input = LocalGetInputDataOperator(dag=dag)
+
 validate = DcmValidatorOperator(
     dag=dag,
     input_operator=get_input,
@@ -52,29 +62,38 @@ validate = DcmValidatorOperator(
 get_input_json = LocalGetInputDataOperator(
     dag=dag, name="get-json-input-data", data_type="json"
 )
-save_to_opensearch = LocalStoreValidationResultsOperator(
+
+clear_validation_results = LocalClearValidationResultOperator(
+    dag=dag,
+    name="clear-validation-results",
+    input_operator=get_input_json,
+    result_bucket="staticwebsiteresults",
+)
+
+save_to_meta = LocalValidationResult2MetaOperator(
     dag=dag,
     input_operator=get_input_json,
     validator_output_dir=validate.operator_out_dir,
     validation_tag="00111001",
 )
 
-put_to_minio_html = LocalMinioOperator(
+put_html_to_minio = LocalMinioOperator(
     dag=dag,
     action_operator_dirs=[validate.operator_out_dir],
-    name="put-errors-html-to-minio",
+    name="put-results-html-to-minio",
     action="put",
     bucket_name="staticwebsiteresults",
     file_white_tuples=(".html"),
 )
 
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
     get_input
     >> validate
     >> get_input_json
-    >> save_to_opensearch
-    >> put_to_minio_html
+    >> clear_validation_results
+    >> save_to_meta
+    >> put_html_to_minio
     >> clean
 )

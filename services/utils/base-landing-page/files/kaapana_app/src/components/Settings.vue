@@ -41,6 +41,29 @@
           </v-row>
           <v-row>
             <v-col>
+              <v-select
+                v-model="settings.datasets.itemsPerPagePagination"
+                :items="[50, 100, 200, 500, 1000, 5000, 10000]"
+                label="Items per Page"
+              ></v-select>
+            </v-col>
+            <v-col>
+              <v-select
+                v-model="selectedSortKey"
+                :items="sortKeys"
+                label="Sort"
+              ></v-select>
+            </v-col>
+            <v-col>
+              <v-select
+                v-model="settings.datasets.sortDirection"
+                :items="['asc', 'desc']"
+                label="Sort direction"
+              ></v-select>
+            </v-col>        
+          </v-row>
+          <v-row>
+            <v-col>
               <SettingsTable
                 ref="settingsTable"
                 :items.sync="settings.datasets.props"
@@ -61,19 +84,28 @@
 
 <script>
 import SettingsTable from "@/components/SettingsTable.vue";
-import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import { settings as defaultSettings, settings } from "@/static/defaultUIConfig";
+import { loadDicomTagMapping } from "@/common/api.service";
 
 export default {
   data: () => ({
     dialog: false,
     settings: defaultSettings,
     resetConfiguration: false,
+    selectedSortKey:null,
+    sortMapping:{}
   }),
   components: {
     SettingsTable,
   },
   created() {
     this.settings = JSON.parse(localStorage["settings"]);
+    this.loadSortItems();
+  },
+  computed: {
+    sortKeys() {
+      return Object.keys(this.sortMapping);
+    },
   },
   methods: {
     restoreDefaultSettings() {
@@ -83,6 +115,18 @@ export default {
       localStorage["settings"] = JSON.stringify(this.settings);
       this.dialog = false;
       window.location.reload();
+    },
+    loadSortItems() {
+      loadDicomTagMapping().then((data) => {
+        console.log("loadSortItems");
+        this.sortMapping = data; 
+        this.selectedSortKey = Object.keys(data).find(key => data[key] === this.settings.datasets.sort);
+      })
+    },
+  },
+  watch: {
+    selectedSortKey(newKey) {
+      this.settings.datasets.sort = this.sortMapping[newKey];
     },
   },
 };

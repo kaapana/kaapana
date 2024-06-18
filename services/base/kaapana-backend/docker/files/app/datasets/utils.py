@@ -21,7 +21,7 @@ logger = get_logger(__name__, logging.DEBUG)
 def execute_opensearch_query(
     os_client,
     query: Dict = dict(),
-    source=dict(),
+    source=False,
     index="meta-index",
     sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
     scroll=False,
@@ -66,6 +66,32 @@ def execute_opensearch_query(
             return res["hits"]["hits"]
 
     return _execute_opensearch_query(os_client=os_client)
+
+
+def execute_opensearch_query_paginated(
+    query: Dict = dict(),
+    source=False,
+    index="meta-index",
+    sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
+    scroll=False,
+    page_index=1,
+    page_length=100,
+) -> List:
+    """ """
+    start_from = (page_index - 1) * page_length
+    res = OpenSearch(
+        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+    ).search(
+        body={
+            "from": start_from,
+            "query": query,
+            "size": page_length,
+            "_source": source,
+            "sort": sort,
+        },
+        index=index,
+    )
+    return res["hits"]["hits"]
 
 
 def contains_numbers(s):

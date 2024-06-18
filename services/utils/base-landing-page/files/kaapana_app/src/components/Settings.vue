@@ -108,6 +108,67 @@
             Restore default configuration
           </v-btn>
           <v-spacer></v-spacer>
+        </v-card-title>
+        <v-card-text>
+          <v-row>
+            <v-col>
+              <v-checkbox
+                v-model="settings.datasets.cardText"
+                label="Show Metadata"
+              >
+              </v-checkbox>
+            </v-col>
+            <v-col>
+              <v-checkbox
+                v-model="settings.datasets.structured"
+                label="Structured View"
+              >
+              </v-checkbox>
+            </v-col>
+            <v-col>
+              <v-select
+                v-model="settings.datasets.cols"
+                :items="['auto', '1', '2', '3', '4', '6', '12']"
+                label="Width of an item in the Dataset view"
+              ></v-select>
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col>
+              <v-select
+                v-model="settings.datasets.itemsPerPagePagination"
+                :items="[50, 100, 200, 500, 1000, 5000, 10000]"
+                label="Items per Page"
+              ></v-select>
+            </v-col>
+            <v-col>
+              <v-select
+                v-model="selectedSortKey"
+                :items="sortKeys"
+                label="Sort"
+              ></v-select>
+            </v-col>
+            <v-col>
+              <v-select
+                v-model="settings.datasets.sortDirection"
+                :items="['asc', 'desc']"
+                label="Sort direction"
+              ></v-select>
+            </v-col>        
+          </v-row>
+          <v-row>
+            <v-col>
+              <SettingsTable
+                ref="settingsTable"
+                :items.sync="settings.datasets.props"
+                :structuredView="settings.datasets.structured"
+                :showMetaData="settings.datasets.cardText"
+              >
+              </SettingsTable>
+            </v-col>
+          </v-row>
+        </v-card-text>
+        <v-card-actions class="justify-center">
           <v-btn color="primary" @click="onSave"> Save </v-btn>
         </v-card-actions>
       </v-card>
@@ -117,7 +178,8 @@
 
 <script>
 import SettingsTable from "@/components/SettingsTable.vue";
-import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import { settings as defaultSettings, settings } from "@/static/defaultUIConfig";
+import { loadDicomTagMapping } from "@/common/api.service";
 
 export default {
   data: () => ({
@@ -128,6 +190,8 @@ export default {
     selectedTab: null,
     validateDicoms: {},
     tagError: ""
+    selectedSortKey:null,
+    sortMapping:{}
   }),
   components: {
     SettingsTable,
@@ -146,6 +210,12 @@ export default {
 
   },
   watch: {
+    this.loadSortItems();
+  },
+  computed: {
+    sortKeys() {
+      return Object.keys(this.sortMapping);
+    },
   },
   methods: {
     restoreDefaultSettings() {
@@ -234,6 +304,18 @@ export default {
         this.validateDicoms.tagsWhitelist.splice(index, 1);
       }
     }
+    loadSortItems() {
+      loadDicomTagMapping().then((data) => {
+        console.log("loadSortItems");
+        this.sortMapping = data; 
+        this.selectedSortKey = Object.keys(data).find(key => data[key] === this.settings.datasets.sort);
+      })
+    },
+  },
+  watch: {
+    selectedSortKey(newKey) {
+      this.settings.datasets.sort = this.sortMapping[newKey];
+    },
   },
 };
 </script>

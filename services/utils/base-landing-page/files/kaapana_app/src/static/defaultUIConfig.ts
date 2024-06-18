@@ -10,7 +10,11 @@ const settings = {
         tagBar: {
             multiple: false,
             tags: []
+
         },
+        seriesPerPage: 1000,
+        sort: "0020000E SeriesInstanceUID_keyword.keyword",
+        sortDirection: "desc",
         props: [
             {
                 name: 'Series Description',

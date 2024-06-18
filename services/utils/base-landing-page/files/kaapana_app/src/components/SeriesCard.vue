@@ -239,7 +239,7 @@ export default {
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .selected {
   /*TODO: This should be aligned with theme*/
   color: #fff !important;

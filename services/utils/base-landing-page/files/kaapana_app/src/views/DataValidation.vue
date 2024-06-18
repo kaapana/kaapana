@@ -71,7 +71,7 @@
       <WorkflowExecution 
         :identifiers="getSeriesIdentifiers" 
         :onlyLocal="true" :isDialog="true"
-        kind_of_dags="dataset" :validDags="['example-dcm-validate']" 
+        kind_of_dags="dataset" :validDags="['validate-dicoms']" 
         @successful="() => (this.workflowDialog = false)"
         @cancel="() => (this.workflowDialog = false)" />
     </v-dialog>

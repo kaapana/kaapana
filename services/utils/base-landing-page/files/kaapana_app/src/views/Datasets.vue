@@ -198,13 +198,13 @@
                     <v-icon>mdi-cog-play</v-icon>
                   </v-list-item-icon>
                 </v-list-item>
-                <v-list-item @click="deleteValidationResult(item)">
+                <v-list-item @click="deleteValidationResult(validationResultItem)">
                   <v-list-item-title>Delete Result</v-list-item-title>
                   <v-list-item-icon class="mt-4">
                     <v-icon>mdi-delete-empty</v-icon>
                   </v-list-item-icon>
                 </v-list-item>
-                <v-list-item @click="deleteValidationResult(item)">
+                <v-list-item @click="downloadValidationResult(validationResultItem)">
                   <v-list-item-title>Download Report</v-list-item-title>
                   <v-list-item-icon class="mt-4">
                     <v-icon>mdi-file-download</v-icon>
@@ -231,6 +231,26 @@
                 Re-run Validation
               </v-btn>
             </div>
+            <v-card-actions>
+                <v-btn
+                  color="error"
+                  icon
+                  @click="runValidationWorkflow(validationResultItem)"
+                >
+                  <v-icon>mdi-cog-play</v-icon>
+                </v-btn>
+                <v-btn
+                  color="error"
+                  icon
+                  @click="deleteValidationResult(validationResultItem)"
+                >
+                  <v-icon>mdi-delete-empty</v-icon>
+                </v-btn>
+                <v-spacer></v-spacer>
+                <v-btn color="primary" @click="onValidationResultClose">
+                  Close
+                </v-btn>
+              </v-card-actions>
           </v-card-text>
         </v-card>
       </v-dialog>
@@ -601,11 +621,28 @@ export default {
     },
     runValidationWorkflow(resultItemID) {
       this.selectedSeriesInstanceUIDs = [resultItemID];
-      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs)
-      this.filteredDags = ['example-dcm-validate'];
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
+      this.filteredDags = ['validate-dicoms'];
       this.onValidationResultClose();
       this.workflowDialog = true;
     },
+    deleteValidationResult(resultItemID) {
+      this.selectedSeriesInstanceUIDs = [resultItemID];
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
+      this.filteredDags = ['clear-validation-results'];
+      this.onValidationResultClose();
+      this.workflowDialog = true;
+    },
+    downloadValidationResult(resultItemID) {
+      const resultUri = this.resultPaths[resultItemID];
+      var link = document.createElement("a");
+      link.download = resultItemID + ".html";
+      link.href = resultUri;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      link = null;
+    }
   },
   watch: {
     debouncedIdentifiers: debounce(function (val) {

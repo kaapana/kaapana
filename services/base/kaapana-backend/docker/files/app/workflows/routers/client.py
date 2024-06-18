@@ -732,16 +732,19 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
                         "description": "The job was aborted by the user!",
                     }
                 )
-                # put_job(job, db)  # would be easier but doesn't work, so let's do it manually
-                crud.abort_job(db, job, remote=False)
-                job.status = "failed"
-                crud.update_job(db, job, remote=False)  # update db_job to failed
+
+                if db_job.status in ["queued", "scheduled", "running"]:
+                    # put_job(job, db)  # would be easier but doesn't work, so let's do it manually
+                    crud.abort_job(db, job, remote=False)
+                    job.status = "failed"
+                    crud.update_job(db, job, remote=False)  # update db_job to failed
 
         # update aborted workflow
         return crud.update_workflow(db, workflow)
     elif (
         workflow.workflow_status == "scheduled"
         or workflow.workflow_status == "confirmed"
+        or workflow.workflow_status == "restart"
     ):
         return crud.update_workflow(db, workflow)
     else:

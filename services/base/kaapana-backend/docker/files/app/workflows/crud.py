@@ -564,6 +564,9 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     if db_job.kaapana_instance.remote and remote:
         db_job.status = job.status
 
+    if job.status == "restart":
+        db_job.run_id = generate_run_id(db_job.dag_id)
+        job.status = "scheduled"
     if job.status == "scheduled" and db_job.kaapana_instance.remote == False:
         # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = db_job.conf_data
@@ -1588,15 +1591,29 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                     and db_workflow.automatic_execution is True
                 )
             ):
-                job = schemas.JobUpdate(
-                    **{
-                        "job_id": db_workflow_current_job.id,
-                        "status": "scheduled",
-                        "description": "The worklow was triggered!",
-                    }
-                )
-                # def update_job() expects job of class schemas.JobUpdate
-                update_job(db, job, remote=False)
+                if workflow.workflow_status == "restart":
+                    if db_workflow_current_job.status == "failed":
+                        job = schemas.JobUpdate(
+                            **{
+                                "job_id": db_workflow_current_job.id,
+                                "status": "restart",
+                                "description": "The worklow was triggered!",
+                            }
+                        )
+                        # def update_job() expects job of class schemas.JobUpdate
+                        update_job(db, job, remote=False)
+                    else:
+                        logging.warning("Job is not failed, not restarting the job!")
+                else:
+                    job = schemas.JobUpdate(
+                        **{
+                            "job_id": db_workflow_current_job.id,
+                            "status": "scheduled",
+                            "description": "The worklow was triggered!",
+                        }
+                    )
+                    # def update_job() expects job of class schemas.JobUpdate
+                    update_job(db, job, remote=False)
             # or update db_jobs on remote kaapana_instance
             elif (
                 db_workflow.kaapana_instance.remote is True
@@ -1708,11 +1725,12 @@ def delete_workflow(db: Session, workflow_id: str):
 
     # iterate over jobs of to-be-deleted workflow
     for db_workflow_current_job in db_workflow.workflow_jobs:
-        # deletes local and remote jobs
-        delete_job(db, job_id=db_workflow_current_job.id, remote=False)
-
-    db.delete(db_workflow)
-    db.commit()
+        if db_workflow_current_job.status not in ["queued", "scheduled", "running"]:
+            # deletes local and remote jobs
+            delete_job(db, job_id=db_workflow_current_job.id, remote=False)
+    if not db_workflow.workflow_jobs:
+        db.delete(db_workflow)
+        db.commit()
     return {"ok": True}
 
 

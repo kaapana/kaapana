@@ -64,7 +64,7 @@ dependencies:
     version: 0.0.0
 # SEPERATION
   - name: dicom-web-filter
-    version: 0.0.0# SEPARATION
+    version: 0.0.0
   - name: access-information-interface
     version: 0.0.0
   - name: aip-postgres-chart

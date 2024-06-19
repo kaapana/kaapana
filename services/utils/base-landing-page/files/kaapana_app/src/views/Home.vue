@@ -56,7 +56,6 @@ import { Component, Vue } from "vue-property-decorator";
 import { mapGetters } from "vuex";
 import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
 import Dashboard from "@/components/Dashboard.vue";
-import { loadPatients } from "../common/api.service";
 import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({

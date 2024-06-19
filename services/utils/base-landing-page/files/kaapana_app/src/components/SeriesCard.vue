@@ -252,6 +252,6 @@ export default {
   min-width: 50px !important;
 }
 .result-container{
-  justify-content: right;
+  justify-content: right !important;
 }
 </style>

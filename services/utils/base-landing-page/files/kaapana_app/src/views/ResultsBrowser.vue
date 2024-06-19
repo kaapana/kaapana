@@ -76,7 +76,6 @@ export default {
   },
   watch: {
     tree(newValue) {
-      console.log(newValue)
       if (newValue.length > 0) {
         this.panel = newValue.length - 1
       }
@@ -88,7 +87,6 @@ export default {
         .kaapanaApiGet("/get-static-website-results")
         .then((response) => {
           this.staticUrls = response.data;
-          console.log(this.staticUrls)
         })
         .catch((err) => {
           this.staticUrls = []

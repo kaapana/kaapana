@@ -2,7 +2,6 @@ import os
 import re
 import json
 import glob
-from opensearchpy import OpenSearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperOpensearch import HelperOpensearch
@@ -18,8 +17,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         os_client (OpenSearch): OpenSearch client for interacting with the OpenSearch service.
         validation_field (str): Field in the OpenSearch index used for validation results.
         result_bucket (str): minio bucket which stores the validation results html files.
-        opensearch_host (str): Hostname of the OpenSearch service.
-        opensearch_port (int): Port of the OpenSearch service.
         opensearch_index (str): Index in OpenSearch where metadata is stored.
     """
 
@@ -108,7 +105,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
 
     def _init_clients(self, dag_run):
         """
-        Initializes the MinIO and OpenSearch clients.
+        Initializes the MinIO Client and Referes to the HelperOpenSearch client.
 
         Args:
             dag_run (DAGRun): The current DAG run instance providing context and configuration.
@@ -118,21 +115,8 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         """
         # initialize MinIO client
         self.minio_client = HelperMinio(dag_run=dag_run)
-        # Initialize OpenSearch Client
-        auth = None
-        self.os_client = OpenSearch(
-            hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
-            http_compress=True,  # enables gzip compression for request bodies
-            http_auth=auth,
-            # client_cert = client_cert_path,
-            # client_key = client_key_path,
-            use_ssl=False,
-            verify_certs=False,
-            ssl_assert_hostname=False,
-            ssl_show_warn=False,
-            timeout=2,
-            # ca_certs = ca_certs_path
-        )
+        # Point to the already initialized HelperOpensearch client
+        self.os_client = HelperOpensearch.os_client
 
     def start(self, ds, **kwargs):
         """
@@ -185,8 +169,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         name: str = "clear-validation-results",
         result_bucket: str = "staticwebsiteresults",
         validation_tag: str = "00111001",
-        opensearch_host=f"opensearch-service.{SERVICES_NAMESPACE}.svc",
-        opensearch_port=9200,
         opensearch_index="meta-index",
         *args,
         **kwargs,
@@ -199,8 +181,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             name (str): The name of the operator. Defaults to "clear-validation-results".
             results_bucket (str): minio bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
             validation_tag (str): Base tag used to store validation results on OpenSearch (default: "00111001").
-            opensearch_host (str): Hostname of the OpenSearch service. Defaults to "opensearch-service.{SERVICES_NAMESPACE}.svc".
-            opensearch_port (int): Port of the OpenSearch service. Defaults to 9200.
             opensearch_index (str): Index in OpenSearch where metadata will be stored. Defaults to "meta-index".
             *args: Additional arguments for the parent class.
             **kwargs: Additional keyword arguments for the parent class.
@@ -212,8 +192,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         self.os_client = None
         self.validation_field = f"{validation_tag} ValidationResults_object"
         self.result_bucket = result_bucket
-        self.opensearch_host = opensearch_host
-        self.opensearch_port = opensearch_port
         self.opensearch_index = opensearch_index
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

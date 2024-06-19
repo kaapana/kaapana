@@ -5,11 +5,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.INFO) # TODO: Change before deployment
+# logging.basicConfig(level=logging.INFO) # TODO: Change before deployment
 
 
-async def proxy_request(request: Request, path: str, method: str):
-    url = f"{DICOMWEB_BASE_URL}{path}"
+async def proxy_request(request: Request, path: str, method: str, base_url=DICOMWEB_BASE_URL):
+    url = f"{base_url}{path}"
     headers = dict(request.headers)
     logger.info(f"Request URL: {url}")
     logger.info(f"Request headers: {headers}")

@@ -4,7 +4,6 @@ from .STOW_RS.routes import router as stow_router
 from .UPS_RS.routes import router as ups_router
 from .WADO_RS.routes import router as wado_router
 from .WADO_URI.routes import router as wado_uri_router
-from .config import DICOMWEB_BASE_URL
 from .proxy_request import proxy_request
 import logging
 
@@ -31,6 +30,10 @@ tags_metadata = [
         "name": "Capabilities",
         "description": "Discover services",
     },
+    {
+        "name": "WADO-URI",
+        "description": "Retrieve single DICOM instances",
+    },
 ]
 
 app = FastAPI(
@@ -49,6 +52,7 @@ app.include_router(wado_router)
 app.include_router(wado_uri_router)
 
 
+# TODO: Not working
 @app.get("/", tags=["Capabilities"])
 async def read_root(request: Request):
     return await proxy_request(request, "/", "GET")

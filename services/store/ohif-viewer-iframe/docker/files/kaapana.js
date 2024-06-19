@@ -13,7 +13,7 @@ window.config = {
       sourceName: "dicomweb",
       configuration: {
         name: "DicomWebFilter",
-        wadoUriRoot: "https://" + hostname + "/dicom-web-filter/wado",
+        wadoUriRoot: "https://" + hostname + "/dicom-web-filter/wado-uri/wado",
         qidoRoot: "https://" + hostname + "/dicom-web-filter",
         wadoRoot: "https://" + hostname + "/dicom-web-filter",
         qidoSupportsIncludeField: true,

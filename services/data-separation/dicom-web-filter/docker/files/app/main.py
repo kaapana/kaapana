@@ -49,7 +49,7 @@ app.include_router(qido_router)
 app.include_router(stow_router)
 app.include_router(ups_router)
 app.include_router(wado_router)
-app.include_router(wado_uri_router)
+app.include_router(wado_uri_router, prefix="/wado-uri")
 
 
 # TODO: Not working

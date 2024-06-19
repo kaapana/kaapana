@@ -44,7 +44,7 @@ def execute_opensearch_query(
     :return: aggregated search results
     """
 
-    def _execute_opensearch_query(search_after=None, size=10000) -> List:
+    def _execute_opensearch_query(os_client, search_after=None, size=10000) -> List:
         res = os_client.search(
             body={
                 "query": query,
@@ -58,12 +58,14 @@ def execute_opensearch_query(
         if len(res["hits"]["hits"]) > 0:
             return [
                 *res["hits"]["hits"],
-                *_execute_opensearch_query(res["hits"]["hits"][-1]["sort"], size),
+                *_execute_opensearch_query(
+                    os_client, res["hits"]["hits"][-1]["sort"], size
+                ),
             ]
         else:
             return res["hits"]["hits"]
 
-    return _execute_opensearch_query()
+    return _execute_opensearch_query(os_client=os_client)
 
 
 def contains_numbers(s):

@@ -34,9 +34,11 @@ async def retrieve_frames(
     )
 
 
-@router.get("/{bulkdataReferenceURI:path}", tags=["WADO-RS"])
-async def retrieve_bulk_data(bulkdataReferenceURI: str, request: Request):
-    return await proxy_request(request, f"/{bulkdataReferenceURI}", "GET")
+# TODO: Implement bulk data retrieval
+#@router.get("/{bulkdataReferenceURI:path}", tags=["WADO-RS"])
+#async def retrieve_bulk_data(bulkdataReferenceURI: str, request: Request):
+#    print(f"bulkdataReferenceURI: {bulkdataReferenceURI}")
+#    return await proxy_request(request, f"/{bulkdataReferenceURI}", "GET")
 
 
 # Routes for retrieve modifiers

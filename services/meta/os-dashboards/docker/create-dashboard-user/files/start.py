@@ -1,4 +1,4 @@
-from kaapanapy.Clients.KaapanaAuthorization import get_project_user_access_token
+from kaapanapy.helper import get_project_user_access_token
 from kaapanapy.settings import OpensearchSettings
 from kaapanapy.logger import get_logger
 import requests

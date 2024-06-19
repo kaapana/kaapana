@@ -24,68 +24,35 @@ def execute_opensearch_query(
     source=False,
     index="meta-index",
     sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
-    scroll=False,
+    start_from=1,
+    size=1000,
 ) -> List:
     """
-    Since Opensearch has a strict size limit of 10000 but sometimes scrolling or
-    pagination is not desirable, this helper function aggregates paginated results
-    into a single one.
-
+    Opensearch size limit is 10000.
+    If you want to query more, this function has to be called again,
+    otherwise the response will time out.
     Caution: Removing or adding entries between requests will lead to inconsistencies.
     Opensearch offers the 'scroll' functionality which prevents this, but creating
     the required sessions takes too much time for most requests.
-    Therefore, it is not implemented yet
+    Therefore, it is not implemented.
 
     :param query: query to execute
     :param source: opensearch _source parameter
     :param index: index on which to execute the query
-    :param sort: TODO
-    :param scroll: use scrolling or pagination -> scrolling currently not impelmented
+    :param sort: sort the results
+    :param start_from: the result start from
+    :param size: the result size
     :return: aggregated search results
     """
-
-    def _execute_opensearch_query(os_client, search_after=None, size=10000) -> List:
-        res = os_client.search(
-            body={
-                "query": query,
-                "size": size,
-                "_source": source,
-                "sort": sort,
-                **({"search_after": search_after} if search_after else {}),
-            },
-            index=index,
-        )
-        if len(res["hits"]["hits"]) > 0:
-            return [
-                *res["hits"]["hits"],
-                *_execute_opensearch_query(
-                    os_client, res["hits"]["hits"][-1]["sort"], size
-                ),
-            ]
-        else:
-            return res["hits"]["hits"]
-
-    return _execute_opensearch_query(os_client=os_client)
-
-
-def execute_opensearch_query_paginated(
-    query: Dict = dict(),
-    source=False,
-    index="meta-index",
-    sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
-    scroll=False,
-    page_index=1,
-    page_length=100,
-) -> List:
-    """ """
-    start_from = (page_index - 1) * page_length
-    res = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).search(
+    start_from = (start_from - 1) * size
+    # limit size to 10000 (opensearch maximum)
+    if size > 10000:
+        size = 10000
+    res = os_client.search(
         body={
             "from": start_from,
             "query": query,
-            "size": page_length,
+            "size": size,
             "_source": source,
             "sort": sort,
         },

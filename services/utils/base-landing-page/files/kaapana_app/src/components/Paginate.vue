@@ -35,7 +35,7 @@
       },
       aggregatedSeriesNum() {
         this.updatePaginationVisibility();
-        console.log('aggregatedSeriesNum:', this.pageIndex, this.pageLength, this.aggregatedSeriesNum);
+        //console.log('aggregatedSeriesNum:', this.pageIndex, this.pageLength, this.aggregatedSeriesNum);
         if(this.pageIndex * this.pageLength > this.aggregatedSeriesNum){
             this.pageIndex = 1;
         }
@@ -45,20 +45,18 @@
         this.$emit("onPageIndexChange", this.pageIndex)
         this.updatePaginationVisibility();
         this.onPaginate();
-        console.log('aggregatedSeriesNum:', this.pageIndex, this.pageLength, this.aggregatedSeriesNum);
-
+        //console.log('pageIndex:', this.pageIndex, this.pageLength, this.aggregatedSeriesNum);
       },
     },
     methods: {
       onPaginate() {
-        console.log('onPaginate:', this.pageIndex, this.pageLength);
+        //console.log('onPaginate:', this.pageIndex, this.pageLength);
         //only trigger on changes
         if (this.pageIndex != this.lastPage || this.pageLength != this.lastPageLength){
             this.$emit('updateData', {}, true);
         }
         this.lastPage = this.pageIndex;
-        this.lastPageLength = this.pageLength;
-        
+        this.lastPageLength = this.pageLength;       
       },
       onPageLengthChange() {
         this.pageIndex = 1; // Reset to first page

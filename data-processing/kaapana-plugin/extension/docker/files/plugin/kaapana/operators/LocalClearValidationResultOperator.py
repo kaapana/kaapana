@@ -2,7 +2,6 @@ import os
 import re
 import json
 import glob
-from opensearchpy import OpenSearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperOpensearch import HelperOpensearch
@@ -108,7 +107,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
 
     def _init_clients(self, dag_run):
         """
-        Initializes the MinIO and OpenSearch clients.
+        Initializes the MinIO Client and Referes to the HelperOpenSearch client.
 
         Args:
             dag_run (DAGRun): The current DAG run instance providing context and configuration.
@@ -118,21 +117,8 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         """
         # initialize MinIO client
         self.minio_client = HelperMinio(dag_run=dag_run)
-        # Initialize OpenSearch Client
-        auth = None
-        self.os_client = OpenSearch(
-            hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
-            http_compress=True,  # enables gzip compression for request bodies
-            http_auth=auth,
-            # client_cert = client_cert_path,
-            # client_key = client_key_path,
-            use_ssl=False,
-            verify_certs=False,
-            ssl_assert_hostname=False,
-            ssl_show_warn=False,
-            timeout=2,
-            # ca_certs = ca_certs_path
-        )
+        # Point to the already initialized HelperOpensearch client
+        self.os_client = HelperOpensearch.os_client
 
     def start(self, ds, **kwargs):
         """

@@ -199,7 +199,7 @@
                   </v-list-item-icon>
                 </v-list-item>
                 <v-list-item @click="deleteValidationResult(validationResultItem)">
-                  <v-list-item-title>Delete Result</v-list-item-title>
+                  <v-list-item-title>Delete Report</v-list-item-title>
                   <v-list-item-icon class="mt-4">
                     <v-icon>mdi-delete-empty</v-icon>
                   </v-list-item-icon>

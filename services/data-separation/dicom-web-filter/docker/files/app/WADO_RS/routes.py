@@ -23,7 +23,10 @@ async def retrieve_instance(study: str, series: str, instance: str, request: Req
     )
 
 
-@router.get("/studies/{study}/series/{series}/instances/{instance}/frames/{frames}", tags=["WADO-RS"])
+@router.get(
+    "/studies/{study}/series/{series}/instances/{instance}/frames/{frames}",
+    tags=["WADO-RS"],
+)
 async def retrieve_frames(
     study: str, series: str, instance: str, frames: str, request: Request
 ):
@@ -34,11 +37,10 @@ async def retrieve_frames(
     )
 
 
-# TODO: Implement bulk data retrieval
-#@router.get("/{bulkdataReferenceURI:path}", tags=["WADO-RS"])
-#async def retrieve_bulk_data(bulkdataReferenceURI: str, request: Request):
-#    print(f"bulkdataReferenceURI: {bulkdataReferenceURI}")
-#    return await proxy_request(request, f"/{bulkdataReferenceURI}", "GET")
+@router.get("/{bulkdataReferenceURI}", tags=["WADO-RS"])
+async def retrieve_bulk_data(bulkdataReferenceURI: str, request: Request):
+    print(f"bulkdataReferenceURI: {bulkdataReferenceURI}")
+    return await proxy_request(request, f"/{bulkdataReferenceURI}", "GET")
 
 
 # Routes for retrieve modifiers
@@ -56,7 +58,9 @@ async def retrieve_series_metadata(study: str, series: str, request: Request):
     )
 
 
-@router.get("/studies/{study}/series/{series}/instances/{instance}/metadata", tags=["WADO-RS"])
+@router.get(
+    "/studies/{study}/series/{series}/instances/{instance}/metadata", tags=["WADO-RS"]
+)
 async def retrieve_instance_metadata(
     study: str, series: str, instance: str, request: Request
 ):
@@ -79,7 +83,9 @@ async def retrieve_series_rendered(study: str, series: str, request: Request):
     )
 
 
-@router.get("/studies/{study}/series/{series}/instances/{instance}/rendered", tags=["WADO-RS"])
+@router.get(
+    "/studies/{study}/series/{series}/instances/{instance}/rendered", tags=["WADO-RS"]
+)
 async def retrieve_instance_rendered(
     study: str, series: str, instance: str, request: Request
 ):

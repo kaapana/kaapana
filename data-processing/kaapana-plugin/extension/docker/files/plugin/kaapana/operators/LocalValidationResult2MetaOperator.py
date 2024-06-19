@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from html.parser import HTMLParser
@@ -9,9 +10,28 @@ from typing import List
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from pytz import timezone
+
+
+@dataclass
+class ValdationResultItem:
+    key: str
+    datatype: str
+    value: any
 
 
 class ClassHTMLParser(HTMLParser):
+    """
+    A custom HTML parser that captures data within tags that have a specific class attribute.
+    This parser will read an HTML document line by line and extract the content between start
+    tag to end tag of an element with provided class name.
+
+    Attributes:
+        class_name (str): The class name to look for in HTML tags.
+        capture (bool): A flag indicating whether the parser is currently capturing data.
+        data (list): A list to store captured data.
+    """
+
     def __init__(self, class_name):
         super().__init__()
         self.class_name = class_name
@@ -94,7 +114,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
     def add_tags_to_opensearch(
         self,
         series_instance_uid: str,
-        validation_tags: List[tuple],
+        validation_tags: List[ValdationResultItem],
         clear_results: bool = False,
     ):
         """
@@ -124,10 +144,10 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         final_tags = {}
 
         current_tag = str(self.validation_tag)
-        for idx, item in enumerate(validation_tags):
+        for _, item in enumerate(validation_tags):
             item_tag = self._get_next_hex_tag(current_tag)
-            item_key = f"{item_tag} Validation{item[0]}_{item[1]}"
-            final_tags[item_key] = item[2]
+            item_key = f"{item_tag} Validation{item.key}_{item.datatype}"
+            final_tags[item_key] = item.value
             current_tag = str(item_tag)
 
         print(f"Final tags: {final_tags}")
@@ -164,25 +184,12 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
 
     def _init_client(self):
         """
-        Initializes the OpenSearch client.
+        Point to the already initialized HelperOpensearch client.
 
         Returns:
             None
         """
-        auth = None
-        self.os_client = OpenSearch(
-            hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
-            http_compress=True,  # enables gzip compression for request bodies
-            http_auth=auth,
-            # client_cert = client_cert_path,
-            # client_key = client_key_path,
-            use_ssl=False,
-            verify_certs=False,
-            ssl_assert_hostname=False,
-            ssl_show_warn=False,
-            timeout=2,
-            # ca_certs = ca_certs_path
-        )
+        self.os_client = HelperOpensearch.os_client
 
     def start(self, ds, **kwargs):
         """
@@ -234,9 +241,11 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
             )
 
             tags_tuple = [
-                ("Errors", "integer", n_errors),  # (key, opensearch datatype, value)
-                ("Warnings", "integer", n_warnings),
-                ("Date", "datetime", validation_time),
+                ValdationResultItem(
+                    "Errors", "integer", n_errors
+                ),  # (key, opensearch datatype, value)
+                ValdationResultItem("Warnings", "integer", n_warnings),
+                ValdationResultItem("Date", "datetime", validation_time),
             ]
 
             for meta_files in json_files:

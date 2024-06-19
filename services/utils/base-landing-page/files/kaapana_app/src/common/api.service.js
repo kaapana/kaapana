@@ -99,10 +99,10 @@ const loadSeriesData = async (seriesInstanceUID) => {
 };
 
 
-const loadPatientsPage = async (data) => {
+const loadPatients = async (data) => {
   try {
     const res = await httpClient.post(
-      KAAPANA_BACKEND_ENDPOINT + "dataset/seriesOnPage",
+      KAAPANA_BACKEND_ENDPOINT + "dataset/series",
       data
     );
     return res.data;
@@ -120,24 +120,10 @@ const loadPatientsPage = async (data) => {
 };
 
 const getAggregatedSeriesNum = async (data) => {
-  const res = await httpClient.post(
-    KAAPANA_BACKEND_ENDPOINT + "dataset/aggregatedSeriesNum",
-    data
-  );
-  return res.data;
-};
-
-const loadPatients = async (data) => {
   try {
     const res = await httpClient.post(
-      KAAPANA_BACKEND_ENDPOINT + "dataset/series",
-      data,
-      {
-        params: {
-          page_index: 1,
-          page_length: 100
-        }
-      }
+      KAAPANA_BACKEND_ENDPOINT + "dataset/aggregatedSeriesNum",
+      data
     );
     return res.data;
   } catch (error) {
@@ -218,7 +204,6 @@ const loadDicomTagMapping = async () => {
 export {
   updateTags,
   loadPatients,
-  loadPatientsPage,
   loadSeriesData,
   createDataset,
   updateDataset,

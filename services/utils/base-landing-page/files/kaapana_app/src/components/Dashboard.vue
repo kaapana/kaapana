@@ -186,15 +186,12 @@ export default {
       if (this.seriesInstanceUIDs.length === 0 && !this.allPatients) {
         this.histograms = {};
         this.metrics = {};
-      } else {
-        
+      } else {  
         let series = this.seriesInstanceUIDs;
         let query = []
         if(this.allPatients){
           series = [];
           query = this.searchQuery;
-          console.log("Update Dashboard call", this.searchQuery);
-          console.log("Update Dashboard call", JSON.stringify(this.searchQuery)); 
         }
         loadDashboard(series, this.fields, query).then((data) => {
           this.histograms = data["histograms"] || {};

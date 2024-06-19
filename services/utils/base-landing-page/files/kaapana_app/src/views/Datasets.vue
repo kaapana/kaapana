@@ -197,7 +197,7 @@ import {
   createDataset,
   updateDataset,
   loadDatasets,
-  loadPatientsPage,
+  loadPatients,
   getAggregatedSeriesNum,
 } from "../common/api.service";
 import Dashboard from "@/components/Dashboard.vue";
@@ -342,7 +342,7 @@ export default {
           this.aggregatedSeriesNum = data;
           this.allPatients = this.aggregatedSeriesNum > this.settings.datasets.itemsPerPagePagination;
       });
-      loadPatientsPage({
+      loadPatients({
         structured: this.settings.datasets.structured,
         query: this.searchQuery ,
         sort: this.settings.datasets.sort,
@@ -510,6 +510,7 @@ export default {
   computed: {
     identifiersOfInterest() {
       if(this.selectedSeriesInstanceUIDs.length > 0){
+        this.allPatients = false;
         return this.selectedSeriesInstanceUIDs;
       }
       return this.seriesInstanceUIDs;

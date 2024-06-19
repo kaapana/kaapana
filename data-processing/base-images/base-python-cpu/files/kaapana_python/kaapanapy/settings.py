@@ -11,6 +11,7 @@ class KaapanaSettings(BaseSettings):
     instance_name: str = os.getenv("INSTANCE_NAME")
     services_namespace: str = os.getenv("SERVICES_NAMESPACE")
     admin_namespace: str = os.getenv("ADMIN_NAMESPACE", "admin")
+    kaapana_log_level: str = os.getenv("KAAPANA_LOG_LEVEL", "DEBUG")
 
 
 class KeycloakSettings(KaapanaSettings):

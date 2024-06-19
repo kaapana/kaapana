@@ -47,7 +47,7 @@ app = FastAPI(
 
 app.include_router(qido_router)
 app.include_router(stow_router)
-app.include_router(ups_router)
+# app.include_router(ups_router) TODO: Test properly, currently no usecase
 app.include_router(wado_router)
 app.include_router(wado_uri_router, prefix="/wado-uri")
 

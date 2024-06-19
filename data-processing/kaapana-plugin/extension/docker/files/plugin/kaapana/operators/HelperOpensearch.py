@@ -1,6 +1,9 @@
 from typing import List, Dict
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapanapy.helper import get_opensearch_client
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class HelperOpensearch:
@@ -15,10 +18,13 @@ class HelperOpensearch:
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
     port = "9200"
     index = "meta-index"
-    auth = None
-    # auth = ('admin', 'admin') # For testing only. Don't store credentials in code.
 
-    os_client = get_opensearch_client()
+    try:
+        os_client = get_opensearch_client()
+    except KeyError:
+        logger.error(
+            f"The os_client cannot be intiliatized without correct environment variables. This error will pass, because the HelperOpensearch class is initialized in the airflow-webserver without correct environment variables."
+        )
 
     @staticmethod
     def get_query_dataset(

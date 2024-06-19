@@ -151,7 +151,7 @@ spec:
             secretKeyRef:
               name: system-user-password
               key: system-user-password
-                - name: OPENSEARCH_HOST
+        - name: OPENSEARCH_HOST
           value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
         - name: OPENSEARCH_PORT
           value: "9200"

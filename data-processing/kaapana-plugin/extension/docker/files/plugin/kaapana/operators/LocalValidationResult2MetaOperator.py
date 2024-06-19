@@ -69,8 +69,6 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         validator_output_dir (str): Directory where validation output files are stored.
         validation_tag (str): Base tag used for validation.
         tag_field (str): Field in the OpenSearch index used for validation results.
-        opensearch_host (str): Hostname of the OpenSearch service.
-        opensearch_port (int): Port of the OpenSearch service.
         opensearch_index (str): Index in OpenSearch where metadata is stored.
         os_client (OpenSearch): OpenSearch client for interacting with the OpenSearch service.
 
@@ -280,8 +278,6 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         validator_output_dir: str,
         validation_tag: str = "00111001",
         name: str = "results-to-open-search",
-        opensearch_host=f"opensearch-service.{SERVICES_NAMESPACE}.svc",
-        opensearch_port=9200,
         opensearch_index="meta-index",
         *args,
         **kwargs,
@@ -296,8 +292,6 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                     Multiple items of the validation results will be tagged by incrementing
                     this tag. e.g. 00111002, 00111003, ..
             name (str): Name of the operator (default: "results-to-open-search").
-            opensearch_host (str): Hostname of the OpenSearch service (default: "opensearch-service.{SERVICES_NAMESPACE}.svc").
-            opensearch_port (int): Port of the OpenSearch service (default: 9200).
             opensearch_index (str): Index in OpenSearch where metadata will be stored (default: "meta-index").
             *args: Additional arguments for the parent class.
             **kwargs: Additional keyword arguments for the parent class.
@@ -309,8 +303,6 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         self.validator_output_dir = validator_output_dir
         self.validation_tag = validation_tag
         self.tag_field = f"{validation_tag} ValidationResults_object"
-        self.opensearch_host = opensearch_host
-        self.opensearch_port = opensearch_port
         self.opensearch_index = opensearch_index
         self.os_client = None
 

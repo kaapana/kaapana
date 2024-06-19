@@ -17,8 +17,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         os_client (OpenSearch): OpenSearch client for interacting with the OpenSearch service.
         validation_field (str): Field in the OpenSearch index used for validation results.
         result_bucket (str): minio bucket which stores the validation results html files.
-        opensearch_host (str): Hostname of the OpenSearch service.
-        opensearch_port (int): Port of the OpenSearch service.
         opensearch_index (str): Index in OpenSearch where metadata is stored.
     """
 
@@ -171,8 +169,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         name: str = "clear-validation-results",
         result_bucket: str = "staticwebsiteresults",
         validation_tag: str = "00111001",
-        opensearch_host=f"opensearch-service.{SERVICES_NAMESPACE}.svc",
-        opensearch_port=9200,
         opensearch_index="meta-index",
         *args,
         **kwargs,
@@ -185,8 +181,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             name (str): The name of the operator. Defaults to "clear-validation-results".
             results_bucket (str): minio bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
             validation_tag (str): Base tag used to store validation results on OpenSearch (default: "00111001").
-            opensearch_host (str): Hostname of the OpenSearch service. Defaults to "opensearch-service.{SERVICES_NAMESPACE}.svc".
-            opensearch_port (int): Port of the OpenSearch service. Defaults to 9200.
             opensearch_index (str): Index in OpenSearch where metadata will be stored. Defaults to "meta-index".
             *args: Additional arguments for the parent class.
             **kwargs: Additional keyword arguments for the parent class.
@@ -198,8 +192,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         self.os_client = None
         self.validation_field = f"{validation_tag} ValidationResults_object"
         self.result_bucket = result_bucket
-        self.opensearch_host = opensearch_host
-        self.opensearch_port = opensearch_port
         self.opensearch_index = opensearch_index
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

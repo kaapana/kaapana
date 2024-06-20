@@ -12,7 +12,7 @@ const settings = {
             tags: []
 
         },
-        seriesPerPage: 1000,
+        itemsPerPagePagination: 1000,
         sort: "0020000E SeriesInstanceUID_keyword.keyword",
         sortDirection: "desc",
         props: [

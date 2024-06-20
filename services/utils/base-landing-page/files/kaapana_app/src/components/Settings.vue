@@ -178,14 +178,14 @@
 
 <script>
 import SettingsTable from "@/components/SettingsTable.vue";
-import { settings as defaultSettings, settings } from "@/static/defaultUIConfig";
+import { settings as defaultSettings } from "@/static/defaultUIConfig";
 import { loadDicomTagMapping } from "@/common/api.service";
 
 export default {
   data: () => ({
     dialog: false,
-    settings: defaultSettings,
     newTag: '',
+    settings: {},
     resetConfiguration: false,
     selectedTab: null,
     validateDicoms: {},
@@ -197,20 +197,15 @@ export default {
     SettingsTable,
   },
   created() {
-    this.settings = JSON.parse(localStorage["settings"]);
-
+    this.loadSettings();
+    this.loadSortItems();
     // set the validateDicoms settings and ignored tags
     // ensure both workflows and validateDicoms settings are in
     // localstorage settings
     if (!this.settings.hasOwnProperty('workflows')) {
-      this.settings['workflows'] = structuredClone(defaultSettings['workflows']);
+    this.settings['workflows'] = structuredClone(defaultSettings['workflows']);
     }
-    
     this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
-
-  },
-  watch: {
-    this.loadSortItems();
   },
   computed: {
     sortKeys() {
@@ -218,10 +213,21 @@ export default {
     },
   },
   methods: {
+    loadSettings() {
+      // Load settings from localStorage or use defaults if not available
+      try {
+        const storedSettings = localStorage.getItem("settings");
+        this.settings = storedSettings ? JSON.parse(storedSettings) : JSON.parse(JSON.stringify(defaultSettings));
+      } catch (error) {
+        console.error("Failed to load settings from localStorage:", error);
+        this.settings = JSON.parse(JSON.stringify(defaultSettings));
+      }
+    },
     restoreDefaultSettings() {
       // copy the defaultSettings value instead of get the value by reference
       this.settings = structuredClone(defaultSettings);
       this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
+      this.loadSortItems();
     },
     onSave() {
       // save validate dicoms update to settings
@@ -306,7 +312,6 @@ export default {
     }
     loadSortItems() {
       loadDicomTagMapping().then((data) => {
-        console.log("loadSortItems");
         this.sortMapping = data; 
         this.selectedSortKey = Object.keys(data).find(key => data[key] === this.settings.datasets.sort);
       })

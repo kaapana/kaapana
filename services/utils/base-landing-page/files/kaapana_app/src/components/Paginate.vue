@@ -17,7 +17,8 @@
       },
       pageLength: {
         type: Number,
-        required: true  
+        required: true,  
+        default: 1000
       }, 
     },
     data() {
@@ -64,7 +65,7 @@
       },
       updatePaginationVisibility() {
         this.showPagination = Math.ceil(this.aggregatedSeriesNum / this.pageLength) > 1;
-        console.log('updatePaginationVisibility:', this.showPagination);
+        //console.log('updatePaginationVisibility:', this.showPagination);
       },
       getPageIndexAndLength() {
         return {

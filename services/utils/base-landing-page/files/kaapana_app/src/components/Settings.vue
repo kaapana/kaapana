@@ -84,13 +84,13 @@
 
 <script>
 import SettingsTable from "@/components/SettingsTable.vue";
-import { settings as defaultSettings, settings } from "@/static/defaultUIConfig";
+import { settings as defaultSettings } from "@/static/defaultUIConfig";
 import { loadDicomTagMapping } from "@/common/api.service";
 
 export default {
   data: () => ({
     dialog: false,
-    settings: defaultSettings,
+    settings: {},
     resetConfiguration: false,
     selectedSortKey:null,
     sortMapping:{}
@@ -99,7 +99,7 @@ export default {
     SettingsTable,
   },
   created() {
-    this.settings = JSON.parse(localStorage["settings"]);
+    this.loadSettings();
     this.loadSortItems();
   },
   computed: {
@@ -108,8 +108,20 @@ export default {
     },
   },
   methods: {
+    loadSettings() {
+      // Load settings from localStorage or use defaults if not available
+      try {
+        const storedSettings = localStorage.getItem("settings");
+        this.settings = storedSettings ? JSON.parse(storedSettings) : JSON.parse(JSON.stringify(defaultSettings));
+      } catch (error) {
+        console.error("Failed to load settings from localStorage:", error);
+        this.settings = JSON.parse(JSON.stringify(defaultSettings));
+      }
+    },
     restoreDefaultSettings() {
-      this.settings = defaultSettings;
+      //make sure to copy and not to reference
+      this.settings = JSON.parse(JSON.stringify(defaultSettings));
+      this.loadSortItems();
     },
     onSave() {
       localStorage["settings"] = JSON.stringify(this.settings);
@@ -118,7 +130,6 @@ export default {
     },
     loadSortItems() {
       loadDicomTagMapping().then((data) => {
-        console.log("loadSortItems");
         this.sortMapping = data; 
         this.selectedSortKey = Object.keys(data).find(key => data[key] === this.settings.datasets.sort);
       })

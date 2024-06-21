@@ -293,6 +293,7 @@ def wait_for_file_in_pacs(file, application_entity="KAAPANA", max_counter=100):
     )
     while counter < max_counter:
         # quido file
+        # TODO Use the dcmwebhelper from kaapanapy as soon as it is implemented.
         r = requests.get(
             f"{dcmweb_endpoint}/{application_entity}/rs/studies/{file['study_uid']}/series/{file['series_uid']}/instances",
             verify=False,

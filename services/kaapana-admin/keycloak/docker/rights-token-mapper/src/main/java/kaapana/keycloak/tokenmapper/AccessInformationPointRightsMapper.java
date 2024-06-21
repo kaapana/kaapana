@@ -25,17 +25,17 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class AccessInformationPointMapper extends AbstractOIDCProtocolMapper
+public class AccessInformationPointRightsMapper extends AbstractOIDCProtocolMapper
     implements OIDCAccessTokenMapper, OIDCIDTokenMapper, UserInfoTokenMapper {
 
-    public static final String PROVIDER_ID = "oidc-access-information-point-mapper";
-	private static final String TOKEN_MAPPER_CATEGORY = "Access Information Point Mapper";
+    public static final String PROVIDER_ID = "oidc-access-information-point-rights-mapper";
+	private static final String TOKEN_MAPPER_CATEGORY = "Access Information Point Rights Mapper";
 
     private static final List<ProviderConfigProperty> configProperties = new ArrayList<>();
 
     static {
         OIDCAttributeMapperHelper.addTokenClaimNameConfig(configProperties);
-        OIDCAttributeMapperHelper.addIncludeInTokensConfig(configProperties, AccessInformationPointMapper.class);
+        OIDCAttributeMapperHelper.addIncludeInTokensConfig(configProperties, AccessInformationPointRightsMapper.class);
     }
 
     @Override
@@ -50,7 +50,7 @@ public class AccessInformationPointMapper extends AbstractOIDCProtocolMapper
 
     @Override
     public String getDisplayType() {
-        return "Access Information Point Mapper";
+        return "Access Information Point Rights Mapper";
     }
 
     @Override
@@ -66,7 +66,7 @@ public class AccessInformationPointMapper extends AbstractOIDCProtocolMapper
     @Override
     protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession, KeycloakSession keycloakSession, ClientSessionContext clientSessionCtx) {
         String userId = userSession.getUser().getId();
-        String serviceUrl = "http://aii-service.services.svc.cluster.local:8080/aii/users/" + userId + "/rights";
+        String serviceUrl = "http://aii-service.services.svc.cluster.local:8080/aii/users/" + userId + "/rights"; //TODO: Should come from configmap
         
         try {
 			URL url = new URI(serviceUrl).toURL();

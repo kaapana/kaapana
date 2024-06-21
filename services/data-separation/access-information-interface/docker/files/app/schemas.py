@@ -15,16 +15,15 @@ class Project(OrmBaseModel):
     description: str
 
 
-class Role(OrmBaseModel):
-    description: str
-    name: str
-
-
 class Right(OrmBaseModel):
     description: str
     claim_key: str
     claim_value: str
-    project_id: int
+
+
+class Role(OrmBaseModel):
+    description: str
+    name: str
 
 
 class Data(OrmBaseModel):
@@ -38,3 +37,22 @@ class DICOMSeries(Data):
 
 class DummyDataType(Data):
     dummy_text: str
+
+
+# AII
+
+
+class AiiRightResponse(OrmBaseModel):
+    name: str
+    description: str
+    claim_key: str
+    claim_value: str
+    project_id: int
+
+
+class AiiProjectResponse(OrmBaseModel):
+    id: int
+    name: str
+    description: str
+    role_id: int
+    role_name: str

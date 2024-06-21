@@ -4,29 +4,54 @@
 exts="\.\(py\)$"
 
 # The formatter to use
-formatter=`which black`
+black_formatter=$(which black)
+isort_formatter=$(which isort)
+
+# BLACK
 
 # Check availability of the formatter
-if [ -z "$formatter" ]
-then
-  1>&2 echo "$formatter not found."
-  1>&2 echo "Please install Black first (see https://black.readthedocs.io/en/stable/getting_started.html)."
+if [ -z "$black_formatter" ]; then
+  echo 1>&2 black "$black_formatter not found."
+  echo 1>&2 "Please install Black first 'pip install black' (see https://black.readthedocs.io/en/stable/getting_started.html)."
   exit 1
 fi
 
 # Format staged files
 ISSUE_FOUND=false
-for file in `git diff --cached --name-only --diff-filter=ACMR | grep $exts`
-do
-  if ! $formatter --check $file; then
-      1>&2 echo "Reformatting neeeded: $file"
-      ISSUE_FOUND=true
+for file in $(git diff --cached --name-only --diff-filter=ACMR | grep $exts); do
+  if ! $black_formatter --check $file; then
+    echo 1>&2 "Reformatting neeeded: $file"
+    ISSUE_FOUND=true
   fi
 done
 
 if $ISSUE_FOUND; then
-    1>&2 echo "Please check formatting!"
-    1>&2 echo "-> commit canceled"
-    1>&2 echo ""
-    exit 1
+  echo 1>&2 "Please check formatting!"
+  echo 1>&2 "-> commit canceled"
+  echo 1>&2 ""
+  exit 1
+fi
+
+# ISORT
+
+# Check availability of the formatter
+if [ -z "$isort_formatter" ]; then
+  echo 1>&2 isort formatter "$isort_formatter not found."
+  echo 1>&2 "Please install isort first 'pip install isort' (see https://pycqa.github.io/isort/docs/quick_start/1.-install.html)."
+  exit 1
+fi
+# Format staged files
+ISSUE_FOUND=false
+for file in $(git diff --cached --name-only --diff-filter=ACMR | grep $exts); do
+  if ! $isort_formatter --check $file --profile="black"; then
+    echo 1>&2 "Reformatting neeeded: $file"
+    ISSUE_FOUND=true
+  fi
+done
+
+if $ISSUE_FOUND; then
+  echo 1>&2 "Please check formatting!"
+  echo 1>&2 "-> commit canceled"
+  echo 1>&2 ""
+  exit 1
 fi

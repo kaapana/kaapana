@@ -15,15 +15,17 @@ spec:
         app-name: opensearch
     spec:
       initContainers:
-      - name: volume-permissions
-        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+      - name: init-opensearch-certs
+        image: "{{ .Values.global.registry_url }}/opensearch-certs:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-        command: ["sh", "-c", "chown -R 1000:1000 /os"]
+        command: ["sh", "-c", "/certs/generate-certificates.sh && cp -r /certs/* /os/certs && chown -R 1000:1000 /os"]
         volumeMounts:
         - name: osdata
           mountPath: /os/data
         - name: oslogs
           mountPath: /os/logs
+        - name: oscerts
+          mountPath: /os/certs
         securityContext:
           runAsUser: 0
       securityContext:
@@ -55,25 +57,34 @@ spec:
             limits:
               memory: 2000Mi
           volumeMounts:
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/root-ca.pem
+              subPath: root-ca.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/admin.pem
+              subPath: admin.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/admin-key.pem
+              subPath: admin-key.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/node1.pem
+              subPath: node1.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/node1-key.pem
+              subPath: node1-key.pem
             - name: osdata
               mountPath: /usr/share/opensearch/data
             - name: oslogs
               mountPath: /usr/share/opensearch/logs
-            # - name: sec-config
-            #   mountPath: /usr/share/opensearch/config/opensearch-security/config.yml
-            #   subPath: config.yml
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch.yml
               subPath: opensearch.yml
-            # - name: sec-config
-            #   mountPath: /usr/share/opensearch/config/opensearch-security/internal_users.yml
-            #   subPath: internal_users.yml
           securityContext:
             allowPrivilegeEscalation: false
       volumes:
-      - name: ssl-config
-        secret:
-          secretName: certificate
+      - name: oscerts
+        persistentVolumeClaim:
+          claimName: os-certs-pv-claim
       - name: osdata
         persistentVolumeClaim:
           claimName: os-data-pv-claim
@@ -84,12 +95,8 @@ spec:
         configMap:
           name: os-config
           items:
-          # - key: config.yml
-          #   path: config.yml
           - key: opensearch.yml
             path: opensearch.yml
-          # - key: internal_users.yml
-          #   path: internal_users.yml
       imagePullSecrets:
       - name: registry-secret
 ---

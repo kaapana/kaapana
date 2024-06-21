@@ -21,8 +21,8 @@ spec:
           - name: KAAPANA_KIBANASERVER_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: kibanaserver-password
-                key: kibanaserver-password
+                name: opensearch-dashboard-user-password
+                key: opensearch-dashboard-user-password
           - name: OPENSEARCH_HOST
             value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
           - name: OPENSEARCH_PORT
@@ -48,8 +48,8 @@ spec:
           - name: KAAPANA_KIBANASERVER_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: kibanaserver-password
-                key: kibanaserver-password
+                name: opensearch-dashboard-user-password
+                key: opensearch-dashboard-user-password
           ports:
             - containerPort: 5601
           resources:

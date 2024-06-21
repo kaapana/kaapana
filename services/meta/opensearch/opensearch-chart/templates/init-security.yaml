@@ -53,8 +53,26 @@ spec:
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch-security/internal_users.yml
               subPath: internal_users.yml
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/root-ca.pem
+              subPath: root-ca.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/admin.pem
+              subPath: admin.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/admin-key.pem
+              subPath: admin-key.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/node1.pem
+              subPath: node1.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/node1-key.pem
+              subPath: node1-key.pem
       restartPolicy: Never
       volumes:
+      - name: oscerts
+        persistentVolumeClaim:
+          claimName: os-certs-pv-claim
       - name: sec-config
         configMap:
           name: os-config

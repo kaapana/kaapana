@@ -1,11 +1,12 @@
+import glob
+import json
 import os
 import re
-import json
-import glob
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):

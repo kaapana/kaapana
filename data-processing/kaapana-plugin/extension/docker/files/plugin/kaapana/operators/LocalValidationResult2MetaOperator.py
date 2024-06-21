@@ -1,15 +1,16 @@
+import glob
+import json
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from pytz import timezone
-import json
-import glob
-from html.parser import HTMLParser
 from enum import Enum
+from html.parser import HTMLParser
 from typing import List
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from pytz import timezone
 
 
 @dataclass

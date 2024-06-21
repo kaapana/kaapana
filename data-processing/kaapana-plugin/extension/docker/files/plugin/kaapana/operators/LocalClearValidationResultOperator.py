@@ -7,8 +7,6 @@ from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from opensearchpy import OpenSearch
-from pytz import timezone
 
 
 class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):

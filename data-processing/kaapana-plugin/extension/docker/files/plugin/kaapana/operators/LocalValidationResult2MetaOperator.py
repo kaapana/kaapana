@@ -100,13 +100,18 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         first_part = current_tag[0:4]
         second_part = current_tag[-4:]
 
+        # Convert the second part to an integer
         item_num = int(second_part, 16)
 
+        # Increment the integer
         item_num += 1
-        item_hex = hex(item_num)
-        item_hex = item_hex[2:]
 
+        # Convert the incremented number back to a hexadecimal string
+        item_hex = hex(item_num)[2:]
+
+        # Combine the first part and the new hexadecimal number to form the next tag
         next_tag = f"{first_part}{item_hex}"
+
         return next_tag
 
     def add_tags_to_opensearch(

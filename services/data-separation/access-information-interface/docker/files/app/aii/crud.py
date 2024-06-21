@@ -30,7 +30,7 @@ async def get_project_data(session: AsyncSession, project_id: int):
 
 async def get_user_rights(session: AsyncSession, keycloak_id: int):
     result = await session.execute(
-        select(Rights)
+        select(Rights, UsersProjectsRoles.project_id)
         .join(RolesRights, Rights.id == RolesRights.right_id)
         .join(UsersProjectsRoles, RolesRights.role_id == UsersProjectsRoles.role_id)
         .filter(UsersProjectsRoles.keycloak_id == keycloak_id)

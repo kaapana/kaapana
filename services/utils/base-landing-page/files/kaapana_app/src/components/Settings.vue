@@ -326,6 +326,16 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+
+<style scoped>
+.col {
+  padding-top: 0px;
+  padding-bottom: 0px;
+  margin: 0px;
+}
+</style>
+
+<style>
 .jsoneditor {
   height: 60vh !important;
 }

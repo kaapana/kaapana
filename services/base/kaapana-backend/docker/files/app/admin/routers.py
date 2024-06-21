@@ -181,7 +181,7 @@ def oidc_logout(request: Request):
     response.set_cookie(
         key="token", value="", expires=datetime(1900, 1, 1, tzinfo=timezone.utc)
     )
-    ### Delete the session cookies for the opensearch session.
+    ### Delete the session cookies for the opensearch session: https://opensearch.org/docs/latest/security/authentication-backends/openid-connect/#session-management-with-additional-cookies
     for cookie in [
         "security_authentication",
         "security_authentication_oidc1",

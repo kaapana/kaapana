@@ -1,9 +1,8 @@
-from asyncio import streams
-from typing import Optional, List, Any
+from typing import Optional, List
 from sqlalchemy_json import NestedMutableDict, NestedMutableList
-import json
 import datetime
-from pydantic import BaseModel, validator, root_validator
+from pydantic import field_validator, ConfigDict, BaseModel, model_validator
+from typing_extensions import Self
 
 
 class KaapanaInstanceBase(BaseModel):
@@ -37,6 +36,7 @@ class RemoteKaapanaInstanceUpdateExternal(BaseModel):
 
 
 class KaapanaInstance(KaapanaInstanceBase):
+    model_config = ConfigDict(arbitrary_types_allowed=True, from_attributes=True)
     id: int
     token: str
     protocol: str
@@ -52,18 +52,21 @@ class KaapanaInstance(KaapanaInstanceBase):
     time_updated: datetime.datetime
     workflow_in_which_involved: Optional[str]
 
-    @validator("allowed_dags")
+    @field_validator("allowed_dags", mode="after")
+    @classmethod
     def convert_allowed_dags(cls, v):
         return sorted(v)
 
-    @validator("time_created")
+    @field_validator("time_created", mode="before")
+    @classmethod
     def convert_time_created(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    @validator("time_updated")
+    @field_validator("time_updated", mode="before")
+    @classmethod
     def convert_time_updated(cls, v):
         if isinstance(v, datetime.datetime):
             return v
@@ -82,31 +85,28 @@ class KaapanaInstance(KaapanaInstanceBase):
         instance.token = ""
         return instance
 
-    class Config:
-        orm_mode = True
-
 
 class JobBase(BaseModel):
     status: str = "pending"
-    dag_id: str = None
-    run_id: str = None
-    description: str = None
-    external_job_id: int = None  # job_id on another system
-    # kaapana_instance_id: int
-    owner_kaapana_instance_name: str = (
-        None  # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
-    )
+    dag_id: Optional[str] = None
+    run_id: Optional[str] = None
+    description: Optional[str] = None
+    external_job_id: Optional[int] = None  # job_id on another system
+    # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
+    owner_kaapana_instance_name: Optional[str] = None
     service_job: Optional[bool] = False
 
 
 class Job(JobBase):
+    model_config = ConfigDict(arbitrary_types_allowed=True, from_attributes=True)
     id: int
     conf_data: Optional[NestedMutableDict] = ...
-    username: str = None
+    username: Optional[str] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
 
-    @validator("status")
+    @field_validator("status", mode="after")
+    @classmethod
     def check_status(cls, v):
         allowed_states = [
             "queued",
@@ -123,43 +123,37 @@ class Job(JobBase):
             )
         return v
 
-    @validator("time_created")
+    @field_validator("time_created", mode="before")
+    @classmethod
     def convert_time_created(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    @validator("time_updated")
+    @field_validator("time_updated", mode="before")
+    @classmethod
     def convert_time_updated(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    class Config:
-        orm_mode = True
-
 
 class JobCreate(JobBase):
     conf_data: dict = {}
     kaapana_instance_id: int
-    # workflow_id: int = None
-    username: str = None
+    username: Optional[str] = None
     automatic_execution: Optional[bool] = False
 
 
 class JobUpdate(JobBase):
-    job_id: (
-        int  # not defined in model Workflow but still needed in client.py and crud.py
-    )
-    # status: str
-    # run_id: str = None
-    # description: str = None
+    # not defined in model Workflow but still needed in client.py and crud.py
+    job_id: Optional[int] = None
 
 
 class JobWithKaapanaInstance(Job):
-    kaapana_instance: KaapanaInstance = None
+    kaapana_instance: Optional[KaapanaInstance] = None
 
 
 class KaapanaInstanceWithJobs(KaapanaInstance):
@@ -168,26 +162,26 @@ class KaapanaInstanceWithJobs(KaapanaInstance):
 
 class FilterKaapanaInstances(BaseModel):
     federated: bool = False
-    dag_id: str = None
+    dag_id: Optional[str] = None
     instance_names: List = []
-    workflow_id: str = None
-    workflow_name: str = None
+    workflow_id: Optional[str] = None
+    workflow_name: Optional[str] = None
     only_dag_names: bool = True
-    kind_of_dags: str = None
+    kind_of_dags: Optional[str] = None
 
 
 class JsonSchemaData(FilterKaapanaInstances):
     conf_data: dict = {}
-    username: str = None
+    username: Optional[str] = None
 
 
 class DatasetBase(BaseModel):
-    name: str = None
+    name: Optional[str] = None
 
 
 class DatasetCreate(DatasetBase):
-    kaapana_instance_id: int = None
-    username: str = None
+    kaapana_instance_id: Optional[int] = None
+    username: Optional[str] = None
     identifiers: List[str] = []
 
 
@@ -199,67 +193,64 @@ class DatasetUpdate(DatasetBase):
 class Dataset(DatasetBase):
     time_created: datetime.datetime
     time_updated: datetime.datetime
-    username: str = None
+    username: Optional[str] = None
     identifiers: Optional[List[str]]
 
-    @validator("time_updated")
+    @field_validator("time_updated", mode="before")
+    @classmethod
     def convert_time_updated(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AllowedDatasetCreate(DatasetBase):
-    username: str = None
+    username: Optional[str] = None
     identifiers: Optional[List[str]]
-
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WorkflowBase(BaseModel):
-    workflow_id: str = None
-    workflow_name: str = None
-    workflow_status: str = None
-    # external_workflow_id: int = None # workflow_id on another system
-    # dag_id of jobs which are summarized in that workflow (only makes sense for service workflows)
+    workflow_id: Optional[str] = None
+    workflow_name: Optional[str] = None
+    workflow_status: Optional[str] = None
     dag_id: Optional[str] = None
     service_workflow: Optional[bool] = False
     federated: bool = False
 
 
 class Workflow(WorkflowBase):
-    username: str = None
-    status: str = None
-    time_created: datetime.datetime = None
-    time_updated: datetime.datetime = None
+    username: Optional[str] = None
+    status: Optional[str] = None
+    time_created: Optional[datetime.datetime] = None
+    time_updated: Optional[datetime.datetime] = None
     automatic_execution: Optional[bool] = False
-    involved_kaapana_instances: str = None  # List = []
+    involved_kaapana_instances: Optional[str] = None  # List = []
 
-    @validator("time_created")
+    @field_validator("time_created", mode="before")
+    @classmethod
     def convert_time_created(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    @validator("time_updated")
+    @field_validator("time_updated", mode="before")
+    @classmethod
     def convert_time_updated(cls, v):
         if isinstance(v, datetime.datetime):
             return v
         else:
             return datetime.datetime.timestamp(v)
 
-    class Config:  # makes Pydantic model compatible with sqlalchemy ORMs
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class WorkflowCreate(WorkflowBase):
-    username: str = None
+    username: Optional[str] = None
     kaapana_instance_id: int
     workflow_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
@@ -271,7 +262,7 @@ class WorkflowUpdate(WorkflowBase):
 
 
 class WorkflowWithKaapanaInstance(Workflow):
-    kaapana_instance: KaapanaInstance = None
+    kaapana_instance: Optional[KaapanaInstance] = None
     # involved_kaapana_instances: list = []
 
 
@@ -280,12 +271,12 @@ class KaapanaInstanceWithWorkflows(KaapanaInstance):
 
 
 class JobWithWorkflow(Job):
-    workflow: Workflow = None
+    workflow: Optional[Workflow] = None
     # involved_kaapana_instances: Optional[list]  # idk y?
 
 
 class JobWithWorkflowWithKaapanaInstance(JobWithKaapanaInstance):
-    workflow: Workflow = None
+    workflow: Optional[Workflow] = None
 
 
 class WorkflowWithJobs(Workflow):
@@ -295,12 +286,12 @@ class WorkflowWithJobs(Workflow):
 class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
     # workflow_jobs: List[Job] = []
     workflow_jobs: Optional[List]
-    dataset_name: Optional[str]
+    dataset_name: Optional[str] = None
 
-    @root_validator
-    def get_dataset(cls, values) -> str:
+    @model_validator(mode="after")
+    def get_dataset(self) -> Self:
         # method to conclude from dataset of workflow_jobs the dataset of the workflow
-        db_workflow_jobs = values.get("workflow_jobs", [])
+        db_workflow_jobs = self.workflow_jobs
         for job in db_workflow_jobs:
             if "external_schema_federated_form" in job.conf_data:
                 # if workflow is a federated workflow, retrieve dataset_name from next job of workflow_jobs
@@ -311,18 +302,18 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                     if "dataset_name" in job.conf_data["data_form"]
                     else None
                 )
-                values["dataset_name"] = dataset_name
+                self.dataset_name = dataset_name
                 # after getting the dataset_name from a workflow_job, break the for loop
                 break
-        return values
+        return self
 
-    @root_validator
-    def get_workflow_jobs(cls, values) -> List:
+    @model_validator(mode="after")
+    def get_workflow_jobs(self) -> Self:
         # method to only list workflow_jobs' states in workflow_jobs and not whole Job object
         workflow_job_states = []
-        db_workflow_jobs = values.get("workflow_jobs", [])
+        db_workflow_jobs = self.workflow_jobs
         for db_job in db_workflow_jobs:
             if type(db_job) is not str:
                 workflow_job_states.append(db_job.status)
-        values["workflow_jobs"] = workflow_job_states
-        return values
+        self.workflow_jobs = workflow_job_states
+        return self

@@ -12,14 +12,13 @@ from threading import Thread
 from typing import List, Tuple, Union
 
 import jsonschema
+import jsonschema.exceptions
 from app.datasets.utils import execute_opensearch_query
 from app.dependencies import get_db, get_opensearch
 from app.workflows import crud, schemas
 from app.workflows.utils import get_dag_list
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
-from pydantic import ValidationError
-from pydantic.schema import schema
 from sqlalchemy.orm import Session
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -598,8 +597,11 @@ def create_workflow(
 ):
     # validate incoming json_schema_data
     try:
-        jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
-    except ValidationError as e:
+        jsonschema.validate(
+            json.loads(json_schema_data.model_dump_json()),
+            schemas.JsonSchemaData.model_json_schema(),
+        )
+    except jsonschema.exceptions.ValidationError as e:
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
         raise HTTPException(
             status_code=400, detail="JSON Schema is not valid for the Pydantic model."

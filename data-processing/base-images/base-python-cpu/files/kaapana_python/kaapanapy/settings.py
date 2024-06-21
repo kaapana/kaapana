@@ -1,5 +1,5 @@
-from pydantic import BaseSettings
-import os
+from pydantic import Field, AliasChoices
+from pydantic_settings import BaseSettings
 
 
 class KaapanaSettings(BaseSettings):
@@ -7,25 +7,17 @@ class KaapanaSettings(BaseSettings):
     These settings are imported in every module of the kaapana-pip library
     """
 
-    hostname: str = os.getenv("HOSTNAME")
-    instance_name: str = os.getenv("INSTANCE_NAME")
-    services_namespace: str = os.getenv("SERVICES_NAMESPACE")
-    admin_namespace: str = os.getenv("ADMIN_NAMESPACE", "admin")
-    kaapana_log_level: str = os.getenv("KAAPANA_LOG_LEVEL", "DEBUG")
+    services_namespace: str = "services"
+    admin_namespace: str = "admin"
+    kaapana_log_level: str = "DEBUG"
 
 
 class KeycloakSettings(KaapanaSettings):
-    keycloak_url: str = os.getenv(
-        "KEYCLOAK_URL", "http://keycloak-external-service.admin.svc:80"
+    keycloak_url: str = "http://keycloak-external-service.admin.svc:80"
+    client_secret: str = Field(
+        validation_alias=AliasChoices("KAAPANA_CLIENT_SECRET", "OIDC_CLIENT_SECRET")
     )
-    client_secret: str = os.getenv("KAAPANA_CLIENT_SECRET")
-    client_id: str = os.getenv("KAAPANA_CLIENT_ID", "kaapana")
-
-
-class MinioSettings(KaapanaSettings):
-    minio_url: str
-    minio_username: str
-    minio_password: str
+    client_id: str = Field("kaapana", validation_alias="KAAPANA_CLIENT_ID")
 
 
 class OpensearchSettings(KaapanaSettings):
@@ -33,8 +25,8 @@ class OpensearchSettings(KaapanaSettings):
     Settings for Opensearch module
     """
 
-    opensearch_host: str = os.getenv("OPENSEARCH_HOST")
-    opensearch_port: str = os.getenv("OPENSEARCH_PORT")
+    opensearch_host: str = "https://opensearch-service.services.svc"
+    opensearch_port: str = "9200"
 
 
 class ProjectSettings(KaapanaSettings):
@@ -42,6 +34,12 @@ class ProjectSettings(KaapanaSettings):
     Project specific settings
     """
 
-    project_name: str = os.getenv("KAAPANA_PROJECT_NAME", "admin_project")
-    project_user_name: str = os.getenv("KAAPANA_PROJECT_USER_NAME", "system")
-    project_user_password: str = os.getenv("KAAPANA_PROJECT_USER_PASSWORD")
+    project_name: str = Field("admin", validation_alias="KAAPANA_PROJECT_NAME")
+    project_user_name: str = Field(
+        "system", validation_alias="KAAPANA_PROJECT_USER_NAME"
+    )
+    project_user_password: str = Field(
+        validation_alias=AliasChoices(
+            "KAAPANA_PROJECT_USER_PASSWORD", "SYSTEM_USER_PASSWORD"
+        )
+    )

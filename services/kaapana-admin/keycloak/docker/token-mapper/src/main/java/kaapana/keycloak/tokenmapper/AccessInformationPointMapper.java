@@ -92,8 +92,12 @@ public class AccessInformationPointMapper extends AbstractOIDCProtocolMapper
                 for (JsonNode node : jsonNode) {
                     String claimKey = node.get("claim_key").asText();
                     String claimValue = node.get("claim_value").asText();
+                    int projectId = node.get("project_id").asInt();
+                    
+                    // Add project ID to claim value
+                    String fullClaimValue = claimValue + "_" + projectId;
 
-                    claimsMap.computeIfAbsent(claimKey, k -> new ArrayList<>()).add(claimValue);
+                    claimsMap.computeIfAbsent(claimKey, k -> new ArrayList<>()).add(fullClaimValue);
                 }
 
                 // Set claims directly on the token
@@ -105,13 +109,14 @@ public class AccessInformationPointMapper extends AbstractOIDCProtocolMapper
                     }
                 }
             } else {
-                // Handle non-200 response
-                throw new RuntimeException("Failed to fetch rights, HTTP status: " + status);
+                // Just log non-200 response keep the login flow going
+                System.out.println("Error fetching rights: " + status);
             }
 
             con.disconnect();
         } catch (Exception e) {
-            throw new RuntimeException("Error fetching rights", e);
+            // Just log any exception to keep the login flow going (e.g. if the service is down and admin wants to login)
+            e.printStackTrace();
         }
     }
 }

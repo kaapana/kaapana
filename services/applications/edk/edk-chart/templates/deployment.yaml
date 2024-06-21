@@ -32,8 +32,6 @@ spec:
           value: "PUSH"
         - name: MINIO_SERVICE
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
-        - name: KAAPANA_REPO_PATH
-          value: /kaapana/app/kaapana
         - name: LOCAL_PATH
           value: /kaapana/minio/edk-to-minio
         - name: MINIO_PATH
@@ -85,6 +83,8 @@ spec:
           value: {{ tpl .Values.global.namespace . }}
         - name: REGISTRY_URL
           value: "{{ .Values.global.registry_url }}"
+        - name: KAAPANA_REPO_PATH
+          value: /kaapana/app/kaapana
         - name: LOCAL_REGISTRY_URL
           value: "{{ tpl .Values.global.local_registry_url . }}"
         - name: VOLUME_PATH

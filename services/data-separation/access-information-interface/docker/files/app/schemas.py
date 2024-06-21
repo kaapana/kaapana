@@ -24,6 +24,7 @@ class Right(OrmBaseModel):
     description: str
     claim_key: str
     claim_value: str
+    project_id: int
 
 
 class Data(OrmBaseModel):

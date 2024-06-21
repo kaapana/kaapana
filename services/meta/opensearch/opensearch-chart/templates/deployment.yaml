@@ -40,11 +40,11 @@ spec:
           - name: cluster.name
             value: "opensearch-cluster"
           - name: node.name
-            value: "0.0.0.0"
+            value: "{{ .Values.global.hostname }}"
           - name: discovery.seed_hosts
-            value: "0.0.0.0"
+            value: "{{ .Values.global.hostname }}"
           - name: cluster.initial_cluster_manager_nodes
-            value: "0.0.0.0"
+            value: "{{ .Values.global.hostname }}"
           - name: network.host
             value: "0.0.0.0"
           - name: http.host

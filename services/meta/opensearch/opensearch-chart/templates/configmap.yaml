@@ -45,7 +45,7 @@ data:
           openid_auth_domain:
             http_enabled: true
             transport_enabled: true
-            order: 1
+            order: 0
             http_authenticator:
               type: openid
               challenge: false
@@ -63,7 +63,7 @@ data:
             description: "Authenticate via HTTP Basic against internal users database"
             http_enabled: true
             transport_enabled: true
-            order: 2
+            order: 1
             http_authenticator:
               type: basic
               challenge: false

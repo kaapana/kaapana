@@ -21,9 +21,15 @@ class HelperOpensearch:
 
     try:
         os_client = get_opensearch_client()
-    except KeyError:
-        logger.error(
-            f"The os_client cannot be intiliatized without correct environment variables. This error will pass, because the HelperOpensearch class is initialized in the airflow-webserver without correct environment variables."
+    except Exception as e:
+        ### The HelperOpensearch class is imported in the airflow-webserver without correct environment variables.
+        ### Hence get_opensearch_client will raise an exception, that we catch here.
+        logger.warning(str(e))
+        logger.warning(
+            f"The os_client cannot be intiliatized without correct environment variables."
+        )
+        logger.warning(
+            "You code may break at another point, because os_client is not defined."
         )
 
     @staticmethod

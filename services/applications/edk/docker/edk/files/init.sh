@@ -24,6 +24,7 @@ fi
 # change to commit hash that the current platform is built from
 cd $KAAPANA_REPO_PATH
 KAAPANA_COMMIT_HASH=$(echo $KAAPANA_BUILD_VERSION | sed 's/.*-g//')
+git fetch
 git checkout $KAAPANA_COMMIT_HASH
 cd ..
 

@@ -1,6 +1,7 @@
 import json
 import logging
 
+from kaapana.kubetools.secret import create_k8s_secret, get_k8s_secret
 from kaapana.operators.DcmWeb import DcmWeb
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -24,21 +25,25 @@ class InitExternalPacsOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        # TODO GET WORKFLOW FORM DATA
         workflow_form = kwargs["dag_run"]["conf"]["workflow_form"]
         dcmweb_endpoint = workflow_form["dcmweb_endpoint"]
         service_account_info = json.loads(workflow_form["service_account_info"])
 
-        # TODO CHECK REACHABILITY USING PROVIDED CREDENTIALS AND URL
         helper = DcmWeb.get_dcmweb_helper(
             dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
         )
         if not helper.check_reachability():
             logger.error(f"Cannot reach {dcmweb_endpoint} with provided credentials.")
+            logger.error("Not saving credentials and exiting!")
             exit(1)
 
-        # TODO CREATE NAMESPACE SECRET AND DO A SANITY CHECK (TRY TO ACCESS IT)
-        update_k8s_secret(
-            secret_name=dcmweb_endpoint, namespace="admin", secret_data=credentials
+        create_k8s_secret(
+            secret_name="", namespace="services", credentials=service_account_info
         )
-        secret = get_k8s_secret(secret_name=dcmweb_endpoint, namespace="admin")
+
+        secret = get_k8s_secret(secret_name=dcmweb_endpoint, namespace="services")
+        if not secret:
+            logger.error("Secret not created sucessfully")
+            exit(1)
+        else:
+            logger.info("Secret sucessfully saved.")

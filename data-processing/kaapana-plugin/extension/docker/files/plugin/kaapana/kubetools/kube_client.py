@@ -14,12 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow.configuration import conf
 from six import PY2
 
 
 def _load_kube_config(in_cluster, cluster_context, config_file):
-    from kubernetes import config, client
+    from kubernetes import client, config
 
     if in_cluster:
         config.load_incluster_config()
@@ -35,5 +34,5 @@ def _load_kube_config(in_cluster, cluster_context, config_file):
     return client.CoreV1Api(), client.BatchV1Api(), client.NetworkingV1Api()
 
 
-def get_kube_client(in_cluster="in_cluster", cluster_context=None, config_file=None):
+def get_kube_client(in_cluster=False, cluster_context=None, config_file=None):
     return _load_kube_config(in_cluster, cluster_context, config_file)

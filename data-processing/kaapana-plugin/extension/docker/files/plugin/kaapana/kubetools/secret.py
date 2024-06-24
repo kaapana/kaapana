@@ -15,8 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import kubernetes
+import base64
+import json
 import os
+from typing import Dict
+
+import kubernetes
+from kaapanapy.logger import get_logger
+from kube_client import get_kube_client
+from kubernetes import client
+
+logger = get_logger(__file__)
 
 
 class Secret:
@@ -96,3 +105,69 @@ class Secret:
             return kube_volume_mount
         else:
             return None
+
+
+def create_k8s_secret(secret_name: str, namespace: str, credentials: Dict[str, str]):
+    api_instance, _, _ = get_kube_client()
+
+    encoded_credentials = {}
+    for key, value in credentials.items():
+        encoded_credentials[key] = base64.b64encode(value.encode("utf-8")).decode(
+            "utf-8"
+        )
+
+    secret = client.V1Secret(
+        api_version="v1",
+        kind="Secret",
+        metadata=client.V1ObjectMeta(name=secret_name),
+        data=encoded_credentials,
+        type="Opaque",  # Use "Opaque" type for generic secret data
+    )
+    try:
+        api_instance.create_namespaced_secret(namespace, secret)
+        logger.info("Secret created successfully")
+    except client.ApiException as e:
+        logger.error(f"Secret '{secret_name}' creation FAILED: {e}.")
+        raise e
+
+
+def delete_k8s_secret(secret_name: str, namespace: str):
+    api_instance, _, _ = get_kube_client()
+
+    try:
+        api_instance.delete_namespaced_secret(name=secret_name, namespace=namespace)
+        logger.info(
+            f"Secret '{secret_name}' deleted successfully from namespace '{namespace}'."
+        )
+    except client.ApiException as e:
+        if e.status == 404:
+            logger.warning(
+                f"Secret '{secret_name}' not found in namespace '{namespace}'."
+            )
+        else:
+            logger.error(f"Failed to delete secret '{secret_name}': {e}.")
+
+
+def get_k8s_secret(secret_name: str, namespace: str):
+    api_instance, _, _ = get_kube_client()
+
+    try:
+        secret = api_instance.read_namespaced_secret(
+            name=secret_name, namespace=namespace
+        )
+        decoded_data = {
+            key: base64.b64decode(value).decode("utf-8")
+            for key, value in secret.data.items()
+        }
+        logger.info(
+            f"Secret '{secret_name}' retrieved successfully from namespace '{namespace}'."
+        )
+        return decoded_data
+    except client.ApiException as e:
+        if e.status == 404:
+            logger.warning(
+                f"Secret '{secret_name}' not found in namespace '{namespace}'."
+            )
+        else:
+            logger.error(f"Failed to retrieve secret '{secret_name}': {e}.")
+        return None

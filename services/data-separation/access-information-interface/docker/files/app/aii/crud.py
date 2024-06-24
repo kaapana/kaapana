@@ -51,3 +51,10 @@ async def get_project_data(session: AsyncSession, project_id: int):
         .filter(DataProjects.project_id == project_id)
     )
     return result.scalars().all()
+
+
+async def get_projects(session: AsyncSession, name: str = None):
+    stmt = select(Projects)
+    stmt = stmt.filter(Projects.name == name) if name else stmt
+    result = await session.execute(stmt)
+    return result.scalars().all()

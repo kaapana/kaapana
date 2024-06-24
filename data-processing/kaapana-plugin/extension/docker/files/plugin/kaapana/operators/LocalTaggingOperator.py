@@ -1,11 +1,11 @@
 import os
 import json
 import glob
-from opensearchpy import OpenSearch
 from enum import Enum
 from typing import List
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 
 class LocalTaggingOperator(KaapanaPythonBaseOperator):
@@ -26,20 +26,7 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
         print(f"Tags 2 delete: {tags2delete}")
 
         # Read Tags
-        auth = None
-        os_client = OpenSearch(
-            hosts=[{"host": self.opensearch_host, "port": self.opensearch_port}],
-            http_compress=True,  # enables gzip compression for request bodies
-            http_auth=auth,
-            # client_cert = client_cert_path,
-            # client_key = client_key_path,
-            use_ssl=False,
-            verify_certs=False,
-            ssl_assert_hostname=False,
-            ssl_show_warn=False,
-            timeout=2,
-            # ca_certs = ca_certs_path
-        )
+        os_client = HelperOpensearch.os_client
 
         doc = os_client.get(index=self.opensearch_index, id=series_instance_uid)
         print(doc)

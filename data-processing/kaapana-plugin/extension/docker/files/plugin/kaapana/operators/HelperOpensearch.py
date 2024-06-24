@@ -1,7 +1,9 @@
-from pydoc import Helper
 from typing import List, Dict
-from opensearchpy import OpenSearch
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapanapy.helper import get_opensearch_client
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class HelperOpensearch:
@@ -16,22 +18,19 @@ class HelperOpensearch:
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
     port = "9200"
     index = "meta-index"
-    auth = None
-    # auth = ('admin', 'admin') # For testing only. Don't store credentials in code.
 
-    os_client = OpenSearch(
-        hosts=[{"host": host, "port": port}],
-        http_compress=True,  # enables gzip compression for request bodies
-        http_auth=auth,
-        # client_cert = client_cert_path,
-        # client_key = client_key_path,
-        use_ssl=False,
-        verify_certs=False,
-        ssl_assert_hostname=False,
-        ssl_show_warn=False,
-        timeout=2,
-        # ca_certs = ca_certs_path
-    )
+    try:
+        os_client = get_opensearch_client()
+    except Exception as e:
+        ### The HelperOpensearch class is imported in the airflow-webserver without correct environment variables.
+        ### Hence get_opensearch_client will raise an exception, that we catch here.
+        logger.warning(str(e))
+        logger.warning(
+            f"The os_client cannot be intiliatized without correct environment variables."
+        )
+        logger.warning(
+            "You code may break at another point, because os_client is not defined."
+        )
 
     @staticmethod
     def get_query_dataset(

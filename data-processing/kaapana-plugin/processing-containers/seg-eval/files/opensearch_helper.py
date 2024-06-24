@@ -1,21 +1,13 @@
 import os
 
-from opensearchpy import OpenSearch
+from kaapanapy.helper import get_opensearch_client
 
 SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]
 HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
 PORT = "9200"
 INDEX = "meta-index"
 
-os_client = OpenSearch(
-    hosts=[{"host": HOST, "port": PORT}],
-    http_auth=None,
-    use_ssl=False,
-    verify_certs=False,
-    ssl_assert_hostname=False,
-    ssl_show_warn=False,
-    timeout=2,
-)
+os_client = get_opensearch_client()
 
 
 def get_ref_series_instance_uid(id: str) -> str:

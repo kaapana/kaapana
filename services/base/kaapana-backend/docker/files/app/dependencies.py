@@ -1,7 +1,5 @@
-import os
 from fastapi import Header, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
-from minio import Minio
 from .monitoring.services import MonitoringService
 from .users.services import UserService
 
@@ -10,6 +8,7 @@ from .workflows.models import KaapanaInstance
 from .config import settings
 from .database import SessionLocal
 from .workflows.utils import HelperMinio
+from kaapanapy.helper import get_opensearch_client
 
 
 def get_db():
@@ -59,3 +58,8 @@ async def get_token_header(
 async def get_query_token(token: str):
     if token != "jessica":
         raise HTTPException(status_code=400, detail="No Jessica token provided")
+
+
+def get_opensearch(request: Request):
+    x_auth_token = request.headers.get("x-forwarded-access-token")
+    yield get_opensearch_client(access_token=x_auth_token)

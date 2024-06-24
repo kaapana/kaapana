@@ -4,12 +4,9 @@ import pydicom
 import requests
 import time
 import glob
-import subprocess
 import json
-from zipfile import ZipFile
 from subprocess import PIPE, run
-from opensearchpy import OpenSearch
-import HelperDcmWeb
+from kaapanapy.helper import get_project_user_access_token, get_opensearch_client
 
 tmp_data_dir = "/slow_data_dir/TMP"
 ctp_url = os.getenv("CTP_URL", None)
@@ -25,24 +22,12 @@ assert os_port
 airflow_host = os.getenv("AIRFLOW_TRIGGER", None)
 assert airflow_host
 example_files = os.getenv("EXAMPLE", "/example/Winfried_phantom.zip")
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
 
 index = "meta-index"
-auth = None
-# auth = ('admin', 'admin') # For testing only. Don't store credentials in code.
 
-os_client = OpenSearch(
-    hosts=[{"host": os_host, "port": os_port}],
-    http_compress=True,  # enables gzip compression for request bodies
-    http_auth=auth,
-    # client_cert = client_cert_path,
-    # client_key = client_key_path,
-    use_ssl=False,
-    verify_certs=False,
-    ssl_assert_hostname=False,
-    ssl_show_warn=False,
-    timeout=2,
-    # ca_certs = ca_certs_path
-)
+access_token = get_project_user_access_token()
+os_client = get_opensearch_client(access_token=access_token)
 
 
 def send_file():
@@ -180,9 +165,7 @@ def check_file_on_platform(examples_send):
     for file in examples_send:
         max_counter = 100
         counter = 0
-        quido_success = HelperDcmWeb.check_file_on_platform(
-            file, application_entity="KAAPANA"
-        )
+        quido_success = wait_for_file_in_pacs(file, application_entity="KAAPANA")
         if not quido_success:
             print("File not found in PACs!")
             exit(1)
@@ -300,6 +283,33 @@ def send_example():
             "############################################################################################################## STDERR:"
         )
         print(output.stderr)
+
+
+def wait_for_file_in_pacs(file, application_entity="KAAPANA", max_counter=100):
+    access_token = get_project_user_access_token()
+    counter = 0
+    dcmweb_endpoint = (
+        f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets"
+    )
+    while counter < max_counter:
+        # quido file
+        # TODO Use the dcmwebhelper from kaapanapy as soon as it is implemented.
+        r = requests.get(
+            f"{dcmweb_endpoint}/{application_entity}/rs/studies/{file['study_uid']}/series/{file['series_uid']}/instances",
+            verify=False,
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "x-forwarded-access-token": access_token,
+            },
+        )
+
+        if r.status_code != requests.codes.ok:
+            counter += 1
+            time.sleep(10)
+        else:
+            print("File successfully found in PACs")
+            return True
+    return False
 
 
 if __name__ == "__main__":

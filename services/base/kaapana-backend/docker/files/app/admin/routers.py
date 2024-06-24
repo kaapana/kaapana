@@ -1,8 +1,6 @@
 import requests
-import subprocess
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
-from opensearchpy import OpenSearch
 import uuid
 import jwt
 from datetime import datetime, timezone
@@ -10,7 +8,7 @@ from app.workflows.utils import (
     raise_kaapana_connection_error,
     requests_retry_session,
 )
-from app.dependencies import get_minio
+from app.dependencies import get_minio, get_opensearch
 from app.config import settings
 
 router = APIRouter()
@@ -78,11 +76,9 @@ def get_static_website_results(
 
 
 @router.get("/get-os-dashboards")
-def get_os_dashboards():
+def get_os_dashboards(os_client=Depends(get_opensearch)):
     try:
-        res = OpenSearch(
-            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-        ).search(
+        res = os_client.search(
             body={
                 "query": {"exists": {"field": "dashboard"}},
                 "_source": ["dashboard.title"],
@@ -144,7 +140,7 @@ def oidc_logout(request: Request):
             "grant_type": "password",
         }
         r = requests.post(
-            f"{settings.keycloak_url}realms/master/protocol/openid-connect/token",
+            f"{settings.keycloak_url}/auth/realms/master/protocol/openid-connect/token",
             verify=ssl_check,
             data=payload,
         )
@@ -165,7 +161,7 @@ def oidc_logout(request: Request):
     security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}
 
     user_sessions = requests.get(
-        f"{settings.keycloak_url}admin/realms/kaapana/users/{user_id}/sessions",
+        f"{settings.keycloak_url}/auth/admin/realms/kaapana/users/{user_id}/sessions",
         verify=False,
         headers=security_headers,
     ).json()
@@ -174,7 +170,7 @@ def oidc_logout(request: Request):
     for user_session in user_sessions:
         if user_session.get("id") == session_state:
             r = requests.delete(
-                f"{settings.keycloak_url}admin/realms/kaapana/sessions/{session_state}",
+                f"{settings.keycloak_url}/auth/admin/realms/kaapana/sessions/{session_state}",
                 headers=security_headers,
                 verify=False,
             )
@@ -185,4 +181,19 @@ def oidc_logout(request: Request):
     response.set_cookie(
         key="token", value="", expires=datetime(1900, 1, 1, tzinfo=timezone.utc)
     )
+    ### Delete the session cookies for the opensearch session: https://opensearch.org/docs/latest/security/authentication-backends/openid-connect/#session-management-with-additional-cookies
+    for cookie in [
+        "security_authentication",
+        "security_authentication_oidc1",
+        "security_authentication_oidc2",
+        "security_authentication_oidc3",
+    ]:
+        response.set_cookie(
+            key=cookie,
+            value="",
+            max_age=0,
+            path="/meta",
+            expires=datetime(1900, 1, 1, tzinfo=timezone.utc),
+        )
+
     return response

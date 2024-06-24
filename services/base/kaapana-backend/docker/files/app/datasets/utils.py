@@ -4,8 +4,6 @@ from typing import Dict, List
 
 import requests
 from fastapi import HTTPException
-from opensearchpy import OpenSearch
-
 from app.config import settings
 from app.workflows.utils import (
     requests_retry_session,
@@ -21,6 +19,7 @@ logger = get_logger(__name__, logging.DEBUG)
 
 
 def execute_opensearch_query(
+    os_client,
     query: Dict = dict(),
     source=dict(),
     index="meta-index",
@@ -45,10 +44,8 @@ def execute_opensearch_query(
     :return: aggregated search results
     """
 
-    def _execute_opensearch_query(search_after=None, size=10000) -> List:
-        res = OpenSearch(
-            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-        ).search(
+    def _execute_opensearch_query(os_client, search_after=None, size=10000) -> List:
+        res = os_client.search(
             body={
                 "query": query,
                 "size": size,
@@ -61,12 +58,14 @@ def execute_opensearch_query(
         if len(res["hits"]["hits"]) > 0:
             return [
                 *res["hits"]["hits"],
-                *_execute_opensearch_query(res["hits"]["hits"][-1]["sort"], size),
+                *_execute_opensearch_query(
+                    os_client, res["hits"]["hits"][-1]["sort"], size
+                ),
             ]
         else:
             return res["hits"]["hits"]
 
-    return _execute_opensearch_query()
+    return _execute_opensearch_query(os_client=os_client)
 
 
 def contains_numbers(s):
@@ -99,10 +98,8 @@ def type_suffix(v):
         return ""
 
 
-async def get_metadata_opensearch(series_instance_uid: str) -> dict:
-    data = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).get(index="meta-index", id=series_instance_uid)["_source"]
+async def get_metadata_opensearch(os_client, series_instance_uid: str) -> dict:
+    data = os_client.get(index="meta-index", id=series_instance_uid)["_source"]
 
     # filter for dicoms tags
     return {
@@ -113,12 +110,14 @@ async def get_metadata_opensearch(series_instance_uid: str) -> dict:
     }
 
 
-async def get_metadata(series_instance_uid: str) -> Dict[str, str]:
+async def get_metadata(os_client, series_instance_uid: str) -> Dict[str, str]:
     # TODO: retrieve study_instance_uid using meta-index
     # pacs_metadata: dict = await get_metadata_pacs(
     #     study_instance_uid, series_instance_uid
     # )
-    opensearch_metadata: dict = await get_metadata_opensearch(series_instance_uid)
+    opensearch_metadata: dict = await get_metadata_opensearch(
+        os_client, series_instance_uid
+    )
 
     # return {**pacs_metadata, **opensearch_metadata}
     return opensearch_metadata
@@ -179,7 +178,7 @@ async def get_metadata_pacs(study_instance_UID: str, series_instance_UID: str) -
     return res
 
 
-async def get_field_mapping(index="meta-index") -> Dict:
+async def get_field_mapping(os_client, index="meta-index") -> Dict:
     """
     Returns a mapping of field for a given index form open search.
     This looks like:
@@ -191,9 +190,7 @@ async def get_field_mapping(index="meta-index") -> Dict:
     """
     import re
 
-    res = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).indices.get_mapping(index=index)[index]["mappings"]["properties"]
+    res = os_client.indices.get_mapping(index=index)[index]["mappings"]["properties"]
 
     name_field_map = {
         camel_case_to_space(k): k + type_suffix(v) for k, v in res.items()

@@ -39,8 +39,6 @@ async def create_data(
     data: schemas.CreateData,
     session: AsyncSession = Depends(get_session),
 ):
-    projects = await crud.get_projects(session, name=project_name)
-
     try:
         stored_data = await crud.create_data(session, data)
     except IntegrityError as e:
@@ -50,11 +48,11 @@ async def create_data(
             session=session, data_storage_id=data.data_storage_id
         )
 
+    projects = await crud.get_projects(session, name=project_name)
     try:
         await crud.create_data_projects_mapping(
             session, project_id=projects[0].id, data_id=stored_data.id
         )
-
     except IntegrityError as e:
         logger.warning(f"DataProjects mapping already exists")
         return Response("Data mapping already exists", 200)

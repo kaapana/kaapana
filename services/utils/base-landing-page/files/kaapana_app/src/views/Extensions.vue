@@ -135,45 +135,71 @@
               scrollable
             )
               v-card
-                v-card-title Set up Extension {{ popUpItem.name }}
+                v-card-title(v-if="popUpItem.extension_params !== undefined && popUpItem.extension_params !== 'null' && Object.keys(popUpItem.extension_params).length > 0 && popUpItem.extension_params[Object.keys(popUpItem.extension_params)[0]].type !== 'doc'") Configure {{ popUpItem.name }}
                 v-card-text
                   v-form.px-3(ref="popUpForm")
                     template(v-for="(param, key) in popUpItem.extension_params")
                       span(v-if="param.type == 'group_name'" style="font-weight:bold;font-size:25px;align:left") {{ param.default }}
+                      div(v-if="param.type == 'doc'")
+                        br
+                        span(style="font-weight:bold;font-size:25px;align:left") {{ param.title }}
+                        div(v-if="param.html")
+                          div(v-html="param.html")
                       v-text-field(
                         v-if="param.type == 'string'"
-                        :label="key"
+                        :label="param.definition ? `${param.definition} (${key}) ` : key"
                         v-model="popUpExtension[key]"
                         clearable,
                         :rules="popUpRulesStr"
                       )
+                        template(v-if="param.help" v-slot:append-outer)
+                          v-tooltip(right)
+                            template(v-slot:activator="{ on, attrs }")
+                              v-icon(v-bind="attrs" v-on="on") mdi-tooltip-question
+                            div(v-html="param.help")
                       v-checkbox(
                         v-if="param.type == 'bool' || param.type == 'boolean'"
-                        :label="key"
+                        :label="param.definition ? `${param.definition} (${key}) ` : key"
                         v-model="popUpExtension[key]"
                       )
+                        template(v-if="param.help" v-slot:append)
+                          v-tooltip(right)
+                            template(v-slot:activator="{ on, attrs }")
+                              v-icon(v-bind="attrs" v-on="on") mdi-tooltip-question
+                            div(v-html="param.help")
                       v-select(
                         v-if="param.type == 'list_single'"
                         :items="param.value"
-                        :label="key"
+                        :label="param.definition ? `${param.definition} (${key}) ` : key"
                         v-model="popUpExtension[key]"
                         :rules="popUpRulesSingleList"
                         clearable
                       )
+                        template(v-if="param.help" v-slot:append-outer)
+                          v-tooltip(right)
+                            template(v-slot:activator="{ on, attrs }")
+                              v-icon(v-bind="attrs" v-on="on") mdi-tooltip-question
+                            div(v-html="param.help")
                       v-select(
                         v-if="param.type == 'list_multi'"
                         multiple
                         :items="param.value"
                         :item-text="param.default"
-                        :label="key"
+                        :label="param.definition ? `${param.definition} (${key}) ` : key"
                         v-model="popUpExtension[key]"
                         :rules="popUpRulesMultiList"
                         clearable
                       )
+                        template(v-if="param.help" v-slot:append-outer)
+                          v-tooltip(right)
+                            template(v-slot:activator="{ on, attrs }")
+                              v-icon(v-bind="attrs" v-on="on") mdi-tooltip-question
+                            div(v-html="param.help")
                 v-card-actions
                   v-spacer
-                  v-btn(color="primary", @click="resetFormInfo(item.releaseName)") Close
-                  v-btn(color="primary", @click="submitForm(item.releaseName)") Submit
+                  v-btn(color="error", @click="resetFormInfo(item.releaseName)") Abort
+                  v-btn(color="primary", v-if="item.multiinstallable === 'no'" @click="submitForm(item.releaseName)") Install
+                  v-btn(color="primary", v-if="item.multiinstallable === 'yes'" @click="submitForm(item.releaseName)") Launch
 
           v-btn(
             color="primary",

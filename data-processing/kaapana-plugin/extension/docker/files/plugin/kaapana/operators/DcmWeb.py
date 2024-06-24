@@ -1,18 +1,12 @@
-import logging
 from abc import ABC
 from pathlib import Path
 from time import time
 from typing import Dict, Optional
 
-import requests
+from kaapanapy.logger import get_logger
 from requests import Response
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-logger = logging.getLogger(__file__)
+logger = get_logger(__file__)
 
 
 class DcmWebException(Exception):
@@ -30,50 +24,11 @@ class DcmWeb(ABC):
         # Using in WADO-RS was often missing an error message
         self.client = client
 
-    def get_system_user_token(
-        self,
-        ssl_check=False,
-    ):
-        """
-        Get access token for the system user.
-        """
-        payload = {
-            "username": self.system_user,
-            "password": self.system_user_password,
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "grant_type": "password",
-        }
-        url = f"http://keycloak-external-service.admin.svc:80/auth/realms/{self.client_id}/protocol/openid-connect/token"
-        r = requests.post(url, verify=ssl_check, data=payload)
-        access_token = r.json()["access_token"]
-        return access_token
-
-    def impersonate_user(self):
-        """
-        Get access token for a user via token exchange.
-        """
-        admin_access_token = self.get_system_user_token()
-        url = f"http://keycloak-external-service.admin.svc:80/auth/realms/{self.client_id}/protocol/openid-connect/token"
-        data = {
-            "client_id": self.client_id,
-            "client_secret": OIDC_CLIENT_SECRET,
-            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-            "subject_token": admin_access_token,  # Replace with your actual subject_token
-            "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
-            "audience": "kaapana",
-            "requested_subject": self.username,
-        }
-
-        r = requests.post(url, data=data, verify=False)
-        impersonated_access_token = r.json()["access_token"]
-        return impersonated_access_token
-
     @staticmethod
     def get_dcmweb_helper(
         dcmweb_endpoint: str,
         application_entity: str = "KAAPANA",
-        service_account_info: Optional[Dict] = None,
+        service_account_info: str = None,
     ):
         if "google" in dcmweb_endpoint:
             from DcmWebGcloudHelper import DcmWebGcloudHelper

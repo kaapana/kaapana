@@ -1,10 +1,10 @@
 import glob
-import os
 import json
-import logging
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+import os
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.DcmWebLocalHelper import DcmWebLocalHelper
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
@@ -12,7 +12,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
     Operator to remove series from PACS system.
 
     This operator removes either selected series or whole studies from Kaapana's integrated research PACS system by DCM4Chee.
-    The operaator relies on "delete_study" function of Kaapana's "HelperDcmWeb" operator.
+    The operaator relies on "delete_study" function of Kaapana's "DcmWebLocalHelper" operator.
 
     **Inputs:**
 
@@ -21,7 +21,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
-        self.dcmweb_helper = HelperDcmWeb(
+        self.dcmweb_helper = DcmWebLocalHelper(
             application_entity=self.pacs_aet, dag_run=kwargs["dag_run"]
         )
         print("conf", conf)
@@ -83,7 +83,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
         """
         :param pacs_host: Needed to specify "pacs_dcmweb_endpoint".
         :param pacs_port: Needed to specify "pacs_dcmweb_endpoint".
-        :param pacs_aet: Is by default set to "KAAPANA" and is used as a template AE-title for "HelperDcmWeb"'s "delete_study" function.
+        :param pacs_aet: Is by default set to "KAAPANA" and is used as a template AE-title for "DcmWebLocalHelper"'s "delete_study" function.
         :param delete_complete_study: Specifies the amount of removed data to all series of a specified study.
         """
 

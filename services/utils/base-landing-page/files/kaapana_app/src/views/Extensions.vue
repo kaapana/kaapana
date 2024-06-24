@@ -127,7 +127,7 @@
             span(v-if="item.multiinstallable === 'no'") Install
 
             v-dialog(
-              v-if="item.extension_params !== undefined || item.extension_params!== 'null'"
+              v-if="item.extension_params !== undefined && item.extension_params !== 'null'"
               v-model="popUpDialog[item.releaseName]"
               :retain-focus="false"
               max-width="600px"

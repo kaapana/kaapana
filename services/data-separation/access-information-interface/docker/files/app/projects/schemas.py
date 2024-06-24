@@ -36,3 +36,14 @@ class Role(OrmBaseModel):
     id: int
     description: str
     name: str
+
+class CreateData(OrmBaseModel):
+    description: str
+    data_type: str
+    data_storage_id: str
+
+class Data(OrmBaseModel):
+    id: int
+    description: str
+    data_type: str
+    data_storage_id: str

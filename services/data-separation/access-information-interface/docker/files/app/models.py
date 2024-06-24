@@ -33,16 +33,17 @@ class Rights(Base):
     roles = relationship("Roles", secondary="roles_rights")
 
 
-class Data(Base):
+class Data(
+    Base
+):  # TODO: Actually we lied, this is not generic and just DICOM data specific
     __tablename__ = "data"
     id = Column(
         Integer, primary_key=True, autoincrement=True
     )  # For faster querying (Int vs String)
     description = Column(String)
     data_type = Column(String)
-    data_storage_id = Column(
-        String, nullable=False, unique=True
-    )  # In case of DICOM data, this is the SeriesInstanceUID
+    series_instance_uid = Column(String, nullable=False, unique=True)
+    study_instance_uid = Column(String)
     projects = relationship("Projects", secondary="data_projects")
 
 

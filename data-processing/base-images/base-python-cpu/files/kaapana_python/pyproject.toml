@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kaapanapy"
+version = "0.0.1"
+dependencies = [
+    "opensearch-py==2.4.2",
+    "pydantic==2.7.4",
+    "pydantic-settings==2.3.3"
+]

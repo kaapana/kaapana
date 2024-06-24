@@ -48,8 +48,7 @@
       "included.custom.audience" : "kaapana",
       "userinfo.token.claim" : "true"
     }
-  },
-  {
+  }, {
     "name": "dcm4chee-archive-api",
     "protocol": "openid-connect",
     "protocolMapper": "oidc-usermodel-attribute-mapper",
@@ -63,6 +62,20 @@
       "access.token.claim": "true",
       "claim.name": "application_entity",
       "jsonType.label": "String"
-    }
+      }
+    }, {
+      "name": "realmRoleMapper",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-realm-role-mapper",
+      "consentRequired": false,
+      "config": {
+        "introspection.token.claim": "true",
+        "multivalued": "true",
+        "userinfo.token.claim": "true",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "claim.name": "roles",
+        "jsonType.label": "String"
+      }
   } ]
   }

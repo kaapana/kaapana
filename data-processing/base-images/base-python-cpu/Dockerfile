@@ -38,4 +38,9 @@ RUN code-server --install-extension ms-python.python
 
 COPY files/kaapana_federated /kaapana_federated
 
+COPY files/kaapana_python /kaapana_python
+WORKDIR /kaapana_python
+RUN python3 -m build 
+RUN python3 -m pip install dist/kaapanapy-0.0.1.tar.gz
+
 WORKDIR /kaapana/app

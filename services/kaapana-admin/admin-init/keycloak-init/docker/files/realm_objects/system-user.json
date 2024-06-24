@@ -8,5 +8,6 @@
     "attributes" : { "policy": ["consoleAdmin"]
       },
     "requiredActions" : [ ],
-    "realmRoles" : [ "dcm4chee-admin" ]
+    "realmRoles" : [ "dcm4chee-admin" ],
+    "groups": ["kaapana_admin"]
   }

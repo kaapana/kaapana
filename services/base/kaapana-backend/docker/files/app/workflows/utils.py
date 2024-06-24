@@ -2,7 +2,6 @@ import json
 import os
 import requests
 import logging
-import functools
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from requests_cache import CachedSession
@@ -11,7 +10,6 @@ import datetime
 from fastapi import HTTPException
 from app.config import settings
 
-from opensearchpy import OpenSearch
 from minio import Minio
 from urllib3.util import Timeout
 import xml.etree.ElementTree as ET

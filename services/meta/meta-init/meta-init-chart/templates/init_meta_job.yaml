@@ -34,16 +34,27 @@ spec:
             value: "True"
           - name: INIT_OPENSEARCH
             value: "True"
-          - name: OS_HOST
-            value: "opensearch-service.{{  .Values.global.services_namespace  }}.svc"
-          - name: OS_PORT
-            value: "9200"
           - name: INDEX
             value: "meta-index"
           - name: DASHBOARDS_URL
             value: "http://os-dashboards-service.{{  .Values.global.services_namespace  }}.svc:5601/meta"
           - name: EXPORT_NDJSON
             value: "/dashboards/export.ndjson"
+          - name: OPENSEARCH_HOST
+            value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
+          - name: OPENSEARCH_PORT
+            value: "9200"
+          - name: KEYCLOAK_URL
+            value: "http://keycloak-external-service.{{ .Values.global.admin_namespace }}.svc:80"
+          - name: KAAPANA_CLIENT_SECRET
+            value: "{{ .Values.global.oidc_client_secret }}"
+          - name: KAAPANA_PROJECT_USER_NAME
+            value: "system"
+          - name: KAAPANA_PROJECT_USER_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: system-user-password
+                key: system-user-password
         volumeMounts:
           - name: os-export-file
             mountPath: /dashboards/export.ndjson

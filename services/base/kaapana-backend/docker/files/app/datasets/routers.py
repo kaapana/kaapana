@@ -1,26 +1,22 @@
-import json
-from typing import Union
-import base64
-
-from fastapi import APIRouter, HTTPException, Body
+from fastapi import APIRouter, HTTPException, Body, Depends
 from fastapi.responses import JSONResponse
-from opensearchpy import OpenSearch
 
-from app.config import settings
 from app.datasets.utils import (
     get_metadata,
     execute_opensearch_query,
     get_field_mapping,
 )
+from app.dependencies import get_opensearch
 
 router = APIRouter(tags=["datasets"])
 
 
 @router.post("/tag")
-async def tag_data(data: list = Body(...)):
+async def tag_data(data: list = Body(...), os_client=Depends(get_opensearch)):
     from typing import List
 
     def tagging(
+        os_client,
         series_instance_uid: str,
         tags: List[str],
         tags2add: List[str] = [],
@@ -31,10 +27,7 @@ async def tag_data(data: list = Body(...)):
         print(f"Tags 2 delete: {tags2delete}")
 
         # Read Tags
-        es = OpenSearch(
-            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-        )
-        doc = es.get(index="meta-index", id=series_instance_uid)
+        doc = os_client.get(index="meta-index", id=series_instance_uid)
         print(doc)
         index_tags = doc["_source"].get("00000000 Tags_keyword", [])
 
@@ -48,11 +41,12 @@ async def tag_data(data: list = Body(...)):
 
         # Write Tags back
         body = {"doc": {"00000000 Tags_keyword": final_tags}}
-        es.update(index="meta-index", id=series_instance_uid, body=body)
+        os_client.update(index="meta-index", id=series_instance_uid, body=body)
 
     try:
         for series in data:
             tagging(
+                os_client,
                 series["series_instance_uid"],
                 series["tags"],
                 series["tags2add"],
@@ -68,7 +62,7 @@ async def tag_data(data: list = Body(...)):
 # This should actually be a get request but since the body is too large for a get request
 # we use a post request
 @router.post("/series")
-async def get_series(data: dict = Body(...)):
+async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
     import pandas as pd
 
     structured: bool = data.get("structured", False)
@@ -76,6 +70,7 @@ async def get_series(data: dict = Body(...)):
 
     if structured:
         hits = execute_opensearch_query(
+            os_client,
             query=query,
             source={
                 "includes": [
@@ -108,12 +103,14 @@ async def get_series(data: dict = Body(...)):
             }
         )
     elif not structured:
-        return JSONResponse([d["_id"] for d in execute_opensearch_query(query)])
+        return JSONResponse(
+            [d["_id"] for d in execute_opensearch_query(os_client, query)]
+        )
 
 
 @router.get("/series/{series_instance_uid}")
-async def get_data(series_instance_uid):
-    metadata = await get_metadata(series_instance_uid)
+async def get_data(series_instance_uid, os_client=Depends(get_opensearch)):
+    metadata = await get_metadata(os_client, series_instance_uid)
 
     modality = metadata["Modality"]
 
@@ -131,43 +128,19 @@ async def get_data(series_instance_uid):
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))
 
 
-async def get_field_values(query, field, size=10000):
-    res = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).search(
-        body={
-            "size": 0,
-            "query": query,
-            "aggs": {
-                field: {
-                    "composite": {
-                        "sources": [{field: {"terms": {"field": field, "size": size}}}]
-                    }
-                }
-            },
-        }
-    )
-
-    data = res["hits"]["aggregations"][field]
-    if len(data["buckets"]) < size:
-        return []
-
-
 # This should actually be a get request but since the body is too large for a get request
 # we use a post request
 @router.post("/dashboard")
-async def get_dashboard(config: dict = Body(...)):
+async def get_dashboard(config: dict = Body(...), os_client=Depends(get_opensearch)):
     series_instance_uids = config.get("series_instance_uids")
     names = config.get("names", [])
 
-    name_field_map = await get_field_mapping()
+    name_field_map = await get_field_mapping(os_client)
     filtered_name_field_map = {
         name: name_field_map[name] for name in names if name in name_field_map
     }
 
-    res = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).search(
+    res = os_client.search(
         body={
             "size": 0,
             **(
@@ -197,9 +170,7 @@ async def get_dashboard(config: dict = Body(...)):
                 },
             },
         }
-    )[
-        "aggregations"
-    ]
+    )["aggregations"]
 
     histograms = {
         k: {
@@ -234,27 +205,21 @@ async def get_dashboard(config: dict = Body(...)):
     return JSONResponse(dict(histograms=histograms, metrics=metrics))
 
 
-async def get_all_values(item_name, query):
-    name_field_map = await get_field_mapping()
+async def get_all_values(os_client, item_name, query):
+    name_field_map = await get_field_mapping(os_client)
 
     item_key = name_field_map.get(item_name)
     if not item_key:
         return {}  # todo: maybe better default
 
-    item = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).search(
+    item = os_client.search(
         body={
             "size": 0,
             # {"query":"D","field":"00000000 Tags_keyword.keyword","boolFilter":[]}
             "query": query,  # {"query": {"ids": {"values": series_instance_uids}}}
             "aggs": {item_name: {"terms": {"field": item_key, "size": 10000}}},
         }
-    )[
-        "aggregations"
-    ][
-        item_name
-    ]
+    )["aggregations"][item_name]
 
     if "buckets" in item and len(item["buckets"]) > 0:
         return {
@@ -275,21 +240,25 @@ async def get_all_values(item_name, query):
 
 
 @router.post("/query_values/{field_name}")
-async def get_query_values_item(field_name: str, query: dict = Body(...)):
+async def get_query_values_item(
+    field_name: str, query: dict = Body(...), os_client=Depends(get_opensearch)
+):
     if not query or query == {}:
         query = {"query_string": {"query": "*"}}
 
-    return JSONResponse(await get_all_values(field_name, query))
+    return JSONResponse(await get_all_values(os_client, field_name, query))
 
 
 @router.get("/field_names")
-async def get_field_names():
-    return JSONResponse(list((await get_field_mapping()).keys()))
+async def get_field_names(os_client=Depends(get_opensearch)):
+    return JSONResponse(list((await get_field_mapping(os_client)).keys()))
 
 
 @router.get("/fields")
-async def get_fields(index: str = "meta-index", field: str = None):
-    mapping = await get_field_mapping(index)
+async def get_fields(
+    index: str = "meta-index", field: str = None, os_client=Depends(get_opensearch)
+):
+    mapping = await get_field_mapping(os_client, index)
     if field:
         return JSONResponse(mapping[field])
     else:

@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+appVersion: "0.0.1"
+description: Sync a folder on the host system with a folder within a minio bucket
+name: minio-sync-chart
+version: "0.0.0"
+keywords:
+- kaapanaapplication
+- kaapanamultiinstallable

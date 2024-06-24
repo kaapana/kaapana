@@ -1,12 +1,19 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from . import schemas
 from . import crud
 
 from ..database import get_session
+import logging
 
 router = APIRouter()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @router.post("", response_model=schemas.Project, tags=["Projects"])  # POST /projects
@@ -32,10 +39,23 @@ async def create_data(
     data: schemas.CreateData,
     session: AsyncSession = Depends(get_session),
 ):
-    stored_data = await crud.create_data(session, data)
-
     projects = await crud.get_projects(session, name=project_name)
 
-    await crud.create_data_projects_mapping(session, project_id=projects[0].id, data_id=stored_data.id)
+    try:
+        stored_data = await crud.create_data(session, data)
+    except IntegrityError as e:
+        logger.warning(f"{data=} already exists")
+        await session.rollback()
+        stored_data = await crud.get_data(
+            session=session, data_storage_id=data.data_storage_id
+        )
 
+    try:
+        await crud.create_data_projects_mapping(
+            session, project_id=projects[0].id, data_id=stored_data.id
+        )
+
+    except IntegrityError as e:
+        logger.warning(f"DataProjects mapping already exists")
+        return Response("Data mapping already exists", 200)
     return stored_data

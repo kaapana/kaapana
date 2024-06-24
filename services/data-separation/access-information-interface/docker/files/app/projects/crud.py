@@ -1,7 +1,15 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from sqlalchemy import select
-from ..models import Projects, Rights, Roles, RolesRights, UsersProjectsRoles, Data, DataProjects
+from ..models import (
+    Projects,
+    Rights,
+    Roles,
+    RolesRights,
+    UsersProjectsRoles,
+    Data,
+    DataProjects,
+)
 from . import schemas
 
 
@@ -71,6 +79,14 @@ async def create_users_projects_roles_mapping(
     await session.commit()
     return True
 
+
+async def get_data(session: AsyncSession, data_storage_id: str = None):
+    stmt = select(Data)
+    stmt = stmt.filter(Data.data_storage_id == data_storage_id)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
 async def create_data(session: AsyncSession, data: schemas.CreateData):
     new_data = Data(
         description=data.description,
@@ -81,7 +97,10 @@ async def create_data(session: AsyncSession, data: schemas.CreateData):
     await session.commit()
     return new_data
 
-async def create_data_projects_mapping(session: AsyncSession, project_id: int, data_id: int):
+
+async def create_data_projects_mapping(
+    session: AsyncSession, project_id: int, data_id: int
+):
     new_data_projects = DataProjects(project_id=project_id, data_id=data_id)
     session.add(new_data_projects)
     await session.commit()

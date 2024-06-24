@@ -1,16 +1,17 @@
-import os
-import json
 import glob
-import pydicom
-from os.path import join, basename, dirname
+import json
+import os
 from datetime import timedelta
-from pathlib import Path
 from multiprocessing.pool import ThreadPool
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from os.path import basename, dirname, join
+from pathlib import Path
+
+import pydicom
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.DcmWebLocalHelper import DcmWebLocalHelper
+from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
@@ -25,10 +26,9 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         print("# Downloading series: {}".format(series["reference_series_uid"]))
         try:
             if self.data_type == "dicom":
-                download_successful = self.dcmweb_helper.downloadSeries(
+                download_successful = self.dcmweb_helper.retrieve_series(
                     series_uid=series["reference_series_uid"],
                     target_dir=series["target_dir"],
-                    expected_object_count=series["expected_object_count"],
                 )
                 if not download_successful:
                     raise ValueError("ERROR")
@@ -56,9 +56,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-        self.dcmweb_helper = HelperDcmWeb(
-            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
-        )
+        self.dcmweb_helper = DcmWebLocalHelper(application_entity=self.aetitle)
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]
@@ -87,7 +85,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("#")
             pacs_series = self.dcmweb_helper.search_for_series(
                 search_filters=search_filters
-            )
+            ).json()
             print(f"Found series: {len(pacs_series)}")
             if len(pacs_series) == 0 or (
                 self.expected_file_count != "all"
@@ -132,7 +130,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("#")
             pacs_series = self.dcmweb_helper.search_for_series(
                 search_filters=search_filters
-            )
+            ).json()
             print(f"Found series: {len(pacs_series)}")
             if len(pacs_series) == 0 or (
                 self.expected_file_count != "all"
@@ -203,17 +201,17 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                             .value[0][0x3006, 0x0014]
                             .value[0]
                         )
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x3006, 0x0016].value))
 
                     elif incoming_dcm.Modality == "SEG":
                         assert (0x0008, 0x1115) in incoming_dcm
                         ref_object = incoming_dcm[0x0008, 0x1115].value[0]
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x0008, 0x114A].value))
                     else:
                         raise ValueError(

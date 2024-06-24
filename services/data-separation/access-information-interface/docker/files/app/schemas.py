@@ -29,6 +29,7 @@ class Role(OrmBaseModel):
 class Data(OrmBaseModel):
     description: str
     data_type: str
+    data_storage_id: str
 
 
 class DICOMSeries(Data):

@@ -81,6 +81,7 @@ async def create_users_projects_roles_mapping(
 
 
 async def get_data(session: AsyncSession, data_storage_id: str = None):
+    # TODO Should data only be accessible in a project
     stmt = select(Data)
     stmt = stmt.filter(Data.data_storage_id == data_storage_id)
     result = await session.execute(stmt)

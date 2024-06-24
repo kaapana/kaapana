@@ -46,8 +46,7 @@ async def create_data(
         await session.rollback()
         stored_data = await crud.get_data(
             session=session, data_storage_id=data.data_storage_id
-        )
-
+        )[0]
     projects = await crud.get_projects(session, name=project_name)
     try:
         await crud.create_data_projects_mapping(

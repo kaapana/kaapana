@@ -67,3 +67,5 @@ dependencies:
     version: 0.0.0
   - name: aip-postgres-chart
     version: 0.0.0
+  - name: dicom-web-filter
+    version: 0.0.0

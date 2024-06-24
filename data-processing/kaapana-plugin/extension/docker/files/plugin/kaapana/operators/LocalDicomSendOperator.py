@@ -6,8 +6,8 @@ from subprocess import PIPE, run
 
 import pydicom
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.DcmWebLocalHelper import DcmWebLocalHelper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 
 
 class LocalDicomSendOperator(KaapanaPythonBaseOperator):
@@ -57,17 +57,15 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         else:
             print(f"Success! output: {output}")
             print("")
-        if self.check_arrival and not self.dcmweb_helper.check_if_series_in_archive(
-            seriesUID=series_uid
+        if self.check_arrival and not self.dcmweb_helper.check_if_series_in(
+            series_uid=series_uid
         ):
             print(f"Arrival check failed!")
             raise ValueError("Checkick arrival of dicoms failed!")
 
     def start(self, **kwargs):
         self.conf = kwargs["dag_run"].conf
-        self.dcmweb_helper = HelperDcmWeb(
-            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
-        )
+        self.dcmweb_helper = DcmWebLocalHelper(application_entity=self.aetitle)
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))

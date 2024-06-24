@@ -1,4 +1,3 @@
-import logging
 import os
 import tempfile
 import time
@@ -14,13 +13,11 @@ from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
     SYSTEM_USER_PASSWORD,
 )
+from kaapana.operators.DcmWeb import DcmWeb, DcmWebException
+from kaapanapy.helper import get_project_user_access_token
+from kaapanapy.logger import get_logger
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-logger = logging.getLogger(__file__)
+logger = get_logger(__file__)
 
 
 class DcmWebLocalHelper(DcmWeb):
@@ -28,8 +25,6 @@ class DcmWebLocalHelper(DcmWeb):
     def __init__(
         self,
         application_entity: str,
-        dag_run=None,
-        username: str = None,
         access_token: str = None,
     ):
         self.dcm4chee_endpoint = (
@@ -46,38 +41,7 @@ class DcmWebLocalHelper(DcmWeb):
         self.client_secret = OIDC_CLIENT_SECRET
         self.client_id = "kaapana"
 
-        ### Determine user
-
-        if dag_run:
-            conf_data = dag_run.conf
-            try:
-                self.username = conf_data["form_data"].get("username")
-            except KeyError:
-                tags = dag_run.dag.tags
-                if "service" in tags:
-                    self.username = self.system_user
-                    logger.info("Task belongs to a service dag-run")
-        else:
-            assert access_token
-            self.username = None
-
-        ### Set access token for requests to dcm4chee
-        if access_token:
-            self.access_token = access_token
-        elif self.username == self.system_user:
-            self.access_token = self.get_system_user_token()
-        else:
-            self.access_token = self.impersonate_user()
-        self.auth_headers = {
-            "Authorization": f"Bearer {self.access_token}",
-            "x-forwarded-access-token": self.access_token,
-        }
-        self.client = DICOMwebClient(
-            url=f"{self.dcmweb_endpoint}/{self.application_entity}/rs",
-            headers=self.auth_headers,
-        )
-
-        access_token = get_project_user_access_token()
+        get_project_user_access_token()
         auth_headers = {
             "Authorization": f"Bearer {access_token}",
             "x-forwarded-access-token": access_token,

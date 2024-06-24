@@ -4,7 +4,7 @@ from dicomweb_client.api import DICOMwebClient
 from dicomweb_client.ext.gcp.uri import GoogleCloudHealthcareURL
 from google.auth.transport import requests
 from google.oauth2 import service_account
-from kaapanapy.Clients.DcmWeb import DcmWeb
+from kaapana.operators.DcmWeb import DcmWeb
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__file__)

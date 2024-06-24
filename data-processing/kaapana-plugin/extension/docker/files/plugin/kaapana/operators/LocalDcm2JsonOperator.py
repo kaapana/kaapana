@@ -1,19 +1,17 @@
-import os
 import json
-from typing import Any, Dict, List, Union
-import pydicom
-from pydicom.tag import Tag
-from pathlib import Path
-from datetime import datetime
-from dateutil import parser
-import pytz
-import traceback
 import logging
+import os
+import traceback
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Union
 
-from kaapana.operators.KaapanaPythonBaseOperator import (
-    KaapanaPythonBaseOperator,
-)
+import pydicom
+import pytz
+from dateutil import parser
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from pydicom.tag import Tag
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -58,6 +56,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         dag,
         exit_on_error=False,
         delete_pixel_data=True,
+        data_type="dcm",
         bulk=False,
         **kwargs,
     ):
@@ -70,6 +69,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         self.bulk = bulk
         self.exit_on_error = exit_on_error
         self.delete_pixel_data = delete_pixel_data
+        self.data_type = data_type
 
         os.environ["PYTHONIOENCODING"] = "utf-8"
         self.load_dicom_tag_dict()
@@ -100,7 +100,9 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             )
 
             if len(dcm_files) == 0:
-                raise ValueError("No dicom file found!")
+                raise FileNotFoundError(
+                    f"No dicom file found in {batch_element_dir / self.operator_in_dir}"
+                )
 
             logger.info(f"length {len(dcm_files)}")
             for dcm_file_path in dcm_files:
@@ -109,13 +111,19 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
                 target_dir: Path = batch_element_dir / self.operator_out_dir
                 target_dir.mkdir(exist_ok=True)
                 json_file_path = target_dir / f"{batch_element_dir.name}.json"
-
-                dcm = pydicom.read_file(dcm_file_path, stop_before_pixels=True)
-                if self.delete_pixel_data:
-                    dcm = self._delete_pixel_data(dcm)
-                json_dict = dcm.to_json_dict()
-                del dcm
-
+                if self.data_type == "dcm":
+                    dcm = pydicom.read_file(dcm_file_path, stop_before_pixels=True)
+                    if self.delete_pixel_data:
+                        dcm = self._delete_pixel_data(dcm)
+                    json_dict = dcm.to_json_dict()
+                    del dcm
+                elif self.data_type == "json":
+                    with open(dcm_file_path, "r", encoding="utf-8") as f:
+                        json_dict = json.load(f)
+                else:
+                    raise NotImplementedError(
+                        f"Unsupported input data_type {self.data_type}. Only `json` and `dcm` supported."
+                    )
                 json_dict = self._clean_json(json_dict)
                 with open(json_file_path, "w", encoding="utf-8") as jsonData:
                     json.dump(
@@ -172,8 +180,15 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # Change modality from CT to XR under specific conditions
         metadata = self._process_modality(metadata)
 
+        metadata = self._source_presentation_address(metadata)
         # TODO Why is this necessary?
         metadata["predicted_bodypart_string"] = "N/A"
+        return metadata
+
+    def _source_presentation_address(self, metadata: Dict) -> Dict:
+        dcmweb_endpoint = metadata.get("000200026 SourcePresentationAddress_keyword")
+        if not dcmweb_endpoint:
+            metadata["000200026 SourcePresentationAddress_keyword"] = "local"
         return metadata
 
     def _process_annotation_tags(self, metadata: Dict) -> Dict:
@@ -237,6 +252,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             "UI",
             "UN",
             "UT",
+            "UR" # TODO Process URI correctly.
         ):
             new_tag += "_keyword"
             metadata[new_tag] = value_str

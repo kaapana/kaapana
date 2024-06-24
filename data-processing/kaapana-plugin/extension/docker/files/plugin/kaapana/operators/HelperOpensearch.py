@@ -1,4 +1,5 @@
-from typing import List, Dict
+from typing import Dict, List
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.logger import get_logger
@@ -13,6 +14,7 @@ class HelperOpensearch:
     modality_tag = "00080060 Modality_keyword"
     protocol_name = "00181030 ProtocolName_keyword"
     curated_modality_tag = "00000000 CuratedModality_keyword"
+    source_presentation_address_tag = "00020026 SourcePresentationAddress"
     custom_tag = "00000000 Tags_keyword"
 
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
@@ -150,6 +152,7 @@ class HelperOpensearch:
                     HelperOpensearch.SOPInstanceUID_tag,
                     HelperOpensearch.modality_tag,
                     HelperOpensearch.curated_modality_tag,
+                    HelperOpensearch.source_presentation_address_tag,
                 ]
             },
         )
@@ -162,6 +165,9 @@ class HelperOpensearch:
                     "modality": hit["_source"][HelperOpensearch.modality_tag],
                     "curated_modality": hit["_source"][
                         HelperOpensearch.curated_modality_tag
+                    ],
+                    "source_presentation_address": hit["_source"][
+                        HelperOpensearch.source_presentation_address_tag
                     ],
                 }
             }

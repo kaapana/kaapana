@@ -80,10 +80,10 @@ async def create_users_projects_roles_mapping(
     return True
 
 
-async def get_data(session: AsyncSession, data_storage_id: str = None):
+async def get_data(session: AsyncSession, series_instance_uid: str = None):
     # TODO Should data only be accessible in a project
     stmt = select(Data)
-    stmt = stmt.filter(Data.data_storage_id == data_storage_id)
+    stmt = stmt.filter(Data.series_instance_uid == series_instance_uid)
     result = await session.execute(stmt)
     return result.scalars().all()
 
@@ -92,7 +92,7 @@ async def create_data(session: AsyncSession, data: schemas.CreateData):
     new_data = Data(
         description=data.description,
         data_type=data.data_type,
-        data_storage_id=data.data_storage_id,
+        series_instance_uid=data.series_instance_uid,
     )
     session.add(new_data)
     await session.commit()

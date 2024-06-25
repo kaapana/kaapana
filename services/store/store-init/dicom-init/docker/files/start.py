@@ -116,8 +116,6 @@ def send_file():
 
 
 # first file will init meta
-
-
 def send_meta_init():
     print("Send Dicom init meta image....")
     print("")
@@ -147,6 +145,9 @@ def send_meta_init():
             item["series_uid"] = pydicom.dcmread(examples)[0x0020, 0x000E].value
             item["instance_uid"] = pydicom.dcmread(examples)[0x0008, 0x0018].value
             item["modality"] = pydicom.dcmread(examples)[0x0008, 0x0060].value
+            item["source_presentation_address"] = pydicom.dcmread(examples)[
+                0x0002, 0x0026
+            ].value
             examples_send.append(item)
         return examples_send
     else:

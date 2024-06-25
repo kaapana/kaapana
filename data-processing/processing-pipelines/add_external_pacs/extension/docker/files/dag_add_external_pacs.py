@@ -29,9 +29,8 @@ ui_forms = {
         "type": "object",
         "properties": {
             "dcmweb_endpoint": {
-                "title": "Pacs host",
-                "description": "Specify the url/IP of the DICOM receiver.\n"
-                "gcloud: https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/dicomStores?dicomStoreId=DICOM_STORE_ID\n",
+                "title": "DcmWeb URL",
+                "description": "Specify the URL of the DICOM store. (e.g.: https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/dicomStores?dicomStoreId=DICOM_STORE_ID)",
                 "type": "string",
                 "default": default_host,
                 "required": True,
@@ -44,7 +43,7 @@ ui_forms = {
                 "required": True,
             },
             "service_account_info": {
-                "title": "service_account_info json",
+                "title": "Service Account Info",
                 "description": "Content of the credentials file, such as credentials.json for Google Cloud. Beware! It WILL BE stored in platform in order to not ask you again.",
                 "type": "string",
                 "required": True,
@@ -65,8 +64,7 @@ args = {
 dag = DAG(
     dag_id="add-external-pacs",
     default_args=args,
-    concurrency=50,
-    max_active_runs=20,
+    max_active_runs=1,
     schedule_interval=None,
 )
 

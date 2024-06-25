@@ -16,7 +16,7 @@
 # under the License.
 
 import base64
-import json
+import hashlib
 import os
 from typing import Dict
 
@@ -107,11 +107,15 @@ class Secret:
             return None
 
 
-def create_k8s_secret(secret_name: str, namespace: str, credentials: Dict[str, str]):
+def create_k8s_secret(
+    secret_name: str,
+    secret_data: Dict[str, str],
+    namespace: str = "services",
+):
     api_instance, _, _ = get_kube_client()
 
     encoded_credentials = {}
-    for key, value in credentials.items():
+    for key, value in secret_data.items():
         encoded_credentials[key] = base64.b64encode(value.encode("utf-8")).decode(
             "utf-8"
         )
@@ -131,7 +135,7 @@ def create_k8s_secret(secret_name: str, namespace: str, credentials: Dict[str, s
         raise e
 
 
-def delete_k8s_secret(secret_name: str, namespace: str):
+def delete_k8s_secret(secret_name: str, namespace: str = "services"):
     api_instance, _, _ = get_kube_client()
 
     try:
@@ -148,7 +152,7 @@ def delete_k8s_secret(secret_name: str, namespace: str):
             logger.error(f"Failed to delete secret '{secret_name}': {e}.")
 
 
-def get_k8s_secret(secret_name: str, namespace: str):
+def get_k8s_secret(secret_name: str, namespace: str = "services"):
     api_instance, _, _ = get_kube_client()
 
     try:
@@ -171,3 +175,39 @@ def get_k8s_secret(secret_name: str, namespace: str):
         else:
             logger.error(f"Failed to retrieve secret '{secret_name}': {e}.")
         return None
+
+
+def hash_secret_name(dcmweb_endpoint: str):
+    # Calculate SHA-256 hash of the endpoint URL
+    hash_object = hashlib.sha256(dcmweb_endpoint.encode())
+    hash_hex = hash_object.hexdigest()
+
+    # Convert hexadecimal hash to a valid Kubernetes secret name
+    valid_chars = set("abcdefghijklmnopqrstuvwxyz0123456789.-")
+    secret_name = "".join(c if c in valid_chars else "-" for c in hash_hex.lower())
+
+    # Ensure the secret name starts with a letter as per Kubernetes naming convention
+    if not secret_name[0].isalpha():
+        secret_name = (
+            "s-" + secret_name
+        )  # prepend 's-' if the name starts with a non-letter
+
+    return secret_name[:63]  # Kubernetes secret names are limited to 63 characters
+
+
+# if __name__ == "__main__":
+#     dcmweb_endpoint = "https://healthcare.googleapis.com/v1/projects/idc-external-031/locations/europe-west2/datasets/kaapana-integration-test/dicomStores/kaapana-integration-test-store/dicomWeb"
+#     secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
+#     ae_title = "external-data"
+
+#     create_k8s_secret(
+#         secret_name,
+#         secret_data={
+#             "key": "secret",
+#             "config": "config",
+#             "token": "actual_token",
+#             "dcmweb_endpoint": dcmweb_endpoint,
+#         },
+#     )
+#     secret = get_k8s_secret(secret_name=secret_name)
+#     delete_k8s_secret(secret_name=secret_name)

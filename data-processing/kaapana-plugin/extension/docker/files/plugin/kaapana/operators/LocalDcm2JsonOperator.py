@@ -187,8 +187,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
     def _source_presentation_address(self, metadata: Dict) -> Dict:
         dcmweb_endpoint = metadata.get("000200026 SourcePresentationAddress_keyword")
-        if not dcmweb_endpoint:
-            metadata["000200026 SourcePresentationAddress_keyword"] = "local"
+        if dcmweb_endpoint:
+            metadata["000200026 SourcePresentationAddress_keyword"] = dcmweb_endpoint
         return metadata
 
     def _process_annotation_tags(self, metadata: Dict) -> Dict:
@@ -252,7 +252,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             "UI",
             "UN",
             "UT",
-            "UR" # TODO Process URI correctly.
+            "UR",  # TODO Process URI correctly.
         ):
             new_tag += "_keyword"
             metadata[new_tag] = value_str

@@ -10,6 +10,7 @@ from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, join
 
 import pydicom
+from kaapana.kubetools.secret import get_k8s_secret, hash_secret_name
 from kaapana.operators.DcmWeb import DcmWeb
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperOpensearch import HelperOpensearch
@@ -346,7 +347,20 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             grouped_downloads[item["dcmweb_endpoint"]].append(item)
 
         for dcmweb_endpoint, group_download_list in grouped_downloads.items():
-            self.dcmweb_helper = DcmWeb.get_dcmweb_helper(dcmweb_endpoint)
+            if not dcmweb_endpoint:  # if local pacs
+                self.dcmweb_helper = DcmWeb.get_dcmweb_helper(dcmweb_endpoint)
+            else:
+                secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
+                service_account_info = get_k8s_secret(secret_name)
+                if not service_account_info:
+                    raise FileNotFoundError(
+                        f"Cannot retrieve secret for {dcmweb_endpoint}"
+                    )
+
+                self.dcmweb_helper = DcmWeb.get_dcmweb_helper(
+                    dcmweb_endpoint, service_account_info=service_account_info
+                )
+
             logger.info(f"Retrieve files from endpoint: {dcmweb_endpoint}")
             with ThreadPool(self.parallel_downloads) as threadpool:
                 results = threadpool.imap_unordered(self.get_data, group_download_list)

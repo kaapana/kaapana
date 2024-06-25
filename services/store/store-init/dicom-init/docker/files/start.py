@@ -1,12 +1,13 @@
-import os
-import shutil
-import pydicom
-import requests
-import time
 import glob
 import json
+import os
+import shutil
+import time
 from subprocess import PIPE, run
-from kaapanapy.helper import get_project_user_access_token, get_opensearch_client
+
+import pydicom
+import requests
+from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 
 tmp_data_dir = "/slow_data_dir/TMP"
 ctp_url = os.getenv("CTP_URL", None)
@@ -115,8 +116,6 @@ def send_file():
 
 
 # first file will init meta
-
-
 def send_meta_init():
     print("Send Dicom init meta image....")
     print("")
@@ -146,6 +145,9 @@ def send_meta_init():
             item["series_uid"] = pydicom.dcmread(examples)[0x0020, 0x000E].value
             item["instance_uid"] = pydicom.dcmread(examples)[0x0008, 0x0018].value
             item["modality"] = pydicom.dcmread(examples)[0x0008, 0x0060].value
+            item["source_presentation_address"] = pydicom.dcmread(examples)[
+                0x0002, 0x0026
+            ].value
             examples_send.append(item)
         return examples_send
     else:

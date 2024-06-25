@@ -22,6 +22,8 @@ COPY files/dags/dag_segmentation_evaluation.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_segmentation_thumbnail_trigger_rule.json /kaapana/tmp/dags/
 COPY files/dags/dag_service_segmentation_thumbnail.py /kaapana/tmp/dags/
 COPY files/dags/dag_train_with_pretrained_weights.py /kaapana/tmp/dags/
+COPY files/dags/dag_validate_dicoms.py /kaapana/tmp/dags/
+COPY files/dags/dag_clear_validation_results.py /kaapana/tmp/dags/
 
 COPY files/mounted_scripts/ /kaapana/tmp/mounted_scripts
 

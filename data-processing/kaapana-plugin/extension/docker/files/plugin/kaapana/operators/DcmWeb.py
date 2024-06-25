@@ -28,7 +28,7 @@ class DcmWeb(ABC):
     def get_dcmweb_helper(
         dcmweb_endpoint: str,
         application_entity: str = "KAAPANA",
-        service_account_info: str = None,
+        service_account_info: Dict[str, str] = None,
     ):
         if "google" in dcmweb_endpoint:
             from DcmWebGcloudHelper import DcmWebGcloudHelper
@@ -178,3 +178,11 @@ class DcmWeb(ABC):
         url = url = f"{self.dcmweb_endpoints['rs']}/instances"
         response = self.session.get(url, params=search_filters)
         return response
+
+    @staticmethod
+    def decode_dcmweb_endpoint(dcmweb_endpoint: str):
+        pass
+
+    @staticmethod
+    def encode_dcmweb_endpoint(decoded_dcmweb_endpoint: str):
+        pass

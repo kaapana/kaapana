@@ -10,10 +10,14 @@ from htmlgen import generate_html
 
 
 def get_series_description(all_dicoms: list):
-    desc = ""
+    desc = "Unnamed Series"
     for dcm in all_dicoms:
         ds = pydicom.dcmread(dcm)
-        elem = ds["SeriesDescription"]
+        try:
+            elem = ds["SeriesDescription"]
+        except KeyError:
+            print("Series Description not found for dicoms")
+            break
         if elem:
             desc = elem.value
             break
@@ -85,8 +89,9 @@ if __name__ == "__main__":
 
             errors = merge_similar_validation_items(all_errors)
             warnings = merge_similar_validation_items(all_warnings)
+            seriesdsc = get_series_description(dcm_files)
             attributes = {
-                "Series Name": get_series_description(dcm_files),
+                "Series Name": seriesdsc,
                 "Validation Algorithm": validator_alg,
                 "Run id": run_id,
                 "Total Dicoms": len(dcm_files),
@@ -97,7 +102,7 @@ if __name__ == "__main__":
 
             if len(errors.keys()) > 0 or len(warnings.keys()) > 0:
                 htmlout = generate_html(
-                    title=f"Validation Report for dataset {get_series_description(dcm_files)}",
+                    title=f"Validation Report for dataset {seriesdsc}",
                     attrs=attributes,
                     errors=[errors[tag] for tag in errors.keys()],
                     warnings=[warnings[tag] for tag in warnings.keys()],

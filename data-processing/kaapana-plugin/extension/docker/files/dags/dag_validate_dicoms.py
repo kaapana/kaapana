@@ -32,13 +32,6 @@ ui_forms = {
                 "type": "boolean",
                 "default": False,
             },
-            "tags_whitelist": {
-                "type": "array",
-                "title": "Tags Whitelist",
-                "description": "List of DICOM tags, that will be ignored while validating",
-                "items": {"type": "string", "title": "DICOM tag"},
-                "default": [],
-            },
         },
     }
 }

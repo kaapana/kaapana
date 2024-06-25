@@ -1,7 +1,7 @@
 import json
 import logging
 
-from kaapana.kubetools.secret import create_k8s_secret, get_k8s_secret
+from kaapana.kubetools.secret import create_k8s_secret, get_k8s_secret, hash_secret_name
 from kaapana.operators.DcmWeb import DcmWeb
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -25,7 +25,7 @@ class InitExternalPacsOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        workflow_form = kwargs["dag_run"]["conf"]["workflow_form"]
+        workflow_form = kwargs["dag_run"].conf["workflow_form"]
         dcmweb_endpoint = workflow_form["dcmweb_endpoint"]
         service_account_info = json.loads(workflow_form["service_account_info"])
 
@@ -37,13 +37,19 @@ class InitExternalPacsOperator(KaapanaPythonBaseOperator):
             logger.error("Not saving credentials and exiting!")
             exit(1)
 
+        secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
+
         create_k8s_secret(
-            secret_name="", namespace="services", credentials=service_account_info
+            secret_name=secret_name,
+            secret_data={
+                "dcmweb_endpoint": dcmweb_endpoint,
+                "service_account_info": service_account_info,
+            },
         )
 
-        secret = get_k8s_secret(secret_name=dcmweb_endpoint, namespace="services")
+        secret = get_k8s_secret(secret_name=secret_name)
         if not secret:
-            logger.error("Secret not created sucessfully")
+            logger.error("Secret not created successfully")
             exit(1)
         else:
-            logger.info("Secret sucessfully saved.")
+            logger.info("Secret successfully saved.")

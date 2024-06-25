@@ -1,4 +1,5 @@
 import json
+from typing import Dict
 
 from dicomweb_client.api import DICOMwebClient
 from dicomweb_client.ext.gcp.uri import GoogleCloudHealthcareURL
@@ -14,14 +15,13 @@ class DcmWebGcloudHelper(DcmWeb):
     def __init__(
         self,
         dcmweb_endpoint: str,
-        service_account_info: str,
+        service_account_info: Dict[str, str],
     ):
         self.dcmweb_endpoint = dcmweb_endpoint
         dcmweb_endpoints = {
             "rs": dcmweb_endpoint,
             "wado": dcmweb_endpoint,
         }
-        service_account_info = json.loads(service_account_info)
         credentials = service_account.Credentials.from_service_account_info(
             service_account_info,
             scopes=["https://www.googleapis.com/auth/cloud-platform"],

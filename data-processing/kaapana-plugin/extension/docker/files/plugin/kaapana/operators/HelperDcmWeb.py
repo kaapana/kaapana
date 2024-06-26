@@ -2,14 +2,16 @@ import logging
 import os
 import tempfile
 import time
-from glob import glob
 from os.path import join
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 
 import pydicom
 import requests
 from dicomweb_client.api import DICOMwebClient
+from io import BytesIO
+from typing import List, Sequence, Tuple
+from urllib3.filepost import choose_boundary
 from kaapana.blueprints.kaapana_global_variables import (
     OIDC_CLIENT_SECRET,
     SERVICES_NAMESPACE,
@@ -17,6 +19,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def get_dcmweb_helper(
@@ -442,32 +445,80 @@ class HelperDcmWeb:
             raise DcmWebException(f"Series {series_uid} still exists after deletion")
         logger.info(f"Series {series_uid} sucessfully deleted")
 
-    def upload_dcm_files(self, path: str):
-        files = glob(os.path.join(path, "*.dcm"))
-        total_files = len(files)
-        uploaded_fiels = 0
-        for file in files:
-            uploaded_fiels += 1
-            logger.info("Uploading %d / %d:  %s", uploaded_fiels, total_files, file)
-            dataset = pydicom.dcmread(file)
-            self.client.store_instances(datasets=[dataset])
-
-    def search_for_series(self, search_filters={}) -> List[Dict] | None:
+    def search_for_series(self, search_filters):
         return self.client.search_for_series(search_filters=search_filters)
 
-    def search_for_instances(self, search_filters={}) -> List[Dict] | None:
-        return self.client.search_for_instances(search_filters=search_filters)
+    def _encode_multipart_message(
+        self,
+        data: Sequence[bytes],
+        boundary: str = None,
+    ) -> Tuple[bytes, str]:
+        """
+        Encodes the payload of an HTTP multipart response message.
 
-    def check_reachability(self) -> bool:
-        for i in range(10):
-            try:
-                if self.search_for_series() is not None:
-                    return True
-            except Exception as e:
-                logger.error(f"Connecting to PACS failed: {e}. Retry {i}")
-                time.sleep(1)
+        Parameters
+        ----------
+        data: Sequence[bytes]
+            A sequence of byte data to include in the multipart message.
+        boundary: str, optional
+            The boundary string to separate parts of the message. If not provided, a unique boundary will be generated.
 
-        logger.error(
-            f"Dcmweb endpoint {self.dcmweb_endpoint} is not available or wrong credentials."
+        Returns
+        -------
+        Tuple[bytes, str]
+            The encoded HTTP request message body and the content type.
+        """
+        if not boundary:
+            boundary = choose_boundary()
+
+        content_type = f"multipart/related; type=application/dicom; boundary={boundary}"
+        body = b""
+
+        for payload in data:
+            body += (
+                f"\r\n--{boundary}\r\nContent-Type: application/dicom\r\n\r\n".encode(
+                    "utf-8"
+                )
+            )
+            body += payload
+
+        body += f"\r\n--{boundary}--".encode("utf-8")
+
+        return body, content_type
+
+    def upload_dcm_files(self, path_to_dicom_files) -> None:
+        """
+        Send individual DICOM instances to the DICOMweb server using the STOW-RS service.
+
+        Parameters:
+            path_to_dicom_files (list): Path to the DICOM files to be sent.
+
+        """
+        url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies"
+
+        encoded_files = []
+
+        for root, _, files in os.walk(path_to_dicom_files):
+            for file in files:
+                try:
+                    dicom_file = pydicom.dcmread(os.path.join(root, file))
+                except Exception as e:
+                    logger.error(f"Error reading DICOM file: {e}")
+                    continue
+
+                with BytesIO() as buffer:
+                    dicom_file.save_as(buffer)
+                    encoded_files.append(buffer.getvalue())
+
+        data, content_type = self._encode_multipart_message(
+            data=encoded_files, boundary="0f3cf5c0-70e0-41ef-baef-c6f9f65ec3e1"
         )
-        return False
+
+        self.session.post(
+            url,
+            headers={
+                "Content-Type": content_type,
+                "Authorization": f"Bearer {self.access_token}",
+            },
+            data=data,
+        )

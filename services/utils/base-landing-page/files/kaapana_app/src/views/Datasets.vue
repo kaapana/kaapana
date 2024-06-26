@@ -195,7 +195,7 @@
                   <v-list-item-title>Rerun Validation</v-list-item-title>
                   <!-- <v-list-item-title v-else>Run Validation</v-list-item-title> -->
                   <v-list-item-icon class="mt-4">
-                    <v-icon>mdi-cog-play</v-icon>
+                    <v-icon>mdi-play</v-icon>
                   </v-list-item-icon>
                 </v-list-item>
                 <v-list-item @click="deleteValidationResult(validationResultItem)">
@@ -232,7 +232,8 @@
               </v-btn>
             </div>
             <v-card-actions>
-                <v-btn
+              <!--
+              <v-btn
                   color="error"
                   icon
                   @click="runValidationWorkflow(validationResultItem)"
@@ -246,6 +247,7 @@
                 >
                   <v-icon>mdi-delete-empty</v-icon>
                 </v-btn>
+                -->
                 <v-spacer></v-spacer>
                 <v-btn color="primary" @click="onValidationResultClose">
                   Close

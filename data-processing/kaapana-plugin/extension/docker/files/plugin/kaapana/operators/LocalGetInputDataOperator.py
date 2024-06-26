@@ -175,7 +175,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         else:
             logger.warning("Files have already been moved -> skipping")
 
-    def handleOldDicomStorageDir(self):
+    def ctp_batch_input(self):
         """
         A CTP restart with untransferred dirs to Airflow have to be handled:
         An Airflow trigger is created for each dicom dir, during CTP start
@@ -231,25 +231,29 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             self.download_external_metadata()
             return
 
+        # Triggered via ctp
         if self.conf and ("seriesInstanceUID" in self.conf):
             self.ctp_input()
             return
+        # Triggered via ctp
         if self.conf and "ctpBatch" in self.conf:
-            self.handleOldDicomStorageDir()
+            self.ctp_batch_input()
             return
+        # Triggered via workflow
         if self.conf and "dataInputDirs" in self.conf:
             self.trigger_from_folder()
             return
 
+        # If the data is already present, because triggered by another dag
         if self.data_form is None:
             if self.conf is not None and "data_form" in self.conf:
                 logger.info("Setting data_form from conf object")
                 self.data_form = self.conf["data_form"]
             else:
-                logger.warning(
+                logger.info(
                     "No data_form in config or object found! Data seems to be present already..."
                 )
-                logger.warning("Skipping...")
+                logger.info("Skipping...")
                 return
 
         if "query" in self.data_form and "identifiers" in self.data_form:

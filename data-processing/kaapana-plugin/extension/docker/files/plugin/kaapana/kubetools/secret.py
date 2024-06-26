@@ -193,21 +193,3 @@ def hash_secret_name(dcmweb_endpoint: str):
         )  # prepend 's-' if the name starts with a non-letter
 
     return secret_name[:63]  # Kubernetes secret names are limited to 63 characters
-
-
-# if __name__ == "__main__":
-#     dcmweb_endpoint = "https://healthcare.googleapis.com/v1/projects/idc-external-031/locations/europe-west2/datasets/kaapana-integration-test/dicomStores/kaapana-integration-test-store/dicomWeb"
-#     secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
-#     ae_title = "external-data"
-
-#     create_k8s_secret(
-#         secret_name,
-#         secret_data={
-#             "key": "secret",
-#             "config": "config",
-#             "token": "actual_token",
-#             "dcmweb_endpoint": dcmweb_endpoint,
-#         },
-#     )
-#     secret = get_k8s_secret(secret_name=secret_name)
-#     delete_k8s_secret(secret_name=secret_name)

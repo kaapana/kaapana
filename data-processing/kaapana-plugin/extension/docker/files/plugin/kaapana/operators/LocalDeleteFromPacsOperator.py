@@ -21,9 +21,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
-        self.dcmweb_helper = DcmWebLocalHelper(
-            application_entity=self.pacs_aet, dag_run=kwargs["dag_run"]
-        )
+        self.dcmweb_helper = DcmWebLocalHelper(application_entity=self.pacs_aet)
         print("conf", conf)
         if (
             "form_data" in conf

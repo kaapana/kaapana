@@ -29,7 +29,7 @@ class Role(OrmBaseModel):
 class Data(OrmBaseModel):
     description: str
     data_type: str
-    data_storage_id: str
+    series_instance_uid: str
 
 
 class DICOMSeries(Data):

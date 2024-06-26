@@ -45,7 +45,7 @@ async def create_data(
         logger.warning(f"{data=} already exists")
         await session.rollback()
         stored_data = await crud.get_data(
-            session=session, data_storage_id=data.data_storage_id
+            session=session, series_instance_uid=data.series_instance_uid
         )
         stored_data = stored_data[0]
     projects = await crud.get_projects(session, name=project_name)

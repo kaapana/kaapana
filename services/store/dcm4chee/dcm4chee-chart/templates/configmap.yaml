@@ -12,6 +12,7 @@ data:
             #}
             auth_request /auth;
             proxy_pass http://localhost:8081/;
+            client_max_body_size 1g;
         }
         location /auth {
             internal;

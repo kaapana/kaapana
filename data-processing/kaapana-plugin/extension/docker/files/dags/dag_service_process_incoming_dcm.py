@@ -2,9 +2,6 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
 from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
-from kaapana.operators.LocalAssignDataToProjectOperator import (
-    LocalAssignDataToProjectOperator,
-)
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from datetime import timedelta
@@ -33,21 +30,11 @@ get_input = LocalGetInputDataOperator(dag=dag)
 dcm_send = LocalDicomSendOperator(
     dag=dag,
     input_operator=get_input,
-    pacs_host=f"dcm4chee-service.{SERVICES_NAMESPACE}.svc",
-    pacs_port=11115,
     ae_title="KAAPANA",
-    check_arrival=True,
-)
-
-assign_data_to_project = LocalAssignDataToProjectOperator(
-    dag=dag,
-    input_operator=get_input,
-    projects=["admin"],
 )
 
 auto_trigger_operator = LocalAutoTriggerOperator(dag=dag, input_operator=get_input)
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> assign_data_to_project >> clean
 get_input >> dcm_send >> auto_trigger_operator >> clean

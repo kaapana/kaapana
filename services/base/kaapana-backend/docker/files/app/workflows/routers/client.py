@@ -664,13 +664,10 @@ def create_workflow(
         or len(json_schema_data.conf_data["workflow_form"]["involved_instances"]) > 1
     ):
         # sync solution for remote or any federated workflows
-        crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data)
+        crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, use_thread=False)
     else:
+        crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, use_thread=True)
         # solution in additional thread for purely local workflows (these are probably also the only one which are conducted at large scale)
-        Thread(
-            target=crud.queue_generate_jobs_and_add_to_workflow,
-            args=(db_workflow, json_schema_data),
-        ).start()
 
     # directly return created db_workflow for fast feedback
     return db_workflow
@@ -764,7 +761,7 @@ def put_workflow_jobs(
     db: Session = Depends(get_db),
 ):
     db_workflow = crud.get_workflow(db, workflow_id=json_schema_data.workflow_id)
-    r = crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, db)
+    r = crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, db, used_thread=False)
     resp = r["jobs"]
     return resp
 

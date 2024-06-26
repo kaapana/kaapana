@@ -7,6 +7,7 @@ from typing import List
 import datetime
 import string
 import requests
+from threading import Thread
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
@@ -1330,10 +1331,39 @@ def create_workflow(
 
 # TODO removed async because our current database is not able to execute async methods
 # async def queue_generate_jobs_and_add_to_workflow(
+
+def thread_queue_generate_jobs_and_add_to_workflow(jobs_to_create_list, db_workflow, db=None):
+    if db is None:
+        db = SessionLocal()
+    db_jobs = []
+    for job in jobs_to_create_list:
+        db_job = create_job(db, job)
+        db_jobs.append(db_job)
+
+
+    # update workflow w/ created db_jobs
+    workflow = schemas.WorkflowUpdate(
+        **{
+            "workflow_id": db_workflow.workflow_id,
+            "workflow_name": db_workflow.workflow_name,
+            "workflow_jobs": db_jobs,
+        }
+    )
+    db_workflow = put_workflow_jobs(db, workflow)
+
+    # would be better to solve this with a lamba function instead of putting it directly here
+    # db.close()
+
+    return {
+        "workflow": db_workflow,
+        "jobs": db_jobs,
+    }
+
 def queue_generate_jobs_and_add_to_workflow(
     db_workflow: models.Workflow,
     json_schema_data: schemas.JsonSchemaData,
     db=None,
+    use_thread=False,
 ):
     # open separate db session if method is called with db=None, i.e. called in Thread while workflow creation
     if db is None:
@@ -1378,7 +1408,7 @@ def queue_generate_jobs_and_add_to_workflow(
             }
         ),
     )
-    db_jobs = []
+    jobs_to_create_list = []
     for db_kaapana_instance in db_kaapana_instances:
         identifiers = []
         if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
@@ -1447,6 +1477,10 @@ def queue_generate_jobs_and_add_to_workflow(
                     }
                 )
         else:
+            check_for_empty_identifiers = conf_data.get("data_form", {}).get("identifiers", None)
+            if check_for_empty_identifiers is not None and len(check_for_empty_identifiers) == 0:
+                logging.warning("No identifiers found in data_form, no job will be created")
+                continue
             # if identifiers:
             #     conf_data["data_form"].update({"identifiers": identifiers})
             queued_jobs = [
@@ -1467,26 +1501,19 @@ def queue_generate_jobs_and_add_to_workflow(
                     **jobs_to_create,
                 }
             )
-            db_job = create_job(db, job)
-            db_jobs.append(db_job)
+            jobs_to_create_list.append(job)
 
-    # update workflow w/ created db_jobs
-    workflow = schemas.WorkflowUpdate(
-        **{
-            "workflow_id": db_workflow.workflow_id,
-            "workflow_name": db_workflow.workflow_name,
-            "workflow_jobs": db_jobs,
-        }
-    )
-    db_workflow = put_workflow_jobs(db, workflow)
+    if len(jobs_to_create_list) == 0:
+        delete_workflow(db, db_workflow.workflow_id)
+        raise HTTPException(status_code=404, detail="No jobs created!")
 
-    # would be better to solve this with a lamba function instead of putting it directly here
-    # db.close()
-
-    return {
-        "workflow": db_workflow,
-        "jobs": db_jobs,
-    }
+    if use_thread:
+        Thread(
+            target=thread_queue_generate_jobs_and_add_to_workflow,
+            args=(jobs_to_create_list, db_workflow),
+        ).start()
+    else:
+        return thread_queue_generate_jobs_and_add_to_workflow(jobs_to_create_list, db_workflow, db)
 
 
 def get_workflow(

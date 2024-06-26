@@ -80,8 +80,8 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
 
                 data = {
                     "description": "DICOM series",
-                    "data_type": "dicom-series", #TODO: Commit on standard data types
-                    "data_storage_id": series_uid,
+                    "data_type": "dicom-series",  # TODO: Commit on standard data types
+                    "series_instance_uid": series_uid,
                 }
                 data_to_send.append(data)
         return data_to_send

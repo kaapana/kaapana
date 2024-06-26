@@ -180,15 +180,8 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # Change modality from CT to XR under specific conditions
         metadata = self._process_modality(metadata)
 
-        metadata = self._source_presentation_address(metadata)
         # TODO Why is this necessary?
         metadata["predicted_bodypart_string"] = "N/A"
-        return metadata
-
-    def _source_presentation_address(self, metadata: Dict) -> Dict:
-        dcmweb_endpoint = metadata.get("000200026 SourcePresentationAddress_keyword")
-        if dcmweb_endpoint:
-            metadata["000200026 SourcePresentationAddress_keyword"] = dcmweb_endpoint
         return metadata
 
     def _process_annotation_tags(self, metadata: Dict) -> Dict:

@@ -1,6 +1,6 @@
+import time
 from abc import ABC
 from pathlib import Path
-from time import time
 from typing import Dict, Optional
 
 from kaapanapy.logger import get_logger

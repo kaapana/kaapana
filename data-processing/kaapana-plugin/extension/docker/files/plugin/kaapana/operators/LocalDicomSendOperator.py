@@ -60,7 +60,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         if self.check_arrival and not self.dcmweb_helper.check_if_series_in(
             series_uid=series_uid
         ):
-            print(f"Arrival check failed!")
+            print("Arrival check failed!")
             raise ValueError("Checkick arrival of dicoms failed!")
 
     def start(self, **kwargs):

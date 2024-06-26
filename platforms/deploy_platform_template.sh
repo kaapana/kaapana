@@ -327,7 +327,7 @@ function deploy_chart {
                 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
                 OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/offline_enable_gpu.py
                 [ -f $OFFLINE_ENABLE_GPU_PATH ] && echo "${GREEN}$OFFLINE_ENABLE_GPU_PATH exists ... ${NC}" || (echo "${RED}$OFFLINE_ENABLE_GPU_PATH does not exist -> exit ${NC}" && exit 1)
-                python3 $OFFLINE_ENABLE_GPU_PATH
+                python3 $OFFLINE_ENABLE_GPU_PATH --script-dir $SCRIPT_DIR
                 if [ $? -eq 0 ]; then
                     echo "Offline GPU enabled!"
                 else

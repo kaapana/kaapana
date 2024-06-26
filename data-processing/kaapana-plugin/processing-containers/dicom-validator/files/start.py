@@ -97,8 +97,7 @@ if __name__ == "__main__":
                 "Run ID": run_id,
                 "Workflow ID": workflow_id,
                 "Total number of slices": len(dcm_files),
-                "Number of valid slices": str(n_valid),
-                "Number of failed slices": str(n_fail),
+                "Number of valid/failed slices": str(n_valid) + " / " + str(n_fail),
                 "Validataion Time": f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')} CEST",
             }
 

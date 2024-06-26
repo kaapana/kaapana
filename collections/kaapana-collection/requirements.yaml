@@ -1,4 +1,3 @@
----
 dependencies:
   - name: kaapana-platform-chart
     version: 0.0.0
@@ -19,7 +18,7 @@ dependencies:
   - name: slicer-workbench-chart
     version: 0.0.0
   - name: mitk-flow-chart
-    version: 0.0.0 
+    version: 0.0.0
   - name: mitk-flow-workflow
     version: 0.0.0
   - name: bodypartregression-workflow

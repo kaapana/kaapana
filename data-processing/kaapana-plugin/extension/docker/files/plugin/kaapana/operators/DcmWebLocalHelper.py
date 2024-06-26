@@ -22,11 +22,7 @@ logger = get_logger(__file__)
 
 class DcmWebLocalHelper(DcmWeb):
 
-    def __init__(
-        self,
-        application_entity: str,
-        access_token: str = None,
-    ):
+    def __init__(self, application_entity: str):
         self.dcm4chee_endpoint = (
             f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets"
         )
@@ -36,12 +32,7 @@ class DcmWebLocalHelper(DcmWeb):
             "wado": f"{self.dcm4chee_endpoint}/{self.application_entity}/wado",
         }
 
-        self.system_user = "system"
-        self.system_user_password = SYSTEM_USER_PASSWORD
-        self.client_secret = OIDC_CLIENT_SECRET
-        self.client_id = "kaapana"
-
-        get_project_user_access_token()
+        access_token = get_project_user_access_token()
         auth_headers = {
             "Authorization": f"Bearer {access_token}",
             "x-forwarded-access-token": access_token,

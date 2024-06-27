@@ -447,9 +447,6 @@ class HelperDcmWeb:
             path_to_dicom_files (list): Path to the DICOM files to be sent.
 
         """
-        headers = {
-            "Authorization": f"Bearer {self.access_token}",
-        }
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies"
 
         encoded_files = []

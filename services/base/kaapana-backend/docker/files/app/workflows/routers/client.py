@@ -646,7 +646,6 @@ def create_workflow(
             "federated": json_schema_data.federated,
         }
     )
-    db_workflow = crud.create_workflow(db=db, workflow=workflow)
 
     # async function call to queue jobs and generate db_jobs + adding them to db_workflow
     # TODO moved methodcall outside of async framwork because our database implementation is not async compatible
@@ -657,21 +656,21 @@ def create_workflow(
     # all sync
     # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
 
-    # thread async w/ db session in thread
-    if (
-        db_client_kaapana.instance_name
-        not in json_schema_data.conf_data["workflow_form"]["involved_instances"]
-        or len(json_schema_data.conf_data["workflow_form"]["involved_instances"]) > 1
-    ):
-        # sync solution for remote or any federated workflows
-        crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, use_thread=False)
-    else:
-        crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, use_thread=True)
-        # solution in additional thread for purely local workflows (these are probably also the only one which are conducted at large scale)
+    return crud.queue_generate_jobs_and_add_to_workflow(db, json_schema_data, workflow=workflow)
+
+    # # thread async w/ db session in thread
+    # if (
+    #     db_client_kaapana.instance_name
+    #     not in json_schema_data.conf_data["workflow_form"]["involved_instances"]
+    #     or len(json_schema_data.conf_data["workflow_form"]["involved_instances"]) > 1
+    # ):
+    #     # sync solution for remote or any federated workflows
+    #     crud.queue_generate_jobs_and_add_to_workflow(db, workflow, json_schema_data, use_thread=False)
+    # else:
+    #     crud.queue_generate_jobs_and_add_to_workflow(workflow, json_schema_data, use_thread=True)
+    #     # solution in additional thread for purely local workflows (these are probably also the only one which are conducted at large scale)
 
     # directly return created db_workflow for fast feedback
-    return db_workflow
-
 
 # get_workflow
 @router.get("/workflow", response_model=schemas.WorkflowWithKaapanaInstance)
@@ -760,8 +759,7 @@ def put_workflow_jobs(
     # workflow_id: str=None,
     db: Session = Depends(get_db),
 ):
-    db_workflow = crud.get_workflow(db, workflow_id=json_schema_data.workflow_id)
-    r = crud.queue_generate_jobs_and_add_to_workflow(db_workflow, json_schema_data, db, used_thread=False)
+    r = crud.queue_generate_jobs_and_add_to_workflow(json_schema_data, db, use_thread=False)
     resp = r["jobs"]
     return resp
 

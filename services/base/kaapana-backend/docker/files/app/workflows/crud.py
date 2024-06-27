@@ -395,8 +395,8 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         service_job=job.service_job,
     )
 
-    db_kaapana_instance.jobs.append(db_job)
-    db.add(db_kaapana_instance)
+    db.add(db_job)
+
     try:
         db.commit()  # writing, if kaapana_id and external_job_id already exists will fail due to duplicate error
     except IntegrityError as e:
@@ -1322,8 +1322,8 @@ def create_workflow(
 
     # TODO: also update all involved_kaapana_instances with the workflow_id in which they are involved
 
-    db_kaapana_instance.workflows.append(db_workflow)
-    db.add(db_kaapana_instance)
+    # db_kaapana_instance.workflows.append(db_workflow)
+    db.add(db_workflow)
     db.commit()
     db.refresh(db_workflow)
     return db_workflow
@@ -1332,43 +1332,50 @@ def create_workflow(
 # TODO removed async because our current database is not able to execute async methods
 # async def queue_generate_jobs_and_add_to_workflow(
 
-def thread_queue_generate_jobs_and_add_to_workflow(jobs_to_create_list, db_workflow, db=None):
-    if db is None:
-        db = SessionLocal()
-    db_jobs = []
-    for job in jobs_to_create_list:
-        db_job = create_job(db, job)
-        db_jobs.append(db_job)
+def thread_create_objects_and_trigger_workflows(jobs_to_create_list: List, workflow=None, workflow_id=None):
+    with SessionLocal() as db:
 
+        db_jobs = []
 
-    # update workflow w/ created db_jobs
-    workflow = schemas.WorkflowUpdate(
-        **{
-            "workflow_id": db_workflow.workflow_id,
-            "workflow_name": db_workflow.workflow_name,
-            "workflow_jobs": db_jobs,
-        }
-    )
-    db_workflow = put_workflow_jobs(db, workflow)
+        for job in jobs_to_create_list:
+            db_job = create_job(db, job)
+            db_jobs.append(db_job)
+        
+        if workflow is not None:
+            workflow.workflow_jobs = db_jobs
+            db_workflow = create_workflow(db=db, workflow=workflow)
+        else:
+            db_workflow = get_workflow(db, workflow_id=workflow_id)
+            workflow = schemas.WorkflowUpdate(
+                **{
+                    "workflow_id": db_workflow.workflow_id,
+                    "workflow_name": db_workflow.workflow_name,
+                    "workflow_jobs": db_jobs,
+                }
+            )
+            db_workflow = put_workflow_jobs(db, workflow)
 
-    # would be better to solve this with a lamba function instead of putting it directly here
-    # db.close()
+        if db_workflow.automatic_execution:
+            for db_job in db_jobs:
+                job = schemas.JobUpdate(
+                    **{
+                        "job_id": db_job.id,
+                        "status": "scheduled",
+                        "description": "The workflow was triggered!",
+                    }
+                )
+                try:
+                    update_job(db, job, remote=False)
+                except Exception as e:
+                    logging.error(f"Error in thread_trigger_workflows: {e}")
 
-    return {
-        "workflow": db_workflow,
-        "jobs": db_jobs,
-    }
 
 def queue_generate_jobs_and_add_to_workflow(
-    db_workflow: models.Workflow,
+    db,
     json_schema_data: schemas.JsonSchemaData,
-    db=None,
-    use_thread=False,
+    workflow: schemas.WorkflowCreate = None,
+    use_thread: bool = True,
 ):
-    # open separate db session if method is called with db=None, i.e. called in Thread while workflow creation
-    if db is None:
-        db = SessionLocal()
-
     conf_data = json_schema_data.conf_data
     # get variables
     single_execution = (
@@ -1494,26 +1501,27 @@ def queue_generate_jobs_and_add_to_workflow(
         for jobs_to_create in queued_jobs:
             job = schemas.JobCreate(
                 **{
-                    "status": "queued",
+                    "status": "pending",
                     "kaapana_instance_id": db_kaapana_instance.id,
                     "owner_kaapana_instance_name": settings.instance_name,
-                    "automatic_execution": db_workflow.automatic_execution,
+                    "automatic_execution": False,
                     **jobs_to_create,
                 }
             )
             jobs_to_create_list.append(job)
 
     if len(jobs_to_create_list) == 0:
-        delete_workflow(db, db_workflow.workflow_id)
         raise HTTPException(status_code=404, detail="No jobs created!")
 
     if use_thread:
         Thread(
-            target=thread_queue_generate_jobs_and_add_to_workflow,
-            args=(jobs_to_create_list, db_workflow),
+            target=thread_create_objects_and_trigger_workflows,
+            args=(jobs_to_create_list, workflow,)
         ).start()
     else:
-        return thread_queue_generate_jobs_and_add_to_workflow(jobs_to_create_list, db_workflow, db)
+        return thread_create_objects_and_trigger_workflows(jobs_to_create_list, workflow_id=json_schema_data.workflow_id)
+
+    return Response("Workflow and jobs will be created", status_code=200)
 
 
 def get_workflow(

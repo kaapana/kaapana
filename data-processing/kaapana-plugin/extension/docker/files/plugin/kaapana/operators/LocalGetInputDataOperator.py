@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, join
+from pathlib import Path
 
 import pydicom
 from kaapana.kubetools.secret import get_k8s_secret, hash_secret_name
@@ -85,7 +86,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         if self.data_type == "dicom":
             download_successful = self.dcmweb_helper.retrieve_series(
-                series_uid=seriesUID, target_dir=target_dir
+                series_uid=seriesUID, target_dir=Path(target_dir)
             )
             if not download_successful:
                 logger.error(
@@ -118,18 +119,28 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         shutil.move(src=src_dcm_path, dst=target)
         logger.info(f"# Series CTP import -> OK: {target}")
 
-    def download_external_metadata(self):
-        dcmweb_endpoint = self.conf["workflow_form"]["dcmweb_endpoint"]
+    def download_external_metadata(
+        self, dcmweb_endpoint, ae_title, service_account_info
+    ):
         logger.info(f"Adding external PACs: {dcmweb_endpoint}")
+        service_account_info = json.loads(service_account_info)
 
-        dcmweb_helper = DcmWeb.get_dcmweb_helper(dcmweb_endpoint=dcmweb_endpoint)
+        dcmweb_helper = DcmWeb.get_dcmweb_helper(
+            dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
+        )
         metadata = dcmweb_helper.search_for_instances().json()
+        if len(metadata) == 0:
+            logger.error("No metadata found.")
+            exit(1)
+        logger.info(f"Found {len(metadata)} series")
 
-        for series in metadata:
-            series_uid = series.get("0020000E", {"Value": [None]})["Value"][0]
+        for instance in metadata:
+            series_uid = instance.get("0020000E", {"Value": [None]})["Value"][0]
+            logger.info(series_uid)
+
             if not series_uid:
                 raise KeyError(
-                    f"No required field Series UID (0020000E) in the series {series}"
+                    f"Required field missing: Series UID (0020000E) in the series {instance}"
                 )
 
             target_dir = join(
@@ -139,17 +150,19 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 series_uid,
                 self.operator_out_dir,
             )
+
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
             json_path = join(
                 target_dir,
                 "metadata.json",
             )
-            series["00020016 SourceApplicationEntityTitle"]["Value"] = dcmweb_endpoint
-            series["00020026 SourcePresentationAddress"]["Value"] = dcmweb_endpoint
+
+            instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
+            instance["00120020"] = {"vr": "LO", "Value": [ae_title]}
 
             with open(json_path, "w", encoding="utf8") as fp:
-                json.dump(series, fp, indent=4, sort_keys=True)
+                json.dump(instance, fp, indent=4, sort_keys=True)
 
     def ctp_input(self):
         series_uid = self.conf.get("seriesInstanceUID")
@@ -226,9 +239,19 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         logger.info("# Starting module LocalGetInputDataOperator...")
         self.conf = kwargs["dag_run"].conf
         self.dag_run_id = kwargs["dag_run"].run_id
+        if not self.conf:
+            logger.error("When is this the case?")
 
-        if self.conf and ("dcmweb_endpoint" in self.conf):
-            self.download_external_metadata()
+        if (
+            self.conf
+            and self.conf.get("workflow_form", {}).get("dcmweb_endpoint") is not None
+        ):
+
+            self.download_external_metadata(
+                dcmweb_endpoint=self.conf["workflow_form"]["dcmweb_endpoint"],
+                ae_title=self.conf["workflow_form"]["ae_title"],
+                service_account_info=self.conf["workflow_form"]["service_account_info"],
+            )
             return
 
         # Triggered via ctp
@@ -311,6 +334,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             raise AssertionError
 
         for dcm_uid in self.dcm_uid_objects:
+            dcm_uid = dcm_uid["dcm-uid"]
             if "study-uid" not in dcm_uid:
                 raise AssertionError(f"'study-uid' not found in {dcm_uid=}")
             if "series-uid" not in dcm_uid:
@@ -322,7 +346,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
             study_uid = dcm_uid["study-uid"]
             series_uid = dcm_uid["series-uid"]
-            dcmweb_endpoint = dcm_uid["dcmweb_endpoint"]
+            dcmweb_endpoint = dcm_uid["source_presentation_address"]
 
             download_list.append(
                 {

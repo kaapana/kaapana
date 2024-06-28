@@ -132,7 +132,10 @@ def create_k8s_secret(
         logger.info("Secret created successfully")
     except client.ApiException as e:
         logger.error(f"Secret '{secret_name}' creation FAILED: {e}.")
-        raise e
+        if e.status == 409:  # already exists
+            return
+        else:
+            raise e
 
 
 def delete_k8s_secret(secret_name: str, namespace: str = "services"):

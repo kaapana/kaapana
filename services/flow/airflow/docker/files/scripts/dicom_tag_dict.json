@@ -2610,6 +2610,7 @@
     "201000A7": "201000A7 OtherMagnificationTypesAvailable",
     "00180010": "00180010 Contrast/BolusAgent",
     "00020016": "00020016 SourceApplicationEntityTitle",
+    "00020026": "00020026 SourcePresentationAddress",
     "00431005": "00431005 ImgIsOriginalOrUnoriginal",
     "300A0121": "300A0121 BeamLimitingDeviceRotationDirection",
     "00720421": "00720421 EmptyImageBoxCIELabValue",

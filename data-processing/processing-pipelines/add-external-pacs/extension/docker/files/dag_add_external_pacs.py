@@ -8,7 +8,6 @@ from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperato
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
-from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
@@ -69,7 +68,7 @@ dag = DAG(
 )
 
 init_operator = InitExternalPacsOperator(dag=dag)
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir="get-input-data")
 extract_metadata = LocalDcm2JsonOperator(
     dag=dag, input_operator=get_input, data_type="json"
 )
@@ -78,7 +77,6 @@ add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metad
 push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=get_input, json_operator=extract_metadata
 )
-tagging = LocalTaggingOperator(dag=dag, input_operator=get_input)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
@@ -87,6 +85,5 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> extract_metadata
     >> add_to_dataset
     >> push_json
-    >> tagging
     >> clean
 )  # type: ignore

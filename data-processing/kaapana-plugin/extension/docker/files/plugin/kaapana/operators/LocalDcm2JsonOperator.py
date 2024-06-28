@@ -43,6 +43,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
     DCM_TIME_FORMAT = "%H%M%S.%f"
 
     def load_dicom_tag_dict(self):
+        # kaapana/services/flow/airflow/docker/files/scripts/dicom_tag_dict.json
         dicom_tag_dict_path = os.getenv("DICT_PATH", None)
         if dicom_tag_dict_path is None:
             raise KeyError("DICT_PATH ENV NOT FOUND")
@@ -92,20 +93,24 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         logger.info("Starting module dcm2json...")
 
         run_dir: Path = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder: List[Path] = list((run_dir / self.batch_name).glob("*"))
-
-        for batch_element_dir in batch_folder:
-            dcm_files: List[Path] = sorted(
-                list((batch_element_dir / self.operator_in_dir).rglob("*.dcm"))
+        batch_folders: List[Path] = list((run_dir / self.batch_name).glob("*"))
+        logger.info(f"Number of series: {len(batch_folders)}")
+        for batch_element_dir in batch_folders:
+            files: List[Path] = sorted(
+                list(
+                    (batch_element_dir / self.operator_in_dir).rglob(
+                        f"*.{self.data_type}"
+                    )
+                )
             )
 
-            if len(dcm_files) == 0:
+            if len(files) == 0:
                 raise FileNotFoundError(
                     f"No dicom file found in {batch_element_dir / self.operator_in_dir}"
                 )
 
-            logger.info(f"length {len(dcm_files)}")
-            for dcm_file_path in dcm_files:
+            logger.info(f"length {len(files)}")
+            for dcm_file_path in files:
                 logger.info(f"Extracting metadata: {dcm_file_path}")
 
                 target_dir: Path = batch_element_dir / self.operator_out_dir

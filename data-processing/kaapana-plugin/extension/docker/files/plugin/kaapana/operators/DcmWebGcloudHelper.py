@@ -1,4 +1,4 @@
-import json
+from pathlib import Path
 from typing import Dict
 
 from dicomweb_client.api import DICOMwebClient
@@ -37,3 +37,32 @@ class DcmWebGcloudHelper(DcmWeb):
         client = DICOMwebClient(url=str(url), session=session)
 
         super().__init__(dcmweb_endpoints, session, client)
+
+    def retrieve_object(
+        self,
+        study_uid: str,
+        series_uid: str,
+        object_uid: str,
+        target_dir: Path,
+    ):
+
+        url = f"{self.dcmweb_endpoints['wado']}/studies/{study_uid}/series/{series_uid}/instances/{object_uid}"
+
+        headers = {"Accept": "application/dicom; transfer-syntax=*"}
+        response = self.session.get(url, headers=headers)
+
+        if response.status_code != 200:
+            logger.error("Download of object was not successful")
+            logger.error(f"SeriesUID: {series_uid}")
+            logger.error(f"StudyUID: {study_uid}")
+            logger.error(f"objectUID: {object_uid}")
+            logger.error(f"Status code: {response.status_code}")
+            logger.error(f"Response content: {response.content}")
+            return False
+
+        filename = object_uid + ".dcm"
+        filepath = target_dir / filename
+        with open(filepath, "wb") as f:
+            f.write(response.content)
+
+        return True

@@ -28,6 +28,7 @@ class InitExternalPacsOperator(KaapanaPythonBaseOperator):
         workflow_form = kwargs["dag_run"].conf["workflow_form"]
         dcmweb_endpoint = workflow_form["dcmweb_endpoint"]
         service_account_info = json.loads(workflow_form["service_account_info"])
+        service_account_info["dcmweb_endpoint"] = dcmweb_endpoint
 
         helper = DcmWeb.get_dcmweb_helper(
             dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
@@ -38,14 +39,7 @@ class InitExternalPacsOperator(KaapanaPythonBaseOperator):
             exit(1)
 
         secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
-
-        create_k8s_secret(
-            secret_name=secret_name,
-            secret_data={
-                "dcmweb_endpoint": dcmweb_endpoint,
-                "service_account_info": service_account_info,
-            },
-        )
+        create_k8s_secret(secret_name=secret_name, secret_data=service_account_info)
 
         secret = get_k8s_secret(secret_name=secret_name)
         if not secret:

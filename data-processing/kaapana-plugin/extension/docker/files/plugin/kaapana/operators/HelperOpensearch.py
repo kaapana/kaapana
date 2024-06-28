@@ -14,7 +14,7 @@ class HelperOpensearch:
     modality_tag = "00080060 Modality_keyword"
     protocol_name = "00181030 ProtocolName_keyword"
     curated_modality_tag = "00000000 CuratedModality_keyword"
-    source_presentation_address_tag = "00020026 SourcePresentationAddress"
+    dcmweb_endpoint_tag = "00020026 SourcePresentationAddress_keyword"
     custom_tag = "00000000 Tags_keyword"
 
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
@@ -50,10 +50,10 @@ class HelperOpensearch:
             HelperOpensearch.curated_modality_tag,
         ]
         if include_custom_tag != "":
-            includes.append(HelperOpensearch.include_custom_tag)
+            includes.append(include_custom_tag)
         excludes = []
         if exclude_custom_tag != "":
-            excludes.append(HelperOpensearch.exclude_custom_tag)
+            excludes.append(exclude_custom_tag)
 
         query_dict = {
             "query": query,
@@ -152,7 +152,7 @@ class HelperOpensearch:
                     HelperOpensearch.SOPInstanceUID_tag,
                     HelperOpensearch.modality_tag,
                     HelperOpensearch.curated_modality_tag,
-                    HelperOpensearch.source_presentation_address_tag,
+                    HelperOpensearch.dcmweb_endpoint_tag,
                 ]
             },
         )
@@ -167,7 +167,7 @@ class HelperOpensearch:
                         HelperOpensearch.curated_modality_tag
                     ],
                     "source_presentation_address": hit["_source"][
-                        HelperOpensearch.source_presentation_address_tag
+                        HelperOpensearch.dcmweb_endpoint_tag
                     ],
                 }
             }

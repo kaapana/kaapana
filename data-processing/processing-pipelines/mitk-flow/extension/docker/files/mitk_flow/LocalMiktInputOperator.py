@@ -2,6 +2,7 @@ import glob
 import json
 import os
 import time
+from pathlib import Path
 from xml.etree import ElementTree
 
 import pydicom
@@ -16,7 +17,7 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
         print("Downloading Series: %s" % seriesUID)
         print("Target DIR: %s" % target_dir)
         result = self.dcmweb_helper.retrieve_series(
-            series_uid=seriesUID, target_dir=target_dir
+            series_uid=seriesUID, target_dir=Path(target_dir)
         )
         return result
 

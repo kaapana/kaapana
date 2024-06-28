@@ -30,6 +30,11 @@ class DcmWeb(ABC):
         application_entity: str = "KAAPANA",
         service_account_info: Dict[str, str] = None,
     ):
+        if not dcmweb_endpoint:
+            from DcmWebLocalHelper import DcmWebLocalHelper
+
+            return DcmWebLocalHelper(application_entity=application_entity)
+
         if "google" in dcmweb_endpoint:
             from DcmWebGcloudHelper import DcmWebGcloudHelper
 
@@ -37,10 +42,6 @@ class DcmWeb(ABC):
                 dcmweb_endpoint=dcmweb_endpoint,
                 service_account_info=service_account_info,
             )
-        elif "dcm4chee" in dcmweb_endpoint:
-            from DcmWebLocalHelper import DcmWebLocalHelper
-
-            return DcmWebLocalHelper(application_entity=application_entity)
         else:
             from DcmWebLocalHelper import DcmWebLocalHelper
 
@@ -87,7 +88,7 @@ class DcmWeb(ABC):
         target_dir: Path,
         include_series_dir: Optional[bool] = False,
     ):
-        response = self.search_for_series({"SeriesInstanceUID": series_uid})
+        response = self.search_for_instances({"SeriesInstanceUID": series_uid})
 
         if response.status_code != 200:
             logger.error(f"Failed to request series UID: {series_uid}")
@@ -121,39 +122,6 @@ class DcmWeb(ABC):
 
         return True
 
-    def retrieve_object(
-        self,
-        study_uid: str,
-        series_uid: str,
-        object_uid: str,
-        target_dir: Path,
-    ):
-        payload = {
-            "requestType": "WADO",
-            "studyUID": study_uid,
-            "seriesUID": series_uid,
-            "objectUID": object_uid,
-            "contentType": "application/dicom",
-        }
-        url = f"{self.dcmweb_endpoints['wado']}"
-        response = self.session.get(url, params=payload)
-
-        if response.status_code != 200:
-            logger.error("Download of object was not successful")
-            logger.error(f"SeriesUID: {series_uid}")
-            logger.error(f"StudyUID: {study_uid}")
-            logger.error(f"objectUID: {object_uid}")
-            logger.error(f"Status code: {response.status_code}")
-            logger.error(f"Response content: {response.content}")
-            return False
-
-        filename = object_uid + ".dcm"
-        filepath = target_dir / filename
-        with open(filepath, "wb") as f:
-            f.write(response.content)
-
-        return True
-
     def search_instances_of_study(self, study_uid: str) -> Response:
         url = f"{self.dcmweb_endpoints['rs']}/studies/{study_uid}/instances"
         response = self.session.get(url)
@@ -178,11 +146,3 @@ class DcmWeb(ABC):
         url = url = f"{self.dcmweb_endpoints['rs']}/instances"
         response = self.session.get(url, params=search_filters)
         return response
-
-    @staticmethod
-    def decode_dcmweb_endpoint(dcmweb_endpoint: str):
-        pass
-
-    @staticmethod
-    def encode_dcmweb_endpoint(decoded_dcmweb_endpoint: str):
-        pass

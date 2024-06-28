@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8; mode: python; indent-tabs-mode: nil; -*-
 
+import json
 import os
+import time
+import traceback
+
+import requests
 from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 from kaapanapy.logger import get_logger
 from opensearchpy.exceptions import TransportError
-import requests
-import traceback
-import json
-import time
 
 tries = 0
 # TODO https://discuss.elastic.co/t/reloading-the-index-field-list-automatically/116687

@@ -28,7 +28,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             if self.data_type == "dicom":
                 download_successful = self.dcmweb_helper.retrieve_series(
                     series_uid=series["reference_series_uid"],
-                    target_dir=series["target_dir"],
+                    target_dir=Path(series["target_dir"]),
                 )
                 if not download_successful:
                     raise ValueError("ERROR")

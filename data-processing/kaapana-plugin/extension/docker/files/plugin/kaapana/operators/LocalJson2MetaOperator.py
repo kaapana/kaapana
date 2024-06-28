@@ -113,13 +113,13 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                             obj = json.loads(line)
                             self.push_json(obj)
             else:
-                dcm_files = sorted(
-                    glob.glob(
-                        os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"),
-                        recursive=True,
-                    )
-                )
-                self.set_id(dcm_files[0])
+                # dcm_files = sorted(
+                #     glob.glob(
+                #         os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"),
+                #         recursive=True,
+                #     )
+                # )
+                # self.set_id(dcm_files[0])
 
                 json_dir = os.path.join(
                     batch_element_dir, self.json_operator.operator_out_dir
@@ -137,6 +137,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     print(f"Pushing file: {json_file} to META!")
                     with open(json_file, encoding="utf-8") as f:
                         new_json = json.load(f)
+                    print(new_json)
                     self.push_json(new_json)
 
     def set_id(self, dcm_file=None):
@@ -149,25 +150,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             self.instanceUID = self.run_id
         else:
             print("dicom_operator and dct_to_push not specified!")
-
-    def check_pacs_availability(self, instanceUID: str):
-        print("#")
-        print("# Checking if series available in PACS...")
-        check_count = 0
-        while not self.dcmweb_helper.check_if_series_in(series_uid=instanceUID):
-            print("#")
-            print(f"# Series {instanceUID} not found in PACS-> try: {check_count}")
-            if check_count >= self.avalability_check_max_tries:
-                print(
-                    f"# check_count >= avalability_check_max_tries {self.avalability_check_max_tries}"
-                )
-                print("# Error! ")
-                print("#")
-                raise ValueError("ERROR")
-
-            print(f"# -> waiting {self.avalability_check_delay} s")
-            time.sleep(self.avalability_check_delay)
-            check_count += 1
 
     def __init__(
         self,

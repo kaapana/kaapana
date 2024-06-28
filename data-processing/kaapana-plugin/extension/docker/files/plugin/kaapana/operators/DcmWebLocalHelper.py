@@ -169,3 +169,37 @@ class DcmWebLocalHelper(DcmWeb):
             logger.info("Uploading %d / %d:  %s", uploaded_fiels, total_files, file)
             dataset = pydicom.dcmread(file)
             self.client.store_instances(datasets=[dataset])
+
+    def retrieve_object(
+        self,
+        study_uid: str,
+        series_uid: str,
+        object_uid: str,
+        target_dir: Path,
+    ):
+        payload = {
+            "requestType": "WADO",
+            "studyUID": study_uid,
+            "seriesUID": series_uid,
+            "objectUID": object_uid,
+            "contentType": "application/dicom",
+        }
+        logger.debug(payload)
+        url = f"{self.dcmweb_endpoints['wado']}"
+        response = self.session.get(url, params=payload)
+
+        if response.status_code != 200:
+            logger.error("Download of object was not successful")
+            logger.error(f"SeriesUID: {series_uid}")
+            logger.error(f"StudyUID: {study_uid}")
+            logger.error(f"objectUID: {object_uid}")
+            logger.error(f"Status code: {response.status_code}")
+            logger.error(f"Response content: {response.content}")
+            return False
+
+        filename = object_uid + ".dcm"
+        filepath = target_dir / filename
+        with open(filepath, "wb") as f:
+            f.write(response.content)
+
+        return True

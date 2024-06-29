@@ -335,7 +335,7 @@ class HelperDcmWeb:
         if not self.get_instances_of_study(
             study_uid=study_uid, application_entity=aet_rejection_stage
         ):
-            raise DcmWebException(
+            raise Exception(
                 f"Could not find study {study_uid} in aet {aet_rejection_stage}"
             )
         logger.info(f"Found study {study_uid} in aet {aet_rejection_stage}")
@@ -346,7 +346,7 @@ class HelperDcmWeb:
         logger.info("Sending delete request %s", deletionURL)
         response = self.session.delete(deletionURL, verify=False)
         if response.status_code != requests.codes.ok and response.status_code != 204:
-            raise DcmWebException(
+            raise Exception(
                 f"Error deleting study from {aet_rejection_stage} errorcode: {response.status_code} content {response.content}"
             )
 
@@ -355,7 +355,7 @@ class HelperDcmWeb:
         for ae in [aet_rejection_stage, self.application_entity]:
             logger.info(f"Check if study is removed from {ae}")
             if self.get_instances_of_study(study_uid, ae):
-                raise DcmWebException(f"Deletion of study {study_uid} failed")
+                raise Exception(f"Deletion of study {study_uid} failed")
 
         logger.info(f"Deletion of {study_uid} complete")
 
@@ -425,7 +425,7 @@ class HelperDcmWeb:
                 if not self.downloadSeries(
                     keep_series_uid, tmp_dir, include_series_dir=True
                 ):
-                    raise DcmWebException(f"Could not download {keep_series_uid}")
+                    raise Exception(f"Could not download {keep_series_uid}")
                 logger.info("Done")
             logger.info(f"Downloaded all series to keep to {tmp_dir}")
 
@@ -442,7 +442,7 @@ class HelperDcmWeb:
             # deletion of tmp_files should happen automaticaly if scope of tmp_dir is left
 
         if self.get_instances_of_series(study_uid, series_uid):
-            raise DcmWebException(f"Series {series_uid} still exists after deletion")
+            raise Exception(f"Series {series_uid} still exists after deletion")
         logger.info(f"Series {series_uid} sucessfully deleted")
 
     def search_for_series(self, search_filters):
@@ -486,6 +486,31 @@ class HelperDcmWeb:
 
         return body, content_type
 
+    def retrieve_clinical_trial_protocol_info(self, dicom_file) -> dict:
+
+        # read 0012,0020 Clinical Trial Protocol ID
+        tag = dicom_file.get(0x00120020)
+        protocol_id = tag.value if tag else None
+
+        # read 0012,0021 Clinical Trial Protocol Name
+        tag = dicom_file.get(0x00120021)
+        protocol_name = tag.value if tag else None
+
+        # read 0012,0031 Clinical Trial Site ID
+        tag = dicom_file.get(0x00120031)
+        site_id = tag.value if tag else None
+
+        # read 0020,000D Study Instance UID
+        tag = dicom_file.get(0x0020000D)
+        study_instance_uid = tag.value if tag else None
+
+        return {
+            "protocol_id": protocol_id,
+            "protocol_name": protocol_name,
+            "site_id": site_id,
+            "study_instance_uid": study_instance_uid,
+        }
+
     def upload_dcm_files(self, path_to_dicom_files) -> None:
         """
         Send individual DICOM instances to the DICOMweb server using the STOW-RS service.
@@ -497,14 +522,17 @@ class HelperDcmWeb:
         url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies"
 
         encoded_files = []
+        clinical_trial_protocol_info = {}
 
         for root, _, files in os.walk(path_to_dicom_files):
             for file in files:
-                try:
-                    dicom_file = pydicom.dcmread(os.path.join(root, file))
-                except Exception as e:
-                    logger.error(f"Error reading DICOM file: {e}")
-                    continue
+
+                dicom_file = pydicom.dcmread(os.path.join(root, file))
+
+                # Retrieve clinical trial protocol information
+                clinical_trial_protocol_info[dicom_file.get(0x0020000E).value] = (
+                    self.retrieve_clinical_trial_protocol_info(dicom_file)
+                )
 
                 with BytesIO() as buffer:
                     dicom_file.save_as(buffer)
@@ -521,4 +549,6 @@ class HelperDcmWeb:
                 "Authorization": f"Bearer {self.access_token}",
             },
             data=data,
+            # append the clinical trial protocol information to the request
+            params={"clinical_trial_protocol_info": clinical_trial_protocol_info},
         )

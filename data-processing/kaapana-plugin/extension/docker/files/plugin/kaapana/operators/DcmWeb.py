@@ -1,5 +1,5 @@
 import time
-from abc import ABC
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -146,3 +146,9 @@ class DcmWeb(ABC):
         url = url = f"{self.dcmweb_endpoints['rs']}/instances"
         response = self.session.get(url, params=search_filters)
         return response
+
+    @abstractmethod
+    def retrieve_object(
+        self, study_uid: str, series_uid: str, object_uid: str, target_dir: Path
+    ):
+        raise NotImplementedError()

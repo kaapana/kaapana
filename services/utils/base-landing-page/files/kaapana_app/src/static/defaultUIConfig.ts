@@ -93,6 +93,10 @@ const settings = {
                 studyView: false
             }
         ]
-    }
+    },
+    validations: {
+        algorithm: 'dciodvfy',
+        ignoredTags: [],
+    },
 }
 export {settings}

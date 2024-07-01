@@ -8,50 +8,96 @@
       </template>
 
       <v-card>
-        <v-card-title>
-          Dataset Configuration
-          <v-spacer></v-spacer>
+        <v-tabs v-model="selectedTab">
+          <v-tab key="dataset">Dataset Configuration</v-tab>
+          <v-tab key="dcm-validation">Dicom Validation</v-tab>
+        </v-tabs>
+        <v-tabs-items v-model="selectedTab">
+          <v-tab-item key="dataset" class="tab-container">
+            <v-container fluid>
+              <v-card-text>
+                <v-row>
+                  <v-col>
+                    <v-checkbox
+                      v-model="settings.datasets.cardText"
+                      label="Show Metadata"
+                    >
+                    </v-checkbox>
+                  </v-col>
+                  <v-col>
+                    <v-checkbox
+                      v-model="settings.datasets.structured"
+                      label="Structured View"
+                    >
+                    </v-checkbox>
+                  </v-col>
+                  <v-col>
+                    <v-select
+                      v-model="settings.datasets.cols"
+                      :items="['auto', '1', '2', '3', '4', '6', '12']"
+                      label="Width of an item in the Dataset view"
+                    ></v-select>
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col>
+                    <SettingsTable
+                      ref="settingsTable"
+                      :items.sync="settings.datasets.props"
+                      :structuredView="settings.datasets.structured"
+                      :showMetaData="settings.datasets.cardText"
+                    >
+                    </SettingsTable>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-container>              
+          </v-tab-item>
+          <v-tab-item key="dcm-validation" class="tab-container">
+              <v-container fluid>
+                <v-card-text>
+                  <v-row>
+                    <v-col cols="4" class="centered-col">
+                      <v-subheader>Default Dicom validation Algorithm</v-subheader>
+                    </v-col>
+                    <v-col cols="8">
+                      <v-select
+                        v-model="settings.validations.algorithm"
+                        :items="['dciodvfy', 'dicom-validator']"
+                      ></v-select>
+                    </v-col>
+                    <v-col cols="4" class="centered-col">
+                      <v-subheader>Add DICOM tag to ignore</v-subheader>
+                    </v-col>
+                    <v-col cols="8">
+                      <v-text-field
+                        v-model="newTag"
+                        append-icon="mdi-plus-thick"
+                        label="Add a tag"
+                        :error-messages="tagError"
+                        @click:append="onValidationTagAdd"
+                        @keydown.enter="onValidationTagAdd"
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="4"></v-col>
+                    <v-col cols="8">
+                      <v-chip v-for="item in ignoredTags" 
+                        close outlined
+                        color="red" class="mr-2 mb-2"
+                        @click:close="() => removeFromIgnoredTags(item)">
+                        {{ item }}
+                      </v-chip>
+                    </v-col>
+                  </v-row>
+                </v-card-text>
+              </v-container>           
+          </v-tab-item>
+        </v-tabs-items>          
+        <v-card-actions>
           <v-btn text color="red" @click="restoreDefaultSettings">
             Restore default configuration
           </v-btn>
-        </v-card-title>
-        <v-card-text>
-          <v-row>
-            <v-col>
-              <v-checkbox
-                v-model="settings.datasets.cardText"
-                label="Show Metadata"
-              >
-              </v-checkbox>
-            </v-col>
-            <v-col>
-              <v-checkbox
-                v-model="settings.datasets.structured"
-                label="Structured View"
-              >
-              </v-checkbox>
-            </v-col>
-            <v-col>
-              <v-select
-                v-model="settings.datasets.cols"
-                :items="['auto', '1', '2', '3', '4', '6', '12']"
-                label="Width of an item in the Dataset view"
-              ></v-select>
-            </v-col>
-          </v-row>
-          <v-row>
-            <v-col>
-              <SettingsTable
-                ref="settingsTable"
-                :items.sync="settings.datasets.props"
-                :structuredView="settings.datasets.structured"
-                :showMetaData="settings.datasets.cardText"
-              >
-              </SettingsTable>
-            </v-col>
-          </v-row>
-        </v-card-text>
-        <v-card-actions class="justify-center">
+          <v-spacer></v-spacer>
           <v-btn color="primary" @click="onSave"> Save </v-btn>
         </v-card-actions>
       </v-card>
@@ -67,29 +113,119 @@ export default {
   data: () => ({
     dialog: false,
     settings: defaultSettings,
+    newTag: '',
     resetConfiguration: false,
+    selectedTab: null,
+    ignoredTags: [],
+    tagError: ""
   }),
   components: {
     SettingsTable,
   },
   created() {
     this.settings = JSON.parse(localStorage["settings"]);
+    if (!this.settings.hasOwnProperty('validations')) {
+      this.settings['validations'] = defaultSettings['validations'];
+    }
+    this.ignoredTags = this.settings.validations['ignoredTags'];
+  },
+  watch: {
   },
   methods: {
     restoreDefaultSettings() {
       this.settings = defaultSettings;
     },
     onSave() {
+      this.settings.validations['ignoredTags'] = this.ignoredTags;
       localStorage["settings"] = JSON.stringify(this.settings);
       this.dialog = false;
       window.location.reload();
     },
+  /**
+   * Validates the user input against valid DICOM tags and returns a processed DICOM tag.
+   * 
+   * This function checks if the provided tag value is a valid DICOM tag. It removes any
+   * whitespace, converts the string to lowercase, and verifies that only allowed characters
+   * (0-9, a-f, (, )) are used. If the input is valid, it formats the tag and returns it.
+   * If not, it sets an error message and returns the invalid status.
+   * 
+   * @param {string} tagval - The input DICOM tag value to be validated.
+   * @returns {Array} An array where the first element is a boolean indicating if the tag is valid,
+   *                  and the second element is the processed or original tag value.
+   */
+   validateDicomTag(tagval){
+      // Remove all whitespace characters from the input
+      tagval = tagval.replace(/\s/g, "");
+
+      // Check for the empty string first
+      if (tagval.length == 0) {
+        this.tagError = "Dicom Tag can't be empty e.g (00dd,fa99)";
+        return [false, tagval]
+      }
+
+      // Convert the input to lowercase
+      tagval = tagval.toLowerCase();
+
+      // Regular expression to check for allowed characters (0-9, a-f, (, ))
+      const allowed_chars = /^[0-9a-f,()]*$/
+
+      // Check if the tag contains only allowed characters
+      var isValid = allowed_chars.test(tagval);
+      if (!isValid) {
+        this.tagError = "Allowed characters `0-9a-f,()` e.g (00dd,fa99)";
+        return [isValid, tagval];
+      }
+
+      // Regular expression to match valid DICOM tag format (4 hex digits, optional comma, 4 hex digits)
+      const dicomTagMatcher = /\b\(?([0-9a-f]{4}),?([0-9a-f]{4})\)?\b/;
+
+      // Extract parts of the tag using the regular expression
+      var tagParts = dicomTagMatcher.exec(tagval);
+      isValid = (tagParts !== null);
+      if (!isValid) {
+        this.tagError = "Both part of tag should contain 4 valid chars. e.g (00dd,fa99)";
+        return [isValid, tagval];
+      }
+
+      // Format the tag to the desired DICOM tag format (xxxx,xxxx)
+      tagval = `(${tagParts[1]},${tagParts[2]})`
+
+      // Return the validation status and the processed tag value
+      return [isValid, tagval]
+    },
+    onValidationTagAdd(event) {
+      if (this.ignoredTags.includes(this.newTag)) {
+        this.tagError = "Tag already exists in ignored tags list";
+        return
+      }
+      
+      const [isValid, trimmedTag] = this.validateDicomTag(this.newTag)
+      if (!isValid){
+        return
+      }
+
+      this.tagError = "";
+      this.ignoredTags.push(trimmedTag);
+      this.newTag = '';      
+    },
+    removeFromIgnoredTags(item) {
+      var index = this.ignoredTags.indexOf(item);
+      if (index !== -1) {
+        this.ignoredTags.splice(index, 1);
+      }
+    }
   },
 };
 </script>
 
-<style>
+<style lang="scss" scoped>
 .jsoneditor {
   height: 60vh !important;
+}
+.tab-container {
+  min-height: 550px;
+}
+.centered-col {
+  align-self: center;
 }
 </style>

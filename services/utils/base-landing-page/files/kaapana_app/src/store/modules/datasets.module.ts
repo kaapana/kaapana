@@ -3,6 +3,8 @@ const defaults = {
   multiSelectKeyPressed: false,
   selectedItems: [],
   detailViewItem: null,
+  validationResultItem: null,
+  showValidationResults: false,
 };
 
 const state = Object.assign({}, defaults);
@@ -12,6 +14,8 @@ const getters = {
   multiSelectKeyPressed: (state: any) => state.multiSelectKeyPressed,
   selectedItems: (state: any) => state.selectedItems,
   detailViewItem: (state: any) => state.detailViewItem,
+  validationResultItem: (state: any) => state.validationResultItem,
+  showValidationResults: (state: any) => state.showValidationResults,
 };
 
 const mutations = {
@@ -27,6 +31,12 @@ const mutations = {
   setDetailViewItem(state: any, detailViewItem: any) {
     state.detailViewItem = detailViewItem;
   },
+  setValidationResultItem(state: any, validationResultItem: any) {
+    state.validationResultItem = validationResultItem;
+  },
+  setShowValidationResults(state: any, showValidationResults: boolean) {
+    state.showValidationResults = showValidationResults;
+  }
 };
 
 const actions = {

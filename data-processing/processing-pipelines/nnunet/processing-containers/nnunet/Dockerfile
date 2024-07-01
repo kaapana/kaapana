@@ -1,4 +1,4 @@
-FROM local-only/base-nnunet:latest
+FROM local-only/base-nnunet-v2:latest
 
 LABEL IMAGE="nnunet-gpu"
 LABEL VERSION="03-22"

@@ -17,9 +17,9 @@ echo "# TASK_NUM: $TASK_NUM";
 echo "#"
 
 if [ "$MODE" = "preprocess" ]; then
-    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR"
-    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+    export nnUNet_raw="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnUNet_raw"
+    export nnUNet_preprocessed="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnUNet_preprocessed"
+    export nnUNet_results="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/results"
     
     echo "#"
     echo "# Starting preprocessing..."
@@ -43,6 +43,11 @@ if [ "$MODE" = "preprocess" ]; then
     else
         preprocess="-no_pp"
     fi
+    if ! [ -z "$EXPERIMENT_PLANNER" ]; then
+        experiment_planner=$EXPERIMENT_PLANNER
+    else
+        experiment_planner="nnUNetPlannerResEncM"
+    fi
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
         experiment_planner_pretrain="-pl3d ExperimentPlanner3D_v21_Pretrained"
         plans_path=$(dirname "$PRETRAINED_WEIGHTS")
@@ -54,38 +59,41 @@ if [ "$MODE" = "preprocess" ]; then
     fi
 
     echo "#"
-    echo "# PREPROCESS:      $PREP_PREPROCESS";
-    echo "# PREP_INCREMENT_STEP: $PREP_INCREMENT_STEP";
-    echo "# CHECK_INTEGRITY: $PREP_CHECK_INTEGRITY";
+    echo "# PREPROCESS:             $PREP_PREPROCESS";
+    echo "# PREP_INCREMENT_STEP:    $PREP_INCREMENT_STEP";
+    echo "# CHECK_INTEGRITY:        $PREP_CHECK_INTEGRITY";
     echo "#"
-    echo "# OMP_THREAD_LIMIT" $OMP_THREAD_LIMIT
-    echo "# OMP_NUM_THREADS" $OMP_NUM_THREADS
-    echo "# PREP_TL" $PREP_TL
-    echo "# PREP_TF" $PREP_TF
+    echo "# OMP_THREAD_LIMIT:       $OMP_THREAD_LIMIT";
+    echo "# OMP_NUM_THREADS:        $OMP_NUM_THREADS";
+    echo "# PREP_TL:                $PREP_TL";
+    echo "# PREP_TF:                $PREP_TF";
     echo "#"
-    echo "# NIFTI_DIRS: $INPUT_MODALITY_DIRS";
-    echo "# LABEL_DIR: $PREP_LABEL_DIRS";
-    echo "# MODALITIES: $PREP_MODALITIES";
+    echo "# NIFTI_DIRS:             $INPUT_MODALITY_DIRS";
+    echo "# LABEL_DIR:              $PREP_LABEL_DIRS";
+    echo "# MODALITIES:             $PREP_MODALITIES";
     echo "#"
-    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base";
-    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed";
-    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER";
+    echo "# nnUNet_raw:             $nnUNet_raw";
+    echo "# nnUNet_preprocessed:    $nnUNet_preprocessed";
+    echo "# nnUNet_results:         $nnUNet_results";
     echo "#"
-    echo "# pre-trained weights: $PRETRAINED_WEIGHTS";
+    echo "# EXPERIMENT PLANNER:     $experiment_planner";
+    echo "#"
+    echo "# PRE-TRAINED WEIGHTS:    $PRETRAINED_WEIGHTS";
     echo "#"
     echo "#"
-    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
+    # echo "# COMMAND:     nnUNetv2_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
+    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $experiment_planner -c 3d_fullres 3d_lowres -np $PREP_TF $PREP_TL $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
     echo "#"
-    nnUNetv2_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
+    # nnUNetv2_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
+    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $experiment_planner -c 3d_fullres 3d_lowres -np $PREP_TF $PREP_TL $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"
     
 elif [ "$MODE" = "training" ]; then
-    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
-    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/results"
-    # export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+    export nnUNet_raw="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw/nnUNet_preprocessed"
+    export nnUNet_results="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/results"
     
     TENSORBOARD_DIR="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/tensorboard"
 
@@ -95,7 +103,7 @@ elif [ "$MODE" = "training" ]; then
     
     # if ! [ -z "${TENSORBOARD_DIR}" ]; then
     #     echo "# Starting monitoring:";
-    #     python3 -u /src/monitoring.py $RESULTS_FOLDER $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw_data_base &
+    #     python3 -u /src/monitoring.py $nnUNet_results $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw &
     #     echo "#"
     # fi
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
@@ -141,9 +149,9 @@ elif [ "$MODE" = "training" ]; then
     echo "# NUM_BATCHES_PER_EPOCH: $NUM_BATCHES_PER_EPOCH";
     echo "# NUM_VAL_BATCHES_PER_EPOCH: $NUM_VAL_BATCHES_PER_EPOCH";
     echo "#"
-    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base"
+    echo "# nnUNet_raw: $nnUNet_raw"
     echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER"
+    echo "# nnUNet_results:       $nnUNet_results"
     echo "# TENSORBOARD_DIR:      $TENSORBOARD_DIR"
     echo "#"
     echo "# TRAIN_CONTINUE:       $TRAIN_CONTINUE"
@@ -157,7 +165,7 @@ elif [ "$MODE" = "training" ]; then
 
     # if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
     #     echo "# Starting create_report ..."
-    #     python3 -u /src/create_report.py $RESULTS_FOLDER "/data/$OPERATOR_OUT_DIR"
+    #     python3 -u /src/create_report.py $nnUNet_results "/data/$OPERATOR_OUT_DIR"
     #     echo "# Report created."
     #     echo "#"
     # fi
@@ -182,18 +190,18 @@ elif [ "$MODE" = "ensemble" ]; then
     
     
 elif [ "$MODE" = "identify-best" ]; then
-    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
-    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="/$WORKFLOW_DIR/$OPERATOR_IN_DIR/results"
-    # export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+    export nnUNet_raw="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw/nnUNet_preprocessed"
+    export nnUNet_results="/$WORKFLOW_DIR/$OPERATOR_IN_DIR/results"
+    # export nnUNet_results="$nnUNet_raw/results"
 
     echo "#"
     echo "# Starting identify-best..."
     echo "#"
     echo "#"
-    echo "# nnUNet_raw_data_base:  $nnUNet_raw_data_base"
+    echo "# nnUNet_raw:  $nnUNet_raw"
     echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
+    echo "# nnUNet_results:        $nnUNet_results"
     echo "#"
     echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"
@@ -218,9 +226,9 @@ elif [ "$MODE" = "identify-best" ]; then
     echo "# DONE"
 
 elif [ "$MODE" = "zip-model" ]; then
-    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
-    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+    export nnUNet_raw="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw/nnUNet_preprocessed"
+    export nnUNet_results="$nnUNet_raw/results"
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
     TIMESTAMP=`date +%Y-%m-%d_%H-%M`
@@ -230,9 +238,9 @@ elif [ "$MODE" = "zip-model" ]; then
     echo "# Starting export-model..."
     echo "#"
     echo "#"
-    echo "# nnUNet_raw_data_base:  $nnUNet_raw_data_base"
+    echo "# nnUNet_raw:  $nnUNet_raw"
     echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
+    echo "# nnUNet_results:        $nnUNet_results"
     echo "#"
     echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"
@@ -240,16 +248,16 @@ elif [ "$MODE" = "zip-model" ]; then
     echo "# TRAIN_NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER"
     echo "# model_output_path:     $model_output_path"
     echo "#"
-    echo "# COMMAND: zip -r $model_output_path $RESULTS_FOLDER/nnUNet/"
+    echo "# COMMAND: zip -r $model_output_path $nnUNet_results/nnUNet/"
     echo "#"
-    zip -r "$model_output_path" "$RESULTS_FOLDER/nnUNet/"
+    zip -r "$model_output_path" "$nnUNet_results/nnUNet/"
     
     echo "# DONE"
 
 elif [ "$MODE" = "export-model" ]; then
-    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
-    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="$nnUNet_raw_data_base/results"
+    export nnUNet_raw="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw/nnUNet_preprocessed"
+    export nnUNet_results="$nnUNet_raw/results"
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
     model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$MODEL.zip"
@@ -258,9 +266,9 @@ elif [ "$MODE" = "export-model" ]; then
     echo "# Starting export-model..."
     echo "#"
     echo "#"
-    echo "# nnUNet_raw_data_base:  $nnUNet_raw_data_base"
+    echo "# nnUNet_raw:  $nnUNet_raw"
     echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
+    echo "# nnUNet_results:        $nnUNet_results"
     echo "#"
     echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"
@@ -275,9 +283,9 @@ elif [ "$MODE" = "export-model" ]; then
     nnUNetv2_export_model_to_zip -t $TASK -m $MODEL -tr $TRAIN_NETWORK_TRAINER -o $model_output_path -f 0 1 2 3 4
     
 elif [ "$MODE" = "install-model" ]; then
-    export nnUNet_raw_data_base="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
-    export nnUNet_preprocessed="$nnUNet_raw_data_base/nnUNet_preprocessed"
-    export RESULTS_FOLDER="$MODELS_DIR"
+    export nnUNet_raw="/$WORKFLOW_DIR/$OPERATOR_IN_DIR"
+    export nnUNet_preprocessed="$nnUNet_raw/nnUNet_preprocessed"
+    export nnUNet_results="$MODELS_DIR"
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
     model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_model_$MODEL.zip"
@@ -286,9 +294,9 @@ elif [ "$MODE" = "install-model" ]; then
     echo "# Starting install-model..."
     echo "#"
     echo "#"
-    echo "# nnUNet_raw_data_base:  $nnUNet_raw_data_base"
+    echo "# nnUNet_raw:  $nnUNet_raw"
     echo "# nnUNet_preprocessed:   $nnUNet_preprocessed"
-    echo "# RESULTS_FOLDER:        $RESULTS_FOLDER"
+    echo "# nnUNet_results:        $nnUNet_results"
     echo "#"
     echo "# FOLD:                  $TRAIN_FOLD"
     echo "# TASK:                  $TASK"

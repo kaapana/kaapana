@@ -1,12 +1,12 @@
-import os
 import glob
+import os
 from datetime import datetime
-import pydicom
 
-from base import ValidationItem, merge_similar_validation_items, ensure_dir
-from pydicomvfy import PyDicomValidator
+import pydicom
+from base import ValidationItem, ensure_dir, merge_similar_validation_items
 from dciodvfy import DCIodValidator
 from htmlgen import generate_html
+from pydicomvfy import PyDicomValidator
 
 
 def get_series_description(all_dicoms: list):
@@ -39,6 +39,7 @@ if __name__ == "__main__":
     )
 
     run_id = os.environ["RUN_ID"]
+    workflow_id = os.environ.get("WORKFLOW_ID", "")
     validator_alg = os.environ.get("VALIDATOR_ALGORITHM", "").lower()
     exit_on_error = os.environ.get("EXIT_ON_ERROR", "False")
     exit_on_error = True if exit_on_error.lower() == "true" else False
@@ -93,10 +94,10 @@ if __name__ == "__main__":
             attributes = {
                 "Series Name": seriesdsc,
                 "Validation Algorithm": validator_alg,
-                "Run id": run_id,
-                "Total Dicoms": len(dcm_files),
-                "Number of Valid Dicoms": str(n_valid),
-                "Number of Failed Dicoms": str(n_fail),
+                "Run ID": run_id,
+                "Workflow ID": workflow_id,
+                "Total number of slices": len(dcm_files),
+                "Number of Valid / Invalid slices": str(n_valid) + " / " + str(n_fail),
                 "Validataion Time": f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')} CEST",
             }
 

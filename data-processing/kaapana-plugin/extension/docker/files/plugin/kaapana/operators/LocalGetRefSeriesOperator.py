@@ -57,7 +57,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
         self.dcmweb_helper = HelperDcmWeb(
-            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
+            dag_run=kwargs["dag_run"]
         )
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)

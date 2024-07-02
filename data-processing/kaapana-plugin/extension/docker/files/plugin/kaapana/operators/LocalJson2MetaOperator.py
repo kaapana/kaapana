@@ -89,7 +89,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         global es
         self.dcmweb_helper = HelperDcmWeb(
-            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+            dag_run=kwargs["dag_run"]
         )
 
         self.ti = kwargs["ti"]

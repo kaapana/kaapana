@@ -16,7 +16,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
     def start(self, **kwargs):
         self.conf = kwargs["dag_run"].conf
         self.dcmweb_helper = HelperDcmWeb(
-            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
+            dag_run=kwargs["dag_run"]
         )
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders = [

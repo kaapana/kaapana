@@ -94,9 +94,11 @@ const settings = {
             }
         ]
     },
-    validations: {
-        algorithm: 'dciodvfy',
-        ignoredTags: [],
+    workflows: {
+        validateDicoms: {
+            algorithm: 'dciodvfy',
+            ignoredTags: [],            
+        },
     },
 }
 export {settings}

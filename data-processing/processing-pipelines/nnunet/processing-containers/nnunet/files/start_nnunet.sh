@@ -47,6 +47,15 @@ if [ "$MODE" = "preprocess" ]; then
         python3 -u ./create_dataset.py
     fi
 
+    if [ ! -z "$MODEL" ]; then
+        if [ "$MODEL" == "3d_fullres" ]; then
+            number_processes=$PREP_TF
+        elif [ "$MODEL" == "3d_lowres" ]; then
+            number_processes=$PREP_TL
+        fi
+    else
+        number_processes=""
+    fi
     if [ "$PREP_CHECK_INTEGRITY" = "True" ] || [ "$PREP_CHECK_INTEGRITY" = "true" ]; then
         preprocess_verify="--verify_dataset_integrity"
     else
@@ -92,14 +101,15 @@ if [ "$MODE" = "preprocess" ]; then
     echo "# nnUNet_preprocessed:    $nnUNet_preprocessed";
     echo "# nnUNet_results:         $nnUNet_results";
     echo "#"
+    echo "# PLANNED MODEL:          $MODEL";
     echo "# PLANNER:                $PLAN_NETWORK_PLANNER";
     echo "#"
     echo "# PRE-TRAINED WEIGHTS:    $PRETRAINED_WEIGHTS";
     echo "#"
     echo "#"
-    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c 3d_fullres 3d_lowres -np $PREP_TF $PREP_TL $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
+    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
     echo "#"
-    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c 3d_fullres 3d_lowres -np $PREP_TF $PREP_TL $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
+    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"

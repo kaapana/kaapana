@@ -43,8 +43,8 @@ if [ "$MODE" = "preprocess" ]; then
     else
         preprocess="-no_pp"
     fi
-    if ! [ -z "$EXPERIMENT_PLANNER" ]; then
-        experiment_planner=$EXPERIMENT_PLANNER
+    if ! [ -z "$PLAN_NETWORK_PLANNER" ]; then
+        experiment_planner=$PLAN_NETWORK_PLANNER
     else
         experiment_planner="nnUNetPlannerResEncM"
     fi
@@ -76,16 +76,14 @@ if [ "$MODE" = "preprocess" ]; then
     echo "# nnUNet_preprocessed:    $nnUNet_preprocessed";
     echo "# nnUNet_results:         $nnUNet_results";
     echo "#"
-    echo "# EXPERIMENT PLANNER:     $experiment_planner";
+    echo "# PLANNER:                $PLAN_NETWORK_PLANNER";
     echo "#"
     echo "# PRE-TRAINED WEIGHTS:    $PRETRAINED_WEIGHTS";
     echo "#"
     echo "#"
-    # echo "# COMMAND:     nnUNetv2_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
-    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $experiment_planner -c 3d_fullres 3d_lowres -np $PREP_TF $PREP_TL $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
+    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c 3d_fullres 3d_lowres -np $PREP_TF $PREP_TL $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
     echo "#"
-    # nnUNetv2_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
-    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $experiment_planner -c 3d_fullres 3d_lowres -np $PREP_TF $PREP_TL $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
+    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c 3d_fullres 3d_lowres -np $PREP_TF $PREP_TL $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"
@@ -100,12 +98,21 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# Starting training..."
     echo "#"
+
+    if [ ! -z "$PLAN_NETWORK_PLANNER" ]; then
+        if [ "$PLAN_NETWORK_PLANNER" == "nnUNetPlannerResEncM" ]; then
+            plans="nnUNetResEncUNetMPlans"
+        elif [ "$PLAN_NETWORK_PLANNER" == "nnUNetPlannerResEncL" ]; then
+            plans="nnUNetResEncUNetLPlans"
+        elif [ "$PLAN_NETWORK_PLANNER" == "nnUNetPlannerResEncXL" ]; then
+            plans="nnUNetResEncUNetXLPlans"
+        else
+            plans="nnUNetResEncUNetMPlans"
+        fi
+    else
+        plans="nnUNetResEncUNetMPlans"
+    fi
     
-    # if ! [ -z "${TENSORBOARD_DIR}" ]; then
-    #     echo "# Starting monitoring:";
-    #     python3 -u /src/monitoring.py $nnUNet_results $TRAIN_FOLD $TENSORBOARD_DIR $nnUNet_raw &
-    #     echo "#"
-    # fi
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
         pretrain="-pretrained_weights /models/nnUNet/$PRETRAINED_WEIGHTS/model_final_checkpoint.model"
         pretrained_plan="-p nnUNetPlans_pretrained_TRANSFER_TRIAL"
@@ -137,38 +144,31 @@ elif [ "$MODE" = "training" ]; then
         disable_postprocessing=""
     fi
 
-    echo "#"
-    echo "# FOLD:  $TRAIN_FOLD";
-    echo "# TASK:  $TASK";
-    echo "# MODEL: $MODEL";
-    echo "# NETWORK_TRAINER: $TRAIN_NETWORK_TRAINER";
-    echo "# FP32:" $FP32;
-    echo "#"
-    echo "# MAX_EPOCHS: $TRAIN_MAX_EPOCHS";
-    echo "# EPOCHS_PER_ROUND: $EPOCHS_PER_ROUND";
-    echo "# NUM_BATCHES_PER_EPOCH: $NUM_BATCHES_PER_EPOCH";
-    echo "# NUM_VAL_BATCHES_PER_EPOCH: $NUM_VAL_BATCHES_PER_EPOCH";
-    echo "#"
-    echo "# nnUNet_raw: $nnUNet_raw"
-    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed"
-    echo "# nnUNet_results:       $nnUNet_results"
-    echo "# TENSORBOARD_DIR:      $TENSORBOARD_DIR"
-    echo "#"
-    echo "# TRAIN_CONTINUE:       $TRAIN_CONTINUE"
-    echo "# TRAIN_NPZ:            $TRAIN_NPZ"
-    echo "# PRETRAINED_WEIGHTS:   $PRETRAINED_WEIGHTS"
-    echo "#"
-    echo "# COMMAND: nnUNetv2_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrained_plan $pretrain $fp32 $npz $continue"
-    nnUNetv2_train $MODEL $TRAIN_NETWORK_TRAINER $TASK $TRAIN_FOLD $pretrained_plan $pretrain $fp32 $npz $continue
 
-    # CREATE_REPORT="True"
-
-    # if [ "$CREATE_REPORT" = "True" ] || [ "$CREATE_REPORT" = "true" ]; then
-    #     echo "# Starting create_report ..."
-    #     python3 -u /src/create_report.py $nnUNet_results "/data/$OPERATOR_OUT_DIR"
-    #     echo "# Report created."
-    #     echo "#"
-    # fi
+    echo "#"
+    echo "# FOLD:                       $TRAIN_FOLD";
+    echo "# TASK:                       $TASK";
+    echo "# MODEL:                      $MODEL";
+    echo "# NETWORK_TRAINER:            $TRAIN_NETWORK_TRAINER";
+    echo "# PLANS:                      $plans";
+    echo "# FP32:"                      $FP32;
+    echo "#"
+    echo "# MAX_EPOCHS:                 $TRAIN_MAX_EPOCHS";
+    echo "# EPOCHS_PER_ROUND:           $EPOCHS_PER_ROUND";
+    echo "# NUM_BATCHES_PER_EPOCH:      $NUM_BATCHES_PER_EPOCH";
+    echo "# NUM_VAL_BATCHES_PER_EPOCH:  $NUM_VAL_BATCHES_PER_EPOCH";
+    echo "#"
+    echo "# nnUNet_raw:                 $nnUNet_raw"
+    echo "# nnUNet_preprocessed:        $nnUNet_preprocessed"
+    echo "# nnUNet_results:             $nnUNet_results"
+    echo "# TENSORBOARD_DIR:            $TENSORBOARD_DIR"
+    echo "#"
+    echo "# TRAIN_CONTINUE:             $TRAIN_CONTINUE"
+    echo "# TRAIN_NPZ:                  $TRAIN_NPZ"
+    echo "# PRETRAINED_WEIGHTS:         $PRETRAINED_WEIGHTS"
+    echo "#"
+    echo "# COMMAND: nnUNetv2_train $TASK_NUM $MODEL $TRAIN_FOLD -p $plans -tr $TRAIN_NETWORK_TRAINER $pretrained_plan $pretrain $fp32 $npz $continue"
+    nnUNetv2_train $TASK_NUM $MODEL $TRAIN_FOLD -p $plans -tr $TRAIN_NETWORK_TRAINER $pretrained_plan $pretrain $fp32 $npz $continue
     
     echo "#"
     echo "# DONE"

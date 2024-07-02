@@ -2,6 +2,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from xml.etree import ElementTree
 import os
+from pathlib import Path
 import json
 from dicomweb_client.api import DICOMwebClient
 import pydicom
@@ -41,16 +42,17 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
             application_entity=self.aetitle, dag_run=kwargs["dag_run"]
         )
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
 
         print("Starting module MtikInputOperator")
 
         tasks = list()
         number = 0
-        for batch_element_dir in batch_folder:
+        for batch_element_dir in batch_folders:
             print("batch_element_dir: " + batch_element_dir)
             path_dir = os.path.basename(batch_element_dir)
             print("operator_in_dir: ", self.operator_in_dir)

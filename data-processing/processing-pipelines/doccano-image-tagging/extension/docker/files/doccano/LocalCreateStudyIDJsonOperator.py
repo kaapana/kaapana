@@ -4,6 +4,7 @@ import uuid
 import json
 import datetime
 from datetime import timedelta
+from pathlib import Path
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -21,14 +22,14 @@ class LocalCreateStudyIDJsonOperator(KaapanaPythonBaseOperator):
             self.zip_files = conf["workflow_form"]["zip_files"]
             print("Zip files set by workflow_form", self.zip_files)
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
-        print(batch_folder)
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
 
         study_id_dict = {}
-        for batch_element_dir in batch_folder:
+        for batch_element_dir in batch_folders:
             metadata_json = os.path.join(
                 batch_element_dir, self.operator_in_dir, "metadata.json"
             )

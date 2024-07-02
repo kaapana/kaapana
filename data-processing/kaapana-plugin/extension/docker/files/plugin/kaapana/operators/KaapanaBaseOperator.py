@@ -1,5 +1,6 @@
 import os
 import glob
+from pathlib import Path
 import re
 import shutil
 import requests
@@ -661,17 +662,18 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 return result
 
     def on_kill(self) -> None:
-        logging.info(
-            "##################################################### ON KILL!"
-        )
+        logging.info("##################################################### ON KILL!")
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=self.kube_name)
 
     def delete_operator_out_dir(self, run_id, operator_dir):
         logging.info(f"#### deleting {operator_dir} folders...!")
-        run_dir = os.path.join(self.airflow_workflow_dir, run_id)
-        batch_folders = sorted(
-            [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
+
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
         )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
+
         for batch_element_dir in batch_folders:
             element_input_dir = os.path.join(batch_element_dir, operator_dir)
             logging.info(f"# Deleting: {element_input_dir} ...")

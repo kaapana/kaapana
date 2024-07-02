@@ -2,6 +2,7 @@ import glob
 import os
 import json
 import logging
+from pathlib import Path
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
@@ -32,14 +33,16 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
         ):
             self.delete_complete_study = conf["form_data"]["delete_complete_study"]
             print("Delete entire study set to ", self.delete_complete_study)
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
 
         study2series_deletion = {}
 
-        for batch_element_dir in batch_folder:
+        for batch_element_dir in batch_folders:
             json_files = sorted(
                 glob.glob(
                     os.path.join(batch_element_dir, self.operator_in_dir, "*.json*"),

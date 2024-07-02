@@ -2,6 +2,7 @@ import os
 import json
 import glob
 from enum import Enum
+from pathlib import Path
 from typing import List
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
@@ -61,12 +62,14 @@ class LocalTaggingOperator(KaapanaPythonBaseOperator):
 
         print(f"Action: {action}")
         print(f"Tags from form: {tags}")
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
 
-        for batch_element_dir in batch_folder:
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
+
+        for batch_element_dir in batch_folders:
             json_files = sorted(
                 glob.glob(
                     os.path.join(batch_element_dir, self.operator_in_dir, "*.json*"),

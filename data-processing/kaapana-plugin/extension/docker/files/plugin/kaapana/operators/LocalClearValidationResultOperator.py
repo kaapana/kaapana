@@ -2,6 +2,7 @@ import glob
 import json
 import os
 import re
+from pathlib import Path
 
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperMinio import HelperMinio
@@ -134,10 +135,11 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         conf = kwargs["dag_run"].conf
         print("Start Deleting Validation results")
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
 
         self._init_clients(dag_run)
 

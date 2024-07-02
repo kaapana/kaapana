@@ -1,6 +1,7 @@
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
+from pathlib import Path
 from airflow.models import DAG
 from kaapana.operators.DcmQueryOperator import DcmQueryOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
@@ -128,11 +129,14 @@ class Dcm2MetaJsonLinesOperator(KaapanaPythonBaseOperator):
         # operator_in = "dcmqr"
         # use task id as output
         operator_out = kwargs["ti"].task_id
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
-        for batch_element_dir in batch_folder:
+        
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
+
+        for batch_element_dir in batch_folders:
             jsonl_files = sorted(
                 glob.glob(
                     os.path.join(batch_element_dir, self.operator_in_dir, "*.jsonl"),

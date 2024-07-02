@@ -4,6 +4,7 @@ import glob
 import traceback
 import logging
 import pydicom
+from pathlib import Path
 import errno
 import time
 
@@ -95,10 +96,11 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.ti = kwargs["ti"]
         print("# Starting module json2meta")
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
 
         if self.dicom_operator is not None:
             self.rel_dicom_dir = self.dicom_operator.operator_out_dir
@@ -108,7 +110,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.run_id = kwargs["dag_run"].run_id
         print(("RUN_ID: %s" % self.run_id))
 
-        for batch_element_dir in batch_folder:
+        for batch_element_dir in batch_folders:
             if self.jsonl_operator:
                 json_dir = os.path.join(
                     batch_element_dir, self.jsonl_operator.operator_out_dir

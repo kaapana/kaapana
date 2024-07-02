@@ -68,10 +68,12 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         self.dcmweb_helper = HelperDcmWeb(
             application_entity=self.aetitle, dag_run=kwargs["dag_run"]
         )
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folders = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        # Creates a generator object of all the folders in the run directory
+        batch_folders = run_dir.glob("*")
+        
         for batch_element_dir in batch_folders:
             print("input operator ", self.operator_in_dir)
             element_input_dir = os.path.join(batch_element_dir, self.operator_in_dir)

@@ -21,6 +21,13 @@ from kaapana.blueprints.kaapana_global_variables import (
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+DEFAULT_DICOM_WEB_RS_ENDPOINT = (
+    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080"
+)
+DEFAULT_DICOM_WEB_URI_ENDPOINT = (
+    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado"
+)
+
 
 def get_dcmweb_helper(
     application_entity: str = "KAAPANA",
@@ -68,27 +75,26 @@ class DcmWebException(Exception):
 
 class HelperDcmWeb:
     """
-    Helper class for making authorized requests against a dcm4chee archive.
+    Helper class for making authorized requests against a dicomweb server.
     """
 
     def __init__(
         self,
-        application_entity: str,
+        dcmweb_rs_endpoint: str = DEFAULT_DICOM_WEB_RS_ENDPOINT,
+        dcmweb_uri_endpoint: str = DEFAULT_DICOM_WEB_URI_ENDPOINT,
         dag_run=None,
         username: str = None,
         access_token: str = None,
     ):
         """
-        :param application_entity: Title of the application entity to communicate with
+        :param dcmweb_rs_endpoint: URL to the dicomweb server.
         :param dag_run: Airflow dag object.
-        :param username: Username of the keycloak user that wants to communicate with dcm4chee.
-        :access_token: Access token that should be used for communication with dcm4chee.
+        :param username: Username of the keycloak user that wants to communicate with the dicomweb server.
+        :access_token: Access token that should be used for communication with the dicomweb server.
         """
         assert dag_run or username or access_token
-        self.dcmweb_endpoint = (
-            f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets"
-        )
-        self.application_entity = application_entity
+        self.dcmweb_rs_endpoint = dcmweb_rs_endpoint
+        self.dcmweb_uri_endpoint = dcmweb_uri_endpoint
         self.system_user = "system"
         self.system_user_password = SYSTEM_USER_PASSWORD
         self.client_secret = OIDC_CLIENT_SECRET
@@ -115,7 +121,7 @@ class HelperDcmWeb:
             assert access_token
             self.username = None
 
-        ### Set access token for requests to dcm4chee
+        ### Set access token for requests to dicomweb server
         if access_token:
             self.access_token = access_token
         elif self.username == self.system_user:
@@ -127,7 +133,7 @@ class HelperDcmWeb:
             "x-forwarded-access-token": self.access_token,
         }
         self.client = DICOMwebClient(
-            url=f"{self.dcmweb_endpoint}/{self.application_entity}/rs",
+            url=self.dcmweb_rs_endpoint,
             headers=self.auth_headers,
         )
         self.session = requests.Session()
@@ -172,29 +178,41 @@ class HelperDcmWeb:
         impersonated_access_token = r.json()["access_token"]
         return impersonated_access_token
 
-    def check_if_series_in_archive(self, seriesUID):
+    def check_if_series_in_archive(self, seriesUID, studyUID):
         """
-        Check if a series exists in the archive and belongs to the application entity
+        Check if a series exists in the archive
         """
-        max_tries = 30
-        tries = 0
-        while tries < max_tries:
-            pacs_dcmweb_endpoint = (
-                f"{self.dcmweb_endpoint}/{self.application_entity}/rs/instances"
-            )
-            payload = {"SeriesInstanceUID": seriesUID}
-            httpResponse = self.session.get(
-                pacs_dcmweb_endpoint, params=payload, timeout=2
-            )
-            if httpResponse.status_code == 200:
-                break
-            else:
-                tries += 1
-                time.sleep(2)
-        if tries >= max_tries:
-            return False
-        else:
-            return True
+
+        url = f"{self.dcmweb_rs_endpoint}/studies/{studyUID}/series"
+        payload = {"SeriesInstanceUID": seriesUID}
+        response = self.session.get(url, params=payload)
+
+        # If empty the status code is 204
+        return response.status_code == 200
+
+    def check_if_series_is_rejected(self, seriesUID, studyUID):
+        """
+        Check if a series exists in the archive
+        """
+
+        url = f"{self.dcmweb_rs_endpoint}/reject/studies/{studyUID}/series"
+        payload = {"SeriesInstanceUID": seriesUID}
+        response = self.session.get(url, params=payload)
+
+        # If empty the status code is 204
+        return response.status_code == 200
+
+    def check_if_study_in_archive(self, studyUID):
+        """
+        Check if a study exists in the archive
+        """
+
+        url = f"{self.dcmweb_rs_endpoint}/studies"
+        payload = {"StudyInstanceUID": studyUID}
+        response = self.session.get(url, params=payload)
+
+        # If empty the status code is 204
+        return response.status_code == 200
 
     def downloadSeries(
         self,
@@ -204,7 +222,7 @@ class HelperDcmWeb:
         include_series_dir=False,
     ):
         payload = {"SeriesInstanceUID": series_uid}
-        url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/instances"
+        url = f"{self.dcmweb_rs_endpoint}/instances"
         httpResponse = self.session.get(url, params=payload)
         if httpResponse.status_code == 200:
             response = httpResponse.json()
@@ -280,7 +298,7 @@ class HelperDcmWeb:
             "objectUID": object_uid,
             "contentType": "application/dicom",
         }
-        url = f"{self.dcmweb_endpoint}/{self.application_entity}/wado"
+        url = self.dcmweb_uri_endpoint
         response = self.session.get(url, params=payload)
         if response.status_code == 200:
             fileName = object_uid + ".dcm"
@@ -303,68 +321,38 @@ class HelperDcmWeb:
             print("################################")
             return False
 
-    def reject_study(self, study_uid: str, application_entity: str = None):
+    def reject_study(self, study_uid: str):
         """
         Reject a study
         """
-        application_entity = application_entity or self.application_entity
-        rejectionURL = f"{self.dcmweb_endpoint}/{application_entity}/rs/studies/{study_uid}/reject/113001%5EDCM"
-        response = self.session.post(rejectionURL, verify=False)
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/reject/113001^DCM"
+        response = self.session.post(url, verify=False)
         response.raise_for_status()
         return response
 
     def delete_study(self, study_uid: str):
-        logger.info(f"Deleting study {study_uid}")
-        if not self.get_instances_of_study(
-            study_uid=study_uid, application_entity=self.application_entity
-        ):
-            logger.warn("Study does not exist on PACS")
-            return
+        """
+        Reject a study and delete it from the PACS
+        """
+        if not self.check_if_study_in_archive(study_uid):
+            logger.info(f"Study {study_uid} does not exist in PACS")
+            return None
 
-        logger.info("1/2: rejecting study")
-        response = self.reject_study(study_uid=study_uid)
-        logger.info("Awaiting rejection to complete")
-        time.sleep(5)
-        logger.info("Rejection complete")
-        # After the rejection there can be Key Object Selection Document Storage left on the pacs,
-        # these will disapear when the study is finaly deleted, so a check
-        # may still return results in this spot
+        self.reject_study(study_uid)
 
-        logger.info("2/2: deleting study")
-        aet_rejection_stage = "IOCM_QUALITY"
-        if not self.get_instances_of_study(
-            study_uid=study_uid, application_entity=aet_rejection_stage
-        ):
-            raise Exception(
-                f"Could not find study {study_uid} in aet {aet_rejection_stage}"
-            )
-        logger.info(f"Found study {study_uid} in aet {aet_rejection_stage}")
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}"
+        response = self.session.delete(url)
+        response.raise_for_status()
 
-        deletionURL = (
-            f"{self.dcmweb_endpoint}/{aet_rejection_stage}/rs/studies/{study_uid}"
-        )
-        logger.info("Sending delete request %s", deletionURL)
-        response = self.session.delete(deletionURL, verify=False)
-        if response.status_code != requests.codes.ok and response.status_code != 204:
-            raise Exception(
-                f"Error deleting study from {aet_rejection_stage} errorcode: {response.status_code} content {response.content}"
-            )
+        logger.info(f"Study {study_uid} deleted")
 
-        logger.info("Request Successfull, awaiting deletion to complete")
-        time.sleep(5)
-        for ae in [aet_rejection_stage, self.application_entity]:
-            logger.info(f"Check if study is removed from {ae}")
-            if self.get_instances_of_study(study_uid, ae):
-                raise Exception(f"Deletion of study {study_uid} failed")
+        return response
 
-        logger.info(f"Deletion of {study_uid} complete")
-
-    def get_instances_of_study(self, study_uid, application_entity=None):
+    def get_instances_of_study(self, study_uid):
         """
         Get all instances of a study
         """
-        application_entity = application_entity or self.application_entity
-        url = f"{self.dcmweb_endpoint}/{application_entity}/rs/studies/{study_uid}/instances"
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/instances"
         response = requests.get(url, headers=self.auth_headers)
         if response.status_code == 404:
             return None
@@ -378,7 +366,7 @@ class HelperDcmWeb:
         """
         Get all instances of a specific series of a specific study
         """
-        url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies/{study_uid}/series/{series_uid}/instances"
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
         response = self.session.get(url)
         if response.status_code == 204:
             return []
@@ -392,7 +380,7 @@ class HelperDcmWeb:
         """
         Get all series of a study
         """
-        url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies/{study_uid}/series"
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
         r = self.session.get(url)
         if r.status_code == 204:
             return []
@@ -403,47 +391,32 @@ class HelperDcmWeb:
             return r.json()
 
     def delete_series(self, study_uid: str, series_uids: List[str]):
-        logger.info(f"Deleting series {series_uids} in study {study_uid}")
-        series = self.get_series_of_study(study_uid)
-        series_uids_keep = [s["0020000E"]["Value"][0] for s in series]
-
-        logger.warning(f"{series_uids_keep=}")
-        logger.warning(f"{series_uids=}")
-
         for series_uid in series_uids:
-            if series_uid not in series_uids_keep:
-                logger.warn(
-                    f"Series {series_uid} does not exist for study {study_uid} on PACS",
+            if not self.check_if_series_in_archive(series_uid, study_uid):
+                logger.info(
+                    f"Series {series_uid} with study {study_uid} does not exist in PACS"
                 )
                 continue
-            series_uids_keep.remove(series_uid)
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            logger.info(f"1/4 Start Downloading all series to keep to {tmp_dir}")
-            for keep_series_uid in series_uids_keep:
-                logger.info(f"Downloading Series {keep_series_uid} to {tmp_dir}")
-                if not self.downloadSeries(
-                    keep_series_uid, tmp_dir, include_series_dir=True
-                ):
-                    raise Exception(f"Could not download {keep_series_uid}")
-                logger.info("Done")
-            logger.info(f"Downloaded all series to keep to {tmp_dir}")
+            if self.check_if_series_is_rejected(series_uid, study_uid):
+                logger.info(
+                    f"Series {series_uid} with study {study_uid} is already rejected"
+                )
+                continue
 
-            logger.info(f"2/4 Delete complete study from pacs {tmp_dir}")
-            self.delete_study(study_uid)
-            logger.info("Study deleted")
+            # Reject series
+            logger.info(f"Rejecting series {series_uids} in study {study_uid}")
 
-            logger.info("3/4 Upload series to keep again to PACS")
-            for upload_series_uid in series_uids_keep:
-                logger.info(f"Upload series {upload_series_uid}")
-                self.upload_dcm_files(os.path.join(tmp_dir, upload_series_uid))
+            url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/reject/113001^DCM"
+            response = self.session.post(url, verify=False)
+            response.raise_for_status()
 
-            logger.info("4/4 Delete temp files")
-            # deletion of tmp_files should happen automaticaly if scope of tmp_dir is left
+        # Delete all rejected instances
+        logger.info(f"Deleting series {series_uids} in study {study_uid}")
 
-        if self.get_instances_of_series(study_uid, series_uid):
-            raise Exception(f"Series {series_uid} still exists after deletion")
-        logger.info(f"Series {series_uid} sucessfully deleted")
+        url = f"{self.dcmweb_rs_endpoint}/reject/113001^DCM"
+        response = self.session.delete(url, verify=False)
+        response.raise_for_status()
 
     def search_for_series(self, search_filters):
         return self.client.search_for_series(search_filters=search_filters)
@@ -519,7 +492,7 @@ class HelperDcmWeb:
             path_to_dicom_files (list): Path to the DICOM files to be sent.
 
         """
-        url = f"{self.dcmweb_endpoint}/{self.application_entity}/rs/studies"
+        url = f"{self.dcmweb_rs_endpoint}/studies"
 
         encoded_files = []
         clinical_trial_protocol_info = {}

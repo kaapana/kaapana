@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Request
 from .QIDO_RS.routes import router as qido_router
 from .STOW_RS.routes import router as stow_router
-from .UPS_RS.routes import router as ups_router
+
+# from .UPS_RS.routes import router as ups_router
 from .WADO_RS.routes import router as wado_router
+from .CUSTOM_RS.routes import router as custom_router
 from .WADO_URI.routes import router as wado_uri_router
 from .proxy_request import proxy_request
 import logging
@@ -34,6 +36,10 @@ tags_metadata = [
         "name": "WADO-URI",
         "description": "Retrieve single DICOM instances",
     },
+    {
+        "name": "Custom",
+        "description": "Custom routes, currently for dcm4chee delete endpoint",
+    },
 ]
 
 app = FastAPI(
@@ -49,6 +55,7 @@ app.include_router(qido_router)
 app.include_router(stow_router)
 # app.include_router(ups_router) TODO: Test properly, currently no usecase
 app.include_router(wado_router)
+app.include_router(custom_router)
 app.include_router(wado_uri_router, prefix="/wado-uri")
 
 

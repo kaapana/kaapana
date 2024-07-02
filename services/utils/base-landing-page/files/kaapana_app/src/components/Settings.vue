@@ -62,7 +62,7 @@
                     </v-col>
                     <v-col cols="8">
                       <v-select
-                        v-model="settings.validations.algorithm"
+                        v-model="validateDicoms.algorithm"
                         :items="['dciodvfy', 'dicom-validator']"
                       ></v-select>
                     </v-col>
@@ -81,7 +81,7 @@
                     </v-col>
                     <v-col cols="4"></v-col>
                     <v-col cols="8">
-                      <v-chip v-for="item in ignoredTags" 
+                      <v-chip v-for="item in validateDicoms.ignoredTags" 
                         close outlined
                         color="red" class="mr-2 mb-2"
                         @click:close="() => removeFromIgnoredTags(item)">
@@ -116,7 +116,7 @@ export default {
     newTag: '',
     resetConfiguration: false,
     selectedTab: null,
-    ignoredTags: [],
+    validateDicoms: {},
     tagError: ""
   }),
   components: {
@@ -124,10 +124,14 @@ export default {
   },
   created() {
     this.settings = JSON.parse(localStorage["settings"]);
-    if (!this.settings.hasOwnProperty('validations')) {
-      this.settings['validations'] = defaultSettings['validations'];
+
+    // set the validateDicoms settings and ignored tags
+    if (!this.settings.hasOwnProperty('workflows')) {
+      this.settings['workflows'] = defaultSettings['workflows'];
+      this.validateDicoms = defaultSettings.workflows["validateDicoms"];
+    } else {
+      this.validateDicoms = this.settings.workflows["validateDicoms"];
     }
-    this.ignoredTags = this.settings.validations['ignoredTags'];
   },
   watch: {
   },
@@ -136,7 +140,9 @@ export default {
       this.settings = defaultSettings;
     },
     onSave() {
-      this.settings.validations['ignoredTags'] = this.ignoredTags;
+      // save validate dicoms update to settings
+      this.settings.workflows['validateDicoms'] = this.validateDicoms
+
       localStorage["settings"] = JSON.stringify(this.settings);
       this.dialog = false;
       window.location.reload();
@@ -194,7 +200,7 @@ export default {
       return [isValid, tagval]
     },
     onValidationTagAdd(event) {
-      if (this.ignoredTags.includes(this.newTag)) {
+      if (this.validateDicoms.ignoredTags.includes(this.newTag)) {
         this.tagError = "Tag already exists in ignored tags list";
         return
       }
@@ -205,13 +211,13 @@ export default {
       }
 
       this.tagError = "";
-      this.ignoredTags.push(trimmedTag);
+      this.validateDicoms.ignoredTags.push(trimmedTag);
       this.newTag = '';      
     },
     removeFromIgnoredTags(item) {
-      var index = this.ignoredTags.indexOf(item);
+      var index = this.validateDicoms.ignoredTags.indexOf(item);
       if (index !== -1) {
-        this.ignoredTags.splice(index, 1);
+        this.validateDicoms.ignoredTags.splice(index, 1);
       }
     }
   },

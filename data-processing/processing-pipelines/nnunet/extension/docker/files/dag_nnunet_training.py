@@ -30,8 +30,9 @@ study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 seg_filter = ""
 prep_modalities = "CT"
-default_model = "3d_lowres"
-train_network_trainer = "nnUNetTrainerV2"
+default_model = "3d_fullres"
+plan_network_planner = "nnUNetPlannerResEncM"
+train_network_trainer = "nnUNetTrainer"
 ae_title = "nnUnet-training-results"
 max_epochs = 1000
 num_batches_per_epoch = 250
@@ -95,10 +96,28 @@ ui_forms = {
                 "readOnly": False,
                 "required": True,
             },
+            "plan_network_planner": {
+                "title": "Network-planner",
+                "default": plan_network_planner,
+                "description": "nnUNetPlannerResEncM, nnUNetPlannerResEncL, nnUNetPlannerResEncXL, nnUNetPlanner",
+                "enum": [
+                    "nnUNetPlannerResEncM",
+                    "nnUNetPlannerResEncL",
+                    "nnUNetPlannerResEncXL",
+                    "nnUNetPlanner",
+                ],
+                "type": "string",
+                "readOnly": False,
+                "required": True,
+            },
             "train_network_trainer": {
                 "title": "Network-trainer",
                 "default": train_network_trainer,
-                "description": "nnUNetTrainerV2 or nnUNetTrainerV2CascadeFullRes",
+                "description": "nnUNetTrainer, nnUNetTrainerCELoss, ... (add more nnUNetTrainer variants (https://github.com/MIC-DKFZ/nnUNet/tree/master/nnunetv2/training/nnUNetTrainer/variants))",
+                "enum": [
+                    "nnUNetTrainer",
+                    "nnUNetTrainerCELoss",
+                ],
                 "type": "string",
                 "readOnly": False,
             },
@@ -285,6 +304,7 @@ nnunet_preprocess = NnUnetOperator(
     mode="preprocess",
     input_modality_operators=[dcm2nifti_ct],
     prep_label_operators=[check_seg],
+    plan_network_planner=plan_network_planner,
     prep_use_nifti_labels=False,
     prep_modalities=prep_modalities.split(","),
     prep_processes_low=prep_threads + 1,
@@ -308,9 +328,10 @@ nnunet_train = NnUnetOperator(
     input_operator=nnunet_preprocess,
     model=default_model,
     allow_federated_learning=True,
+    plan_network_planner=plan_network_planner,
     train_network_trainer=train_network_trainer,
     train_fold="all",
-    dev_server=None,
+    dev_server="code-server",  # None,  # "code-server"
     retries=0,
 )
 

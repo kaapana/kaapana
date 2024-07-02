@@ -339,7 +339,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             raise ValueError("ERROR")
         series_download_fail = []
         self.dcmweb_helper = HelperDcmWeb(
-            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
+            dag_run=kwargs["dag_run"]
         )
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(self.get_data, download_list)

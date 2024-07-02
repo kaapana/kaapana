@@ -5,10 +5,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# logging.basicConfig(level=logging.INFO) # TODO: Change before deployment
+logging.basicConfig(level=logging.INFO)  # TODO: Change before deployment
 
 
-async def proxy_request(request: Request, path: str, method: str, base_url=DICOMWEB_BASE_URL):
+async def proxy_request(
+    request: Request, path: str, method: str, base_url=DICOMWEB_BASE_URL
+):
     url = f"{base_url}{path}"
     headers = dict(request.headers)
     logger.info(f"Request URL: {url}")
@@ -48,6 +50,8 @@ async def proxy_request(request: Request, path: str, method: str, base_url=DICOM
     # Prepare response headers
     if "content-encoding" in response_headers:
         del response_headers["content-encoding"]
+    if "content-length" in response_headers:
+        del response_headers["content-length"]  # Let the server set the content length
 
     # Construct a new Response object from stored values
     return Response(

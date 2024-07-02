@@ -30,7 +30,6 @@ get_input = LocalGetInputDataOperator(dag=dag)
 dcm_send = LocalDicomSendOperator(
     dag=dag,
     input_operator=get_input,
-    ae_title="KAAPANA",
 )
 
 auto_trigger_operator = LocalAutoTriggerOperator(dag=dag, input_operator=get_input)

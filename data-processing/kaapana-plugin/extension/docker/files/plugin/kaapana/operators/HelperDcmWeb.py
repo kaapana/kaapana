@@ -1,11 +1,10 @@
 import logging
 import os
-import tempfile
-import time
 from os.path import join
 from pathlib import Path
 from typing import List
 
+import json
 import pydicom
 import requests
 from dicomweb_client.api import DICOMwebClient
@@ -523,5 +522,7 @@ class HelperDcmWeb:
             },
             data=data,
             # append the clinical trial protocol information to the request
-            params={"clinical_trial_protocol_info": clinical_trial_protocol_info},
+            params={
+                "clinical_trial_protocol_info": json.dumps(clinical_trial_protocol_info)
+            },
         )

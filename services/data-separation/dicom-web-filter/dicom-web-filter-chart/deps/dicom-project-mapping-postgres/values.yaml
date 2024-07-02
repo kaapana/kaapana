@@ -1,0 +1,7 @@
+---
+global:
+  dynamicVolumes:
+  - name: dicom-project-mapping-postgres
+    host_path: /dicom-project-mapping-postgres
+    mount_path: "/var/lib/postgresql/data"
+  postgres_user: kaapanauser

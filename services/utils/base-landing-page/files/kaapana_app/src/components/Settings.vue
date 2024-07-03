@@ -57,6 +57,14 @@
               <v-container fluid>
                 <v-card-text>
                   <v-row>
+                    <v-col cols="4" class="centered-col"></v-col>
+                    <v-col cols="8">                      
+                      <v-checkbox
+                        v-model="validateDicoms.exitOnError"
+                        label="Stop workflow execution on Error"
+                        hide-details
+                      ></v-checkbox>
+                    </v-col>
                     <v-col cols="4" class="centered-col">
                       <v-subheader>Default Dicom validation Algorithm</v-subheader>
                     </v-col>
@@ -64,16 +72,8 @@
                       <v-select
                         v-model="validateDicoms.validatorAlgorithm"
                         :items="['dciodvfy', 'dicom-validator']"
+                        class="pa-0"
                       ></v-select>
-                    </v-col>
-                    <v-col cols="4"></v-col>
-                    <v-col cols="8">
-                      <v-checkbox
-                        v-model="validateDicoms.exitOnError"
-                        label="Stop workflow on Error"
-                        color="red darken-3"
-                        hide-details
-                      ></v-checkbox>
                     </v-col>
                     <v-col cols="4" class="centered-col">
                       <v-subheader>Add DICOM tag to ignore</v-subheader>
@@ -86,6 +86,7 @@
                         :error-messages="tagError"
                         @click:append="onValidationTagAdd"
                         @keydown.enter="onValidationTagAdd"
+                        class="pa-0"
                       ></v-text-field>
                     </v-col>
                     <v-col cols="4"></v-col>

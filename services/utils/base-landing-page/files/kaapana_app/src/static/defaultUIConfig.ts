@@ -15,6 +15,7 @@ const settings = {
         itemsPerPagePagination: 1000,
         sort: "0020000E SeriesInstanceUID_keyword.keyword",
         sortDirection: "desc",
+        executeSlicedSearch: false,
         props: [
             {
                 name: 'Series Description',

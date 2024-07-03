@@ -66,7 +66,7 @@ from fastapi import Query
 # This should actually be a get request but since the body is too large for a get request
 # we use a post request
 @router.post("/series")
-async def get_series(data: dict = Body(...)):
+async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
     import pandas as pd
 
     structured: bool = data.get("structured", False)
@@ -131,57 +131,7 @@ async def get_series(data: dict = Body(...)):
 
 # This should actually be a get request but since the body is too large for a get request
 # we use a post request
-<<<<<<< HEAD
-@router.post("/series")
-async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
-    import pandas as pd
-
-    structured: bool = data.get("structured", False)
-    query: dict = data.get("query", {"query_string": {"query": "*"}})
-
-    if structured:
-        hits = execute_opensearch_query(
-            os_client,
-            query=query,
-            source={
-                "includes": [
-                    "00100020 PatientID_keyword",
-                    "0020000D StudyInstanceUID_keyword",
-                    "0020000E SeriesInstanceUID_keyword",
-                ]
-            },
-        )
-
-        res_array = [
-            [
-                hit["_source"].get("00100020 PatientID_keyword") or "N/A",
-                hit["_source"]["0020000D StudyInstanceUID_keyword"],
-                hit["_source"]["0020000E SeriesInstanceUID_keyword"],
-            ]
-            for hit in hits
-        ]
-
-        df = pd.DataFrame(
-            res_array,
-            columns=["Patient ID", "Study Instance UID", "Series Instance UID"],
-        )
-        return JSONResponse(
-            {
-                k: f.groupby("Study Instance UID")["Series Instance UID"]
-                .apply(list)
-                .to_dict()
-                for k, f in df.groupby("Patient ID")
-            }
-        )
-    elif not structured:
-        return JSONResponse(
-            [d["_id"] for d in execute_opensearch_query(os_client, query)]
-        )
-
-
-=======
 # sepcific function, to get a often needed aggregation request
->>>>>>> 60803e2c7 (clean up functions)
 @router.post("/aggregatedSeriesNum")
 async def get_aggregatedSeriesNum(data: dict = Body(...), os_client=Depends(get_opensearch)):
     query: dict = data.get("query", {"query_string": {"query": "*"}})

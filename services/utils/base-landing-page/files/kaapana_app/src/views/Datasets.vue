@@ -441,32 +441,34 @@ export default {
       }).then(data => {
           this.aggregatedSeriesNum = data;
           this.allPatients = this.aggregatedSeriesNum > this.settings.datasets.itemsPerPagePagination;
-      });
-      loadPatients({
-        structured: this.settings.datasets.structured,
-        query: this.searchQuery ,
-        sort: this.settings.datasets.sort,
-        sortDirection: this.settings.datasets.sortDirection,
-        pageIndex: this.pageIndex,
-        pageLength: this.settings.datasets.itemsPerPagePagination
-      })
-        .then((data) => {
-          // TODO: this is not ideal...
-          if (this.settings.datasets.structured) {
-            this.patients = data;
-            this.seriesInstanceUIDs = Object.values(this.patients)
-              .map((studies) => Object.values(studies))
-              .flat(Infinity);
-          } else {
-              this.seriesInstanceUIDs = data;
-          }
-          if (this.seriesInstanceUIDs.length === 0)
-            this.message = "No data found.";
-          this.isLoading = false;
-        })
-        .catch((e) => {
-          this.message = e;
-          this.isLoading = false;
+          loadPatients({
+            structured: this.settings.datasets.structured,
+            executeSlicedSearch: this.settings.datasets.executeSlicedSearch,
+            query: this.searchQuery ,
+            sort: this.settings.datasets.sort,
+            sortDirection: this.settings.datasets.sortDirection,
+            pageIndex: this.pageIndex,
+            pageLength: this.settings.datasets.itemsPerPagePagination,
+            aggregatedSeriesNum: this.aggregatedSeriesNum
+          })
+            .then((data) => {
+              // TODO: this is not ideal...
+              if (this.settings.datasets.structured) {
+                this.patients = data;
+                this.seriesInstanceUIDs = Object.values(this.patients)
+                  .map((studies) => Object.values(studies))
+                  .flat(Infinity);
+              } else {
+                  this.seriesInstanceUIDs = data;
+              }
+              if (this.seriesInstanceUIDs.length === 0)
+                this.message = "No data found.";
+              this.isLoading = false;
+            })
+            .catch((e) => {
+              this.message = e;
+              this.isLoading = false;
+            });
         });
     },
     updateDatasetNames() {
@@ -709,13 +711,27 @@ export default {
       return this.$store.getters.validationResultItem;
     },
     displaySelectedItems() {
-      const selected = this.identifiersOfInterest.length
       const from = (this.pageIndex - 1) * this.settings.datasets.itemsPerPagePagination + 1;
+<<<<<<< HEAD
       const to = Math.min(from + this.identifiersOfInterest.length, this.aggregatedSeriesNum);
       return this.aggregatedSeriesNum > 0 && this.aggregatedSeriesNum > this.identifiersOfInterest.length
         ? `${selected} selected from ${from} to ${to} of ${this.aggregatedSeriesNum}`
         : `${selected} selected`;
     },
+=======
+      const to = Math.min(from + this.identifiersOfInterest.length - 1, this.aggregatedSeriesNum);
+      if (this.aggregatedSeriesNum > 0 && this.aggregatedSeriesNum > this.identifiersOfInterest.length) {
+        //if slicing search is used, each page has a different number of items
+        if (this.settings.datasets.executeSlicedSearch && this.aggregatedSeriesNum > 10000) {
+          return `page ${this.pageIndex}: ${this.identifiersOfInterest.length} selected of ${this.aggregatedSeriesNum}`;
+        } else {
+          return `${this.identifiersOfInterest.length} selected from ${from} to ${to} of ${this.aggregatedSeriesNum}`;
+        }
+      } else {
+        return `${this.identifiersOfInterest.length} selected`;
+      }
+    }
+>>>>>>> 6fa1a1c27 (introduce PIT slicing seach and seach_after)
   },
 };
 </script>

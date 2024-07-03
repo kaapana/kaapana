@@ -14,7 +14,11 @@ from . import schemas
 
 
 async def create_project(session: AsyncSession, project: schemas.CreateProject):
-    new_project = Projects(name=project.name, description=project.description)
+    new_project = Projects(
+        name=project.name,
+        description=project.description,
+        external_id=project.external_id,
+    )
     session.add(new_project)
     await session.commit()
     return new_project

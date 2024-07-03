@@ -463,7 +463,7 @@ class HelperDcmWeb:
             data=encoded_files, boundary="0f3cf5c0-70e0-41ef-baef-c6f9f65ec3e1"
         )
 
-        self.session.post(
+        response = self.session.post(
             url,
             headers={
                 "Content-Type": content_type,
@@ -475,3 +475,15 @@ class HelperDcmWeb:
                 "clinical_trial_protocol_info": json.dumps(clinical_trial_protocol_info)
             },
         )
+
+        # Catch any exceptions
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"An error occurred: {e}")
+            raise e
+        else:
+            logger.info("DICOM files uploaded successfully")
+            return response
+
+

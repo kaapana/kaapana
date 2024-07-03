@@ -62,9 +62,18 @@
                     </v-col>
                     <v-col cols="8">
                       <v-select
-                        v-model="validateDicoms.algorithm"
+                        v-model="validateDicoms.validatorAlgorithm"
                         :items="['dciodvfy', 'dicom-validator']"
                       ></v-select>
+                    </v-col>
+                    <v-col cols="4"></v-col>
+                    <v-col cols="8">
+                      <v-checkbox
+                        v-model="validateDicoms.exitOnError"
+                        label="Stop workflow on Error"
+                        color="red darken-3"
+                        hide-details
+                      ></v-checkbox>
                     </v-col>
                     <v-col cols="4" class="centered-col">
                       <v-subheader>Add DICOM tag to ignore</v-subheader>
@@ -81,10 +90,10 @@
                     </v-col>
                     <v-col cols="4"></v-col>
                     <v-col cols="8">
-                      <v-chip v-for="item in validateDicoms.ignoredTags" 
+                      <v-chip v-for="item in validateDicoms.tagsWhitelist" 
                         close outlined
                         color="red" class="mr-2 mb-2"
-                        @click:close="() => removeFromIgnoredTags(item)">
+                        @click:close="() => removeFromValidationWhitelist(item)">
                         {{ item }}
                       </v-chip>
                     </v-col>
@@ -128,9 +137,9 @@ export default {
     // set the validateDicoms settings and ignored tags
     if (!this.settings.hasOwnProperty('workflows')) {
       this.settings['workflows'] = defaultSettings['workflows'];
-      this.validateDicoms = defaultSettings.workflows["validateDicoms"];
+      this.validateDicoms = defaultSettings.workflows["validateDicoms"].properties;
     } else {
-      this.validateDicoms = this.settings.workflows["validateDicoms"];
+      this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
     }
   },
   watch: {
@@ -141,7 +150,7 @@ export default {
     },
     onSave() {
       // save validate dicoms update to settings
-      this.settings.workflows['validateDicoms'] = this.validateDicoms
+      this.settings.workflows['validateDicoms'].properties = this.validateDicoms
 
       localStorage["settings"] = JSON.stringify(this.settings);
       this.dialog = false;
@@ -200,8 +209,8 @@ export default {
       return [isValid, tagval]
     },
     onValidationTagAdd(event) {
-      if (this.validateDicoms.ignoredTags.includes(this.newTag)) {
-        this.tagError = "Tag already exists in ignored tags list";
+      if (this.validateDicoms.tagsWhitelist.includes(this.newTag)) {
+        this.tagError = "Tag already exists in tags whitelist";
         return
       }
       
@@ -211,13 +220,13 @@ export default {
       }
 
       this.tagError = "";
-      this.validateDicoms.ignoredTags.push(trimmedTag);
+      this.validateDicoms.tagsWhitelist.push(trimmedTag);
       this.newTag = '';      
     },
-    removeFromIgnoredTags(item) {
-      var index = this.validateDicoms.ignoredTags.indexOf(item);
+    removeFromValidationWhitelist(item) {
+      var index = this.validateDicoms.tagsWhitelist.indexOf(item);
       if (index !== -1) {
-        this.validateDicoms.ignoredTags.splice(index, 1);
+        this.validateDicoms.tagsWhitelist.splice(index, 1);
       }
     }
   },

@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield  # This yield separates startup from shutdown code
@@ -60,6 +59,7 @@ app = FastAPI(
     openapi_url="/openapi.json",
     version="0.1.0",
     openapi_tags=tags_metadata,
+    lifespan=lifespan,
 )
 
 app.include_router(qido_router)

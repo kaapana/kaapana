@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from typing import Optional
 
 
 class OrmBaseModel(BaseModel):
@@ -6,12 +7,14 @@ class OrmBaseModel(BaseModel):
 
 
 class CreateProject(OrmBaseModel):
+    external_id: Optional[str] = None
     name: str
     description: str
 
 
 class Project(OrmBaseModel):
     id: int
+    external_id: Optional[str] = None
     name: str
     description: str
 

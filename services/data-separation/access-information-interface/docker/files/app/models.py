@@ -10,6 +10,7 @@ Base = declarative_base()
 class Projects(Base):
     __tablename__ = "projects"
     id = Column(Integer, primary_key=True, autoincrement=True)
+    external_id = Column(String)
     name = Column(String, unique=True)
     description = Column(String)
     data = relationship("Data", secondary="data_projects")

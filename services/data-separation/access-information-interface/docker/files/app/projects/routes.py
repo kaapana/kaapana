@@ -23,6 +23,11 @@ async def projects(
     return await crud.create_project(session, project)
 
 
+@router.get("", response_model=List[schemas.Project], tags=["Projects"])
+async def get_projects(session: AsyncSession = Depends(get_session), name: str = None):
+    return await crud.get_projects(session, name=name)
+
+
 @router.get("/rights", response_model=List[schemas.Right], tags=["Projects"])
 async def get_rights(session: AsyncSession = Depends(get_session), name: str = None):
     return await crud.get_rights(session, name=name)

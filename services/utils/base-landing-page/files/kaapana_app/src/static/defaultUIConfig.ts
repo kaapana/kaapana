@@ -96,8 +96,12 @@ const settings = {
     },
     workflows: {
         validateDicoms: {
-            algorithm: 'dciodvfy',
-            ignoredTags: [],            
+            properties: {
+                validatorAlgorithm: 'dciodvfy',
+                exitOnError: false,
+                tagsWhitelist: [], 
+            },
+            hideOnUI: ['tagsWhitelist'],         
         },
     },
 }

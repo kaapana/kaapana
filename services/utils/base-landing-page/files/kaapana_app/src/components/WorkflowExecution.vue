@@ -624,8 +624,4 @@ export default {
 .justify-space-between {
   justify-content: 0;
 }
-.force-hidden {
-  display: none!important;
-  padding-top: 100px;
-}
 </style>

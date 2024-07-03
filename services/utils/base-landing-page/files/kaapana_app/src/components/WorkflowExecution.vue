@@ -99,6 +99,7 @@
               <v-jsf
                 v-model="formData['external_schema_' + name]"
                 :schema="schema"
+                :options="schema_options"
                 required="required"
               ></v-jsf>
             </v-col>
@@ -183,6 +184,7 @@ export default {
   created() {},
   mounted() {
     this.refreshClient();
+    this.loadWorkflowSettings();
   },
   watch: {
     // watcher for instances
@@ -241,6 +243,8 @@ export default {
         this.external_dag_id = null;
       }
       this.datasets_available = true;
+      this.processDefaultsFromSettings(this.schemas);
+
       if (this.schemas["data_form"] !== null && this.schemas["data_form"] !== undefined) {
         Object.entries(this.schemas["data_form"]).forEach(([key, value]) => {
           if ( key.startsWith("__emtpy__") ) {
@@ -303,19 +307,30 @@ export default {
         schemas: {},
         schemas_dict: {},
         external_schemas: {},
+        schema_options: {
+          readOnly: true,
+        },
         // validation stuff
         // other stuff
         workflow_name: null, // or to ''
         showConfData: false,
-        datasets_available: true
+        datasets_available: true,
+        workflowsSettings: {},
       };
     },
     reset() {
       Object.assign(this.$data, this.initialState());
       this.refreshClient();
+      this.loadWorkflowSettings();
     },
     refreshClient() {
       this.getKaapanaInstances();
+    },
+    loadWorkflowSettings(){
+      const settings = JSON.parse(localStorage["settings"]);
+      if (settings.hasOwnProperty('workflows')) {
+        this.workflowsSettings = settings['workflows'];
+      }
     },
     clearForm() {
       this.dag_id = null;
@@ -339,6 +354,35 @@ export default {
         }
       });
       return formDataFormatted;
+    },
+    processDefaultsFromSettings(schema) {
+      if(!this.workflow_name) {
+        return
+      }
+
+      var workflowName = this.toCamelCase(this.workflow_name);
+      if(!this.workflowsSettings.hasOwnProperty(workflowName)) {
+        return
+      }
+
+      var parsedSchema = JSON.parse(JSON.stringify(schema));  
+      if(parsedSchema.hasOwnProperty('workflow_form')) {
+        const props = parsedSchema['workflow_form']['properties'];
+        const wfOptions = this.workflowsSettings[workflowName];
+        const defaults = wfOptions['properties']
+
+        for (const [key, value] of Object.entries(props)) {
+          const propsKey = this.toCamelCase(key);
+          if(defaults.hasOwnProperty(propsKey)) {
+            props[key]['default'] = defaults[propsKey];
+            if (wfOptions.hideOnUI.includes(propsKey)) {
+              props[key]['x-style'] = "display: none;";
+            }            
+          }          
+        }
+
+        this.schemas['workflow_form']['properties'] = props;
+      }
     },
     // other methods
     dagRules() {
@@ -545,7 +589,7 @@ export default {
           federated: this.federated_data,
         })
         .then((response) => {
-          console.log(response);
+          // console.log(response);
           this.$notify({
             type: "success",
             title: "Workflow successfully created!",
@@ -565,6 +609,9 @@ export default {
           });
         });
     },
+    toCamelCase(target) {
+      return target.replace(/(-|_)([a-z])/g, function (g) { return g[1].toUpperCase(); });
+    },
   },
 };
 </script>
@@ -576,5 +623,9 @@ export default {
 }
 .justify-space-between {
   justify-content: 0;
+}
+.force-hidden {
+  display: none!important;
+  padding-top: 100px;
 }
 </style>

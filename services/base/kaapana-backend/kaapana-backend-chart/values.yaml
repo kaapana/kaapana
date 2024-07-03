@@ -1,6 +1,5 @@
----
 global:
-  dev_files: false
+  dev_files: /home/m395c/kaapana/services/base/kaapana-backend/docker/files
   dynamicVolumes:
   - name: backend
     host_path: /postgres-backend

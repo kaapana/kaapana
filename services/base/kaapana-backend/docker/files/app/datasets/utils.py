@@ -4,6 +4,8 @@ from typing import Dict, List
 
 import requests
 from fastapi import HTTPException
+from opensearchpy import OpenSearch
+import math
 from app.config import settings
 from app.workflows.utils import (
     requests_retry_session,
@@ -11,15 +13,45 @@ from app.workflows.utils import (
     raise_kaapana_connection_error,
 )
 from app.logger import get_logger
-
+MAX_RETURN_LIMIT = 10000
 logger = get_logger(__name__, logging.DEBUG)
 
 
 #  from kaapana.operators.HelperOpensearch import HelperOpensearch
+# Function to create a PIT
+def create_pit(index, keep_alive='1m'):
+    response = OpenSearch(
+            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+        ).create_pit(index=index, keep_alive=keep_alive)
+    return response['pit_id']
 
+# Function to close a PIT
+def close_pit(pit_id):
+    OpenSearch(
+            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+        ).delete_pit(body={'pit_id': pit_id})
 
-def execute_opensearch_query(
-    os_client,
+# Function to execute a search with slicing
+def execute_sliced_search(query, pit_id, slice_id, total_slices, source=False, sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}], size=1000):
+    body = {
+        "query": query,
+        "_source": source,
+        "sort": sort,
+        "size": size,
+        "pit": {"id": pit_id, "keep_alive": "1m"},
+        "slice": {"id": slice_id, "max": total_slices}
+    }
+    res = OpenSearch(
+            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+        ).search(body=body)
+    # import debugpy
+    # debugpy.listen(("localhost", 17777))
+    # debugpy.wait_for_client()
+    # debugpy.breakpoint()
+
+    return res["hits"]["hits"]
+
+def execute_from_size_search(
     query: Dict = dict(),
     source=False,
     index="meta-index",
@@ -28,7 +60,7 @@ def execute_opensearch_query(
     size=1000,
 ) -> List:
     """
-    Opensearch size limit is 10000.
+    Opensearch size limit is 10000 MAX_RETURN_LIMIT.
     If you want to query more, this function has to be called again,
     otherwise the response will time out.
     Caution: Removing or adding entries between requests will lead to inconsistencies.
@@ -45,10 +77,17 @@ def execute_opensearch_query(
     :return: aggregated search results
     """
     start_from = (start_from - 1) * size
+<<<<<<< HEAD
     # limit size to 10000 (opensearch maximum)
     if size > 10000:
         size = 10000
     res = os_client.search(
+=======
+
+    res = OpenSearch(
+        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+    ).search(
+>>>>>>> 6fa1a1c27 (introduce PIT slicing seach and seach_after)
         body={
             "from": start_from,
             "query": query,
@@ -59,6 +98,72 @@ def execute_opensearch_query(
         index=index,
     )
     return res["hits"]["hits"]
+
+def execute_search_after_search(
+    pit_id,
+    query: Dict = dict(),
+    source=False,
+    index="meta-index",
+    sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
+    start_from=1,
+    size=1000,
+) -> List:
+    """
+    Execute a search query using the search_after parameter for pagination.
+    
+    :param query: Query to execute
+    :param source: OpenSearch _source parameter
+    :param index: Index on which to execute the query
+    :param sort: Sort the results
+    :param start_from: The result start from (page number)
+    :param size: The result size (number of results per page)
+    :return: Aggregated search results
+    """
+    def _execute_search_after(selected_size, _source=False, search_after=None):
+        body = {
+            "query": query,
+            "_source": _source,
+            "sort": sort + [{"_id": "asc"}],  #add _id for unique search, otherwise search_after could sort after missing values.
+            "size": selected_size,
+            
+        }
+        if search_after:
+            body["search_after"] = search_after
+
+        res = OpenSearch(
+                hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
+            ).search(
+                body=body,
+                index=index,
+            )
+        return res
+    search_after = None
+    # import debugpy
+    # debugpy.listen(("localhost", 17777))
+    # debugpy.wait_for_client()
+    # debugpy.breakpoint()
+    start_from = (start_from - 1) * size
+    search_before = math.floor(start_from/MAX_RETURN_LIMIT)
+
+    for _ in range(search_before):
+        response = _execute_search_after(selected_size=MAX_RETURN_LIMIT, search_after=search_after)
+        hits = response['hits']['hits']
+        if not hits:
+            break
+        search_after = hits[-1]['sort']
+
+    #diff between selected page and hit count: 
+    missing = start_from - search_before*MAX_RETURN_LIMIT
+    if missing > 0:
+        response = _execute_search_after(selected_size=missing, search_after=search_after)
+        hits = response['hits']['hits']
+        if hits:
+            search_after = hits[-1]['sort']
+
+    #the final acuall wanted results including _source value        
+    response = _execute_search_after(selected_size=size, _source=source, search_after=search_after)
+    
+    return response["hits"]["hits"]
 
 
 def contains_numbers(s):

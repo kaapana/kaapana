@@ -154,7 +154,14 @@
                 :items="['asc', 'desc']"
                 label="Sort direction"
               ></v-select>
-            </v-col>        
+            </v-col> 
+            <v-col>
+              <v-checkbox
+                v-model="settings.datasets.executeSlicedSearch"
+                label="Slicing Search"
+              >
+              </v-checkbox>
+            </v-col>       
           </v-row>
           <v-row>
             <v-col>

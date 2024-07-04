@@ -38,7 +38,7 @@ app.add_middleware(middlewares.SecurityMiddleware)
 
 
 @app.on_event("startup")
-@repeat_every(seconds=float(os.getenv("AIRFLOW_SYNC_INTERVAL", 10.0)))
+@repeat_every(seconds=float(os.getenv("AIRFLOW_SYNC_INTERVAL", 5.0)))
 def periodically_sync_states_from_airflow():
     # From: https://github.com/dmontagu/fastapi-utils/issues/230
     # In the future also think about integrating celery, this might help with the issue of repeated execution: https://testdriven.io/blog/fastapi-and-celery/

@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from typing import List, Union
 import asyncio
 from threading import Thread
+from sqlalchemy import func
 
 from pathlib import Path
 import jsonschema
@@ -18,6 +19,7 @@ from app.dependencies import get_db
 from app.workflows import crud
 from app.workflows import schemas
 from app.config import settings
+from app.workflows import models
 from app.workflows.utils import get_dag_list
 from fastapi import (
     APIRouter,
@@ -284,13 +286,11 @@ def get_jobs(
 @router.put("/job", response_model=schemas.JobWithWorkflow)
 # changed JobWithKaapanaInstance to JobWithWorkflow
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
-    # return crud.update_job(db, job, remote=False)
     if job.status == "abort":
-        crud.abort_job(db, job, remote=False)
+        db_job = crud.get_job(db, job.job_id)
+        crud.abort_jobs_in_chunks([db_job], update_db_job=False)
         job.status = "failed"
-        return crud.update_job(db, job, remote=False)  # update db_job to failed
-    else:
-        return crud.update_job(db, job, remote=False)
+    return crud.bulk_update_jobs(db, [job])[0]  # update db_job to failed
 
 
 @router.delete("/job")
@@ -689,7 +689,7 @@ def get_workflow(
 
 # get_workflows
 @router.get(
-    "/workflows", response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
+    "/workflows", #response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
 )
 # also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
 def get_workflows(
@@ -700,43 +700,61 @@ def get_workflows(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
-    workflows = crud.get_workflows(
+    db_workflows = crud.get_workflows(
         db, instance_name, involved_instance_name, workflow_job_id, limit=limit
     )
-    for workflow in workflows:
-        if workflow.kaapana_instance:
-            workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-                workflow.kaapana_instance
+
+    db_job_status_counts = (
+        db.query(
+            models.Job.workflow_id,
+            models.Job.status,
+            func.count(models.Job.status).label('status_count')
+        )
+        .group_by(models.Job.workflow_id, models.Job.status)
+        .all()
+    )
+
+    status_counts_by_workflow = {}
+    for job_count in db_job_status_counts:
+        workflow_id = job_count.workflow_id
+        status = job_count.status
+        count = job_count.status_count
+        
+        if workflow_id not in status_counts_by_workflow:
+            status_counts_by_workflow[workflow_id] = []
+        
+        status_counts_by_workflow[workflow_id] += count*[status]
+
+    workflows = []
+    for db_workflow in db_workflows:
+        if db_workflow.kaapana_instance:
+            db_workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+                db_workflow.kaapana_instance
             )
-    return workflows  # , username=request.headers["x-forwarded-preferred-username"]
+        workflow = schemas.WorkflowWithKaapanaInstance.from_orm(db_workflow).dict()
+        workflow["workflow_jobs"] = status_counts_by_workflow.get(db_workflow.workflow_id, [])
+        workflows.append(workflow)
+    return workflows
 
 
 # put/update_workflow
 @router.put("/workflow", response_model=schemas.Workflow)
 def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
     if workflow.workflow_status == "abort":
-        # iterate over workflow's jobs and execute crud.abort_job() and crud.update_job() and at the end also crud.update_workflow()
-        db_workflow = crud.get_workflow(db, workflow.workflow_id)
-        for db_job in db_workflow.workflow_jobs:
-            # if (not db_workflow.federated and not db_job.kaapana_instance.remote) or (db_workflow.federated and "external_schema_federated_form" in db_job.conf_data):
-            if not db_job.kaapana_instance.remote:
-                # compose a JobUpdate schema, set it's status to 'abort' and execute client.py's put_job()
-                job = schemas.JobUpdate(
-                    **{
-                        "job_id": db_job.id,
-                        "status": "abort",
-                        "description": "The job was aborted by the user!",
-                    }
-                )
-
-                if db_job.status in ["queued", "scheduled", "running"]:
-                    # put_job(job, db)  # would be easier but doesn't work, so let's do it manually
-                    crud.abort_job(db, job, remote=False)
-                    job.status = "failed"
-                    crud.update_job(db, job, remote=False)  # update db_job to failed
-
-        # update aborted workflow
-        return crud.update_workflow(db, workflow)
+        db_jobs_to_abort = (
+            db.query(models.Job)
+            .join(models.KaapanaInstance, models.Job.kaapana_instance)  # Join with the KaapanaInstance table
+            .filter(models.Job.workflow_id == workflow.workflow_id)
+            .filter(models.Job.status.in_(["queued", "running"]))
+            .filter(models.KaapanaInstance.remote == False)  # Add the filter for kaapana_instance.remote
+            .all()
+        )
+        Thread(
+            target=crud.abort_jobs_in_chunks,
+            args=(db_jobs_to_abort,)
+        ).start()
+        return "Jobs will be aborted"
+    
     elif (
         workflow.workflow_status == "scheduled"
         or workflow.workflow_status == "confirmed"

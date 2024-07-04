@@ -257,15 +257,9 @@ def get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_pat
     )
     if drop_duplicate_studies:
         df_filtered = df[df["Series Instance UID"].isin(identifiers)]
-        study_instance_uids = df_filtered["Study Instance UID"].tolist()
-        df_tagging = df[df["Study Instance UID"].isin(study_instance_uids)][["Series Instance UID", "Tags"]]
         df = df_filtered.drop_duplicates("Study Instance UID")
     elif drop_duplicated_patients:
         df_filtered = df[df["Series Instance UID"].isin(identifiers)]
-        patient_ids = df_filtered["Patient ID"].tolist()
-        df_tagging = df[df["Patient ID"].isin(patient_ids)][["Series Instance UID", "Tags"]]
         df = df_filtered.drop_duplicates("Patient ID")
-    else:
-        df_tagging = df[["Series Instance UID", "Tags"]]
 
-    return df.set_index("Series Instance UID").to_dict(orient="index"), df_tagging.set_index("Series Instance UID")["Tags"].to_dict()
+    return df.set_index("Series Instance UID").to_dict(orient="index")

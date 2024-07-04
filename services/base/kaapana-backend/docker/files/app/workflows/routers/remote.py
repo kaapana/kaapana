@@ -84,7 +84,7 @@ def get_jobs(
 # response_model should only return what is nessary (e.g. probably only success)
 @router.put("/job", response_model=schemas.JobWithKaapanaInstance)
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
-    job = crud.update_job(db, job, remote=True)
+    job = crud.bulk_update_jobs(db, [job], remote=True)
     if job.kaapana_instance:
         job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
             job.kaapana_instance

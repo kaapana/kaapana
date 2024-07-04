@@ -20,7 +20,7 @@ from time import sleep
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
 
-TIMEOUT_SEC = 5
+TIMEOUT_SEC = 30
 TIMEOUT = Timeout(TIMEOUT_SEC)
 
 
@@ -255,14 +255,14 @@ def check_dag_id_and_dataset(
     return None
 
 
-def execute_job_airflow(conf_data, db_job):
+def execute_job_airflow(db_job):
     with requests.Session() as s:
         resp = requests_retry_session(session=s).post(
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/trigger/{db_job.dag_id}",
             timeout=TIMEOUT,
             json={
                 "conf": {
-                    **conf_data,
+                    **db_job.conf_data,
                 },
                 "run_id": db_job.run_id,
             },
@@ -271,20 +271,17 @@ def execute_job_airflow(conf_data, db_job):
     return resp
 
 
-def abort_job_airflow(dag_id, dag_run_id, status="failed"):
+def abort_job_airflow(run_ids, status="failed"):
     with requests.Session() as s:
         resp = requests_retry_session(session=s).post(
-            f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/abort/{dag_id}/{dag_run_id}",
-            timeout=TIMEOUT,
-            json={
-                "dag_id": dag_id,
-                "state": status,
-                # "state": {
-                #     **status,
-                # },
-            },
-        )
-    # raise_kaapana_connection_error(resp)
+            f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/abort",
+            timeout=Timeout(60),
+                json={
+                    "state": status,
+                    "run_ids": run_ids,
+                }
+            )
+    raise_kaapana_connection_error(resp)
     return resp
 
 
@@ -292,7 +289,7 @@ def get_dagrun_tasks_airflow(dag_id, dag_run_id):
     with requests.Session() as s:
         resp = requests_retry_session(session=s).post(
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/get_dagrun_tasks/{dag_id}/{dag_run_id}",
-            timeout=TIMEOUT,
+            timeout=Timeout(60),
             json={
                 "dag_id": dag_id,
             },
@@ -301,14 +298,17 @@ def get_dagrun_tasks_airflow(dag_id, dag_run_id):
     return resp
 
 
-def get_dagrun_details_airflow(dag_id, dag_run_id):
+def get_dagrun_details_airflow(run_ids):
+    url = f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/dagdetails"
+    payload = {"run_ids": run_ids}
+    
     with requests.Session() as s:
-        resp = requests_retry_session(session=s).get(
-            f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/dagdetails/{dag_id}/{dag_run_id}",
+        resp = requests_retry_session(session=s).post(
+            url,
+            json=payload,
             timeout=TIMEOUT,
         )
-    # connection error handled in function call
-    # raise_kaapana_connection_error(resp)
+    raise_kaapana_connection_error(resp)
     return resp
 
 
@@ -331,7 +331,7 @@ def get_dagruns_airflow(states):
         with requests.Session() as s:
             resp = requests_retry_session(session=s).post(
                 f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/getdagruns",
-                timeout=TIMEOUT,
+                timeout=Timeout(60),
                 json={
                     "state": status,
                 },

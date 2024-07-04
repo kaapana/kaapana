@@ -207,31 +207,28 @@ def create_and_update_client_kaapana_instance(
                 ]
                 meta_information = {}
                 # Todo add here unique studies and patients to the db_dataset object!
-                meta_data, tagging = get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=False)
+                meta_data = get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=False)
                 dataset["identifiers_count"] = len(meta_data)
                 meta_information.update({
                     "identifiers": {
                         "identifiers": list(meta_data.keys()),
                         "meta_data": meta_data,
-                        "tagging_series_uids": list(tagging.keys())
                     }
                 })
-                meta_data, tagging = get_meta_data(identifiers, drop_duplicate_studies=True, drop_duplicated_patients=False)
+                meta_data = get_meta_data(identifiers, drop_duplicate_studies=True, drop_duplicated_patients=False)
                 dataset["series_uids_with_unique_study_uids_count"] = len(meta_data)
                 meta_information.update({
                     "series_uids_with_unique_study_uids_count": {
                         "identifiers": list(meta_data.keys()),
                         "meta_data": meta_data,
-                        "tagging_series_uids": list(tagging.keys())
                     }
                 })
-                meta_data, tagging = get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=True)
+                meta_data = get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=True)
                 dataset["series_ids_with_unique_patient_ids_count"] = len(meta_data)
                 meta_information.update({
                     "series_ids_with_unique_patient_ids_count": {
                         "identifiers": list(meta_data.keys()),
                         "meta_data": meta_data,
-                        "tagging_series_uids": list(tagging.keys())
                     }
                 })
                 db_dataset.meta_information = meta_information
@@ -426,7 +423,7 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
                 "description": "The workflow was triggered!",
             }
         )
-        update_job(db, job, remote=False)
+        bulk_update_jobs(db, [job])
 
     return db_job
 
@@ -556,19 +553,19 @@ def get_jobs(
         # explanation: db.query(models.Job) returns a Query object; .join() creates more narrow Query objects ; filter_by() applies the filter criterion to the remaining Query (source: https://docs.sqlalchemy.org/en/14/orm/query.html#sqlalchemy.orm.Query)
 
 
-def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
+def prepare_job_update(db_job, job, remote=False):
     utc_timestamp = get_utc_timestamp()
-
-    db_job = get_job(db, job.job_id, job.run_id)
-
     # update remote jobs in local db (def update_job() called from remote.py's def put_job() with remote=True)
-    if db_job.kaapana_instance.remote and remote:
-        db_job.status = job.status
+    # if db_job.kaapana_instance.remote and remote:
+    #     db_job.status = job.status
 
     if job.status == "restart":
         db_job.run_id = generate_run_id(db_job.dag_id)
-        job.status = "scheduled"
-    if job.status == "scheduled" and db_job.kaapana_instance.remote == False:
+        db_job.status = "scheduled"
+    else:
+        db_job.status = job.status
+    
+    if db_job.status == "scheduled" and db_job.kaapana_instance.remote == False:
         # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = db_job.conf_data
         conf_data["client_job_id"] = db_job.id
@@ -579,40 +576,8 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
             db_job.owner_kaapana_instance_name,
         )
         if dag_id_and_dataset is not None:
-            job.status = "failed"
-            job.description = dag_id_and_dataset
-        else:
-            airflow_execute_resp = execute_job_airflow(conf_data, db_job)
-            airflow_execute_resp_text = json.loads(airflow_execute_resp.text)
-            dag_id = airflow_execute_resp_text["message"][1]["dag_id"]
-            dag_run_id = airflow_execute_resp_text["message"][1]["run_id"]
-            db_job.dag_id = dag_id  # write directly to db_job to already use db_job.dag_id before db commit
-            db_job.run_id = dag_run_id
-
-    # check state and run_id for created or queued, scheduled, running jobs on local instance
-    if db_job.run_id is not None and db_job.kaapana_instance.remote == False:
-        # ask here first time Airflow for job status (explicit w/ job_id) via kaapana_api's def dag_run_status()
-        airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
-        if not airflow_details_resp.ok:
-            # request to airflow results in response != 200 ==> error!
-            # set db_job manually to deleted
-            logging.error(
-                f"Couldn't find db_job {db_job.id} in airlfow ==> will set db_job to 'deleted'."
-            )
-            db_job.status = "deleted"
-            db_job.time_updated = utc_timestamp
-            db.commit()
-            db.refresh(db_job)
-            raise_kaapana_connection_error(airflow_details_resp)
-            return db_job
-        airflow_details_resp_text = json.loads(airflow_details_resp.text)
-        # update db_job w/ job's real state and run_id fetched from Airflow ; special case for status = "success"
-        db_job.status = (
-            "finished"
-            if airflow_details_resp_text["state"] == "success"
-            else airflow_details_resp_text["state"]
-        )
-        db_job.run_id = airflow_details_resp_text["run_id"]
+            db_job.status = "failed"
+            db_job.description = dag_id_and_dataset
 
     # if (db_job.kaapana_instance.remote != remote) and db_job.status not in [
     #     "queued",
@@ -629,26 +594,73 @@ def update_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
     if job.description is not None:
         db_job.description = job.description
     db_job.time_updated = utc_timestamp
-    update_external_job(db, db_job)
-    db.commit()
-    db.refresh(db_job)
-
     return db_job
 
+def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate], remote=False):
+    job_ids = [job.job_id for job in jobs]
+    
+    db_jobs = db.query(models.Job).filter(models.Job.id.in_(job_ids)).all()
+    job_map = {job.id: job for job in db_jobs}
+    update_data = []
 
-def abort_job(db: Session, job=schemas.JobUpdate, remote: bool = True):
-    utc_timestamp = get_utc_timestamp()
-    db_job = get_job(db, job.job_id)
+    for job in jobs:
+        db_job = job_map.get(job.job_id)
+        if db_job:
+            try:
+                prepared_job = prepare_job_update(db_job, job, remote=remote)
+                update_external_job(db, db_job)
+                update_data.append(prepared_job)
+            except Exception as e:
+                print(f"Failed to update job {job.job_id}: {str(e)}")
+                continue  # Optionally, you can log or handle errors for individual job updates
 
-    airflow_details_resp = get_dagrun_details_airflow(db_job.dag_id, db_job.run_id)
-    if airflow_details_resp.status_code == 200:
-        # repsonse.text of abort_job_airflow usused in backend but might be valuable for debugging
-        abort_job_airflow(db_job.dag_id, db_job.run_id, "failed")
-        # abort_job_airflow(airflow_details_resp.text["dag_id"], airflow_details_resp.text["run_id"], "failed") # db_job.status
-    else:
-        logging.error(
-            f"No dag_run in Airflow with dag_id '{db_job.dag_id}' and run_id '{db_job.run_id}'."
+    # Bulk save objects
+    if update_data:
+        db.bulk_save_objects(update_data)
+        db.commit()
+
+
+    for db_job in update_data:
+        if db_job.status == "scheduled":
+            try:
+                airflow_execute_resp = execute_job_airflow(db_job)
+            except Exception as e:
+                print(f"Failed to execute job {db_job.id}: {str(airflow_execute_resp)}")
+                job = schemas.JobUpdate(**{
+                        "job_id": db_job.id,
+                        "status": "failed",
+                        "description": "Failed to execute job"
+                })
+                bulk_update_jobs(
+                    db, [job]
+                )
+    return update_data
+
+
+def abort_jobs_in_chunks(db_jobs_to_abort, update_db_job=True):
+    run_ids = []
+    job_updates = []
+    for db_job in db_jobs_to_abort:
+        run_ids.append(db_job.run_id)
+        job_updates.append(
+            schemas.JobUpdate(
+                **{
+                    "job_id": db_job.id,
+                    "status": "failed",
+                    "description": "Job was aborted!",
+                }
+            )
         )
+
+    try:
+        abort_job_airflow(run_ids)
+    except Exception as e:
+        logging.error(f"Failed to abort jobs: {str(e)}")
+        return {"error": str(e)}
+
+    if update_db_job:
+        with SessionLocal() as db:
+            bulk_update_jobs(db, job_updates)
 
 
 def get_job_taskinstances(db: Session, job_id: int = None):
@@ -902,19 +914,15 @@ def get_remote_updates(db: Session, periodically=False):
                 if drop_duplicate_studies:
                     identifiers = db_dataset.meta_information["series_uids_with_unique_study_uids_count"]["identifiers"]
                     meta_data = db_dataset.meta_information["series_uids_with_unique_study_uids_count"]["meta_data"]
-                    tagging_series_uids = db_dataset.meta_information["series_uids_with_unique_study_uids_count"]["tagging_series_uids"]
                 elif drop_duplicated_patients:
                     identifiers = db_dataset.meta_information["series_ids_with_unique_patient_ids_count"]["identifiers"]
                     meta_data = db_dataset.meta_information["series_ids_with_unique_patient_ids_count"]["meta_data"]
-                    tagging_series_uids = db_dataset.meta_information["series_ids_with_unique_patient_ids_count"]["tagging_series_uids"]
                 else:
                     identifiers = db_dataset.meta_information["identifiers"]["identifiers"]
                     meta_data = db_dataset.meta_information["identifiers"]["meta_data"]
-                    tagging_series_uids = db_dataset.meta_information["identifiers"]["tagging_series_uids"]
 
                 incoming_job["conf_data"]["data_form"]["identifiers"] = [identifiers[idx] for idx in incoming_job["conf_data"]["data_form"]["identifiers"]]
                 incoming_job["conf_data"]["data_form"]["meta_data"] = [meta_data[identifier] for identifier in incoming_job["conf_data"]["data_form"]["identifiers"]]
-                incoming_job["conf_data"]["data_form"]["tagging_series_uids"] = tagging_series_uids
 
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
             incoming_job["owner_kaapana_instance_name"] = (
@@ -951,23 +959,26 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
     # get list from airflow for jobs in status=status: {'dag_run_id': 'state'} -> airflow_jobs_in_qsr_state
     airflow_jobs_in_state = get_dagruns_airflow(tuple([status]))
     # get list from db with all db_jobs in status=status
-    db_jobs_in_state = get_jobs(db, status=status)
+    db_jobs_in_state = (
+        db.query(models.Job.id, models.Job.run_id, models.KaapanaInstance.remote)
+        .join(models.Job.kaapana_instance)
+        .filter(models.Job.status == status)
+        .all()
+    )
 
-    # find elements which are in current airflow_jobs_runids but not in db_jobs_runids from previous round
-    diff_airflow_to_db = [
-        job
-        for job in airflow_jobs_in_state
-        if job["run_id"] not in [db_job.run_id for db_job in db_jobs_in_state]
-    ]
-    # find elements which are in db_jobs_runids from previous round but not in current airflow_jobs_runids
-    diff_db_to_airflow = [
-        db_job
-        for db_job in db_jobs_in_state
-        if db_job.run_id not in [job["run_id"] for job in airflow_jobs_in_state]
-    ]
+    # Convert list of run_id to sets for faster membership checks
+    airflow_run_ids = {job["run_id"] for job in airflow_jobs_in_state}
+    db_run_ids = {db_job.run_id for db_job in db_jobs_in_state}
+
+    # Find elements which are in current airflow_jobs_runids but not in db_jobs_runids from previous round
+    diff_airflow_to_db = [job for job in airflow_jobs_in_state if job["run_id"] not in db_run_ids]
+
+    # Find elements which are in db_jobs_runids from previous round but not in current airflow_jobs_runids
+    diff_db_to_airflow = [db_job for db_job in db_jobs_in_state if db_job.run_id not in airflow_run_ids]
 
     if len(diff_airflow_to_db) > 0:
         # request airflow for states of all jobs in diff_airflow_to_db && update db_jobs of all jobs in diff_airflow_to_db
+        jobs_to_update = []
         for diff_job_af in diff_airflow_to_db:
             # get db_job from db via 'run_id' (fails for all airflow jobs which aren't user-created aka service-jobs)
             db_job = get_job(db, run_id=diff_job_af["run_id"])
@@ -976,9 +987,10 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 job_update = schemas.JobUpdate(
                     **{
                         "job_id": db_job.id,
+                        "status": status,
                     }
                 )
-                update_job(db, job_update, remote=False)
+                jobs_to_update.append(job_update)
             else:
                 # should only go into this condition for service-job
                 create_and_update_service_workflows_and_jobs(
@@ -987,21 +999,36 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                     diff_job_runid=diff_job_af["run_id"],
                     status=status,
                 )
+        bulk_update_jobs(db, jobs_to_update)
+
     elif len(diff_db_to_airflow) > 0:
-        # request airflow for states of all jobs in diff_db_to_airflow && update db_jobs of all jobs in diff_db_to_airflow
+        run_ids = [diff_db_job.run_id for diff_db_job in diff_db_to_airflow if diff_db_job.run_id is not None and diff_db_job.remote is False]
+        # Get diff states:
+        try:
+            resp = get_dagrun_details_airflow(run_ids)
+        except Exception as e:
+            logging.error(f"Error while syncing kaapana-backend with Airflow: {e}")
+            return
+        resp = json.loads(resp.text)
+
+        # update db_jobs of all jobs in diff_db_to_airflow
+        jobs_to_update = []
         for diff_db_job in diff_db_to_airflow:
-            if diff_db_job.run_id is None:
-                logging.debug(
-                    "Remote db_job --> created to be executed on remote instance!"
-                )
-                continue
             # update db_job w/ updated state
-            job_update = schemas.JobUpdate(
-                **{
-                    "job_id": diff_db_job.id,
-                }
-            )
-            update_job(db, job_update, remote=False)
+            if diff_db_job.run_id in resp:
+                job_update = schemas.JobUpdate(
+                    **{
+                        "job_id": diff_db_job.id,
+                        "status": (
+                            "finished"
+                            if resp[diff_db_job.run_id]["state"] == "success"
+                            else resp[diff_db_job.run_id]["state"]
+                        ),
+                    }
+                )
+                jobs_to_update.append(job_update)
+        bulk_update_jobs(db, jobs_to_update)
+
     elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
         pass  # airflow and db in sync :)
     else:
@@ -1105,28 +1132,6 @@ def create_and_update_service_workflows_and_jobs(
             )
             db_service_workflow = put_workflow_jobs(db, workflow_update)
             logging.info(f"Updated service workflow: {db_service_workflow}")
-
-
-def sync_n_clean_qsr_jobs_with_airflow(db: Session, periodically=False):
-    """
-    Function to clean up unsuccessful synced jobs between airflow and backend.
-    Function asks in backend for jobs in states 'queued', 'scheduled', 'running', asks Airflow for their real status and updates them.
-    """
-    # get db_jobs in states "queued", "scheduled", "running"
-    db_jobs_queued = get_jobs(db, status="queued")
-    db_jobs_scheduled = get_jobs(db, status="scheduled")
-    db_jobs_running = get_jobs(db, status="running")
-    db_jobs_qsr = db_jobs_queued + db_jobs_scheduled + db_jobs_running
-
-    # iterate over db_jobs_qsr
-    for db_job in db_jobs_qsr:
-        # call crud.update job fpr each db_job in list to sync it's state from airflow
-        job_update = schemas.JobUpdate(
-            **{
-                "job_id": db_job.id,
-            }
-        )
-        update_job(db, job_update, remote=False)
 
 
 def create_or_get_identifier(db: Session, identifier: string) -> models.Identifier:
@@ -1356,6 +1361,7 @@ def thread_create_objects_and_trigger_workflows(jobs_to_create_list: List, workf
             db_workflow = put_workflow_jobs(db, workflow)
 
         if db_workflow.automatic_execution:
+            jobs_to_update = []
             for db_job in db_jobs:
                 job = schemas.JobUpdate(
                     **{
@@ -1364,10 +1370,9 @@ def thread_create_objects_and_trigger_workflows(jobs_to_create_list: List, workf
                         "description": "The workflow was triggered!",
                     }
                 )
-                try:
-                    update_job(db, job, remote=False)
-                except Exception as e:
-                    logging.error(f"Error in thread_trigger_workflows: {e}")
+                jobs_to_update.append(job)
+            bulk_update_jobs(db, jobs_to_update)
+        return db_jobs
 
 
 def queue_generate_jobs_and_add_to_workflow(
@@ -1445,15 +1450,13 @@ def queue_generate_jobs_and_add_to_workflow(
         
         if "data_form" in conf_data and "identifiers" in conf_data["data_form"]:
             # Local instance
-            meta_data, tagging = get_meta_data(
+            meta_data = get_meta_data(
                 conf_data["data_form"]["identifiers"],
                 drop_duplicate_studies,
                 drop_duplicated_patients,
             )
-            tagging = list(tagging.keys())
             conf_data["data_form"]["identifiers"] = list(meta_data.keys())
             conf_data["data_form"]["meta_data"] = meta_data
-            conf_data["data_form"]["tagging_series_uids"] = tagging
 
             # TODO dag running tagging for running series_uids
             # os_processor.queue_operations(instance_ids=tagging, dags_running=[json_schema_data.dag_id])
@@ -1581,12 +1584,16 @@ def get_workflows(
         )  # , aliased=True
 
 
+def thread_bulk_update_jobs(jobs_to_update: List):
+    with SessionLocal() as db:
+        bulk_update_jobs(db, jobs_to_update)
+
+
 def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
     db_local_kaapana_instance = get_kaapana_instance(db)
 
     db_workflow = get_workflow(db, workflow.workflow_id)
-
     if (
         db_workflow.federated
         and workflow.workflow_status != "abort"
@@ -1603,7 +1610,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                 "status": "scheduled",
             }
         )
-        update_job(db, job, remote=False)
+        bulk_update_jobs(db, [job], remote=False)
         return db_workflow
 
     if workflow.workflow_status == "confirmed":
@@ -1612,6 +1619,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
 
     if workflow.workflow_status != "abort":  # usually 'scheduled' or 'confirmed'
         # iterate over db_jobs in db_workflow ...
+        jobs_to_update = []
         for db_workflow_current_job in db_workflow.workflow_jobs:
             # either update db_jobs on own kaapana_instance
             if (
@@ -1635,8 +1643,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                                 "description": "The worklow was triggered!",
                             }
                         )
-                        # def update_job() expects job of class schemas.JobUpdate
-                        update_job(db, job, remote=False)
+                        jobs_to_update.append(job)
                     else:
                         logging.warning("Job is not failed, not restarting the job!")
                 else:
@@ -1647,8 +1654,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                             "description": "The worklow was triggered!",
                         }
                     )
-                    # def update_job() expects job of class schemas.JobUpdate
-                    update_job(db, job, remote=False)
+                    jobs_to_update.append(job)
             # or update db_jobs on remote kaapana_instance
             elif (
                 db_workflow.kaapana_instance.remote is True
@@ -1666,6 +1672,10 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                     detail="Job updating while updating the workflow failed!",
                 )
 
+        Thread(
+            target=thread_bulk_update_jobs,
+            args=(jobs_to_update,)
+        ).start()
         # do call to remote's experiment to start jobs there
         # extract all remote involved_instances of workflow
         involved_instances = db_workflow.involved_kaapana_instances.strip("{}").split(
@@ -1759,14 +1769,23 @@ def delete_workflow(db: Session, workflow_id: str):
     db_workflow = get_workflow(db, workflow_id)
 
     # iterate over jobs of to-be-deleted workflow
+    count = 0
     for db_workflow_current_job in db_workflow.workflow_jobs:
         if db_workflow_current_job.status not in ["queued", "scheduled", "running"]:
             # deletes local and remote jobs
             delete_job(db, job_id=db_workflow_current_job.id, remote=False)
+            count = count + 1
     if not db_workflow.workflow_jobs:
         db.delete(db_workflow)
         db.commit()
-    return {"ok": True}
+        return {
+            "type": "success",
+            "title": "Successfully deleted workflow with all its jobs."
+        }
+    return {
+        "type": "warning",
+        "title": f"Deleted {count} jobs! To delete the workflow first abort all jobs or wait until they are finished."
+    }
 
 
 def delete_workflows(db: Session):

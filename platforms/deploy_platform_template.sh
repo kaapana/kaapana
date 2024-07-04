@@ -174,7 +174,13 @@ function get_domain {
         SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
         echo -e "${YELLOW}SERVER_IP: $SERVER_IP${NC}";
         echo -e "${YELLOW}NS lookup DOMAIN ...${NC}";
-        DOMAIN=$(nslookup $SERVER_IP | head -n 1 | awk -F '= ' '{print $2}')
+        # get nslookup result, use || true to ensure script doesn't exit immediately is cmd fails
+        NSLOOKUP_RESULT=$(nslookup "$SERVER_IP" || true)
+        if [[ -z "$NSLOOKUP_RESULT" || "$NSLOOKUP_RESULT" == *"server can't find"* ]]; then
+            echo -e "NS lookup failed, could not determine DOMAIN from SERVER_IP. Run the script with explicit domain name: ./deploy_platform.sh --domain <domain-name>"
+            exit 1
+        fi
+        DOMAIN=$(echo "$NSLOOKUP_RESULT" | head -n 1 | awk -F '= ' '{print $2}')
         DOMAIN=${DOMAIN%.*}
         echo -e "${YELLOW}DOMAIN: $DOMAIN${NC}";
     else
@@ -211,6 +217,10 @@ function delete_deployment {
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
+        if [ "$idx" -eq 2 ]; then
+            echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
+            helm -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "helm -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
+        fi
         DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
         echo -e ""
@@ -848,10 +858,11 @@ nvidia-smi
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
+_Flag: --undeploy undeploys the current platform
+_Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
 _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
-_Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
 _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
 _Flag: --quiet, meaning non-interactive operation
 _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)

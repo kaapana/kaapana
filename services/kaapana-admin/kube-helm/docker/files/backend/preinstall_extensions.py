@@ -78,22 +78,21 @@ for extension in preinstall_extensions:
         if "keywords" in chart and "kaapanaplatform" in chart["keywords"]:
             is_platform = True
 
-        # if chart is kaapana-platform, ensure it is not stuck in 'uninstalling' state from prev. deployment
-        platform_name = "kaapana-platform-chart"
-        if chart["name"] == platform_name:
-            platform_status = helm_status(platform_name)
-            if (
-                len(platform_status) != 0
-                and platform_status["STATUS"] == "uninstalling"
-            ):
-                # if it is stuck in uninstalling, delete with --no-hooks
-                logger.error(
-                    f"{platform_name} stuck in uninstall from previous deployment"
-                )
-                logger.info(f"Deleting {platform_name}")
-                execute_shell_command(
-                    f"{settings.helm_path} uninstall {release_name} --no-hooks"
-                )
+        # if chart is stuck in 'uninstalling' state, uninstall with --no-hooks
+        chart_name = chart["name"]
+        chart_status = helm_status(chart_name)
+        if (
+            len(chart_status) != 0
+            and chart_status["STATUS"] == "uninstalling"
+        ):
+            # if it is stuck in uninstalling, delete with --no-hooks
+            logger.warning(
+                f"{chart_name} stuck in 'uninstalling' status"
+            )
+            logger.info(f"Deleting {chart_name} with --no-hooks")
+            execute_shell_command(
+                f"{settings.helm_path} uninstall {chart_name} --no-hooks"
+            )
 
         success, _, _, release_name, _ = helm_install(
             extension,

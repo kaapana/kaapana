@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.WARNING)  # TODO: Change before deployment
 
 
 async def proxy_request(
-    request: Request, path: str, method: str, base_url=DICOMWEB_BASE_URL
+    request: Request, path: str, method: str, base_url=DICOMWEB_BASE_URL, timeout=10
 ):
     url = f"{base_url}{path}"
     headers = dict(request.headers)
@@ -18,6 +18,9 @@ async def proxy_request(
     logger.info(f"Request method: {method}")
 
     async with httpx.AsyncClient() as client:
+
+        client.timeout = timeout  # Set timeout for the client
+
         if method == "GET":
             logging.info(f"Query params: {request.query_params}")
             response = await client.get(

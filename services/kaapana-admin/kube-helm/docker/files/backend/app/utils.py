@@ -253,7 +253,7 @@ def helm_install(
     blocking=True,
     platforms=False,
     execute_cmd=True,
-) -> Tuple[bool, str, dict, str]:
+) -> Tuple[bool, str, dict, str, str]:
     # TODO: must be shell=False as default
     """
 

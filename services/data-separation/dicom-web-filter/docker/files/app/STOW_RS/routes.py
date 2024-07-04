@@ -1,12 +1,15 @@
 from fastapi import APIRouter, Request, Depends
 from ..proxy_request import proxy_request
 from . import crud
+from sqlalchemy.exc import IntegrityError
 import json
 from ..database import get_session
 from .. import config
 from sqlalchemy.ext.asyncio import AsyncSession
+import logging
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/studies", tags=["STOW-RS"])
@@ -25,14 +28,18 @@ async def store_instances(
     )
 
     for series_instance_uid in clinical_trial_protocol_info:
-        await crud.add_dicom_data(
-            session,
-            series_instance_uid=series_instance_uid,
-            study_instance_uid=clinical_trial_protocol_info[series_instance_uid][
-                "study_instance_uid"
-            ],
-            description="Dicom data",
-        )
+        try:
+            await crud.add_dicom_data(
+                session,
+                series_instance_uid=series_instance_uid,
+                study_instance_uid=clinical_trial_protocol_info[series_instance_uid][
+                    "study_instance_uid"
+                ],
+                description="Dicom data",
+            )
+        except IntegrityError as e:
+            await session.rollback()
+            logger.warning(f"{series_instance_uid=} already exists in the database")
 
     return await proxy_request(request, "/studies", "POST")
 

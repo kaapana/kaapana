@@ -9,7 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
 
 from app.config import settings
 from app.utils import all_successful, helm_install, helm_status
-from app.helm_helper import get_kube_objects, helm_show_chart
+from app.helm_helper import get_kube_objects, helm_show_chart, execute_shell_command
 
 
 logger = logging.getLogger("fastapi")
@@ -77,6 +77,23 @@ for extension in preinstall_extensions:
         is_platform = False
         if "keywords" in chart and "kaapanaplatform" in chart["keywords"]:
             is_platform = True
+
+        # if chart is stuck in 'uninstalling' state, uninstall with --no-hooks
+        chart_name = chart["name"]
+        chart_status = helm_status(chart_name)
+        if (
+            len(chart_status) != 0
+            and chart_status["STATUS"] == "uninstalling"
+        ):
+            # if it is stuck in uninstalling, delete with --no-hooks
+            logger.warning(
+                f"{chart_name} stuck in 'uninstalling' status"
+            )
+            logger.info(f"Deleting {chart_name} with --no-hooks")
+            execute_shell_command(
+                f"{settings.helm_path} uninstall {chart_name} --no-hooks"
+            )
+
         success, _, _, release_name, _ = helm_install(
             extension,
             shell=True,

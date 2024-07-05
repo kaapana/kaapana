@@ -28,6 +28,7 @@ async def store_instances(
     )
 
     for series_instance_uid in clinical_trial_protocol_info:
+        # Add the dicom data to the database
         try:
             await crud.add_dicom_data(
                 session,
@@ -40,6 +41,19 @@ async def store_instances(
         except IntegrityError as e:
             await session.rollback()
             logger.warning(f"{series_instance_uid=} already exists in the database")
+        
+        # Map the dicom data to the project
+        try:
+            await crud.add_data_project_mapping(
+                session,
+                series_instance_uid=series_instance_uid,
+                project_id=config.DEFAULT_PROJECT_ID,
+            )
+        except IntegrityError as e:
+            await session.rollback()
+            logger.warning(
+                f"{series_instance_uid=} already exists in the project mapping"
+            )
 
     return await proxy_request(request, "/studies", "POST")
 

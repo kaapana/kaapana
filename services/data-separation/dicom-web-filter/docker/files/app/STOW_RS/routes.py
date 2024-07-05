@@ -12,10 +12,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.post("/studies", tags=["STOW-RS"])
-async def store_instances(
-    request: Request, session: AsyncSession = Depends(get_session)
-):
+async def map_dicom_series_to_project(session: AsyncSession, request: Request):
 
     # TODO: Get the external project ID from the request
     # TODO: Check if the external project already exists in the database
@@ -23,6 +20,7 @@ async def store_instances(
     # TODO: If no external project ID is provided safe the data in the default (admin) project
 
     # Extract the 'clinical_trial_protocol_info' query parameter
+    # This parameter was set in the dcmweb helper 
     clinical_trial_protocol_info = json.loads(
         request.query_params.get("clinical_trial_protocol_info")
     )
@@ -41,7 +39,7 @@ async def store_instances(
         except IntegrityError as e:
             await session.rollback()
             logger.warning(f"{series_instance_uid=} already exists in the database")
-        
+
         # Map the dicom data to the project
         try:
             await crud.add_data_project_mapping(
@@ -55,6 +53,14 @@ async def store_instances(
                 f"{series_instance_uid=} already exists in the project mapping"
             )
 
+
+@router.post("/studies", tags=["STOW-RS"])
+async def store_instances(
+    request: Request, session: AsyncSession = Depends(get_session)
+):
+
+    await map_dicom_series_to_project(session, request)
+
     return await proxy_request(request, "/studies", "POST")
 
 
@@ -62,4 +68,6 @@ async def store_instances(
 async def store_instances_in_study(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
+    await map_dicom_series_to_project(session, request)
+
     return await proxy_request(request, f"/studies/{study}", "POST")

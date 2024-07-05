@@ -22,15 +22,27 @@ def process_input_file(paras):
     global execution_timeout, input_file_extension, convert_to
     input_filepaths, element_output_dir = paras
 
+    SeriesInstanceUIDs = []
+    total = 0
+    existing = 0
+    converted = 0
+    errors = 0
+
     for input_filepath in input_filepaths:
-        incoming_dcm_series_id = str(pydicom.dcmread(input_filepath).SeriesInstanceUID)
-        output_filepath = join(
-            element_output_dir, f"{incoming_dcm_series_id}.{convert_to}"
-        )
-        print(
-            f"# Starting conversion: {basename(input_filepath)} -> {basename(output_filepath)}"
-        )
-        if not exists(output_filepath):
+        ds = pydicom.dcmread(input_filepath, specific_tags=['SeriesInstanceUID'], stop_before_pixels=True)
+        if ds.SeriesInstanceUID not in SeriesInstanceUIDs:
+            SeriesInstanceUIDs.append(ds.SeriesInstanceUID)
+            total += 1
+
+            print('Found new SeriesInstanceUID: ' + ds.SeriesInstanceUID)
+
+            output_filepath = join(element_output_dir, f"{ds.SeriesInstanceUID}.{convert_to}")
+
+            if exists(output_filepath):
+                print(f"# {basename(output_filepath)} already exists!")
+                existing += 1
+                continue
+
             command = [
                 "/kaapana/app/MitkFileConverter.sh",
                 "-i",
@@ -45,48 +57,24 @@ def process_input_file(paras):
                 universal_newlines=True,
                 timeout=execution_timeout,
             )
-            # command stdout output -> output.stdout
-            # command stderr output -> output.stderr
-            if output.returncode != 0:
-                print("#")
-                print("##################################################")
-                print("#")
-                print("##################  ERROR  #######################")
-                print("#")
-                print("# ----> Something went wrong with the shell-execution!")
-                print(f"# Command:  {command}")
-                print(f"# input_filepath:  {input_filepath}")
-                print(f"# output_filepath: {output_filepath}")
-                print("#")
-                print(f"# STDERR: {output.stderr}")
-                print("#")
-                print("##################################################")
-                print("#")
-                return False, input_filepath
-            elif output.returncode == 0 and input_file_extension == "dcm":
-                target_files = glob(join(dirname(output_filepath), f"*.{convert_to}"))
-                if len(target_files) != 1:
-                    print("#")
-                    print("##################################################")
-                    print("#")
-                    print("##################  ERROR  #######################")
-                    print("#")
-                    print("# ----> Something went wrong!")
-                    print(f"# input_filepath:  {input_filepath}")
-                    print(f"# output_filepath: {output_filepath}")
-                    print("#")
-                    print(
-                        f"# -> found {len(target_files)} files in target_dir -> error"
-                    )
-                    print("#")
-                    print("##################################################")
-                    print("#")
-        else:
-            print(f"# Target already exists -> skipping ")
 
-        if input_file_extension == "dcm":
-            print("# Dicom -> only one slice needed -> break")
-            break
+            if output.returncode != 0:
+                errors += 1
+                print('##################  START ERROR MESSAGE ' + str(errors) + ' #######################')
+                print('Error converting ' + ds.SeriesInstanceUID)
+                print('Input file: ' + basename(input_filepath))
+                print('Output file: ' + basename(output_filepath))
+                print(f"Command:  {command}")
+                print(output.stderr)
+                print('################## END ERROR MESSAGE ' + str(errors) + ' #######################\n')
+            else:
+                print('Converted ' + ds.SeriesInstanceUID)
+                converted += 1
+    
+    print('Total series: ' + str(total))
+    print('Already existing nrrds: ' + str(existing))
+    print('Converted series: ' + str(converted))
+    print('Errors: ' + str(errors))
 
     return True, input_filepaths
 

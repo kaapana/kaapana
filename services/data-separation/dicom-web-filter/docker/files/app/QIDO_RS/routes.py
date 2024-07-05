@@ -1,13 +1,24 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from ..proxy_request import proxy_request
+from ..database import get_session
+from . import crud
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
 
 @router.get("/studies", tags=["QIDO-RS"])
-async def query_studies(request: Request):
+async def query_studies(request: Request, session: AsyncSession = Depends(get_session)):
 
-    #TODO: Only return studies that are mapped to the project
+    # Retrieve studies mapped to the project
+    studies = set(await crud.get_all_studies_mapped_to_project(session, 1))
+
+    # Adjust query parameters
+    query_params = dict(request.query_params)
+    for uid in studies:
+        query_params.setdefault("StudyInstanceUID", []).append(uid)
+
+    request._query_params = query_params
 
     return await proxy_request(request, "/studies", "GET")
 
@@ -15,7 +26,7 @@ async def query_studies(request: Request):
 @router.get("/studies/{study}/series", tags=["QIDO-RS"])
 async def query_series(study: str, request: Request):
 
-    #TODO: Only return series of the study that are mapped to the project
+    # TODO: Only return series of the study that are mapped to the project
 
     return await proxy_request(request, f"/studies/{study}/series", "GET")
 

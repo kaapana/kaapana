@@ -9,4 +9,7 @@ router = APIRouter()
 
 @router.get("/wado", tags=["WADO-URI"])
 async def retrieve_instance(request: Request):
+
+    # TODO: Ensure that the query is only executed within the series that are mapped to the project (or studies if whole studies are mapped to the project)
+
     return await proxy_request(request, "", "GET", DICOMWEB_BASE_URL_WADO_URI)

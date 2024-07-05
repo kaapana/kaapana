@@ -11,3 +11,5 @@ DATABASE_NAME = "dicom_project_mapping"
 
 ACCESS_INFORMATION_INTERFACE_HOST = f"aii-service.services.svc"
 ACCESS_INFORMATION_INTERFACE_PORT = f"8080"
+
+DEFAULT_PROJECT_ID = 1 # ID of the default (admin) project

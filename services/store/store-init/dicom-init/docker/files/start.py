@@ -27,7 +27,18 @@ SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
 
 index = "meta-index"
 
-access_token = get_project_user_access_token()
+current_try = 0
+max_tries = 3
+while current_try < max_tries:
+    try:
+        access_token = get_project_user_access_token()
+        break
+    except KeyError:
+        # In my setup this worked.
+        time.sleep(120)
+    finally:
+        current_try += 1
+
 os_client = get_opensearch_client(access_token=access_token)
 
 

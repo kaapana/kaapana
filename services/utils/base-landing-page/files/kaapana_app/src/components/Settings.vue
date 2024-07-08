@@ -136,18 +136,22 @@ export default {
     this.settings = JSON.parse(localStorage["settings"]);
 
     // set the validateDicoms settings and ignored tags
+    // ensure both workflows and validateDicoms settings are in
+    // localstorage settings
     if (!this.settings.hasOwnProperty('workflows')) {
-      this.settings['workflows'] = defaultSettings['workflows'];
-      this.validateDicoms = defaultSettings.workflows["validateDicoms"].properties;
-    } else {
-      this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
+      this.settings['workflows'] = structuredClone(defaultSettings['workflows']);
     }
+    
+    this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
+
   },
   watch: {
   },
   methods: {
     restoreDefaultSettings() {
-      this.settings = defaultSettings;
+      // copy the defaultSettings value instead of get the value by reference
+      this.settings = structuredClone(defaultSettings);
+      this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
     },
     onSave() {
       // save validate dicoms update to settings

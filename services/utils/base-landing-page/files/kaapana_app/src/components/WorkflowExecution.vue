@@ -351,31 +351,34 @@ export default {
       });
       return formDataFormatted;
     },
-    // Set the default value for VJsf schema (workflow form)
-    // for the selected dag, if default value is availabe in 
-    // user settings from local storage
-    // Default value in user settings should be under `workflows` key as follows:
-    // dagName: {
-    //  properties: {
-    //            param1Name: 'param1 value',
-    //            param2Name: 'param2 Value',
-    //        },
-    //        hideOnUI: ['param2Name'],  // if param2Name should be hidden on the workflow form in UI       
-    //    },
-    //}
-    // all the dag name and param names should be in camelCase in settings. Dag name and parameter name
-    // in snakecase/dashcase from airflow backend will be converted in camelCase. e.g. validate-dicoms -> validateDicoms
-    // Here is a sample workflow settings example:
-    // validateDicoms: {
-    //        properties: {
-    //            validatorAlgorithm: 'dciodvfy',
-    //            exitOnError: false,
-    //            tagsWhitelist: [], 
-    //        },
-    //        hideOnUI: ['tagsWhitelist'],    // tags-whitelist param won't be visible on the ui while selecting
-    //                                        // workflow, but default parameter will be passed to airflow.
-    //    },
-    // }
+    /**
+    * Set the default value for VJsf schema (workflow form)
+    * for the selected dag, if default value is availabe in 
+    * user settings from local storage
+    * Default value in user settings should be under `workflows` key as follows:
+    * dagName: {
+    *    properties: {
+    *            param1Name: 'param1 value',
+    *            param2Name: 'param2 Value',
+    *        },
+    *        hideOnUI: ['param2Name'],  // if param2Name should be hidden on the workflow form in UI       
+    *    },
+    * }
+    * all the dag name and param names should be in camelCase in settings. Dag name and parameter name
+    * in snakecase/dashcase from airflow backend will be converted in camelCase. 
+    * e.g. validate-dicoms -> validateDicoms
+    * Here is a sample workflow settings example:
+    * validateDicoms: {
+    *    properties: {
+    *            validatorAlgorithm: 'dciodvfy',
+    *            exitOnError: false,
+    *            tagsWhitelist: [], 
+    *        },
+    *        hideOnUI: ['tagsWhitelist'],    // tags-whitelist param won't be visible on the ui while selecting
+    *                                        // workflow, but default parameter will be passed to airflow.
+    *    },
+    * }
+    */
     processDefaultsFromSettings(schema) {
       if(!this.workflow_name) {
         return

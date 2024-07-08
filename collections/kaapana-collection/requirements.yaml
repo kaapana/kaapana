@@ -82,3 +82,5 @@ dependencies:
   #   version: 0.0.0
   - name: local-novnc-env-chart
     version: 0.0.0
+  - name: kaapana-spe-chart
+    version: 0.0.0

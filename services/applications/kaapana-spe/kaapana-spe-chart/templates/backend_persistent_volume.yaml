@@ -1,0 +1,35 @@
+{{ include "dynamicPersistentVolumes" $ }}
+# dev-files
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: spe-dev-pv-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "1Mi"
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "{{ .Values.global.backend_dev_files }}"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: spe-dev-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: spe-dev-pv-claim
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: "spe-dev-pv-volume"

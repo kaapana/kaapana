@@ -39,3 +39,7 @@ echo "Building base-python-cpu..."
 BASE_PYTHON_GPU="$KAAPANA_REPO_PATH/data-processing/base-images/base-python-gpu"
 echo "Building base-python-gpu..."
 /usr/bin/bash /kaapana/app/build_image.sh --dir $BASE_PYTHON_GPU --image-name base-python-gpu --image-version latest --no-import
+
+BASE_INSTALLER="$KAAPANA_REPO_PATH/services/utils/base-installer"
+echo "Building base-installer..."
+/usr/bin/bash /kaapana/app/build_image.sh --dir $BASE_INSTALLER --image-name base-installer --image-version latest --no-import

@@ -72,15 +72,40 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
 
 
 @router.get("/studies/{study}/series", tags=["QIDO-RS"])
-async def query_series(study: str, request: Request):
+async def query_series(
+    study: str, request: Request, session: AsyncSession = Depends(get_session)
+):
 
     # If StudyInstanceUID is in the query parameters, remove it
     query_params = dict(request.query_params)
     if "StudyInstanceUID" in query_params:
         query_params.pop("StudyInstanceUID")
 
+    # Retrieve series mapped to the project for the given study
+    mapped_series_uids = set(
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
+            session=session, project_id=1, study_instance_uid=study
+        )
+    )
+
+    # check if SeriesInstanceUID is in the query parameters
+    if "SeriesInstanceUID" in request.query_params:
+        # Check if the requested series are mapped to the project
+        requested_series = set(request.query_params.getlist("SeriesInstanceUID"))
+        mapped_series_uids = mapped_series_uids.intersection(requested_series)
+
+    if not mapped_series_uids:
+        return Response(status_code=HTTP_204_NO_CONTENT)
+
+    # Remove SeriesInstanceUID from the query parameters
+    query_params["SeriesInstanceUID"] = []
+
+    # Add the series mapped to the project to the query parameters
+    for uid in mapped_series_uids:
+        query_params["SeriesInstanceUID"].append(uid)
+
+    # Update the query parameters
     request._query_params = query_params
-    # TODO: Only return series of the study that are mapped to the project
 
     return await proxy_request(request, f"/studies/{study}/series", "GET")
 

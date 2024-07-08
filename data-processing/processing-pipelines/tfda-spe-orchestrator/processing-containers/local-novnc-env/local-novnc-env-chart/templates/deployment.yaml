@@ -35,7 +35,7 @@ spec:
         - name: OPERATOR_IN_DIR
           value: "{{ .Values.operator_in_dir }}"
         ports:
-          - containerPort: 6080
+          - containerPort: 80
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:

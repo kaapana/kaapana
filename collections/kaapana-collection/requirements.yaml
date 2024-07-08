@@ -78,3 +78,7 @@ dependencies:
     version: 0.0.0
   - name: collabora-chart
     version: 0.0.0
+  # - name: mitk-flow-copy-chart
+  #   version: 0.0.0
+  - name: local-novnc-env-chart
+    version: 0.0.0

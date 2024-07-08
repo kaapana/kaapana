@@ -72,7 +72,7 @@ dag = DAG(
     max_active_runs=10,
     schedule_interval=None,
 )
-trusted_pre_etl = TrustedPreETLOperator(dag=dag)
+# trusted_pre_etl = TrustedPreETLOperator(dag=dag)
 get_input = LocalGetInputDataOperator(dag=dag)
 launch_local_spe = KaapanaApplicationOperator(
     dag=dag,

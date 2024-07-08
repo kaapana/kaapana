@@ -5,5 +5,3 @@ name: local-novnc-env-chart
 version: "0.0.0"
 keywords:
 - kaapanaint
-- kaapanaapplication
-- kaapanaexperimental

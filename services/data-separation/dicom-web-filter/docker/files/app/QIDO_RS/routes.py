@@ -107,7 +107,37 @@ async def query_series(
     # Update the query parameters
     request._query_params = query_params
 
-    return await proxy_request(request, f"/studies/{study}/series", "GET")
+    response = await proxy_request(request, f"/studies/{study}/series", "GET")
+
+    # --- Now we will modify the response to replace the DICOM Web URL with the filter URL ---
+
+    # Decode bytes to string and parse JSON
+    data_str = response.body.decode("utf-8")
+    data_json = json.loads(data_str)
+
+    # Process each item in the JSON data
+    for item in data_json:
+        if "00081190" in item and "Value" in item["00081190"]:
+            original_url = item["00081190"]["Value"][0]
+
+            # TODO: Please refactor this to use a more robust method to replace the URL
+            real_dicom_web_routes = "/".join(
+                DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
+            )
+            # Replace the real dicom web URL with the filter URL in the response
+            # It's basically replacing "dcm4chee-arc/aets/KAAPANA/rs" with "dicom-web-filter"
+            item["00081190"]["Value"][0] = original_url.replace(
+                real_dicom_web_routes, "dicom-web-filter"
+            )
+
+    # Convert JSON back to string and then to bytes
+    new_data_str = json.dumps(data_json)
+    new_data = new_data_str.encode("utf-8")
+
+    # Update the response body
+    response.body = new_data
+
+    return response
 
 
 @router.get("/studies/{study}/series/{series}/instances", tags=["QIDO-RS"])

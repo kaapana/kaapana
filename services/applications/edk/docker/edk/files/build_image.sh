@@ -14,14 +14,14 @@ print_help() {
     echo "Arguments:"
     echo "  --dir             Path to the context directory (required)"
     echo "  --dockerfile      Path to the Dockerfile (optional, defaults to <context-path>/Dockerfile)"
-    echo "  --image-name      Name of the Docker image (required)"
+    echo "  --image-name      Name of the Docker image (optional, if not provided, extracted from Dockerfile LABEL IMAGE)"
     echo "  --image-version   Version of the Docker image (optional, defaults to KAAPANA_BUILD_VERSION)"
     echo "  --no-import       Skip importing container inside microk8s ctr"
     echo "  --help            Display this help message"
     echo
 }
 
-# parse args, order doesn't matter, --dir and --image-name have to be provided
+# parse args, order doesn't matter, --dir has to be provided
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --dir) context_path="$2"; shift ;;
@@ -47,11 +47,21 @@ if [ -z "$dockerfile" ]; then
     dockerfile="$context_path/Dockerfile"
 fi
 
-# check if image-name is empty
+# if --image-name is empty, take it from Dockerfile LABEL IMAGE="<name>"
 if [ -z "$image_name" ]; then
-    echo "ERROR: Image name is required. Use --image-name <imagename>"
-    print_help
-    exit 1
+    if [ -f "$dockerfile" ]; then
+        image_name=$(grep -oP 'LABEL IMAGE="\K[^"]+' "$dockerfile")
+        if [ -z "$image_name" ]; then
+            echo "ERROR: Image name is required. Use --image-name <imagename> or ensure Dockerfile has LABEL IMAGE=\"<name>\""
+            print_help
+            exit 1
+        else
+            echo "INFO: Image name extracted from Dockerfile: $image_name"
+        fi
+    else
+        echo "ERROR: Dockerfile not found at $dockerfile"
+        exit 1
+    fi
 fi
 
 # if --image-version is empty use KAAPANA_BUILD_VERSION
@@ -87,7 +97,8 @@ skopeo copy --tls-verify=false docker://$LOCAL_REGISTRY_URL/$image_name:$image_v
 if [ "$no_import" != "true" ]; then
     # send req to kube-helm /import-container endpoint for importing container tar into ctr
     echo "Importing container tar into ctr..."
-    /usr/bin/bash /kaapana/app/import_image.sh --tar-file $image_name.tar
+    curl -G "$KUBE_HELM_URL/import-container" --data-urlencode "filename=$image_name.tar"
+    # TODO: rm .tar file if import is successful
 else
     echo "Skipping import."
 fi

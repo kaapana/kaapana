@@ -95,6 +95,15 @@ const settings = {
         ]
     },
     workflows: {
+        /*
+        [dagName]: {
+            properties: {
+                    [param1Name]: 'param1 value',
+                    [param2Name]: 'param2 Value',
+            },
+            hideOnUI: ['param2Name'],  // param2Name will be hidden on the workflow form in UI       
+        }
+        */
         validateDicoms: {
             properties: {
                 validatorAlgorithm: 'dciodvfy',

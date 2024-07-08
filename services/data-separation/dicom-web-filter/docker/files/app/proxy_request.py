@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-logging.basicConfig(level=logging.WARNING)  # TODO: Change before deployment
+logging.basicConfig(level=logging.INFO)  # TODO: Change before deployment
 
 
 async def proxy_request(

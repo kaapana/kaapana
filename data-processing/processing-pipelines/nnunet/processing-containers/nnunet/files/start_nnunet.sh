@@ -107,9 +107,9 @@ if [ "$MODE" = "preprocess" ]; then
     echo "# PRE-TRAINED WEIGHTS:    $PRETRAINED_WEIGHTS";
     echo "#"
     echo "#"
-    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
+    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
     echo "#"
-    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
+    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"

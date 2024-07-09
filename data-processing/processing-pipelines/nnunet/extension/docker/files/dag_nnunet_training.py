@@ -47,6 +47,9 @@ num_val_batches_per_epoch = 50
 dicom_model_slice_size_limit = 70
 training_results_study_uid = None
 prep_threads = 2
+initial_learning_rate = 1e-2
+weight_decay = 3e-5
+oversample_foreground_percent = 0.33
 
 print(f"### nnunet-training GPU_COUNT {GPU_COUNT}")
 max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1
@@ -198,17 +201,17 @@ ui_forms = {
             "training_description": {
                 "title": "Training description",
                 "default": "nnUnet Segmentation",
-                "description": "Specify a version.",
+                "description": "Specify a training description.",
                 "type": "string",
                 "readOnly": False,
             },
-            "body_part": {
-                "title": "Body Part",
-                "description": "Body part, which needs to be present in the image.",
-                "default": "N/A",
-                "type": "string",
-                "readOnly": False,
-            },
+            # "body_part": {
+            #     "title": "Body Part",
+            #     "description": "Body part, which needs to be present in the image.",
+            #     "default": "N/A",
+            #     "type": "string",
+            #     "readOnly": False,
+            # },
             "train_max_epochs": {
                 "title": "Epochs",
                 "default": max_epochs,
@@ -218,7 +221,7 @@ ui_forms = {
                 "readOnly": False,
             },
             "num_batches_per_epoch": {
-                "title": "Batches per epoch",
+                "title": "Training batches per epoch",
                 "default": num_batches_per_epoch,
                 "description": "Do only change if you know what you are doing!.",
                 "type": "integer",
@@ -230,15 +233,42 @@ ui_forms = {
                 "default": num_val_batches_per_epoch,
                 "description": "Do only change if you know what you are doing!.",
                 "type": "integer",
-                "required": True,
                 "readOnly": False,
             },
-            "fp32": {
-                "type": "boolean",
-                "title": "FP32",
-                "default": False,
-                "description": "Disable mixed precision training and run old school fp32",
+            "initial_learning_rate": {
+                "title": "Initial learning rate",
+                "default": initial_learning_rate,
+                "description": "Do only change if you know what you are doing! Learning rate to start training.",
+                "type": "integer",
+                "readOnly": False,
             },
+            "weight_decay": {
+                "title": "Weight decaying value",
+                "default": weight_decay,
+                "description": "Do only change if you know what you are doing! Weight decaying value to start training.",
+                "type": "integer",
+                "readOnly": False,
+            },
+            "oversample_foreground_percent": {
+                "title": "Oversample foreground percentage",
+                "default": oversample_foreground_percent,
+                "description": "Do only change if you know what you are doing! Percentage of foreground samples being oversampled.",
+                "type": "integer",
+                "readOnly": False,
+            },
+            "enable_deep_supervision": {
+                "type": "boolean",
+                "title": "Enable deep supervision",
+                "description": "Do only change if you know what you are doing! Enables deep supervision during training.",
+                "default": True,
+                "readOnly": False,
+            },
+            # "fp32": {
+            #     "type": "boolean",
+            #     "title": "FP32",
+            #     "default": False,
+            #     "description": "Disable mixed precision training and run old school fp32",
+            # },
             "prep_preprocess": {
                 "type": "boolean",
                 "title": "Execute preprocessing",
@@ -247,24 +277,16 @@ ui_forms = {
             },
             "prep_check_integrity": {
                 "type": "boolean",
-                "title": "Check integrity",
+                "title": "Check data integrity.",
                 "default": True,
-                "description": "Whether to check integrity of data",
+                "description": "Recommended! Integrity of data is checked.",
             },
-            # "version": {
-            #     "title": "Version",
-            #     "default": "0.0.1-alpha",
-            #     "description": "Specify a version.",
-            #     "type": "string",
-            #     "readOnly": False,
-            # },
-            # "training_reference": {
-            #     "title": "Training reference",
-            #     "default": "nnUNet",
-            #     "description": "Set a reference.",
-            #     "type": "string",
-            #     "readOnly": False,
-            # },
+            "disable_checkpointing": {
+                "type": "boolean",
+                "title": "Disable checkpointing",
+                "default": True,
+                "description": "Disable intermediate checkpointing after 50 epochs.",
+            },
             "input": {
                 "title": "Input Modality",
                 "default": "SEG,RTSTRUCT",
@@ -382,7 +404,7 @@ nnunet_preprocess = NnUnetOperator(
     allow_federated_learning=True,
     whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
     trigger_rule=TriggerRule.NONE_FAILED,
-    dev_server=None,  # "code-server"
+    dev_server=None,  # None,  # "code-server"
 )
 
 nnunet_train = NnUnetOperator(
@@ -395,7 +417,7 @@ nnunet_train = NnUnetOperator(
     plan_network_planner=plan_network_planner,
     train_network_trainer=train_network_trainer,
     train_fold="all",
-    dev_server="code-server",  # None,  # "code-server"
+    dev_server=None,  # None,  # "code-server"
     retries=0,
 )
 

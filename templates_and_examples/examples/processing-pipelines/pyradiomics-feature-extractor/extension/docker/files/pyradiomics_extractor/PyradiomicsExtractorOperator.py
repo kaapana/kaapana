@@ -30,6 +30,8 @@ class PyradiomicsExtractorOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             image_pull_policy="IfNotPresent",  # either 'Always' or 'IfNotPresent'. If set to Always, k8s always tries to pull the image from registry
             execution_timeout=execution_timeout,
+            env_vars=env_vars,
+            ram_mem_mb=5000,
             *args,
             **kwargs,
         )

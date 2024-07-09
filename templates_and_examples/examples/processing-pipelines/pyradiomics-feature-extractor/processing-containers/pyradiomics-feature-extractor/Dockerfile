@@ -7,10 +7,10 @@ LABEL VERSION="0.1.0"
 LABEL BUILD_IGNORE="False"
 
 # set working dir inside container
-WORKDIR /app
+WORKDIR /kaapana/app
 
 # copy files into the container
-COPY files/* /app
+COPY files/* /kaapana/app
 
 # install required python packages
 # current pip pyradiomics==3.1.0 is not working with python3.11, install from source

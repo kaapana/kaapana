@@ -2,3 +2,4 @@
 global:
     image: "dag-pyradiomics-extract-features"
     action: "copy"
+    pull_policy_images: "IfNotPresent"

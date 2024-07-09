@@ -1,10 +1,10 @@
 <template>
   <div :class="{'pagination-container': true, 'hidden': !showPagination}">
-      <v-pagination 
-        v-if="showPagination"
-        :length="Math.ceil(aggregatedSeriesNum / pageLength)" 
-        v-model="pageIndex">
-      </v-pagination>
+    <v-pagination 
+      v-if="showPagination"
+      :length="computedLength" 
+      v-model="pageIndex">
+    </v-pagination>
     </div>
   </template>
 
@@ -20,15 +20,35 @@
         required: true,  
         default: 1000
       }, 
+      executeSlicedSearch:{
+        type: Boolean,
+        requiered: true,
+        default: false
+      }
     },
     data() {
       return {
         pageIndex: 1,
         showPagination: true,
         lastPage: 0,
-        lastPageLength: 0
+        lastPageLength: 0,
+        computedPageLength: 0,
+        max_slices_per_pit: 1024 //Opensearch max_slices_per_pit default
       };
     },
+    computed: {
+      
+      computedLength() {
+        //Due to Opensearch max_slices_per_pit length is limited for slicing search
+        let length =  Math.ceil(this.aggregatedSeriesNum / this.pageLength)
+        if (this.executeSlicedSearch && length > this.max_slices_per_pit) {
+          this.computedPageLength =  Math.ceil(this.aggregatedSeriesNum / this.max_slices_per_pit)
+          return this.max_slices_per_pit;
+        }
+        this.computedPageLength = 0;
+        return length;
+      },
+  },
     watch: {
       pageLength() {
         this.updatePaginationVisibility();
@@ -67,11 +87,8 @@
         this.showPagination = Math.ceil(this.aggregatedSeriesNum / this.pageLength) > 1;
         //console.log('updatePaginationVisibility:', this.showPagination);
       },
-      getPageIndexAndLength() {
-        return {
-          pageIndex: this.pageIndex,
-          pageLength: this.pageLength
-        };
+      getPageLength() {
+        return this.computedPageLength > 0 ? this.computedPageLength : this.pageLength;
       },
     },
   };

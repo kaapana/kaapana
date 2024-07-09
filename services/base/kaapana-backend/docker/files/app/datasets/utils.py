@@ -165,6 +165,84 @@ def execute_search_after_search(
     
     return response["hits"]["hits"]
 
+def execute_initial_search(query, source, sort, page_index, page_length, aggregated_series_num, use_execute_sliced_search):
+    # for results len below 10000 use directly from, size    
+    if aggregated_series_num < MAX_RETURN_LIMIT:
+        hits = execute_from_size_search(
+            query=query,
+            source=source,
+            sort=sort,
+            start_from=page_index,
+            size=page_length,
+        )    
+    else:
+        # Create a PIT
+        pit_id = create_pit(index="meta-index")
+        #initially only the patitenid is needed, for resorting later
+        patient_source = {
+                "includes": [
+                    "00100020 PatientID_keyword",
+                ]
+            }
+        #faster, but only each slide/page is sorted, not all slides.    
+        if use_execute_sliced_search:
+            total_slices = math.ceil(aggregated_series_num / page_length)
+            slice_id = page_index - 1
+            hits = execute_sliced_search(
+                query=query,
+                source=patient_source,
+                sort=sort,
+                pit_id=pit_id,
+                slice_id=slice_id,
+                total_slices=total_slices,
+                size=page_length,
+            )
+        else:
+            hits = execute_search_after_search(
+            query=query,
+            source=patient_source,
+            sort=sort,
+            pit_id=pit_id,
+            start_from=page_index,
+            size=page_length,
+        ) 
+        close_pit(pit_id)
+    return hits
+
+def requery_for_patients(query, source, sort, page_length, hits):
+    '''
+    The initial search result list() is sorted depending on the sort value. So the result
+    does not contain every result for the indiviual patients. Therefore if structured 
+    (and sorted patient depending)
+    the results have to be requeried, with the same query but individual for this page patients
+    '''
+    patients = list({hit['_source'].get('00100020 PatientID_keyword', 'N/A') for hit in hits})
+    #remove duplicates but keep order
+    selected_patients = list(dict.fromkeys(patients))
+    final_hits = [] 
+    for patient in selected_patients:
+        #filter for the individual patients of this page only
+        patient_query = {
+            "bool": {
+                "must": [query],
+                "filter": [{"term": {"00100020 PatientID_keyword": patient}}],
+            }
+        }
+
+        patient_hits = execute_from_size_search(
+            query=patient_query,
+            source=source,
+            sort=sort,
+            start_from=1,
+            size=page_length,
+        )
+        #be aware that final_hits >= page_length, since all patients part of initial
+        #call are added. But this prevents not seeing every patient when switching pages
+        # but patients at the end of one page could also be shown on the next page.
+        final_hits.extend(patient_hits)
+
+
+    return final_hits
 
 def contains_numbers(s):
     return bool(re.search(r"\d", s))

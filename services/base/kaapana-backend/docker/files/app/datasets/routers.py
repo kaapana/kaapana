@@ -5,6 +5,8 @@ from app.datasets.utils import (
     get_metadata,
     execute_opensearch_query,
     get_field_mapping,
+    requery_for_patients,
+    execute_initial_search
 )
 from app.dependencies import get_opensearch
 
@@ -57,42 +59,44 @@ async def tag_data(data: list = Body(...), os_client=Depends(get_opensearch)):
     except Exception as e:
         print("ERROR!")
         raise HTTPException(500, e)
-
-
-from typing import Dict, Any
-from fastapi import Query
-
-
+    
 # This should actually be a get request but since the body is too large for a get request
 # we use a post request
 @router.post("/series")
 async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
     import pandas as pd
-
     structured: bool = data.get("structured", False)
     query: dict = data.get("query", {"query_string": {"query": "*"}})
     page_index: int = data.get("pageIndex", 1)
     page_length: int = data.get("pageLength", 1000)
+    aggregated_series_num: int = data.get("aggregatedSeriesNum", 1)
     sort_param: str = data.get("sort", "0020000E SeriesInstanceUID_keyword.keyword")
     sort_direction: str = data.get("sortDirection", "desc").lower()
+    use_execute_sliced_search: bool = data.get("executeSlicedSearch", False)
+    
     if sort_direction not in ["asc", "desc"]:
         sort_direction = "desc"
-
     sort = [{sort_param: sort_direction}]
+
+    #important! only add source if needed, otherwise the hole datastructure is returned
+    source = False
     if structured:
-        hits = execute_opensearch_query(
-            query=query,
-            source={
+        source= {
                 "includes": [
                     "00100020 PatientID_keyword",
                     "0020000D StudyInstanceUID_keyword",
                     "0020000E SeriesInstanceUID_keyword",
                 ]
-            },
-            sort=sort,
-            start_from=page_index,
-            size=page_length,
-        )
+            }
+
+    hits = execute_initial_search(
+        query, source, sort, page_index, page_length, aggregated_series_num, use_execute_sliced_search
+    )
+    if structured:
+        if aggregated_series_num > page_length:  
+            # The results have to be reorderd according to the patients,
+            # otherwise patients are not complited (because they can be on another page)
+            hits = requery_for_patients(query, source, sort, page_length, hits)
 
         res_array = [
             [
@@ -115,16 +119,11 @@ async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
                 for k, f in df.groupby("Patient ID")
             }
         )
-    elif not structured:
+    else:
         return JSONResponse(
             [
                 d["_id"]
-                for d in execute_opensearch_query(
-                    query=query,
-                    sort=sort,
-                    start_from=page_index,
-                    size=page_length,
-                )
+                for d in hits
             ]
         )
 

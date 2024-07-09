@@ -34,7 +34,12 @@
       <v-container fluid class="pa-0">
         <template>
         <div>
-          <Paginate ref="paginate" :pageLength="settings.datasets.itemsPerPagePagination" :aggregatedSeriesNum="aggregatedSeriesNum" @updateData="updateData" @onPageIndexChange="onPageIndexChange"/>
+          <Paginate ref="paginate"  
+          :pageLength="settings.datasets.itemsPerPagePagination" 
+          :aggregatedSeriesNum="aggregatedSeriesNum" 
+          :executeSlicedSearch="settings.datasets.executeSlicedSearch"
+          @updateData="updateData" 
+          @onPageIndexChange="onPageIndexChange"/>
         </div>
       </template>
 
@@ -324,6 +329,7 @@ export default {
       resultPaths: {},
       filteredDags: [],
       aggregatedSeriesNum: 100,
+      displayedSeriesSum: 100,
       pageIndex: 1,
       searchQuery: {},
       allPatients: true
@@ -444,11 +450,11 @@ export default {
           loadPatients({
             structured: this.settings.datasets.structured,
             executeSlicedSearch: this.settings.datasets.executeSlicedSearch,
-            query: this.searchQuery ,
+            query: this.searchQuery,
             sort: this.settings.datasets.sort,
             sortDirection: this.settings.datasets.sortDirection,
             pageIndex: this.pageIndex,
-            pageLength: this.settings.datasets.itemsPerPagePagination,
+            pageLength: this.$refs.paginate.getPageLength(), 
             aggregatedSeriesNum: this.aggregatedSeriesNum
           })
             .then((data) => {
@@ -721,8 +727,8 @@ export default {
 =======
       const to = Math.min(from + this.identifiersOfInterest.length - 1, this.aggregatedSeriesNum);
       if (this.aggregatedSeriesNum > 0 && this.aggregatedSeriesNum > this.identifiersOfInterest.length) {
-        //if slicing search is used, each page has a different number of items
-        if (this.settings.datasets.executeSlicedSearch && this.aggregatedSeriesNum > 10000) {
+        //if structured or if slicing search is used, each page has a different number of items
+        if (this.settings.datasets.structured || (this.settings.datasets.executeSlicedSearch && this.aggregatedSeriesNum > 10000)) {
           return `page ${this.pageIndex}: ${this.identifiersOfInterest.length} selected of ${this.aggregatedSeriesNum}`;
         } else {
           return `${this.identifiersOfInterest.length} selected from ${from} to ${to} of ${this.aggregatedSeriesNum}`;

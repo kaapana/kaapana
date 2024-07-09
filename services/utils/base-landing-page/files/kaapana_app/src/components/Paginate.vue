@@ -1,9 +1,10 @@
 <template>
-  <div :class="{'pagination-container': true, 'hidden': !showPagination}">
+  <div align="center" :class="{'pagination-container': true, 'hidden': !showPagination}">
     <v-pagination 
       v-if="showPagination"
       :length="computedLength" 
-      v-model="pageIndex">
+      v-model="pageIndex"
+      total-visible="11">
     </v-pagination>
     </div>
   </template>
@@ -32,20 +33,16 @@
         showPagination: true,
         lastPage: 0,
         lastPageLength: 0,
-        computedPageLength: 0,
         max_slices_per_pit: 1024 //Opensearch max_slices_per_pit default
       };
     },
-    computed: {
-      
+    computed: {      
       computedLength() {
         //Due to Opensearch max_slices_per_pit length is limited for slicing search
         let length =  Math.ceil(this.aggregatedSeriesNum / this.pageLength)
         if (this.executeSlicedSearch && length > this.max_slices_per_pit) {
-          this.computedPageLength =  Math.ceil(this.aggregatedSeriesNum / this.max_slices_per_pit)
           return this.max_slices_per_pit;
         }
-        this.computedPageLength = 0;
         return length;
       },
   },
@@ -87,9 +84,6 @@
         this.showPagination = Math.ceil(this.aggregatedSeriesNum / this.pageLength) > 1;
         //console.log('updatePaginationVisibility:', this.showPagination);
       },
-      getPageLength() {
-        return this.computedPageLength > 0 ? this.computedPageLength : this.pageLength;
-      },
     },
   };
   </script>
@@ -98,7 +92,7 @@
   .pagination-container {
     display: flex;
     align-items: center;
-    margin: 0;
+    margin-right: 10px;
     padding: 0;
   }
   

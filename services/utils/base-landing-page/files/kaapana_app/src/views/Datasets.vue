@@ -29,21 +29,14 @@
             </div>
             <v-divider></v-divider>
           </v-card>
+          <Paginate align="center" ref="paginate" 
+             :pageLength="settings.datasets.itemsPerPagePagination" 
+            :aggregatedSeriesNum="aggregatedSeriesNum" 
+            :executeSlicedSearch="settings.datasets.executeSlicedSearch"
+            @updateData="updateData" 
+            @onPageIndexChange="onPageIndexChange"/>
         </v-container>
-        <!-- Gallery View -->
-      <v-container fluid class="pa-0">
-        <template>
-        <div>
-          <Paginate ref="paginate"  
-          :pageLength="settings.datasets.itemsPerPagePagination" 
-          :aggregatedSeriesNum="aggregatedSeriesNum" 
-          :executeSlicedSearch="settings.datasets.executeSlicedSearch"
-          @updateData="updateData" 
-          @onPageIndexChange="onPageIndexChange"/>
-        </div>
-      </template>
-
-      </v-container>
+          <!-- Gallery View -->
         <v-container fluid class="pa-0">
           <!-- Loading -->
 
@@ -454,7 +447,7 @@ export default {
             sort: this.settings.datasets.sort,
             sortDirection: this.settings.datasets.sortDirection,
             pageIndex: this.pageIndex,
-            pageLength: this.$refs.paginate.getPageLength(), 
+            pageLength: this.settings.datasets.itemsPerPagePagination,
             aggregatedSeriesNum: this.aggregatedSeriesNum
           })
             .then((data) => {
@@ -742,6 +735,12 @@ export default {
 };
 </script>
 <style scoped>
+.paginate-container {
+  flex-grow: 1; /* Ensures it grows to take available space */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* Ensures pagination is at the bottom */
+}
 .sidebar {
   overflow-y: auto;
 }

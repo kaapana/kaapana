@@ -13,7 +13,9 @@ from app.workflows.utils import (
     raise_kaapana_connection_error,
 )
 from app.logger import get_logger
+#Opensearch values (defaults)
 MAX_RETURN_LIMIT = 10000
+MAX_SLICES_PER_PIT = 1024
 logger = get_logger(__name__, logging.DEBUG)
 
 
@@ -32,7 +34,16 @@ def close_pit(pit_id):
         ).delete_pit(body={'pit_id': pit_id})
 
 # Function to execute a search with slicing
-def execute_sliced_search(query, pit_id, slice_id, total_slices, source=False, sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}], size=1000):
+def execute_sliced_search(query, pit_id, aggregated_series_num, page_index, source=False, sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}], size=1000):  
+    total_slices = math.ceil(aggregated_series_num / size)
+    slice_id = page_index - 1
+    # total_slices is limited by MAX_SLICES_PER_PIT
+    if total_slices >= MAX_SLICES_PER_PIT:
+        total_slices = MAX_SLICES_PER_PIT
+        size = math.ceil(aggregated_series_num / total_slices)
+        if size > MAX_RETURN_LIMIT:
+            size = MAX_RETURN_LIMIT
+    
     body = {
         "query": query,
         "_source": source,
@@ -103,7 +114,6 @@ def execute_search_after_search(
     pit_id,
     query: Dict = dict(),
     source=False,
-    index="meta-index",
     sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
     start_from=1,
     size=1000,
@@ -125,28 +135,21 @@ def execute_search_after_search(
             "_source": _source,
             "sort": sort + [{"_id": "asc"}],  #add _id for unique search, otherwise search_after could sort after missing values.
             "size": selected_size,
-            
+            "pit": {"id": pit_id, "keep_alive": "1m"},
         }
         if search_after:
             body["search_after"] = search_after
 
         res = OpenSearch(
                 hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-            ).search(
-                body=body,
-                index=index,
-            )
+            ).search(body=body)
         return res
     search_after = None
-    # import debugpy
-    # debugpy.listen(("localhost", 17777))
-    # debugpy.wait_for_client()
-    # debugpy.breakpoint()
     start_from = (start_from - 1) * size
     search_before = math.floor(start_from/MAX_RETURN_LIMIT)
 
     for _ in range(search_before):
-        response = _execute_search_after(selected_size=MAX_RETURN_LIMIT, search_after=search_after)
+        response = _execute_search_after(selected_size=MAX_RETURN_LIMIT,  search_after=search_after)
         hits = response['hits']['hits']
         if not hits:
             break
@@ -160,7 +163,7 @@ def execute_search_after_search(
         if hits:
             search_after = hits[-1]['sort']
 
-    #the final acuall wanted results including _source value        
+    #the final actuall wanted results including _source value        
     response = _execute_search_after(selected_size=size, _source=source, search_after=search_after)
     
     return response["hits"]["hits"]
@@ -186,15 +189,13 @@ def execute_initial_search(query, source, sort, page_index, page_length, aggrega
             }
         #faster, but only each slide/page is sorted, not all slides.    
         if use_execute_sliced_search:
-            total_slices = math.ceil(aggregated_series_num / page_length)
-            slice_id = page_index - 1
             hits = execute_sliced_search(
                 query=query,
                 source=patient_source,
+                page_index=page_index,
                 sort=sort,
                 pit_id=pit_id,
-                slice_id=slice_id,
-                total_slices=total_slices,
+                aggregated_series_num=aggregated_series_num,
                 size=page_length,
             )
         else:
@@ -219,6 +220,8 @@ def requery_for_patients(query, source, sort, page_length, hits):
     patients = list({hit['_source'].get('00100020 PatientID_keyword', 'N/A') for hit in hits})
     #remove duplicates but keep order
     selected_patients = list(dict.fromkeys(patients))
+    print("selected_patients", len(selected_patients))
+    print("hits", len(hits))
     final_hits = [] 
     for patient in selected_patients:
         #filter for the individual patients of this page only
@@ -228,7 +231,6 @@ def requery_for_patients(query, source, sort, page_length, hits):
                 "filter": [{"term": {"00100020 PatientID_keyword": patient}}],
             }
         }
-
         patient_hits = execute_from_size_search(
             query=patient_query,
             source=source,
@@ -241,7 +243,7 @@ def requery_for_patients(query, source, sort, page_length, hits):
         # but patients at the end of one page could also be shown on the next page.
         final_hits.extend(patient_hits)
 
-
+    print("final_hits", len(final_hits))
     return final_hits
 
 def contains_numbers(s):

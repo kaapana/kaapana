@@ -1,0 +1,39 @@
+diff --git a/nnunetv2/run/run_training.py b/nnunetv2/run/run_training.py
+index 2177db3..c33f85e 100644
+--- a/nnunetv2/run/run_training.py
++++ b/nnunetv2/run/run_training.py
+@@ -94,6 +94,15 @@ def maybe_load_checkpoint(nnunet_trainer: nnUNetTrainer, continue_training: bool
+             load_pretrained_weights(nnunet_trainer.network, pretrained_weights_file, verbose=True)
+         expected_checkpoint_file = None
+ 
++        ### ADAPTED FOR KAAPANAFED ###
++        if os.getenv("PREP_INCREMENT_STEP", None) == "from_dataset_properties":
++            nnunet_trainer.save_checkpoint(
++                join(nnunet_trainer.output_folder, "model_final_checkpoint.model")
++            )
++            print("Preparation round: Aggregation of model initialization!")
++            return
++        ##############################
++
+     if expected_checkpoint_file is not None:
+         nnunet_trainer.load_checkpoint(expected_checkpoint_file)
+ 
+@@ -209,10 +218,13 @@ def run_training(dataset_name_or_id: Union[str, int],
+         if not only_run_validation:
+             nnunet_trainer.run_training()
+ 
+-        if val_with_best:
+-            nnunet_trainer.load_checkpoint(join(nnunet_trainer.output_folder, 'checkpoint_best.pth'))
+-        nnunet_trainer.perform_actual_validation(export_validation_probabilities)
+-
++        if fold == "all":
++            print("--> fold == 'all'")
++            print("--> DONE")
++        else:
++            if val_with_best:
++                nnunet_trainer.load_checkpoint(join(nnunet_trainer.output_folder, 'checkpoint_best.pth'))
++            nnunet_trainer.perform_actual_validation(export_validation_probabilities)
+ 
+ def run_training_entry():
+     import argparse
+-- 

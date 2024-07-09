@@ -1,0 +1,54 @@
+diff --git a/nnunetv2/experiment_planning/plan_and_preprocess_api.py b/nnunetv2/experiment_planning/plan_and_preprocess_api.py
+index c063328..71137c7 100644
+--- a/nnunetv2/experiment_planning/plan_and_preprocess_api.py
++++ b/nnunetv2/experiment_planning/plan_and_preprocess_api.py
+@@ -18,24 +18,33 @@ from nnunetv2.utilities.utils import get_filenames_of_train_images_and_targets
+ def extract_fingerprint_dataset(dataset_id: int,
+                                 fingerprint_extractor_class: Type[
+                                     DatasetFingerprintExtractor] = DatasetFingerprintExtractor,
+-                                num_processes: int = default_num_processes, check_dataset_integrity: bool = False,
+-                                clean: bool = True, verbose: bool = True):
++                                num_processes: int = default_num_processes,
++                                check_dataset_integrity: bool = False,
++                                increment_step: str = None,
++                                clean: bool = True,
++                                verbose: bool = True):
+     """
+     Returns the fingerprint as a dictionary (additionally to saving it)
+     """
+     dataset_name = convert_id_to_dataset_name(dataset_id)
+     print(dataset_name)
+ 
+-    if check_dataset_integrity:
++    if check_dataset_integrity and increment_step in ["all", "to_dataset_properties"]:
+         verify_dataset_integrity(join(nnUNet_raw, dataset_name), num_processes)
++    else:
++        print("Skipping verify_dataset_integrity (arguments 'check_dataset_integrity' or 'increment_step' not set!")
+ 
+     fpe = fingerprint_extractor_class(dataset_id, num_processes, verbose=verbose)
+     return fpe.run(overwrite_existing=clean)
+ 
+ 
+-def extract_fingerprints(dataset_ids: List[int], fingerprint_extractor_class_name: str = 'DatasetFingerprintExtractor',
+-                         num_processes: int = default_num_processes, check_dataset_integrity: bool = False,
+-                         clean: bool = True, verbose: bool = True):
++def extract_fingerprints(dataset_ids: List[int],
++                        fingerprint_extractor_class_name: str = 'DatasetFingerprintExtractor',
++                        num_processes: int = default_num_processes, 
++                        check_dataset_integrity: bool = False,
++                        increment_step: str = None,
++                        clean: bool = True, 
++                        verbose: bool = True):
+     """
+     clean = False will not actually run this. This is just a switch for use with nnUNetv2_plan_and_preprocess where
+     we don't want to rerun fingerprint extraction every time.
+@@ -44,7 +53,7 @@ def extract_fingerprints(dataset_ids: List[int], fingerprint_extractor_class_nam
+                                                               fingerprint_extractor_class_name,
+                                                               current_module="nnunetv2.experiment_planning")
+     for d in dataset_ids:
+-        extract_fingerprint_dataset(d, fingerprint_extractor_class, num_processes, check_dataset_integrity, clean,
++        extract_fingerprint_dataset(d, fingerprint_extractor_class, num_processes, check_dataset_integrity, increment_step, clean,
+                                     verbose)
+ 
+ 
+-- 

@@ -34,8 +34,7 @@ while current_try < max_tries:
         access_token = get_project_user_access_token()
         break
     except KeyError:
-        # In my setup this worked.
-        time.sleep(120)
+        time.sleep(60)
     finally:
         current_try += 1
 

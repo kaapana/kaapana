@@ -18,8 +18,10 @@ COPY files/patched/plan_and_preprocess_entrypoints.patch /nnunet-pip-package/
 RUN git apply plan_and_preprocess_entrypoints.patch
 COPY files/patched/plan_and_preprocess_api.patch /nnunet-pip-package/
 RUN git apply plan_and_preprocess_api.patch
-COPY files/patched/nnUNetTrainer.patch /nnunet-pip-package/
-RUN git apply nnUNetTrainer.patch
+COPY files/patched/nnUNetTrainer_01.patch /nnunet-pip-package/
+RUN git apply nnUNetTrainer_01.patch
+COPY files/patched/nnUNetTrainer_02.patch /nnunet-pip-package/
+RUN git apply nnUNetTrainer_02.patch
 COPY files/patched/run_training.patch /nnunet-pip-package/
 RUN git apply run_training.patch
 

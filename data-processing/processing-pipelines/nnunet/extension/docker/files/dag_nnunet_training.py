@@ -284,7 +284,7 @@ ui_forms = {
             "disable_checkpointing": {
                 "type": "boolean",
                 "title": "Disable checkpointing",
-                "default": True,
+                "default": False,
                 "description": "Disable intermediate checkpointing after 50 epochs.",
             },
             "input": {

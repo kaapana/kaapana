@@ -251,12 +251,8 @@ def generate_xml(
 
     if study_description == None and dataset_info != None and "labels" in dataset_info:
         labels = dataset_info["labels"]
-        labels.pop("0", None)
-        study_description = ",".join(
-            list(
-                {v: v for k, v in sorted(labels.items(), key=lambda item: int(item[0]))}
-            )
-        )
+        labels.pop("background", None)
+        study_description = ",".join([label for label in labels.keys()])
 
     print(f"# study_date:     {study_date}")
     print(f"# study_time:     {study_time}")

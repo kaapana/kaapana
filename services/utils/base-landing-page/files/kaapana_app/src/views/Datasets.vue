@@ -36,8 +36,8 @@
             @updateData="updateData" 
             @onPageIndexChange="onPageIndexChange"/>
         </v-container>
-          <!-- Gallery View -->
-        <v-container fluid class="pa-0">
+        <!-- Gallery View -->
+      <v-container fluid class="pa-0">
           <!-- Loading -->
 
           <v-skeleton-loader v-if="isLoading" class="mx-auto" type="list-item@100">
@@ -322,7 +322,6 @@ export default {
       resultPaths: {},
       filteredDags: [],
       aggregatedSeriesNum: 100,
-      displayedSeriesSum: 100,
       pageIndex: 1,
       searchQuery: {},
       allPatients: true
@@ -711,17 +710,10 @@ export default {
     },
     displaySelectedItems() {
       const from = (this.pageIndex - 1) * this.settings.datasets.itemsPerPagePagination + 1;
-<<<<<<< HEAD
-      const to = Math.min(from + this.identifiersOfInterest.length, this.aggregatedSeriesNum);
-      return this.aggregatedSeriesNum > 0 && this.aggregatedSeriesNum > this.identifiersOfInterest.length
-        ? `${selected} selected from ${from} to ${to} of ${this.aggregatedSeriesNum}`
-        : `${selected} selected`;
-    },
-=======
       const to = Math.min(from + this.identifiersOfInterest.length - 1, this.aggregatedSeriesNum);
       if (this.aggregatedSeriesNum > 0 && this.aggregatedSeriesNum > this.identifiersOfInterest.length) {
-        //if structured or if slicing search is used, each page has a different number of items
-        if (this.settings.datasets.structured || (this.settings.datasets.executeSlicedSearch && this.aggregatedSeriesNum > 10000)) {
+        //if slicing search is used, each page has a different number of items
+        if (this.settings.datasets.executeSlicedSearch && this.aggregatedSeriesNum > 10000) {
           return `page ${this.pageIndex}: ${this.identifiersOfInterest.length} selected of ${this.aggregatedSeriesNum}`;
         } else {
           return `${this.identifiersOfInterest.length} selected from ${from} to ${to} of ${this.aggregatedSeriesNum}`;
@@ -730,17 +722,10 @@ export default {
         return `${this.identifiersOfInterest.length} selected`;
       }
     }
->>>>>>> 6fa1a1c27 (introduce PIT slicing seach and seach_after)
   },
 };
 </script>
 <style scoped>
-.paginate-container {
-  flex-grow: 1; /* Ensures it grows to take available space */
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end; /* Ensures pagination is at the bottom */
-}
 .sidebar {
   overflow-y: auto;
 }

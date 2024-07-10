@@ -31,9 +31,13 @@ current_try = 0
 max_tries = 3
 while current_try < max_tries:
     try:
+        print("Retrieving Access Token")
         access_token = get_project_user_access_token()
         break
     except KeyError:
+        print(
+            f"Failed retrieving access token. Wait 60 seconds. [{current_try}/{max_tries}]"
+        )
         time.sleep(60)
     finally:
         current_try += 1

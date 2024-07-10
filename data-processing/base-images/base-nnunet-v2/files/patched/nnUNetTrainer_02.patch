@@ -1,0 +1,66 @@
+diff --git a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+index 98b2395..a39db23 100644
+--- a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
++++ b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+@@ -212,7 +212,7 @@ class nnUNetTrainer(object):
+ 
+         ### checkpoint saving stuff
+         self.save_every = 50
+-        self.disable_checkpointing = bool(os.getenv("DISABLE_CHECKPOINTING", True))
++        self.disable_checkpointing = bool(os.getenv("DISABLE_CHECKPOINTING", False))
+ 
+         ## DDP batch size and oversampling can differ between workers and needs adaptation
+         # we need to change the batch size in DDP because we don't use any of those distributed samplers
+@@ -1155,10 +1155,10 @@ class nnUNetTrainer(object):
+         else:
+             loss_here = np.mean(outputs_collated['loss'])
+ 
+-        global_dc_per_class = [i for i in [2 * i / (2 * i + j + k) for i, j, k in zip(tp, fp, fn)]]
+-        mean_fg_dice = np.nanmean(global_dc_per_class)
++        self.global_dc_per_class = [i for i in [2 * i / (2 * i + j + k) for i, j, k in zip(tp, fp, fn)]]
++        mean_fg_dice = np.nanmean(self.global_dc_per_class)
+         self.logger.log('mean_fg_dice', mean_fg_dice, self.current_epoch)
+-        self.logger.log('dice_per_class_or_region', global_dc_per_class, self.current_epoch)
++        self.logger.log('dice_per_class_or_region', self.global_dc_per_class, self.current_epoch)
+         self.logger.log('val_losses', loss_here, self.current_epoch)
+ 
+     def on_epoch_start(self):
+@@ -1167,12 +1167,31 @@ class nnUNetTrainer(object):
+     def on_epoch_end(self):
+         self.logger.log('epoch_end_timestamps', time(), self.current_epoch)
+ 
+-        self.print_to_log_file('train_loss', np.round(self.logger.my_fantastic_logging['train_losses'][-1], decimals=4))
+-        self.print_to_log_file('val_loss', np.round(self.logger.my_fantastic_logging['val_losses'][-1], decimals=4))
+-        self.print_to_log_file('Pseudo dice', [np.round(i, decimals=4) for i in
+-                                               self.logger.my_fantastic_logging['dice_per_class_or_region'][-1]])
+-        self.print_to_log_file(
+-            f"Epoch time: {np.round(self.logger.my_fantastic_logging['epoch_end_timestamps'][-1] - self.logger.my_fantastic_logging['epoch_start_timestamps'][-1], decimals=2)} s")
++        # get values
++        train_loss = np.round(self.logger.my_fantastic_logging['train_losses'][-1], decimals=4)
++        val_loss = np.round(self.logger.my_fantastic_logging['val_losses'][-1], decimals=4)
++        pseudo_dice = [np.round(i, decimals=4) for i in self.logger.my_fantastic_logging['dice_per_class_or_region'][-1]]
++        epoch_time = np.round(self.logger.my_fantastic_logging['epoch_end_timestamps'][-1] - self.logger.my_fantastic_logging['epoch_start_timestamps'][-1], decimals=2)
++        # log to log_file and console
++        self.print_to_log_file('train_loss', train_loss)
++        self.print_to_log_file('val_loss', val_loss)
++        self.print_to_log_file('Pseudo dice', pseudo_dice)
++        self.print_to_log_file(f"Epoch time: {epoch_time} s")
++        # log to Kaapana's experiment_results
++        log_dict = {
++            "loss/train": float(train_loss),
++            "loss/val": float(val_loss),
++        }
++        for label_name, idx in self.dataset_labels.items():
++            if label_name == "background":
++                continue
++            log_dict.update(
++                {
++                    f"foreground-dice/label_{label_name}": float(self.global_dc_per_class[int(idx) - 1])
++                }
++            )
++        log_dict.update({"epoch": self.current_epoch, "fold": self.fold, "timestamp": time()})
++        self.json_writer.append_data_dict(log_dict)
+ 
+         # handling periodic checkpointing
+         current_epoch = self.current_epoch
+-- 

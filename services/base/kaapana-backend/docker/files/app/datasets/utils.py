@@ -239,15 +239,13 @@ def requery_for_patients(os_client, query, source, sort, page_length, hits):
     )
     # remove duplicates but keep order
     selected_patients = list(dict.fromkeys(patients))
-    print("selected_patients", len(selected_patients))
-    print("hits", len(hits))
     final_hits = []
     for patient in selected_patients:
         # filter for the individual patients of this page only
         patient_query = {
             "bool": {
                 "must": [query],
-                "filter": [{"term": {"00100020 PatientID_keyword": patient}}],
+                "filter": [{"term": {"00100020 PatientID_keyword.keyword": patient}}],
             }
         }
         patient_hits = execute_from_size_search(
@@ -263,7 +261,6 @@ def requery_for_patients(os_client, query, source, sort, page_length, hits):
         # but patients at the end of one page could also be shown on the next page.
         final_hits.extend(patient_hits)
 
-    print("final_hits", len(final_hits))
     return final_hits
 
 

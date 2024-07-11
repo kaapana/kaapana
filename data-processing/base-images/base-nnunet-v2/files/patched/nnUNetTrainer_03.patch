@@ -1,0 +1,92 @@
+diff --git a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+index a39db23..9994090 100644
+--- a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
++++ b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+@@ -177,7 +177,8 @@ class nnUNetTrainer(object):
+         self.num_epochs = int(os.getenv("TRAIN_MAX_EPOCHS", 1000))
+         self.epochs_per_round = int(os.getenv("EPOCHS_PER_ROUND", self.num_epochs))
+         self.current_epoch = int(os.getenv("CURRENT_EPOCH", 0))
+-        self.enable_deep_supervision = bool(os.getenv("ENABLE_DEEP_SUPERVISION", True))
++        self.enable_deep_supervision = str(os.getenv("ENABLE_DEEP_SUPERVISION", True))
++        self.enable_deep_supervision = True if self.enable_deep_supervision.lower() == "true" else False
+ 
+         ### Dealing with labels/regions
+         self.label_manager = self.plans_manager.get_label_manager(dataset_json)
+@@ -212,7 +213,8 @@ class nnUNetTrainer(object):
+ 
+         ### checkpoint saving stuff
+         self.save_every = 50
+-        self.disable_checkpointing = bool(os.getenv("DISABLE_CHECKPOINTING", False))
++        self.disable_checkpointing = str(os.getenv("DISABLE_CHECKPOINTING", "False"))
++        self.disable_checkpointing = True if self.disable_checkpointing.lower() == "true" else False
+ 
+         ## DDP batch size and oversampling can differ between workers and needs adaptation
+         # we need to change the batch size in DDP because we don't use any of those distributed samplers
+@@ -284,7 +286,7 @@ class nnUNetTrainer(object):
+                 shutil.rmtree(before_previous_tensorboard_log_dir)
+ 
+         if os.getenv("MODE") == "training":
+-            self.writer = SummaryWriter(log_dir=tensorboard_log_dir)
++            self.tensorboard_writer = SummaryWriter(log_dir=tensorboard_log_dir)
+             dataset_info_preprocessing_path = os.path.join(
+                 "/",
+                 os.getenv("WORKFLOW_DIR"),
+@@ -1004,6 +1006,8 @@ class nnUNetTrainer(object):
+                 self.dataloader_val._finish()
+             sys.stdout = old_stdout
+ 
++        # write tensorboard.SummaryWriter to file
++        self.tensorboard_writer.close()
+         empty_cache(self.device)
+         self.print_to_log_file("Training done.")
+ 
+@@ -1177,7 +1181,7 @@ class nnUNetTrainer(object):
+         self.print_to_log_file('val_loss', val_loss)
+         self.print_to_log_file('Pseudo dice', pseudo_dice)
+         self.print_to_log_file(f"Epoch time: {epoch_time} s")
+-        # log to Kaapana's experiment_results
++        # log to Kaapana's experiment_results json_writer and Tensorboard tensorboard_writer
+         log_dict = {
+             "loss/train": float(train_loss),
+             "loss/val": float(val_loss),
+@@ -1190,8 +1194,12 @@ class nnUNetTrainer(object):
+                     f"foreground-dice/label_{label_name}": float(self.global_dc_per_class[int(idx) - 1])
+                 }
+             )
++        for key, value in log_dict.items():
++            self.tensorboard_writer.add_scalar(key, value, self.current_epoch)
+         log_dict.update({"epoch": self.current_epoch, "fold": self.fold, "timestamp": time()})
+         self.json_writer.append_data_dict(log_dict)
++        # log to tensorboard writer
++        # self.tensorboard_writer.add_scalar(f"foreground-dice/all", self.metrics['foreground_mean']["Dice"], self.current_epoch)
+ 
+         # handling periodic checkpointing
+         current_epoch = self.current_epoch
+@@ -1399,7 +1407,7 @@ class nnUNetTrainer(object):
+             dist.barrier()
+ 
+         if self.local_rank == 0:
+-            metrics = compute_metrics_on_folder(join(self.preprocessed_dataset_folder_base, 'gt_segmentations'),
++            self.metrics = compute_metrics_on_folder(join(self.preprocessed_dataset_folder_base, 'gt_segmentations'),
+                                                 validation_output_folder,
+                                                 join(validation_output_folder, 'summary.json'),
+                                                 self.plans_manager.image_reader_writer_class(),
+@@ -1410,7 +1418,7 @@ class nnUNetTrainer(object):
+                                                 num_processes=default_num_processes * dist.get_world_size() if
+                                                 self.is_ddp else default_num_processes)
+             self.print_to_log_file("Validation complete", also_print_to_console=True)
+-            self.print_to_log_file("Mean Validation Dice: ", (metrics['foreground_mean']["Dice"]),
++            self.print_to_log_file("Mean Validation Dice: ", (self.metrics['foreground_mean']["Dice"]),
+                                    also_print_to_console=True)
+ 
+         self.set_deep_supervision_enabled(True)
+@@ -1445,6 +1453,8 @@ class nnUNetTrainer(object):
+                 self.print_to_log_file(
+                     f"Interrupting training due to epochs_per_round={self.epochs_per_round}"
+                 )
++                # write tensorboard.SummaryWriter to file
++                self.tensorboard_writer.close()
+                 break
+             ##############################
+ 
+-- 

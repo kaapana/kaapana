@@ -22,6 +22,8 @@ COPY files/patched/nnUNetTrainer_01.patch /nnunet-pip-package/
 RUN git apply nnUNetTrainer_01.patch
 COPY files/patched/nnUNetTrainer_02.patch /nnunet-pip-package/
 RUN git apply nnUNetTrainer_02.patch
+COPY files/patched/nnUNetTrainer_03.patch /nnunet-pip-package/
+RUN git apply nnUNetTrainer_03.patch
 COPY files/patched/run_training.patch /nnunet-pip-package/
 RUN git apply run_training.patch
 

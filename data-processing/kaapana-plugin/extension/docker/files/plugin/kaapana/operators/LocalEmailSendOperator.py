@@ -272,7 +272,6 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         execution_timeout=timedelta(hours=24),
         **kwargs,
     ):
-
         self.send_email = send_email
         self.sender = sender
         self.receivers = receivers

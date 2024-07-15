@@ -4,6 +4,9 @@ from datetime import timedelta
 from pathlib import Path
 from subprocess import PIPE, run
 
+import requests
+import time
+
 import pydicom
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator

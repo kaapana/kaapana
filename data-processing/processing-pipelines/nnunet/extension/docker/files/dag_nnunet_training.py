@@ -338,7 +338,7 @@ nnunet_preprocess = NnUnetOperator(
     retries=0,
     instance_name=INSTANCE_NAME,
     allow_federated_learning=True,
-    whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
+    whitelist_federated_learning=["dataset_fingerprint.json", "dataset.json"],
     trigger_rule=TriggerRule.NONE_FAILED,
     dev_server=None,  # None,  # "code-server"
 )

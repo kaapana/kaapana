@@ -7,6 +7,13 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt /kaapana/app/
+
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    texlive-xetex \
+    texlive-fonts-recommended \
+    texlive-plain-generic \
+    pandoc
+
 RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
 COPY files/ /kaapana/app/

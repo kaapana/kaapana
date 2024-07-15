@@ -3,6 +3,26 @@
 Changelog
 #########
 
+.. _release-0.3.4:
+
+-------------------------
+
+********************
+Release Notes v0.3.4
+********************
+
+July 15, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fixes offline deployment caused by wrong NVIDIA gpu-operator version
+* Fixes requirements file for operator trigger-ansible-playbook
+* Fixes missing requirements for OtsusNotebookOperator
+
+
 .. _release-0.3.3:
 
 -------------------------

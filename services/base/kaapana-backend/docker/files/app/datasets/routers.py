@@ -163,8 +163,11 @@ async def get_data(series_instance_uid, os_client=Depends(get_opensearch)):
     metadata = await get_metadata(os_client, series_instance_uid)
 
     modality = metadata["Modality"]
+    dcmweb_endpoint = metadata.get("Source Presentation Address")
+    if dcmweb_endpoint:
+        thumbnail_src = f"/thumbnails/batch/{series_instance_uid}/external_thumbnail_operator/{series_instance_uid}.png"
 
-    if modality in ["SEG", "RTSTRUCT"]:
+    elif modality in ["SEG", "RTSTRUCT"]:
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
 
@@ -175,6 +178,7 @@ async def get_data(series_instance_uid, os_client=Depends(get_opensearch)):
             f"/dcm4chee-arc/aets/KAAPANA/rs/studies/{metadata['Study Instance UID']}/"
             f"series/{series_instance_uid}/thumbnail?viewport=300,300"
         )
+
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))
 
 

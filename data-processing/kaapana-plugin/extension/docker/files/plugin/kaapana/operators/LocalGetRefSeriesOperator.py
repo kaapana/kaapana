@@ -1,15 +1,14 @@
 import glob
 import json
-import os
 from datetime import timedelta
 from multiprocessing.pool import ThreadPool
-from os.path import basename, dirname, join
+from os.path import join
 from pathlib import Path
 
 import pydicom
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.DcmWebLocalHelper import DcmWebLocalHelper
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -85,7 +84,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("#")
             pacs_series = self.dcmweb_helper.search_for_series(
                 search_filters=search_filters
-            ).json()
+            )
             print(f"Found series: {len(pacs_series)}")
             if len(pacs_series) == 0 or (
                 self.expected_file_count != "all"
@@ -130,7 +129,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("#")
             pacs_series = self.dcmweb_helper.search_for_series(
                 search_filters=search_filters
-            ).json()
+            )
             print(f"Found series: {len(pacs_series)}")
             if len(pacs_series) == 0 or (
                 self.expected_file_count != "all"

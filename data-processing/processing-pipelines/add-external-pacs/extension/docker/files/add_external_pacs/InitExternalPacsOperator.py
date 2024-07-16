@@ -2,8 +2,8 @@ import json
 import logging
 
 from kaapana.kubetools.secret import create_k8s_secret, get_k8s_secret, hash_secret_name
-from kaapana.operators.DcmWeb import DcmWeb
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logging.basicConfig(
@@ -30,7 +30,7 @@ class InitExternalPacsOperator(KaapanaPythonBaseOperator):
         service_account_info = json.loads(workflow_form["service_account_info"])
         service_account_info["dcmweb_endpoint"] = dcmweb_endpoint
 
-        helper = DcmWeb.get_dcmweb_helper(
+        helper = get_dcmweb_helper(
             dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
         )
         if not helper.check_reachability():

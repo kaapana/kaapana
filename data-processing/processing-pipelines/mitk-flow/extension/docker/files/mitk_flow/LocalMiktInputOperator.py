@@ -8,7 +8,7 @@ from xml.etree import ElementTree
 import pydicom
 import requests
 from dicomweb_client.api import DICOMwebClient
-from kaapana.operators.DcmWebLocalHelper import DcmWebLocalHelper
+from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 

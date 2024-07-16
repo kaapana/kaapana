@@ -26,6 +26,8 @@ COPY files/patched/nnUNetTrainer_03.patch /nnunet-pip-package/
 RUN git apply nnUNetTrainer_03.patch
 COPY files/patched/run_training.patch /nnunet-pip-package/
 RUN git apply run_training.patch
+COPY files/patched/fingerprint_extractor.patch /nnunet-pip-package/
+RUN git apply fingerprint_extractor.patch
 
 # install pip package in editable/dev mode
 RUN cd /nnunet-pip-package && pip3 install -e .

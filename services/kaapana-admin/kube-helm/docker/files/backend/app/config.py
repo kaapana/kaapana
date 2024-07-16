@@ -17,7 +17,6 @@ class Settings(BaseSettings):
     secret_key: str = os.getenv("SECRET_KEY", None)
     application_root: str = os.getenv("APPLICATION_ROOT", None)
 
-    edk_path: str = os.getenv("EDK_PATH", None)
     helm_extensions_cache: str = os.getenv("HELM_EXTENSIONS_CACHE", None)
     helm_platforms_cache: str = os.getenv("HELM_PLATFORMS_CACHE", None)
     helm_collections_cache: str = "/root/collections"

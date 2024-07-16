@@ -183,12 +183,10 @@ def filepond_delete(patch):
         return ""
 
 
-def make_fpath(fname: str, platforms=False, edk=False):
+def make_fpath(fname: str, platforms=False):
     pre = settings.helm_extensions_cache
     if platforms:
         pre = settings.helm_platforms_cache
-    elif edk:
-        pre = settings.edk_path
 
     if pre[-1] != "/":
         pre += "/"
@@ -504,13 +502,9 @@ async def run_containerd_import(
 ) -> Tuple[bool, str]:
     logger.debug(f"in function: run_containerd_import, {fname=}")
     fpath = make_fpath(fname, platforms=platforms)
-    # check if file exists under /extensions or /edk
+
     if not os.path.exists(fpath):
-        logger.error(f"file can not be found in path {fpath}")
-        fpath = make_fpath(fname, platforms=platforms, edk=True)
-        logger.info(f"checking path under /edk folder {fpath}")
-        if not os.path.exists(fpath):
-            return False, f"file {fname} can not be found"
+        return False, f"file {fname} can not be found"
 
     cmd = f"ctr --namespace k8s.io -address='{settings.containerd_sock}' image import --digests {fpath}"
     logger.debug(f"{cmd=}")

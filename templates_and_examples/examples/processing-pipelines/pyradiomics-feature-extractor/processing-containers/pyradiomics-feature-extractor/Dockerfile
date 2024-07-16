@@ -21,4 +21,4 @@ RUN git clone https://github.com/AIM-Harvard/pyradiomics.git pyradiomics \
     && python setup.py install
 
 # run the script
-CMD ["python3", "extract_features.py"]
+CMD ["python3", "-u", "extract_features.py"]

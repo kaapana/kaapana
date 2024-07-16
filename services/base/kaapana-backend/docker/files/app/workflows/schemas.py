@@ -1,7 +1,8 @@
-from typing import Optional, List
-from sqlalchemy_json import NestedMutableDict, NestedMutableList
 import datetime
-from pydantic import field_validator, ConfigDict, BaseModel, model_validator
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from sqlalchemy_json import NestedMutableDict, NestedMutableList
 from typing_extensions import Self
 
 
@@ -317,3 +318,20 @@ class WorkflowWithKaapanaInstanceWithJobs(WorkflowWithKaapanaInstance):
                 workflow_job_states.append(db_job.status)
         self.workflow_jobs = workflow_job_states
         return self
+
+
+class SettingsBase(BaseModel):
+    id: Optional[str] = None
+    instance_name: Optional[str] = None
+    key: Optional[str] = None
+    value: Optional[NestedMutableDict] = ...
+
+
+class Settings(SettingsBase):
+    id: str
+    username: Optional[str] = None
+    time_created: datetime.datetime
+    time_updated: datetime.datetime
+
+    # @field_validator("time_created", mode="before")
+    # @field_validator("time_updated", mode="before")

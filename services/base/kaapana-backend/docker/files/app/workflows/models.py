@@ -1,13 +1,11 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Table
-from sqlalchemy.orm import relationship, Mapped
-from sqlalchemy.schema import UniqueConstraint, Index
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy_json import mutable_json_type
-
 from typing import List
 
 from app.database import Base
-
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.schema import Index, UniqueConstraint
+from sqlalchemy_json import mutable_json_type
 
 # job_kaapana_instance_table = Table('job_kaapana_instance_table', Base.metadata,
 #     Column('job_id', ForeignKey('job.id'), primary_key=True),
@@ -71,6 +69,9 @@ class KaapanaInstance(Base):
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
     datasets = relationship(
         "Dataset", back_populates="kaapana_instance", cascade="all, delete"
+    )
+    settings = relationship(
+        "Settings", back_populates="kaapana_instance", cascade="all, delete"
     )
     # many-to-one relationships
     workflow_in_which_involved = Column(
@@ -147,3 +148,22 @@ class Job(Base):
             postgresql_where=(external_job_id.isnot(None)),
         ),  # The condition
     )
+
+
+class Settings(Base):
+    __tablename__ = "settings"
+    id = Column(Integer, primary_key=True)
+    username = Column(String(64))
+    instance_name = Column(String(64))
+    key = Column(String(64))
+    value = Column(mutable_json_type(dbtype=JSONB, nested=True))
+    time_created = Column(DateTime(timezone=True))
+    time_updated = Column(DateTime(timezone=True))
+
+    # many-to-one relationships
+    kaapana_instance_id = Column(Integer, ForeignKey("kaapana_instance.id"))
+    kaapana_instance = relationship("KaapanaInstance", back_populates="settings")
+
+    def __repr__(self):
+        return f"Settings(id={self.id}, instance_name={self.instance_name}, username={self.username}, \
+            key={self.username}, value={self.value}, updated={self.time_updated})"

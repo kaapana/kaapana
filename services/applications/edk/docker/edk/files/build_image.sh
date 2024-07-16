@@ -15,7 +15,7 @@ print_help() {
     echo "  --dir             Path to the context directory (required)"
     echo "  --dockerfile      Path to the Dockerfile (optional, defaults to <context-path>/Dockerfile)"
     echo "  --image-name      Name of the Docker image (optional, if not provided, extracted from Dockerfile LABEL IMAGE)"
-    echo "  --image-version   Version of the Docker image (optional, defaults to KAAPANA_BUILD_VERSION)"
+    #TODO echo "  --image-version   Version of the Docker image (optional, defaults to KAAPANA_BUILD_VERSION)"
     echo "  --no-import       Skip importing container inside microk8s ctr"
     echo "  --help            Display this help message"
     echo

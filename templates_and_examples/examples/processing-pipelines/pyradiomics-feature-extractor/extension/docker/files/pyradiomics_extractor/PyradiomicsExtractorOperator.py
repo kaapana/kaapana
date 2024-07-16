@@ -26,7 +26,7 @@ class PyradiomicsExtractorOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{DEFAULT_REGISTRY}/pyradiomics-extract-features:{KAAPANA_BUILD_VERSION}",
+            image=f"localhost:32000/pyradiomics-extract-features:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             image_pull_policy="IfNotPresent",  # either 'Always' or 'IfNotPresent'. If set to Always, k8s always tries to pull the image from registry
             execution_timeout=execution_timeout,

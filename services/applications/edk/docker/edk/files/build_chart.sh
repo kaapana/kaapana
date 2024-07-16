@@ -11,6 +11,7 @@ print_help() {
     echo
     echo "Arguments:"
     echo "  --dir             Path to the chart directory (required)"
+    #TODO echo "  --version         Chart version (optional, defaults to KAAPANA_BUILD_VERSION)"
     echo "  --no-import       Skip importing chart as an extension"
     echo "  --help            Display this help message"
     echo
@@ -54,3 +55,5 @@ if [ "$no_import" != "true" ]; then
 else
     echo "Skipping import."
 fi
+
+echo ""

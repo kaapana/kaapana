@@ -10,7 +10,8 @@ print_help() {
     echo
     echo "Arguments:"
     echo "  --dir             Path to the extension dir, should contain /extension and /processing-containers folders (required)"
-    echo "  --no-import       Skip importing chart and image files into the platform"
+    #TODO echo "  --version         Version of the extension (optional, defaults to KAAPANA_BUILD_VERSION)" 
+    echo "  --no-import       Skip importing chart and image files into the platform (optional)"
     echo "  --help            Display help message"
     echo
 }

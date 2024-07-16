@@ -3,3 +3,4 @@ global:
     image: "dag-pyradiomics-extract-features"
     action: "copy"
     pull_policy_images: "IfNotPresent"
+    custom_registry_url: "localhost:32000" # disable if not pulling image from local reg

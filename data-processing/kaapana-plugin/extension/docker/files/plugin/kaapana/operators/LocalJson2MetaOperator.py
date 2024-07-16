@@ -1,10 +1,9 @@
 import glob
 import json
 import os
-import time
 
 import pydicom
-from kaapana.operators.DcmWebLocalHelper import DcmWebLocalHelper
+from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 

@@ -166,9 +166,9 @@ class HelperOpensearch:
                     "curated_modality": hit["_source"][
                         HelperOpensearch.curated_modality_tag
                     ],
-                    "source_presentation_address": hit["_source"][
+                    "source_presentation_address": hit["_source"].get(
                         HelperOpensearch.dcmweb_endpoint_tag
-                    ],
+                    ),
                 }
             }
             for hit in res

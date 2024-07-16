@@ -6,7 +6,7 @@ from subprocess import PIPE, run
 
 import pydicom
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.DcmWebLocalHelper import DcmWebLocalHelper
+from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 

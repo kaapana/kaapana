@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pydicom
 from kaapana.kubetools.secret import get_k8s_secret, hash_secret_name
-from kaapana.operators.DcmWeb import DcmWeb
 from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.logger import get_logger
@@ -90,7 +90,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             )
             if not download_successful:
                 logger.error(
-                    f"Could not download DICOM series {seriesUID} from {self.dcmweb_helper.dcmweb_endpoints['rs']}"
+                    f"Could not download DICOM series {seriesUID} from {self.dcmweb_helper}"
                 )
                 download_successful = False
 
@@ -125,10 +125,10 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         logger.info(f"Adding external PACs: {dcmweb_endpoint}")
         service_account_info = json.loads(service_account_info)
 
-        dcmweb_helper = DcmWeb.get_dcmweb_helper(
+        dcmweb_helper = get_dcmweb_helper(
             dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
         )
-        metadata = dcmweb_helper.search_for_instances().json()
+        metadata = dcmweb_helper.search_for_instances()
         if len(metadata) == 0:
             logger.error("No metadata found.")
             exit(1)
@@ -376,7 +376,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         for dcmweb_endpoint, group_download_list in grouped_downloads.items():
             if not dcmweb_endpoint:  # if local pacs
-                self.dcmweb_helper = DcmWeb.get_dcmweb_helper(dcmweb_endpoint)
+                self.dcmweb_helper = get_dcmweb_helper(dcmweb_endpoint)
             else:
                 secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
                 service_account_info = get_k8s_secret(secret_name)
@@ -385,7 +385,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                         f"Cannot retrieve secret for {dcmweb_endpoint}"
                     )
 
-                self.dcmweb_helper = DcmWeb.get_dcmweb_helper(
+                self.dcmweb_helper = get_dcmweb_helper(
                     dcmweb_endpoint, service_account_info=service_account_info
                 )
 

@@ -91,6 +91,7 @@ def get_feature_classes():
 
     return feature_classes
 
+
 def convert_ndarray_to_list(d):
     """
     Convert any numpy ndarrays in a dictionary to lists.
@@ -150,9 +151,7 @@ for series_ins_uid in os.listdir(batch_path):
             features = convert_ndarray_to_list(features)
 
             # save features as json
-            output_file = os.path.join(
-                out_path, f"{series_ins_uid}_features.json"
-            )
+            output_file = os.path.join(out_path, f"{series_ins_uid}_features.json")
             print(f"output_file {output_file}")
             with open(output_file, "w") as json_file:
                 json.dump(features, json_file, indent=4)

@@ -10,6 +10,3 @@ global:
   dynamicVolumes:
   - name: extensions
     host_path: /extensions
-  - name: edk
-    host_path: /applications/edk/edk-to-minio
-    mount_path: /kaapana/mounted/edk/edk-to-minio

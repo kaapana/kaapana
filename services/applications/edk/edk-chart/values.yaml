@@ -14,10 +14,11 @@ global:
     host_path: /applications
     storage: 1Gi
     minio_mirror : true
+  - name: platform-extensions
+    host_path: /extensions
   envVars:
   - name: WORKSPACE
     value: "/kaapana"
   links:
     - /edk/
     - /local-registry-ui/
-    

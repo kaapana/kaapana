@@ -3,7 +3,7 @@ from starlette.status import HTTP_204_NO_CONTENT
 from ..proxy_request import proxy_request
 from ..database import get_session
 from . import crud
-from ..config import DICOMWEB_BASE_URL
+from ..config import DICOMWEB_BASE_URL, DEFAULT_PROJECT_ID
 from sqlalchemy.ext.asyncio import AsyncSession
 import json
 
@@ -46,7 +46,9 @@ async def adjust_response_routes(response: Response) -> Response:
 async def query_studies(request: Request, session: AsyncSession = Depends(get_session)):
 
     # Retrieve studies mapped to the project
-    studies = set(await crud.get_all_studies_mapped_to_project(session, 1))
+    studies = set(
+        await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
+    )
 
     # check if StudyInstanceUID is in the query parameters
     if "StudyInstanceUID" in request.query_params:
@@ -91,7 +93,7 @@ async def query_series(
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = set(
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
-            session=session, project_id=1, study_instance_uid=study
+            session=session, project_id=DEFAULT_PROJECT_ID, study_instance_uid=study
         )
     )
 
@@ -146,7 +148,7 @@ async def query_instances(
 
     if not crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
-        project_id=1,
+        project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
         series_instance_uid=series,
     ):

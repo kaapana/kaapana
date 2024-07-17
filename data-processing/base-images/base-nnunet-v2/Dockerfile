@@ -28,6 +28,10 @@ COPY files/patched/run_training.patch /nnunet-pip-package/
 RUN git apply run_training.patch
 COPY files/patched/fingerprint_extractor.patch /nnunet-pip-package/
 RUN git apply fingerprint_extractor.patch
+COPY files/patched/wip_nnunetv2_fed.patch /nnunet-pip-package/
+RUN git apply wip_nnunetv2_fed.patch
+COPY files/patched/checkpointing_in_prepround.patch /nnunet-pip-package/
+RUN git apply checkpointing_in_prepround.patch
 
 # install pip package in editable/dev mode
 RUN cd /nnunet-pip-package && pip3 install -e .

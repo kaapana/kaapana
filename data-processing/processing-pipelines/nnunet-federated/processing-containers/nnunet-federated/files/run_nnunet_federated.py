@@ -12,7 +12,8 @@ from torch.utils.tensorboard import SummaryWriter
 from nnunet.training.model_restore import restore_model
 from nnunet.experiment_planning.DatasetAnalyzer import DatasetAnalyzer
 from batchgenerators.utilities.file_and_folder_operations import join
-import os, psutil
+import psutil
+import numpy as np
 
 sys.path.insert(0, "/")
 sys.path.insert(0, "/kaapana/app")
@@ -39,24 +40,34 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         for mod_id in range(num_modalities):
             results[mod_id] = OrderedDict()
             w = []
-            for iv in v_per_mod[mod_id]:
+            for iv in v_per_mod[str(mod_id)]:
                 w += iv
 
-            (
-                median,
-                mean,
-                sd,
-                mn,
-                mx,
-                percentile_99_5,
-                percentile_00_5,
-            ) = DatasetAnalyzer._compute_stats(w)
+            # (
+            #     median,
+            #     mean,
+            #     sd,
+            #     mn,
+            #     mx,
+            #     percentile_99_5,
+            #     percentile_00_5,
+            # ) = DatasetAnalyzer._compute_stats(w)
 
+            # results[mod_id]["median"] = median
+            # results[mod_id]["mean"] = mean
+            # results[mod_id]["sd"] = sd
+            # results[mod_id]["mn"] = mn
+            # results[mod_id]["mx"] = mx
+            # results[mod_id]["percentile_99_5"] = percentile_99_5
+            # results[mod_id]["percentile_00_5"] = percentile_00_5
+
+            percentiles = np.array((0.5, 50.0, 99.5))
+            percentile_00_5, median, percentile_99_5 = np.percentile(w, percentiles)
             results[mod_id]["median"] = median
-            results[mod_id]["mean"] = mean
-            results[mod_id]["sd"] = sd
-            results[mod_id]["mn"] = mn
-            results[mod_id]["mx"] = mx
+            results[mod_id]["mean"] = float(np.mean(w))
+            results[mod_id]["sd"] = float(np.std(w))
+            results[mod_id]["mn"] = float(np.min(w))
+            results[mod_id]["mx"] = float(np.max(w))
             results[mod_id]["percentile_99_5"] = percentile_99_5
             results[mod_id]["percentile_00_5"] = percentile_00_5
 
@@ -147,45 +158,52 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             voxels_in_foreground = {}
             dataset_properties_files = []
             for idx, fname in enumerate(
-                preprocessing_path.rglob("dataset_properties.pkl")
+                preprocessing_path.rglob("dataset_fingerprint.json")
             ):
-                if "nnUNet_cropped_data" in str(fname):
+                if "nnUNet_preprocessed" in str(fname):
                     dataset_properties_files.append(fname)
                     if idx == 0:
                         with open(fname, "rb") as f:
-                            concat_dataset_properties = pickle.load(f)
+                            concat_dataset_properties = json.load(f)
                         if (
-                            "intensityproperties" in concat_dataset_properties
-                            and concat_dataset_properties["intensityproperties"]
+                            "foreground_intensity_properties_per_channel"
+                            in concat_dataset_properties
+                            and concat_dataset_properties[
+                                "foreground_intensity_properties_per_channel"
+                            ]
                         ):
-                            local_intensityproperties = collections.OrderedDict()
+                            # local_intensityproperties = collections.OrderedDict()
                             for mod_id, _ in concat_dataset_properties[
-                                "intensityproperties"
+                                "foreground_intensity_properties_per_channel"
                             ].items():
                                 voxels_in_foreground[
                                     mod_id
-                                ] = concat_dataset_properties["intensityproperties"][
+                                ] = concat_dataset_properties[
+                                    "foreground_intensity_properties_per_channel"
+                                ][
                                     mod_id
                                 ][
                                     "v"
                                 ]
-                                local_intensityproperties[
-                                    mod_id
-                                ] = collections.OrderedDict()
-                                local_intensityproperties[mod_id][
-                                    "local_props"
-                                ] = concat_dataset_properties["intensityproperties"][
-                                    mod_id
-                                ][
-                                    "local_props"
-                                ]
-                                print(idx, mod_id)
-                            concat_dataset_properties[
-                                "intensityproperties"
-                            ] = local_intensityproperties
+                                # local_intensityproperties[
+                                #     mod_id
+                                # ] = collections.OrderedDict()
+                                # local_intensityproperties[mod_id][
+                                #     "local_props"
+                                # ] = concat_dataset_properties["foreground_intensity_properties_per_channel"][
+                                #     mod_id
+                                # ][
+                                #     "local_props"
+                                # ]
+                                print(
+                                    f"Processed fingerprint {idx} of modality {mod_id}!"
+                                )
+                            # concat_dataset_properties[
+                            #     "foreground_intensity_properties_per_channel"
+                            # ] = local_intensityproperties
                     else:
                         with open(fname, "rb") as f:
-                            dataset_properties = pickle.load(f)
+                            dataset_properties = json.load(f)
                         for k in ["all_sizes", "all_spacings"]:
                             concat_dataset_properties[k] = (
                                 concat_dataset_properties[k] + dataset_properties[k]
@@ -194,38 +212,48 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                             dataset_properties["size_reductions"]
                         )
                         if (
-                            "intensityproperties" in concat_dataset_properties
-                            and concat_dataset_properties["intensityproperties"]
+                            "foreground_intensity_properties_per_channel"
+                            in concat_dataset_properties
+                            and concat_dataset_properties[
+                                "foreground_intensity_properties_per_channel"
+                            ]
                         ):
                             for (
                                 mod_id,
                                 intensityproperties,
                             ) in concat_dataset_properties[
-                                "intensityproperties"
+                                "foreground_intensity_properties_per_channel"
                             ].items():
                                 voxels_in_foreground[mod_id] = (
                                     voxels_in_foreground[mod_id]
-                                    + dataset_properties["intensityproperties"][mod_id][
-                                        "v"
-                                    ]
+                                    + dataset_properties[
+                                        "foreground_intensity_properties_per_channel"
+                                    ][mod_id]["v"]
                                 )
-                                concat_dataset_properties["intensityproperties"][
-                                    mod_id
-                                ]["local_props"].update(
-                                    dataset_properties["intensityproperties"][mod_id][
-                                        "local_props"
-                                    ]
+                                # concat_dataset_properties["foreground_intensity_properties_per_channel"][
+                                #     mod_id
+                                # ]["local_props"].update(
+                                #     dataset_properties["foreground_intensity_properties_per_channel"][mod_id][
+                                #         "local_props"
+                                #     ]
+                                # )
+                                print(
+                                    f"Processed fingerprint {idx} of modality {mod_id}."
                                 )
-                                print(idx, mod_id)
                         for k in ["all_classes", "modalities"]:
                             assert json.dumps(dataset_properties[k]) == json.dumps(
                                 concat_dataset_properties[k]
                             )
-                    print(fname)
-            print(len(dataset_properties_files))
+                    # print(fname)
+            print(
+                f"Number of to be aggregated data fingerprints: {len(dataset_properties_files)}."
+            )
             if (
-                "intensityproperties" in concat_dataset_properties
-                and concat_dataset_properties["intensityproperties"]
+                "foreground_intensity_properties_per_channel"
+                in concat_dataset_properties
+                and concat_dataset_properties[
+                    "foreground_intensity_properties_per_channel"
+                ]
             ):
                 global_intensityproperties = (
                     nnUNetFederatedTraining.collect_intensity_properties(
@@ -233,16 +261,18 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                     )
                 )
                 for mod_id, _ in concat_dataset_properties[
-                    "intensityproperties"
+                    "foreground_intensity_properties_per_channel"
                 ].items():
-                    print(idx, mod_id)
-                    concat_dataset_properties["intensityproperties"][mod_id].update(
-                        global_intensityproperties[mod_id]
+                    print(
+                        f"Number of aggregated data fingerprints {idx} of modality {mod_id}."
                     )
+                    concat_dataset_properties[
+                        "foreground_intensity_properties_per_channel"
+                    ][str(mod_id)].update(global_intensityproperties[int(mod_id)])
 
             for fname in dataset_properties_files:
-                with open(fname, "wb") as f:
-                    pickle.dump(concat_dataset_properties, f)
+                with open(fname, "w") as f:
+                    json.dump(concat_dataset_properties, f)
 
             # Dummy creation of nnunet-training folder, because a tar is expected in the next round due
             # to from_previous_dag_run not None. Mybe there is a better solution for the future...
@@ -360,8 +390,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data["workflow_form"]["train_continue"] = True
             self.run_in_parallel = True
         print(
-            federated_round,
-            self.remote_conf_data["federated_form"]["federated_total_rounds"],
+            f"Current fl_round={federated_round} out of {self.remote_conf_data['federated_form']['federated_total_rounds']} total fl_rounds."
         )
 
 

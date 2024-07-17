@@ -9,14 +9,15 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 import jsonschema
 import jsonschema.exceptions
 from app.dependencies import get_db
 from app.workflows import crud, schemas
+from app.workflows.models import JSONOrString
 from app.workflows.utils import get_dag_list
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 
@@ -501,7 +502,7 @@ def check_for_remote_updates(db: Session = Depends(get_db)):
 def create_dataset(
     request: Request,
     dataset: Union[schemas.DatasetCreate, None] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     dataset.username = request.headers["x-forwarded-preferred-username"]
     db_obj = crud.create_dataset(db=db, dataset=dataset)
@@ -798,3 +799,26 @@ def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
 @router.delete("/workflows")
 def delete_workflows(db: Session = Depends(get_db)):
     return crud.delete_workflows(db)
+
+
+# get all settings for instance
+@router.get("/settings", response_model=List[schemas.SettingsBase])
+def get_settings(db: Session = Depends(get_db)):
+    db_response = crud.get_instance_settings(db)
+    settings: List[schemas.SettingsBase] = []
+
+    for item in db_response:
+        settings_item = schemas.SettingsBase(key=item.key, value=item.value)
+        settings.append(settings_item)
+
+    return settings
+
+
+# put all settings for instance
+@router.put("/settings")
+def create_or_update_settings(
+    settings: List[schemas.SettingsBase], db: Session = Depends(get_db)
+):
+    for item in settings:
+        _ = crud.create_or_update_settings(db, item)
+    return True

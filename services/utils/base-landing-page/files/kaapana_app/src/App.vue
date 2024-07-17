@@ -176,7 +176,7 @@ export default Vue.extend({
         }
       }
     );
-    this.loadSelectedProject();
+    this.getSettingsFromDb();
   },
 
   computed: {
@@ -225,6 +225,25 @@ export default Vue.extend({
         this.$router.push({ name: "" });
       });
     },
+    settingsResponseToObject(response: any[]) {
+      let converted: Object = {}
+      
+      response.forEach((item) => {
+        converted[item.key as keyof Object] = item.value;
+      })
+
+      return converted;
+    },
+    getSettingsFromDb() {
+      kaapanaApiService.federatedClientApiGet('/settings')
+        .then((response: any) => {
+          let settingsFromDb = this.settingsResponseToObject(response.data);
+          localStorage["settings"] = JSON.stringify(settingsFromDb);
+        })
+        .catch(err => {
+          console.log(err);
+        })
+    }
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);

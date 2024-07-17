@@ -1,0 +1,25 @@
+diff --git a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+index 12c0d45..073750f 100644
+--- a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
++++ b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+@@ -159,9 +159,11 @@ class DatasetFingerprintExtractor(object):
+             #                 processes=self.num_processes, zipped=True, reader_writer_class=reader_writer_class,
+             #                 num_samples=num_foreground_samples_per_case, disable=self.verbose)
+             results = [i.get()[0] for i in r]
++            # results contains per sample: shape, spacing, list of all foreground_intensities, statistics, relative_size_after_cropping
+ 
+             shapes_after_crop = [r[0] for r in results]
+             spacings = [r[1] for r in results]
++            foreground_intensities_per_channel_per_case = [r[2][0].tolist() for r in results]
+             foreground_intensities_per_channel = [np.concatenate([r[2][i] for r in results]) for i in
+                                                   range(len(results[0][2]))]
+             foreground_intensities_per_channel = np.array(foreground_intensities_per_channel)
+@@ -185,6 +187,7 @@ class DatasetFingerprintExtractor(object):
+                     'max': float(np.max(foreground_intensities_per_channel[i])),
+                     'percentile_99_5': float(percentile_99_5),
+                     'percentile_00_5': float(percentile_00_5),
++                    'v': foreground_intensities_per_channel_per_case,
+                 }
+ 
+             fingerprint = {
+-- 

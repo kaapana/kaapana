@@ -116,6 +116,7 @@ class KaapanaFederatedTrainingBase(ABC):
     # Todo move in Jonas library as normal function
     @staticmethod
     def fernet_encryptfile(filepath, key):
+        return
         if key == "deactivated":
             return
         fernet = Fernet(key.encode())
@@ -128,6 +129,7 @@ class KaapanaFederatedTrainingBase(ABC):
     # Todo move in Jonas library as normal function
     @staticmethod
     def fernet_decryptfile(filepath, key):
+        return
         if key == "deactivated":
             return
         fernet = Fernet(key.encode())
@@ -468,7 +470,7 @@ class KaapanaFederatedTrainingBase(ABC):
             modified_fname = str(fname).replace(str(current_federated_round_dir), "")
             site_name = modified_fname.split("/")[1]
 
-            site_statedict_dict[site_name] = checkpoint["state_dict"]
+            site_statedict_dict[site_name] = checkpoint["network_weights"]
         return site_statedict_dict
 
     # @timeit

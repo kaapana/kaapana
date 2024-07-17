@@ -1,0 +1,63 @@
+diff --git a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+index 073750f..1157be7 100644
+--- a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
++++ b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+@@ -36,7 +36,7 @@ class DatasetFingerprintExtractor(object):
+         # We don't want to use all foreground voxels because that can accumulate a lot of data (out of memory). It is
+         # also not critically important to get all pixels as long as there are enough. Let's use 10e7 voxels in total
+         # (for the entire dataset)
+-        self.num_foreground_voxels_for_intensitystats = 10e7
++        self.num_foreground_voxels_for_intensitystats = 10e4
+ 
+     @staticmethod
+     def collect_foreground_intensities(segmentation: np.ndarray, images: np.ndarray, seed: int = 1234,
+diff --git a/nnunetv2/run/run_training.py b/nnunetv2/run/run_training.py
+index c33f85e..db09ed8 100644
+--- a/nnunetv2/run/run_training.py
++++ b/nnunetv2/run/run_training.py
+@@ -94,15 +94,6 @@ def maybe_load_checkpoint(nnunet_trainer: nnUNetTrainer, continue_training: bool
+             load_pretrained_weights(nnunet_trainer.network, pretrained_weights_file, verbose=True)
+         expected_checkpoint_file = None
+ 
+-        ### ADAPTED FOR KAAPANAFED ###
+-        if os.getenv("PREP_INCREMENT_STEP", None) == "from_dataset_properties":
+-            nnunet_trainer.save_checkpoint(
+-                join(nnunet_trainer.output_folder, "model_final_checkpoint.model")
+-            )
+-            print("Preparation round: Aggregation of model initialization!")
+-            return
+-        ##############################
+-
+     if expected_checkpoint_file is not None:
+         nnunet_trainer.load_checkpoint(expected_checkpoint_file)
+ 
+diff --git a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+index 9994090..7346209 100644
+--- a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
++++ b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+@@ -954,7 +954,7 @@ class nnUNetTrainer(object):
+         # make sure deep supervision is on in the network
+         self.set_deep_supervision_enabled(self.enable_deep_supervision)
+ 
+-        self.print_plans()
++        # self.print_plans()
+         empty_cache(self.device)
+ 
+         # maybe unpack
+@@ -1427,6 +1427,15 @@ class nnUNetTrainer(object):
+     def run_training(self):
+         self.on_train_start()
+ 
++        ### ADAPTED FOR KAAPANAFED ###
++        if os.getenv("PREP_INCREMENT_STEP", None) == "from_dataset_properties":
++            nnunet_trainer.save_checkpoint(
++                join(nnunet_trainer.output_folder, "model_final_checkpoint.model")
++            )
++            print("Preparation round: Aggregation of model initialization!")
++            return
++        ##############################
++
+         for epoch in range(self.current_epoch, self.num_epochs):
+             self.on_epoch_start()
+ 
+-- 

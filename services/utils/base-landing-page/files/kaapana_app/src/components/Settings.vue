@@ -18,91 +18,64 @@
               <v-card-text>
                 <v-row>
                   <v-col>
-                    <v-checkbox
-                      v-model="settings.datasets.cardText"
-                      label="Show Metadata"
-                    >
+                    <v-checkbox v-model="settings.datasets.cardText" label="Show Metadata">
                     </v-checkbox>
                   </v-col>
                   <v-col>
-                    <v-checkbox
-                      v-model="settings.datasets.structured"
-                      label="Structured View"
-                    >
+                    <v-checkbox v-model="settings.datasets.structured" label="Structured View">
                     </v-checkbox>
                   </v-col>
                   <v-col>
-                    <v-select
-                      v-model="settings.datasets.cols"
-                      :items="['auto', '1', '2', '3', '4', '6', '12']"
-                      label="Width of an item in the Dataset view"
-                    ></v-select>
+                    <v-select v-model="settings.datasets.cols" :items="['auto', '1', '2', '3', '4', '6', '12']"
+                      label="Width of an item in the Dataset view"></v-select>
                   </v-col>
                 </v-row>
                 <v-row>
                   <v-col>
-                    <SettingsTable
-                      ref="settingsTable"
-                      :items.sync="settings.datasets.props"
-                      :structuredView="settings.datasets.structured"
-                      :showMetaData="settings.datasets.cardText"
-                    >
+                    <SettingsTable ref="settingsTable" :items.sync="settings.datasets.props"
+                      :structuredView="settings.datasets.structured" :showMetaData="settings.datasets.cardText">
                     </SettingsTable>
                   </v-col>
                 </v-row>
               </v-card-text>
-            </v-container>              
+            </v-container>
           </v-tab-item>
           <v-tab-item key="dcm-validation" class="tab-container">
-              <v-container fluid>
-                <v-card-text>
-                  <v-row>
-                    <v-col cols="4" class="centered-col"></v-col>
-                    <v-col cols="8">                      
-                      <v-checkbox
-                        v-model="validateDicoms.exitOnError"
-                        label="Stop workflow execution on Error"
-                        hide-details
-                      ></v-checkbox>
-                    </v-col>
-                    <v-col cols="4" class="centered-col">
-                      <v-subheader>Default Dicom validation Algorithm</v-subheader>
-                    </v-col>
-                    <v-col cols="8">
-                      <v-select
-                        v-model="validateDicoms.validatorAlgorithm"
-                        :items="['dciodvfy', 'dicom-validator']"
-                        class="pa-0"
-                      ></v-select>
-                    </v-col>
-                    <v-col cols="4" class="centered-col">
-                      <v-subheader>Add DICOM tag to ignore</v-subheader>
-                    </v-col>
-                    <v-col cols="8">
-                      <v-text-field
-                        v-model="newTag"
-                        append-icon="mdi-plus-thick"
-                        label="Add a tag"
-                        :error-messages="tagError"
-                        @click:append="onValidationTagAdd"
-                        @keydown.enter="onValidationTagAdd"
-                        class="pa-0"
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="4"></v-col>
-                    <v-col cols="8">
-                      <v-chip v-for="item in validateDicoms.tagsWhitelist" 
-                        close outlined
-                        color="red" class="mr-2 mb-2"
-                        @click:close="() => removeFromValidationWhitelist(item)">
-                        {{ item }}
-                      </v-chip>
-                    </v-col>
-                  </v-row>
-                </v-card-text>
-              </v-container>           
+            <v-container fluid>
+              <v-card-text>
+                <v-row>
+                  <v-col cols="4" class="centered-col"></v-col>
+                  <v-col cols="8">
+                    <v-checkbox v-model="validateDicoms.exitOnError" label="Stop workflow execution on Error"
+                      hide-details></v-checkbox>
+                  </v-col>
+                  <v-col cols="4" class="centered-col">
+                    <v-subheader>Default Dicom validation Algorithm</v-subheader>
+                  </v-col>
+                  <v-col cols="8">
+                    <v-select v-model="validateDicoms.validatorAlgorithm" :items="['dciodvfy', 'dicom-validator']"
+                      class="pa-0"></v-select>
+                  </v-col>
+                  <v-col cols="4" class="centered-col">
+                    <v-subheader>Add DICOM tag to ignore</v-subheader>
+                  </v-col>
+                  <v-col cols="8">
+                    <v-text-field v-model="newTag" append-icon="mdi-plus-thick" label="Add a tag"
+                      :error-messages="tagError" @click:append="onValidationTagAdd" @keydown.enter="onValidationTagAdd"
+                      class="pa-0"></v-text-field>
+                  </v-col>
+                  <v-col cols="4"></v-col>
+                  <v-col cols="8">
+                    <v-chip v-for="item in validateDicoms.tagsWhitelist" close outlined color="red" class="mr-2 mb-2"
+                      @click:close="() => removeFromValidationWhitelist(item)">
+                      {{ item }}
+                    </v-chip>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-container>
           </v-tab-item>
-        </v-tabs-items>          
+        </v-tabs-items>
         <v-card-actions>
           <v-btn text color="red" @click="restoreDefaultSettings">
             Restore default configuration
@@ -116,6 +89,7 @@
 </template>
 
 <script>
+import kaapanaApiService from "@/common/kaapanaApi.service";
 import SettingsTable from "@/components/SettingsTable.vue";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
 
@@ -141,7 +115,7 @@ export default {
     if (!this.settings.hasOwnProperty('workflows')) {
       this.settings['workflows'] = structuredClone(defaultSettings['workflows']);
     }
-    
+
     this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
 
   },
@@ -152,6 +126,7 @@ export default {
       // copy the defaultSettings value instead of get the value by reference
       this.settings = structuredClone(defaultSettings);
       this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
+      this.storeSettingsInDb();
     },
     onSave() {
       // save validate dicoms update to settings
@@ -159,21 +134,46 @@ export default {
 
       localStorage["settings"] = JSON.stringify(this.settings);
       this.dialog = false;
-      window.location.reload();
+
+      this.storeSettingsInDb();
     },
-  /**
-   * Validates the user input against valid DICOM tags and returns a processed DICOM tag.
-   * 
-   * This function checks if the provided tag value is a valid DICOM tag. It removes any
-   * whitespace, converts the string to lowercase, and verifies that only allowed characters
-   * (0-9, a-f, (, )) are used. If the input is valid, it formats the tag and returns it.
-   * If not, it sets an error message and returns the invalid status.
-   * 
-   * @param {string} tagval - The input DICOM tag value to be validated.
-   * @returns {Array} An array where the first element is a boolean indicating if the tag is valid,
-   *                  and the second element is the processed or original tag value.
-   */
-   validateDicomTag(tagval){
+    storeSettingsInDb(reload_after = true) {
+      let settingsItems = []
+      Object.keys(this.settings).forEach(key => {
+        let item = {
+          'key': key,
+          'value': this.settings[key],
+        }
+        settingsItems.push(item)
+      });
+
+      console.log(settingsItems);
+
+      kaapanaApiService
+          .federatedClientApiPut("/settings", settingsItems)
+          .then((response) => {
+            // console.log(response);
+            if (reload_after) {
+              window.location.reload();
+            }
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+    },
+    /**
+     * Validates the user input against valid DICOM tags and returns a processed DICOM tag.
+     * 
+     * This function checks if the provided tag value is a valid DICOM tag. It removes any
+     * whitespace, converts the string to lowercase, and verifies that only allowed characters
+     * (0-9, a-f, (, )) are used. If the input is valid, it formats the tag and returns it.
+     * If not, it sets an error message and returns the invalid status.
+     * 
+     * @param {string} tagval - The input DICOM tag value to be validated.
+     * @returns {Array} An array where the first element is a boolean indicating if the tag is valid,
+     *                  and the second element is the processed or original tag value.
+     */
+    validateDicomTag(tagval) {
       // Remove all whitespace characters from the input
       tagval = tagval.replace(/\s/g, "");
 
@@ -218,15 +218,15 @@ export default {
         this.tagError = "Tag already exists in tags whitelist";
         return
       }
-      
+
       const [isValid, trimmedTag] = this.validateDicomTag(this.newTag)
-      if (!isValid){
+      if (!isValid) {
         return
       }
 
       this.tagError = "";
       this.validateDicoms.tagsWhitelist.push(trimmedTag);
-      this.newTag = '';      
+      this.newTag = '';
     },
     removeFromValidationWhitelist(item) {
       var index = this.validateDicoms.tagsWhitelist.indexOf(item);
@@ -242,9 +242,11 @@ export default {
 .jsoneditor {
   height: 60vh !important;
 }
+
 .tab-container {
   min-height: 550px;
 }
+
 .centered-col {
   align-self: center;
 }

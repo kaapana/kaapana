@@ -1,10 +1,10 @@
 from datetime import timedelta
 
-from add_external_pacs.ExternalThumbnailOperator import ExternalThumbnailOperator
-from add_external_pacs.InitExternalPacsOperator import InitExternalPacsOperator
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
+from external_pacs.ExternalPacsOperator import ExternalPacsOperator
+from external_pacs.ExternalThumbnailOperator import ExternalThumbnailOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
@@ -61,13 +61,13 @@ args = {
 }
 
 dag = DAG(
-    dag_id="add-external-pacs",
+    dag_id="external-pacs-add",
     default_args=args,
     max_active_runs=1,
     schedule_interval=None,
 )
 
-init_operator = InitExternalPacsOperator(dag=dag)
+init_operator = ExternalPacsOperator(dag=dag)
 get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir="get-input-data")
 extract_metadata = LocalDcm2JsonOperator(
     dag=dag, input_operator=get_input, data_type="json"

@@ -1,7 +1,7 @@
 apiVersion: v1
 appVersion: "0.1.1"
-description: Add external pacs workflow
-name: add-external-pacs-workflow
+description: External pacs workflows
+name: external-pacs-workflow
 version: "0.0.0"
 keywords:
 - kaapanaworkflow

@@ -1,18 +1,13 @@
 # This is the class you derive to create a plugin
-from airflow.plugins_manager import AirflowPlugin
-
-from flask import Blueprint
-from flask_admin import BaseView, expose
-from flask_admin.base import MenuLink
-from flask_appbuilder import BaseView as AppBuilderBaseView
+from airflow.executors.base_executor import BaseExecutor
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import BaseOperator, Variable
+from airflow.models import BaseOperator
+from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.executors.base_executor import BaseExecutor
+from flask_admin import BaseView, expose
 from kaapana.blueprints.kaapana_api import kaapanaApi
-from kaapana import operators
 
 
 class PluginHook(BaseHook):

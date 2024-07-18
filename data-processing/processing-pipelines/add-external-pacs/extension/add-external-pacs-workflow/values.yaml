@@ -1,3 +1,0 @@
-global:
-  image: "dag-add-external-pacs"
-  action: "copy"

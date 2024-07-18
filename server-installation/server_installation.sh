@@ -240,29 +240,6 @@ function insert_text {
     return $rc
 }
 
-function install_core18 {
-    echo "${YELLOW}Checking if core18 is installed ... ${NC}"
-    if ls -l /var/lib/snapd/snaps | grep core18 ;
-    then
-        echo ""
-        echo "${GREEN}core18 is already installed ...${NC}"
-        echo "${GREEN}-> skipping installation ${NC}"
-        echo ""
-    else
-        echo "${YELLOW}core18 is not installed -> start installation ${NC}"
-        if [ "$OFFLINE_SNAPS" = "true" ];then
-            echo "${YELLOW} -> core18 offline installation! ${NC}"
-            snap_path=$SCRIPT_DIR/core18.snap
-            assert_path=$SCRIPT_DIR/core18.assert
-            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
-            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
-            snap ack $assert_path
-            snap install --classic $snap_path
-        else
-            echo "${YELLOW}Core18 will be automatically installed ...${NC}"
-        fi
-    fi
-}
 
 function install_helm {
     if command -v helm &> /dev/null
@@ -588,7 +565,6 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
         proxy_environment
         install_packages_almalinux
-        install_core18
         install_helm
         install_microk8s
     ;;
@@ -597,7 +573,6 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting Ubuntu installation...${NC}";
         proxy_environment
         install_packages_ubuntu
-        install_core18
         install_helm
         install_microk8s
     ;;

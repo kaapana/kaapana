@@ -18,7 +18,7 @@
 import base64
 import hashlib
 import os
-from typing import Dict
+from typing import Dict, List
 
 import kubernetes
 from kaapanapy.logger import get_logger
@@ -110,8 +110,12 @@ class Secret:
 def create_k8s_secret(
     secret_name: str,
     secret_data: Dict[str, str],
-    namespace: str = "services",
+    namespace: str = "secrets",
 ):
+
+    if not check_namespace_exists(namespace):
+        create_namespace(namespace)
+
     api_instance, _, _ = get_kube_client()
 
     encoded_credentials = {}
@@ -138,7 +142,7 @@ def create_k8s_secret(
             raise e
 
 
-def delete_k8s_secret(secret_name: str, namespace: str = "services"):
+def delete_k8s_secret(secret_name: str, namespace: str = "secrets"):
     api_instance, _, _ = get_kube_client()
 
     try:
@@ -154,8 +158,38 @@ def delete_k8s_secret(secret_name: str, namespace: str = "services"):
         else:
             logger.error(f"Failed to delete secret '{secret_name}': {e}.")
 
+    secrets = get_all_k8s_secrets(namespace=namespace)
+    if secrets is not None and len(secrets) == 0:
+        delete_namespace(namespace)
 
-def get_k8s_secret(secret_name: str, namespace: str = "services"):
+
+def get_all_endpoints(namespace: str = "secrets") -> List[str]:
+    secrets = get_all_k8s_secrets(namespace)
+    return [secret["dcmweb_endpoint"] for secret in secrets]
+
+
+def get_all_k8s_secrets(namespace: str = "secrets") -> List[Dict[str, str]]:
+    api_instance, _, _ = get_kube_client()
+
+    try:
+        secrets = api_instance.list_namespaced_secret(namespace=namespace)
+        all_secrets = []
+
+        for secret in secrets.items:
+            decoded_data = {
+                key: base64.b64decode(value).decode("utf-8")
+                for key, value in secret.data.items()
+            }
+            all_secrets.append(decoded_data)
+
+        logger.info(f"All secrets retrieved successfully from namespace '{namespace}'.")
+        return all_secrets
+    except client.ApiException as e:
+        logger.error(f"Failed to retrieve secrets from namespace '{namespace}': {e}.")
+        return []
+
+
+def get_k8s_secret(secret_name: str, namespace: str = "secrets"):
     api_instance, _, _ = get_kube_client()
 
     try:
@@ -178,6 +212,50 @@ def get_k8s_secret(secret_name: str, namespace: str = "services"):
         else:
             logger.error(f"Failed to retrieve secret '{secret_name}': {e}.")
         return None
+
+
+def check_namespace_exists(namespace: str) -> bool:
+    api_instance, _, _ = get_kube_client()
+
+    try:
+        api_instance.read_namespace(name=namespace)
+        logger.info(f"Namespace '{namespace}' exists.")
+        return True
+    except client.ApiException as e:
+        if e.status == 404:
+            logger.info(f"Namespace '{namespace}' does not exist.")
+            return False
+        else:
+            logger.error(f"Failed to check namespace '{namespace}': {e}.")
+            return False
+
+
+def create_namespace(namespace: str) -> bool:
+    api_instance, _, _ = get_kube_client()
+    namespace_body = client.V1Namespace(metadata=client.V1ObjectMeta(name=namespace))
+
+    try:
+        api_instance.create_namespace(body=namespace_body)
+        logger.info(f"Namespace '{namespace}' created successfully.")
+        return True
+    except client.ApiException as e:
+        logger.error(f"Failed to create namespace '{namespace}': {e}.")
+        return False
+
+
+def delete_namespace(namespace: str) -> bool:
+    api_instance, _, _ = get_kube_client()
+
+    try:
+        api_instance.delete_namespace(name=namespace)
+        logger.info(f"Namespace '{namespace}' removed successfully.")
+        return True
+    except client.ApiException as e:
+        if e.status == 404:
+            logger.info(f"Namespace '{namespace}' does not exist.")
+        else:
+            logger.error(f"Failed to remove namespace '{namespace}': {e}.")
+        return False
 
 
 def hash_secret_name(dcmweb_endpoint: str):

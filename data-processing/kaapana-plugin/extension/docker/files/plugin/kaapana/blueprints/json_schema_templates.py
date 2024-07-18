@@ -1,6 +1,8 @@
 import functools
 from pathlib import Path
+
 import requests
+
 
 def properties_filter(func):
     @functools.wraps(func)
@@ -60,7 +62,9 @@ def schema_dataset_form(filter_keys: list = None):
     }
 
 
-def schema_upload_form(whitelisted_file_formats: tuple = (), ):
+def schema_upload_form(
+    whitelisted_file_formats: tuple = (),
+):
     """
     Schema that lists files in FAST_DATA_DIR/uploads
     """
@@ -73,19 +77,19 @@ def schema_upload_form(whitelisted_file_formats: tuple = (), ):
                 filtered_files.append(f)
 
     return {
-            "data_form": {
-                "type": "object",
-                "properties": {
-                    "action_files": {
-                        "title": "Objects from uploads directory",
-                        "description": "Relative paths to object in upload directory",
-                        "type": "array",
-                        "items": {"type": "string", "enum": filtered_files},
-                        "readOnly": False,
-                    },
+        "data_form": {
+            "type": "object",
+            "properties": {
+                "action_files": {
+                    "title": "Objects from uploads directory",
+                    "description": "Relative paths to object in upload directory",
+                    "type": "array",
+                    "items": {"type": "string", "enum": filtered_files},
+                    "readOnly": False,
                 },
-            }
+            },
         }
+    }
 
 
 def schema_minio_form(

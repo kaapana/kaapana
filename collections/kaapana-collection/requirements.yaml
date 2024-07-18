@@ -79,5 +79,5 @@ dependencies:
   version: 0.0.0
 - name: minio-sync-chart
   version: 0.0.0
-- name: add-external-pacs-workflow
+- name: external-pacs-workflow
   version: 0.0.0

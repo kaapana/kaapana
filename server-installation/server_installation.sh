@@ -241,6 +241,32 @@ function insert_text {
 }
 
 
+function install_core {
+    local package_name=$1
+    echo "${YELLOW}Checking if ${package_name} is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep ${package_name} ;
+    then
+        echo ""
+        echo "${GREEN}${package_name} is already installed ...${NC}"
+        echo "${GREEN}-> skipping installation ${NC}"
+        echo ""
+    else
+        echo "${YELLOW}${package_name} is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ]; then
+            echo "${YELLOW} -> ${package_name} offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/${package_name}.snap
+            assert_path=$SCRIPT_DIR/${package_name}.assert
+            [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
+            [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
+            snap ack $assert_path
+            snap install --classic $snap_path
+        else
+            echo "${YELLOW}${package_name} will be automatically installed ...${NC}"
+        fi
+    fi
+}
+
+
 function install_helm {
     if command -v helm &> /dev/null
     then
@@ -565,6 +591,8 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
         proxy_environment
         install_packages_almalinux
+        install_core core20 # for microk8s
+        install_core core24 # for helm
         install_helm
         install_microk8s
     ;;
@@ -573,6 +601,8 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting Ubuntu installation...${NC}";
         proxy_environment
         install_packages_ubuntu
+        install_core core20 # for microk8s
+        install_core core24 # for helm
         install_helm
         install_microk8s
     ;;

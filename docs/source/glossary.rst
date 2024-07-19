@@ -101,7 +101,7 @@ Glossary
       It will execute the following steps:
 
         1. Configure a proxy (if needed)
-        2. Install packages if not present: snap, nano, jq, curl, net-tools, helm
+        2. Install packages if not present: snap, nano, jq, curl, net-tools, core20, core24, helm
         3. Install, configure and start :term:`microk8s`
         4. Add alias for :code:`kubectl` to :code:`.bashrc` file and enable auto-completion
         5. (opt) Enable GPU for :term:`microk8s` 

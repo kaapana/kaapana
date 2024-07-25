@@ -20,8 +20,8 @@ RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.
 
 RUN git clone https://github.com/ImagingDataCommons/idc-wsi-conversion.git
 
-RUN wget http://www.dclunie.com/pixelmed/software/20221004_old/pixelmed.jar && \
-    wget http://www.dclunie.com/pixelmed/software/20221004_old/pixelmedjavadicom_dependencyrelease.20221004.tar.bz2
+RUN wget http://www.dclunie.com/pixelmed/software/20240221_old/pixelmed.jar && \
+    wget http://www.dclunie.com/pixelmed/software/20240221_old/pixelmedjavadicom_dependencyrelease.20240221.tar.bz2
 
 
 
@@ -38,7 +38,7 @@ RUN unzip pixelmed.jar -d /kaapana/app/idc-wsi-conversion/pixelmed/
 RUN unzip /kaapana/app/idc-wsi-conversion/jai_imageio.jar -d /kaapana/app/idc-wsi-conversion/jai_imageio
 RUN unzip /kaapana/app/idc-wsi-conversion/javax.json-1.0.4.jar -d /kaapana/app/idc-wsi-conversion/javax.json-1.0.4
 RUN unzip /kaapana/app/idc-wsi-conversion/opencsv-2.4.jar -d /kaapana/app/idc-wsi-conversion/opencsv-2.4/
-RUN tar -xvjf pixelmedjavadicom_dependencyrelease.20221004.tar.bz2 -C /kaapana/app/Dependencies/
+RUN tar -xvjf pixelmedjavadicom_dependencyrelease.20240221.tar.bz2 -C /kaapana/app/Dependencies/
 RUN mv /kaapana/app/Dependencies/lib/ /kaapana/app/idc-wsi-conversion
 RUN rm -r /kaapana/app/Dependencies
 RUN rm -r /kaapana/app/idc-wsi-conversion/gdcsvstodcm.sh

@@ -213,6 +213,7 @@ export default Vue.extend({
       this.settings["darkMode"] = v;
       localStorage["settings"] = JSON.stringify(this.settings);
       this.$vuetify.theme.dark = v;
+      this.storeSettingsInDb(false);
     },
     login() {
       this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "home" }));
@@ -243,7 +244,30 @@ export default Vue.extend({
         .catch(err => {
           console.log(err);
         })
-    }
+    },
+    storeSettingsInDb(reload_after = true) {
+      let settingsItems: Object[] = []
+      const settings = this.settings as Object
+      Object.keys(settings).forEach(key => {
+        let item = {
+          'key': key,
+          'value': settings[key as keyof Object],
+        }
+        settingsItems.push(item)
+      });
+
+      kaapanaApiService
+          .federatedClientApiPut("/settings", settingsItems)
+          .then((response) => {
+            // console.log(response);
+            if (reload_after) {
+              window.location.reload();
+            }
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+    },
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);

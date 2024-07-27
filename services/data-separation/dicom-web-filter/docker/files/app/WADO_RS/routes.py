@@ -5,10 +5,8 @@ from ..config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
 from sqlalchemy.ext.asyncio import AsyncSession
 import re
 import httpx
-import debugpy
 from fastapi import APIRouter, Request, Depends, Response
 from fastapi.responses import StreamingResponse
-
 import logging
 
 # Create a router
@@ -18,45 +16,6 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 
 # WADO-RS routes
-
-# debugpy.listen(("localhost", 17777))
-# debugpy.wait_for_client()
-
-
-# def _encode_multipart_message(
-#     data: Sequence[bytes],
-#     boundary: str = None,
-# ) -> Tuple[bytes, str]:
-#     """
-#     Encodes the payload of an HTTP multipart response message.
-
-#     Parameters
-#     ----------
-#     data: Sequence[bytes]
-#         A sequence of byte data to include in the multipart message.
-#     boundary: str, optional
-#         The boundary string to separate parts of the message. If not provided, a unique boundary will be generated.
-
-#     Returns
-#     -------
-#     Tuple[bytes, str]
-#         The encoded HTTP request message body and the content type.
-#     """
-#     if not boundary:
-#         boundary = binascii.hexlify(os.urandom(16)).decode()
-
-#     content_type = f"multipart/related; type=application/dicom; boundary={boundary}"
-#     body = b""
-
-#     for payload in data:
-#         body += f"\r\n--{boundary}\r\nContent-Type: application/dicom\r\n\r\n".encode(
-#             "utf-8"
-#         )
-#         body += payload
-
-#     body += f"\r\n--{boundary}--".encode("utf-8")
-
-#     return body, content_type
 
 
 @router.get("/studies/{study}", tags=["WADO-RS"])
@@ -98,6 +57,8 @@ async def retrieve_study(
     async def stream_multiple_series():
         first_boundary = None
         first_series = True
+        buffer = b""  # Initialize an empty buffer
+        pattern_size = 20  # Size of the boundary pattern (2 bytes for "--", 16 bytes for the boundary and 2 bytes for "--"" at the end)
         async with httpx.AsyncClient() as client:
             for series_uid in mapped_series_uids:
                 async with client.stream(
@@ -116,50 +77,32 @@ async def retrieve_study(
                         ).group(1)
 
                     async for chunk in response.aiter_bytes():
-                        # if boundary is not first_boundary: replace the boundary
+                        buffer += chunk
+                        # Process the buffer
                         if boundary != first_boundary:
-                            chunk = chunk.replace(
+                            buffer = buffer.replace(
                                 f"--{boundary.decode()}\r\n".encode(),
                                 f"--{first_boundary.decode()}\r\n".encode(),
                             ).replace(
                                 f"\r\n--{boundary.decode()}--".encode(),
                                 f"\r\n--{first_boundary.decode()}--".encode(),
                             )
-                        yield chunk
+                        # Decide how much of the buffer to yield and retain
+                        to_yield = (
+                            buffer[:-pattern_size]
+                            if len(buffer) > pattern_size
+                            else b""
+                        )
+                        yield to_yield
+                        buffer = buffer[
+                            -pattern_size:
+                        ]  # Retain this much of the buffer
+
+            # Yield any remaining buffer after the last chunk
+            if buffer:
+                yield buffer
 
     return StreamingResponse(stream_multiple_series(), media_type="application/dicom")
-
-    # boundary = None
-    # encoded_files = []
-
-    # for series_uid in mapped_series_uids:
-    #     logging.info(f"Series: {series_uid}")
-
-    #     dicom_file_response = await proxy_request(
-    #         request, f"/studies/{study}/series/{series_uid}", "GET"
-    #     )
-
-    #     # Extract the boundary from the first part
-    #     boundary = re.search(
-    #         b"boundary=(.*)", dicom_file_response.headers["Content-Type"].encode()
-    #     ).group(1)
-
-    #     logging.info(f"Boundary: {boundary}")
-
-    #     dicom_content = dicom_file_response.body
-
-    #     # remove the boundary from the content
-    #     dicom_content = dicom_content.replace(
-    #         f"--{boundary.decode()}\r\n".encode(), b""
-    #     ).replace(f"\r\n--{boundary.decode()}--".encode(), b"")
-
-    #     encoded_files.append(dicom_content)
-
-    # # debugpy.breakpoint()
-
-    # body, content_type = _encode_multipart_message(encoded_files, boundary.decode())
-
-    # return Response(content=body, media_type=content_type)
 
 
 @router.get("/studies/{study}/series/{series}", tags=["WADO-RS"])
@@ -257,9 +200,8 @@ async def retrieve_frames(
                     async for chunk in response.aiter_bytes():
                         yield chunk
 
-        return StreamingResponse(
-            stream_series(), media_type="application/dicom"
-        )  # TODO: Check for Content-Location header
+        # Set the content type to multipart/related
+        return StreamingResponse(stream_series(), media_type="multipart/related")
 
     else:
 

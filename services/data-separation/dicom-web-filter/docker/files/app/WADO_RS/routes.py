@@ -15,6 +15,30 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO)
 
 
+async def metadata_replace_stream(
+    method="GET", url=None, request_headers=None, search=None, replace=None
+):
+    buffer = b""
+    pattern_size = len(search)
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method,
+            url,
+            headers=dict(request_headers),
+        ) as response:
+            async for chunk in response.aiter_bytes():
+                buffer += chunk
+                # Process the buffer
+                buffer = buffer.replace(search, replace)
+                to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                yield to_yield
+                buffer = buffer[-pattern_size:]  # Retain this much of the buffer
+
+            # Yield any remaining buffer after the last chunk
+            if buffer:
+                yield buffer
+
+
 async def stream(method="GET", url=None, request_headers=None):
     async with httpx.AsyncClient() as client:
         async with client.stream(
@@ -222,14 +246,22 @@ async def retrieve_study_metadata(
     logging.info(f"all_series: {all_series}")
 
     if set(mapped_series_uids) == set(all_series):
-        StreamingResponse(
-            stream(
-                "GET", f"{DICOMWEB_BASE_URL}/studies/{study}/metadata", request.headers
+        return StreamingResponse(
+            metadata_replace_stream(
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}/metadata",
+                request_headers=request.headers,
+                search="/".join(
+                    DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
+                ).encode(),
+                replace=b"dicom-web-filter",
             ),
             media_type="application/dicom+json",
         )
 
-    async def metadata_generator():
+    async def metadata_generator(search=b"", replace=b""):
+        buffer = b""
+        pattern_size = len(search)
         async with httpx.AsyncClient() as client:
             for series_uid in mapped_series_uids:
                 metadata_response = await client.get(
@@ -237,9 +269,25 @@ async def retrieve_study_metadata(
                     headers=dict(request.headers),
                 )
                 async for chunk in metadata_response.aiter_bytes():
-                    yield chunk
+                    buffer += chunk
+                    buffer = buffer.replace(search, replace)
+                    to_yield = (
+                        buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                    )
+                    yield to_yield
+                    buffer = buffer[-pattern_size:]
 
-    return StreamingResponse(metadata_generator(), media_type="application/dicom+json")
+        # Yield any remaining buffer after the last chunk
+        if buffer:
+            yield buffer
+
+    return StreamingResponse(
+        metadata_generator(
+            "/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
+            b"dicom-web-filter",
+        ),
+        media_type="application/dicom+json",
+    )
 
 
 @router.get("/studies/{study}/series/{series}/metadata", tags=["WADO-RS"])
@@ -257,10 +305,14 @@ async def retrieve_series_metadata(
         series_instance_uid=series,
     ):
         return StreamingResponse(
-            stream(
+            metadata_replace_stream(
                 "GET",
                 f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/metadata",
                 request.headers,
+                search="/".join(
+                    DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
+                ).encode(),
+                replace=b"dicom-web-filter",
             ),
             media_type="application/dicom+json",
         )
@@ -286,10 +338,14 @@ async def retrieve_instance_metadata(
         series_instance_uid=series,
     ):
         return StreamingResponse(
-            stream(
+            metadata_replace_stream(
                 "GET",
                 f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/metadata",
                 request.headers,
+                search="/".join(
+                    DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
+                ).encode(),
+                replace=b"dicom-web-filter",
             ),
             media_type="application/dicom+json",
         )

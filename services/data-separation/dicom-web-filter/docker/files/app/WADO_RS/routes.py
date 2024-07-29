@@ -1,4 +1,3 @@
-from ..proxy_request import proxy_request
 from ..database import get_session
 from . import crud
 from ..config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
@@ -15,9 +14,19 @@ router = APIRouter()
 # Set logging level
 logging.basicConfig(level=logging.INFO)
 
+
+async def stream(method="GET", url=None, request_headers=None):
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method,
+            url,
+            headers=dict(request_headers),
+        ) as response:
+            async for chunk in response.aiter_bytes():
+                yield chunk
+
+
 # WADO-RS routes
-
-
 @router.get("/studies/{study}", tags=["WADO-RS"])
 async def retrieve_study(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
@@ -42,17 +51,10 @@ async def retrieve_study(
     # check if all series of the study are mapped to the project
     if set(mapped_series_uids) == set(all_series):
 
-        async def stream_study():
-            async with httpx.AsyncClient() as client:
-                async with client.stream(
-                    "GET",
-                    f"{DICOMWEB_BASE_URL}/studies/{study}",
-                    headers=dict(request.headers),
-                ) as response:
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-
-        return StreamingResponse(stream_study(), media_type="application/dicom")
+        return StreamingResponse(
+            stream("GET", f"{DICOMWEB_BASE_URL}/studies/{study}", request.headers),
+            media_type="application/dicom",
+        )
 
     async def stream_multiple_series():
         first_boundary = None
@@ -120,17 +122,14 @@ async def retrieve_series(
         series_instance_uid=series,
     ):
 
-        async def stream_series():
-            async with httpx.AsyncClient() as client:
-                async with client.stream(
-                    "GET",
-                    f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}",
-                    headers=dict(request.headers),
-                ) as response:
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-
-        return StreamingResponse(stream_series(), media_type="application/dicom")
+        return StreamingResponse(
+            stream(
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}",
+                request_headers=request.headers,
+            ),
+            media_type="application/dicom",
+        )
 
     else:
 
@@ -153,17 +152,14 @@ async def retrieve_instance(
         series_instance_uid=series,
     ):
 
-        async def stream_series():
-            async with httpx.AsyncClient() as client:
-                async with client.stream(
-                    "GET",
-                    f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}",
-                    headers=dict(request.headers),
-                ) as response:
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-
-        return StreamingResponse(stream_series(), media_type="application/dicom")
+        return StreamingResponse(
+            stream(
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}",
+                request_headers=request.headers,
+            ),
+            media_type="application/dicom",
+        )
 
     else:
 
@@ -182,37 +178,23 @@ async def retrieve_frames(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-
     if crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
-
-        async def stream_series():
-            async with httpx.AsyncClient() as client:
-                async with client.stream(
-                    "GET",
-                    f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/frames/{frames}",
-                    headers=dict(request.headers),
-                ) as response:
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-
         # Set the content type to multipart/related
-        return StreamingResponse(stream_series(), media_type="multipart/related")
-
+        return StreamingResponse(
+            stream(
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/frames/{frames}",
+                request_headers=request.headers,
+            ),
+            media_type="multipart/related",
+        )
     else:
-
         return Response(status_code=204)
-
-
-# TODO: Implement the bulk data retrieval
-# @router.get("/{bulkdataReferenceURI}", tags=["WADO-RS"])
-# async def retrieve_bulk_data(bulkdataReferenceURI: str, request: Request):
-#     logging.info(f"bulkdataReferenceURI: {bulkdataReferenceURI}")
-#     return await proxy_request(request, f"/{bulkdataReferenceURI}", "GET")
 
 
 # Routes for retrieve modifiers
@@ -240,17 +222,24 @@ async def retrieve_study_metadata(
     logging.info(f"all_series: {all_series}")
 
     if set(mapped_series_uids) == set(all_series):
-        return await proxy_request(request, f"/studies/{study}/metadata", "GET")
-
-    all_metadata = []
-
-    for series_uid in mapped_series_uids:
-        metadata_response = await proxy_request(
-            request, f"/studies/{study}/series/{series_uid}/metadata", "GET"
+        StreamingResponse(
+            stream(
+                "GET", f"{DICOMWEB_BASE_URL}/studies/{study}/metadata", request.headers
+            ),
+            media_type="application/dicom+json",
         )
-        all_metadata.append(metadata_response.body)
 
-    return Response(content=b"".join(all_metadata), media_type="application/dicom+json")
+    async def metadata_generator():
+        async with httpx.AsyncClient() as client:
+            for series_uid in mapped_series_uids:
+                metadata_response = await client.get(
+                    f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series_uid}/metadata",
+                    headers=dict(request.headers),
+                )
+                async for chunk in metadata_response.aiter_bytes():
+                    yield chunk
+
+    return StreamingResponse(metadata_generator(), media_type="application/dicom+json")
 
 
 @router.get("/studies/{study}/series/{series}/metadata", tags=["WADO-RS"])
@@ -267,8 +256,13 @@ async def retrieve_series_metadata(
         study_instance_uid=study,
         series_instance_uid=series,
     ):
-        return await proxy_request(
-            request, f"/studies/{study}/series/{series}/metadata", "GET"
+        return StreamingResponse(
+            stream(
+                "GET",
+                f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/metadata",
+                request.headers,
+            ),
+            media_type="application/dicom+json",
         )
     else:
         return Response(status_code=204)
@@ -291,10 +285,13 @@ async def retrieve_instance_metadata(
         study_instance_uid=study,
         series_instance_uid=series,
     ):
-        return await proxy_request(
-            request,
-            f"/studies/{study}/series/{series}/instances/{instance}/metadata",
-            "GET",
+        return StreamingResponse(
+            stream(
+                "GET",
+                f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/metadata",
+                request.headers,
+            ),
+            media_type="application/dicom+json",
         )
     else:
         return Response(status_code=204)
@@ -322,19 +319,12 @@ async def retrieve_study_rendered(
     logging.info(f"all_series: {all_series}")
 
     if set(mapped_series_uids) == set(all_series):
-
-        async def stream_series():
-            async with httpx.AsyncClient() as client:
-                async with client.stream(
-                    "GET",
-                    f"{DICOMWEB_BASE_URL}/studies/{study}/rendered",
-                    headers=dict(request.headers),
-                ) as response:
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-
-        return StreamingResponse(stream_series())
-
+        return StreamingResponse(
+            stream(
+                "GET", f"{DICOMWEB_BASE_URL}/studies/{study}/rendered", request.headers
+            ),
+            media_type="multipart/related",
+        )
     # TODO: Adjust the boundary for the multipart message
 
     async def stream_filtered_series():
@@ -390,25 +380,20 @@ async def retrieve_series_rendered(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-
     if crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
-
-        async def stream_series():
-            async with httpx.AsyncClient() as client:
-                async with client.stream(
-                    "GET",
-                    f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/rendered",
-                    headers=dict(request.headers),
-                ) as response:
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-
-        return StreamingResponse(stream_series())
+        return StreamingResponse(
+            stream(
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/rendered",
+                request_headers=request.headers,
+            ),
+            media_type="multipart/related",
+        )
 
     else:
         return Response(status_code=204)
@@ -432,17 +417,13 @@ async def retrieve_instance_rendered(
         series_instance_uid=series,
     ):
 
-        async def stream_series():
-            async with httpx.AsyncClient() as client:
-                async with client.stream(
-                    "GET",
-                    f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/rendered",
-                    headers=dict(request.headers),
-                ) as response:
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-
-        return StreamingResponse(stream_series())
+        return StreamingResponse(
+            stream(
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/rendered",
+                request_headers=request.headers,
+            )
+        )
 
     else:
         return Response(status_code=204)

@@ -1,45 +1,42 @@
 from fastapi import APIRouter, Request, Depends, Response
 from starlette.status import HTTP_204_NO_CONTENT
-from ..proxy_request import proxy_request
 from ..database import get_session
 from . import crud
 from ..config import DICOMWEB_BASE_URL, DEFAULT_PROJECT_ID
 from sqlalchemy.ext.asyncio import AsyncSession
-import json
+from fastapi.responses import StreamingResponse
+import httpx
 
 router = APIRouter()
 
 
-async def adjust_response_routes(response: Response) -> Response:
-    # Now we will modify the response to replace the DICOM Web URL with the filter URL
+async def metadata_replace_stream(
+    method: str = "GET",
+    url: str = None,
+    request: Request = None,
+    search: bytes = None,
+    replace: bytes = None,
+):
+    buffer = b""
+    pattern_size = len(search)
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method,
+            url,
+            params=dict(request.query_params),
+            headers=dict(request.headers),
+        ) as response:
+            async for chunk in response.aiter_bytes():
+                buffer += chunk
+                # Process the buffer
+                buffer = buffer.replace(search, replace)
+                to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                yield to_yield
+                buffer = buffer[-pattern_size:]  # Retain this much of the buffer
 
-    # Decode bytes to string and parse JSON
-    data_str = response.body.decode("utf-8")
-    data_json = json.loads(data_str)
-
-    # Process each item in the JSON data
-    for item in data_json:
-        if "00081190" in item and "Value" in item["00081190"]:
-            original_url = item["00081190"]["Value"][0]
-
-            # TODO: Please refactor this to use a more robust method to replace the URL
-            real_dicom_web_routes = "/".join(
-                DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
-            )
-            # Replace the real dicom web URL with the filter URL in the response
-            # It's basically replacing "dcm4chee-arc/aets/KAAPANA/rs" with "dicom-web-filter"
-            item["00081190"]["Value"][0] = original_url.replace(
-                real_dicom_web_routes, "dicom-web-filter"
-            )
-
-    # Convert JSON back to string and then to bytes
-    new_data_str = json.dumps(data_json)
-    new_data = new_data_str.encode("utf-8")
-
-    # Update the response body
-    response.body = new_data
-
-    return response
+            # Yield any remaining buffer after the last chunk
+            if buffer:
+                yield buffer
 
 
 @router.get("/studies", tags=["QIDO-RS"])
@@ -71,13 +68,16 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
     # Update the query parameters
     request._query_params = query_params
 
-    # Send the request to the DICOM Web server
-    response = await proxy_request(request, "/studies", "GET")
-
-    # Adjust the response routes
-    response = await adjust_response_routes(response)
-
-    return response
+    return StreamingResponse(
+        metadata_replace_stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies",
+            request=request,
+            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
+            replace=b"dicom-web-filter",
+        ),
+        media_type="application/dicom",
+    )
 
 
 @router.get("/studies/{study}/series", tags=["QIDO-RS"])
@@ -117,12 +117,16 @@ async def query_series(
     request._query_params = query_params
 
     # Send the request to the DICOM Web server
-    response = await proxy_request(request, f"/studies/{study}/series", "GET")
-
-    # Adjust the response routes
-    response = await adjust_response_routes(response)
-
-    return response
+    return StreamingResponse(
+        metadata_replace_stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies/{study}/series",
+            request=request,
+            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
+            replace=b"dicom-web-filter",
+        ),
+        media_type="application/dicom",
+    )
 
 
 @router.get("/studies/{study}/series/{series}/instances", tags=["QIDO-RS"])
@@ -155,11 +159,13 @@ async def query_instances(
         return Response(status_code=HTTP_204_NO_CONTENT)
 
     # Send the request to the DICOM Web server
-    response = await proxy_request(
-        request, f"/studies/{study}/series/{series}/instances", "GET"
+    return StreamingResponse(
+        metadata_replace_stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances",
+            request=request,
+            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
+            replace=b"dicom-web-filter",
+        ),
+        media_type="application/dicom",
     )
-
-    # Adjust the response routes
-    response = await adjust_response_routes(response)
-
-    return response

@@ -11,6 +11,7 @@ import org.keycloak.protocol.oidc.mappers.OIDCIDTokenMapper;
 import org.keycloak.protocol.oidc.mappers.UserInfoTokenMapper;
 import org.keycloak.provider.ProviderConfigProperty;
 import org.keycloak.representations.IDToken;
+import org.keycloak.models.RoleModel;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -101,16 +102,73 @@ public class AccessInformationPointRightsMapper extends AbstractOIDCProtocolMapp
                 }
 
                 // Set claims directly on the token
+                // There are no single value claims, only lists
                 for (Map.Entry<String, List<String>> entry : claimsMap.entrySet()) {
-                    if (entry.getValue().size() == 1) {
-                        token.getOtherClaims().put(entry.getKey(), entry.getValue().get(0));
+                    Object existingClaim = token.getOtherClaims().get(entry.getKey());
+                    if (existingClaim != null && existingClaim instanceof List) {
+                        // Append new values to existing list
+                        List<String> existingList = (List<String>) existingClaim;
+                        existingList.addAll(entry.getValue());
+                        token.getOtherClaims().put(entry.getKey(), existingList);
+                    } else if (existingClaim != null) {
+                        // Convert existing single value to list and add new values
+                        List<String> newList = new ArrayList<>();
+                        newList.add(existingClaim.toString());
+                        newList.addAll(entry.getValue());
+                        token.getOtherClaims().put(entry.getKey(), newList);
                     } else {
+                        // Add new values as list
                         token.getOtherClaims().put(entry.getKey(), entry.getValue());
                     }
                 }
             } else {
                 // Just log non-200 response keep the login flow going
                 System.out.println("Error fetching rights: " + status);
+            }
+            
+            RoleModel adminRole = userSession.getRealm().getRole("admin");
+            // Set admin system admin rights for MinIO and OpenSearch
+            if (userSession.getUser().hasRole(adminRole)) {
+
+                // if user hasRole admin, add admin to opensearch claim
+                Object existingClaim = token.getOtherClaims().get("opensearch");
+                if (existingClaim != null && existingClaim instanceof List) {
+                    // Append new value to existing list
+                    List<String> existingList = (List<String>) existingClaim;
+                    existingList.add("admin");
+                    token.getOtherClaims().put("opensearch", existingList);
+                } else if (existingClaim != null) {
+                    // Convert existing single value to list and add new value
+                    List<String> newList = new ArrayList<>();
+                    newList.add(existingClaim.toString());
+                    newList.add("admin");
+                    token.getOtherClaims().put("opensearch", newList);
+                } else {
+                    // Add new value as list
+                    List<String> newList = new ArrayList<>();
+                    newList.add("admin");
+                    token.getOtherClaims().put("opensearch", newList);
+                }
+                
+                // if user hasRole admin, add consoleAdmin to policy claim
+                existingClaim = token.getOtherClaims().get("policy");
+                if (existingClaim != null && existingClaim instanceof List) {
+                    // Append new value to existing list
+                    List<String> existingList = (List<String>) existingClaim;
+                    existingList.add("consoleAdmin");
+                    token.getOtherClaims().put("policy", existingList);
+                } else if (existingClaim != null) {
+                    // Convert existing single value to list and add new value
+                    List<String> newList = new ArrayList<>();
+                    newList.add(existingClaim.toString());
+                    newList.add("consoleAdmin");
+                    token.getOtherClaims().put("policy", newList);
+                } else {
+                    // Add new value as list
+                    List<String> newList = new ArrayList<>();
+                    newList.add("consoleAdmin");
+                    token.getOtherClaims().put("policy", newList);
+                }
             }
 
             con.disconnect();

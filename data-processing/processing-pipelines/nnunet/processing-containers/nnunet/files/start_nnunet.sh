@@ -132,7 +132,7 @@ elif [ "$MODE" = "training" ]; then
     fi
 
     if [ "$TRAIN_CONTINUE" = "True" ] || [ "$TRAIN_CONTINUE" = "true" ]; then
-        continue="--continue_training"
+        continue="--c"
         echo "WARNING: --continue-training is set, ignoring pretrained_weights"
     else
         continue=""

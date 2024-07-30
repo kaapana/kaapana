@@ -30,10 +30,9 @@ ae_title = "nnUnet-results"
 
 ## FL releated
 remote_dag_id = "nnunet-training"
-# skip_operators = ["zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"]
-# federated_operators = ["nnunet-training"]
 skip_operators = [
     "nnunet-training",
+    "nnunet-get-notebook-from-minio",
     "zip-unzip-training",
     "model2dicom",
     "dcmsend",
@@ -45,6 +44,7 @@ skip_operators = [
     "workflow-cleaner",
 ]
 federated_operators = ["nnunet-preprocess", "nnunet-training"]
+
 ui_forms = {
     "data_form": {},
     "external_schema_federated_form": {

@@ -76,7 +76,7 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
             search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
         ),
-        media_type="application/dicom",
+        media_type="application/dicom+json",
     )
 
 
@@ -125,7 +125,7 @@ async def query_series(
             search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
         ),
-        media_type="application/dicom",
+        media_type="application/dicom+json",
     )
 
 
@@ -167,5 +167,5 @@ async def query_instances(
             search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
         ),
-        media_type="application/dicom",
+        media_type="application/dicom+json",
     )

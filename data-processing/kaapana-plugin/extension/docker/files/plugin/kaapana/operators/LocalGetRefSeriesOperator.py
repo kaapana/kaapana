@@ -65,6 +65,13 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         download_series_list = []
         object_count = None
 
+        dag_config = kwargs["dag_run"].conf
+
+        include_custom_tags = []
+        if self.include_custom_tag_property != "":
+            include_custom_tags = dag_config["workflow_form"][self.include_custom_tag_property]
+            include_custom_tags = [x.strip() for x in include_custom_tags.split(',')]
+
         print("#")
         print(f"# Modality:       {self.modality}")
         print(f"# Target_level:   {self.target_level}")
@@ -286,9 +293,47 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                     )
                     raise ValueError("ERROR")
 
-                for series in pacs_series:
-                    series_uid = series["0020000E"]["Value"][0]
 
+                series_uids = []
+                for series in pacs_series:
+                    series_uids.append(series["0020000E"]["Value"][0])
+                print(series_uids)
+
+                used_series_uids = []
+                if len(include_custom_tags) > 0:
+
+                    print('FILTER CUSTOM TAGS')
+                    print(include_custom_tags)
+
+                    dicom_data_infos = []
+                    for tag in include_custom_tags:
+                        dicom_data_infos += HelperOpensearch.get_dcm_uid_objects(series_uids, include_custom_tag=tag)
+
+                    for dicom_data_info in dicom_data_infos:  
+                        if "dcm-uid" in dicom_data_info:
+                            series_uid = dicom_data_info["dcm-uid"]['series-uid']    
+                            if series_uid not in used_series_uids:
+                                used_series_uids.append(series_uid)
+
+                    if len(used_series_uids) == 0:
+
+                        print(
+                            "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+                        )
+                        print("# ")
+                        print("# Found no images with the specified custom tags")
+                        print("# ")
+                        print(
+                            "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+                        )
+                        raise ValueError("ERROR")
+
+                    print(f"Found series with custom tags: {len(used_series_uids)}")     
+                else:
+                    print('NO TAG FILTERING')
+                    used_series_uids = series_uids
+
+                for series_uid in used_series_uids:
                     if self.target_level == "batch":
                         target_dir = join(
                             run_dir,
@@ -359,6 +404,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         modality=None,
         target_level="batch_element",
         dicom_tags=[],
+        include_custom_tag_property="",
         expected_file_count="all",  # int or 'all'
         limit_file_count=None,
         parallel_downloads=3,
@@ -390,6 +436,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         self.dicom_tags = (
             dicom_tags  # studyID dicom_tags=[{'id':'StudyID','value':'nnUnet'},{...}]
         )
+        self.include_custom_tag_property = include_custom_tag_property
         self.aetitle = aetitle
         self.expected_file_count = expected_file_count
         self.limit_file_count = limit_file_count

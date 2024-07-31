@@ -3,11 +3,15 @@ FROM maven:3.8.1-openjdk-17 AS maven-builder
 
 ADD projects-token-mapper /app/projects-token-mapper
 ADD rights-token-mapper /app/rights-token-mapper
+ADD admin-mapper /app/admin-mapper
 
 WORKDIR /app/projects-token-mapper
 RUN mvn clean package
 
 WORKDIR /app/rights-token-mapper
+RUN mvn clean package
+
+WORKDIR /app/admin-mapper
 RUN mvn clean package
 
 # Stage 2: Clone the Keycloak repo and adjust the theme
@@ -31,5 +35,7 @@ LABEL BUILD_IGNORE="False"
 COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana
 COPY --from=maven-builder /app/rights-token-mapper/target/kaapana-rights-token-mapper-1.0.jar /opt/keycloak/providers/kaapana-rights-token-mapper-1.0.jar
 COPY --from=maven-builder /app/projects-token-mapper/target/kaapana-projects-token-mapper-1.0.jar /opt/keycloak/providers/kaapana-projects-token-mapper-1.0.jar
+COPY --from=maven-builder /app/admin-mapper/target/kaapana-admin-mapper-1.0.jar /opt/keycloak/providers/kaapana-admin-mapper-1.0.jar
+
 
 RUN /opt/keycloak/bin/kc.sh build

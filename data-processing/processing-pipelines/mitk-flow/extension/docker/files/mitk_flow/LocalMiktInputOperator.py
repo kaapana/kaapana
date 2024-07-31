@@ -1,25 +1,21 @@
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperDcmWeb import HelperDcmWeb
-from xml.etree import ElementTree
 import os
 import json
-from dicomweb_client.api import DICOMwebClient
 import pydicom
-import time
 import glob
-import requests
 
 
 class LocalMiktInputOperator(KaapanaPythonBaseOperator):
     def downloadSeries(self, studyUID: str, seriesUID: str, target_dir: str):
-        print("Downloading Series: %s" % seriesUID)
+        print("Downloading Series %s from Study %s" % (seriesUID, studyUID))
         print("Target DIR: %s" % target_dir)
-        result = self.dcmweb_helper.downloadSeries(
-            series_uid=seriesUID, target_dir=target_dir
+        result = self.dcmweb_helper.download_series(
+            study_uid=studyUID, series_uid=seriesUID, target_dir=target_dir
         )
         return result
 
-    def createTasklist(self, run_dir: str, tasks: list()):
+    def createTasklist(self, run_dir: str, tasks: list):
         print(
             "create json tasklist and dump it to batch level of the current airflow task run,"
         )
@@ -37,9 +33,7 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
             json.dump(tasklist, f, ensure_ascii=False, indent=4)
 
     def get_files(self, ds, **kwargs):
-        self.dcmweb_helper = HelperDcmWeb(
-            dag_run=kwargs["dag_run"]
-        )
+        self.dcmweb_helper = HelperDcmWeb(dag_run=kwargs["dag_run"])
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [

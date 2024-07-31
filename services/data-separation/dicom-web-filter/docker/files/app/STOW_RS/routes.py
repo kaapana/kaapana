@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request, Depends
-from ..proxy_request import proxy_request
 from . import crud
 from sqlalchemy.exc import IntegrityError
 import json
@@ -7,12 +6,30 @@ from ..database import get_session
 from .. import config
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
+import httpx
+from fastapi.responses import Response
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def map_dicom_series_to_project(session: AsyncSession, request: Request):
+async def __stream_data(request: Request, url: str = f"/studies"):
+
+    async def data_streamer():
+        async for chunk in request.stream():
+            yield chunk
+
+    async with httpx.AsyncClient(timeout=500) as client:
+        async with client.stream(
+            "POST",
+            f"{config.DICOMWEB_BASE_URL}/{url}",
+            content=data_streamer(),
+            headers=dict(request.headers),
+        ) as response:
+            response.raise_for_status()
+
+
+async def __map_dicom_series_to_project(session: AsyncSession, request: Request):
 
     # TODO: Get the external project ID from the request
     # TODO: Check if the external project already exists in the database
@@ -20,7 +37,7 @@ async def map_dicom_series_to_project(session: AsyncSession, request: Request):
     # TODO: If no external project ID is provided safe the data in the default (admin) project
 
     # Extract the 'clinical_trial_protocol_info' query parameter
-    # This parameter was set in the dcmweb helper 
+    # This parameter was set in the dcmweb helper
     clinical_trial_protocol_info = json.loads(
         request.query_params.get("clinical_trial_protocol_info")
     )
@@ -58,16 +75,19 @@ async def map_dicom_series_to_project(session: AsyncSession, request: Request):
 async def store_instances(
     request: Request, session: AsyncSession = Depends(get_session)
 ):
+    await __map_dicom_series_to_project(session, request)
 
-    await map_dicom_series_to_project(session, request)
+    await __stream_data(request, url=f"studies")
 
-    return await proxy_request(request, "/studies", "POST")
+    return Response(status_code=200)
 
 
 @router.post("/studies/{study}", tags=["STOW-RS"])
 async def store_instances_in_study(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
-    await map_dicom_series_to_project(session, request)
+    await __map_dicom_series_to_project(session, request)
 
-    return await proxy_request(request, f"/studies/{study}", "POST")
+    await __stream_data(request, url=f"studies/{study}")
+
+    return Response(status_code=200)

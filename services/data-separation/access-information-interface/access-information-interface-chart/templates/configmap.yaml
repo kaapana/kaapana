@@ -23,6 +23,18 @@ data:
         "description": "Delete rights",
         "claim_key": "aii_test2",
         "claim_value": "hdgdl"
+      },
+      {
+        "name": "opensearch_read",
+        "description": "Read opensearch index data per project",
+        "claim_key": "opensearch",
+        "claim_value": "read_project"
+      },
+      {
+        "name": "opensearch_admin",
+        "description": "Opensearch admin role",
+        "claim_key": "opensearch",
+        "claim_value": "admin_project"
       }
     ]
   initial_roles.json: | # This is the initial roles that will be created
@@ -47,11 +59,11 @@ data:
     [
       {
         "role": "admin",
-        "rights": ["read", "write", "delete"]
+        "rights": ["read", "write", "delete", "opensearch_admin"]
       },
       {
         "role": "read-only",
-        "rights": ["read"]
+        "rights": ["read","opensearch_read"]
       }
     ]
 

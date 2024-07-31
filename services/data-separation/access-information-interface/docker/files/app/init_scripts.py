@@ -8,6 +8,8 @@ from .projects.crud import (
     create_users_projects_roles_mapping,
     get_projects,
 )
+from .projects.opensearch import OpenSearchHelper
+from kaapanapy.helper import get_project_user_access_token
 from .projects.schemas import CreateRight, CreateRole, CreateProject
 from .database import async_session
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 NUM_RETRIES = 10
 DURATION_BETWEEN_RETRIES = 5
+
 
 def load_config(file_path):
     with open(file_path, "r") as file:
@@ -95,7 +98,7 @@ async def initial_database_population():
 
         # Initialize KeycloakAdmin
         keycloak_admin = KeycloakAdmin(
-            server_url=os.environ.get("KEYCLOAK_URL"),
+            server_url=os.environ.get("KEYCLOAK_URL") + "/auth/",
             username=os.environ.get("KEYCLOAK_ADMIN_USER_NAME"),
             password=os.environ.get("KEYCLOAK_ADMIN_USER_PASSWORD"),
             verify=False,  # Set to False to disable SSL verification
@@ -157,3 +160,16 @@ async def initial_database_population():
                 f"User {admin_user_in_kaapana_realm} already has the admin role in the admin project"
             )
             await session.rollback()
+
+
+async def init_opensearch():
+
+    # Get admin project from database
+    async with async_session() as session:
+        admin_project = await get_projects(session, name="admin")
+
+    # Get access token for the project/system user
+    access_token = get_project_user_access_token()
+    opensearch_helper = OpenSearchHelper(access_token)
+    opensearch_helper.wait_for_service()
+    opensearch_helper.setup_new_project(admin_project[0])

@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from typing import List
 from . import schemas
 from . import crud
+from . import opensearch
 
 from ..database import get_session
 import logging
@@ -18,9 +19,19 @@ logger = logging.getLogger(__name__)
 
 @router.post("", response_model=schemas.Project, tags=["Projects"])  # POST /projects
 async def projects(
-    project: schemas.CreateProject, session: AsyncSession = Depends(get_session)
+    project: schemas.CreateProject,
+    session: AsyncSession = Depends(get_session),
+    opensearch_helper=Depends(opensearch.get_opensearch_helper),
 ):
-    return await crud.create_project(session, project)
+    try:
+        created_project = await crud.create_project(session, project)
+    except IntegrityError as e:
+        logger.warning(f"{project=} already exists!")
+        await session.rollback()
+        db_project = await crud.get_projects(session, project.name)
+        created_project = db_project[0]
+    opensearch_helper.setup_new_project(created_project)
+    return created_project
 
 
 @router.get("", response_model=List[schemas.Project], tags=["Projects"])

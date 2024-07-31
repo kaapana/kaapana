@@ -83,24 +83,32 @@ def _get_installed_tasks(af_home_path):
                     model_path=model_path, installed_task=installed_task
                 )
                 installed_tasks[installed_task] = {
-                    "description": dataset_json["description"]
-                    if "description" in dataset_json
-                    else "N/A",
+                    "description": (
+                        dataset_json["description"]
+                        if "description" in dataset_json
+                        else "N/A"
+                    ),
                     "model": [],
-                    "input-mode": dataset_json["input-mode"]
-                    if "input-mode" in dataset_json
-                    else "all",
+                    "input-mode": (
+                        dataset_json["input-mode"]
+                        if "input-mode" in dataset_json
+                        else "all"
+                    ),
                     "input": dataset_json["input"],
-                    "body_part": dataset_json["body_part"]
-                    if "body_part" in dataset_json
-                    else "N/A",
+                    "body_part": (
+                        dataset_json["body_part"]
+                        if "body_part" in dataset_json
+                        else "N/A"
+                    ),
                     "targets": dataset_json["targets"],
                     "supported": True,
                     "info": dataset_json["info"] if "info" in dataset_json else "N/A",
                     "url": dataset_json["url"] if "url" in dataset_json else "N/A",
-                    "task_url": dataset_json["task_url"]
-                    if "task_url" in dataset_json
-                    else "N/A",
+                    "task_url": (
+                        dataset_json["task_url"]
+                        if "task_url" in dataset_json
+                        else "N/A"
+                    ),
                 }
             if installed_model not in installed_tasks[installed_task]["model"]:
                 installed_tasks[installed_task]["model"].append(installed_model)
@@ -123,11 +131,15 @@ def get_tasks():
         print("Error in getTasks.py: ", e)
         return [], {}, {}
 
+
 def get_all_checkpoints():
     try:
         nnunet_path = "/kaapana/mounted/workflows/models/nnUNet"
         checkpoints = glob(f"{nnunet_path}/**/**/**/**/*.model")
-        checkpoints = ["/".join(i.replace(nnunet_path, "")[1:].split("/")[:-1]) for i in checkpoints]
+        checkpoints = [
+            "/".join(i.replace(nnunet_path, "")[1:].split("/")[:-1])
+            for i in checkpoints
+        ]
         return checkpoints[::-1]
 
     except Exception as e:
@@ -150,7 +162,7 @@ def get_available_protocol_names():
                     ],
                 }
             },
-            index="meta-index",
+            index=HelperOpensearch.index,
         )
 
         available_protocol_names = []

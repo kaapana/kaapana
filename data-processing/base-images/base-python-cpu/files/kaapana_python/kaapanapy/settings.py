@@ -27,6 +27,7 @@ class OpensearchSettings(KaapanaSettings):
 
     opensearch_host: str = "https://opensearch-service.services.svc"
     opensearch_port: str = "9200"
+    default_index: str = "project_1"
 
 
 class ProjectSettings(KaapanaSettings):

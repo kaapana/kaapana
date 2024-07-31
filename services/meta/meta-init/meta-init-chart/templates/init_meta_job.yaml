@@ -34,8 +34,6 @@ spec:
             value: "True"
           - name: INIT_OPENSEARCH
             value: "True"
-          - name: INDEX
-            value: "meta-index"
           - name: DASHBOARDS_URL
             value: "http://os-dashboards-service.{{  .Values.global.services_namespace  }}.svc:5601/meta"
           - name: EXPORT_NDJSON
@@ -55,19 +53,9 @@ spec:
               secretKeyRef:
                 name: system-user-password
                 key: system-user-password
-        volumeMounts:
-          - name: os-export-file
-            mountPath: /dashboards/export.ndjson
-            subPath: export.ndjson
+
       # Do not restart containers after they exit
       restartPolicy: Never
-      volumes:
-      - name: os-export-file
-        configMap:
-          name: os-export
-          items:
-          - key: export.ndjson
-            path: export.ndjson
       imagePullSecrets:
       - name: registry-secret
   backoffLimit: 10

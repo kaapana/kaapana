@@ -7,12 +7,18 @@ import httpx
 from fastapi import APIRouter, Request, Depends, Response
 from fastapi.responses import StreamingResponse
 import logging
+import binascii
+import os
 
 # Create a router
 router = APIRouter()
 
 # Set logging level
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+
+
+def get_boundary() -> bytes:
+    return binascii.hexlify(os.urandom(16))
 
 
 async def metadata_replace_stream(
@@ -39,15 +45,43 @@ async def metadata_replace_stream(
                 yield buffer
 
 
-async def stream(method="GET", url=None, request_headers=None):
+async def stream(
+    method="GET", url=None, request_headers=None, new_boundary: bytes = None
+):
     async with httpx.AsyncClient() as client:
         async with client.stream(
-            method,
-            url,
-            headers=dict(request_headers),
+            method, url, headers=dict(request_headers)
         ) as response:
+            # Boundary has to be replaced
+            buffer = b""  # We need the buffer, to ensure the boundary is not being split across chunks
+            pattern_size = (
+                len(new_boundary) + 4
+            )  # 2 bytes for "--" at the start and 2 bytes for "--" at the end
+            first_chunk = True
+            response_boundary = None
             async for chunk in response.aiter_bytes():
-                yield chunk
+                # Get the boundary which will be replaced from the first chunk
+                if first_chunk:
+                    response_boundary = re.search(
+                        b"boundary=(.*)", response.headers["Content-Type"].encode()
+                    ).group(1)
+                    first_chunk = False
+                buffer += chunk
+                # Replace the boundary in the buffer
+                buffer = buffer.replace(
+                    f"--{response_boundary.decode()}\r\n".encode(),
+                    f"--{new_boundary.decode()}\r\n".encode(),
+                ).replace(
+                    f"\r\n--{response_boundary.decode()}--".encode(),
+                    f"\r\n--{new_boundary.decode()}--".encode(),
+                )
+                to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                yield to_yield
+                buffer = buffer[-pattern_size:]
+
+            # Yield any remaining buffer after the last chunk
+            if buffer:
+                yield buffer
 
 
 # WADO-RS routes
@@ -74,15 +108,21 @@ async def retrieve_study(
 
     # check if all series of the study are mapped to the project
     if set(mapped_series_uids) == set(all_series):
-
+        boundary = get_boundary()
         return StreamingResponse(
-            stream("GET", f"{DICOMWEB_BASE_URL}/studies/{study}", request.headers),
-            media_type="application/dicom",
+            stream(
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}",
+                request_headers=request.headers,
+                new_boundary=boundary,
+            ),
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+            },
         )
 
-    async def stream_multiple_series():
-        first_boundary = None
-        first_series = True
+    async def stream_multiple_series(new_boundary: bytes = None):
         buffer = b""  # Initialize an empty buffer
         pattern_size = 20  # Size of the boundary pattern (2 bytes for "--", 16 bytes for the boundary and 2 bytes for "--"" at the end)
         async with httpx.AsyncClient() as client:
@@ -92,27 +132,23 @@ async def retrieve_study(
                     f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series_uid}",
                     headers=dict(request.headers),
                 ) as response:
-                    if first_series:
-                        boundary = first_boundary = re.search(
-                            b"boundary=(.*)", response.headers["Content-Type"].encode()
-                        ).group(1)
-                        first_series = False
-                    else:
-                        boundary = re.search(
-                            b"boundary=(.*)", response.headers["Content-Type"].encode()
-                        ).group(1)
+
+                    boundary = re.search(
+                        b"boundary=(.*)", response.headers["Content-Type"].encode()
+                    ).group(1)
 
                     async for chunk in response.aiter_bytes():
                         buffer += chunk
+
                         # Process the buffer
-                        if boundary != first_boundary:
-                            buffer = buffer.replace(
-                                f"--{boundary.decode()}\r\n".encode(),
-                                f"--{first_boundary.decode()}\r\n".encode(),
-                            ).replace(
-                                f"\r\n--{boundary.decode()}--".encode(),
-                                f"\r\n--{first_boundary.decode()}--".encode(),
-                            )
+                        buffer = buffer.replace(
+                            f"--{boundary.decode()}\r\n".encode(),
+                            f"--{new_boundary.decode()}\r\n".encode(),
+                        ).replace(
+                            f"\r\n--{boundary.decode()}--".encode(),
+                            f"\r\n--{new_boundary.decode()}--".encode(),
+                        )
+
                         # Decide how much of the buffer to yield and retain
                         to_yield = (
                             buffer[:-pattern_size]
@@ -128,7 +164,15 @@ async def retrieve_study(
             if buffer:
                 yield buffer
 
-    return StreamingResponse(stream_multiple_series(), media_type="application/dicom")
+    boundary = get_boundary()
+
+    return StreamingResponse(
+        stream_multiple_series(new_boundary=boundary),
+        headers={
+            "Transfer-Encoding": "chunked",
+            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+        },
+    )
 
 
 @router.get("/studies/{study}/series/{series}", tags=["WADO-RS"])
@@ -139,20 +183,26 @@ async def retrieve_series(
     session: AsyncSession = Depends(get_session),
 ):
 
-    if crud.check_if_series_in_given_study_is_mapped_to_project(
+    if await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
 
+        boundary = get_boundary()
+
         return StreamingResponse(
             stream(
                 method="GET",
                 url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}",
                 request_headers=request.headers,
+                new_boundary=boundary,
             ),
-            media_type="application/dicom",
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+            },
         )
 
     else:
@@ -175,14 +225,19 @@ async def retrieve_instance(
         study_instance_uid=study,
         series_instance_uid=series,
     ):
+        boundary = get_boundary()
 
         return StreamingResponse(
             stream(
                 method="GET",
                 url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}",
                 request_headers=request.headers,
+                new_boundary=boundary,
             ),
-            media_type="application/dicom",
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+            },
         )
 
     else:
@@ -202,20 +257,25 @@ async def retrieve_frames(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    if crud.check_if_series_in_given_study_is_mapped_to_project(
+    if await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
-        # Set the content type to multipart/related
+        boundary = get_boundary()
+
         return StreamingResponse(
             stream(
                 method="GET",
                 url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/frames/{frames}",
                 request_headers=request.headers,
+                new_boundary=boundary,
             ),
-            media_type="multipart/related",
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+            },
         )
     else:
         return Response(status_code=204)
@@ -298,7 +358,7 @@ async def retrieve_series_metadata(
     session: AsyncSession = Depends(get_session),
 ):
 
-    if crud.check_if_series_in_given_study_is_mapped_to_project(
+    if await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -331,7 +391,7 @@ async def retrieve_instance_metadata(
     session: AsyncSession = Depends(get_session),
 ):
 
-    if crud.check_if_series_in_given_study_is_mapped_to_project(
+    if await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -375,11 +435,19 @@ async def retrieve_study_rendered(
     logging.info(f"all_series: {all_series}")
 
     if set(mapped_series_uids) == set(all_series):
+        boundary = get_boundary()
+
         return StreamingResponse(
             stream(
-                "GET", f"{DICOMWEB_BASE_URL}/studies/{study}/rendered", request.headers
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}/rendered",
+                request_headers=request.headers,
+                new_boundary=boundary,
             ),
-            media_type="multipart/related",
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+            },
         )
     # TODO: Adjust the boundary for the multipart message
 
@@ -442,6 +510,9 @@ async def retrieve_series_rendered(
         study_instance_uid=study,
         series_instance_uid=series,
     ):
+
+        boundary = get_boundary()
+
         return StreamingResponse(
             stream(
                 method="GET",
@@ -449,6 +520,10 @@ async def retrieve_series_rendered(
                 request_headers=request.headers,
             ),
             media_type="multipart/related",
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+            },
         )
 
     else:
@@ -472,13 +547,18 @@ async def retrieve_instance_rendered(
         study_instance_uid=study,
         series_instance_uid=series,
     ):
-
+        boundary = get_boundary()
         return StreamingResponse(
             stream(
                 method="GET",
                 url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/rendered",
                 request_headers=request.headers,
-            )
+                new_boundary=boundary,
+            ),
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+            },
         )
 
     else:

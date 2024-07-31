@@ -8,7 +8,7 @@ from pathlib import Path
 import pydicom
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb, get_dcmweb_helper
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -25,7 +25,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         print("# Downloading series: {}".format(series["reference_series_uid"]))
         try:
             if self.data_type == "dicom":
-                download_successful = self.dcmweb_helper.downloadSeries(
+                download_successful = self.dcmweb_helper.download_series(
+                    study_uid=None,
                     series_uid=series["reference_series_uid"],
                     target_dir=series["target_dir"],
                     expected_object_count=series["expected_object_count"],

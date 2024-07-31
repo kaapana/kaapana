@@ -16,6 +16,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
     SYSTEM_USER_PASSWORD,
 )
+from requests_toolbelt.multipart import decoder
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -213,112 +214,110 @@ class HelperDcmWeb:
         # If empty the status code is 204
         return response.status_code == 200
 
-    def downloadSeries(
+    def download_series(
         self,
-        series_uid,
-        target_dir,
-        expected_object_count=None,
-        include_series_dir=False,
-    ):
-        payload = {"SeriesInstanceUID": series_uid}
-        url = f"{self.dcmweb_rs_endpoint}/instances"
-        httpResponse = self.session.get(url, params=payload)
-        if httpResponse.status_code == 200:
-            response = httpResponse.json()
-            objectUIDList = []
-            for resultObject in response:
-                objectUIDList.append(
-                    [
-                        resultObject["0020000D"]["Value"][0],  # StudyInstanceUID
-                        resultObject["00080018"]["Value"][0],  # SOPInstanceUID
-                        (
-                            resultObject["00280008"]["Value"][0]
-                            if "Value" in resultObject["00280008"]
-                            else None
-                        ),  # NumberOfFrames
-                    ]
-                )  # objectUID
+        study_uid: str = None,
+        series_uid: str = None,
+        target_dir: str = None,
+        expected_object_count: int = None,
+        include_series_dir: bool = False,
+    ) -> bool:
 
-            if include_series_dir:
-                target_dir = join(target_dir, series_uid)
-            Path(target_dir).mkdir(parents=True, exist_ok=True)
-            print(
-                f"HelperDcmWeb: {expected_object_count=} ; {len(objectUIDList)=} ; {objectUIDList=} ; {objectUIDList[0][-1]=}"
+        # Check if study_uid is provided, if not get it from metadata of given series
+        if not study_uid:
+            study_uid = self.__get_study_uid_by_series_uid(series_uid)
+            if not study_uid:
+                return False
+
+        # Create target directory
+        if include_series_dir:
+            target_dir = join(target_dir, series_uid)
+        Path(target_dir).mkdir(parents=True, exist_ok=True)
+
+        # If expected_object_count is provided, check if it matches the number of objects in the series
+        if not expected_object_count is None:
+            object_uid_list = self.__get_object_uid_list(study_uid, series_uid)
+            if not object_uid_list:
+                return False
+
+            logger.info(
+                f"HelperDcmWeb: {expected_object_count=} ; {len(object_uid_list)=} ; {object_uid_list=}"
             )
-            if expected_object_count != None and expected_object_count > len(
-                objectUIDList
-            ):
-                if len(objectUIDList) == 1 and objectUIDList[0][-1] is not None:
-                    if expected_object_count <= int(objectUIDList[0][-1]):
-                        print(
-                            f"len(objectUIDList) {len(objectUIDList)} AND expected_object_count {expected_object_count} <= NumberOfFrames {objectUIDList[0][-1]} --> success!"
-                        )
-                    else:
-                        raise ValueError(
-                            f"{len(objectUIDList)=} but NumberOfFrames is {objectUIDList[0][-1]} --> unknown DICOM tag situation -> abort"
-                        )
-                else:
-                    raise ValueError(
-                        f"expected_object_count {expected_object_count} > len(objectUIDList) {len(objectUIDList)} --> not all expected objects have been found -> abort"
-                    )
-            elif expected_object_count != None:
-                print(
-                    f"expected_object_count {expected_object_count} <= len(objectUIDList) {len(objectUIDList)} --> success!"
-                )
 
-            for object_uid in objectUIDList:
-                study_uid = object_uid[0]
-                object_uid = object_uid[1]
-                result = self.downloadObject(
-                    study_uid=study_uid,
-                    series_uid=series_uid,
-                    object_uid=object_uid,
-                    target_dir=target_dir,
-                )
-                if not result:
-                    return False
+            if not self.__validate_object_count(expected_object_count, object_uid_list):
+                return False
 
-            return True
-        else:
-            print("################################")
-            print("#")
-            print("# Can't request series objects from PACS!")
-            print(f"# UID: {series_uid}")
-            print(f"# Status code: {httpResponse.status_code}")
-            print("#")
-            print("################################")
-            return False
+        # Download all objects in the series
+        logger.info(f"Downloading series {series_uid} in study {study_uid}")
 
-    def downloadObject(self, study_uid, series_uid, object_uid, target_dir):
-        payload = {
-            "requestType": "WADO",
-            "studyUID": study_uid,
-            "seriesUID": series_uid,
-            "objectUID": object_uid,
-            "contentType": "application/dicom",
-        }
-        url = self.dcmweb_uri_endpoint
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
+        response = self.session.get(url)
+        response.raise_for_status()
+
+        # Parse the multipart response
+        multipart_data = decoder.MultipartDecoder.from_response(response=response)
+
+        for i, part in enumerate(multipart_data.parts):
+            # Get instance number from DICOM file
+            dicom_file = pydicom.dcmread(BytesIO(part.content))
+
+            try:
+                instance_number = dicom_file.InstanceNumber
+            except:
+                # If InstanceNumber is not available, use the index of the object in the list
+                instance_number = i
+
+            file_name = f"{instance_number}.dcm"
+
+            file_path = os.path.join(target_dir, file_name)
+            dicom_file.save_as(file_path)
+
+        return True
+
+    def __get_study_uid_by_series_uid(self, series_uid: str) -> str:
+        url = f"{self.dcmweb_rs_endpoint}/studies"
+        payload = {"SeriesInstanceUID": series_uid}
         response = self.session.get(url, params=payload)
         if response.status_code == 200:
-            fileName = object_uid + ".dcm"
-            filePath = os.path.join(target_dir, fileName)
-            with open(filePath, "wb") as f:
-                f.write(response.content)
-
-            return True
-
+            return response.json()[0]["0020000D"]["Value"][0]
         else:
-            print("################################")
-            print("#")
-            print("# Download of requested objectUID was not successful!")
-            print(f"# seriesUID: {series_uid}")
-            print(f"# studyUID: {study_uid}")
-            print(f"# objectUID: {object_uid}")
-            print(f"# Status code: {response.status_code}")
-            print(f"# Response content: {response.content}")
-            print("#")
-            print("################################")
-            return False
+            response.raise_for_status()
+            return None
+
+    def __get_object_uid_list(self, study_uid: str, series_uid: str):
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
+        httpResponse = self.session.get(url)
+        if httpResponse.status_code == 200:
+            response = httpResponse.json()
+            return [
+                (
+                    resultObject["0020000D"]["Value"][0],  # StudyInstanceUID
+                    resultObject["00080018"]["Value"][0],  # SOPInstanceUID
+                    resultObject.get("00280008", {}).get("Value", [None])[
+                        0
+                    ],  # NumberOfFrames
+                )
+                for resultObject in response
+            ]
+        else:
+            response.raise_for_status()
+            return None
+
+    def __validate_object_count(self, expected_object_count: int, object_uid_list):
+        if expected_object_count is not None and expected_object_count > len(
+            object_uid_list
+        ):
+            first_object_frames = object_uid_list[0][-1]
+            if len(object_uid_list) == 1 and first_object_frames is not None:
+                if expected_object_count <= int(first_object_frames):
+                    print("Success: Expected object count matches number of frames.")
+                else:
+                    raise ValueError("Expected object count exceeds number of frames.")
+            else:
+                raise ValueError("Not all expected objects have been found.")
+        elif expected_object_count is not None:
+            print("Expected object count is within the range of object list length.")
+        return True
 
     def reject_study(self, study_uid: str):
         """
@@ -420,7 +419,7 @@ class HelperDcmWeb:
     def search_for_series(self, search_filters):
         return self.client.search_for_series(search_filters=search_filters)
 
-    def _encode_multipart_message(
+    def __encode_multipart_message(
         self,
         data: Sequence[bytes],
         boundary: str = None,
@@ -510,7 +509,7 @@ class HelperDcmWeb:
                     dicom_file.save_as(buffer)
                     encoded_files.append(buffer.getvalue())
 
-        data, content_type = self._encode_multipart_message(
+        data, content_type = self.__encode_multipart_message(
             data=encoded_files, boundary="0f3cf5c0-70e0-41ef-baef-c6f9f65ec3e1"
         )
 
@@ -536,5 +535,3 @@ class HelperDcmWeb:
         else:
             logger.info("DICOM files uploaded successfully")
             return response
-
-

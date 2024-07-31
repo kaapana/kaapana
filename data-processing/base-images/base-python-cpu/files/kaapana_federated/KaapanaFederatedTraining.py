@@ -113,7 +113,6 @@ class KaapanaFederatedTrainingBase(ABC):
     # Todo move in Jonas library as normal function
     @staticmethod
     def fernet_encryptfile(filepath, key):
-        return
         if key == "deactivated":
             return
         fernet = Fernet(key.encode())
@@ -126,7 +125,6 @@ class KaapanaFederatedTrainingBase(ABC):
     # Todo move in Jonas library as normal function
     @staticmethod
     def fernet_decryptfile(filepath, key):
-        return
         if key == "deactivated":
             return
         fernet = Fernet(key.encode())

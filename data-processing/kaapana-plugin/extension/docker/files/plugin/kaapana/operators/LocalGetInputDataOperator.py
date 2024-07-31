@@ -127,7 +127,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         decoded_bytes = base64.b64decode(service_account_info)
         decoded_string = decoded_bytes.decode("utf-8")
         service_account_info = json.loads(decoded_string)
-
         dcmweb_helper = get_dcmweb_helper(
             dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
         )
@@ -136,12 +135,47 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if not metadata or len(metadata) == 0:
             logger.error("No metadata found.")
             exit(1)
-
         logger.info(f"Found {len(metadata)} series")
+
+        external_series_instance_uids = list(
+            {
+                instance.get("0020000E", {"Value": [None]})["Value"][0]
+                for instance in metadata
+            }
+        )
+        logger.debug(f"EXT: {external_series_instance_uids}")
+
+        local_series_instance_uids = list(
+            {
+                result["dcm-uid"]["series-uid"]
+                for result in HelperOpensearch.get_dcm_uid_objects(
+                    series_instance_uids=external_series_instance_uids
+                )
+            }
+        )
+        logger.debug(f"LOCAL: {local_series_instance_uids}")
+
+        intersection = set(local_series_instance_uids).intersection(
+            set(external_series_instance_uids)
+        )
+        logger.debug(f"INTERSECTION: {intersection}")
+
+        metadata = [
+            instance
+            for instance in metadata
+            if instance.get("0020000E", {"Value": [None]})["Value"][0]
+            not in local_series_instance_uids
+        ]
+
+        logger.debug(
+            [
+                instance.get("0020000E", {"Value": [None]})["Value"][0]
+                for instance in metadata
+            ]
+        )
 
         for instance in metadata:
             series_uid = instance.get("0020000E", {"Value": [None]})["Value"][0]
-            logger.info(series_uid)
 
             if not series_uid:
                 raise KeyError(

@@ -125,51 +125,6 @@ public class AccessInformationPointRightsMapper extends AbstractOIDCProtocolMapp
                 // Just log non-200 response keep the login flow going
                 System.out.println("Error fetching rights: " + status);
             }
-            
-            RoleModel adminRole = userSession.getRealm().getRole("admin");
-            // Set admin system admin rights for MinIO and OpenSearch
-            if (userSession.getUser().hasRole(adminRole)) {
-
-                // if user hasRole admin, add admin to opensearch claim
-                Object existingClaim = token.getOtherClaims().get("opensearch");
-                if (existingClaim != null && existingClaim instanceof List) {
-                    // Append new value to existing list
-                    List<String> existingList = (List<String>) existingClaim;
-                    existingList.add("admin");
-                    token.getOtherClaims().put("opensearch", existingList);
-                } else if (existingClaim != null) {
-                    // Convert existing single value to list and add new value
-                    List<String> newList = new ArrayList<>();
-                    newList.add(existingClaim.toString());
-                    newList.add("admin");
-                    token.getOtherClaims().put("opensearch", newList);
-                } else {
-                    // Add new value as list
-                    List<String> newList = new ArrayList<>();
-                    newList.add("admin");
-                    token.getOtherClaims().put("opensearch", newList);
-                }
-                
-                // if user hasRole admin, add consoleAdmin to policy claim
-                existingClaim = token.getOtherClaims().get("policy");
-                if (existingClaim != null && existingClaim instanceof List) {
-                    // Append new value to existing list
-                    List<String> existingList = (List<String>) existingClaim;
-                    existingList.add("consoleAdmin");
-                    token.getOtherClaims().put("policy", existingList);
-                } else if (existingClaim != null) {
-                    // Convert existing single value to list and add new value
-                    List<String> newList = new ArrayList<>();
-                    newList.add(existingClaim.toString());
-                    newList.add("consoleAdmin");
-                    token.getOtherClaims().put("policy", newList);
-                } else {
-                    // Add new value as list
-                    List<String> newList = new ArrayList<>();
-                    newList.add("consoleAdmin");
-                    token.getOtherClaims().put("policy", newList);
-                }
-            }
 
             con.disconnect();
         } catch (Exception e) {

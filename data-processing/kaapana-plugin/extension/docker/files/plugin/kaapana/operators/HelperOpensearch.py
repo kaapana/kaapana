@@ -1,3 +1,4 @@
+import traceback
 from typing import Dict, List
 
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
@@ -194,6 +195,8 @@ class HelperOpensearch:
             res = HelperOpensearch.os_client.delete_by_query(index=index, body=query)
             print(res)
         except Exception as e:
+
             print(f"# ERROR deleting from Opensearch: {str(e)}")
             print(f"# query: {query}")
+            traceback.print_exc()
             exit(1)

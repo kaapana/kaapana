@@ -165,7 +165,9 @@ def delete_k8s_secret(secret_name: str, namespace: str = "secrets"):
 
 def get_all_endpoints(namespace: str = "secrets") -> List[str]:
     secrets = get_all_k8s_secrets(namespace)
-    return [secret["dcmweb_endpoint"] for secret in secrets]
+    all_endpoints = [secret["dcmweb_endpoint"] for secret in secrets]
+    logger.info(f"All endpoints: {all_endpoints}")
+    return all_endpoints
 
 
 def get_all_k8s_secrets(namespace: str = "secrets") -> List[Dict[str, str]]:

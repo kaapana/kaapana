@@ -42,10 +42,13 @@ ui_forms = {
                 "required": True,
             },
             "service_account_info": {
-                "title": "Service Account Info",
+                "title": "Service Account Info (credentials.json)",
                 "description": "Content of the credentials file, such as credentials.json for Google Cloud. Beware! It WILL BE stored in platform in order to not ask you again.",
-                "type": "string",
                 "required": True,
+                "type": "string",
+                "contentMediaType": "application/json",
+                "x-display": "file",
+                "writeOnly": True,
             },
         },
     },
@@ -67,7 +70,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-init_operator = ExternalPacsOperator(dag=dag)
+init_operator = ExternalPacsOperator(dag=dag, action="add")
 get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir="get-input-data")
 extract_metadata = LocalDcm2JsonOperator(
     dag=dag, input_operator=get_input, data_type="json"

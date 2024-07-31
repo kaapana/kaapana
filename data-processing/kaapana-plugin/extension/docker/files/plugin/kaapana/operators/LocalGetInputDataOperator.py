@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import base64
 import glob
 import json
 import os
@@ -123,15 +124,19 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self, dcmweb_endpoint, ae_title, service_account_info
     ):
         logger.info(f"Adding external PACs: {dcmweb_endpoint}")
-        service_account_info = json.loads(service_account_info)
+        decoded_bytes = base64.b64decode(service_account_info)
+        decoded_string = decoded_bytes.decode("utf-8")
+        service_account_info = json.loads(decoded_string)
 
         dcmweb_helper = get_dcmweb_helper(
             dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
         )
         metadata = dcmweb_helper.search_for_instances()
-        if len(metadata) == 0:
+
+        if not metadata or len(metadata) == 0:
             logger.error("No metadata found.")
             exit(1)
+
         logger.info(f"Found {len(metadata)} series")
 
         for instance in metadata:
@@ -239,17 +244,18 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         logger.info("# Starting module LocalGetInputDataOperator...")
         self.conf = kwargs["dag_run"].conf
         self.dag_run_id = kwargs["dag_run"].run_id
+
         if not self.conf:
             logger.error("When is this the case?")
+            exit(1)
 
         if (
             self.conf
             and self.conf.get("workflow_form", {}).get("dcmweb_endpoint") is not None
         ):
-
             self.download_external_metadata(
                 dcmweb_endpoint=self.conf["workflow_form"]["dcmweb_endpoint"],
-                ae_title=self.conf["workflow_form"]["ae_title"],
+                ae_title=self.conf["workflow_form"].get("ae_title"),
                 service_account_info=self.conf["workflow_form"]["service_account_info"],
             )
             return

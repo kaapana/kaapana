@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import time
@@ -192,8 +193,9 @@ class DcmWebLocalHelper:
 
     def delete_series(self, study_uid: str, series_uids: List[str]) -> None:
         logger.info(f"Deleting series {series_uids} in study {study_uid}")
-        series = self.search_series_of_study(study_uid)
-        if series is None:
+        try:
+            series = self.search_series_of_study(study_uid)
+        except json.decoder.JSONDecodeError:
             logger.warning(f"Could not find any series of study {study_uid} to delete")
             return
 

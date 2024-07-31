@@ -59,6 +59,7 @@ export default {
           this.studyInstanceUID = data["metadata"]["Study Instance UID"] || "";
           this.seriesDescription = data["metadata"]["Series Description"] || "";
           this.modality = data["metadata"]["Modality"] || "";
+          this.dcmweb_endpoint = data["metadata"]["Modality"] || "";
         });
       }
     },

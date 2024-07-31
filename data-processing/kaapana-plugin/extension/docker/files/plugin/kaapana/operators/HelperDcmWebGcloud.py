@@ -12,15 +12,15 @@ logger = get_logger(__file__)
 
 class DicomStoreMetrics(BaseModel):
     name: str
-    studyCount: int
-    seriesCount: int
-    instanceCount: int
-    structuredStorageSizeBytes: int
-    blobStorageSizeBytes: int
+    studyCount: int | None = None
+    seriesCount: int | None  = None
+    instanceCount: int | None  = None
+    structuredStorageSizeBytes: int | None  = None
+    blobStorageSizeBytes: int | None  = None
 
 
 class StudyMetrics(BaseModel):
-    study: str
+    study: str 
     structuredStorageSizeBytes: int
     blobStorageSizeBytes: int
     instanceCount: int
@@ -82,8 +82,15 @@ class DcmWebGcloudHelper:
     def check_reachability(self) -> bool:
         for i in range(10):
             try:
-                if self.dicom_store_metrics() is not None:
-                    return True
+                metrics = self.dicom_store_metrics()
+                if metrics is None:
+                    return False
+                
+                if metrics.studyCount is None:
+                    logger.error("Empty dicom store.")
+                    return False
+                
+                return True
             except Exception as e:
                 logger.error(f"Connecting to PACS failed: {e}. Retry {i}")
                 time.sleep(1)

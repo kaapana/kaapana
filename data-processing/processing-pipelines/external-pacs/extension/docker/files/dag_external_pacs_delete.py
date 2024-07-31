@@ -10,21 +10,19 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 log = LoggingMixin().log
 
 external_endpoints = get_all_endpoints()
-default_endpoint = (
-    "No endpoint found" if len(external_endpoints) == 0 else external_endpoints[0]
-)
+
 
 ui_form = {
     "data_form": {},
     "workflow_form": {
         "type": "object",
-        "properties": {
+        "properties": {            
             "dcmweb_endpoint": {
                 "title": "External dicomWeb endpoint",
                 "description": "Choose which dicomWeb endpoint to remove",
                 "type": "string",
-                "enum": list(set(external_endpoints)) + ["No endpoint found"],
-                "default": default_endpoint,
+                "enum": list(set(external_endpoints)),
+                "required": True,
             },
         },
     },

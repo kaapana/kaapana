@@ -22,7 +22,7 @@ spec:
             imagePullPolicy:  {{ .Values.global.pull_policy_images }}
             env:
               - name: WAIT
-                value: "access-information-point,aip-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+                value: "opensearch,opensearch-service.{{  .Values.global.services_namespace  }}.svc,9200;access-information-point,aip-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
               - name: DELAY
                 value: "2"
               - name: TIMEOUT
@@ -44,7 +44,7 @@ spec:
         - name: WORKERS
           value: "4"
         - name: KEYCLOAK_URL
-          value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc/auth/"
+          value: "https://keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
         - name: KEYCLOAK_REALM
           value: "kaapana"
         - name: KEYCLOAK_KAAPANA_REALM_USER_NAME
@@ -53,6 +53,19 @@ spec:
           value: "{{ .Values.global.credentials_keycloak_admin_username }}"
         - name: KEYCLOAK_ADMIN_USER_PASSWORD
           value: "{{ .Values.global.credentials_keycloak_admin_password }}"
+        - name: KAAPANA_CLIENT_SECRET
+          value: "{{ .Values.global.oidc_client_secret }}"
+        - name: KAAPANA_PROJECT_USER_NAME
+          value: "system"
+        - name: KAAPANA_PROJECT_USER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: system-user-password
+              key: system-user-password
+        - name: OPENSEARCH_HOST
+          value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
+        - name: OPENSEARCH_PORT
+          value: "9200"
         ports:
           - containerPort: 8080
         resources:

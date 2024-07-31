@@ -93,8 +93,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            download_successful = self.dcmweb_helper.downloadSeries(
-                series_uid=seriesUID, target_dir=target_dir
+            download_successful = self.dcmweb_helper.download_series(
+                study_uid=studyUID, series_uid=seriesUID, target_dir=target_dir
             )
             if not download_successful:
                 print("Could not download DICOM data!")
@@ -338,9 +338,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             print("#####################################################")
             raise ValueError("ERROR")
         series_download_fail = []
-        self.dcmweb_helper = HelperDcmWeb(
-            dag_run=kwargs["dag_run"]
-        )
+        self.dcmweb_helper = HelperDcmWeb(dag_run=kwargs["dag_run"])
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(self.get_data, download_list)
             for download_successful, series_uid in results:

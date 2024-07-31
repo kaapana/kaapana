@@ -1,8 +1,7 @@
-import os
 import json
 import glob
 import pydicom
-from os.path import join, basename, dirname
+from os.path import join
 from datetime import timedelta
 from pathlib import Path
 from multiprocessing.pool import ThreadPool
@@ -25,7 +24,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         print("# Downloading series: {}".format(series["reference_series_uid"]))
         try:
             if self.data_type == "dicom":
-                download_successful = self.dcmweb_helper.downloadSeries(
+                download_successful = self.dcmweb_helper.download_series(
+                    study_uid=None,
                     series_uid=series["reference_series_uid"],
                     target_dir=series["target_dir"],
                     expected_object_count=series["expected_object_count"],
@@ -56,9 +56,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-        self.dcmweb_helper = HelperDcmWeb(
-            dag_run=kwargs["dag_run"]
-        )
+        self.dcmweb_helper = HelperDcmWeb(dag_run=kwargs["dag_run"])
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]
@@ -203,17 +201,17 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                             .value[0][0x3006, 0x0014]
                             .value[0]
                         )
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x3006, 0x0016].value))
 
                     elif incoming_dcm.Modality == "SEG":
                         assert (0x0008, 0x1115) in incoming_dcm
                         ref_object = incoming_dcm[0x0008, 0x1115].value[0]
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x0008, 0x114A].value))
                     else:
                         raise ValueError(

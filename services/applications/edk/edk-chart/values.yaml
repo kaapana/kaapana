@@ -1,0 +1,24 @@
+---
+global:
+  ingress_path: "edk"
+  complete_image: "{{ .Values.global.registry_url }}/edk:{{ .Values.global.kaapana_build_version  }}"
+  namespace: "{{ .Values.global.services_namespace }}"
+  service_account_name: edk-serviceaccount
+  role_name: pod-creator-edk
+  local_registry_url: "local-registry.{{ .Values.global.services_namespace }}.svc.cluster.local:5000"
+  local_registry_disk_space: 30Gi
+  local_registry_ui_path: /local-registry-ui
+  dynamicVolumes:
+  - name: edk
+    mount_path: /kaapana/minio/
+    host_path: /applications
+    storage: 1Gi
+    minio_mirror : true
+  - name: platform-extensions
+    host_path: /extensions
+  envVars:
+  - name: WORKSPACE
+    value: "/kaapana"
+  links:
+    - /edk/
+    - /local-registry-ui/

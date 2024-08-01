@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: local-registry-ui
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-registry-ui
+  template:
+    metadata:
+      labels:
+        app: local-registry-ui
+    spec:
+      containers:
+        - name: local-registry-ui
+          image: "{{ .Values.global.registry_url }}/local-registry-ui:{{ .Values.global.kaapana_build_version  }}"
+          ports:
+            - containerPort: 80
+          env:
+            - name: NGINX_PROXY_PASS_URL
+              value: "http://{{ tpl .Values.global.local_registry_url . }}"
+            - name: SINGLE_REGISTRY
+              value: "true"
+            - name: BASE_PATH
+              value: "{{ .Values.global.local_registry_ui_path }}"
+            - name: DELETE_IMAGES
+              value: "true"
+            - name: HTTP_PROXY
+              value: {{ .Values.global.http_proxy }}
+            - name: HTTPS_PROXY
+              value: {{ .Values.global.https_proxy }}
+            - name: NO_PROXY
+              value: "localhost,127.0.0.1,.svc,.cluster.local"
+      imagePullSecrets:
+      - name: registry-secret
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: local-registry-ui
+  namespace: services
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: services-strip-prefix-local-registry-ui@kubernetescrd
+    traefik.ingress.kubernetes.io/preserve-host: "true"
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+    - host:
+      http:
+        paths:
+          - path: "{{ .Values.global.local_registry_ui_path }}"
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: local-registry-ui
+                port:
+                  number: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-local-registry-ui
+  namespace: services
+spec:
+  stripPrefix:
+    prefixes:
+    - "{{ .Values.global.local_registry_ui_path }}"
+    forceSlash: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: local-registry-ui
+  namespace: services
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+  selector:
+    app: local-registry-ui
+---

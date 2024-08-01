@@ -1,4 +1,5 @@
 package org.rsna.ctp.dkfz;
+
 import java.io.*;
 import java.nio.charset.*;
 import java.nio.file.*;
@@ -17,7 +18,8 @@ import org.w3c.dom.Element;
 import java.net.*;
 
 /**
- * An Storage Service that stores files in directories and triggers airflow via http.
+ * An Storage Service that stores files in directories and triggers airflow via
+ * http.
  */
 public class KaapanaDagTrigger extends DirectoryStorageService {
 
@@ -60,36 +62,35 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         dag_id = element.getAttribute("dagnames");
         debug_log = element.getAttribute("debug_log");
         name = element.getAttribute("name");
-        //routing aetitle Option, aetitle is always this string
+        // routing aetitle Option, aetitle is always this string
         fix_aetitle = element.getAttribute("fix_aetitle");
         removeTags = element.getAttribute("remove_tags");
         limitTriggerOnRunningDagsUrl = element.getAttribute(("limitTriggerOnRunningDagsUrl"));
         String runningDagLimitsString = element.getAttribute("runningDagLimits");
-        if(!runningDagLimitsString.isEmpty())
-            runningDagLimits =Integer.parseInt(runningDagLimitsString.trim());
+        if (!runningDagLimitsString.isEmpty())
+            runningDagLimits = Integer.parseInt(runningDagLimitsString.trim());
         String unChangedString = element.getAttribute("unchangedCounter");
-        if(!unChangedString.isEmpty())
-            unchangedCounter =Integer.parseInt(unChangedString.trim());
+        if (!unChangedString.isEmpty())
+            unchangedCounter = Integer.parseInt(unChangedString.trim());
         syncObject = new Object();
         handleOldDicomStorageDir();
         logger.info("Kaapana Dag Trigger ready!");
     }
 
-
     /**
      *
      */
-    void setImportServiceTags(){
+    void setImportServiceTags() {
         Pipeline pipeline = this.getPipeline();
         List<ImportService> importServiceList = pipeline.getImportServices();
-        for (ImportService importService: importServiceList) {
-            if(importService instanceof DicomImportService){
-                DicomImportService dicomImportService = (DicomImportService)importService;
-                //Get the calledAETTag, if any
+        for (ImportService importService : importServiceList) {
+            if (importService instanceof DicomImportService) {
+                DicomImportService dicomImportService = (DicomImportService) importService;
+                // Get the calledAETTag, if any
                 calledAETTag = dicomImportService.getCalledAETTag();
-                //Get the callingAETTag, if any
+                // Get the callingAETTag, if any
                 callingAETTag = dicomImportService.getCallingAETTag();
-                //Get the connectionIPTag, if any
+                // Get the connectionIPTag, if any
                 connectionIPTag = dicomImportService.getConnectionIPTag();
                 isTagSet = true;
             }
@@ -113,35 +114,34 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 connectionIP = "";
                 if (removeTags.equals("yes") &&
                         ((calledAETTag != 0)
-                        || (callingAETTag != 0)
-                        || (connectionIPTag != 0)))
+                                || (callingAETTag != 0)
+                                || (connectionIPTag != 0)))
                     fileObject = setTags(fileObject);
 
-                if(!fix_aetitle.equals(""))
+                if (!fix_aetitle.equals(""))
                     calledAET = fix_aetitle;
-                //store after changing tags, but before triggering airflow
+                // store after changing tags, but before triggering airflow
                 int fileCount;
                 File storedFileParentDir;
-                synchronized (syncObject)
-                {
+                synchronized (syncObject) {
                     FileObject storedFileObject = super.store(fileObject);
                     File storedFile = storedFileObject.getFile();
                     storedFileParentDir = storedFile.getParentFile();
-                    //get number of Files in Folder, if this is the first file trigger/retrigger airflow
+                    // get number of Files in Folder, if this is the first file trigger/retrigger
+                    // airflow
                     fileCount = Objects.requireNonNull(storedFileParentDir.list()).length;
                 }
                 DicomObject dicomObject = (DicomObject) fileObject;
                 seriesInstanceUID = getElementValue(dicomObject, "0020000E");
 
-                if( 1 == fileCount){
+                if (1 == fileCount) {
                     studyDescription = getElementValue(dicomObject, "00081030");
                     patientName = getElementValue(dicomObject, "00100010");
                     patientID = getElementValue(dicomObject, "00100020");
                     studyInstanceUID = getElementValue(dicomObject, "0020000D");
-                    //logger.warn("Send to Airflow seriesInstanceUID " + seriesInstanceUID);
+                    // logger.warn("Send to Airflow seriesInstanceUID " + seriesInstanceUID);
                     send(storedFileParentDir);
-                }
-                else {
+                } else {
                     if (debug_log.equals("yes")) {
                         logger.warn("UID already triggered: " + seriesInstanceUID);
                         logger.warn("Number of files in folder " + fileCount);
@@ -159,11 +159,11 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             logger.warn(name + ": Unable to trigger Airflow for: " + fileObject);
             e.printStackTrace();
             logger.warn(e);
-            if (quarantine != null) quarantine.insert(fileObject);
+            if (quarantine != null)
+                quarantine.insert(fileObject);
             return null;
         }
     }
-
 
     /**
      * A CTP restart with untransferred dirs to Airflow have to be handled:
@@ -173,23 +173,24 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
     private void handleOldDicomStorageDir() {
         File storageDir = super.root;
         File[] directories = storageDir.listFiles();
-        //fix_aetitle is a workaround to handle old dicoms only in 1 pipeline (DicomImportService pipline).
-        if(directories == null || !fix_aetitle.equals(""))
+        // fix_aetitle is a workaround to handle old dicoms only in 1 pipeline
+        // (DicomImportService pipline).
+        if (directories == null || !fix_aetitle.equals(""))
             return;
-        for(File directory : directories ) {
-            if(directory.isDirectory()){
+        for (File directory : directories) {
+            if (directory.isDirectory()) {
                 File[] listOfFiles = directory.listFiles();
-                if(listOfFiles == null || listOfFiles.length == 0){
+                if (listOfFiles == null || listOfFiles.length == 0) {
                     continue;
                 }
                 File fileEntry = listOfFiles[0];
-                if(fileEntry.isDirectory() && directory.getName().contains("batch")){
-                    logger.info("batch directory: "+ directory.getName());
+                if (fileEntry.isDirectory() && directory.getName().contains("batch")) {
+                    logger.info("batch directory: " + directory.getName());
                     JSONObject post_data = new JSONObject();
                     JSONObject conf = new JSONObject();
                     conf.put("ctpBatch", true);
                     String timestampString = new SimpleDateFormat("_yyyyMMddHHmmssSSSS").format(new Date());
-                    String dicomPath =  directory.getName()+ timestampString;
+                    String dicomPath = directory.getName() + timestampString;
                     conf.put("dicom_path", dicomPath);
                     post_data.put("conf", conf);
                     Thread thread = new DelayedAirflowTrigger(directory, syncObject, post_data, dicomPath);
@@ -197,7 +198,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     continue;
                 }
 
-                if(!fileEntry.isFile()){
+                if (!fileEntry.isFile()) {
                     continue;
                 }
                 try {
@@ -209,8 +210,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     studyInstanceUID = getElementValue(dicomObject, "0020000D");
                     logger.warn("Send to Airflow seriesInstanceUID " + seriesInstanceUID);
                     send(directory);
-                }
-                catch (Exception ex) {
+                } catch (Exception ex) {
                     logger.warn("Exeption while reading old dicom dir");
                     ex.printStackTrace();
                     logger.warn(ex);
@@ -225,7 +225,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
      * @throws Exception
      */
     private void send(File storedFileParentDir) {
-        //logger.warn(name + ": Triggering: " + dag_id + " - " + seriesInstanceUID);
+        // logger.warn(name + ": Triggering: " + dag_id + " - " + seriesInstanceUID);
         JSONObject post_data = new JSONObject();
         JSONObject conf = new JSONObject();
         conf.put("callingAET", callingAET);
@@ -235,8 +235,8 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         conf.put("studyInstanceUID", studyInstanceUID);
         conf.put("seriesInstanceUID", seriesInstanceUID);
         String timestampString = new SimpleDateFormat("_yyyyMMddHHmmssSSSS").format(new Date());
-        String dicomPath =  seriesInstanceUID + timestampString;
-        //logger.warn("Dicom Path: " + dicomPath);
+        String dicomPath = seriesInstanceUID + timestampString;
+        // logger.warn("Dicom Path: " + dicomPath);
         conf.put("dicom_path", dicomPath);
         post_data.put("conf", conf);
         Thread thread = new DelayedAirflowTrigger(storedFileParentDir, syncObject, post_data, dicomPath);
@@ -245,7 +245,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
 
     /**
      *
-     * @param dob the dicom object
+     * @param dob   the dicom object
      * @param group the tag
      * @return
      */
@@ -266,17 +266,18 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
      * and reset dicom tags if requested:
      * when storing file via another export (e.g. dicom) before triggering
      * this exported files still have not reseted values.
+     * 
      * @param fo file object
      * @return
      */
     private FileObject setTags(FileObject fo) {
         try {
-            //DicomObject dob = (DicomObject)fo;
-            DicomObject dob = new DicomObject(fo.getFile(), true); //leave the stream open
+            // DicomObject dob = (DicomObject)fo;
+            DicomObject dob = new DicomObject(fo.getFile(), true); // leave the stream open
             File dobFile = dob.getFile();
             if (0 != callingAETTag) {
                 callingAET = dob.getElementValue(callingAETTag);
-                //delete value of DICOM-Tag before sending
+                // delete value of DICOM-Tag before sending
                 dob.setElementValue(callingAETTag, "");
             }
             if (0 != calledAETTag) {
@@ -288,22 +289,21 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 dob.setElementValue(connectionIPTag, "");
             }
 
-            File tFile = File.createTempFile("TMP-",".dcm",dobFile.getParentFile());
+            File tFile = File.createTempFile("TMP-", ".dcm", dobFile.getParentFile());
             dob.saveAs(tFile, false);
             dob.close();
             dob.getFile().delete();
 
-            //Okay, we have saved the modified file in the temp file
-            //and deleted the original file; now rename the temp file
-            //to the original name so nobody is the wiser.
+            // Okay, we have saved the modified file in the temp file
+            // and deleted the original file; now rename the temp file
+            // to the original name so nobody is the wiser.
             tFile.renameTo(dobFile);
 
-            //And finally parse it again so we have a real object to process.
+            // And finally parse it again so we have a real object to process.
             return new DicomObject(dobFile);
-        }
-        catch (Exception ex) {
+        } catch (Exception ex) {
             logger.warn("Unable to set read and reset Tags: \"");
-            logger.warn("                               in: "+fo.getFile());
+            logger.warn("                               in: " + fo.getFile());
         }
         return fo;
     }
@@ -334,21 +334,22 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
          *
          */
         public void run() {
-            processAirlfowCall();
-
+            processAirflowCall();
         }
 
         /**
          * process and call Airflow when data is finish to be processed
+         * 
          * @param
-         * */
-        private void processAirlfowCall(){
+         */
+        private void processAirflowCall() {
             try {
                 int dicomFileCount = checkFileUnchanged();
-                //if an URL is provided, this will check running Airflow dagruns and will wait, if number is to high
-                if(!limitTriggerOnRunningDagsUrl.isEmpty()) {
+                // if an URL is provided, this will check running Airflow dagruns and will wait,
+                // if number is to high
+                if (!limitTriggerOnRunningDagsUrl.isEmpty()) {
                     JSONObject conf = (JSONObject) postData.get("conf");
-                    //get from conf, since otherwise might have changed from different thread
+                    // get from conf, since otherwise might have changed from different thread
                     String confCalledAET = (String) conf.get("calledAET");
                     String confCallingAET = (String) conf.get("callingAET");
                     String pathString = storedFileParentDir.getParent() + File.separator + "batch" +
@@ -356,8 +357,10 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                     Path batchPath = Paths.get(pathString);
                     boolean doesBatchFolderExists;
                     int numberOfQueuedDagRuns = checkAirflowRunningQueue();
+                    logger.info("Number of queued dag runs: " + numberOfQueuedDagRuns);
+                    logger.info("Running dag limits: " + runningDagLimits);
                     if (numberOfQueuedDagRuns > runningDagLimits) {
-                        logger.info("Number of queued dag runs: "+ numberOfQueuedDagRuns);
+                        logger.info("Number of queued dag runs: " + numberOfQueuedDagRuns);
                         synchronized (syncObject) {
                             doesBatchFolderExists = Files.exists(batchPath);
                             Path dest = Paths.get(pathString + File.separator + dicomPath);
@@ -369,7 +372,7 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                                 logger.info("Final file-count in files moved to batchfolder: " + dicomFileCount);
                                 logger.info("Dicom folder in batch folder: " + dicomPath);
                                 logger.info("Destination path: " + pathString);
-                                //folder is processed with batch and has not to trigger airflow
+                                // folder is processed with batch and has not to trigger airflow
                                 return;
                             }
                         }
@@ -378,40 +381,39 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                         String timestampString = new SimpleDateFormat("_yyyyMMddHHmmssSSSS").format(new Date());
                         Random rnd = new Random();
                         int randomNum = rnd.nextInt();
-                        dicomPath =  "batch" + "_" + confCallingAET + "_" + confCalledAET + "_"
+                        dicomPath = "batch" + "_" + confCallingAET + "_" + confCalledAET + "_"
                                 + randomNum + timestampString;
                         conf.put("dicom_path", dicomPath);
                         postData.put("conf", conf);
                         conf.remove("patientID");
                         conf.remove("studyInstanceUID");
                         conf.remove("seriesInstanceUID");
-                        conf.put("ctpBatch",true);
-                        //files are now folders in batch folder
+                        conf.put("ctpBatch", true);
+                        // files are now folders in batch folder
                         storedFileParentDir = new File(pathString);
                         int numberOfRuns = numberOfQueuedDagRuns;
                         int currentDagRuns = numberOfRuns + 1;
-                        while (currentDagRuns >= numberOfRuns){
-                            //time to fill batch by other threads
+                        while (currentDagRuns >= numberOfRuns) {
+                            // time to fill batch by other threads
                             Thread.sleep(4000);
                             currentDagRuns = checkAirflowRunningQueue();
-                            logger.info("Current queued dag runs in batch thread: "+ currentDagRuns);
+                            logger.info("Current queued dag runs in batch thread: " + currentDagRuns);
                         }
-                    }
-                    else{
+                    } else {
                         synchronized (syncObject) {
                             doesBatchFolderExists = Files.exists(batchPath);
                         }
-                        if(doesBatchFolderExists){
-                            //batch folder has not finished the trigger process
-                            //let the batch finish first, therefore restart:
+                        if (doesBatchFolderExists) {
+                            // batch folder has not finished the trigger process
+                            // let the batch finish first, therefore restart:
                             logger.info("batch folder is still in process, restart airflow call for this series");
-                            logger.info("batch path: "+ batchPath);
-                            processAirlfowCall();
+                            logger.info("batch path: " + batchPath);
+                            processAirflowCall();
                             return;
                         }
                     }
                 }
-                //lock writing to folder while renaming
+                // lock writing to folder while renaming
                 synchronized (syncObject) {
                     logger.info("Final file-count: " + dicomFileCount);
                     logger.info("Dicom Folder send to airflow: " + dicomPath);
@@ -427,12 +429,13 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
         }
 
         /**
-         * checks if in a certain timeslot no new data of this series arrives at the CTP node
+         * checks if in a certain timeslot no new data of this series arrives at the CTP
+         * node
          */
         private int checkFileUnchanged() throws InterruptedException {
             int dicomFileCount = Objects.requireNonNull(storedFileParentDir.list()).length;
             int noChangeCount = 0;
-            //with 4 secs sleep the
+            // with 4 secs sleep the
             // min time without changes is 4*unchangedCounter secs
             // the max less then 4+4*unchangedCounter secs
             while (noChangeCount < unchangedCounter) {
@@ -464,10 +467,10 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
                 int HttpResult = con.getResponseCode();
                 if (HttpResult == HttpURLConnection.HTTP_OK) {
                     JSONParser jsonParser = new JSONParser();
-                    JSONObject numberOfRuns = (JSONObject)jsonParser.parse(
+                    JSONObject numberOfRuns = (JSONObject) jsonParser.parse(
                             new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
                     Long instances = (Long) numberOfRuns.get("number_of_dagruns");
-                    sumNumberOfDagRuns +=  instances;
+                    sumNumberOfDagRuns += instances;
                 } else {
                     logger.warn(name + " HttpResult: " + HttpResult);
                     logger.warn("Trigger url " + url);
@@ -489,19 +492,17 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             try {
                 if (quarantine != null) {
                     for (final File fileEntry : Objects.requireNonNull(folder.listFiles())) {
-                        if(fileEntry.isFile()){
+                        if (fileEntry.isFile()) {
                             quarantine.insert(fileEntry);
                             logger.warn(fileEntry.getName() + " added to quarantine");
-                        }
-                        else if (fileEntry.isDirectory()){
+                        } else if (fileEntry.isDirectory()) {
                             folderFilesToQuarantine(fileEntry);
                         }
                     }
-                    //delete storedFileParentDir in incoming.
+                    // delete storedFileParentDir in incoming.
                     folder.delete();
                 }
-            }
-            catch (Exception e){
+            } catch (Exception e) {
                 logger.error("files not added to quarantine: " + folder);
                 logger.error(e);
             }
@@ -543,7 +544,8 @@ public class KaapanaDagTrigger extends DirectoryStorageService {
             StringBuilder sb = new StringBuilder();
             int HttpResult = con.getResponseCode();
             if (HttpResult == HttpURLConnection.HTTP_OK) {
-                BufferedReader br = new BufferedReader(new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
+                BufferedReader br = new BufferedReader(
+                        new InputStreamReader(con.getInputStream(), StandardCharsets.UTF_8));
                 String line = null;
                 while ((line = br.readLine()) != null) {
                     sb.append(line + "\n");

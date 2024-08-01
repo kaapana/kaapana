@@ -259,7 +259,9 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     job = crud.get_job(db, job_id, run_id)
     if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance(job.kaapana_instance)
+        job.kaapana_instance = schemas.KaapanaInstance.clean_return(
+            job.kaapana_instance
+        )
     return job
 
 

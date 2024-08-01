@@ -247,101 +247,148 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             for idx, fname in enumerate(
                 preprocessing_path.rglob("dataset_fingerprint.json")
             ):
-                if "nnUNet_cropped_data" in str(fname):
-                    dataset_properties_files.append(fname)
+                if "nnUNet_preprocessed" in str(fname):
+                    dataset_fingerprints_files.append(fname)
                     if idx == 0:
                         with open(fname, "rb") as f:
-                            concat_dataset_properties = pickle.load(f)
+                            concat_dataset_fingerprints = json.load(f)
                         if (
-                            "intensityproperties" in concat_dataset_properties
-                            and concat_dataset_properties["intensityproperties"]
+                            "foreground_intensity_properties_per_channel"
+                            in concat_dataset_fingerprints
+                            and concat_dataset_fingerprints[
+                                "foreground_intensity_properties_per_channel"
+                            ]
                         ):
-                            local_intensityproperties = collections.OrderedDict()
-                            for mod_id, _ in concat_dataset_properties[
-                                "intensityproperties"
+                            # local_intensityproperties = collections.OrderedDict()
+                            for mod_id, _ in concat_dataset_fingerprints[
+                                "foreground_intensity_properties_per_channel"
                             ].items():
                                 voxels_in_foreground[
                                     mod_id
-                                ] = concat_dataset_properties["intensityproperties"][
+                                ] = concat_dataset_fingerprints[
+                                    "foreground_intensity_properties_per_channel"
+                                ][
                                     mod_id
                                 ][
                                     "v"
                                 ]
-                                local_intensityproperties[
-                                    mod_id
-                                ] = collections.OrderedDict()
-                                local_intensityproperties[mod_id][
-                                    "local_props"
-                                ] = concat_dataset_properties["intensityproperties"][
-                                    mod_id
-                                ][
-                                    "local_props"
-                                ]
-                                print(idx, mod_id)
-                            concat_dataset_properties[
-                                "intensityproperties"
-                            ] = local_intensityproperties
+                                # local_intensityproperties[
+                                #     mod_id
+                                # ] = collections.OrderedDict()
+                                # local_intensityproperties[mod_id][
+                                #     "local_props"
+                                # ] = concat_dataset_fingerprints["foreground_intensity_properties_per_channel"][
+                                #     mod_id
+                                # ][
+                                #     "local_props"
+                                # ]
+                                print(
+                                    f"Processed fingerprint {idx} of modality {mod_id}!"
+                                )
+                            # concat_dataset_fingerprints[
+                            #     "foreground_intensity_properties_per_channel"
+                            # ] = local_intensityproperties
                     else:
                         with open(fname, "rb") as f:
-                            dataset_properties = pickle.load(f)
-                        for k in ["all_sizes", "all_spacings"]:
-                            concat_dataset_properties[k] = (
-                                concat_dataset_properties[k] + dataset_properties[k]
+                            dataset_fingerprints = json.load(f)
+                        for k in [
+                            "shapes_after_crop",
+                            "spacings",
+                        ]:  # ["all_sizes", "all_spacings"]:
+                            concat_dataset_fingerprints[k] = (
+                                concat_dataset_fingerprints[k] + dataset_fingerprints[k]
                             )
-                        concat_dataset_properties["size_reductions"].update(
-                            dataset_properties["size_reductions"]
-                        )
+                        # concat_dataset_fingerprints["size_reductions"].update(
+                        #     dataset_fingerprints["size_reductions"]
+                        # )
                         if (
-                            "intensityproperties" in concat_dataset_properties
-                            and concat_dataset_properties["intensityproperties"]
+                            "foreground_intensity_properties_per_channel"
+                            in concat_dataset_fingerprints
+                            and concat_dataset_fingerprints[
+                                "foreground_intensity_properties_per_channel"
+                            ]
                         ):
-                            # iterate over modalities
                             for (
                                 mod_id,
                                 intensityproperties,
-                            ) in concat_dataset_properties[
-                                "intensityproperties"
+                            ) in concat_dataset_fingerprints[
+                                "foreground_intensity_properties_per_channel"
                             ].items():
                                 voxels_in_foreground[mod_id] = (
                                     voxels_in_foreground[mod_id]
-                                    + dataset_properties["intensityproperties"][mod_id][
-                                        "v"
-                                    ]
+                                    + dataset_fingerprints[
+                                        "foreground_intensity_properties_per_channel"
+                                    ][mod_id]["v"]
                                 )
-                                concat_dataset_properties["intensityproperties"][
-                                    mod_id
-                                ]["local_props"].update(
-                                    dataset_properties["intensityproperties"][mod_id][
-                                        "local_props"
-                                    ]
+                                # concat_dataset_fingerprints["foreground_intensity_properties_per_channel"][
+                                #     mod_id
+                                # ]["local_props"].update(
+                                #     dataset_fingerprints["foreground_intensity_properties_per_channel"][mod_id][
+                                #         "local_props"
+                                #     ]
+                                # )
+                                print(
+                                    f"Processed fingerprint {idx} of modality {mod_id}."
                                 )
-                                print(idx, mod_id)
-                        for k in ["all_classes", "modalities"]:
-                            assert json.dumps(dataset_properties[k]) == json.dumps(
-                                concat_dataset_properties[k]
-                            )
-                    print(fname)
-            print(len(dataset_properties_files))
+
+            datasets = []
+            for idx, fname in enumerate(preprocessing_path.rglob("dataset.json")):
+                with open(fname, "rb") as f:
+                    datasets.append(json.load(f))
+
+            if len(datasets) > 0:
+                for i, dataset in enumerate(datasets):
+                    if i == 0:
+                        ref_channels = dataset["channel_names"]
+                        ref_labels = dataset["labels"]
+                    else:
+                        current_channels = dataset["channel_names"]
+                        current_labels = dataset["labels"]
+                        assert ref_channels == current_channels
+                        assert ref_labels == current_labels
+
+            #     if "nnUNet_preprocessed" in str(fname):
+            #         dataset_files.append(fname)
+            #         if idx == 0:
+            #             with open(fname, "rb") as f:
+            #                 concat_dataset = json.load(f)
+            #             for k in ["labels", "channel_names"]:
+            #                 if k in concet_dataset and concat_dataset[k]:
+
+            # for k in ["all_classes", "modalities"]:
+            #     assert json.dumps(dataset_fingerprints[k]) == json.dumps(
+            #                     concat_dataset_fingerprints[k]
+            #                 )
+            #         # print(fname)
+            print(
+                f"Number of to be aggregated data fingerprints: {len(dataset_fingerprints_files)}."
+            )
             if (
-                "intensityproperties" in concat_dataset_properties
-                and concat_dataset_properties["intensityproperties"]
+                "foreground_intensity_properties_per_channel"
+                in concat_dataset_fingerprints
+                and concat_dataset_fingerprints[
+                    "foreground_intensity_properties_per_channel"
+                ]
             ):
                 global_intensityproperties = (
                     nnUNetFederatedTraining.collect_intensity_properties(
                         voxels_in_foreground
                     )
                 )
-                for mod_id, _ in concat_dataset_properties[
-                    "intensityproperties"
+                for mod_id, _ in concat_dataset_fingerprints[
+                    "foreground_intensity_properties_per_channel"
                 ].items():
                     print(idx, mod_id)
                     concat_dataset_properties["intensityproperties"][mod_id].update(
                         global_intensityproperties[mod_id]
                     )
+                    concat_dataset_fingerprints[
+                        "foreground_intensity_properties_per_channel"
+                    ][str(mod_id)].update(global_intensityproperties[int(mod_id)])
 
-            for fname in dataset_properties_files:
-                with open(fname, "wb") as f:
-                    pickle.dump(concat_dataset_properties, f)
+            for fname in dataset_fingerprints_files:
+                with open(fname, "w") as f:
+                    json.dump(concat_dataset_fingerprints, f)
 
             # Dummy creation of nnunet-training folder, because a tar is expected in the next round due
             # to from_previous_dag_run not None. Mybe there is a better solution for the future...

@@ -419,45 +419,29 @@ class HelperDcmWeb:
     def search_for_series(self, search_filters):
         return self.client.search_for_series(search_filters=search_filters)
 
-    def __encode_multipart_message(
-        self,
-        data: Sequence[bytes],
-        boundary: str = None,
-    ) -> Tuple[bytes, str]:
+    def __encode_multipart_message_part(self, boundary: str, payload: bytes) -> bytes:
         """
-        Encodes the payload of an HTTP multipart response message.
+        Encodes a single part of the multipart message.
 
         Parameters
         ----------
-        data: Sequence[bytes]
-            A sequence of byte data to include in the multipart message.
-        boundary: str, optional
-            The boundary string to separate parts of the message. If not provided, a unique boundary will be generated.
+        boundary: str
+            The boundary string to separate parts of the message.
+        payload: bytes
+            The byte data to include in this part of the multipart message.
 
         Returns
         -------
-        Tuple[bytes, str]
-            The encoded HTTP request message body and the content type.
+        bytes
+            The encoded part of the multipart message.
         """
-        if not boundary:
-            boundary = choose_boundary()
+        return (
+            f"--{boundary}\r\nContent-Type: application/dicom\r\n\r\n".encode("utf-8")
+            + payload
+            + b"\r\n"
+        )
 
-        content_type = f"multipart/related; type=application/dicom; boundary={boundary}"
-        body = b""
-
-        for payload in data:
-            body += (
-                f"\r\n--{boundary}\r\nContent-Type: application/dicom\r\n\r\n".encode(
-                    "utf-8"
-                )
-            )
-            body += payload
-
-        body += f"\r\n--{boundary}--".encode("utf-8")
-
-        return body, content_type
-
-    def retrieve_clinical_trial_protocol_info(self, dicom_file) -> dict:
+    def __retrieve_clinical_trial_protocol_info(self, dicom_file) -> dict:
 
         # read 0012,0020 Clinical Trial Protocol ID
         tag = dicom_file.get(0x00120020)
@@ -482,36 +466,39 @@ class HelperDcmWeb:
             "study_instance_uid": study_instance_uid,
         }
 
-    def upload_dcm_files(self, path_to_dicom_files) -> None:
+    def upload_dcm_files(self, path_to_dicom_files: str) -> None:
         """
         Send individual DICOM instances to the DICOMweb server using the STOW-RS service.
 
         Parameters:
-            path_to_dicom_files (list): Path to the DICOM files to be sent.
-
+            path_to_dicom_files (str): Path to the DICOM files to be sent.
         """
         url = f"{self.dcmweb_rs_endpoint}/studies"
-
-        encoded_files = []
+        boundary = "0f3cf5c0-70e0-41ef-baef-c6f9f65ec3e1"
         clinical_trial_protocol_info = {}
+        body = b""
 
         for root, _, files in os.walk(path_to_dicom_files):
             for file in files:
-
-                dicom_file = pydicom.dcmread(os.path.join(root, file))
+                dicom_file_path = os.path.join(root, file)
+                dicom_file = pydicom.dcmread(dicom_file_path)
 
                 # Retrieve clinical trial protocol information
-                clinical_trial_protocol_info[dicom_file.get(0x0020000E).value] = (
-                    self.retrieve_clinical_trial_protocol_info(dicom_file)
+                instance_uid = dicom_file.get(0x0020000E).value
+                clinical_trial_protocol_info[instance_uid] = (
+                    self.__retrieve_clinical_trial_protocol_info(dicom_file)
                 )
 
+                # Encode the DICOM file and add to the body
                 with BytesIO() as buffer:
                     dicom_file.save_as(buffer)
-                    encoded_files.append(buffer.getvalue())
+                    buffer.seek(0)
+                    body += self.__encode_multipart_message_part(
+                        boundary, buffer.getvalue()
+                    )
 
-        data, content_type = self.__encode_multipart_message(
-            data=encoded_files, boundary="0f3cf5c0-70e0-41ef-baef-c6f9f65ec3e1"
-        )
+        body += f"--{boundary}--\r\n".encode("utf-8")
+        content_type = f"multipart/related; type=application/dicom; boundary={boundary}"
 
         response = self.session.post(
             url,
@@ -519,7 +506,7 @@ class HelperDcmWeb:
                 "Content-Type": content_type,
                 "Authorization": f"Bearer {self.access_token}",
             },
-            data=data,
+            data=body,
             # append the clinical trial protocol information to the request
             params={
                 "clinical_trial_protocol_info": json.dumps(clinical_trial_protocol_info)

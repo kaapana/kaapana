@@ -156,29 +156,29 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 os.path.join(self.fl_working_dir, str(federated_round))
             )
             voxels_in_foreground = {}
-            dataset_properties_files = []
+            dataset_fingerprints_files = []
             for idx, fname in enumerate(
                 preprocessing_path.rglob("dataset_fingerprint.json")
             ):
                 if "nnUNet_preprocessed" in str(fname):
-                    dataset_properties_files.append(fname)
+                    dataset_fingerprints_files.append(fname)
                     if idx == 0:
                         with open(fname, "rb") as f:
-                            concat_dataset_properties = json.load(f)
+                            concat_dataset_fingerprints = json.load(f)
                         if (
                             "foreground_intensity_properties_per_channel"
-                            in concat_dataset_properties
-                            and concat_dataset_properties[
+                            in concat_dataset_fingerprints
+                            and concat_dataset_fingerprints[
                                 "foreground_intensity_properties_per_channel"
                             ]
                         ):
                             # local_intensityproperties = collections.OrderedDict()
-                            for mod_id, _ in concat_dataset_properties[
+                            for mod_id, _ in concat_dataset_fingerprints[
                                 "foreground_intensity_properties_per_channel"
                             ].items():
                                 voxels_in_foreground[
                                     mod_id
-                                ] = concat_dataset_properties[
+                                ] = concat_dataset_fingerprints[
                                     "foreground_intensity_properties_per_channel"
                                 ][
                                     mod_id
@@ -190,7 +190,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                                 # ] = collections.OrderedDict()
                                 # local_intensityproperties[mod_id][
                                 #     "local_props"
-                                # ] = concat_dataset_properties["foreground_intensity_properties_per_channel"][
+                                # ] = concat_dataset_fingerprints["foreground_intensity_properties_per_channel"][
                                 #     mod_id
                                 # ][
                                 #     "local_props"
@@ -198,60 +198,88 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                                 print(
                                     f"Processed fingerprint {idx} of modality {mod_id}!"
                                 )
-                            # concat_dataset_properties[
+                            # concat_dataset_fingerprints[
                             #     "foreground_intensity_properties_per_channel"
                             # ] = local_intensityproperties
                     else:
                         with open(fname, "rb") as f:
-                            dataset_properties = json.load(f)
-                        for k in ["all_sizes", "all_spacings"]:
-                            concat_dataset_properties[k] = (
-                                concat_dataset_properties[k] + dataset_properties[k]
+                            dataset_fingerprints = json.load(f)
+                        for k in [
+                            "shapes_after_crop",
+                            "spacings",
+                        ]:  # ["all_sizes", "all_spacings"]:
+                            concat_dataset_fingerprints[k] = (
+                                concat_dataset_fingerprints[k] + dataset_fingerprints[k]
                             )
-                        concat_dataset_properties["size_reductions"].update(
-                            dataset_properties["size_reductions"]
-                        )
+                        # concat_dataset_fingerprints["size_reductions"].update(
+                        #     dataset_fingerprints["size_reductions"]
+                        # )
                         if (
                             "foreground_intensity_properties_per_channel"
-                            in concat_dataset_properties
-                            and concat_dataset_properties[
+                            in concat_dataset_fingerprints
+                            and concat_dataset_fingerprints[
                                 "foreground_intensity_properties_per_channel"
                             ]
                         ):
                             for (
                                 mod_id,
                                 intensityproperties,
-                            ) in concat_dataset_properties[
+                            ) in concat_dataset_fingerprints[
                                 "foreground_intensity_properties_per_channel"
                             ].items():
                                 voxels_in_foreground[mod_id] = (
                                     voxels_in_foreground[mod_id]
-                                    + dataset_properties[
+                                    + dataset_fingerprints[
                                         "foreground_intensity_properties_per_channel"
                                     ][mod_id]["v"]
                                 )
-                                # concat_dataset_properties["foreground_intensity_properties_per_channel"][
+                                # concat_dataset_fingerprints["foreground_intensity_properties_per_channel"][
                                 #     mod_id
                                 # ]["local_props"].update(
-                                #     dataset_properties["foreground_intensity_properties_per_channel"][mod_id][
+                                #     dataset_fingerprints["foreground_intensity_properties_per_channel"][mod_id][
                                 #         "local_props"
                                 #     ]
                                 # )
                                 print(
                                     f"Processed fingerprint {idx} of modality {mod_id}."
                                 )
-                        for k in ["all_classes", "modalities"]:
-                            assert json.dumps(dataset_properties[k]) == json.dumps(
-                                concat_dataset_properties[k]
-                            )
-                    # print(fname)
+
+            datasets = []
+            for idx, fname in enumerate(preprocessing_path.rglob("dataset.json")):
+                with open(fname, "rb") as f:
+                    datasets.append(json.load(f))
+
+            if len(datasets) > 0:
+                for i, dataset in enumerate(datasets):
+                    if i == 0:
+                        ref_channels = dataset["channel_names"]
+                        ref_labels = dataset["labels"]
+                    else:
+                        current_channels = dataset["channel_names"]
+                        current_labels = dataset["labels"]
+                        assert ref_channels == current_channels
+                        assert ref_labels == current_labels
+
+            #     if "nnUNet_preprocessed" in str(fname):
+            #         dataset_files.append(fname)
+            #         if idx == 0:
+            #             with open(fname, "rb") as f:
+            #                 concat_dataset = json.load(f)
+            #             for k in ["labels", "channel_names"]:
+            #                 if k in concet_dataset and concat_dataset[k]:
+
+            # for k in ["all_classes", "modalities"]:
+            #     assert json.dumps(dataset_fingerprints[k]) == json.dumps(
+            #                     concat_dataset_fingerprints[k]
+            #                 )
+            #         # print(fname)
             print(
-                f"Number of to be aggregated data fingerprints: {len(dataset_properties_files)}."
+                f"Number of to be aggregated data fingerprints: {len(dataset_fingerprints_files)}."
             )
             if (
                 "foreground_intensity_properties_per_channel"
-                in concat_dataset_properties
-                and concat_dataset_properties[
+                in concat_dataset_fingerprints
+                and concat_dataset_fingerprints[
                     "foreground_intensity_properties_per_channel"
                 ]
             ):
@@ -260,19 +288,19 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                         voxels_in_foreground
                     )
                 )
-                for mod_id, _ in concat_dataset_properties[
+                for mod_id, _ in concat_dataset_fingerprints[
                     "foreground_intensity_properties_per_channel"
                 ].items():
                     print(
                         f"Number of aggregated data fingerprints {idx} of modality {mod_id}."
                     )
-                    concat_dataset_properties[
+                    concat_dataset_fingerprints[
                         "foreground_intensity_properties_per_channel"
                     ][str(mod_id)].update(global_intensityproperties[int(mod_id)])
 
-            for fname in dataset_properties_files:
+            for fname in dataset_fingerprints_files:
                 with open(fname, "w") as f:
-                    json.dump(concat_dataset_properties, f)
+                    json.dump(concat_dataset_fingerprints, f)
 
             # Dummy creation of nnunet-training folder, because a tar is expected in the next round due
             # to from_previous_dag_run not None. Mybe there is a better solution for the future...

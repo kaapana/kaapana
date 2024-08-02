@@ -5,18 +5,21 @@ from pathlib import Path
 from typing import List
 
 import json
+import time
 import pydicom
 import requests
 from dicomweb_client.api import DICOMwebClient
 from io import BytesIO
-from typing import List, Sequence, Tuple
-from urllib3.filepost import choose_boundary
+from typing import List
+from os.path import join
+from pathlib import Path
 from kaapana.blueprints.kaapana_global_variables import (
     OIDC_CLIENT_SECRET,
     SERVICES_NAMESPACE,
     SYSTEM_USER_PASSWORD,
 )
 from requests_toolbelt.multipart import decoder
+from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -214,6 +217,59 @@ class HelperDcmWeb:
         # If empty the status code is 204
         return response.status_code == 200
 
+    def __save_dicom_file(self, part, target_dir, index):
+
+        dicom_file = pydicom.dcmread(BytesIO(part.content))
+
+        try:
+            instance_number = dicom_file.InstanceNumber
+        except:
+            instance_number = index
+
+        file_path = os.path.join(target_dir, f"{instance_number}.dcm")
+        dicom_file.save_as(file_path)
+        return True
+
+    def download_series_slicewise(
+        self,
+        study_uid: str = None,
+        series_uid: str = None,
+        target_dir: str = None,
+        include_series_dir: bool = False,
+    ) -> bool:
+
+        # Check if study_uid is provided, if not get it from metadata of given series
+        if not study_uid:
+            study_uid = self.__get_study_uid_by_series_uid(series_uid)
+            if not study_uid:
+                return False
+
+        # Create target directory
+        if include_series_dir:
+            target_dir = join(target_dir, series_uid)
+        Path(target_dir).mkdir(parents=True, exist_ok=True)
+
+        # Get all instances of the series
+        instances = self.get_instances_of_series(study_uid, series_uid)
+
+        # Download all objects in the series
+        for instance in instances:
+            instance_uid = instance["00080018"]["Value"][0]
+            url = f"{self.dcmweb_uri_endpoint}"
+            params = {
+                "requestType": "WADO",
+                "studyUID": study_uid,
+                "seriesUID": series_uid,
+                "objectUID": instance_uid,
+            }
+            response = self.session.get(url, params=params)
+            response.raise_for_status()
+
+            with open(join(target_dir, f"{instance_uid}.dcm"), "wb") as f:
+                f.write(response.content)
+
+        return True
+
     def download_series(
         self,
         study_uid: str = None,
@@ -238,49 +294,81 @@ class HelperDcmWeb:
         if not expected_object_count is None:
             object_uid_list = self.__get_object_uid_list(study_uid, series_uid)
             if not object_uid_list:
-                return False
-
-            logger.info(
-                f"HelperDcmWeb: {expected_object_count=} ; {len(object_uid_list)=} ; {object_uid_list=}"
-            )
+                raise Exception("Error in getting object UID list")
 
             if not self.__validate_object_count(expected_object_count, object_uid_list):
-                return False
+                raise Exception(
+                    f"Error in validating object count! HelperDcmWeb: {expected_object_count=} ; {len(object_uid_list)=} ; {object_uid_list=}"
+                )
 
         # Download all objects in the series
-        logger.info(f"Downloading series {series_uid} in study {study_uid}")
+        # logger.info(f"Downloading series {series_uid} of study {study_uid}")
 
         num_retries = 10
         for i in range(num_retries):
             try:
-                url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
+                url = (
+                    f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
+                )
                 response = self.session.get(url)
                 response.raise_for_status()
 
-                # Parse the multipart response
-                multipart_data = decoder.MultipartDecoder.from_response(response=response)
+                multipart_data = decoder.MultipartDecoder.from_response(
+                    response=response
+                )
 
-                for i, part in enumerate(multipart_data.parts):
-                    # Get instance number from DICOM file
-                    dicom_file = pydicom.dcmread(BytesIO(part.content))
+                del response
 
-                    try:
-                        instance_number = dicom_file.InstanceNumber
-                    except:
-                        # If InstanceNumber is not available, use the index of the object in the list
-                        instance_number = i
+                with ThreadPoolExecutor() as executor:
+                    futures = []
+                    for index, part in enumerate(multipart_data.parts):
+                        futures.append(
+                            executor.submit(
+                                self.__save_dicom_file, part, target_dir, index
+                            )
+                        )
 
-                    file_name = f"{instance_number}.dcm"
+                    del part
+                    del multipart_data
 
-                    file_path = os.path.join(target_dir, file_name)
-                    dicom_file.save_as(file_path)
+                    for future in futures:
+                        result = future.result()
+                        if not result:
+                            raise Exception("Error in saving DICOM file")
+
+                if i > 0:
+                    logger.info(
+                        f"Successfully downloaded series {series_uid} of study {study_uid} after {i} retries"
+                    )
+                return True
+
             except Exception as e:
-                logger.error(f"Error downloading series {series_uid} in study {study_uid}: {e}")
+                logger.error(
+                    f"Error downloading series {series_uid} of study {study_uid}: {e}"
+                )
                 if i < num_retries - 1:
-                    logger.info(f"Retrying download of series {series_uid} in study {study_uid}")
+                    logger.info(
+                        f"Retrying download of series {series_uid} of study {study_uid}"
+                    )
+                    # Wait for 5 seconds before retrying
+                    time.sleep(5)
                     continue
                 else:
-                    logger.error(f"Failed to download series {series_uid} in study {study_uid} after {num_retries} retries")
+                    # Last try: try to download the series slice-wise
+                    if self.download_series_slicewise(
+                        study_uid=study_uid,
+                        series_uid=series_uid,
+                        target_dir=target_dir,
+                        include_series_dir=include_series_dir,
+                    ):
+                        logger.info(
+                            f"Successfully downloaded series {series_uid} of study {study_uid} slice-wise"
+                        )
+                        return True
+
+                    logger.error(
+                        f"Failed to download series {series_uid} of study {study_uid} after {num_retries} retries"
+                    )
                     return False
 
         return True

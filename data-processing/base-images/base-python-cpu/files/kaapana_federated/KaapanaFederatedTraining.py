@@ -462,7 +462,7 @@ class KaapanaFederatedTrainingBase(ABC):
         Return a site_model_weights_dict with always the same model_weights per site.
         """
         # sum model_weights up
-        # site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteA>": <model_weights_1>, ...}
+        # site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
         sum_model_weights = collections.OrderedDict()
         for site_key, site_value in site_model_weights_dict.items():
             for key, value in site_value.items():
@@ -496,7 +496,7 @@ class KaapanaFederatedTrainingBase(ABC):
         Aggregate local models if (federated_round % agg_rate) == (agg_rate - 1).
 
         Input:
-        * site_model_weights_dict: site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteA>": <model_weights_1>, ...}
+        * site_model_weights_dict: site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
         * federated_round: current federated communication round
         * agg_rate: aggregation rate; defines how often local model weights are aggregated (avereaged)
         * dc_rate: daisy chaining rate; defines how often local models are randomly sent to other site
@@ -533,6 +533,8 @@ class KaapanaFederatedTrainingBase(ABC):
         Saves model_weights to checkpoint in fname.
         """
         checkpoint = torch.load(str(fname), map_location=torch.device("cpu"))
+        # delete here fname first and save it then again from scratch
+        os.remove(fname)
         checkpoint["network_weights"] = model_weights
         torch.save(checkpoint, str(fname))
 

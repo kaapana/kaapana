@@ -245,8 +245,8 @@ ui_forms = {
             "disable_checkpointing": {
                 "type": "boolean",
                 "title": "Disable checkpointing",
-                "default": False,
-                "description": "Disable intermediate checkpointing after 50 epochs.",
+                "default": True,
+                "description": "Disable intermediate checkpointing after 50 epochs. The final checkpoint after the end of the training (after each federated communication round) is always saved.",
             },
             "input": {
                 "title": "Input Modality",

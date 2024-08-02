@@ -4,7 +4,6 @@ import glob
 import json
 import os
 import shutil
-from collections import defaultdict
 from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, join
@@ -227,7 +226,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 "You defined 'identifiers' and a 'query', only one definition is supported!"
             )
         if "query" in self.data_form:
-            print(
+            logger.info(
                 HelperOpensearch.get_query_dataset(
                     self.data_form["query"], only_uids=True
                 )
@@ -243,7 +242,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.dataset_limit = dataset_limit if dataset_limit > 0 else None
 
         if len(self.data_form["identifiers"]) > 0:
-            print(
+            logger.info(
                 f"{self.include_custom_tag_property=}, {self.exclude_custom_tag_property=}"
             )
             include_custom_tag = ""

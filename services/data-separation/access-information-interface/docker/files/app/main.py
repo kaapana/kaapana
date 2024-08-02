@@ -16,6 +16,7 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Base.metadata.create_all)
     await init_scripts.initial_database_population()
     await init_scripts.init_opensearch()
+    await init_scripts.init_minio()
     yield  # This yield separates startup from shutdown code
     # Code here would run after the application stops
 

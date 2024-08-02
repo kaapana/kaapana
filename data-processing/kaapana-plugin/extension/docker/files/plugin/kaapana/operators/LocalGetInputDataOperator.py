@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import shutil
+import time
 from datetime import timedelta
 from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, join
@@ -328,11 +329,33 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             raise Exception("No series to download !!")
         series_download_fail = []
         self.dcmweb_helper = get_dcmweb_helper(dag_run=kwargs["dag_run"])
+
+        num_done = 0
+        num_total = len(download_list)
+        time_start = time.time()
+
         with ThreadPool(self.parallel_downloads) as threadpool:
             results = threadpool.imap_unordered(self.get_data, download_list)
             for download_successful, series_uid in results:
                 if not download_successful:
                     series_download_fail.append(series_uid)
+
+                num_done += 1
+
+                if num_done % 10 == 0:
+                    time_elapsed = time.time() - time_start
+                    logger.info(f"{num_done}/{num_total} done")
+                    # Format nicely in minutes and seconds
+                    logger.info(
+                        "Time elapsed: %d:%02d minutes" % divmod(time_elapsed, 60)
+                    )
+                    # Format nicely in minutes and seconds
+                    logger.info(
+                        "Estimated time remaining: %d:%02d minutes"
+                        % divmod(time_elapsed / num_done * (num_total - num_done), 60)
+                    )
+                    # Log how many series are being downloaded per second on average
+                    logger.info("Series per second: %.2f" % (num_done / time_elapsed))
 
             if len(series_download_fail) > 0:
                 raise Exception(
@@ -340,6 +363,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                         series_download_fail
                     )
                 )
+
+        logger.info("## All series downloaded successfully")
 
     def __init__(
         self,

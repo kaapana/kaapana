@@ -250,27 +250,38 @@ class HelperDcmWeb:
         # Download all objects in the series
         logger.info(f"Downloading series {series_uid} in study {study_uid}")
 
-        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
-        response = self.session.get(url)
-        response.raise_for_status()
-
-        # Parse the multipart response
-        multipart_data = decoder.MultipartDecoder.from_response(response=response)
-
-        for i, part in enumerate(multipart_data.parts):
-            # Get instance number from DICOM file
-            dicom_file = pydicom.dcmread(BytesIO(part.content))
-
+        num_retries = 10
+        for i in range(num_retries):
             try:
-                instance_number = dicom_file.InstanceNumber
-            except:
-                # If InstanceNumber is not available, use the index of the object in the list
-                instance_number = i
+                url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
+                response = self.session.get(url)
+                response.raise_for_status()
 
-            file_name = f"{instance_number}.dcm"
+                # Parse the multipart response
+                multipart_data = decoder.MultipartDecoder.from_response(response=response)
 
-            file_path = os.path.join(target_dir, file_name)
-            dicom_file.save_as(file_path)
+                for i, part in enumerate(multipart_data.parts):
+                    # Get instance number from DICOM file
+                    dicom_file = pydicom.dcmread(BytesIO(part.content))
+
+                    try:
+                        instance_number = dicom_file.InstanceNumber
+                    except:
+                        # If InstanceNumber is not available, use the index of the object in the list
+                        instance_number = i
+
+                    file_name = f"{instance_number}.dcm"
+
+                    file_path = os.path.join(target_dir, file_name)
+                    dicom_file.save_as(file_path)
+            except Exception as e:
+                logger.error(f"Error downloading series {series_uid} in study {study_uid}: {e}")
+                if i < num_retries - 1:
+                    logger.info(f"Retrying download of series {series_uid} in study {study_uid}")
+                    continue
+                else:
+                    logger.error(f"Failed to download series {series_uid} in study {study_uid} after {num_retries} retries")
+                    return False
 
         return True
 

@@ -12,7 +12,9 @@ import shutil
 import glob
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
+import logging
 
+logging.basicConfig(level=logging.INFO)
 
 class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
     """
@@ -52,8 +54,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     )
                 )
             else:
-                print("Could not find DAG modality in DAG-run conf!")
-                print("Skipping 'check_dag_modality'")
+                logging.warning("Could not find DAG modality in DAG-run conf!")
+                logging.warning("Skipping 'check_dag_modality'")
                 return
 
     def get_data(self, series_dict):
@@ -91,32 +93,32 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 json.dump(meta_data, fp, indent=4, sort_keys=True)
 
         elif self.data_type == "minio":
-            print("Not supported yet!")
-            print("abort...")
+            logging.error("Not supported yet!")
+            logging.error("abort...")
             download_successful = False
 
         else:
-            print("unknown data-mode!")
-            print("abort...")
+            logging.error("unknown data-mode!")
+            logging.error("abort...")
             download_successful = False
 
         return download_successful, seriesUID
 
     def move_series(self, src_dcm_path: str, target: str):
-        print("#")
-        print(
+        logging.info("#")
+        logging.info(
             "############################ Get input data ############################"
         )
-        print("#")
-        print(f"# Moving data from {src_dcm_path} -> {target}")
-        print("#")
+        logging.info("#")
+        logging.info(f"# Moving data from {src_dcm_path} -> {target}")
+        logging.info("#")
         shutil.move(src=src_dcm_path, dst=target)
-        print(f"# Series CTP import -> OK: {target}")
+        logging.info(f"# Series CTP import -> OK: {target}")
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        print("# Starting module LocalGetInputDataOperator...")
-        print("#")
+        logging.info("# Starting module LocalGetInputDataOperator...")
+        logging.info("#")
         self.conf = kwargs["dag_run"].conf
         dag_run_id = kwargs["dag_run"].run_id
         if self.conf and ("seriesInstanceUID" in self.conf):
@@ -124,8 +126,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             dcm_path = join(
                 "/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path")
             )
-            print("#")
-            print(f"# Dicom-path: {dcm_path}")
+            logging.info("#")
+            logging.info(f"# Dicom-path: {dcm_path}")
             target = join(
                 self.airflow_workflow_dir,
                 dag_run_id,
@@ -142,13 +144,13 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 else:
                     self.move_series(src_dcm_path=dcm_path, target=target)
             else:
-                print("Files have already been moved -> skipping")
+                logging.warning("Files have already been moved -> skipping")
             return
         if self.conf and "ctpBatch" in self.conf:
             batch_folder = join(
                 "/kaapana/mounted/ctpinput", "incoming", self.conf.get("dicom_path")
             )
-            print(f"# Batch folder: {batch_folder}")
+            logging.info(f"# Batch folder: {batch_folder}")
             dcm_series_paths = [f for f in glob.glob(batch_folder + "/*")]
             for dcm_series_path in dcm_series_paths:
                 dcm_file_list = glob.glob(dcm_series_path + "/*.dcm", recursive=True)
@@ -165,7 +167,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     if exists(target) and any(
                         fname.endswith(".dcm") for fname in os.listdir(target)
                     ):
-                        print("Files have already been moved -> skipping")
+                        logging.warning("Files have already been moved -> skipping")
                     else:
                         self.move_series(src_dcm_path=dcm_series_path, target=target)
             # remove parent batch folder
@@ -180,33 +182,33 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             for src in dataInputDirs:
                 target = join(dirname(src), self.operator_out_dir)
                 if src == target:
-                    print("#")
-                    print(f"# Data is already at out dir location -> {target}")
-                    print("#")
+                    logging.info("#")
+                    logging.info(f"# Data is already at out dir location -> {target}")
+                    logging.info("#")
                 else:
-                    print("#")
-                    print(f"# Moving data from {src} -> {target}")
-                    print("#")
+                    logging.info("#")
+                    logging.info(f"# Moving data from {src} -> {target}")
+                    logging.info("#")
                     shutil.move(src=src, dst=target)
-                    print("# Dag input dir correctly adjusted.")
+                    logging.info("# Dag input dir correctly adjusted.")
             return
 
         if self.data_form is None:
             if self.conf is not None and "data_form" in self.conf:
-                print("Setting data_from from conf object")
+                logging.info("Setting data_from from conf object")
                 self.data_form = self.conf["data_form"]
             else:
-                print(
+                logging.info(
                     "No data_form in config or object found! Data seems to be present already..."
                 )
-                print("Skipping...")
+                logging.info("Skipping...")
                 return
         if "query" in self.data_form and "identifiers" in self.data_form:
             raise Exception(
                 "You defined 'identifiers' and a 'query', only one definition is supported!"
             )
         if "query" in self.data_form:
-            print(
+            logging.info(
                 HelperOpensearch.get_query_dataset(
                     self.data_form["query"], only_uids=True
                 )
@@ -215,17 +217,17 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 self.data_form["query"], only_uids=True
             )
 
-        print("# data_form:")
-        print("#")
-        print(json.dumps(self.data_form, indent=4, sort_keys=True))
-        print("#")
-        print("#")
+        logging.info("# data_form:")
+        logging.info("#")
+        logging.info(json.dumps(self.data_form, indent=4, sort_keys=True))
+        logging.info("#")
+        logging.info("#")
 
         dataset_limit = int(self.data_form.get("dataset_limit", 0))
         self.dataset_limit = dataset_limit if dataset_limit > 0 else None
 
         if len(self.data_form["identifiers"]) > 0:
-            print(
+            logging.info(
                 f"{self.include_custom_tag_property=}, {self.exclude_custom_tag_property=}"
             )
             include_custom_tag = ""
@@ -246,14 +248,14 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         else:
             raise Exception(f"Issue with data form! {self.data_form}")
 
-        print(f"# Dataset-limit: {self.dataset_limit}")
-        print("#")
-        print("#")
-        print("# Dicom data information:")
-        print("#")
-        print(json.dumps(self.dicom_data_infos, indent=4, sort_keys=True))
-        print("#")
-        print("#")
+        logging.info(f"# Dataset-limit: {self.dataset_limit}")
+        logging.info("#")
+        logging.info("#")
+        logging.info("# Dicom data information:")
+        logging.info("#")
+        logging.info(json.dumps(self.dicom_data_infos, indent=4, sort_keys=True))
+        logging.info("#")
+        logging.info("#")
         download_list = []
         for dicom_data_info in self.dicom_data_infos:
             if "dcm-uid" in dicom_data_info:
@@ -288,18 +290,18 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                     "Error with dag-config!\nUnknown input: %s.\nSupported 'dcm-uid'.\nDag-conf: %s"
                     % (dicom_data_info, self.conf)
                 )
-        print("")
-        print(f"## SERIES FOUND: {len(download_list)}")
-        print("")
-        print(f"## SERIES LIMIT: {self.dataset_limit}")
+        logging.info("")
+        logging.info(f"## SERIES FOUND: {len(download_list)}")
+        logging.info("")
+        logging.info(f"## SERIES LIMIT: {self.dataset_limit}")
         download_list = (
             download_list[: self.dataset_limit]
             if self.dataset_limit is not None
             else download_list
         )
-        print("")
-        print(f"## SERIES TO LOAD: {len(download_list)}")
-        print("")
+        logging.info("")
+        logging.info(f"## SERIES TO LOAD: {len(download_list)}")
+        logging.info("")
         if len(download_list) == 0:
             raise Exception("No series to download !!")
         series_download_fail = []

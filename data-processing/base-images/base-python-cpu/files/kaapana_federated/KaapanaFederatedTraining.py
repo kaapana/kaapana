@@ -459,9 +459,7 @@ class KaapanaFederatedTrainingBase(ABC):
         print("Load checkpoints and return as dict.")
         site_model_weights_dict = collections.OrderedDict()
         for idx, fname in enumerate(
-            current_federated_round_dir.rglob(
-                "checkpoint_final.pth"
-            )  # ("model_final_checkpoint.model")
+            current_federated_round_dir.rglob("checkpoint_final.pth")
         ):
             print(f"Loading model_weights from: {fname}")
             checkpoint = torch.load(fname, map_location=torch.device("cpu"))
@@ -479,7 +477,7 @@ class KaapanaFederatedTrainingBase(ABC):
         FedAvg: Communication-efficient Learning of Deep networks from Decentralized Data (https://arxiv.org/abs/1602.05629)
         Sum model_weights up.
         Divide summed model_weights by num_sites.
-        Return a site_model_weights_dict with always the same statedict per site.
+        Return a site_model_weights_dict with always the same model_weights per site.
         """
         # sum model_weights up
         # site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteA>": <model_weights_1>, ...}
@@ -498,11 +496,11 @@ class KaapanaFederatedTrainingBase(ABC):
             averaged_model_weights[key] = sum_model_weights[key] / num_sites
 
         # return site_model_weights_dict with same averaged model per site
-        return_statedict_dict = collections.OrderedDict()
+        return_model_weights_dict = collections.OrderedDict()
         for site in site_model_weights_dict.keys():
-            return_statedict_dict[site] = averaged_model_weights
+            return_model_weights_dict[site] = averaged_model_weights
 
-        return return_statedict_dict
+        return return_model_weights_dict
 
     # @timeit
     def fed_dc(
@@ -522,7 +520,7 @@ class KaapanaFederatedTrainingBase(ABC):
         * dc_rate: daisy chaining rate; defines how often local models are randomly sent to other site
 
         Output:
-        * return_statedict_dict: with eiter just randomly permuted site keys or aggregated model_weights.
+        * return_model_weights_dict: with eiter just randomly permuted site keys or aggregated model_weights.
         """
 
         # do either daisy-chaining or aggregation
@@ -530,7 +528,7 @@ class KaapanaFederatedTrainingBase(ABC):
             # daisy chaining
             site_keys = list(site_model_weights_dict.keys())
             shuffled_site_keys = random.sample(site_keys, len(site_keys))
-            return_statedict_dict = dict(
+            return_model_weights_dict = dict(
                 zip(
                     shuffled_site_keys,
                     [site_model_weights_dict[key] for key in shuffled_site_keys],
@@ -538,14 +536,14 @@ class KaapanaFederatedTrainingBase(ABC):
             )
         if (federated_round % self.agg_rate) == (self.agg_rate - 1):
             # aggregation via FedAvg
-            return_statedict_dict = self.fed_avg(site_model_weights_dict)
+            return_model_weights_dict = self.fed_avg(site_model_weights_dict)
         if ((federated_round % self.agg_rate) != (self.agg_rate - 1)) and (
             (federated_round % self.dc_rate) != (self.dc_rate - 1)
         ):
             raise ValueError(
                 "Error while FedDC: Neither Daisy Chaining nor Aggregation was computed!"
             )
-        return return_statedict_dict
+        return return_model_weights_dict
 
     # @timeit
     def _save_model_weights(self, fname=None, model_weights=None):

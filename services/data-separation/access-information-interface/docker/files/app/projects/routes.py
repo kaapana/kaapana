@@ -6,6 +6,7 @@ from typing import List
 from . import schemas
 from . import crud
 from . import opensearch
+from . import minio
 
 from ..database import get_session
 import logging
@@ -22,6 +23,7 @@ async def projects(
     project: schemas.CreateProject,
     session: AsyncSession = Depends(get_session),
     opensearch_helper=Depends(opensearch.get_opensearch_helper),
+    minio_helper=Depends(minio.get_minio_helper),
 ):
     try:
         created_project = await crud.create_project(session, project)
@@ -31,6 +33,7 @@ async def projects(
         db_project = await crud.get_projects(session, project.name)
         created_project = db_project[0]
     opensearch_helper.setup_new_project(created_project)
+    minio_helper.setup_new_project(created_project)
     return created_project
 
 
@@ -47,6 +50,22 @@ async def get_rights(session: AsyncSession = Depends(get_session), name: str = N
 @router.get("/roles", response_model=List[schemas.Role], tags=["Projects"])
 async def get_roles(session: AsyncSession = Depends(get_session), name: str = None):
     return await crud.get_roles(session, name=name)
+
+
+@router.post("/{project_name}/role/{role}/user/{user_id}", tags=["Projects"])
+async def post_user_project_role_mapping(
+    project_name: str,
+    role_name: str,
+    user_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    """Create a UserProjectRole mapping"""
+    db_project = await crud.get_projects(session, project_name)
+    db_role = await crud.get_roles(session, role_name)
+
+    return await crud.create_users_projects_roles_mapping(
+        session, db_project[0].id, db_role[0].id, user_id
+    )
 
 
 @router.post("/{project_name}/data", response_model=schemas.Data, tags=["Projects"])

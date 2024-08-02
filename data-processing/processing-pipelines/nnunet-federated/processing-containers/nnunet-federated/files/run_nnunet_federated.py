@@ -24,12 +24,6 @@ from kaapana_federated.KaapanaFederatedTraining import (
 
 
 class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
-    # @staticmethod
-    # def get_network_trainer(folder):
-    #     checkpoint = join(folder, "model_final_checkpoint.model")
-    #     pkl_file = checkpoint + ".pkl"
-    #     return restore_model(pkl_file, checkpoint, False)
-
     # https://github.com/MIC-DKFZ/nnUNet/blob/a7d1d875e8fc3f4e93ca7b51b1ba206711844d92/nnunet/experiment_planning/DatasetAnalyzer.py#L181
     @staticmethod
     def collect_intensity_properties(v_per_mod, num_processes=8):
@@ -334,15 +328,19 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             # process model_weights according to aggregation method
             if self.aggregation_strategy == "fedavg":
                 # FedAvg
-                processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
+                processed_site_model_weights_dict = self.fed_avg(
+                    site_model_weights_dict
+                )
             elif self.aggregation_strategy == "feddc":
                 if federated_round == -1:
                     # average in fl_round=-1 to initialize everywhere w/ same model
-                    processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
+                    processed_site_model_weights_dict = self.fed_avg(
+                        site_model_weights_dict
+                    )
                 else:
                     # FedDC
-                    processed_site_statedict_dict = self.fed_dc(
-                        site_statedict_dict, federated_round
+                    processed_site_model_weights_dict = self.fed_dc(
+                        site_model_weights_dict, federated_round
                     )
             else:
                 raise ValueError(
@@ -350,7 +348,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 )
             # save model_weights to server's minio
             fname = self.save_model_weights(
-                current_federated_round_dir, processed_site_statedict_dict
+                current_federated_round_dir, processed_site_model_weights_dict
             )
 
             if (

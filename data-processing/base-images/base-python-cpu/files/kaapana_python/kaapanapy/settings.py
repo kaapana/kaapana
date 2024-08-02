@@ -30,6 +30,15 @@ class OpensearchSettings(KaapanaSettings):
     default_index: str = "project_1"
 
 
+class MinioSettings(KaapanaSettings):
+    """
+    Settings for MinIO
+    """
+
+    minio_system_user: str = "kaapanaminio"
+    minio_system_password: str = "Kaapana2020"
+
+
 class ProjectSettings(KaapanaSettings):
     """
     Project specific settings

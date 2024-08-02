@@ -34,6 +34,8 @@ COPY files/patched/checkpointing_in_prepround.patch /nnunet-pip-package/
 RUN git apply checkpointing_in_prepround.patch
 COPY files/patched/correct_checkpointing.patch /nnunet-pip-package/
 RUN git apply correct_checkpointing.patch
+COPY files/patched/do_always_final_checkpointing.patch /nnunet-pip-package/
+RUN git apply do_always_final_checkpointing.patch
 
 # install pip package in editable/dev mode
 RUN cd /nnunet-pip-package && pip3 install -e .

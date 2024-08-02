@@ -10,6 +10,10 @@ logger = get_logger(__name__)
 
 
 class OpenSearchHelper:
+    """
+    Helper class for managing project specific indices, roles and rolemappings in opensearch.
+    """
+
     def __init__(self, access_token):
         self.os_client = get_opensearch_client(access_token)
         self.access_token = access_token
@@ -17,6 +21,9 @@ class OpenSearchHelper:
         self.security_api_url = f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}/_plugins/_security/api"
 
     def wait_for_service(self, max_retries=60, delay=5):
+        """
+        Wait until the opensearch service is reachable.
+        """
         import time
 
         available = False
@@ -139,4 +146,8 @@ def get_payload_for_role_and_index(role, index):
 
 
 def conventional_role_name(role, index):
+    """
+    Convention for rolenames.
+    Role names in opensearch should match claim values in the opensearch claim of the access token.
+    """
     return f"{role}_{index}"

@@ -8,7 +8,6 @@ from .projects.crud import (
     create_users_projects_roles_mapping,
     get_projects,
 )
-from .projects.opensearch import OpenSearchHelper
 from kaapanapy.helper import get_project_user_access_token
 from .projects.schemas import CreateRight, CreateRole, CreateProject
 from .database import async_session
@@ -163,6 +162,10 @@ async def initial_database_population():
 
 
 async def init_opensearch():
+    """
+    Initialize the opensearch index for the admin project.
+    """
+    from .projects import opensearch
 
     # Get admin project from database
     async with async_session() as session:
@@ -170,6 +173,21 @@ async def init_opensearch():
 
     # Get access token for the project/system user
     access_token = get_project_user_access_token()
-    opensearch_helper = OpenSearchHelper(access_token)
+    opensearch_helper = opensearch.OpenSearchHelper(access_token)
     opensearch_helper.wait_for_service()
     opensearch_helper.setup_new_project(admin_project[0])
+
+
+async def init_minio():
+    """
+    Initialize the bucket in MinIo for the admin project.
+    """
+    from .projects import minio
+
+    async with async_session() as session:
+        admin_project = await get_projects(session, name="admin")
+    # Get access token for the project/system user
+    access_token = get_project_user_access_token()
+    minio_helper = minio.MinioHelper(access_token)
+    minio_helper.wait_for_service()
+    minio_helper.setup_new_project(admin_project[0])

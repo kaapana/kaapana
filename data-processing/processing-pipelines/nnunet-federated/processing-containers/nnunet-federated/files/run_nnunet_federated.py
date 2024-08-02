@@ -24,11 +24,11 @@ from kaapana_federated.KaapanaFederatedTraining import (
 
 
 class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
-    @staticmethod
-    def get_network_trainer(folder):
-        checkpoint = join(folder, "model_final_checkpoint.model")
-        pkl_file = checkpoint + ".pkl"
-        return restore_model(pkl_file, checkpoint, False)
+    # @staticmethod
+    # def get_network_trainer(folder):
+    #     checkpoint = join(folder, "model_final_checkpoint.model")
+    #     pkl_file = checkpoint + ".pkl"
+    #     return restore_model(pkl_file, checkpoint, False)
 
     # https://github.com/MIC-DKFZ/nnUNet/blob/a7d1d875e8fc3f4e93ca7b51b1ba206711844d92/nnunet/experiment_planning/DatasetAnalyzer.py#L181
     @staticmethod
@@ -327,9 +327,11 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
             ### FL Aggregation during training ###
-            # load state_dicts
-            site_statedict_dict = self.load_state_dicts(current_federated_round_dir)
-            # process state_dicts according to aggregation method
+            # load model_weights
+            site_model_weights_dict = self.load_model_weights(
+                current_federated_round_dir
+            )
+            # process model_weights according to aggregation method
             if self.aggregation_strategy == "fedavg":
                 # FedAvg
                 processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
@@ -346,8 +348,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 raise ValueError(
                     "No Federated Learning method is given. Choose between 'fedavg', 'feddc'."
                 )
-            # save state_dicts to server's minio
-            fname = self.save_state_dicts(
+            # save model_weights to server's minio
+            fname = self.save_model_weights(
                 current_federated_round_dir, processed_site_statedict_dict
             )
 

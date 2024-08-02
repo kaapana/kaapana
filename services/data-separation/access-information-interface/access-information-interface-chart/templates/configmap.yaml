@@ -32,8 +32,20 @@ data:
       },
       {
         "name": "opensearch_admin",
-        "description": "Opensearch admin role",
+        "description": "Opensearch admin role for the project index",
         "claim_key": "opensearch",
+        "claim_value": "admin_project"
+      },
+      {
+        "name": "minio_read",
+        "description": "Read policy for the project bucket in minio",
+        "claim_key": "policy",
+        "claim_value": "read_project"
+      },
+      {
+        "name": "minio_admin",
+        "description": "Admin policy for the project bucket in minio",
+        "claim_key": "policy",
         "claim_value": "admin_project"
       }
     ]
@@ -59,11 +71,11 @@ data:
     [
       {
         "role": "admin",
-        "rights": ["read", "write", "delete", "opensearch_admin"]
+        "rights": ["read", "write", "delete", "opensearch_admin", "minio_admin"]
       },
       {
         "role": "read-only",
-        "rights": ["read","opensearch_read"]
+        "rights": ["read","opensearch_read","minio_read"]
       }
     ]
 

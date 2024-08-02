@@ -8,6 +8,7 @@ import string
 import uuid
 from datetime import datetime
 from pathlib import Path
+from re import sub
 from threading import Thread
 from typing import Any, List, Tuple, Union
 
@@ -814,6 +815,23 @@ def get_settings(db: Session = Depends(get_db)):
     return settings
 
 
+# get workflow settings of a given dag for instance
+@router.get("/settings/workflows/{dag_id}", response_model=schemas.SettingsBase)
+def get_workflow_settings(dag_id: str, db: Session = Depends(get_db)):
+    db_response = crud.get_settings_item(db, "workflows")
+
+    settings_item: schemas.SettingsBase = schemas.SettingsBase(key=dag_id, value={})
+    if db_response:
+        workflows = db_response.value
+        dag_id_converted = camel_case(dag_id)
+        if dag_id_converted in workflows:
+            settings_item = schemas.SettingsBase(
+                key=dag_id, value=workflows[dag_id_converted]
+            )
+
+    return settings_item
+
+
 # put all settings for instance
 @router.put("/settings")
 def create_or_update_settings(
@@ -822,3 +840,13 @@ def create_or_update_settings(
     for item in settings:
         _ = crud.create_or_update_settings(db, item)
     return True
+
+
+# Define a function to convert a string to camel case
+def camel_case(s):
+    # Use regular expression substitution to replace underscores and hyphens with spaces,
+    # then title case the string (capitalize the first letter of each word), and remove spaces
+    s = sub(r"(_|-)+", " ", s).title().replace(" ", "")
+
+    # Join the string, ensuring the first letter is lowercase
+    return "".join([s[0].lower(), s[1:]])

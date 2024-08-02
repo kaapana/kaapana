@@ -452,60 +452,62 @@ class KaapanaFederatedTrainingBase(ABC):
         pass
 
     # @timeit
-    def load_state_dicts(self, current_federated_round_dir=None):
+    def load_model_weights(self, current_federated_round_dir=None):
         """
         Load checkpoints and return as dict.
         """
         print("Load checkpoints and return as dict.")
-        site_statedict_dict = collections.OrderedDict()
+        site_model_weights_dict = collections.OrderedDict()
         for idx, fname in enumerate(
-            current_federated_round_dir.rglob("model_final_checkpoint.model")
+            current_federated_round_dir.rglob(
+                "checkpoint_final.pth"
+            )  # ("model_final_checkpoint.model")
         ):
-            print(f"Loading state_dict from: {fname}")
+            print(f"Loading model_weights from: {fname}")
             checkpoint = torch.load(fname, map_location=torch.device("cpu"))
 
             # retrieve site_name from current_federated_round_dir
             modified_fname = str(fname).replace(str(current_federated_round_dir), "")
             site_name = modified_fname.split("/")[1]
 
-            site_statedict_dict[site_name] = checkpoint["network_weights"]
-        return site_statedict_dict
+            site_model_weights_dict[site_name] = checkpoint["network_weights"]
+        return site_model_weights_dict
 
     # @timeit
-    def fed_avg(self, site_statedict_dict=None):
+    def fed_avg(self, site_model_weights_dict=None):
         """
         FedAvg: Communication-efficient Learning of Deep networks from Decentralized Data (https://arxiv.org/abs/1602.05629)
-        Sum state_dicts up.
-        Divide summed state_dict by num_sites.
-        Return a site_statedict_dict with always the same statedict per site.
+        Sum model_weights up.
+        Divide summed model_weights by num_sites.
+        Return a site_model_weights_dict with always the same statedict per site.
         """
-        # sum state_dicts up
-        # site_statedict_dict = {"<siteA>": <state_dict_0> , "<siteA>": <state_dict_1>, ...}
-        sum_state_dict = collections.OrderedDict()
-        for site_key, site_value in site_statedict_dict.items():
+        # sum model_weights up
+        # site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteA>": <model_weights_1>, ...}
+        sum_model_weights = collections.OrderedDict()
+        for site_key, site_value in site_model_weights_dict.items():
             for key, value in site_value.items():
-                if key not in sum_state_dict:
-                    sum_state_dict[key] = value
+                if key not in sum_model_weights:
+                    sum_model_weights[key] = value
                 else:
-                    sum_state_dict[key] = sum_state_dict[key] + value
+                    sum_model_weights[key] = sum_model_weights[key] + value
 
-        num_sites = len(site_statedict_dict)
-        # average state_dicts
-        averaged_state_dict = collections.OrderedDict()
-        for key, value in sum_state_dict.items():
-            averaged_state_dict[key] = sum_state_dict[key] / num_sites
+        num_sites = len(site_model_weights_dict)
+        # average model_weights
+        averaged_model_weights = collections.OrderedDict()
+        for key, value in sum_model_weights.items():
+            averaged_model_weights[key] = sum_model_weights[key] / num_sites
 
-        # return site_statedict_dict with same averaged model per site
+        # return site_model_weights_dict with same averaged model per site
         return_statedict_dict = collections.OrderedDict()
-        for site in site_statedict_dict.keys():
-            return_statedict_dict[site] = averaged_state_dict
+        for site in site_model_weights_dict.keys():
+            return_statedict_dict[site] = averaged_model_weights
 
         return return_statedict_dict
 
     # @timeit
     def fed_dc(
         self,
-        site_statedict_dict=None,
+        site_model_weights_dict=None,
         federated_round=None,
     ):
         """
@@ -514,29 +516,29 @@ class KaapanaFederatedTrainingBase(ABC):
         Aggregate local models if (federated_round % agg_rate) == (agg_rate - 1).
 
         Input:
-        * site_statedict_dict: site_statedict_dict = {"<siteA>": <state_dict_0> , "<siteA>": <state_dict_1>, ...}
+        * site_model_weights_dict: site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteA>": <model_weights_1>, ...}
         * federated_round: current federated communication round
         * agg_rate: aggregation rate; defines how often local model weights are aggregated (avereaged)
         * dc_rate: daisy chaining rate; defines how often local models are randomly sent to other site
 
         Output:
-        * return_statedict_dict: with eiter just randomly permuted site keys or aggregated state_dicts.
+        * return_statedict_dict: with eiter just randomly permuted site keys or aggregated model_weights.
         """
 
         # do either daisy-chaining or aggregation
         if (federated_round % self.dc_rate) == (self.dc_rate - 1):
             # daisy chaining
-            site_keys = list(site_statedict_dict.keys())
+            site_keys = list(site_model_weights_dict.keys())
             shuffled_site_keys = random.sample(site_keys, len(site_keys))
             return_statedict_dict = dict(
                 zip(
                     shuffled_site_keys,
-                    [site_statedict_dict[key] for key in shuffled_site_keys],
+                    [site_model_weights_dict[key] for key in shuffled_site_keys],
                 )
             )
         if (federated_round % self.agg_rate) == (self.agg_rate - 1):
             # aggregation via FedAvg
-            return_statedict_dict = self.fed_avg(site_statedict_dict)
+            return_statedict_dict = self.fed_avg(site_model_weights_dict)
         if ((federated_round % self.agg_rate) != (self.agg_rate - 1)) and (
             (federated_round % self.dc_rate) != (self.dc_rate - 1)
         ):
@@ -546,24 +548,24 @@ class KaapanaFederatedTrainingBase(ABC):
         return return_statedict_dict
 
     # @timeit
-    def _save_state_dict(self, fname=None, state_dict=None):
+    def _save_model_weights(self, fname=None, model_weights=None):
         """
-        Saves state_dict to checkpoint in fname.
+        Saves model_weights to checkpoint in fname.
         """
         checkpoint = torch.load(str(fname), map_location=torch.device("cpu"))
-        checkpoint["state_dict"] = state_dict
+        checkpoint["network_weights"] = model_weights
         torch.save(checkpoint, str(fname))
 
     # @timeit
-    def save_state_dicts(
-        self, current_federated_round_dir=None, processed_site_statedict_dict=None
+    def save_model_weights(
+        self, current_federated_round_dir=None, processed_site_model_weights_dict=None
     ):
         """
         Save processed model to site-corresponding minio folders.
         """
         print("Saving processed model checkpoints")
         for idx, fname in enumerate(
-            current_federated_round_dir.rglob("model_final_checkpoint.model")
+            current_federated_round_dir.rglob("checkpoint_final.pth")
         ):
             # retrieve site_name from current_federated_round_dir
             modified_fname = str(fname).replace(str(current_federated_round_dir), "")
@@ -571,7 +573,9 @@ class KaapanaFederatedTrainingBase(ABC):
 
             print(f"Save centrally processed model to {site_name}")
 
-            self._save_state_dict(str(fname), processed_site_statedict_dict[site_name])
+            self._save_model_weights(
+                str(fname), processed_site_model_weights_dict[site_name]
+            )
 
         return str(fname)
 

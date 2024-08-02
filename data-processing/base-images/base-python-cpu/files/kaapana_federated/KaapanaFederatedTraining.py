@@ -462,7 +462,9 @@ class KaapanaFederatedTrainingBase(ABC):
         print("Load checkpoints and return as dict.")
         site_model_weights_dict = collections.OrderedDict()
         for idx, fname in enumerate(
-            current_federated_round_dir.rglob("checkpoint_final.pth")
+            current_federated_round_dir.rglob(
+                "checkpoint_final.pth"
+            )  # ("model_final_checkpoint.model")
         ):
             print(f"Loading model_weights from: {fname}")
             checkpoint = torch.load(fname, map_location=torch.device("cpu"))

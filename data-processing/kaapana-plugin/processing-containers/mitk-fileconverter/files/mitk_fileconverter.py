@@ -3,6 +3,10 @@ from os.path import join, exists, dirname, basename
 from glob import glob
 import pydicom
 from pathlib import Path
+import logging
+
+# Logging
+logging.basicConfig(level=logging.INFO)
 
 # For multiprocessing -> usually you should scale via multiple containers!
 from multiprocessing.pool import ThreadPool
@@ -23,7 +27,20 @@ def process_input_file(paras):
     input_filepaths, element_output_dir = paras
 
     for input_filepath in input_filepaths:
-        incoming_dcm_series_id = str(pydicom.dcmread(input_filepath).SeriesInstanceUID)
+        try:
+            # Try to get the SeriesInstanceUID from the dicom file
+            incoming_dcm_series_id = str(
+                pydicom.dcmread(input_filepath, force=True).SeriesInstanceUID
+            )
+        except:
+            # If the SeriesInstanceUID could not be read, use the filename
+            file_name = basename(input_filepath).split(".")[0]
+            logging.warning(
+                f"Could not read SeriesInstanceUID from {input_filepath}. Using filename {file_name} instead."
+            )
+
+            incoming_dcm_series_id = file_name
+
         output_filepath = join(
             element_output_dir, f"{incoming_dcm_series_id}.{convert_to}"
         )

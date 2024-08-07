@@ -3,8 +3,7 @@ import os
 import shutil
 import time
 from glob import glob
-from os.path import basename, dirname, exists, join, realpath
-from pathlib import Path
+from os.path import exists, join
 
 import pydicom
 import requests
@@ -135,7 +134,10 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             exit(1)
 
         result = res.json()
-        return result["value"]["properties"]
+        if "properties" in result["value"]:
+            return result["value"]["properties"]
+        else:
+            return {}
 
     def start(self, ds, **kwargs):
         print("# ")

@@ -155,8 +155,12 @@ import Settings from "@/components/Settings.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
 import { settings } from "@/static/defaultUIConfig";
 import { checkAuthR } from "@/utils/utils.js";
+<<<<<<< HEAD
 import ProjectSelection from "@/components/ProjectSelection.vue";
 import httpClient from "@/common/httpClient.js";
+=======
+import { settings as defaultSettings } from "@/static/defaultUIConfig";
+>>>>>>> 587e4b459 (issue resolved incase settings request to api doesnot work)
 
 export default Vue.extend({
   name: "App",
@@ -239,10 +243,12 @@ export default Vue.extend({
       kaapanaApiService.federatedClientApiGet('/settings')
         .then((response: any) => {
           let settingsFromDb = this.settingsResponseToObject(response.data);
-          localStorage["settings"] = JSON.stringify(settingsFromDb);
+          const updatedSettings = Object.assign({}, defaultSettings, settingsFromDb);
+          localStorage["settings"] = JSON.stringify(updatedSettings);
         })
         .catch(err => {
           console.log(err);
+          localStorage["settings"] = JSON.stringify(defaultSettings);
         })
     },
     storeSettingsInDb(reload_after = true) {
@@ -274,7 +280,7 @@ export default Vue.extend({
     this.$store.dispatch(LOAD_COMMON_DATA);
     this.$store.dispatch(GET_POLICY_DATA);
     if (!localStorage["settings"]) {
-      localStorage["settings"] = JSON.stringify(settings);
+      localStorage["settings"] = JSON.stringify(defaultSettings);
     }
     if (!localStorage["selectedProject"]) {
       localStorage.setItem(

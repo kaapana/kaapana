@@ -18,12 +18,34 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
 
 def get_boundary() -> bytes:
+    """Generate a random boundary for the multipart message.
+
+    Returns:
+        bytes: Random boundary
+    """
     return binascii.hexlify(os.urandom(16))
 
 
 async def metadata_replace_stream(
-    method="GET", url=None, request_headers=None, search=None, replace=None
+    method: str = "GET",
+    url: str = None,
+    request_headers: dict = None,
+    search: bytes = None,
+    replace: bytes = None,
 ):
+    """Replace a part of the response stream with another part. Used to replace the boundary used in multipart responses.
+       There was a problem with the boundary being split across chunks, which is why we need to buffer the data and replace the boundary in the buffer.
+
+    Args:
+        method (str, optional): Method to use for the request. Defaults to "GET".
+        url (str, optional): URL to send the request to. Defaults to None.
+        request_headers (dict, optional): Request headers. Defaults to None.
+        search (bytes, optional): Part of the response to search for (which will be replaced). Defaults to None.
+        replace (bytes, optional): Bytes to replace the search with. Defaults to None.
+
+    Yields:
+        bytes: Part of the response stream
+    """
     buffer = b""
     pattern_size = len(search)
     async with httpx.AsyncClient() as client:
@@ -46,8 +68,24 @@ async def metadata_replace_stream(
 
 
 async def stream(
-    method="GET", url=None, request_headers=None, new_boundary: bytes = None
+    method="GET",
+    url: str = None,
+    request_headers: dict = None,
+    new_boundary: bytes = None,
 ):
+    """Stream the data to the DICOMWeb server. The boundary in the multipart message is replaced. We use this to set a custom boundary which is then also present in the headers.
+       There was a problem with the original boundary not being present in the headers, which is why we need to replace it.
+       There was a problem with the boundary being split across chunks, which is why we need to buffer the data and replace the boundary in the buffer.
+
+    Args:
+        method (str, optional): _description_. Defaults to "GET".
+        url (str, optional): _description_. Defaults to None.
+        request_headers (dict, optional): _description_. Defaults to None.
+        new_boundary (bytes, optional): _description_. Defaults to None.
+
+    Yields:
+        _type_: _description_
+    """
     async with httpx.AsyncClient() as client:
         async with client.stream(
             method, url, headers=dict(request_headers)
@@ -89,6 +127,16 @@ async def stream(
 async def retrieve_study(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
+    """Retrieve the study from the DICOMWeb server. If all series of the study are mapped to the project, the study is returned. If only some series are mapped, the study is filtered and only the mapped series are returned.
+
+    Args:
+        study (str): Study Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
 
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
@@ -123,6 +171,14 @@ async def retrieve_study(
         )
 
     async def stream_multiple_series(new_boundary: bytes = None):
+        """Get the subset if series of the study which are mapped to the project as a stream. The boundary in the multipart message is replaced, because each response has its own boundary.
+
+        Args:
+            new_boundary (bytes, optional): Our custom boundary. Defaults to None.
+
+        Yields:
+            bytes: Part of the response stream
+        """
         buffer = b""  # Initialize an empty buffer
         pattern_size = 20  # Size of the boundary pattern (2 bytes for "--", 16 bytes for the boundary and 2 bytes for "--"" at the end)
         async with httpx.AsyncClient() as client:
@@ -182,6 +238,17 @@ async def retrieve_series(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """Retrieve the series from the DICOMWeb server. If the series is mapped to the project, the series is returned. If the series is not mapped, a 204 status code is returned.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
 
     if await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
@@ -218,6 +285,18 @@ async def retrieve_instance(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """Retrieve the instance from the DICOMWeb server. If the series which the instance belongs to is mapped to the project, the instance is returned. If the series is not mapped, a 204 status code is returned.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        instance (str): SOP Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
 
     if crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
@@ -257,6 +336,19 @@ async def retrieve_frames(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """Retrieve the frames from the DICOMWeb server. If the series which the instance belongs to is mapped to the project, the frames are returned. If the series is not mapped, a 204 status code is returned.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        instance (str): SOP Instance UID
+        frames (str): Frame numbers
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
     if await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
@@ -288,7 +380,17 @@ async def retrieve_frames(
 async def retrieve_study_metadata(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
+    """Retrieve the metadata of the study. If all series of the study are mapped to the project, the metadata is returned. If only some series are mapped, the metadata is filtered and only the mapped series are returned.
+       Metadata contains routes to the series and instances of the study. These point to dcm4chee, which is why we need to replace the base URL.
 
+    Args:
+        study (str): Study Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
@@ -320,6 +422,15 @@ async def retrieve_study_metadata(
         )
 
     async def metadata_generator(search=b"", replace=b""):
+        """Used to get the metadata of the series which are mapped to the project. The base URL is replaced in the metadata.
+
+        Args:
+            search (bytes, optional): dcm4chee base URL. Defaults to b"".
+            replace (bytes, optional): Custom base URL. Defaults to b"".
+
+        Yields:
+            bytes: Part of the response stream
+        """
         buffer = b""
         pattern_size = len(search)
         async with httpx.AsyncClient() as client:
@@ -357,6 +468,17 @@ async def retrieve_series_metadata(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """Retrieve the metadata of the series. If the series is mapped to the project, the metadata is returned. If the series is not mapped, a 204 status code is returned.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
 
     if await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
@@ -390,6 +512,18 @@ async def retrieve_instance_metadata(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """Retrieve the metadata of the instance. If the series which the instance belongs to is mapped to the project, the metadata is returned. If the series is not mapped, a 204 status code is returned.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        instance (str): SOP Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        response: Response object
+    """
 
     if await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
@@ -417,6 +551,16 @@ async def retrieve_instance_metadata(
 async def retrieve_study_rendered(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
+    """Retrieve the study from the DICOMWeb server. If all series of the study are mapped to the project, the study is returned. If only some series are mapped, the study is filtered and only the mapped series are returned.
+
+    Args:
+        study (str): Study Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
 
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
@@ -452,6 +596,11 @@ async def retrieve_study_rendered(
     # TODO: Adjust the boundary for the multipart message
 
     async def stream_filtered_series():
+        """Stream the series which are mapped to the project. The boundary in the multipart message is replaced, because each response has its own boundary.
+
+        Yields:
+            bytes: Part of the response stream
+        """
         first_boundary = None
         first_series = True
         async with httpx.AsyncClient() as client:
@@ -504,6 +653,17 @@ async def retrieve_series_rendered(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """Retrieve the series from the DICOMWeb server. If the series is mapped to the project, the series is returned. If the series is not mapped, a 204 status code is returned.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
     if crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
@@ -540,6 +700,18 @@ async def retrieve_instance_rendered(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """Retrieve the instance from the DICOMWeb server. If the series which the instance belongs to is mapped to the project, the instance is returned. If the series is not mapped, a 204 status code is returned.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        instance (str): SOP Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
 
     if crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,

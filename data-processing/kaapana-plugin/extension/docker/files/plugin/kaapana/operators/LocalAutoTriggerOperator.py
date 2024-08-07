@@ -1,14 +1,18 @@
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from airflow.api.common.trigger_dag import trigger_dag as trigger
-from kaapana.blueprints.kaapana_utils import generate_run_id
-from airflow.models import DagBag
-from glob import glob
-from os.path import join, exists, basename, dirname, realpath
-import os
 import json
+import os
 import shutil
-import pydicom
+import time
+from glob import glob
+from os.path import basename, dirname, exists, join, realpath
 from pathlib import Path
+
+import pydicom
+import requests
+from airflow.api.common.trigger_dag import trigger_dag as trigger
+from airflow.models import DagBag
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.blueprints.kaapana_utils import generate_run_id
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
@@ -88,6 +92,51 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
 
         return conf
 
+    def order_trigger_items(self, triggering_list: list):
+        reordered_list = []
+        already_added_dag = []
+        cached = []
+        for triggering in triggering_list:
+            if "depends_on" not in triggering["conf"]:
+                reordered_list.append(triggering)
+                already_added_dag.append(triggering["dag_id"])
+                continue
+
+            conf = triggering["conf"]
+            if conf["depends_on"] in already_added_dag:
+                reordered_list.append(triggering)
+                already_added_dag.append(triggering["dag_id"])
+            else:
+                cached.append(triggering)
+            del conf["depends_on"]
+
+        if len(cached) > 0:
+            print(f"{len(cached)} items have been shifted to the last.")
+
+        reordered_list = reordered_list + cached
+        assert len(reordered_list) == len(triggering_list)
+
+        return reordered_list
+
+    def get_workflow_settings_from_api(self, workflow_name: str):
+        client_endpoint = (
+            f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
+        )
+        workflow_settings_url = f"{client_endpoint}/settings/workflows/{workflow_name}"
+        try:
+            res = requests.get(
+                workflow_settings_url,
+                params={"snakecase": True},
+            )
+            if res.status_code != 200:
+                raise Exception(f"ERROR: [{res.status_code}] {res.text}")
+        except Exception as e:
+            print(f"Request to get settings {workflow_name} threw an error.", e)
+            exit(1)
+
+        result = res.json()
+        return result["value"]["properties"]
+
     def start(self, ds, **kwargs):
         print("# ")
         print("# Starting LocalAutoTriggerOperator...")
@@ -144,6 +193,12 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                 else "N/A"
             )
             series_uid = str(incoming_dcm[0x0020, 0x000E].value)
+
+            # # Get the SOP instance UIDs of all dicoms
+            # identifiers = []
+            # for dcm in input_files:
+            #     current_dcm = pydicom.dcmread(dcm)
+            #     identifiers.append(str(current_dcm[0x0008, 0x0018].value))
 
             print("#")
             print(f"# dcm_dataset:     {dcm_dataset}")
@@ -223,7 +278,22 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                                 }
                             )
 
+        triggering_list = self.order_trigger_items(triggering_list)
         for triggering in triggering_list:
+            conf = triggering["conf"]
+            if "delay" in conf:
+                print(f"Delaying {triggering['dag_id']} by {conf['delay']} seconds.")
+                time.sleep(conf["delay"])
+                del conf["delay"]
+            if "get_settings_from_api" in conf and conf["get_settings_from_api"]:
+                workflow_form_data = self.get_workflow_settings_from_api(
+                    triggering["dag_id"]
+                )
+                if "service" not in triggering["dag_id"]:
+                    workflow_form_data["username"] = "system"
+                conf["form_data"] = workflow_form_data
+                del conf["get_settings_from_api"]
+
             self.trigger_it(triggering)
 
     def __init__(self, dag, **kwargs):

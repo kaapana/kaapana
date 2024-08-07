@@ -21,6 +21,15 @@ logger.setLevel(logging.WARNING)
 async def retrieve_instance(
     request: Request, session: AsyncSession = Depends(get_session)
 ):
+    """This endpoint is used to retrieve instances from the DICOMWeb server. It filters the instances based on the studies and series mapped to the project.
+
+    Args:
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
     # Retrieve all studies mapped to the project
     studies = set(
         await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
@@ -62,6 +71,11 @@ async def retrieve_instance(
     request._query_params = query_params
 
     async def stream_study():
+        """Stream the study instances from the DICOMWeb server.
+
+        Yields:
+            bytes: DICOM instance
+        """
         async with httpx.AsyncClient() as client:
             async with client.stream(
                 "GET",

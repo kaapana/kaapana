@@ -17,6 +17,18 @@ async def metadata_replace_stream(
     search: bytes = None,
     replace: bytes = None,
 ):
+    """Replace a part of the response stream with another part. Used to replace the boundary used in multipart responses.
+
+    Args:
+        method (str, optional): Method to use for the request. Defaults to "GET".
+        url (str, optional): URL to send the request to. Defaults to None.
+        request (Request, optional): Request object. Defaults to None.
+        search (bytes, optional): Part of the response to search for (which will be replaced). Defaults to None.
+        replace (bytes, optional): Bytes to replace the search with. Defaults to None.
+
+    Yields:
+        bytes: Part of the response stream
+    """
     buffer = b""
     pattern_size = len(search)
     async with httpx.AsyncClient() as client:
@@ -41,6 +53,15 @@ async def metadata_replace_stream(
 
 @router.get("/studies", tags=["QIDO-RS"])
 async def query_studies(request: Request, session: AsyncSession = Depends(get_session)):
+    """This endpoint is used to get all studies mapped to the project.
+
+    Args:
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        response: Response object
+    """
 
     # Retrieve studies mapped to the project
     studies = set(
@@ -84,6 +105,16 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
 async def query_series(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
+    """This endpoint is used to get all series of a study mapped to the project.
+
+    Args:
+        study (str): Study Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        response: Response object
+    """
 
     # If StudyInstanceUID is in the query parameters, remove it
     query_params = dict(request.query_params)
@@ -136,6 +167,17 @@ async def query_instances(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """This endpoint is used to get all instances of a series mapped to the project.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        response: Response object
+    """
 
     query_params = dict(request.query_params)
 

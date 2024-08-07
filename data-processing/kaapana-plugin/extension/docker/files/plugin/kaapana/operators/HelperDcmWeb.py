@@ -262,7 +262,7 @@ class HelperDcmWeb:
 
         try:
             instance_number = dicom_file.InstanceNumber
-        except:
+        except AttributeError:
             instance_number = index
 
         file_path = os.path.join(target_dir, f"{instance_number}.dcm")

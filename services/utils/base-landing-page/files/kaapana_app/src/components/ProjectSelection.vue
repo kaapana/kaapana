@@ -26,14 +26,12 @@ export default {
   },
   watch: {
     selectedProject(newProject) {
-      console.log("newProject: " + newProject);
       localStorage.setItem("selectedProject", JSON.stringify(newProject));
       window.location.reload();
     },
   },
   methods: {
     setSelectedProject() {
-      console.log(this.selectedProject.text);
       localStorage["selectedProject"] = this.selectedProject.text;
     },
     async fetchProjects() {

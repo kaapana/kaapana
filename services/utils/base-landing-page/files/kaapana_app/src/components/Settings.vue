@@ -237,6 +237,9 @@ export default {
       // Convert the input to lowercase
       tagval = tagval.toLowerCase();
 
+      // Replace all the HEX indicator 0x
+      tagval = tagval.replaceAll('0x', '')
+
       // Regular expression to check for allowed characters (0-9, a-f, (, ))
       const allowed_chars = /^[0-9a-f,()]*$/
 

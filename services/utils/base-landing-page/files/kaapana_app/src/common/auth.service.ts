@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import request from '@/request'
+import httpClient from './httpClient'
 
 const AuthService = {
   getToken() {
@@ -10,7 +10,7 @@ const AuthService = {
       } else {
         oauthUrl = '/jsons/testingAuthenticationToken.json'
       }
-      request.get(oauthUrl).then((response: any) =>  {
+      httpClient.get(oauthUrl).then((response: any) =>  {
         resolve(response.data)
       }).catch((error: any) => {
         console.log('not token there', error)
@@ -24,7 +24,7 @@ const AuthService = {
   },
   getFederatedHeaders() {
     return new Promise((resolve, reject) => {
-      request.get('/kaapana-backend/client/kaapana-instance').then((response: any) =>  {
+      httpClient.get('/kaapana-backend/client/kaapana-instance').then((response: any) =>  {
         resolve({
           FederatedAuthorization: response.data['token']
         })

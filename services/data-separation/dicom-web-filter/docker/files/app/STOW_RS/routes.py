@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 async def __stream_data(request: Request, url: str = f"/studies"):
+    """Stream the data to the DICOMWeb server.
+
+    Args:
+        request (Request): Request object
+        url (str, optional): URL to send the request to. Defaults to "/studies".
+
+    """
 
     async def data_streamer():
         async for chunk in request.stream():
@@ -30,11 +37,13 @@ async def __stream_data(request: Request, url: str = f"/studies"):
 
 
 async def __map_dicom_series_to_project(session: AsyncSession, request: Request):
+    """Map the dicom series to the project. This is done by adding the dicom series to the database and mapping it to the project.
 
-    # TODO: Get the external project ID from the request
-    # TODO: Check if the external project already exists in the database
-    # TODO: If it doesn't exist, create it
-    # TODO: If no external project ID is provided safe the data in the default (admin) project
+    Args:
+        session (AsyncSession): Database session
+        request (Request): Request object
+
+    """
 
     # Extract the 'clinical_trial_protocol_info' query parameter
     # This parameter was set in the dcmweb helper
@@ -75,6 +84,16 @@ async def __map_dicom_series_to_project(session: AsyncSession, request: Request)
 async def store_instances(
     request: Request, session: AsyncSession = Depends(get_session)
 ):
+    """This endpoint is used to store data in the DICOMWeb server. The data is being mapped to the project and then streamed to the DICOMWeb server.
+
+    Args:
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        Response: Response object
+    """
+
     await __map_dicom_series_to_project(session, request)
 
     await __stream_data(request, url=f"studies")
@@ -86,6 +105,16 @@ async def store_instances(
 async def store_instances_in_study(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
+    """This endpoint is used to store data in the DICOMWeb server. The data is being mapped to the project and then streamed to the DICOMWeb server.
+
+    Args:
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        Response: Response object
+    """
+
     await __map_dicom_series_to_project(session, request)
 
     await __stream_data(request, url=f"studies/{study}")

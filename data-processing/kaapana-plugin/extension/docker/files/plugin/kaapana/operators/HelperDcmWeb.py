@@ -37,15 +37,18 @@ class HelperDcmWeb:
         self,
         dcmweb_rs_endpoint: str = DEFAULT_DICOM_WEB_RS_ENDPOINT,
         dcmweb_uri_endpoint: str = DEFAULT_DICOM_WEB_URI_ENDPOINT,
-        dag_run=None,
+        dag_run: dict = None,
         username: str = None,
         access_token: str = None,
     ):
-        """
-        :param dcmweb_rs_endpoint: URL to the dicomweb server.
-        :param dag_run: Airflow dag object.
-        :param username: Username of the keycloak user that wants to communicate with the dicomweb server.
-        :access_token: Access token that should be used for communication with the dicomweb server.
+        """Initialize the HelperDcmWeb class.
+
+        Args:
+            dcmweb_rs_endpoint (str, optional): Dicomweb RESTful services endpoint. Defaults to DEFAULT_DICOM_WEB_RS_ENDPOINT.
+            dcmweb_uri_endpoint (str, optional): Dicomweb URI endpoint. Defaults to DEFAULT_DICOM_WEB_URI_ENDPOINT.
+            dag_run (dict, optional): The dag_run object. Defaults to None.
+            username (str, optional): The username of the user who started the dag. Defaults to None.
+            access_token (str, optional): The access token of the user. Defaults to None.
         """
         assert dag_run or username or access_token
         self.dcmweb_rs_endpoint = dcmweb_rs_endpoint
@@ -91,10 +94,15 @@ class HelperDcmWeb:
 
     def get_system_user_token(
         self,
-        ssl_check=False,
-    ):
-        """
-        Get access token for the system user.
+        ssl_check: bool = False,
+    ) -> str:
+        """Get the access token for the system user.
+
+        Args:
+            ssl_check (bool, optional): Flag to check SSL certificate. Defaults to False.
+
+        Returns:
+            str: The access token for the system user.
         """
         payload = {
             "username": self.system_user,
@@ -108,9 +116,11 @@ class HelperDcmWeb:
         access_token = r.json()["access_token"]
         return access_token
 
-    def impersonate_user(self):
-        """
-        Get access token for a user via token exchange.
+    def impersonate_user(self) -> str:
+        """Impersonate a user by exchanging the system user token for an impersonated user token.
+
+        Returns:
+            str: The impersonated user token.
         """
         admin_access_token = self.get_system_user_token()
         url = f"http://keycloak-external-service.admin.svc:80/auth/realms/{self.client_id}/protocol/openid-connect/token"
@@ -128,9 +138,15 @@ class HelperDcmWeb:
         impersonated_access_token = r.json()["access_token"]
         return impersonated_access_token
 
-    def check_if_series_in_archive(self, seriesUID, studyUID):
-        """
-        Check if a series exists in the archive
+    def check_if_series_in_archive(self, seriesUID: str, studyUID: str) -> bool:
+        """This function checks if a series exists in the archive.
+
+        Args:
+            seriesUID (str): Series Instance UID
+            studyUID (str): Study Instance UID
+
+        Returns:
+            bool: True if the series exists in the archive, False otherwise
         """
 
         url = f"{self.dcmweb_rs_endpoint}/studies/{studyUID}/series"
@@ -140,9 +156,15 @@ class HelperDcmWeb:
         # If empty the status code is 204
         return response.status_code == 200
 
-    def check_if_series_is_rejected(self, seriesUID, studyUID):
-        """
-        Check if a series exists in the archive
+    def check_if_series_is_rejected(self, seriesUID: str, studyUID: str) -> bool:
+        """This function checks if a series is rejected from the PACS.
+
+        Args:
+            seriesUID (str): Series Instance UID.
+            studyUID (str): Study Instance UID.
+
+        Returns:
+            bool: True if the series is rejected from the PACS, False otherwise.
         """
 
         url = f"{self.dcmweb_rs_endpoint}/reject/studies/{studyUID}/series"
@@ -152,9 +174,14 @@ class HelperDcmWeb:
         # If empty the status code is 204
         return response.status_code == 200
 
-    def check_if_study_in_archive(self, studyUID):
-        """
-        Check if a study exists in the archive
+    def check_if_study_in_archive(self, studyUID: str) -> bool:
+        """This function checks if a study exists in the archive.
+
+        Args:
+            studyUID (str): Study Instance UID of the study to check.
+
+        Returns:
+            bool: True if the study exists in the archive, False otherwise.
         """
 
         url = f"{self.dcmweb_rs_endpoint}/studies"
@@ -164,7 +191,19 @@ class HelperDcmWeb:
         # If empty the status code is 204
         return response.status_code == 200
 
-    def __save_dicom_file(self, part, target_dir, index):
+    def __save_dicom_file(
+        self, part: decoder.BodyPart, target_dir: str, index: int
+    ) -> bool:
+        """This function saves a DICOM file to the target directory.
+
+        Args:
+            part (decoder.BodyPart): DICOM file to save from the multipart message.
+            target_dir (str): Target directory to save the DICOM file.
+            index (int): Index of the DICOM file in the multipart message.
+
+        Returns:
+            bool: True if the DICOM file was saved successfully, False otherwise.
+        """
 
         dicom_file = pydicom.dcmread(BytesIO(part.content))
 
@@ -184,6 +223,16 @@ class HelperDcmWeb:
         target_dir: str = None,
         include_series_dir: bool = False,
     ) -> bool:
+        """This function downloads a series from the DICOMWeb server slice-wise. It sends a GET request to the DICOMWeb server to retrieve the series and saves the DICOM files to the target directory.
+        Args:
+            study_uid (str, optional): Study Instance UID of the series. Defaults to None.
+            series_uid (str, optional): Series Instance UID of the series. Defaults to None.
+            target_dir (str, optional): Target directory to save the DICOM files. Defaults to None.
+            include_series_dir (bool, optional): Flag to include the series UID as a subdirectory in the target directory. Defaults to False.
+
+        Returns:
+            bool: True if the series was downloaded successfully, False otherwise.
+        """
 
         # Check if study_uid is provided, if not get it from metadata of given series
         if not study_uid:
@@ -225,6 +274,18 @@ class HelperDcmWeb:
         expected_object_count: int = None,
         include_series_dir: bool = False,
     ) -> bool:
+        """This function downloads a series from the DICOMWeb server. It sends a GET request to the DICOMWeb server to retrieve the series and saves the DICOM files to the target directory.
+
+        Args:
+            study_uid (str, optional): Study Instance UID of the series. Defaults to None.
+            series_uid (str, optional): Series Instance UID of the series. Defaults to None.
+            target_dir (str, optional): Target directory to save the DICOM files. Defaults to None.
+            expected_object_count (int, optional): The expected number of objects in the series. Defaults to None.
+            include_series_dir (bool, optional): Flag to include the series UID as a subdirectory in the target directory. Defaults to False.
+
+        Returns:
+            bool: True if the series was downloaded successfully, False otherwise.
+        """
 
         # Check if study_uid is provided, if not get it from metadata of given series
         if not study_uid:
@@ -330,7 +391,16 @@ class HelperDcmWeb:
             response.raise_for_status()
             return None
 
-    def __get_object_uid_list(self, study_uid: str, series_uid: str):
+    def __get_object_uid_list(self, study_uid: str, series_uid: str) -> list:
+        """This function retrieves the list of object UIDs in a series.
+
+        Args:
+            study_uid (str): Study Instance UID of the series.
+            series_uid (str): Series Instance UID of the series.
+
+        Returns:
+            list: List of object UIDs in the series.
+        """
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
         httpResponse = self.session.get(url)
         if httpResponse.status_code == 200:
@@ -349,7 +419,18 @@ class HelperDcmWeb:
             response.raise_for_status()
             return None
 
-    def __validate_object_count(self, expected_object_count: int, object_uid_list):
+    def __validate_object_count(
+        self, expected_object_count: int, object_uid_list: list
+    ) -> bool:
+        """This function validates if the expected object count matches the number of objects in the series.
+
+        Args:
+            expected_object_count (int): The expected number of objects in the series.
+            object_uid_list (_type_): The list of objects in the series.
+
+        Returns:
+            bool: True if the expected object count matches the number of objects in the series, False otherwise.
+        """
         if expected_object_count is not None and expected_object_count > len(
             object_uid_list
         ):
@@ -365,18 +446,28 @@ class HelperDcmWeb:
             print("Expected object count is within the range of object list length.")
         return True
 
-    def reject_study(self, study_uid: str):
-        """
-        Reject a study
+    def reject_study(self, study_uid: str) -> requests.Response:
+        """This function rejects a study from the PACS. It sends a POST request to the DICOMWeb server to reject the study.
+
+        Args:
+            study_uid (str): Study Instance UID of the study to reject
+
+        Returns:
+            Response: The response object returned by the DICOMWeb server.
         """
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/reject/113001^DCM"
         response = self.session.post(url, verify=False)
         response.raise_for_status()
         return response
 
-    def delete_study(self, study_uid: str):
-        """
-        Reject a study and delete it from the PACS
+    def delete_study(self, study_uid: str) -> requests.Response:
+        """This function deletes a study from the PACS. It first rejects the study and then deletes it.
+
+        Args:
+            study_uid (str): Study Instance UID of the study to delete
+
+        Returns:
+            Response: The response object returned by the DICOMWeb server.
         """
         if not self.check_if_study_in_archive(study_uid):
             logger.info(f"Study {study_uid} does not exist in PACS")
@@ -392,9 +483,14 @@ class HelperDcmWeb:
 
         return response
 
-    def get_instances_of_study(self, study_uid):
-        """
-        Get all instances of a study
+    def get_instances_of_study(self, study_uid: str) -> List[dict]:
+        """This function retrieves all instances of a study from the PACS.
+
+        Args:
+            study_uid (str): Study Instance UID of the study to retrieve the instances from.
+
+        Returns:
+            List[dict]: List of instances of the study. Each instance is represented as a dictionary containing the instance metadata
         """
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/instances"
         response = requests.get(url, headers=self.auth_headers)
@@ -406,9 +502,15 @@ class HelperDcmWeb:
             response.raise_for_status()
             return response.json()
 
-    def get_instances_of_series(self, study_uid, series_uid):
-        """
-        Get all instances of a specific series of a specific study
+    def get_instances_of_series(self, study_uid: str, series_uid: str) -> List[dict]:
+        """This function retrieves all instances of a series from the PACS.
+
+        Args:
+            study_uid (str): Study Instance UID of the series to retrieve the instances from.
+            series_uid (str): Series Instance UID of the series to retrieve the instances from.
+
+        Returns:
+            List[dict]: List of instances of the series. Each instance is represented as a dictionary containing the instance metadata
         """
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
         response = self.session.get(url)
@@ -420,9 +522,14 @@ class HelperDcmWeb:
             response.raise_for_status()
             return response.json()
 
-    def get_series_of_study(self, study_uid):
-        """
-        Get all series of a study
+    def get_series_of_study(self, study_uid: str) -> List[dict]:
+        """This function retrieves all series of a study from the PACS.
+
+        Args:
+            study_uid (str): Study Instance UID of the study to retrieve the series from.
+
+        Returns:
+            List[dict]: List of series of the study. Each series is represented as a dictionary containing the series metadata
         """
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
         r = self.session.get(url)
@@ -435,6 +542,12 @@ class HelperDcmWeb:
             return r.json()
 
     def delete_series(self, study_uid: str, series_uids: List[str]):
+        """This function deletes a series from the PACS. It first rejects the series and then deletes it.
+
+        Args:
+            study_uid (str): Study Instance UID of the series to delete
+            series_uids (List[str]): List of Series Instance UIDs to delete
+        """
         for series_uid in series_uids:
             if not self.check_if_series_in_archive(series_uid, study_uid):
                 logger.info(
@@ -466,20 +579,14 @@ class HelperDcmWeb:
         return self.client.search_for_series(search_filters=search_filters)
 
     def __encode_multipart_message_part(self, boundary: str, payload: bytes) -> bytes:
-        """
-        Encodes a single part of the multipart message.
+        """This function encodes the DICOM file as a part of the multipart message.
 
-        Parameters
-        ----------
-        boundary: str
-            The boundary string to separate parts of the message.
-        payload: bytes
-            The byte data to include in this part of the multipart message.
+        Args:
+            boundary (str): The boundary string used to separate the parts of the multipart message.
+            payload (bytes): The DICOM file to encode.
 
-        Returns
-        -------
-        bytes
-            The encoded part of the multipart message.
+        Returns:
+            bytes: The encoded part of the multipart message containing the DICOM file.
         """
         return (
             f"--{boundary}\r\nContent-Type: application/dicom\r\n\r\n".encode("utf-8")
@@ -487,7 +594,18 @@ class HelperDcmWeb:
             + b"\r\n"
         )
 
-    def __retrieve_clinical_trial_protocol_info(self, dicom_file) -> dict:
+    def __retrieve_clinical_trial_protocol_info(
+        self, dicom_file: pydicom.FileDataset
+    ) -> dict:
+        """This function retrieves the clinical trial protocol information from the DICOM file. Later this information is appended to the request as query parameters.
+           This information will be used to map the uploaded DICOM files to the clinical trial protocol in the dicom-web-filter service.
+
+        Args:
+            dicom_file (pydicom.FileDataset): The DICOM file to extract the clinical trial protocol information from.
+
+        Returns:
+            dict: A dictionary containing the clinical trial protocol information extracted from the DICOM file
+        """
 
         # read 0012,0020 Clinical Trial Protocol ID
         tag = dicom_file.get(0x00120020)
@@ -513,11 +631,16 @@ class HelperDcmWeb:
         }
 
     def upload_dcm_files(self, path_to_dicom_files: str) -> None:
-        """
-        Send individual DICOM instances to the DICOMweb server using the STOW-RS service.
+        """This function uploads DICOM files to the DICOMWeb server using the DICOMWeb RESTful services. It encodes the DICOM files as a multipart message and sends a POST request to the DICOMWeb server.
 
-        Parameters:
-            path_to_dicom_files (str): Path to the DICOM files to be sent.
+        Args:
+            path_to_dicom_files (str): The path to the directory containing the DICOM files to upload.
+
+        Raises:
+            e: An error occurred while uploading the DICOM files.
+
+        Returns:
+            Response: The response object returned by the DICOMWeb server.
         """
         url = f"{self.dcmweb_rs_endpoint}/studies"
         boundary = "0f3cf5c0-70e0-41ef-baef-c6f9f65ec3e1"

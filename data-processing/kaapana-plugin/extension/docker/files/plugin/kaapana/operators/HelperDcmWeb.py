@@ -309,9 +309,6 @@ class HelperDcmWeb:
                     f"Error in validating object count! HelperDcmWeb: {expected_object_count=} ; {len(object_uid_list)=} ; {object_uid_list=}"
                 )
 
-        # Download all objects in the series
-        # logger.info(f"Downloading series {series_uid} of study {study_uid}")
-
         num_retries = 10
         for i in range(num_retries):
             try:

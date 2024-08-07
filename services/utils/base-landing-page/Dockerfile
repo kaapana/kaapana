@@ -1,5 +1,5 @@
 # build stage
-FROM docker.io/node:lts-alpine3.19 as build-stage
+FROM docker.io/node:lts-alpine3.19 AS build-stage
 
 LABEL REGISTRY="local-only"
 LABEL IMAGE="base-landing-page"

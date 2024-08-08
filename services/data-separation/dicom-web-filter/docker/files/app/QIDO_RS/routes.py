@@ -63,31 +63,57 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
         response: Response object
     """
 
-    # Retrieve studies mapped to the project
-    studies = set(
-        await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
-    )
+    if "SeriesInstanceUID" in request.query_params:
+        # retrieve series mapped to the project
+        series = set(
+            await crud.get_all_series_mapped_to_project(session, DEFAULT_PROJECT_ID)
+        )
+
+        # Check if the requested series are mapped to the project
+        requested_series = set(request.query_params.getlist("SeriesInstanceUID"))
+        series = series.intersection(requested_series)
+
+        # Remove SeriesInstanceUID from the query parameters
+        query_params = dict(request.query_params)
+        query_params["SeriesInstanceUID"] = []
+
+        # Add the series mapped to the project to the query parameters
+        for uid in series:
+            query_params["SeriesInstanceUID"].append(uid)
+
+        # Update the query parameters
+        request._query_params = query_params
+
+        if not series:
+            # return empty response with status code 204
+            return Response(status_code=HTTP_204_NO_CONTENT)
 
     # check if StudyInstanceUID is in the query parameters
     if "StudyInstanceUID" in request.query_params:
+
+        # Retrieve studies mapped to the project
+        studies = set(
+            await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
+        )
+
         # Check if the requested studies are mapped to the project
         requested_studies = set(request.query_params.getlist("StudyInstanceUID"))
         studies = studies.intersection(requested_studies)
 
-    if not studies:
-        # return empty response with status code 204
-        return Response(status_code=HTTP_204_NO_CONTENT)
+        # Remove StudyInstanceUID from the query parameters
+        query_params = dict(request.query_params)
+        query_params["StudyInstanceUID"] = []
 
-    # Remove StudyInstanceUID from the query parameters
-    query_params = dict(request.query_params)
-    query_params["StudyInstanceUID"] = []
+        # Add the studies mapped to the project to the query parameters
+        for uid in studies:
+            query_params["StudyInstanceUID"].append(uid)
 
-    # Add the studies mapped to the project to the query parameters
-    for uid in studies:
-        query_params["StudyInstanceUID"].append(uid)
+        # Update the query parameters
+        request._query_params = query_params
 
-    # Update the query parameters
-    request._query_params = query_params
+        if not studies:
+            # return empty response with status code 204
+            return Response(status_code=HTTP_204_NO_CONTENT)
 
     return StreamingResponse(
         metadata_replace_stream(

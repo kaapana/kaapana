@@ -244,9 +244,7 @@ class HelperDcmWeb:
         # If empty the status code is 204
         return response.status_code == 200
 
-    def __save_dicom_file(
-        self, part: decoder.BodyPart, target_dir: str, index: int
-    ) -> bool:
+    def __save_dicom_file(self, part: decoder.BodyPart, target_dir: str, index: int):
         """This function saves a DICOM file to the target directory.
 
         Args:
@@ -254,8 +252,6 @@ class HelperDcmWeb:
             target_dir (str): Target directory to save the DICOM file.
             index (int): Index of the DICOM file in the multipart message.
 
-        Returns:
-            bool: True if the DICOM file was saved successfully, False otherwise.
         """
 
         dicom_file = pydicom.dcmread(BytesIO(part.content))
@@ -267,7 +263,6 @@ class HelperDcmWeb:
 
         file_path = os.path.join(target_dir, f"{instance_number}.dcm")
         dicom_file.save_as(file_path)
-        return True
 
     def download_series_slicewise(
         self,
@@ -289,8 +284,10 @@ class HelperDcmWeb:
 
         # Check if study_uid is provided, if not get it from metadata of given series
         if not study_uid:
+            logger.warning("Study UID not provided")
             study_uid = self.__get_study_uid_by_series_uid(series_uid)
             if not study_uid:
+                logger.error("Study UID not found")
                 return False
 
         # Create target directory
@@ -376,23 +373,11 @@ class HelperDcmWeb:
                 )
 
                 del response
-
                 with ThreadPoolExecutor() as executor:
-                    futures = []
                     for index, part in enumerate(multipart_data.parts):
-                        futures.append(
-                            executor.submit(
-                                self.__save_dicom_file, part, target_dir, index
-                            )
-                        )
-
+                        executor.submit(self.__save_dicom_file, part, target_dir, index)
                     del part
                     del multipart_data
-
-                    for future in futures:
-                        result = future.result()
-                        if not result:
-                            raise Exception("Error in saving DICOM file")
 
                 if i > 0:
                     logger.info(
@@ -432,11 +417,24 @@ class HelperDcmWeb:
         return True
 
     def __get_study_uid_by_series_uid(self, series_uid: str) -> str:
-        url = f"{self.dcmweb_rs_endpoint}/studies"
-        payload = {"SeriesInstanceUID": series_uid}
-        response = self.session.get(url, params=payload)
+        """This function retrieves the Study Instance UID of a series.
+
+        Args:
+            series_uid (str): Series Instance UID of the series.
+
+        Returns:
+            str: Study Instance UID of the series.
+        """
+        url = f"{self.dcmweb_rs_endpoint}/series"
+        response = self.session.get(url, params={"SeriesInstanceUID": series_uid})
+
         if response.status_code == 200:
-            return response.json()[0]["0020000D"]["Value"][0]
+            response_json = response.json()
+            study_uid = response_json[0]["0020000D"]["Value"][0]
+            logger.info(
+                f"Looked up study UID {study_uid} for series UID {series_uid} (Could potentially be wrong)"
+            )
+            return study_uid
         else:
             response.raise_for_status()
             return None

@@ -191,7 +191,6 @@ export default Vue.extend({
   methods: {
     loadSelectedProject() {
       const storedProject = localStorage.getItem("selectedProject");
-      console.log(storedProject);
       if (storedProject) {
         this.selectedProject = JSON.parse(storedProject);
       }

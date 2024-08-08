@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
+import httpx
 from ..proxy_request import proxy_request
 from ..config import DICOMWEB_BASE_URL
 
@@ -187,3 +189,39 @@ async def reject_get_studies(
         method="GET",
         base_url=base_url,
     )
+
+
+# get all series
+@router.get(
+    "/series",
+    tags=["Custom"],
+)
+async def get_series(
+    request: Request,
+):
+    # Query all studies
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "http://127.0.0.1:8080/studies",
+            params=request.query_params,
+            headers=request.headers,
+        )
+        studies = response.json()
+
+    # Get all series of all studies
+    series = []
+
+    for study in studies:
+        study_instance_uid = study["0020000D"]["Value"][0]
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"http://127.0.0.1:8080/studies/{study_instance_uid}/series",
+                params=request.query_params,
+                headers=request.headers,
+            )
+            # If empty response, continue with next study
+            if response.status_code == 204:
+                continue
+            series += response.json()
+
+    return JSONResponse(content=series, media_type="application/json")

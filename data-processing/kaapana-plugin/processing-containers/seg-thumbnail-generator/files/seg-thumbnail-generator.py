@@ -1,24 +1,13 @@
 from os import getenv
-from os.path import join, exists, dirname, basename
+from os.path import join, exists, basename
 from glob import glob
 from pathlib import Path
-from logger_helper import get_logger
-from pathlib import Path
-from PIL import Image
 import numpy as np
 import os
 from rt_utils import RTStructBuilder
-import matplotlib.pyplot as plt
-from os import getenv
-from os.path import join, exists, dirname, basename
-from glob import glob
-from pathlib import Path
 from logger_helper import get_logger
 import logging
-from glob import glob
-from pathlib import Path
 from PIL import Image
-import numpy as np
 import re
 import shutil
 from subprocess import PIPE, run
@@ -125,14 +114,7 @@ def create_thumbnail(parameters):
             .replace("[", "")
             .replace("]", "")
         )
-        object_uid_cmd = f"dcmdump {base_dcm} --search 0008,0018"
-        object_uid = execute_command(cmd=object_uid_cmd, timeout=10)
-        object_uid = (
-            object_uid.stdout.replace("  ", "")
-            .split(" ")[2]
-            .replace("[", "")
-            .replace("]", "")
-        )
+
         slice_index_cmd = f"dcmdump {base_dcm} --search 0020,0013"
         slice_index = execute_command(cmd=slice_index_cmd, timeout=10)
 

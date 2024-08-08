@@ -255,13 +255,15 @@ if __name__ == "__main__":
         except TransportError as e:
             if str(e.error) == "resource_already_exists_exception":
                 logger.warning("Index template already exists ...")
+                successfull = True
+                break
             else:
                 logger.warning(str(e))
                 logger.warning("Retry ...")
                 tries += 1
                 time.sleep(5)
     if not successfull and tries >= 60:
-        raise AssertionError("Error, when creating index template")
+        raise Exception("Error, when creating index template")
 
     ### Create default project_init that is necessary in order to create the index_pattern
     logger.info("Create initial index")
@@ -274,13 +276,15 @@ if __name__ == "__main__":
         except TransportError as e:
             if str(e.error) == "resource_already_exists_exception":
                 logger.warning("Index already exists ...")
+                successfull = True
+                break
             else:
                 logger.warning(str(e))
                 logger.warning("Retry ...")
                 tries += 1
                 time.sleep(5)
     if not successfull and tries >= 60:
-        raise AssertionError("Error, when creating index")
+        raise Exception("Error, when creating index")
 
     ### Set hostname and https_port in the index pattern file
     replace_hostname_and_port_in_index_pattern(
@@ -288,6 +292,7 @@ if __name__ == "__main__":
     )
 
     ### Wait for dashboard to be available
+    logger.info("Wait for dashboard to be available.")
     DASHBOARDS_URL = os.getenv("DASHBOARDS_URL")
     dashboard_available = False
     tries = 0
@@ -301,7 +306,7 @@ if __name__ == "__main__":
             time.sleep(5)
             logger.warning(str(e))
     if not dashboard_available and tries >= 60:
-        raise AssertionError("Dashboard url was not accessable!")
+        raise Exception("Dashboard url was not accessable!")
 
     ### Import files to dashboard via saved_objects API
     files_to_import = [

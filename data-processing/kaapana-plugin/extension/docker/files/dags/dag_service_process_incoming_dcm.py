@@ -25,7 +25,7 @@ dag = DAG(
     tags=["service"],
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag, delete_input_on_success=True)
 
 dcm_send = LocalDicomSendOperator(
     dag=dag,

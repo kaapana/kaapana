@@ -17,6 +17,18 @@ async def metadata_replace_stream(
     search: bytes = None,
     replace: bytes = None,
 ):
+    """Replace a part of the response stream with another part. Used to replace the boundary used in multipart responses.
+
+    Args:
+        method (str, optional): Method to use for the request. Defaults to "GET".
+        url (str, optional): URL to send the request to. Defaults to None.
+        request (Request, optional): Request object. Defaults to None.
+        search (bytes, optional): Part of the response to search for (which will be replaced). Defaults to None.
+        replace (bytes, optional): Bytes to replace the search with. Defaults to None.
+
+    Yields:
+        bytes: Part of the response stream
+    """
     buffer = b""
     pattern_size = len(search)
     async with httpx.AsyncClient() as client:
@@ -41,32 +53,67 @@ async def metadata_replace_stream(
 
 @router.get("/studies", tags=["QIDO-RS"])
 async def query_studies(request: Request, session: AsyncSession = Depends(get_session)):
+    """This endpoint is used to get all studies mapped to the project.
 
-    # Retrieve studies mapped to the project
-    studies = set(
-        await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
-    )
+    Args:
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        response: Response object
+    """
+
+    if "SeriesInstanceUID" in request.query_params:
+        # retrieve series mapped to the project
+        series = set(
+            await crud.get_all_series_mapped_to_project(session, DEFAULT_PROJECT_ID)
+        )
+
+        # Check if the requested series are mapped to the project
+        requested_series = set(request.query_params.getlist("SeriesInstanceUID"))
+        series = series.intersection(requested_series)
+
+        # Remove SeriesInstanceUID from the query parameters
+        query_params = dict(request.query_params)
+        query_params["SeriesInstanceUID"] = []
+
+        # Add the series mapped to the project to the query parameters
+        for uid in series:
+            query_params["SeriesInstanceUID"].append(uid)
+
+        # Update the query parameters
+        request._query_params = query_params
+
+        if not series:
+            # return empty response with status code 204
+            return Response(status_code=HTTP_204_NO_CONTENT)
 
     # check if StudyInstanceUID is in the query parameters
     if "StudyInstanceUID" in request.query_params:
+
+        # Retrieve studies mapped to the project
+        studies = set(
+            await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
+        )
+
         # Check if the requested studies are mapped to the project
         requested_studies = set(request.query_params.getlist("StudyInstanceUID"))
         studies = studies.intersection(requested_studies)
 
-    if not studies:
-        # return empty response with status code 204
-        return Response(status_code=HTTP_204_NO_CONTENT)
+        # Remove StudyInstanceUID from the query parameters
+        query_params = dict(request.query_params)
+        query_params["StudyInstanceUID"] = []
 
-    # Remove StudyInstanceUID from the query parameters
-    query_params = dict(request.query_params)
-    query_params["StudyInstanceUID"] = []
+        # Add the studies mapped to the project to the query parameters
+        for uid in studies:
+            query_params["StudyInstanceUID"].append(uid)
 
-    # Add the studies mapped to the project to the query parameters
-    for uid in studies:
-        query_params["StudyInstanceUID"].append(uid)
+        # Update the query parameters
+        request._query_params = query_params
 
-    # Update the query parameters
-    request._query_params = query_params
+        if not studies:
+            # return empty response with status code 204
+            return Response(status_code=HTTP_204_NO_CONTENT)
 
     return StreamingResponse(
         metadata_replace_stream(
@@ -76,7 +123,7 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
             search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
         ),
-        media_type="application/dicom",
+        media_type="application/dicom+json",
     )
 
 
@@ -84,6 +131,16 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
 async def query_series(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
+    """This endpoint is used to get all series of a study mapped to the project.
+
+    Args:
+        study (str): Study Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        response: Response object
+    """
 
     # If StudyInstanceUID is in the query parameters, remove it
     query_params = dict(request.query_params)
@@ -125,7 +182,7 @@ async def query_series(
             search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
         ),
-        media_type="application/dicom",
+        media_type="application/dicom+json",
     )
 
 
@@ -136,6 +193,17 @@ async def query_instances(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    """This endpoint is used to get all instances of a series mapped to the project.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        response: Response object
+    """
 
     query_params = dict(request.query_params)
 
@@ -167,5 +235,5 @@ async def query_instances(
             search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
         ),
-        media_type="application/dicom",
+        media_type="application/dicom+json",
     )

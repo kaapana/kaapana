@@ -13,9 +13,9 @@ async def proxy_request(
 ):
     url = f"{base_url}{path}"
     headers = dict(request.headers)
-    logger.info(f"Request URL: {url}")
-    logger.info(f"Request headers: {headers}")
-    logger.info(f"Request method: {method}")
+    # logger.info(f"Request URL: {url}")
+    # logger.info(f"Request headers: {headers}")
+    # logger.info(f"Request method: {method}")
 
     async with httpx.AsyncClient() as client:
 
@@ -39,11 +39,11 @@ async def proxy_request(
         else:
             return Response(status_code=405)
 
-    logger.info(f"Response status code: {response.status_code}")
-    logger.info(f"Response headers: {response.headers}")
-    logger.info(f"Response content: {response.content[:100]}")
-    logger.info(f"Response encoding: {response.encoding}")
-    logger.info(f"Response text: {response.text[:100]}")
+    # logger.info(f"Response status code: {response.status_code}")
+    # logger.info(f"Response headers: {response.headers}")
+    # logger.info(f"Response content: {response.content[:100]}")
+    # logger.info(f"Response encoding: {response.encoding}")
+    # logger.info(f"Response text: {response.text[:100]}")
 
     # Store raw values
     status_code = response.status_code

@@ -30,12 +30,8 @@ spec:
           limits:
             memory: 1500Mi
         env:
-        - name: DCM4CHEE
-          value: "http://dcm4chee-service.{{  .Values.global.services_namespace  }}.svc:8080"
         - name: CTP_URL
           value: "ctp-dicom-service.{{  .Values.global.services_namespace  }}.svc"
-        - name: AET
-          value: "KAAPANA"
         - name: OPENSEARCH_HOST
           value: "opensearch-service.{{  .Values.global.services_namespace  }}.svc"
         - name: OPENSEARCH_PORT

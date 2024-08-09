@@ -7,7 +7,8 @@ from subprocess import PIPE, run
 
 import pydicom
 import requests
-from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
+from kaapanapy.helper import get_project_user_access_token, get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
 
 tmp_data_dir = "/slow_data_dir/TMP"
 ctp_url = os.getenv("CTP_URL", None)
@@ -25,7 +26,7 @@ assert airflow_host
 example_files = os.getenv("EXAMPLE", "/example/Winfried_phantom.zip")
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
 
-index = "meta-index"
+index = OpensearchSettings().default_index
 
 access_token = get_project_user_access_token()
 os_client = get_opensearch_client(access_token=access_token)

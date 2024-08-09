@@ -7,6 +7,7 @@ from . import schemas
 from . import crud
 from . import opensearch
 from . import minio
+from . import kubehelm
 
 from ..database import get_session
 import logging
@@ -34,6 +35,7 @@ async def projects(
         created_project = db_project[0]
     opensearch_helper.setup_new_project(created_project)
     minio_helper.setup_new_project(created_project)
+    kubehelm.install_kubernetes_project(created_project)
     return created_project
 
 

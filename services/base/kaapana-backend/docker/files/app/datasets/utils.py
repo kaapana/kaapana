@@ -11,6 +11,7 @@ from app.workflows.utils import (
     raise_kaapana_connection_error,
 )
 from app.logger import get_logger
+from kaapanapy.settings import OpensearchSettings
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -22,7 +23,7 @@ def execute_opensearch_query(
     os_client,
     query: Dict = dict(),
     source=dict(),
-    index="meta-index",
+    index=None,
     sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
     scroll=False,
 ) -> List:
@@ -43,6 +44,7 @@ def execute_opensearch_query(
     :param scroll: use scrolling or pagination -> scrolling currently not impelmented
     :return: aggregated search results
     """
+    index = index or OpensearchSettings().default_index
 
     def _execute_opensearch_query(os_client, search_after=None, size=10000) -> List:
         res = os_client.search(
@@ -99,7 +101,9 @@ def type_suffix(v):
 
 
 async def get_metadata_opensearch(os_client, series_instance_uid: str) -> dict:
-    data = os_client.get(index="meta-index", id=series_instance_uid)["_source"]
+    data = os_client.get(
+        index=OpensearchSettings().default_index, id=series_instance_uid
+    )["_source"]
 
     # filter for dicoms tags
     return {
@@ -111,7 +115,7 @@ async def get_metadata_opensearch(os_client, series_instance_uid: str) -> dict:
 
 
 async def get_metadata(os_client, series_instance_uid: str) -> Dict[str, str]:
-    # TODO: retrieve study_instance_uid using meta-index
+    # TODO: retrieve study_instance_uid using from opensearch
     # pacs_metadata: dict = await get_metadata_pacs(
     #     study_instance_uid, series_instance_uid
     # )
@@ -178,7 +182,7 @@ async def get_metadata_pacs(study_instance_UID: str, series_instance_UID: str) -
     return res
 
 
-async def get_field_mapping(os_client, index="meta-index") -> Dict:
+async def get_field_mapping(os_client, index=None) -> Dict:
     """
     Returns a mapping of field for a given index form open search.
     This looks like:
@@ -188,6 +192,7 @@ async def get_field_mapping(os_client, index="meta-index") -> Dict:
     #   ...
     # }
     """
+    index = index or OpensearchSettings().default_index
     import re
 
     res = os_client.indices.get_mapping(index=index)[index]["mappings"]["properties"]

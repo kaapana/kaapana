@@ -7,6 +7,16 @@ import glob
 
 
 class LocalMiktInputOperator(KaapanaPythonBaseOperator):
+    
+    def __init__(self, dag, operator_out_dir="mitk-results", **kwargs):
+        super().__init__(
+            dag=dag,
+            name="get-mitk-input",
+            operator_out_dir=operator_out_dir,
+            python_callable=self.get_files,
+            **kwargs
+        )
+
     def downloadSeries(self, studyUID: str, seriesUID: str, target_dir: str):
         print("Downloading Series %s from Study %s" % (seriesUID, studyUID))
         print("Target DIR: %s" % target_dir)
@@ -106,29 +116,3 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
                 print("task successfully added:")
                 print(task)
         self.createTasklist(run_dir, tasks)
-
-    def __init__(
-        self,
-        dag,
-        pacs_dcmweb_host="http://dcm4chee-service.store.svc",
-        pacs_dcmweb_port="8080",
-        operator_out_dir="mitk-results",
-        aetitle="KAAPANA",
-        **kwargs
-    ):
-        self.aetitle = aetitle
-        self.pacs_dcmweb = (
-            pacs_dcmweb_host
-            + ":"
-            + pacs_dcmweb_port
-            + "/dcm4chee-arc/aets/"
-            + aetitle.upper()
-        )
-
-        super().__init__(
-            dag=dag,
-            name="get-mitk-input",
-            operator_out_dir=operator_out_dir,
-            python_callable=self.get_files,
-            **kwargs
-        )

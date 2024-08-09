@@ -17,9 +17,6 @@ tmp_data_dir = "/slow_data_dir/TMP"
 ctp_url = os.getenv("CTP_URL", None)
 assert ctp_url
 dcm_port = "11112"
-dcm4chee_host = os.getenv("DCM4CHEE", None)
-assert dcm4chee_host
-aet = os.getenv("AET", "KAAPANA")
 os_host = os.getenv("OPENSEARCH_HOST", None)
 assert os_host
 os_port = os.getenv("OPENSEARCH_PORT", "9200")
@@ -208,10 +205,6 @@ def check_file_on_platform(examples_send):
                 counter += 1
                 time.sleep(10)
                 continue
-<<<<<<< HEAD
-
-=======
->>>>>>> Fix infinite loop in meta-init and dcmweb url in dicom-init.
             hits = res["hits"]["hits"]
             logger.debug(("GOT %s results, wait and retry!" % len(hits)))
             if len(hits) == 1:

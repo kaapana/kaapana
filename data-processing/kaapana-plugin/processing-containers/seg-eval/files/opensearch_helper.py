@@ -1,11 +1,12 @@
 import os
 
 from kaapanapy.helper import get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
 
 SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]
 HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
 PORT = "9200"
-INDEX = "meta-index"
+INDEX = OpensearchSettings().default_index
 
 os_client = get_opensearch_client()
 

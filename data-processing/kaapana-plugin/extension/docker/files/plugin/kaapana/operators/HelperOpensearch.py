@@ -3,6 +3,7 @@ from typing import Dict, List
 
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapanapy.helper import get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
@@ -20,7 +21,7 @@ class HelperOpensearch:
 
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
     port = "9200"
-    index = "meta-index"
+    index = OpensearchSettings().default_index
 
     try:
         os_client = get_opensearch_client()
@@ -77,7 +78,7 @@ class HelperOpensearch:
     def execute_opensearch_query(
         query: Dict = dict(),
         source=dict(),
-        index="meta-index",
+        index=None,
         sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
         scroll=False,
     ) -> List:
@@ -99,6 +100,7 @@ class HelperOpensearch:
         :param scroll: use scrolling or pagination -> scrolling currently not impelmented
         :return: aggregated search results
         """
+        index = index or HelperOpensearch.index
 
         def _execute_opensearch_query(search_after=None, size=10000) -> List:
             res = HelperOpensearch.os_client.search(

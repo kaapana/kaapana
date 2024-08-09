@@ -163,28 +163,6 @@ get_test_images = LocalGetInputDataOperator(
     check_modality=False,
 )
 
-# get_test_images = LocalGetRefSeriesOperator(
-#     dag=dag,
-#     name="nnunet-dataset",
-#     target_level="batch",
-#     expected_file_count="all",
-#     limit_file_count=5,
-#     dicom_tags=[
-#         {
-#             'id': 'ClinicalTrialProtocolID',
-#             'value': 'tcia-lymph'
-#         },
-#         {
-#             'id': 'Modality',
-#             'value': 'SEG'
-#         },
-#     ],
-#     modality=None,
-#     search_policy=None,
-#     parallel_downloads=5,
-#     delete_input_on_success=True
-# )
-
 sort_gt = LocalSortGtOperator(
     dag=dag, batch_name="nnunet-dataset", input_operator=get_test_images
 )

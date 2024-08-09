@@ -11,6 +11,7 @@ from app.services.urn_dispatcher import (
 )
 from app.services.database import Database, MongoDatabase, InMemoryDatabase
 from app.config import get_settings
+from kaapanapy.settings import OpensearchSettings
 
 
 @lru_cache
@@ -43,7 +44,9 @@ def get_dispatcher_service() -> URNDispatcher:
     dispatcher.add_resolver(
         ExternalHTTPServiceResolver(
             "urn:kaapana:meta:(.+)",
-            settings.os_base_url + "/meta-index/_doc/{{RESSOURCE}}",
+            settings.os_base_url
+            + f"/{OpensearchSettings.default_index}"
+            + "/_doc/{{RESSOURCE}}",
             description="Resolves resources stored in opensearch",
         )
     )
@@ -51,9 +54,11 @@ def get_dispatcher_service() -> URNDispatcher:
         ExternalHTTPServiceResolver(
             "urn:kaapana:dicom:study:(.+)",
             settings.quido_base_url + "/KAAPANA/rs/studies/{{RESSOURCE}}/series",
-            viewer_template=settings.ohif_viewer + "/{{RESSOURCE}}"
-            if settings.ohif_viewer
-            else None,
+            viewer_template=(
+                settings.ohif_viewer + "/{{RESSOURCE}}"
+                if settings.ohif_viewer
+                else None
+            ),
             description="Resolves dicom studies to dicom json resources",
         )
     )

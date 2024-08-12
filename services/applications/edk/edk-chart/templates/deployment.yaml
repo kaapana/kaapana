@@ -97,8 +97,6 @@ spec:
           limits:
             memory: 30Gi
         volumeMounts:
-          - name: platform-extensions
-            mountPath: /kaapana/mounted/extensions
           - name: configs
             mountPath: /root/.local/share/code-server/User/settings.json
             subPath: settings.json
@@ -110,9 +108,6 @@ spec:
           privileged: true
         {{- end }}
       volumes:
-      - name: platform-extensions
-        persistentVolumeClaim:
-          claimName: platform-extensions-pv-claim
       - name: configs
         configMap:
           name: {{ .Release.Name }}

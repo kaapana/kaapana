@@ -4,5 +4,5 @@ description: External pacs workflows
 name: external-pacs-workflow
 version: "0.0.0"
 keywords:
-- kaapanaworkflow
-- kaapanaexperimental
+  - kaapanaworkflow
+  - kaapanaexperimental

@@ -5,11 +5,13 @@
         <h5>Workflow Execution</h5>
         <v-tooltip bottom>
           <template v-slot:activator="{ on, attrs }">
-            <v-btn v-on="on" @click="getKaapanaInstances()" small icon>
-              <v-icon color="primary" dark> mdi-refresh </v-icon>
-            </v-btn>
+            <v-btn v-on="on" @click='getKaapanaInstances()' small icon>
+              <v-icon color="primary" dark>
+                mdi-refresh
+              </v-icon> 
+            </v-btn> 
           </template>
-          <span>Reload</span>
+          <span>refresh Workflow Execution component</span>
         </v-tooltip>
       </v-card-title>
       <v-card-text>
@@ -66,11 +68,12 @@
           <!-- Data- and Workflow forms -->
           <v-row v-if="datasets_available" :key="dag_id">
             <v-col v-for="(schema, name) in schemas" cols="12">
+              <!-- <p>{{name}}</p> -->
               <v-jsf
                 v-model="formData[name]"
                 :schema="schema"
                 required="required"
-              ></v-jsf>            
+              ></v-jsf>
             </v-col>
           </v-row>
           <!-- Select remote instance for remote workflow -->
@@ -130,7 +133,9 @@
         <v-btn color="primary" @click="submissionValidator()">
           Start Workflow
         </v-btn>
-        <v-btn @click="isDialog ? cancel() : clearForm()">
+        <v-btn
+          @click="isDialog ? cancel() : clearForm()"
+        >
           {{ this.isDialog ? "Cancel" : "Clear" }}
         </v-btn>
       </v-card-actions>
@@ -192,7 +197,7 @@ export default {
         ];
       }
       this.getUiFormSchemas();
-      this.getDags();
+      this.getDags();      
       // reset dag_id and external_dag_id if instance changes
       this.dag_id = null;
       this.external_dag_id = null;
@@ -204,18 +209,12 @@ export default {
       }
     },
     available_dags(dagsList) {
-      if (
-        dagsList.length == 1 &&
-        this.schemas_dict.hasOwnProperty(dagsList[0])
-      ) {
+      if (dagsList.length == 1 && this.schemas_dict.hasOwnProperty(dagsList[0])) {
         this.dag_id = dagsList[0];
       }
     },
     schemas_dict(newDict) {
-      if (
-        this.available_dags.length == 1 &&
-        newDict.hasOwnProperty(this.available_dags[0])
-      ) {
+      if (this.available_dags.length == 1 && newDict.hasOwnProperty(this.available_dags[0])) {
         this.dag_id = this.available_dags[0];
       }
     },
@@ -245,17 +244,13 @@ export default {
       this.datasets_available = true;
       this.processDefaultsFromSettings(this.schemas);
 
-      if (
-        this.schemas["data_form"] !== null &&
-        this.schemas["data_form"] !== undefined
-      ) {
+      if (this.schemas["data_form"] !== null && this.schemas["data_form"] !== undefined) {
         Object.entries(this.schemas["data_form"]).forEach(([key, value]) => {
-          if (key.startsWith("__empty__")) {
+          if ( key.startsWith("__emtpy__") ) {
             this.datasets_available = false;
             this.$notify({
               type: "error",
-              title:
-                "The selected runner instances have no common allowed datasets!",
+              title: "The selected runner instances have no common allowed datasets!",
             });
           }
         });
@@ -280,7 +275,7 @@ export default {
       });
     },
     validDags(dags, olddags) {
-      if (dags.length != olddags.length) {
+      if (dags.length != olddags.length){
         this.getDags();
       }
     },
@@ -315,7 +310,7 @@ export default {
         // other stuff
         workflow_name: null, // or to ''
         showConfData: false,
-        datasets_available: true,
+        datasets_available: true
         workflowsSettings: {},,
       };
     },
@@ -432,11 +427,7 @@ export default {
         if (value && typeof value === "object") {
           this.findRequiredFields(value, result, fullKey);
           // } else if (key === 'required' && !('default' in obj) && !('enum' in obj)) {
-        } else if (
-          key !== "readOnly" &&
-          key === "required" &&
-          !("enum" in obj)
-        ) {
+        } else if (key !== "readOnly" && key === "required" && !("enum" in obj)) {
           // only go here if it's no 'enum' data type (special case for nnunet-predict)
           result.push(fullKey);
         }
@@ -446,10 +437,9 @@ export default {
     submissionValidator() {
       let valid_check = [];
       let invalid_fields = [];
-      if (this.datasets_available !== true) {
-        // NOT all checks have been successful --> return false
-        const message =
-          "The selected runner instances have no common allowed datasets!";
+      if ( this.datasets_available !== true) {
+       // NOT all checks have been successful --> return false
+       const message = "The selected runner instances have no common allowed datasets!";
         this.$notify({
           type: "error",
           title: message,
@@ -564,9 +554,7 @@ export default {
         .then((response) => {
           this.available_dags = response.data;
           if (this.validDags.length > 0) {
-            this.available_dags = response.data.filter((item) =>
-              this.validDags.includes(item)
-            );
+            this.available_dags = response.data.filter(item => this.validDags.includes(item));
           }
         })
         .catch((err) => {
@@ -633,10 +621,7 @@ export default {
             title: "Workflow successfully created!",
           });
           this.reset();
-          if (
-            this.identifiers.length > 0 ||
-            this.$route.name == "data-upload"
-          ) {
+          if (this.identifiers.length > 0 || this.$route.name == "data-upload") {
             this.$emit("successful");
           } else {
             this.$router.push({ name: "workflows" });

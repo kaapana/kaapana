@@ -1,5 +1,4 @@
 import os
-
 from airflow.api.common.experimental.pool import get_pool
 
 BATCH_NAME = "batch"

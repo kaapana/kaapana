@@ -2,12 +2,11 @@
 
 import os
 from datetime import timedelta
-from multiprocessing.pool import ThreadPool
-
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from persistence.HelperPersistence import URNClient
+from multiprocessing.pool import ThreadPool
+from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class LocalGetUrnOperator(KaapanaPythonBaseOperator):
@@ -37,6 +36,37 @@ class LocalGetUrnOperator(KaapanaPythonBaseOperator):
         if not urns:
             print("# No URNs to download")
             exit(1)
+
+        # if self.conf is not None and "data_form" in self.conf:
+        #     self.data_form = self.conf["data_form"]
+
+        # if self.data_form is None:
+        #     print(
+        #         "No data_form in config or object found! Data seems to be present already..."
+        #     )
+        #     print("Skipping...")
+        #     return
+
+        # print("# data_form:")
+        # print("#")
+        # print(json.dumps(self.data_form, indent=4, sort_keys=True))
+        # print("#")
+        # print("#")
+
+        # dataset_limit = int(self.data_form.get("dataset_limit", 0))
+        # self.dataset_limit = dataset_limit if dataset_limit > 0 else None
+
+        # if len(self.data_form["identifiers"]) > 0:
+        #     self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(
+        #         self.data_form["identifiers"]
+        #     )
+        # else:
+        #     print("# Issue with data form -> exit. ")
+        #     exit(1)
+
+        # print(f"# Dataset-limit: {self.dataset_limit}")
+        # print("#")
+        # print("#")
 
         def download(urn):
             print(f"Start download object: {urn}")

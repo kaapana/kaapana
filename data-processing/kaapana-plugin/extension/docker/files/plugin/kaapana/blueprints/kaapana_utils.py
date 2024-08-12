@@ -1,18 +1,19 @@
-import os
 import re
+import os
 import shutil
+import requests
 import tarfile
 import time
-from datetime import datetime
-from socket import timeout
-from xml.etree import ElementTree
-
-import requests
 import urllib3
-from kaapana.blueprints.json_schema_templates import schema_dataset_form
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from xml.etree import ElementTree
+from datetime import datetime
+from socket import timeout
+
+
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.blueprints.json_schema_templates import schema_dataset_form
 
 
 def generate_run_id(dag_id):

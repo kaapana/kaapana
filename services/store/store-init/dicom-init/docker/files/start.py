@@ -116,6 +116,8 @@ def send_file():
 
 
 # first file will init meta
+
+
 def send_meta_init():
     print("Send Dicom init meta image....")
     print("")

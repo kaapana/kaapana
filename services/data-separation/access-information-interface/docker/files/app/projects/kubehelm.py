@@ -5,7 +5,14 @@ from .schemas import Project
 kube_helm_api = "http://kube-helm-service.admin.svc:5000/kube-helm-api"
 
 
-def install_kubernetes_project(project: Project):
+def install_project_helm_chart(project: Project):
+    """
+    Install the project-namespace helm chart for the given project.
+    This helm chart contains
+    * a new namespace for the project
+    * a secret with the credentials for the project-system-user
+    * a job that creates the project-system-user in Keycloak and assigns a project-role to this user in the access-information-point
+    """
     kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION")
     payload = {
         "name": "project-namespace",

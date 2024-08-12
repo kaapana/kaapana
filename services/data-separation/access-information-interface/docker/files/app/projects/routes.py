@@ -54,7 +54,7 @@ async def get_roles(session: AsyncSession = Depends(get_session), name: str = No
     return await crud.get_roles(session, name=name)
 
 
-@router.post("/{project_name}/role/{role}/user/{user_id}", tags=["Projects"])
+@router.post("/{project_name}/role/{role_name}/user/{user_id}", tags=["Projects"])
 async def post_user_project_role_mapping(
     project_name: str,
     role_name: str,

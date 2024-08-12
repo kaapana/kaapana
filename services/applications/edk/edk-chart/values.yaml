@@ -16,6 +16,7 @@ global:
     minio_mirror : true
   - name: platform-extensions
     host_path: /extensions
+    mount_path: /kaapana/mounted/extensions
   envVars:
   - name: WORKSPACE
     value: "/kaapana"

@@ -6,7 +6,7 @@ from subprocess import PIPE, run
 
 import pydicom
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -65,7 +65,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
 
     def start(self, **kwargs):
         self.conf = kwargs["dag_run"].conf
-        self.dcmweb_helper = DcmWebLocalHelper(application_entity=self.aetitle)
+        self.dcmweb_helper = HelperDcmWeb(application_entity=self.aetitle)
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folders = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))

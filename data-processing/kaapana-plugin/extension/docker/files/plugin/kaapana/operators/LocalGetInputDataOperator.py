@@ -120,89 +120,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         shutil.move(src=src_dcm_path, dst=target)
         logger.info(f"# Series CTP import -> OK: {target}")
 
-    def download_external_metadata(
-        self, dcmweb_endpoint, ae_title, service_account_info
-    ):
-        logger.info(f"Adding external PACs: {dcmweb_endpoint}")
-        decoded_bytes = base64.b64decode(service_account_info)
-        decoded_string = decoded_bytes.decode("utf-8")
-        service_account_info = json.loads(decoded_string)
-        dcmweb_helper = get_dcmweb_helper(
-            dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
-        )
-        metadata = dcmweb_helper.search_for_instances()
-
-        if not metadata or len(metadata) == 0:
-            logger.error("No metadata found.")
-            exit(1)
-        logger.info(f"Found {len(metadata)} series")
-
-        external_series_instance_uids = list(
-            {
-                instance.get("0020000E", {"Value": [None]})["Value"][0]
-                for instance in metadata
-            }
-        )
-        logger.debug(f"EXT: {external_series_instance_uids}")
-
-        local_series_instance_uids = list(
-            {
-                result["dcm-uid"]["series-uid"]
-                for result in HelperOpensearch.get_dcm_uid_objects(
-                    series_instance_uids=external_series_instance_uids
-                )
-            }
-        )
-        logger.debug(f"LOCAL: {local_series_instance_uids}")
-
-        intersection = set(local_series_instance_uids).intersection(
-            set(external_series_instance_uids)
-        )
-        logger.debug(f"INTERSECTION: {intersection}")
-
-        metadata = [
-            instance
-            for instance in metadata
-            if instance.get("0020000E", {"Value": [None]})["Value"][0]
-            not in local_series_instance_uids
-        ]
-
-        logger.debug(
-            [
-                instance.get("0020000E", {"Value": [None]})["Value"][0]
-                for instance in metadata
-            ]
-        )
-
-        for instance in metadata:
-            series_uid = instance.get("0020000E", {"Value": [None]})["Value"][0]
-
-            if not series_uid:
-                raise KeyError(
-                    f"Required field missing: Series UID (0020000E) in the series {instance}"
-                )
-
-            target_dir = join(
-                self.airflow_workflow_dir,
-                self.dag_run_id,
-                "batch",
-                series_uid,
-                self.operator_out_dir,
-            )
-
-            if not os.path.exists(target_dir):
-                os.makedirs(target_dir)
-            json_path = join(
-                target_dir,
-                "metadata.json",
-            )
-
-            instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
-            instance["00120020"] = {"vr": "LO", "Value": [ae_title]}
-
-            with open(json_path, "w", encoding="utf8") as fp:
-                json.dump(instance, fp, indent=4, sort_keys=True)
-
     def ctp_input(self):
         series_uid = self.conf.get("seriesInstanceUID")
 
@@ -282,17 +199,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if not self.conf:
             logger.error("When is this the case?")
             exit(1)
-
-        if (
-            self.conf
-            and self.conf.get("workflow_form", {}).get("dcmweb_endpoint") is not None
-        ):
-            self.download_external_metadata(
-                dcmweb_endpoint=self.conf["workflow_form"]["dcmweb_endpoint"],
-                ae_title=self.conf["workflow_form"].get("ae_title"),
-                service_account_info=self.conf["workflow_form"]["service_account_info"],
-            )
-            return
 
         # Triggered via ctp
         if self.conf and ("seriesInstanceUID" in self.conf):

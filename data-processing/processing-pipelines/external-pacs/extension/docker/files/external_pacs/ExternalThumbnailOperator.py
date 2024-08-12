@@ -3,9 +3,9 @@ import logging
 from pathlib import Path
 from typing import List
 
+from external_pacs.HelperDcmWebGcloud import HelperDcmWebGcloud
 from kaapana.kubetools.secret import get_k8s_secret, hash_secret_name
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWebGcloud import DcmWebGcloudHelper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logging.basicConfig(
@@ -36,7 +36,7 @@ class ExternalThumbnailOperator(KaapanaPythonBaseOperator):
             logger.error("Invalid credentials/secret")
             exit(1)
 
-        helper = DcmWebGcloudHelper(
+        helper = HelperDcmWebGcloud(
             dcmweb_endpoint=dcmweb_endpoint,
             service_account_info=secret,
         )

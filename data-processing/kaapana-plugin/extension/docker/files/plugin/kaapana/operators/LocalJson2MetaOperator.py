@@ -3,7 +3,7 @@ import json
 import os
 
 import pydicom
-from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -81,7 +81,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         global es
-        self.dcmweb_helper = DcmWebLocalHelper(application_entity="KAAPANA")
+        self.dcmweb_helper = HelperDcmWeb(application_entity="KAAPANA")
 
         self.ti = kwargs["ti"]
         print("# Starting module json2meta")

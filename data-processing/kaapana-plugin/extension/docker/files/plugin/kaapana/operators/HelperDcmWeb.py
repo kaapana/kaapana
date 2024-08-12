@@ -21,27 +21,29 @@ def get_dcmweb_helper(
     application_entity: str = "KAAPANA",
     service_account_info: Dict[str, str] | None = None,
 ):
-    if not dcmweb_endpoint:
-        from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
+    if dcmweb_endpoint:
+        try:
+            # Check only if external_pacs extension was installed
+            from external_pacs.HelperDcmWebGcloud import (  # type: ignore
+                HelperDcmWebGcloud,
+            )
 
-        return DcmWebLocalHelper(application_entity=application_entity)
+            if "google" in dcmweb_endpoint and service_account_info:
+                return HelperDcmWebGcloud(
+                    dcmweb_endpoint=dcmweb_endpoint,
+                    service_account_info=service_account_info,
+                )
+        except ModuleNotFoundError:
+            pass
 
-    if "google" in dcmweb_endpoint and service_account_info:
-        from kaapana.operators.HelperDcmWebGcloud import DcmWebGcloudHelper
+        except Exception:
+            logger.error(f"Unknown dcmweb_endpoint: {dcmweb_endpoint}")
+            logger.error("Defaulting to the local dcm4chee")
 
-        return DcmWebGcloudHelper(
-            dcmweb_endpoint=dcmweb_endpoint,
-            service_account_info=service_account_info,
-        )
-    else:
-        from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
-
-        logger.error(f"Unknown dcmweb_endpoint: {dcmweb_endpoint}")
-        logger.error("Defaulting to the local dcm4chee")
-        return DcmWebLocalHelper(application_entity=application_entity)
+    return HelperDcmWeb(application_entity=application_entity)
 
 
-class DcmWebLocalHelper:
+class HelperDcmWeb:
     REJECTION_APPLICATION_ENTITY = "IOCM_QUALITY"
     DCMWEB_ENDPOINT = (
         f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc:8080/dcm4chee-arc/aets"
@@ -49,7 +51,9 @@ class DcmWebLocalHelper:
 
     def __init__(self, application_entity: str):
         self.rs_endpoint = f"{self.DCMWEB_ENDPOINT}/{application_entity}/rs/"
-        self.rejection_endpoint = f"{self.DCMWEB_ENDPOINT}/{DcmWebLocalHelper.REJECTION_APPLICATION_ENTITY}/rs/"
+        self.rejection_endpoint = (
+            f"{self.DCMWEB_ENDPOINT}/{HelperDcmWeb.REJECTION_APPLICATION_ENTITY}/rs/"
+        )
         self.wado_endpoint = f"{self.DCMWEB_ENDPOINT}/{application_entity}/wado/"
         self.application_entity = application_entity
         access_token = get_project_user_access_token()

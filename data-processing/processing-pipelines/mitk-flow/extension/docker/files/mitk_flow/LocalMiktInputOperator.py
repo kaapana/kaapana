@@ -8,7 +8,7 @@ from xml.etree import ElementTree
 import pydicom
 import requests
 from dicomweb_client.api import DICOMwebClient
-from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -39,7 +39,7 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
             json.dump(tasklist, f, ensure_ascii=False, indent=4)
 
     def get_files(self, ds, **kwargs):
-        self.dcmweb_helper = DcmWebLocalHelper(application_entity=self.aetitle)
+        self.dcmweb_helper = get_dcmweb_helper(application_entity=self.aetitle)
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [

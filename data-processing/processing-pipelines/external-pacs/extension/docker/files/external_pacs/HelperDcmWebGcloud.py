@@ -13,14 +13,14 @@ logger = get_logger(__file__)
 class DicomStoreMetrics(BaseModel):
     name: str
     studyCount: int | None = None
-    seriesCount: int | None  = None
-    instanceCount: int | None  = None
-    structuredStorageSizeBytes: int | None  = None
-    blobStorageSizeBytes: int | None  = None
+    seriesCount: int | None = None
+    instanceCount: int | None = None
+    structuredStorageSizeBytes: int | None = None
+    blobStorageSizeBytes: int | None = None
 
 
 class StudyMetrics(BaseModel):
-    study: str 
+    study: str
     structuredStorageSizeBytes: int
     blobStorageSizeBytes: int
     instanceCount: int
@@ -34,7 +34,7 @@ class SeriesMetrics(BaseModel):
     instanceCount: int
 
 
-class DcmWebGcloudHelper:
+class HelperDcmWebGcloud:
     # https://cloud.google.com/healthcare-api/docs/dicom#search_transaction
     INSTANCE_LIMIT = 1000
     SERIES_LIMIT = 100
@@ -53,14 +53,6 @@ class DcmWebGcloudHelper:
             ],  # TODO maybe scope could be adjusted and limited
         )
         self.session = requests.AuthorizedSession(credentials=credentials)
-
-        # url = GoogleCloudHealthcareURL(
-        #     project_id=dcmweb_endpoint.split("/")[5],
-        #     location=dcmweb_endpoint.split("/")[7],
-        #     dataset_id=dcmweb_endpoint.split("/")[9],
-        #     dicom_store_id=dcmweb_endpoint.split("/")[11],
-        # )
-        # client = DICOMwebClient(url=str(url), session=session)
 
     def __str__(self):
         return self.dcmweb_endpoint
@@ -85,11 +77,11 @@ class DcmWebGcloudHelper:
                 metrics = self.dicom_store_metrics()
                 if metrics is None:
                     return False
-                
+
                 if metrics.studyCount is None:
                     logger.error("Empty dicom store.")
                     return False
-                
+
                 return True
             except Exception as e:
                 logger.error(f"Connecting to PACS failed: {e}. Retry {i}")

@@ -3,7 +3,7 @@ import json
 import os
 
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -21,7 +21,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
-        self.dcmweb_helper = DcmWebLocalHelper(application_entity=self.pacs_aet)
+        self.dcmweb_helper = HelperDcmWeb(application_entity=self.pacs_aet)
         print("conf", conf)
         if (
             "form_data" in conf

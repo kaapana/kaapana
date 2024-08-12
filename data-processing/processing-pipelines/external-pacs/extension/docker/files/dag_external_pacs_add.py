@@ -70,15 +70,14 @@ dag = DAG(
     schedule_interval=None,
 )
 
-init_operator = ExternalPacsOperator(dag=dag, action="add")
-get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir="get-input-data")
+init_operator = ExternalPacsOperator(dag=dag, operator_out_dir="get-input-data", action="add")
 extract_metadata = LocalDcm2JsonOperator(
-    dag=dag, input_operator=get_input, data_type="json"
+    dag=dag, input_operator=init_operator, data_type="json"
 )
 add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
 
 push_json = LocalJson2MetaOperator(
-    dag=dag, input_operator=get_input, json_operator=extract_metadata
+    dag=dag, input_operator=init_operator, json_operator=extract_metadata
 )
 external_thumbnail = ExternalThumbnailOperator(
     dag=dag,
@@ -98,7 +97,6 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
     init_operator
-    >> get_input
     >> extract_metadata
     >> add_to_dataset
     >> push_json

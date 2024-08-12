@@ -8,7 +8,7 @@ from pathlib import Path
 import pydicom
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWeb import DcmWebLocalHelper
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -55,8 +55,6 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-        self.dcmweb_helper = DcmWebLocalHelper(application_entity=self.aetitle)
-
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]
         download_series_list = []

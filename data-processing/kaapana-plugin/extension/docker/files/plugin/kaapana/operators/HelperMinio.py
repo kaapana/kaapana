@@ -1,19 +1,21 @@
+import json
+import logging
 import os
 import pathlib
-from datetime import timedelta
-import logging
-import requests
 import xml.etree.ElementTree as ET
+from datetime import timedelta
+from io import BytesIO
+from typing import List
 
+import requests
+from kaapana.blueprints.kaapana_global_variables import (
+    ADMIN_NAMESPACE,
+    OIDC_CLIENT_SECRET,
+    SERVICES_NAMESPACE,
+    SYSTEM_USER_PASSWORD,
+)
 from minio import Minio
 from minio.error import InvalidResponseError, S3Error
-
-from kaapana.blueprints.kaapana_global_variables import (
-    SERVICES_NAMESPACE,
-    OIDC_CLIENT_SECRET,
-    SYSTEM_USER_PASSWORD,
-    ADMIN_NAMESPACE,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +151,7 @@ class HelperMinio(Minio):
             super().stat_object(bucket_name, object_name)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             super().fget_object(bucket_name, object_name, file_path)
-        except S3Error as err:
+        except S3Error:
             print(f"Skipping object {object_name} since it doe not exists in Minio")
         except InvalidResponseError as err:
             print(err)
@@ -161,6 +163,53 @@ class HelperMinio(Minio):
         except InvalidResponseError as err:
             print(err)
             raise
+
+    def get_json(self, bucket_name: str, object_name: str) -> List[str]:
+        print(f"Getting file: {object_name} from {bucket_name}")
+        try:
+            response = super().get_object(bucket_name, object_name)
+            content = json.loads(response.read().decode("utf-8"))
+            response.close()
+            response.release_conn()
+            json.loads(content)
+            return content
+
+        except S3Error:
+            logger.error(
+                f"Skipping object {object_name} since it does not exist in Minio"
+            )
+        except InvalidResponseError as err:
+            logger.error(err)
+        except Exception as e:
+            logger.error(f"An unexpected error occurred: {e}")
+
+        return []
+
+    def put_json(self, bucket_name: str, object_name: str, data: List[str]):
+        print(f"Putting file: {object_name} into {bucket_name}")
+        try:
+            # Convert the dictionary to a JSON string
+            json_data = json.dumps(data).encode("utf-8")
+            data_stream = BytesIO(json_data)
+
+            # Upload the JSON data to Minio
+            super().put_object(
+                bucket_name=bucket_name,
+                object_name=object_name,
+                data=data_stream,
+                length=len(json_data),
+                content_type="application/json",
+            )
+            return True
+
+        except S3Error as e:
+            logger.error(f"Error uploading {object_name} to {bucket_name}: {e}")
+        except InvalidResponseError as err:
+            logger.error(err)
+        except Exception as e:
+            logger.error(f"An unexpected error occurred: {e}")
+
+        return False
 
     def apply_action_to_file(
         self, action, bucket_name, object_name, file_path, file_white_tuples=None

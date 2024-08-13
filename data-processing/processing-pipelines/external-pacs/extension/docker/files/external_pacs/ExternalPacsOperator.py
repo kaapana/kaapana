@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Any, Dict
 
+from external_pacs.HelperDcmWebEndpointsManager import HelperDcmWebEndpointsManager
 from kaapana.kubetools.secret import (
     create_k8s_secret,
     delete_k8s_secret,
@@ -24,6 +25,7 @@ logger = logging.getLogger(__file__)
 
 
 class ExternalPacsOperator(KaapanaPythonBaseOperator):
+
     def __init__(
         self,
         dag,
@@ -45,24 +47,26 @@ class ExternalPacsOperator(KaapanaPythonBaseOperator):
         def extract_series_uid(instance):
             return instance.get("0020000E", {"Value": [None]})["Value"][0]
 
-        external_series_instance_uids = list(set(map(extract_series_uid, metadata)))
-        local_series_instance_uids = set(
+        external_series_uids = list(set(map(extract_series_uid, metadata)))
+        local_series_uids = set(
             map(
                 lambda result: result["dcm-uid"]["series-uid"],
                 HelperOpensearch.get_dcm_uid_objects(
-                    series_instance_uids=external_series_instance_uids
+                    series_instance_uids=external_series_uids
                 ),
             )
         )
         filtered_series = list(
-            filter(
-                lambda instance: extract_series_uid(instance)
-                not in local_series_instance_uids,
-                metadata,
+            set(
+                filter(
+                    lambda instance: extract_series_uid(instance)
+                    not in local_series_uids,
+                    metadata,
+                )
             )
         )
         logger.info(
-            f"{len(filtered_series)} new series from {len(external_series_instance_uids)} present in external pacs"
+            f"{len(filtered_series)} new series imported from {len(external_series_uids)}"
         )
         return filtered_series
 
@@ -165,25 +169,28 @@ class ExternalPacsOperator(KaapanaPythonBaseOperator):
         dcmweb_endpoint = workflow_form.get("dcmweb_endpoint")
         service_account_info = workflow_form.get("service_account_info")
 
+        endpoint_manager = HelperDcmWebEndpointsManager(dag_run=kwargs["dag_run"])
+
         if self.action == "add" and dcmweb_endpoint and service_account_info:
+            logger.info(f"Add to dcmweb minio list: {dcmweb_endpoint}")
+            endpoint_manager.add_endpoint(dcmweb_endpoint=dcmweb_endpoint)
             logger.info(f"Add secret: {dcmweb_endpoint}")
             service_account_info = self._decode_service_account_info(
                 service_account_info
             )
-            logger.info(f"Service account info: {service_account_info}")
             self.add_secret(dcmweb_endpoint, service_account_info)
             logger.info(f"Downloading metadata from {dcmweb_endpoint}")
             self.download_external_metadata(
                 dcmweb_endpoint, workflow_form.get("ae_title", ""), service_account_info
             )
-            # TODO if not existent create file in minio bucket add dcmweb endpoint into it
 
         elif self.action == "delete":
             logger.info(f"Remove metadata: {dcmweb_endpoint}")
             self.delete_from_os(dcmweb_endpoint)
             logger.info(f"Remove secret: {dcmweb_endpoint}")
             self.delete_secret(dcmweb_endpoint)
-            # TODO remove dcmweb endpoint from the list of endpoints, if last, remove file
+            logger.info(f"Remove from dcmweb minio list: {dcmweb_endpoint}")
+            endpoint_manager.remove_endpoint(dcmweb_endpoint=dcmweb_endpoint)
 
         else:
             logger.error(f"Unknown action: {self.action}")

@@ -4,19 +4,18 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from external_pacs.ExternalPacsOperator import ExternalPacsOperator
-from kaapana.kubetools.secret import get_all_endpoints
+from external_pacs.HelperDcmWebEndpointsManager import HelperDcmWebEndpointsManager
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
 
-external_endpoints = get_all_endpoints()
-
+external_endpoints = HelperDcmWebEndpointsManager().get_endpoints()
 
 ui_form = {
     "data_form": {},
     "workflow_form": {
         "type": "object",
-        "properties": {            
+        "properties": {
             "dcmweb_endpoint": {
                 "title": "External dicomWeb endpoint",
                 "description": "Choose which dicomWeb endpoint to remove",

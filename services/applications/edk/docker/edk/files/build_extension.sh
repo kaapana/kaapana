@@ -34,7 +34,7 @@ if [ -z "$extension_path" ]; then
     exit 1
 fi
 
-# get all Dockerfiles and build, save, import them into the platform
+# get all Dockerfiles, build and push them to the registry
 image_paths=$(find $extension_path -type f \( -name "Dockerfile" -o -name "*.Dockerfile" \) -exec dirname {} \;)
 if [ -z "$image_paths" ]; then
     echo "ERROR: No dockerfiles found"
@@ -48,6 +48,8 @@ for image_path in $image_paths; do
     echo "Building image using Dockerfile in $image_path"
     /usr/bin/bash /kaapana/app/build_image.sh --dir $image_path
 done
+
+# TODO: add `custom_registry_url: "localhost:32000"` to values.yaml if not there
 
 # get the Chart.yaml file and build, save, import it into the platform
 chart_path=$(find $extension_path -type f \( -name "Chart.yaml" \) -exec dirname {} \;)

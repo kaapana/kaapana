@@ -88,7 +88,7 @@ spec:
         - name: LOCAL_REGISTRY_URL
           value: "{{ tpl .Values.global.local_registry_url . }}"
         - name: VOLUME_PATH
-          value: /extensions
+          value: /kaapana/minio/edk-to-minio
         - name: KUBE_HELM_URL
           value: "http://kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000/kube-helm-api"
         resources:

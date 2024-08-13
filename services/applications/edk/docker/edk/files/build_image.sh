@@ -5,7 +5,8 @@ dockerfile=""
 context_path=""
 image_name=""
 image_version=""
-no_import=""
+tar=""
+import=""
 
 # help message
 print_help() {
@@ -16,7 +17,8 @@ print_help() {
     echo "  --dockerfile      Path to the Dockerfile (optional, defaults to <context-path>/Dockerfile)"
     echo "  --image-name      Name of the Docker image (optional, if not provided, extracted from Dockerfile LABEL IMAGE)"
     #TODO echo "  --image-version   Version of the Docker image (optional, defaults to KAAPANA_BUILD_VERSION)"
-    echo "  --no-import       Skip importing container inside microk8s ctr"
+    echo "  --tar             Export container as a tarball file"
+    echo "  --import          Import container inside microk8s ctr"
     echo "  --help            Display this help message"
     echo
 }
@@ -28,7 +30,8 @@ while [[ "$#" -gt 0 ]]; do
         --dockerfile) dockerfile="$2"; shift ;;
         --image-name) image_name="$2"; shift ;;
         --image-version) image_version="$2"; shift ;;
-        --no-import) no_import="true"; shift ;;
+        --tar) tar="true"; shift ;;
+        --import) import="true"; shift ;;
         --help) print_help; exit 0 ;;
         *) echo "Unknown argument: $1"; print_help; exit 1 ;;
     esac
@@ -90,15 +93,19 @@ fi
 # run python script for starting kaniko builder pod, this might take some time to finish as it builds and pushes the image to local registry
 python3 /kaapana/app/utils/create_kaniko_pod.py /kaapana/app/utils/kaniko-builder-pod.yml --dockerfile "$dockerfile" --context "$context_path" --image_name "$image_name" --image_version "$image_version"
 
-# run skopeo command to copy from local reg to a tarball
-skopeo copy --tls-verify=false docker://$LOCAL_REGISTRY_URL/$image_name:$image_version oci-archive:/kaapana/minio/edk-to-minio/$image_name.tar:$REGISTRY_URL/$image_name:$image_version
+if [[ "$tar" == "true" || "$import" == "true" ]]; then
+    # run skopeo command to copy from local reg to a tarball
+    skopeo copy --tls-verify=false docker://$LOCAL_REGISTRY_URL/$image_name:$image_version oci-archive:/kaapana/minio/edk-to-minio/$image_name.tar:$REGISTRY_URL/$image_name:$image_version
+    echo "Tarball file created: '/kaapana/minio/edk-to-minio/$image_name.tar'"
 
-# check if --no-import is passed
-if [ "$no_import" != "true" ]; then
-    # send req to kube-helm /import-container endpoint for importing container tar into ctr
-    echo "Importing container tar into ctr..."
-    curl -G "$KUBE_HELM_URL/import-container" --data-urlencode "filename=$image_name.tar"
-    # TODO: rm .tar file if import is successful
+    if [[ "$import" == "true" ]]; then
+        # send req to kube-helm /import-container endpoint for importing container tar into ctr
+        echo "Importing container tar into ctr..."
+        curl -G "$KUBE_HELM_URL/import-container" --data-urlencode "filename=$image_name.tar"
+    else
+        echo "Skipping container import to microk8s."
+    fi
+    
 else
-    echo "Skipping import."
+    echo "Skipping tarball generation and microk8s import."
 fi

@@ -72,6 +72,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
     def __init__(self, workflow_dir=None):
         super().__init__(workflow_dir=workflow_dir)
 
+        # recovery mode
         if (
             "federated_round" in self.remote_conf_data["federated_form"]
             and self.remote_conf_data["federated_form"]["federated_round"] > -1
@@ -82,6 +83,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data["federated_form"]["federated_total_rounds"] = (
                 self.remote_conf_data["federated_form"]["federated_total_rounds"] - 1
             )
+
+        # setting epochs configs to be also available in client's nnunet-training workflows
         if (
             self.remote_conf_data["workflow_form"]["train_max_epochs"]
             % self.remote_conf_data["federated_form"]["federated_total_rounds"]
@@ -95,11 +98,13 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 self.remote_conf_data["workflow_form"]["train_max_epochs"]
                 / self.remote_conf_data["federated_form"]["federated_total_rounds"]
             )
-        print(f"Overwriting prep_increment_step to to_dataset_properties!")
 
+        # set to 'to_dataset_properties' to start training with generation of dataset_properties at clients
+        print(f"Overwriting prep_increment_step to to_dataset_properties!")
         self.remote_conf_data["workflow_form"][
             "prep_increment_step"
         ] = "to_dataset_properties"
+
         # We increase the total federated round by one, because we need the final round to download the final model.
         # The nnUNet won't train an epoch longer, since its train_max_epochs!
         self.remote_conf_data["federated_form"]["federated_total_rounds"] = (
@@ -108,6 +113,11 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         print(
             f"Epochs per round {self.remote_conf_data['workflow_form']['epochs_per_round']}"
         )
+
+        # make federated data fingerprint strategy available in client's nnunet-training workflow
+        self.remote_conf_data["workflow_form"][
+            "global_fingerprint"
+        ] = self.remote_conf_data["federated_form"]["global_fingerprint"]
 
     def tensorboard_logs(self, federated_round):
         current_federated_round_dir = Path(

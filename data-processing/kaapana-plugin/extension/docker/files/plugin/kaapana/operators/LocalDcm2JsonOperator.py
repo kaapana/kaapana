@@ -250,7 +250,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
             "UI",
             "UN",
             "UT",
-            "UR",  # TODO Process URI correctly.
+            "UR",
         ):
             new_tag += "_keyword"
             metadata[new_tag] = value_str

@@ -57,12 +57,9 @@ class ExternalPacsOperator(KaapanaPythonBaseOperator):
             )
         )
         filtered_series = list(
-            set(
-                filter(
-                    lambda instance: extract_series_uid(instance)
-                    not in local_series_uids,
-                    metadata,
-                )
+            filter(
+                lambda instance: extract_series_uid(instance) not in local_series_uids,
+                metadata,
             )
         )
         logger.info(
@@ -153,11 +150,12 @@ class ExternalPacsOperator(KaapanaPythonBaseOperator):
             "query": {
                 "bool": {
                     "must": {
-                        "match": {HelperOpensearch.dcmweb_endpoint_tag: dcmweb_endpoint}
+                        "term": {f"{HelperOpensearch.dcmweb_endpoint_tag}.keyword": dcmweb_endpoint}
                     }
                 }
             }
         }
+        logger.info(f"Deleting metadata from opensearch using query: {query}")
         HelperOpensearch.delete_by_query(query)
 
     @cache_operator_output

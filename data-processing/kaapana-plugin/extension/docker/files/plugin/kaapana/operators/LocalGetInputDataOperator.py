@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import base64
 import glob
 import json
 import os
@@ -14,7 +13,7 @@ from pathlib import Path
 import pydicom
 from kaapana.kubetools.secret import get_k8s_secret, hash_secret_name
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb, get_dcmweb_helper
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.logger import get_logger
@@ -86,7 +85,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            download_successful = self.dcmweb_helper.retrieve_series(
+            download_successful = self.dcmweb_helper.downloadSeries(
                 series_uid=seriesUID, target_dir=Path(target_dir)
             )
             if not download_successful:
@@ -195,6 +194,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         logger.info("# Starting module LocalGetInputDataOperator...")
         self.conf = kwargs["dag_run"].conf
         self.dag_run_id = kwargs["dag_run"].run_id
+        self.dag_run = kwargs["dag_run"]
 
         if not self.conf:
             logger.error("When is this the case?")
@@ -322,7 +322,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         for dcmweb_endpoint, group_download_list in grouped_downloads.items():
             if not dcmweb_endpoint:  # if local pacs
-                self.dcmweb_helper = get_dcmweb_helper(dcmweb_endpoint)
+                self.dcmweb_helper = HelperDcmWeb(application_entity="KAAPANA", dag_run=kwargs["dag_run"])
             else:
                 secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
                 service_account_info = get_k8s_secret(secret_name)

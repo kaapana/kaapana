@@ -171,7 +171,6 @@ class HelperMinio(Minio):
             content = json.loads(response.read().decode("utf-8"))
             response.close()
             response.release_conn()
-            json.loads(content)
             return content
 
         except S3Error:

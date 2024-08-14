@@ -176,7 +176,6 @@ spec:
       # - name: dicomdir
       #   persistentVolumeClaim:
       #     claimName: dcm4chee-dicom-pv-claim
-      serviceAccountName: kaapana-kube-admin
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

@@ -15,14 +15,15 @@ from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
     SYSTEM_USER_PASSWORD,
 )
+from kaapana.kubetools.secret import get_k8s_secret, hash_secret_name
 
 logger = logging.getLogger(__name__)
 
 
 def get_dcmweb_helper(
-    dcmweb_endpoint: str,
     application_entity: str = "KAAPANA",
-    service_account_info: Dict[str, str] | None = None,
+    dag_run=None,
+    dcmweb_endpoint=None,
 ):
     if dcmweb_endpoint:
         try:
@@ -31,19 +32,26 @@ def get_dcmweb_helper(
                 HelperDcmWebGcloud,
             )
 
+            secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
+            service_account_info = get_k8s_secret(secret_name)
+            if not service_account_info:
+                raise FileNotFoundError(f"Cannot retrieve secret for {dcmweb_endpoint}")
             if "google" in dcmweb_endpoint and service_account_info:
                 return HelperDcmWebGcloud(
                     dcmweb_endpoint=dcmweb_endpoint,
                     service_account_info=service_account_info,
                 )
         except ModuleNotFoundError:
-            pass
+            logger.error(
+                "There is no external helper installed - see extensions external-pacs"
+            )
+            exit(1)
 
         except Exception:
             logger.error(f"Unknown dcmweb_endpoint: {dcmweb_endpoint}")
-            logger.error("Defaulting to the local dcm4chee")
-
-    return HelperDcmWeb(application_entity=application_entity)
+            exit(1)
+    else:
+        return HelperDcmWeb(application_entity=application_entity, dag_run=dag_run)
 
 
 class DcmWebException(Exception):

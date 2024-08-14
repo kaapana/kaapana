@@ -8,7 +8,7 @@ from pathlib import Path
 import pydicom
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb, get_dcmweb_helper
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -25,9 +25,10 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         print("# Downloading series: {}".format(series["reference_series_uid"]))
         try:
             if self.data_type == "dicom":
-                download_successful = self.dcmweb_helper.retrieve_series(
+                download_successful = self.dcmweb_helper.downloadSeries(
                     series_uid=series["reference_series_uid"],
-                    target_dir=Path(series["target_dir"]),
+                    target_dir=series["target_dir"],
+                    expected_object_count=series["expected_object_count"],
                 )
                 if not download_successful:
                     raise ValueError("ERROR")
@@ -55,6 +56,18 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
+        workflow_form = kwargs["dag_run"].conf["workflow_form"]
+        dcmweb_endpoint = workflow_form.get("dcmweb_endpoint")
+
+        self.dcmweb_helper = get_dcmweb_helper(
+            application_entity=self.aetitle,
+            dag_run=kwargs["dag_run"],
+            dcmweb_endpoint=dcmweb_endpoint,
+        )
+        if self.dcmweb_helper is None:
+            print("HelperDcmWeb couldn't be retrieved. Abort")
+            exit(1)
+
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]
         download_series_list = []
@@ -67,7 +80,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         print(f"# Expected_count: {self.expected_file_count}")
         print("#")
 
-        if self.target_level == "batch" and self.search_policy == None:
+        if self.target_level == "batch" and self.search_policy is None:
             target_dir = join(run_dir, self.operator_out_dir)
             print("#")
             print(f"# Target:     batch-level")
@@ -80,54 +93,11 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("# Searching for series with the following filters:")
             print(json.dumps(search_filters, indent=4, sort_keys=True))
             print("#")
-            pacs_series = self.dcmweb_helper.search_for_series(
-                search_filters=search_filters
-            )
-            print(f"Found series: {len(pacs_series)}")
-            if len(pacs_series) == 0 or (
-                self.expected_file_count != "all"
-                and len(pacs_series) != self.expected_file_count
-            ):
-                print(
-                    "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                )
-                print("# ")
-                print(f"Found images != expected file_count.")
-                print(
-                    f"Expected {self.expected_file_count} series - found {len(pacs_series)} series"
-                )
-                print("# Abort.")
-                print("# ")
-                print(
-                    "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                )
-                raise ValueError("ERROR")
-            for series in pacs_series:
-                series_uid = series["0020000E"]["Value"][0]
-                download_series_list.append(
-                    {
-                        "reference_series_uid": series_uid,
-                        "target_dir": join(
-                            target_dir, series_uid, self.operator_out_dir
-                        ),
-                    }
-                )
 
-            target_dir = join(run_dir, self.operator_out_dir)
-            print("#")
-            print(f"# Target:     batch-level")
-            print(f"# target_dir: {target_dir}")
-            print("#")
-            search_filters = {}
-            for dicom_tag in self.dicom_tags:
-                search_filters[dicom_tag["id"]] = dicom_tag["value"]
-            print("#")
-            print("# Searching for series with the following filters:")
-            print(json.dumps(search_filters, indent=4, sort_keys=True))
-            print("#")
             pacs_series = self.dcmweb_helper.search_for_series(
                 search_filters=search_filters
             )
+
             print(f"Found series: {len(pacs_series)}")
             if len(pacs_series) == 0 or (
                 self.expected_file_count != "all"
@@ -332,7 +302,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             )
             raise ValueError("ERROR")
 
-        if self.limit_file_count != None:
+        if self.limit_file_count is not None:
             download_series_list = download_series_list[: self.limit_file_count]
 
         with ThreadPool(self.parallel_downloads) as threadpool:

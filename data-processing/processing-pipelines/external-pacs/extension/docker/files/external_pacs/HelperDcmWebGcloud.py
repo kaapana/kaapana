@@ -92,7 +92,7 @@ class HelperDcmWebGcloud:
         )
         return False
 
-    def check_if_series_in(self, series_uid: str) -> bool:
+    def check_if_series_in_archive(self, series_uid: str) -> bool:
         for attempt in range(1, 31):
             series = self.search_for_series({"SeriesInstanceUID": series_uid})
             if series is not None:
@@ -105,10 +105,11 @@ class HelperDcmWebGcloud:
         logger.error(f"Series {series_uid} not found in PACS after 30 attempts.")
         return False
 
-    def retrieve_series(
+    def downloadSeries(
         self,
         series_uid: str,
         target_dir: Path,
+        expected_object_count=None,
         include_series_dir: Optional[bool] = False,
     ) -> bool:
         instances = self.search_for_instances({"SeriesInstanceUID": series_uid})
@@ -128,8 +129,29 @@ class HelperDcmWebGcloud:
             target_dir /= series_uid
         target_dir.mkdir(parents=True, exist_ok=True)
 
+        if expected_object_count is not None and expected_object_count > len(
+            object_uids
+        ):
+            if len(object_uids) == 1 and object_uids[0][-1] is not None:
+                if expected_object_count <= int(object_uids[0][-1]):
+                    print(
+                        f"len(objectUIDList) {len(object_uids)} AND expected_object_count {expected_object_count} <= NumberOfFrames {object_uids[0][-1]} --> success!"
+                    )
+                else:
+                    raise ValueError(
+                        f"{len(object_uids)=} but NumberOfFrames is {object_uids[0][-1]} --> unknown DICOM tag situation -> abort"
+                    )
+            else:
+                raise ValueError(
+                    f"expected_object_count {expected_object_count} > len(objectUIDList) {len(object_uids)} --> not all expected objects have been found -> abort"
+                )
+        elif expected_object_count is not None:
+            print(
+                f"expected_object_count {expected_object_count} <= len(objectUIDList) {len(object_uids)} --> success!"
+            )
+
         for study_uid, object_uid in object_uids:
-            if not self.retrieve_object(
+            if not self.downloadObject(
                 study_uid=study_uid,
                 series_uid=series_uid,
                 object_uid=object_uid,
@@ -139,7 +161,7 @@ class HelperDcmWebGcloud:
 
         return True
 
-    def retrieve_object(
+    def downloadObject(
         self,
         study_uid: str,
         series_uid: str,

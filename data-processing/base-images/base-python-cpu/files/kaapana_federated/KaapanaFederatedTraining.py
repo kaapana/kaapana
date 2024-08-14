@@ -266,7 +266,9 @@ class KaapanaFederatedTrainingBase(ABC):
     def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data["federated_form"]["federated_round"] = federated_round
+
         for site_info in self.remote_sites:
+            # update previous_dag_run attributes necessary for caching and restarting processes
             if site_info["instance_name"] not in self.tmp_federated_site_info:
                 self.tmp_federated_site_info[site_info["instance_name"]] = {}
                 self.remote_conf_data["federated_form"]["from_previous_dag_run"] = None
@@ -285,6 +287,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     "from_previous_dag_run"
                 ]
 
+            # create at local instance jobs for remote sites
             with requests.Session() as s:
                 r = requests_retry_session(session=s).put(
                     f"{self.client_url}/workflow_jobs",

@@ -12,10 +12,8 @@ global:
   - name: edk
     mount_path: /kaapana/minio/
     host_path: /applications
-    storage: 1Gi
+    storage: 10Gi
     minio_mirror : true
-  - name: platform-extensions
-    host_path: /extensions
   envVars:
   - name: WORKSPACE
     value: "/kaapana"

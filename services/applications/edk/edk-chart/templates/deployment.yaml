@@ -88,7 +88,7 @@ spec:
         - name: LOCAL_REGISTRY_URL
           value: "{{ tpl .Values.global.local_registry_url . }}"
         - name: VOLUME_PATH
-          value: /extensions
+          value: /kaapana/minio/edk-to-minio
         - name: KUBE_HELM_URL
           value: "http://kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000/kube-helm-api"
         resources:
@@ -97,8 +97,6 @@ spec:
           limits:
             memory: 30Gi
         volumeMounts:
-          - name: platform-extensions
-            mountPath: /kaapana/mounted/extensions
           - name: configs
             mountPath: /root/.local/share/code-server/User/settings.json
             subPath: settings.json
@@ -110,9 +108,6 @@ spec:
           privileged: true
         {{- end }}
       volumes:
-      - name: platform-extensions
-        persistentVolumeClaim:
-          claimName: platform-extensions-pv-claim
       - name: configs
         configMap:
           name: {{ .Release.Name }}

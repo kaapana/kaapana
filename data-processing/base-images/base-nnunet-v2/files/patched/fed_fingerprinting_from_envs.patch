@@ -1,0 +1,57 @@
+From 1ac6ab3c4e24f6660da2977b10590496d4cf5d08 Mon Sep 17 00:00:00 2001
+From: "Bujotzek, Markus" <markus.bujotzek@dkfz-heidelberg.de>
+Date: Thu, 15 Aug 2024 17:45:27 +0200
+Subject: [PATCH] fed_fingerprinting_from_envs
+
+---
+ .../fingerprint_extractor.py                  | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+index 1157be7..ff1d376 100644
+--- a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
++++ b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+@@ -33,10 +33,18 @@ class DatasetFingerprintExtractor(object):
+         self.dataset_json = load_json(join(self.input_folder, 'dataset.json'))
+         self.dataset = get_filenames_of_train_images_and_targets(self.input_folder, self.dataset_json)
+ 
++        # for federated data fingerprinting
++        # set fed_num_clients=1 as default (also for local training)
++        fed_num_clients = os.getenv("FED_NUM_CLIENTS", None)
++        self.fed_num_clients = int(fed_num_clients) if fed_num_clients else 1
++        # set fed_global_fingerprint="estimate" as default to not write 10e7 voxels in data fingerprint
++        self.fed_global_fingerprint = os.getenv("FED_GLOBAL_FINGERPRINT", "estimate")
++
+         # We don't want to use all foreground voxels because that can accumulate a lot of data (out of memory). It is
+         # also not critically important to get all pixels as long as there are enough. Let's use 10e7 voxels in total
+         # (for the entire dataset)
+-        self.num_foreground_voxels_for_intensitystats = 10e4
++        self.num_foreground_voxels_for_intensitystats = (10e7 // self.fed_num_clients)
++
+ 
+     @staticmethod
+     def collect_foreground_intensities(segmentation: np.ndarray, images: np.ndarray, seed: int = 1234,
+@@ -187,13 +195,18 @@ class DatasetFingerprintExtractor(object):
+                     'max': float(np.max(foreground_intensities_per_channel[i])),
+                     'percentile_99_5': float(percentile_99_5),
+                     'percentile_00_5': float(percentile_00_5),
+-                    'v': foreground_intensities_per_channel_per_case,
+                 }
++                # put v in fingerprint dependent on fed_global_fingerprint argument
++                if self.fed_global_fingerprint and self.fed_global_fingerprint == "accurate":
++                    print(f"KaapanaFed-adapted: {self.fed_global_fingerprint=} ==> We are sharing {self.num_foreground_voxels_for_intensitystats} voxels!")
++                    intensity_statistics_per_channel[i] = {
++                        'v': foreground_intensities_per_channel_per_case
++                    }
+ 
+             fingerprint = {
+                     "spacings": spacings,
+                     "shapes_after_crop": shapes_after_crop,
+-                    'foreground_intensity_properties_per_channel': intensity_statistics_per_channel,
++                    "foreground_intensity_properties_per_channel": intensity_statistics_per_channel,
+                     "median_relative_size_after_cropping": median_relative_size_after_cropping
+                 }
+ 
+-- 
+2.45.2
+

@@ -1,0 +1,171 @@
+diff --git a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+index 1157be7..152179e 100644
+--- a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
++++ b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+@@ -16,7 +16,7 @@ from nnunetv2.utilities.utils import get_filenames_of_train_images_and_targets
+ 
+ 
+ class DatasetFingerprintExtractor(object):
+-    def __init__(self, dataset_name_or_id: Union[str, int], num_processes: int = 8, verbose: bool = False):
++    def __init__(self, dataset_name_or_id: Union[str, int], num_processes: int = 8, verbose: bool = False, fed_num_clients: int = 1, fed_global_fingerprint: str = None):
+         """
+         extracts the dataset fingerprint used for experiment planning. The dataset fingerprint will be saved as a
+         json file in the input_folder
+@@ -33,10 +33,15 @@ class DatasetFingerprintExtractor(object):
+         self.dataset_json = load_json(join(self.input_folder, 'dataset.json'))
+         self.dataset = get_filenames_of_train_images_and_targets(self.input_folder, self.dataset_json)
+ 
++        # for federated data fingerprinting
++        self.fed_num_clients = fed_num_clients
++        self.fed_global_fingerprint = fed_global_fingerprint
++
+         # We don't want to use all foreground voxels because that can accumulate a lot of data (out of memory). It is
+         # also not critically important to get all pixels as long as there are enough. Let's use 10e7 voxels in total
+         # (for the entire dataset)
+-        self.num_foreground_voxels_for_intensitystats = 10e4
++        self.num_foreground_voxels_for_intensitystats = (10e7 // self.fed_num_clients)
++
+ 
+     @staticmethod
+     def collect_foreground_intensities(segmentation: np.ndarray, images: np.ndarray, seed: int = 1234,
+@@ -187,13 +192,18 @@ class DatasetFingerprintExtractor(object):
+                     'max': float(np.max(foreground_intensities_per_channel[i])),
+                     'percentile_99_5': float(percentile_99_5),
+                     'percentile_00_5': float(percentile_00_5),
+-                    'v': foreground_intensities_per_channel_per_case,
+                 }
++                # put v in fingerprint dependent on fed_global_fingerprint argument
++                if self.fed_global_fingerprint and self.fed_global_fingerprint == "accurate":
++                    print(f"KaapanaFed-adapted: {self.fed_global_fingerprint=} ==> We are sharing {self.num_foreground_voxels_for_intensitystats} voxels!")
++                    intensity_statistics_per_channel[i] = {
++                        'v': foreground_intensities_per_channel_per_case
++                    }
+ 
+             fingerprint = {
+                     "spacings": spacings,
+                     "shapes_after_crop": shapes_after_crop,
+-                    'foreground_intensity_properties_per_channel': intensity_statistics_per_channel,
++                    "foreground_intensity_properties_per_channel": intensity_statistics_per_channel,
+                     "median_relative_size_after_cropping": median_relative_size_after_cropping
+                 }
+ 
+diff --git a/nnunetv2/experiment_planning/plan_and_preprocess_api.py b/nnunetv2/experiment_planning/plan_and_preprocess_api.py
+index c063328..e61c3e8 100644
+--- a/nnunetv2/experiment_planning/plan_and_preprocess_api.py
++++ b/nnunetv2/experiment_planning/plan_and_preprocess_api.py
+@@ -18,24 +18,37 @@ from nnunetv2.utilities.utils import get_filenames_of_train_images_and_targets
+ def extract_fingerprint_dataset(dataset_id: int,
+                                 fingerprint_extractor_class: Type[
+                                     DatasetFingerprintExtractor] = DatasetFingerprintExtractor,
+-                                num_processes: int = default_num_processes, check_dataset_integrity: bool = False,
+-                                clean: bool = True, verbose: bool = True):
++                                num_processes: int = default_num_processes,
++                                check_dataset_integrity: bool = False,
++                                increment_step: str = None,
++                                clean: bool = True,
++                                verbose: bool = True,
++                                fed_num_clients: int = 1,
++                                fed_global_fingerprint: str = None):
+     """
+     Returns the fingerprint as a dictionary (additionally to saving it)
+     """
+     dataset_name = convert_id_to_dataset_name(dataset_id)
+     print(dataset_name)
+ 
+-    if check_dataset_integrity:
++    if check_dataset_integrity and increment_step in ["all", "to_dataset_properties"]:
+         verify_dataset_integrity(join(nnUNet_raw, dataset_name), num_processes)
++    else:
++        print("Skipping verify_dataset_integrity (arguments 'check_dataset_integrity' or 'increment_step' not set!")
+ 
+-    fpe = fingerprint_extractor_class(dataset_id, num_processes, verbose=verbose)
++    fpe = fingerprint_extractor_class(dataset_id, num_processes, verbose=verbose, fed_num_clients=fed_num_clients, fed_global_fingerprint=fed_global_fingerprint)
+     return fpe.run(overwrite_existing=clean)
+ 
+ 
+-def extract_fingerprints(dataset_ids: List[int], fingerprint_extractor_class_name: str = 'DatasetFingerprintExtractor',
+-                         num_processes: int = default_num_processes, check_dataset_integrity: bool = False,
+-                         clean: bool = True, verbose: bool = True):
++def extract_fingerprints(dataset_ids: List[int],
++                        fingerprint_extractor_class_name: str = 'DatasetFingerprintExtractor',
++                        num_processes: int = default_num_processes, 
++                        check_dataset_integrity: bool = False,
++                        increment_step: str = None,
++                        clean: bool = True, 
++                        verbose: bool = True,
++                        fed_num_clients: int = 1,
++                        fed_global_fingerprint: str = None):
+     """
+     clean = False will not actually run this. This is just a switch for use with nnUNetv2_plan_and_preprocess where
+     we don't want to rerun fingerprint extraction every time.
+@@ -44,8 +57,8 @@ def extract_fingerprints(dataset_ids: List[int], fingerprint_extractor_class_nam
+                                                               fingerprint_extractor_class_name,
+                                                               current_module="nnunetv2.experiment_planning")
+     for d in dataset_ids:
+-        extract_fingerprint_dataset(d, fingerprint_extractor_class, num_processes, check_dataset_integrity, clean,
+-                                    verbose)
++        extract_fingerprint_dataset(d, fingerprint_extractor_class, num_processes, check_dataset_integrity, increment_step, clean,
++                                    verbose, fed_num_clients, fed_global_fingerprint)
+ 
+ 
+ def plan_experiment_dataset(dataset_id: int,
+diff --git a/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py b/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
+index 8ba0c5e..15bbe1f 100644
+--- a/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
++++ b/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
+@@ -177,11 +177,51 @@ def plan_and_preprocess_entry():
+     parser.add_argument('--verbose', required=False, action='store_true',
+                         help='Set this to print a lot of stuff. Useful for debugging. Will disable progress bar! '
+                              'Recommended for cluster environments')
++    # for federated execution
++    parser.add_argument(
++        "--increment_step",
++        type=str,
++        default="all",
++        help="Kaapana adaption for federated usage of nnunet-training workflow: 'all', 'to_dataset_properties' or 'from_dataset_properties'; "
++             "enables to do the preprocessing incremental.",
++    )
++    # for federated execution
++    parser.add_argument(
++        "--fed_num_clients",
++        type=str,
++        default="1",
++        help="Kaapana adaption for federated usage of nnunet-training workflow: Indicates how many clients are participating in FL experiment."
++    )
++    # for federated execution
++    parser.add_argument(
++        "--fed_global_fingerprint",
++        type=str,
++        default="all",
++        help="Kaapana adaption for federated usage of nnunet-training workflow: 'accuate' or 'estimate'; indicates selected strategy to obtain "
++             "global data fingerprint across all FL clients.",
++    )
++
+     args = parser.parse_args()
+ 
+-    # fingerprint extraction
+-    print("Fingerprint extraction...")
+-    extract_fingerprints(args.d, args.fpe, args.npfp, args.verify_dataset_integrity, args.clean, args.verbose)
++    # for federated execution
++    # incremental execution of preprocessing
++    if args.increment_step not in [
++        "all",
++        "to_dataset_properties",
++        "from_dataset_properties",
++    ]:
++        raise NameError(
++            "--increment_step has to be one of 'all', 'to_dataset_properties', 'from_dataset_properties'"
++        )
++    if args.increment_step in ["all", "to_dataset_properties"]:
++          # fingerprint extraction
++          print("Fingerprint extraction...")
++          extract_fingerprints(args.d, args.fpe, args.npfp, args.verify_dataset_integrity, args.increment_step, args.clean, args.verbose, int(args.fed_num_clients), args.fed_global_fingerprint)
++    else:
++          print("Skipping fingerprint extraction due to argument 'increment_step'!")
++    if args.increment_step == "to_dataset_properties":
++          print("Interupting plan and preprocess due to argument 'increment_step'== 'to_dataset_properties'!")
++          return
+ 
+     # experiment planning
+     print('Experiment planning...')
+-- 

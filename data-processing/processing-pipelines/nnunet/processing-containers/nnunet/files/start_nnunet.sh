@@ -41,6 +41,7 @@ if [ "$MODE" = "preprocess" ]; then
     else
         number_processes=""
     fi
+
     if [ "$PREP_CHECK_INTEGRITY" = "True" ] || [ "$PREP_CHECK_INTEGRITY" = "true" ]; then
         preprocess_verify="--verify_dataset_integrity"
     else
@@ -52,11 +53,13 @@ if [ "$MODE" = "preprocess" ]; then
     else
         preprocess="-no_pp"
     fi
+
     if ! [ -z "$PLAN_NETWORK_PLANNER" ]; then
         experiment_planner=$PLAN_NETWORK_PLANNER
     else
         experiment_planner="nnUNetPlannerResEncM"
     fi
+
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then
         experiment_planner_pretrain="-pl3d ExperimentPlanner3D_v21_Pretrained"
         plans_path=$(dirname "$PRETRAINED_WEIGHTS")
@@ -90,10 +93,13 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     echo "# PRE-TRAINED WEIGHTS:    $PRETRAINED_WEIGHTS";
     echo "#"
+    echo "# FED_NUM_CLIENTS:        $FED_NUM_CLIENTS";
+    echo "# FED_GLOBAL_FINGERPRINT: $FED_GLOBAL_FINGERPRINT";
     echo "#"
-    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
     echo "#"
-    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
+    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP --fed_num_clients $FED_NUM_CLIENTS --fed_global_fingerprint $FED_GLOBAL_FINGERPRINT $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
+    echo "#"
+    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP --fed_num_clients $FED_NUM_CLIENTS --fed_global_fingerprint $FED_GLOBAL_FINGERPRINT $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"

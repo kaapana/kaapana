@@ -116,8 +116,12 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
 
         # make federated data fingerprint strategy available in client's nnunet-training workflow
         self.remote_conf_data["workflow_form"][
-            "global_fingerprint"
+            "fed_global_fingerprint"
         ] = self.remote_conf_data["federated_form"]["global_fingerprint"]
+        # make number of FL clients availiable in client's nnunet-training workflow
+        self.remote_conf_data["workflow_form"]["fed_num_clients"] = len(
+            self.remote_conf_data["instance_names"]
+        )
 
     def tensorboard_logs(self, federated_round):
         current_federated_round_dir = Path(

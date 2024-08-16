@@ -279,9 +279,14 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                                     == "estimate"
                                 ):
                                     clients_intensity_properties[mod_id] = [
-                                        concat_dataset_fingerprints[
-                                            "foreground_intensity_properties_per_channel"
-                                        ][mod_id]
+                                        {
+                                            **concat_dataset_fingerprints[
+                                                "foreground_intensity_properties_per_channel"
+                                            ][mod_id],
+                                            "n": len(
+                                                concat_dataset_fingerprints["spacings"]
+                                            ),
+                                        }
                                     ]
 
                                 print(
@@ -334,11 +339,13 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                                     ]
                                     == "estimate"
                                 ):
-                                    clients_intensity_properties[mod_id] = (
-                                        clients_intensity_properties[mod_id]
-                                        + dataset_fingerprints[
-                                            "foreground_intensity_properties_per_channel"
-                                        ][mod_id]
+                                    clients_intensity_properties[mod_id].append(
+                                        {
+                                            **concat_dataset_fingerprints[
+                                                "foreground_intensity_properties_per_channel"
+                                            ][mod_id],
+                                            "n": len(dataset_fingerprints["spacings"]),
+                                        }
                                     )
                                 print(
                                     f"Concatenated fingerprint {idx} of modality {mod_id}."
@@ -409,6 +416,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                     concat_dataset_fingerprints[
                         "foreground_intensity_properties_per_channel"
                     ][str(mod_id)].update(global_intensityproperties[int(mod_id)])
+                    print(0)
 
             for fname in dataset_fingerprints_files:
                 with open(fname, "w") as f:

@@ -14,6 +14,7 @@ from nnunet.experiment_planning.DatasetAnalyzer import DatasetAnalyzer
 from batchgenerators.utilities.file_and_folder_operations import join
 import psutil
 import numpy as np
+import math
 
 sys.path.insert(0, "/")
 sys.path.insert(0, "/kaapana/app")
@@ -62,7 +63,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
 
     def estimate_global_intensity_properties(self, intensities_per_mod):
         """
-        Method estimates from intensities properties per client and modality, the global intensity statistics/properties per modality.
+        Method estimates from intensities properties per client and modality,
+        the global intensity statistics/properties per modality.
 
         Input:
         * intensities_per_mod: List of intensities properties per client and per modality
@@ -70,7 +72,70 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         Output:
         * results: Global intensity properties per modality (global over all clients).
         """
-        print(0)
+        results = {}
+
+        # Iterate over modalities
+        for mod_id, all_intensities in intensities_per_mod.items():
+            # Initialize accumulators
+            total_mean = 0.0
+            total_variance = 0.0
+            total_median = 0.0
+            total_percentile_00_5 = 0.0
+            total_percentile_99_5 = 0.0
+            total_samples = 0
+            glob_min = float("inf")
+            glob_max = float("-inf")
+
+            for stats in all_intensities:
+                mean = stats["mean"]
+                std = stats["std"]
+                median = stats["median"]
+                percentile_00_5 = stats["percentile_00_5"]
+                percentile_99_5 = stats["percentile_99_5"]
+                n = stats["n"]
+
+                # Update global mean
+                total_mean += mean * n
+                total_samples += n
+
+                # Update global standard deviation
+                total_variance += n * (
+                    std**2 + (mean - (total_mean / total_samples)) ** 2
+                )
+
+                # Update global min and max
+                glob_min = min(glob_min, stats["min"])
+                glob_max = max(glob_max, stats["max"])
+
+                # Update global median and percentiles
+                total_median += median * n
+                total_percentile_00_5 += percentile_00_5 * n
+                total_percentile_99_5 += percentile_99_5 * n
+
+            # Final global mean and standard deviation
+            glob_mean = total_mean / total_samples
+            glob_std = math.sqrt(total_variance / total_samples)
+
+            # Estimate global median and percentiles via weighted mean of client's medians and percentiles
+            # glob_median = np.mean([x["median"] for x in all_intensities])
+            # glob_percentile_00_5 = np.mean([x["percentile_00_5"] for x in all_intensities])
+            # glob_percentile_99_5 = np.mean([x["percentile_99_5"] for x in all_intensities])
+            glob_median = total_median / total_samples
+            glob_percentile_00_5 = total_percentile_00_5 / total_samples
+            glob_percentile_99_5 = total_percentile_99_5 / total_samples
+
+            # Store results in the dictionary
+            results[int(mod_id)] = {
+                "mn": glob_min,
+                "mx": glob_max,
+                "mean": glob_mean,
+                "sd": glob_std,
+                "median": glob_median,
+                "percentile_00_5": glob_percentile_00_5,
+                "percentile_99_5": glob_percentile_99_5,
+            }
+
+        return results
 
     def __init__(self, workflow_dir=None):
         super().__init__(workflow_dir=workflow_dir)
@@ -214,9 +279,14 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                                     == "estimate"
                                 ):
                                     clients_intensity_properties[mod_id] = [
-                                        concat_dataset_fingerprints[
-                                            "foreground_intensity_properties_per_channel"
-                                        ][mod_id]
+                                        {
+                                            **concat_dataset_fingerprints[
+                                                "foreground_intensity_properties_per_channel"
+                                            ][mod_id],
+                                            "n": len(
+                                                concat_dataset_fingerprints["spacings"]
+                                            ),
+                                        }
                                     ]
 
                                 print(
@@ -269,11 +339,13 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                                     ]
                                     == "estimate"
                                 ):
-                                    clients_intensity_properties[mod_id] = (
-                                        clients_intensity_properties[mod_id]
-                                        + dataset_fingerprints[
-                                            "foreground_intensity_properties_per_channel"
-                                        ][mod_id]
+                                    clients_intensity_properties[mod_id].append(
+                                        {
+                                            **concat_dataset_fingerprints[
+                                                "foreground_intensity_properties_per_channel"
+                                            ][mod_id],
+                                            "n": len(dataset_fingerprints["spacings"]),
+                                        }
                                     )
                                 print(
                                     f"Concatenated fingerprint {idx} of modality {mod_id}."
@@ -343,6 +415,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                     concat_dataset_fingerprints[
                         "foreground_intensity_properties_per_channel"
                     ][str(mod_id)].update(global_intensityproperties[int(mod_id)])
+                    print(0)
 
             for fname in dataset_fingerprints_files:
                 with open(fname, "w") as f:

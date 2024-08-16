@@ -93,13 +93,10 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     echo "# PRE-TRAINED WEIGHTS:    $PRETRAINED_WEIGHTS";
     echo "#"
-    echo "# FED_NUM_CLIENTS:        $FED_NUM_CLIENTS";
-    echo "# FED_GLOBAL_FINGERPRINT: $FED_GLOBAL_FINGERPRINT";
     echo "#"
+    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
     echo "#"
-    echo "# COMMAND:     nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP --fed_num_clients $FED_NUM_CLIENTS --fed_global_fingerprint $FED_GLOBAL_FINGERPRINT $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier"
-    echo "#"
-    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP --fed_num_clients $FED_NUM_CLIENTS --fed_global_fingerprint $FED_GLOBAL_FINGERPRINT $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
+    nnUNetv2_plan_and_preprocess -d $TASK_NUM -pl $PLAN_NETWORK_PLANNER -c $MODEL -np $number_processes --increment_step $PREP_INCREMENT_STEP $preprocess $preprocess_verify $experiment_planner_pretrain $overwrite_plans $overwrite_plans_identifier
     echo "#"
     echo "# Dataset itegrity OK!"
     echo "#"

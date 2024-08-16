@@ -1,0 +1,27 @@
+From 1f312e70e61b2e6a42dacfcdb284beb2427c2800 Mon Sep 17 00:00:00 2001
+From: "Bujotzek, Markus" <markus.bujotzek@dkfz-heidelberg.de>
+Date: Fri, 16 Aug 2024 16:26:12 +0200
+Subject: [PATCH] fix accurate fingerprint gen option
+
+---
+ .../dataset_fingerprint/fingerprint_extractor.py              | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+index ff1d376..bb4795a 100644
+--- a/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
++++ b/nnunetv2/experiment_planning/dataset_fingerprint/fingerprint_extractor.py
+@@ -199,9 +199,7 @@ class DatasetFingerprintExtractor(object):
+                 # put v in fingerprint dependent on fed_global_fingerprint argument
+                 if self.fed_global_fingerprint and self.fed_global_fingerprint == "accurate":
+                     print(f"KaapanaFed-adapted: {self.fed_global_fingerprint=} ==> We are sharing {self.num_foreground_voxels_for_intensitystats} voxels!")
+-                    intensity_statistics_per_channel[i] = {
+-                        'v': foreground_intensities_per_channel_per_case
+-                    }
++                    intensity_statistics_per_channel[i]["v"] = foreground_intensities_per_channel_per_case
+ 
+             fingerprint = {
+                     "spacings": spacings,
+-- 
+2.45.2
+

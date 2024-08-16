@@ -36,8 +36,8 @@ COPY files/patched/correct_checkpointing.patch /nnunet-pip-package/
 RUN git apply correct_checkpointing.patch
 COPY files/patched/do_always_final_checkpointing.patch /nnunet-pip-package/
 RUN git apply do_always_final_checkpointing.patch
-COPY files/patched/estimate_accurate_fed_fingerprinting.patch /nnunet-pip-package/
-RUN git apply estimate_accurate_fed_fingerprinting.patch
+COPY files/patched/fed_fingerprinting_from_envs.patch /nnunet-pip-package/
+RUN git apply --check --verbose fed_fingerprinting_from_envs.patch
 
 # install pip package in editable/dev mode
 RUN cd /nnunet-pip-package && pip3 install -e .

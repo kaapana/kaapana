@@ -1,3 +1,11 @@
 ---
 global:
-  dummy: ""
+  projectVolumes:
+  - name: tensorboard
+    host_path: /tensorboard
+  - name: models
+    host_path: /workflows/models
+  - name: workflow-data
+    host_path: /workflows/data
+  - name: mounted-scripts
+    host_path: /workflows/mounted_scripts

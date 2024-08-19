@@ -34,7 +34,6 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
-seg_filter = ""
 label_filter = ""
 prep_modalities = "CT"
 default_model = "3d_fullres"
@@ -136,13 +135,6 @@ ui_forms = {
                 "title": "Modalities",
                 "default": prep_modalities,
                 "description": "eg 'CT' or 'CT,PET' etc.",
-                "type": "string",
-                "readOnly": False,
-            },
-            "seg_filter": {
-                "title": "Seg",
-                "default": seg_filter,
-                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
                 "type": "string",
                 "readOnly": False,
             },
@@ -340,7 +332,6 @@ dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_input,
     dicom_operator=get_ref_ct_series_from_seg,
-    seg_filter=seg_filter,
 )
 
 mask_filter = LocalFilterMasksOperator(

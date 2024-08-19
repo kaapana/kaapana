@@ -255,107 +255,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
         # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
 
-        self.volume_mounts.append(
-            VolumeMount(
-                "workflowdata",
-                mount_path=PROCESSING_WORKFLOW_DIR,
-                sub_path=None,
-                read_only=False,
-            )
-        )
-
-        self.volumes.append(
-            Volume(
-                name="workflowdata",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "af-data-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount(
-                "miniodata", mount_path="/minio", sub_path=None, read_only=False
-            )
-        )
-
-        self.volumes.append(
-            Volume(
-                name="miniodata",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "minio-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount("models", mount_path="/models", sub_path=None, read_only=False)
-        )
-
-        self.volumes.append(
-            Volume(
-                name="models",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "models-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount(
-                "mounted-scripts",
-                mount_path="/kaapana/mounted/workflows/mounted_scripts",
-                sub_path=None,
-                read_only=False,
-            )
-        )
-
-        self.volumes.append(
-            Volume(
-                name="mounted-scripts",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "mounted-scripts-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount(
-                "tensorboard", mount_path="/tensorboard", sub_path=None, read_only=False
-            )
-        )
-
-        self.volumes.append(
-            Volume(
-                name="tensorboard",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "tb-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount("dshm", mount_path="/dev/shm", sub_path=None, read_only=False)
-        )
-
-        volume_config = {"emptyDir": {"medium": "Memory"}}
-        self.volumes.append(Volume(name="dshm", configs=volume_config))
-
         if self.pod_resources is None:
             pod_resources = PodResources(
                 request_cpu=(
@@ -447,6 +346,90 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             downstream=downstream,
             session=session,
         )
+
+    def set_volumes_and_volume_mounts(self):
+        """
+        Set volumes and volume claims based on the project namespace self.namespace.
+        This function should be called after self.namespace was changed according to the project in the context params.
+        """
+
+        volume_volumeMount_pairs = [
+            (
+                Volume(
+                    name="workflowdata",
+                    configs={
+                        "PersistentVolumeClaim": {
+                            "claim_name": f"project-{self.namespace}-workflow-data-pvc",
+                            "read_only": False,
+                        }
+                    },
+                ),
+                VolumeMount(
+                    "workflowdata",
+                    mount_path=PROCESSING_WORKFLOW_DIR,
+                    sub_path=None,
+                    read_only=False,
+                ),
+            ),
+            (
+                Volume(
+                    name="models",
+                    configs={
+                        "PersistentVolumeClaim": {
+                            "claim_name": f"project-{self.namespace}-models-pvc",
+                            "read_only": False,
+                        }
+                    },
+                ),
+                VolumeMount(
+                    "models", mount_path="/models", sub_path=None, read_only=False
+                ),
+            ),
+            (
+                Volume(
+                    name="mounted-scripts",
+                    configs={
+                        "PersistentVolumeClaim": {
+                            "claim_name": f"project-{self.namespace}-mounted-scripts-pvc",
+                            "read_only": False,
+                        }
+                    },
+                ),
+                VolumeMount(
+                    "mounted-scripts",
+                    mount_path="/kaapana/mounted/workflows/mounted_scripts",
+                    sub_path=None,
+                    read_only=False,
+                ),
+            ),
+            (
+                Volume(
+                    name="tensorboard",
+                    configs={
+                        "PersistentVolumeClaim": {
+                            "claim_name": f"project-{self.namespace}-tensorboard-pvc",
+                            "read_only": False,
+                        }
+                    },
+                ),
+                VolumeMount(
+                    "tensorboard",
+                    mount_path="/tensorboard",
+                    sub_path=None,
+                    read_only=False,
+                ),
+            ),
+            (
+                Volume(name="dshm", configs={"emptyDir": {"medium": "Memory"}}),
+                VolumeMount(
+                    "dshm", mount_path="/dev/shm", sub_path=None, read_only=False
+                ),
+            ),
+        ]
+
+        for volume, volumeMount in volume_volumeMount_pairs:
+            self.volumes.append(volume)
+            self.volume_mounts.append(volumeMount)
 
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
@@ -605,6 +588,17 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.delete_operator_out_dir(context["run_id"], self.operator_out_dir)
 
         try:
+            project_form = context.get("params").get("project_form")
+            self.namespace = "project-" + project_form.get("name")
+        except KeyError:
+            self.namespace = "project-admin"
+        except AttributeError:
+            self.namespace = "project-admin"
+
+        logging.info(f"DEVELOPMENT: {self.namespace=}")
+        self.set_volumes_and_volume_mounts()
+
+        try:
             logging.info("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
             logging.info(self.name)
             pod = Pod(
@@ -661,9 +655,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 return result
 
     def on_kill(self) -> None:
-        logging.info(
-            "##################################################### ON KILL!"
-        )
+        logging.info("##################################################### ON KILL!")
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=self.kube_name)
 
     def delete_operator_out_dir(self, run_id, operator_dir):

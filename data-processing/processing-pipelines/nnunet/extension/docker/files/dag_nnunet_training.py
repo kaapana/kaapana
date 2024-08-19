@@ -28,7 +28,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
-seg_filter = ""
+label_filter = ""
 prep_modalities = "CT"
 default_model = "3d_fullres"
 plan_network_planner = "nnUNetPlannerResEncM"
@@ -131,10 +131,34 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
-            "seg_filter": {
-                "title": "Seg",
-                "default": seg_filter,
-                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
+            "label_filter": {
+                "title": "Filter Seg Masks with keyword 'Ignore' or 'Keep'",
+                "default": label_filter,
+                "description": "'Ignore' or 'Keep' labels of multi-label DICOM SEGs for segmentation task: e.g. 'Keep: liver' or 'Ignore: spleen,liver'",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fuse_labels": {
+                "title": "Fuse Segmentation Labels",
+                "description": "Segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fused_label_name": {
+                "title": "Fuse Segmentation Label: New Label Name",
+                "description": "Segmentation label name of segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "old_labels": {
+                "title": "Rename Label Names: Old Labels",
+                "description": "Old segmentation label names which should be overwritten (all special characters are removed); SAME ORDER AS NEW LABEL NAMES REQUIRED!!!",
+                "type": "string",
+                "readOnly": False,
+            },
+            "new_labels": {
+                "title": "Rename Label Names: New Labels",
+                "description": "New segmentation label names which should overwrite the old segmentation label names (all special characters are removed); SAME ORDER AS OLD LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
             },
@@ -302,7 +326,6 @@ dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_input,
     dicom_operator=get_ref_ct_series_from_seg,
-    seg_filter=seg_filter,
 )
 
 dcm2nifti_ct = DcmConverterOperator(

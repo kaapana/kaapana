@@ -5,5 +5,5 @@ global:
   base_namespace: ""
   fast_data_dir: ""
   slow_data_dir: ""
-  namespace: "{{ .Values.global.jobs_namespace }}"
+  namespace: ""
   dynamicVolumes:

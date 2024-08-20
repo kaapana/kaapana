@@ -1,1 +1,1 @@
-{{ include "dynamicPersistentVolumes" $ }}
+{{ include "projectPersistentVolumes" $ }}

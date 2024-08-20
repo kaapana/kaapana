@@ -3,17 +3,16 @@
 ---
 # Variables
 {{- $namespace := .Values.global.project_namespace }}
-{{- $release_name := .Release.Name }}
 # Iteration
-{{- range $volume := .Values.global.projectVolumes }}
-{{- $volumeName := printf "%s-%s-pv" $release_name $volume.name }}
-{{- $volumeClaimName := printf "%s-%s-pvc" $release_name $volume.name }}
+{{- range $volume := .Values.global.dynamicVolumes }}
+{{- $volumeName := printf "%s-%s-pv" $namespace $volume.name }}
+{{- $volumeClaimName := printf "%s-%s-pv-claim" $namespace $volume.name }}
 {{- if $volume.host_path }}
 {{- $project_data_dir := $volume.host_path}}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: {{ $volumeName }}
+  name: "{{ $volumeName }}"
   labels:
     type: local
 spec:
@@ -41,7 +40,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ $volumeClaimName }}
+  name: "{{ $volumeClaimName }}"
   namespace: "{{ $namespace  }}"
 spec:
   storageClassName: nfs

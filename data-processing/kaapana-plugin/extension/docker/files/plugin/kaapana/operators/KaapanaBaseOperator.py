@@ -25,7 +25,6 @@ from kaapana.blueprints.kaapana_global_variables import (
     BATCH_NAME,
     PROCESSING_WORKFLOW_DIR,
     ADMIN_NAMESPACE,
-    JOBS_NAMESPACE,
     PULL_POLICY_IMAGES,
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
@@ -147,7 +146,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         priority_weight=1,
         priority_class_name="kaapana-low-priority",
         startup_timeout_seconds=120,
-        namespace=JOBS_NAMESPACE,
+        namespace=None,
         image_pull_policy=PULL_POLICY_IMAGES,
         #  Deactivated till dynamic persistent volumes are supported
         #  volume_mounts=None,
@@ -251,7 +250,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         # Namespaces
         self.services_namespace = os.getenv("SERVICES_NAMESPACE", "")
         self.admin_namespace = os.getenv("ADMIN_NAMESPACE", "")
-        self.jobs_namespace = os.getenv("JOBS_NAMESPACE", "")
         self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
         # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
 
@@ -280,7 +278,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         envs = {
             "SERVICES_NAMESPACE": str(self.services_namespace),
             "ADMIN_NAMESPACE": str(self.admin_namespace),
-            "JOBS_NAMESPACE": str(self.jobs_namespace),
             "EXTENSIONS_NAMESPACE": str(self.extensions_namespace),
             # "HELM_NAMESPACE": str(self.helm_namespace),
         }
@@ -359,7 +356,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     name="workflowdata",
                     configs={
                         "PersistentVolumeClaim": {
-                            "claim_name": f"project-{self.namespace}-workflow-data-pvc",
+                            "claim_name": f"{self.namespace}-workflow-data-pv-claim",
                             "read_only": False,
                         }
                     },
@@ -376,7 +373,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     name="models",
                     configs={
                         "PersistentVolumeClaim": {
-                            "claim_name": f"project-{self.namespace}-models-pvc",
+                            "claim_name": f"{self.namespace}-models-pv-claim",
                             "read_only": False,
                         }
                     },
@@ -390,7 +387,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     name="mounted-scripts",
                     configs={
                         "PersistentVolumeClaim": {
-                            "claim_name": f"project-{self.namespace}-mounted-scripts-pvc",
+                            "claim_name": f"{self.namespace}-mounted-scripts-pv-claim",
                             "read_only": False,
                         }
                     },
@@ -407,7 +404,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     name="tensorboard",
                     configs={
                         "PersistentVolumeClaim": {
-                            "claim_name": f"project-{self.namespace}-tensorboard-pvc",
+                            "claim_name": f"{self.namespace}-tensorboard-pv-claim",
                             "read_only": False,
                         }
                     },
@@ -435,6 +432,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
     @cache_operator_output
     @federated_sharing_decorator
     def execute(self, context):
+        try:
+            project_form = context.get("params").get("project_form")
+            self.namespace = "project-" + project_form.get("name")
+        except (KeyError, AttributeError):
+            self.namespace = "project-admin"
+        self.set_volumes_and_volume_mounts()
+
         config_path = os.path.join(
             self.airflow_workflow_dir, context["run_id"], "conf", "conf.json"
         )
@@ -548,7 +552,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 )
             helm_sets = {
                 "global.complete_image": self.image,
-                "global.namespace": JOBS_NAMESPACE,
+                "global.namespace": self.namespace,
                 "global.ingress_path": "{{ .Release.Name }}",
                 **env_vars_sets,
                 **dynamic_volumes,
@@ -586,17 +590,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if self.delete_output_on_start is True:
             self.delete_operator_out_dir(context["run_id"], self.operator_out_dir)
-
-        try:
-            project_form = context.get("params").get("project_form")
-            self.namespace = "project-" + project_form.get("name")
-        except KeyError:
-            self.namespace = "project-admin"
-        except AttributeError:
-            self.namespace = "project-admin"
-
-        logging.info(f"DEVELOPMENT: {self.namespace=}")
-        self.set_volumes_and_volume_mounts()
 
         try:
             logging.info("++++++++++++++++++++++++++++++++++++++++++++++++ launch pod!")
@@ -642,7 +635,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             logging.info("MESSAGE: {}".format(message))
 
             if result == State.SKIPPED:
-                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=self.kube_name)
+                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
+                    pod_id=self.kube_name, namespace=self.namespace
+                )
                 raise AirflowSkipException("Pod has been skipped!")
             elif result != State.SUCCESS:
                 raise AirflowException("Pod returned a failure!")
@@ -656,7 +651,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
     def on_kill(self) -> None:
         logging.info("##################################################### ON KILL!")
-        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=self.kube_name)
+        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
+            pod_id=self.kube_name, namespace=self.namespace
+        )
 
     def delete_operator_out_dir(self, run_id, operator_dir):
         logging.info(f"#### deleting {operator_dir} folders...!")
@@ -690,8 +687,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             63,
         )  # actually 63, but because of helm set to 53, maybe...
         time.sleep(2)  # since the phase needs some time to get updated
+        try:
+            project_form = context.get("params").get("project_form")
+            namespace = "project-" + project_form.get("name")
+        except (KeyError, AttributeError):
+            namespace = "project-admin"
+
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
-            pod_id=kube_name, phases=["Pending", "Running"]
+            pod_id=kube_name, namespace=namespace, phases=["Pending", "Running"]
         )
         release_name = get_release_name(context)
         url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"

@@ -14,11 +14,13 @@ class OpenSearchHelper:
     Helper class for managing project specific indices, roles and rolemappings in opensearch.
     """
 
-    def __init__(self, access_token):
+    def __init__(self, access_token, wait_for_service=True):
         self.os_client = get_opensearch_client(access_token)
         self.access_token = access_token
         self.settings = OpensearchSettings()
         self.security_api_url = f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}/_plugins/_security/api"
+
+        self.wait_for_service()
 
     def wait_for_service(self, max_retries=60, delay=5):
         """

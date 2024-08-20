@@ -183,6 +183,7 @@ export default {
   created() {},
   mounted() {
     this.refreshClient();
+    this.loadWorkflowSettings();
   },
   watch: {
     // watcher for instances
@@ -241,6 +242,8 @@ export default {
         this.external_dag_id = null;
       }
       this.datasets_available = true;
+      this.processDefaultsFromSettings(this.schemas);
+
       if (this.schemas["data_form"] !== null && this.schemas["data_form"] !== undefined) {
         Object.entries(this.schemas["data_form"]).forEach(([key, value]) => {
           if ( key.startsWith("__emtpy__") ) {
@@ -307,15 +310,23 @@ export default {
         // other stuff
         workflow_name: null, // or to ''
         showConfData: false,
-        datasets_available: true
+        datasets_available: true,
+        workflowsSettings: {},
       };
     },
     reset() {
       Object.assign(this.$data, this.initialState());
       this.refreshClient();
+      this.loadWorkflowSettings();
     },
     refreshClient() {
       this.getKaapanaInstances();
+    },
+    loadWorkflowSettings(){
+      const settings = JSON.parse(localStorage["settings"]);
+      if (settings.hasOwnProperty('workflows')) {
+        this.workflowsSettings = settings['workflows'];
+      }
     },
     clearForm() {
       this.dag_id = null;
@@ -339,6 +350,65 @@ export default {
         }
       });
       return formDataFormatted;
+    },
+    /**
+    * Set the default value for VJsf schema (workflow form)
+    * for the selected dag, if default value is availabe in 
+    * user settings from local storage
+    * Default value in user settings should be under `workflows` key as follows:
+    * dagName: {
+    *    properties: {
+    *            param1Name: 'param1 value',
+    *            param2Name: 'param2 Value',
+    *        },
+    *        hideOnUI: ['param2Name'],  // if param2Name should be hidden on the workflow form in UI       
+    *    },
+    * }
+    * all the dag name and param names should be in camelCase in settings. Dag name and parameter name
+    * in snakecase/dashcase from airflow backend will be converted in camelCase. 
+    * e.g. validate-dicoms -> validateDicoms
+    * Here is a sample workflow settings example:
+    * validateDicoms: {
+    *    properties: {
+    *            validatorAlgorithm: 'dciodvfy',
+    *            exitOnError: false,
+    *            tagsWhitelist: [], 
+    *        },
+    *        hideOnUI: ['tagsWhitelist'],    // tags-whitelist param won't be visible on the ui while selecting
+    *                                        // workflow, but default parameter will be passed to airflow.
+    *    },
+    * }
+    */
+    processDefaultsFromSettings(schema) {
+      if(!this.workflow_name) {
+        return
+      }
+
+      var workflowName = this.toCamelCase(this.workflow_name);
+      if(!this.workflowsSettings.hasOwnProperty(workflowName)) {
+        return
+      }
+
+      var parsedSchema = JSON.parse(JSON.stringify(schema));  
+      if(parsedSchema.hasOwnProperty('workflow_form')) {
+        const props = parsedSchema['workflow_form']['properties'];
+        const wfOptions = this.workflowsSettings[workflowName];
+        const defaults = wfOptions['properties']
+
+        for (const [key, value] of Object.entries(props)) {
+          const propsKey = this.toCamelCase(key);
+          if(defaults.hasOwnProperty(propsKey)) {
+            props[key]['default'] = defaults[propsKey];
+            // check if the option for the settings should be visible
+            // on the UI.
+            if (wfOptions.hideOnUI.includes(propsKey)) {
+              props[key]['x-style'] = "display: none;";
+            }            
+          }          
+        }
+
+        this.schemas['workflow_form']['properties'] = props;
+      }
     },
     // other methods
     dagRules() {
@@ -545,7 +615,7 @@ export default {
           federated: this.federated_data,
         })
         .then((response) => {
-          console.log(response);
+          // console.log(response);
           this.$notify({
             type: "success",
             title: "Workflow successfully created!",
@@ -564,6 +634,9 @@ export default {
             title: "An error occured during the workflow creation!",
           });
         });
+    },
+    toCamelCase(target) {
+      return target.replace(/(-|_)([a-z])/g, function (g) { return g[1].toUpperCase(); });
     },
   },
 };

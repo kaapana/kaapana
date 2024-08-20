@@ -1,5 +1,7 @@
+import ast
 import glob
 import os
+import re
 from datetime import datetime
 
 import pydicom
@@ -25,6 +27,31 @@ def get_series_description(all_dicoms: list):
     return desc
 
 
+def filter_errors_by_tag_whitelist(errors: list, whitelist: list):
+    return [e for e in errors if e.tag not in whitelist]
+
+
+def validate_dicom_tag(rawtag: str):
+    """
+    Validates if the provided string is a valid DICOM tag.
+
+    This function checks if the given string follows the DICOM tag format,
+    which consists of two groups of four hexadecimal digits, separated by a comma
+    and enclosed in parentheses (e.g., (0010,0010)).
+
+    Args:
+        rawtag (str): The input string representing the DICOM tag to be validated.
+
+    Returns:
+        bool: True if the input string is a valid DICOM tag, False otherwise.
+    """
+    tagpattern = re.compile(r"^\([0-9a-fA-F]{4},[0-9a-fA-F]{4}\)$")
+    matched = tagpattern.match(rawtag)
+    if matched:
+        return True
+    return False
+
+
 if __name__ == "__main__":
     # From the template
     batch_folders = sorted(
@@ -43,6 +70,11 @@ if __name__ == "__main__":
     validator_alg = os.environ.get("VALIDATOR_ALGORITHM", "").lower()
     exit_on_error = os.environ.get("EXIT_ON_ERROR", "False")
     exit_on_error = True if exit_on_error.lower() == "true" else False
+
+    # extract and validate tags whitelist
+    tags_whitelist = os.environ.get("TAGS_WHITELIST", "[]")
+    tags_whitelist = ast.literal_eval(tags_whitelist)
+    tags_whitelist = [t for t in tags_whitelist if validate_dicom_tag(t)]
 
     dicom_defintion_root = "/kaapana/dicom-revisions"
 
@@ -78,12 +110,16 @@ if __name__ == "__main__":
             all_errors = {}
             all_warnings = {}
             for dicom_path in dcm_files:
-                errors, warns = validator.validate_dicom(dicom_path)
+                errs, warns = validator.validate_dicom(dicom_path)
+                if len(tags_whitelist) > 0:
+                    errs = filter_errors_by_tag_whitelist(errs, tags_whitelist)
+                    warns = filter_errors_by_tag_whitelist(warns, tags_whitelist)
                 key = os.path.basename(dicom_path)
+
                 if len(warns) > 0:
                     all_warnings[key] = warns
-                if len(errors) > 0:
-                    all_errors[key] = errors
+                if len(errs) > 0:
+                    all_errors[key] = errs
                     n_fail += 1
                 else:
                     n_valid += 1

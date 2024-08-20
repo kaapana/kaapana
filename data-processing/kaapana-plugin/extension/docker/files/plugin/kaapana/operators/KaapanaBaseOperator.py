@@ -25,7 +25,6 @@ from kaapana.blueprints.kaapana_global_variables import (
     BATCH_NAME,
     PROCESSING_WORKFLOW_DIR,
     ADMIN_NAMESPACE,
-    JOBS_NAMESPACE,
     PULL_POLICY_IMAGES,
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
@@ -147,7 +146,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         priority_weight=1,
         priority_class_name="kaapana-low-priority",
         startup_timeout_seconds=120,
-        namespace=JOBS_NAMESPACE,
+        namespace=None,
         image_pull_policy=PULL_POLICY_IMAGES,
         #  Deactivated till dynamic persistent volumes are supported
         #  volume_mounts=None,
@@ -251,110 +250,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         # Namespaces
         self.services_namespace = os.getenv("SERVICES_NAMESPACE", "")
         self.admin_namespace = os.getenv("ADMIN_NAMESPACE", "")
-        self.jobs_namespace = os.getenv("JOBS_NAMESPACE", "")
         self.extensions_namespace = os.getenv("EXTENSIONS_NAMESPACE", "")
         # self.helm_namespace = os.getenv("HELM_NAMESPACE", "")
-
-        self.volume_mounts.append(
-            VolumeMount(
-                "workflowdata",
-                mount_path=PROCESSING_WORKFLOW_DIR,
-                sub_path=None,
-                read_only=False,
-            )
-        )
-
-        self.volumes.append(
-            Volume(
-                name="workflowdata",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "af-data-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount(
-                "miniodata", mount_path="/minio", sub_path=None, read_only=False
-            )
-        )
-
-        self.volumes.append(
-            Volume(
-                name="miniodata",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "minio-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount("models", mount_path="/models", sub_path=None, read_only=False)
-        )
-
-        self.volumes.append(
-            Volume(
-                name="models",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "models-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount(
-                "mounted-scripts",
-                mount_path="/kaapana/mounted/workflows/mounted_scripts",
-                sub_path=None,
-                read_only=False,
-            )
-        )
-
-        self.volumes.append(
-            Volume(
-                name="mounted-scripts",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "mounted-scripts-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount(
-                "tensorboard", mount_path="/tensorboard", sub_path=None, read_only=False
-            )
-        )
-
-        self.volumes.append(
-            Volume(
-                name="tensorboard",
-                configs={
-                    "PersistentVolumeClaim": {
-                        "claim_name": "tb-jobs-pv-claim",
-                        "read_only": False,
-                    }
-                },
-            )
-        )
-
-        self.volume_mounts.append(
-            VolumeMount("dshm", mount_path="/dev/shm", sub_path=None, read_only=False)
-        )
-
-        volume_config = {"emptyDir": {"medium": "Memory"}}
-        self.volumes.append(Volume(name="dshm", configs=volume_config))
 
         if self.pod_resources is None:
             pod_resources = PodResources(
@@ -381,7 +278,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         envs = {
             "SERVICES_NAMESPACE": str(self.services_namespace),
             "ADMIN_NAMESPACE": str(self.admin_namespace),
-            "JOBS_NAMESPACE": str(self.jobs_namespace),
             "EXTENSIONS_NAMESPACE": str(self.extensions_namespace),
             # "HELM_NAMESPACE": str(self.helm_namespace),
         }
@@ -448,10 +344,101 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             session=session,
         )
 
+    def set_volumes_and_volume_mounts(self):
+        """
+        Set volumes and volume claims based on the project namespace self.namespace.
+        This function should be called after self.namespace was changed according to the project in the context params.
+        """
+
+        volume_volumeMount_pairs = [
+            (
+                Volume(
+                    name="workflowdata",
+                    configs={
+                        "PersistentVolumeClaim": {
+                            "claim_name": f"{self.namespace}-workflow-data-pv-claim",
+                            "read_only": False,
+                        }
+                    },
+                ),
+                VolumeMount(
+                    "workflowdata",
+                    mount_path=PROCESSING_WORKFLOW_DIR,
+                    sub_path=None,
+                    read_only=False,
+                ),
+            ),
+            (
+                Volume(
+                    name="models",
+                    configs={
+                        "PersistentVolumeClaim": {
+                            "claim_name": f"{self.namespace}-models-pv-claim",
+                            "read_only": False,
+                        }
+                    },
+                ),
+                VolumeMount(
+                    "models", mount_path="/models", sub_path=None, read_only=False
+                ),
+            ),
+            (
+                Volume(
+                    name="mounted-scripts",
+                    configs={
+                        "PersistentVolumeClaim": {
+                            "claim_name": f"{self.namespace}-mounted-scripts-pv-claim",
+                            "read_only": False,
+                        }
+                    },
+                ),
+                VolumeMount(
+                    "mounted-scripts",
+                    mount_path="/kaapana/mounted/workflows/mounted_scripts",
+                    sub_path=None,
+                    read_only=False,
+                ),
+            ),
+            (
+                Volume(
+                    name="tensorboard",
+                    configs={
+                        "PersistentVolumeClaim": {
+                            "claim_name": f"{self.namespace}-tensorboard-pv-claim",
+                            "read_only": False,
+                        }
+                    },
+                ),
+                VolumeMount(
+                    "tensorboard",
+                    mount_path="/tensorboard",
+                    sub_path=None,
+                    read_only=False,
+                ),
+            ),
+            (
+                Volume(name="dshm", configs={"emptyDir": {"medium": "Memory"}}),
+                VolumeMount(
+                    "dshm", mount_path="/dev/shm", sub_path=None, read_only=False
+                ),
+            ),
+        ]
+
+        for volume, volumeMount in volume_volumeMount_pairs:
+            self.volumes.append(volume)
+            self.volume_mounts.append(volumeMount)
+
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
     @federated_sharing_decorator
     def execute(self, context):
+        try:
+            project_form = context.get("params").get("project_form")
+            self.namespace = "project-" + project_form.get("name")
+        except (KeyError, AttributeError):
+            self.namespace = "project-admin"
+        self.set_volumes_and_volume_mounts()
+
         config_path = os.path.join(
             self.airflow_workflow_dir, context["run_id"], "conf", "conf.json"
         )
@@ -565,7 +552,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 )
             helm_sets = {
                 "global.complete_image": self.image,
-                "global.namespace": JOBS_NAMESPACE,
+                "global.namespace": self.namespace,
                 "global.ingress_path": "{{ .Release.Name }}",
                 **env_vars_sets,
                 **dynamic_volumes,
@@ -648,7 +635,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             logging.info("MESSAGE: {}".format(message))
 
             if result == State.SKIPPED:
-                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=self.kube_name)
+                KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
+                    pod_id=self.kube_name, namespace=self.namespace
+                )
                 raise AirflowSkipException("Pod has been skipped!")
             elif result != State.SUCCESS:
                 raise AirflowException("Pod returned a failure!")
@@ -661,10 +650,10 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 return result
 
     def on_kill(self) -> None:
-        logging.info(
-            "##################################################### ON KILL!"
+        logging.info("##################################################### ON KILL!")
+        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
+            pod_id=self.kube_name, namespace=self.namespace
         )
-        KaapanaBaseOperator.pod_stopper.stop_pod_by_name(pod_id=self.kube_name)
 
     def delete_operator_out_dir(self, run_id, operator_dir):
         logging.info(f"#### deleting {operator_dir} folders...!")
@@ -698,8 +687,14 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             63,
         )  # actually 63, but because of helm set to 53, maybe...
         time.sleep(2)  # since the phase needs some time to get updated
+        try:
+            project_form = context.get("params").get("project_form")
+            namespace = "project-" + project_form.get("name")
+        except (KeyError, AttributeError):
+            namespace = "project-admin"
+
         KaapanaBaseOperator.pod_stopper.stop_pod_by_name(
-            pod_id=kube_name, phases=["Pending", "Running"]
+            pod_id=kube_name, namespace=namespace, phases=["Pending", "Running"]
         )
         release_name = get_release_name(context)
         url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"

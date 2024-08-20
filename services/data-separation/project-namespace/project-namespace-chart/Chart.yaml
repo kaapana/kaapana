@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+appVersion: "0.1.1"
+description: Chart for the project-user secret in a new namespace
+name: project-namespace
+version: "0.0.0"
+

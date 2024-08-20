@@ -584,6 +584,8 @@ def create_workflow(
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
 ):
+    project = request.headers.get("Project")
+    json_schema_data.conf_data["project_form"] = json.loads(project)
     # validate incoming json_schema_data
     try:
         jsonschema.validate(

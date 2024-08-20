@@ -13,7 +13,6 @@ instance_name: ""
 admin_namespace: "admin"
 helm_namespace: "default"
 services_namespace: "services"
-jobs_namespace: "jobs"
 extensions_namespace: "extensions"
 mount_points_to_monitor: "/"
 kaapana_collections:

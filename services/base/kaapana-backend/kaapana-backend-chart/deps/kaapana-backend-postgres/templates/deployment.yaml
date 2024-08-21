@@ -17,17 +17,29 @@ spec:
       labels:
         app-name: kaapana-backend-postgres
     spec:
+      securityContext:
+        runAsUser: 70
+      initContainers:
+      - name: set-mount-permissions
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+        securityContext:
+          runAsUser: 0
+        command: ["chown", "-vR" , "70:70", "/var/lib/postgresql", "/var/run/postgresql"]
+        volumeMounts:
+          - name: kaapana-backend-postgres-data
+            mountPath: "/var/lib/postgresql"
+          - name:  unix-socket-dir
+            mountPath: /var/run/postgresql
       containers:
       - name: kaapana-backend-postgres
         image: "{{ .Values.global.registry_url }}/postgres-15.6-alpine:{{ .Values.global.kaapana_build_version  }}"
-        # imagePullPolicy: Always
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-        env: # Environment variables
+        env:
         - name: POSTGRES_USER
           value: kaapanauser
         - name: POSTGRES_PASSWORD
           value: kaapanapassword
-        ports: # Port(s) on which your application runs
+        ports:
           - containerPort: 5432
         resources:
           limits:
@@ -35,15 +47,15 @@ spec:
           requests:
             memory: "100Mi"
         volumeMounts:
-          - name: kaapana-backend-postgres-data # key of volume moment
-            mountPath: "/var/lib/postgresql/data" # path in container
+          - name: kaapana-backend-postgres-data
+            mountPath: "/var/lib/postgresql/data"
           - name:  unix-socket-dir
             mountPath: /var/run/postgresql
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
       volumes:
-      - name: kaapana-backend-postgres-data # key of volume mount
+      - name: kaapana-backend-postgres-data
         persistentVolumeClaim:
           claimName: backend-pv-claim
       - name: unix-socket-dir
@@ -56,7 +68,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: kaapana-backend-postgres-service
-  # namespace: "{{ .Values.global.services_namespace }}"
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
     app-name: kaapana-backend-postgres

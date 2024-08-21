@@ -30,13 +30,15 @@ spec:
       labels:
         app-name: postgres-airflow
     spec:
+      securityContext:
+        runAsUser: 70
       restartPolicy: Always
       initContainers:
       - name: set-mount-permissions
         image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
         securityContext:
           runAsUser: 0
-        command: ["chown", "-R" , "70:70", "/var/lib/postgresql/data"]
+        command: ["chown", "-vR" , "70:70", "/var/lib/postgresql/data"]
         volumeMounts:
           - name: dbvol
             mountPath: "/var/lib/postgresql/data"

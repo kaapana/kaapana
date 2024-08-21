@@ -14,6 +14,15 @@ spec:
       labels:
         app-name: postgres-keycloak
     spec:
+      initContainers:
+      - name: set-mount-permissions
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+        securityContext:
+          runAsUser: 0
+        command: ["chown", "-R" , "70:70", "/db"]
+        volumeMounts:
+          - name: postgresdata
+            mountPath: "/db"
       containers:
         - name: postgres-keycloak-container
           image: "{{ .Values.global.registry_url }}/postgres-15.6-alpine:{{ .Values.global.kaapana_build_version  }}"

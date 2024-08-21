@@ -21,10 +21,12 @@ spec:
         image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
         securityContext:
           runAsUser: 0
-        command: ["chown", "-vR" , "70:70", "/db"]
+        command: ["chown", "-vR" , "70:70", "/db", "/var/run/postgresql"]
         volumeMounts:
           - name: postgresdata
             mountPath: "/db"
+          - mountPath: /var/run/postgresql
+              name:  unix-socket-dir
       containers:
         - name: postgres-keycloak-container
           image: "{{ .Values.global.registry_url }}/postgres-15.6-alpine:{{ .Values.global.kaapana_build_version  }}"

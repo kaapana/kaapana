@@ -25,7 +25,7 @@ class OpensearchSettings(KaapanaSettings):
     Settings for Opensearch module
     """
 
-    opensearch_host: str = "https://opensearch-service.services.svc"
+    opensearch_host: str = "opensearch-service.services.svc"
     opensearch_port: str = "9200"
 
 

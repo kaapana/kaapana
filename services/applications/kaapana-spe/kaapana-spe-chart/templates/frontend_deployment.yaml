@@ -34,14 +34,14 @@ spec:
             memory: 5Gi
         volumeMounts:
 {{- if .Values.global.frontend_dev_files }}
-          - name: spe-frontend-dev-files
+          - name: spe-frontend-files
             mountPath: /kaapana/app/src
  {{- end }}
       volumes:
 {{- if .Values.global.frontend_dev_files }}
-      - name: spe-frontend-dev-files
+      - name: spe-frontend-files
         persistentVolumeClaim:
-          claimName: spe-frontend-dev-pv-claim
+          claimName: spe-dev-frontend-pv-claim
 {{- end }}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:

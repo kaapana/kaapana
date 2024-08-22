@@ -15,4 +15,5 @@ RUN chmod +x /kaapana/app/boot.sh
 # RUN apt update && apt install -y nodejs && apt install -y npm
 
 
-CMD ["/bin/sh", "/kaapana/app/boot.sh"]
+# CMD ["/bin/sh", "/kaapana/app/boot.sh"]
+CMD ["/bin/sh", "-c", "while true; do sleep 30; done;"]

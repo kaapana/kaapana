@@ -15,6 +15,11 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
+  },
+  server: {
+    mimeTypes: {
+      'application/typescript': ['ts']
+    }
   }
 })
 

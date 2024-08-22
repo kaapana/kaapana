@@ -19,26 +19,27 @@ spec:
     spec:
       initContainers:
         - name: init-kaapana-spe
-          # image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
-          image: "registry.hzdr.de/jens.beyermann/jens-dev/service-checker:0.0.0-latest"
+          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
+          # image: "registry.hzdr.de/jens.beyermann/jens-dev/service-checker:0.0.0-latest"
           # imagePullPolicy:  {{ .Values.global.pull_policy_images }}
           imagePullPolicy: Always
           env:
             - name: WAIT
-              # value: "kaapana-backend-postgres,kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443;airflow,airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc,8080"
-              value: "kaapana-spe-postgres,kaapana-spe-postgres-service.services.svc,5432;keycloak,keycloak-internal-service.admin.svc,443;airflow,airflow-webserver-service.services.svc,8080"
+              value: "kaapana-spe-postgres,kaapana-spe-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443;airflow,airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc,8080"
+              # value: "kaapana-spe-postgres,kaapana-spe-postgres-service.services.svc,5432;keycloak,keycloak-internal-service.admin.svc,443;airflow,airflow-webserver-service.services.svc,8080"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
               value: "10"
       containers:
       - name: kaapana-spe
-        # image: "{{ .Values.global.registry_url }}/kaapana-backend:{{ .Values.global.kaapana_build_version }}"
-        image: "registry.hzdr.de/jens.beyermann/jens-dev/kaapana-spe:0.0.0-latest"
+        image: "{{ .Values.global.registry_url }}/kaapana-spe:{{ .Values.global.kaapana_build_version }}"
+        # image: "registry.hzdr.de/jens.beyermann/jens-dev/kaapana-spe:0.0.0-latest"
         # imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         imagePullPolicy: Always
-        # command: ["tail"]
-        # args: ["-f", "/dev/null"] 
+        command: ["tail"]
+        args: ["-f", "/dev/null"] 
+
         env: # Environment variables
         - name: SECRET_KEY
           value: kaapana-secret
@@ -106,26 +107,21 @@ spec:
             memory: "4Gi"
         volumeMounts:
 {{- if .Values.global.backend_dev_files }}
-        - name: kaapana-dev-files
+        - name: spe-backend
           mountPath: /kaapana/app
 {{- end }}
-        - name: alembic
-          mountPath: /kaapana/app/alembic
-        - name: minio-data
-          mountPath: /kaapana/mounted/minio
+        # - name: minio-data
+        #   mountPath: /kaapana/mounted/minio
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
       volumes:
-      - name: alembic
-        persistentVolumeClaim:
-          claimName: alembic-pv-claim
-      - name: minio-data
-        persistentVolumeClaim:
-          claimName: minio-pv-claim
+      # - name: minio-data
+      #   persistentVolumeClaim:
+      #     claimName: minio-pv-claim
 {{- if .Values.global.backend_dev_files }}
-      - name: kaapana-dev-files
+      - name: spe-backend
         persistentVolumeClaim:
-          claimName: spe-dev-pv-claim
+          claimName: spe-backend-dev-pv-claim
 {{- end }}
 ---

@@ -1,31 +1,43 @@
 ---
 global:
-  backend_dev_files: /home/ubuntu/kaapana/services/applications/kaapana-spe/docker/spe-backend/files/
-  frontend_dev_files: /home/ubuntu/kaapana/services/applications/kaapana-spe/docker/spe-frontend/files/spe-vue/src
+  backend_dev_files: /home/j870n/kaapana/services/applications/kaapana-spe/docker/spe-backend/files
+  # frontend_dev_files: /home/ubuntu/kaapana/services/applications/kaapana-spe/docker/spe-frontend/files/spe-vue/src
+  frontend_dev_files: /home/j870n/kaapana/services/applications/kaapana-spe/docker/spe-frontend/files/spe-vue/src
   pull_policy_images: Always
   dynamicVolumes:
-  - name: spe
-    host_path: /postgres-spe  
+  - name: spe-backend
+    host_path: /spe-backend
   - name: spe-frontend
-    host_path: /kaapana-spe
+    host_path: /spe-frontend
+  - name: spe-postgres
+    host_path: /spe-postgres
 
-  services_namespace: "services"
-  admin_namespac: "admin"
+---
+# global:
+#   dev_files: false
+#   dynamicVolumes:
+#   - name: backend
+#     host_path: /postgres-backend
+#   - name: alembic
+#     host_path: /alembic
+
+  # services_namespace: "services"
+  # admin_namespac: "admin"
   
-  instance_name: "10.128.129.28"
-  hostname: "10.128.129.28"
-  http_proxy: "http://www-int2.dkfz-heidelberg.de:80"
-  https_proxy: "http://www-int2.dkfz-heidelberg.de:80"
-  https_port: "443"
-  instance_uid: 0
-  credentials_minio_username: "kaapanaminio"
-  credentials_minio_password: "Kaapana2020"
-  build_timestamp: '2023-11-29T09:59:48+01:00'
-  kaapana_build_version: 0.0.0-latest
-  platform_build_branch: develop
-  platform_last_commit_timestamp: '2023-11-22T21:57:24+01:00'
-  deployment_timestamp: '2023-11-29T11:22:59+01:00'
-  mount_points_to_monitor: /
-  credentials_keycloak_admin_username: admin
-  credentials_keycloak_admin_password: Kaapana2020
-  registry_url: registry.hzdr.de/jens.beyermann/jens-dev
+  # instance_name: "10.128.129.28"
+  # hostname: "10.128.129.28"
+  # http_proxy: "http://www-int2.dkfz-heidelberg.de:80"
+  # https_proxy: "http://www-int2.dkfz-heidelberg.de:80"
+  # https_port: "443"
+  # instance_uid: 0
+  # credentials_minio_username: "kaapanaminio"
+  # credentials_minio_password: "Kaapana2020"
+  # build_timestamp: '2023-11-29T09:59:48+01:00'
+  # # kaapana_build_version: 0.0.0-latest
+  # platform_build_branch: develop
+  # platform_last_commit_timestamp: '2023-11-22T21:57:24+01:00'
+  # deployment_timestamp: '2023-11-29T11:22:59+01:00'
+  # mount_points_to_monitor: /
+  # credentials_keycloak_admin_username: admin
+  # credentials_keycloak_admin_password: Kaapana2020
+  # registry_url: registry.hzdr.de/jens.beyermann/jens-dev

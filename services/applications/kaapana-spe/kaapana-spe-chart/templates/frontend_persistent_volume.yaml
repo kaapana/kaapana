@@ -3,7 +3,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: spe-frontend-dev-pv-volume
+  name: spe-dev-frontend-pv-volume
   labels:
     type: local
 spec:
@@ -17,12 +17,12 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
-    name: spe-frontend-dev-pv-claim
+    name: spe-dev-frontend-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: spe-frontend-dev-pv-claim
+  name: spe-dev-frontend-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   storageClassName: nfs
@@ -31,4 +31,4 @@ spec:
   resources:
     requests:
       storage: "500Mi"
-  volumeName: "spe-frontend-dev-pv-volume"
+  volumeName: "spe-dev-frontend-pv-volume"

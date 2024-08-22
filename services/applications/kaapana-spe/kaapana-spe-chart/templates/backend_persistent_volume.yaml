@@ -1,11 +1,13 @@
 {{ include "dynamicPersistentVolumes" $ }}
 # dev-files
+
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: spe-dev-pv-volume
+  name: spe-backend-dev-pv-volume
   labels:
+    
     type: local
 spec:
   capacity:
@@ -18,12 +20,13 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   claimRef:
     namespace: "{{ .Values.global.services_namespace }}"
-    name: spe-dev-pv-claim
+    name: spe-backend-dev-pv-claim
+
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: spe-dev-pv-claim
+  name: spe-backend-dev-pv-claim
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   storageClassName: nfs

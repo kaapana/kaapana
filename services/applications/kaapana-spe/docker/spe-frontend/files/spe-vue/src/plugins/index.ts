@@ -4,7 +4,7 @@
 // // import pinia from "../store";
 // // import router from "../router";
 
-// // Types
+// // // Types
 // import type { App } from "vue";
 
 // export function registerPlugins(app: App) {

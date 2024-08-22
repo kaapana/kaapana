@@ -50,7 +50,7 @@ spec:
           - name: http.host
             value: "0.0.0.0"
           - name: OPENSEARCH_JAVA_OPTS
-            value: '-Xms512m -Xmx512m'
+            value: '-Xms{{ div .Values.global.opensearch_memory_request 2 }}m -Xmx{{ div .Values.global.opensearch_memory_request 2 }}m'
           resources:
             requests:
               memory: "{{ .Values.global.opensearch_memory_request }}Mi"

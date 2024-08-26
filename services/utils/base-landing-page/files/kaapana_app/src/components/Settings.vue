@@ -196,7 +196,7 @@ export default {
     resetConfiguration: false,
     selectedTab: null,
     validateDicoms: {},
-    tagError: ""
+    tagError: "",
     selectedSortKey:null,
     sortMapping:{}
   }),
@@ -316,7 +316,7 @@ export default {
       if (index !== -1) {
         this.validateDicoms.tagsWhitelist.splice(index, 1);
       }
-    }
+    },
     loadSortItems() {
       loadDicomTagMapping().then((data) => {
         this.sortMapping = data; 
@@ -333,8 +333,6 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-
-<style scoped>
 .col {
   padding-top: 0px;
   padding-bottom: 0px;

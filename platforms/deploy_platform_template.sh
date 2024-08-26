@@ -39,22 +39,23 @@ OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 INCLUDE_REVERSE_PROXY=false
 
 ######################################################
-# Resource configuration
+# Resource configurations
 ######################################################
 
 # Memory percentages for PACS, Airflow, and OpenSearch.
 PACS_PERCENT="30"
 AIRFLOW_PERCENT="50"
 OPENSEARCH_PERCENT="20"
+TOTAL_PERCENT=$((PACS_PERCENT + AIRFLOW_PERCENT + OPENSEARCH_PERCENT))
 
-# Get allocatable RAM (80% of total free memory)
+# Get allocatable RAM (70% of total free memory)
 TOTAL_MEMORY=$(free -m | awk '/^Mem:/{print $2}')
-ALLOCATABLE_MEMORY=$((TOTAL_MEMORY * 80 / 100))
+ALLOCATABLE_MEMORY=$((TOTAL_MEMORY * 70 / 100))
 
-# Set max memory limits for components 
-PACS_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * PACS_PERCENT / 100))
-AIRFLOW_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * AIRFLOW_PERCENT / 100))
-OPENSEARCH_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * OPENSEARCH_PERCENT / 100))
+# Set max memory limits for components
+PACS_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * PACS_PERCENT / TOTAL_PERCENT))
+AIRFLOW_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * AIRFLOW_PERCENT / TOTAL_PERCENT))
+OPENSEARCH_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * OPENSEARCH_PERCENT / TOTAL_PERCENT))
 
 # Set memory min requests (1/3 of limit)
 PACS_MEMORY_REQUEST=$((PACS_MEMORY_LIMIT / 3))

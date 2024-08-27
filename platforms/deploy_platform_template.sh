@@ -37,6 +37,31 @@ HELM_NAMESPACE="{{ helm_namespace }}"
 OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
 INCLUDE_REVERSE_PROXY=false
+
+######################################################
+# Resource configurations
+######################################################
+
+# Memory percentages for PACS, Airflow, and OpenSearch.
+PACS_PERCENT="30"
+AIRFLOW_PERCENT="50"
+OPENSEARCH_PERCENT="20"
+TOTAL_PERCENT=$((PACS_PERCENT + AIRFLOW_PERCENT + OPENSEARCH_PERCENT))
+
+# Get allocatable RAM (70% of total free memory)
+TOTAL_MEMORY=$(free -m | awk '/^Mem:/{print $2}')
+ALLOCATABLE_MEMORY=$((TOTAL_MEMORY * 70 / 100))
+
+# Set max memory limits for components
+PACS_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * PACS_PERCENT / TOTAL_PERCENT))
+AIRFLOW_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * AIRFLOW_PERCENT / TOTAL_PERCENT))
+OPENSEARCH_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * OPENSEARCH_PERCENT / TOTAL_PERCENT))
+
+# Set memory min requests (1/3 of limit)
+PACS_MEMORY_REQUEST=$((PACS_MEMORY_LIMIT / 3))
+AIRFLOW_MEMORY_REQUEST=$((AIRFLOW_MEMORY_LIMIT / 3))
+OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
+
 ######################################################
 # Individual platform configuration
 ######################################################
@@ -452,6 +477,12 @@ function deploy_chart {
     --set-string global.instance_name="$INSTANCE_NAME" \
     --set-string global.dev_mode="$DEV_MODE" \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
+    --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
+    --set-string global.airflow_memory_limit="$AIRFLOW_MEMORY_LIMIT" \
+    --set-string global.opensearch_memory_limit="$OPENSEARCH_MEMORY_LIMIT" \
+    --set-string global.pacs_memory_request="$PACS_MEMORY_REQUEST" \
+    --set-string global.airflow_memory_request="$AIRFLOW_MEMORY_REQUEST" \
+    --set-string global.opensearch_memory_request="$OPENSEARCH_MEMORY_REQUEST" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
@@ -527,6 +558,7 @@ function install_certs {
 
 function print_deployment_done {
     echo -e "${GREEN}Deployment done."
+    print_resource_configs
     echo -e "Please wait till all components have been downloaded and started."
     echo -e "You can check the progress with:"
     echo -e "watch microk8s.kubectl get pods -A"
@@ -539,6 +571,21 @@ function print_deployment_done {
         echo -e "username: kaapana"
         echo -e "password: ${KAAPANA_INIT_PASSWORD} ${NC}"
     fi
+}
+
+function print_resource_configs {
+    echo "Total memory of the node: $(awk "BEGIN {printf \"%.2f\", $TOTAL_MEMORY/1024}") Gi"
+    echo "Allocatable memory of the node: $(awk "BEGIN {printf \"%.2f\", $ALLOCATABLE_MEMORY/1024}") Gi"
+    echo ""
+    echo "PACS minimum memory request: $(awk "BEGIN {printf \"%.2f\", $PACS_MEMORY_REQUEST/1024}") Gi"
+    echo "PACS maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $PACS_MEMORY_LIMIT/1024}") Gi"
+    echo ""
+    echo "Airflow minimum memory request: $(awk "BEGIN {printf \"%.2f\", $AIRFLOW_MEMORY_REQUEST/1024}") Gi"
+    echo "Airflow maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $AIRFLOW_MEMORY_LIMIT/1024}") Gi"
+    echo ""
+    echo "Opensearch minimum memory request: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_REQUEST/1024}") Gi"
+    echo "Opensearch maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_LIMIT/1024}") Gi"
+    echo ""
 }
 
 

@@ -168,9 +168,9 @@ spec:
           value: "http://keycloak-external-service.{{ .Values.global.admin_namespace }}.svc:80"
         resources:
           requests:
-            memory: 3000Mi
+            memory: "{{ .Values.global.airflow_memory_request }}Mi"
           limits:
-            memory: 15000Mi
+            memory: "{{ .Values.global.airflow_memory_limit }}Mi"
         volumeMounts:
         - name: airflow-configmap
           mountPath: /kaapana/mounted/workflows/airflow.cfg

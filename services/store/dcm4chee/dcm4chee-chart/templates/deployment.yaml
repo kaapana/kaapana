@@ -99,9 +99,9 @@ spec:
             periodSeconds: 120
           resources:
             requests:
-              memory: 800Mi
+              memory: "{{ .Values.global.pacs_memory_request }}Mi"
             limits:
-              memory: 1500Mi
+              memory: "{{ .Values.global.pacs_memory_limit }}Mi"
           volumeMounts:
             - mountPath: /opt/wildfly/standalone
               name: standalone-data

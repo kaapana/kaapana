@@ -187,6 +187,25 @@ def get_model_paths(batch_element_dir):
     return result_model_paths
 
 
+def write_seg_info(task, target_dir, dataset_info_dir):
+    print("# Writing seg_info.json ...")
+
+    # get seg_info content form dataset.json
+    # seg_info_path = Path(target_dir).parent / operator_in_dir
+    with open(os.path.join(dataset_info_dir, "dataset.json"), "r") as file:
+        dataset_dict = json.load(file)
+
+    seg_info = {"seg_info": dataset_dict["labels"]}
+    seg_info["algorithm"] = str(task)
+    json_path = os.path.join(target_dir, "seg_info.json")
+
+    with open(json_path, "w") as outfile:
+        json.dump(seg_info, outfile, sort_keys=True, indent=4)
+
+    print(json.dumps(seg_info, indent=4, sort_keys=True))
+    print("#")
+
+
 def predict(
     input_data_dir,
     element_output_dir,
@@ -241,8 +260,8 @@ task = task if task.lower() != "none" else None
 task_targets = os.getenv("TARGETS", "None")
 task_targets = task_targets.split(",") if task_targets.lower() != "none" else None
 
-if task_targets != None and task_targets[0] != "Clear Label":
-    task_targets.insert(0, "Clear Label")
+if task_targets != None and task_targets[0] != "background":
+    task_targets.insert(0, "background")
 
 task_body_part = getenv("BODY_PART", "N/A")
 task_protocols = getenv("INPUT", "NOT FOUND!").split(",")
@@ -394,6 +413,8 @@ if __name__ == "__main__":
                 checkpoint_name,
                 enable_softmax,
             )
+            # write corresponding seg_info.json
+            write_seg_info(model, element_output_dir, dataset_info_dir=model)
 
             processed_count += 1
             print("#")
@@ -455,6 +476,8 @@ if __name__ == "__main__":
                     checkpoint_name,
                     enable_softmax,
                 )
+                # write corresponding seg_info.json
+                write_seg_info(model, task_targets, output_dir)
 
                 processed_count += 1
                 print(f"# Prediction ok.")

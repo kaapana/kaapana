@@ -187,9 +187,6 @@ elif [ "$MODE" = "training" ]; then
     echo "# DONE"
     
 elif [ "$MODE" = "inference" ]; then
-    echo "#"
-    echo "# Starting inference..."
-    echo "#"
     python3 -u ./simple_predict.py
     echo "#"
     

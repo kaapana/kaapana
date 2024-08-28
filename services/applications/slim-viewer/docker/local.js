@@ -6,7 +6,7 @@ window.config = {
   servers: [
     {
       id: "local",
-      url: "https://"+hostname+"/dcm4chee-arc/aets/KAAPANA/rs",
+      url: "https://"+hostname+"/dicom-web-filter",
       write: true
     }
   ],

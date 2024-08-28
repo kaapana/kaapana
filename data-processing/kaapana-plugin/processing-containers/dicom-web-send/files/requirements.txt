@@ -1,1 +1,0 @@
-dicomweb-client==0.50.0

@@ -53,7 +53,7 @@ def get_dispatcher_service() -> URNDispatcher:
     dispatcher.add_resolver(
         ExternalHTTPServiceResolver(
             "urn:kaapana:dicom:study:(.+)",
-            settings.quido_base_url + "/KAAPANA/rs/studies/{{RESSOURCE}}/series",
+            settings.quido_base_url + "/studies/{{RESSOURCE}}/series",
             viewer_template=(
                 settings.ohif_viewer + "/{{RESSOURCE}}"
                 if settings.ohif_viewer

@@ -23,11 +23,3 @@ allow {
     some k
     endpoint.methods[k] == input.method
 }
-
-### Allow access to application entities in dcm4chee based on user attribute application_entity
-allow {
-    regex.match("^/dcm4chee-arc/aets/.*", input.requested_prefix)
-    some i
-    checking_regex := concat("",["^/dcm4chee-arc/aets/", input.access_token.application_entity[i], "/.*"])
-    regex.match(checking_regex, input.requested_prefix)
-}

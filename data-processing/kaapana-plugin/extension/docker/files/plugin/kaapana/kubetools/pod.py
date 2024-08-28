@@ -160,7 +160,36 @@ class Pod:
         pod_container.command = self.cmds
         pod_container.args = self.args
 
-        pod_container.env = self.get_envs()
+        project_credentials_env = kubernetes.client.V1EnvVar(
+            name="KAAPANA_PROJECT_USER_PASSWORD",
+            value_from=kubernetes.client.V1EnvVarSource(
+                secret_key_ref=kubernetes.client.V1SecretKeySelector(
+                    name="project-user-credentials", key="project-user-password"
+                )
+            ),
+        )
+        project_credentials_env_username = kubernetes.client.V1EnvVar(
+            name="KAAPANA_PROJECT_USER_NAME",
+            value_from=kubernetes.client.V1EnvVarSource(
+                secret_key_ref=kubernetes.client.V1SecretKeySelector(
+                    name="project-user-credentials", key="project-user"
+                )
+            ),
+        )
+        oidc_client_secret_env = kubernetes.client.V1EnvVar(
+            name="KAAPANA_CLIENT_SECRET",
+            value_from=kubernetes.client.V1EnvVarSource(
+                secret_key_ref=kubernetes.client.V1SecretKeySelector(
+                    name="oidc-client-secret", key="oidc-client-secret"
+                )
+            ),
+        )
+        pod_env = self.get_envs()
+        pod_env.append(project_credentials_env)
+        pod_env.append(project_credentials_env_username)
+        pod_env.append(oidc_client_secret_env)
+        pod_container.env = pod_env
+
         pod_container.image = self.image
         pod_container.image_pull_policy = self.image_pull_policy
         pod_container.image_pull_policy = self.image_pull_policy

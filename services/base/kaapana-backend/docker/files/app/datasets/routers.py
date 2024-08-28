@@ -127,7 +127,7 @@ async def get_data(series_instance_uid, os_client=Depends(get_opensearch)):
         thumbnail_src = f"/thumbnails/{path}"
     else:
         thumbnail_src = (
-            f"/dcm4chee-arc/aets/KAAPANA/rs/studies/{metadata['Study Instance UID']}/"
+            f"/dicom-web-filter/studies/{metadata['Study Instance UID']}/"
             f"series/{series_instance_uid}/thumbnail?viewport=300,300"
         )
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))

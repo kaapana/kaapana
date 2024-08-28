@@ -7,6 +7,7 @@ from .STOW_RS.routes import router as stow_router
 from .WADO_RS.routes import router as wado_router
 from .CUSTOM_RS.routes import router as custom_router
 from .WADO_URI.routes import router as wado_uri_router
+from .SUPPLEMENTS.routes import router as supplements_router
 from .proxy_request import proxy_request
 import logging
 
@@ -66,6 +67,7 @@ app.include_router(qido_router)
 app.include_router(stow_router)
 app.include_router(wado_router)
 app.include_router(custom_router)
+app.include_router(supplements_router)
 app.include_router(wado_uri_router, prefix="/wado-uri")
 
 

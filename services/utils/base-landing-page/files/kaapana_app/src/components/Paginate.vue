@@ -1,10 +1,9 @@
 <template>
-  <div align="center" :class="{'pagination-container': true, 'hidden': !showPagination}">
+  <div align="right" :class="{'pagination-container': true, 'hidden': !showPagination}">
     <v-pagination 
       v-if="showPagination"
       :length="computedLength" 
-      v-model="pageIndex"
-      total-visible="11">
+      v-model="pageIndex">
     </v-pagination>
     </div>
   </template>
@@ -36,6 +35,9 @@
         max_slices_per_pit: 1024 //Opensearch max_slices_per_pit default
       };
     },
+    created() {
+      this.updatePaginationVisibility();
+  },
     computed: {      
       computedLength() {
         //Due to Opensearch max_slices_per_pit length is limited for slicing search
@@ -91,18 +93,20 @@
   <style scoped>
   .pagination-container {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: left;
     margin-right: 10px;
     padding: 0;
   }
   
   .pagination-container.hidden {
-    display: none; /* Hide the container completely when pagination is not shown */
+    display: none; 
   }
   
   .v-pagination {
     padding: 0;
     margin: 0;
     height: auto;
+    width: auto;
   }
   </style>

@@ -1,17 +1,17 @@
 import logging
+import math
 import re
 from typing import Dict, List
 
 import requests
-from fastapi import HTTPException
-import math
 from app.config import settings
+from app.logger import get_logger
 from app.workflows.utils import (
-    requests_retry_session,
     TIMEOUT,
     raise_kaapana_connection_error,
+    requests_retry_session,
 )
-from app.logger import get_logger
+from fastapi import HTTPException
 
 # Opensearch values (defaults)
 MAX_RETURN_LIMIT = 10000
@@ -39,7 +39,7 @@ def execute_sliced_search(
     aggregated_series_num,
     page_index,
     source=False,
-    sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
+    sort=[{"00000000 TimestampArrived_datetime.keyword": "desc"}],
     size=1000,
 ):
     total_slices = math.ceil(aggregated_series_num / size)
@@ -68,7 +68,7 @@ def execute_from_size_search(
     query: Dict = dict(),
     source=False,
     index="meta-index",
-    sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
+    sort=[{"00000000 TimestampArrived_datetime.keyword": "desc"}],
     start_from=1,
     size=1000,
 ) -> List:
@@ -108,7 +108,7 @@ def execute_search_after_search(
     pit_id,
     query: Dict = dict(),
     source=False,
-    sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
+    sort=[{"00000000 TimestampArrived_datetime.keyword": "desc"}],
     start_from=1,
     size=1000,
 ) -> List:
@@ -227,7 +227,9 @@ def execute_initial_search(
     return hits
 
 
-def requery_for_patients(os_client, query, source, sort, page_length, hits):
+def requery_and_fill_missing_series_for_patients(
+    os_client, query, source, sort, page_length, hits
+):
     """
     The initial search result list() is sorted depending on the sort value. So the result
     does not contain every result for the indiviual patients. Therefore if structured
@@ -257,7 +259,7 @@ def requery_for_patients(os_client, query, source, sort, page_length, hits):
             size=page_length,
         )
         # be aware that final_hits >= page_length, since all patients part of initial
-        # call are added. But this prevents not seeing every patient when switching pages
+        # call are added. This prevents not seeing every patient when switching pages
         # but patients at the end of one page could also be shown on the next page.
         final_hits.extend(patient_hits)
 

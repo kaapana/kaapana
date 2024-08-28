@@ -29,12 +29,17 @@
             </div>
             <v-divider></v-divider>
           </v-card>
-          <Paginate align="center" ref="paginate" 
-             :pageLength="settings.datasets.itemsPerPagePagination" 
-            :aggregatedSeriesNum="aggregatedSeriesNum" 
-            :executeSlicedSearch="settings.datasets.executeSlicedSearch"
-            @updateData="updateData" 
-            @onPageIndexChange="onPageIndexChange"/>
+          <div class="d-flex flex-column pa-0" style="height: 100%;">
+            <Paginate
+              align="right"
+              ref="paginate"
+              :pageLength="settings.datasets.itemsPerPagePagination"
+              :aggregatedSeriesNum="aggregatedSeriesNum"
+              :executeSlicedSearch="settings.datasets.executeSlicedSearch"
+              @updateData="updateData"
+              @onPageIndexChange="onPageIndexChange"
+            />
+          </div>
         </v-container>
         <!-- Gallery View -->
       <v-container fluid class="pa-0">
@@ -166,7 +171,6 @@
             <v-select v-model="datasetToAddTo" :items="datasetNames" label="Dataset"></v-select>
           </v-card-text>
           <v-divider></v-divider>
-
           <v-card-actions>
             <v-spacer></v-spacer>
             <v-btn color="primary" @click.stop="addToDataset" :disabled="!datasetToAddTo">
@@ -429,7 +433,7 @@ export default {
     async updateData(query = {}, useLastquery = false) {     
       if(!useLastquery){
         this.searchQuery = { ...query };
-      }       
+      }     
       this.isLoading = true;
       this.selectedSeriesInstanceUIDs = [];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
@@ -709,15 +713,8 @@ export default {
       return this.$store.getters.validationResultItem;
     },
     displaySelectedItems() {
-      const from = (this.pageIndex - 1) * this.settings.datasets.itemsPerPagePagination + 1;
-      const to = Math.min(from + this.identifiersOfInterest.length - 1, this.aggregatedSeriesNum);
       if (this.aggregatedSeriesNum > 0 && this.aggregatedSeriesNum > this.identifiersOfInterest.length) {
-        //if slicing search is used, each page has a different number of items
-        if (this.settings.datasets.executeSlicedSearch && this.aggregatedSeriesNum > 10000) {
-          return `page ${this.pageIndex}: ${this.identifiersOfInterest.length} selected of ${this.aggregatedSeriesNum}`;
-        } else {
-          return `${this.identifiersOfInterest.length} selected from ${from} to ${to} of ${this.aggregatedSeriesNum}`;
-        }
+        return `${this.identifiersOfInterest.length} selected of ${this.aggregatedSeriesNum}`;
       } else {
         return `${this.identifiersOfInterest.length} selected`;
       }

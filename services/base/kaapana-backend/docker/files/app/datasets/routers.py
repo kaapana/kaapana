@@ -1,13 +1,12 @@
-from fastapi import APIRouter, HTTPException, Body, Depends
-from fastapi.responses import JSONResponse
-
 from app.datasets.utils import (
-    get_metadata,
-    get_field_mapping,
-    requery_for_patients,
     execute_initial_search,
+    get_field_mapping,
+    get_metadata,
+    requery_and_fill_missing_series_for_patients,
 )
 from app.dependencies import get_opensearch
+from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi.responses import JSONResponse
 
 router = APIRouter(tags=["datasets"])
 
@@ -71,7 +70,7 @@ async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
     page_index: int = data.get("pageIndex", 1)
     page_length: int = data.get("pageLength", 1000)
     aggregated_series_num: int = data.get("aggregatedSeriesNum", 1)
-    sort_param: str = data.get("sort", "0020000E SeriesInstanceUID_keyword.keyword")
+    sort_param: str = data.get("sort", "00000000 TimestampArrived_datetime.keyword")
     sort_direction: str = data.get("sortDirection", "desc").lower()
     use_execute_sliced_search: bool = data.get("executeSlicedSearch", False)
 
@@ -103,8 +102,8 @@ async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
     if structured:
         if aggregated_series_num > page_length:
             # The results have to be reorderd according to the patients,
-            # otherwise patients are not complited (because they can be on another page)
-            hits = requery_for_patients(
+            # otherwise patients are not completed (because they can be on another page)
+            hits = requery_and_fill_missing_series_for_patients(
                 os_client, query, source, sort, page_length, hits
             )
 

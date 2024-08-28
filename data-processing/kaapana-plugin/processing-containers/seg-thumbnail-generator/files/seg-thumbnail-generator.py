@@ -16,6 +16,9 @@ from colormath.color_conversions import convert_color
 from multiprocessing.pool import ThreadPool
 import psutil
 from random import randint
+import pydicom
+from pydicom.pixel_data_handlers.util import apply_voi_lut
+from skimage import exposure
 
 logger = None
 processed_count = 0
@@ -480,9 +483,8 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
     print_mem_usage()
     slice_max_id = None
     max_pixel_count = 0
-    slice_max_segs = 0
 
-    for index, base_slice in enumerate(base_series_uids):
+    for base_slice in base_series_uids:
         base_slice_element = base_series_uids[base_slice]
         if len(base_slice_element["seg_bmps"]) == 0:
             continue
@@ -505,8 +507,45 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
     base_tmp_output_dir = join(target_dir, "tmp/base")
     shutil.rmtree(base_tmp_output_dir, ignore_errors=True)
     Path(base_tmp_output_dir).mkdir(parents=True, exist_ok=True)
-    base_image_bmp_cmd = f"dcm2pnm {correct_slice['base_dcm']} --write-bmp +Wm {base_tmp_output_dir}/base.bmp"
-    output_result = execute_command(cmd=base_image_bmp_cmd, timeout=20)
+
+    # Load the DICOM file
+    dicom_file = correct_slice["base_dcm"]
+    dicom_data = pydicom.dcmread(dicom_file)
+
+    # Load the segmentation mask
+    seg_bmp = correct_slice["seg_bmps"][0]["bmp_file"]
+    seg_data = load_img(img_path=seg_bmp, rgba=False)
+
+    # Convert to binary mask
+    bin_seg_data = np.zeros_like(seg_data)
+    bin_seg_data[seg_data > 0] = 1
+
+    # Use the binary mask to get the relevant intensities
+    data = dicom_data.pixel_array
+    masked_data = data * bin_seg_data
+
+    # Calculate the min and max intensity values within the masked region
+    min_intensity = np.min(masked_data[masked_data > 0])
+    max_intensity = np.max(masked_data[masked_data > 0])
+
+    # Add a 10% margin to the min and max intensities
+    margin = 0.1 * (max_intensity - min_intensity)
+    window_min = max(0, min_intensity - margin)
+    window_max = min(4095, max_intensity + margin)  # assuming 12-bit DICOM images
+
+    # Apply windowing to the original DICOM image
+    windowed_data = np.clip(data, window_min, window_max)
+
+    # Normalize the windowed pixel values to 0-255
+    normalized_data = (windowed_data - window_min) / (window_max - window_min) * 255
+    normalized_data = normalized_data.astype(np.uint8)
+
+    # Convert the numpy array to a PIL Image and save as BMP
+    image = Image.fromarray(normalized_data)
+    bmp_path = os.path.join(base_tmp_output_dir, "base.bmp")
+    image.save(bmp_path)
+
+    # Find the BMP files in the output directory
     base_bmps = glob(join(base_tmp_output_dir, "*.bmp"), recursive=False)
     logger.info(f"Found {len(base_bmps)} base bmps ...")
     assert len(base_bmps) == 1
@@ -516,7 +555,7 @@ def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
     base_img_np = load_img(img_path=base_bmps[0])
 
     seg_overlay = np.zeros_like(base_img_np)
-    for index, seg_bmp in enumerate(correct_slice["seg_bmps"]):
+    for seg_bmp in correct_slice["seg_bmps"]:
         seg_img_np = load_img(img_path=seg_bmp["bmp_file"], rgba=False)
         seg_overlay[:, :, 0][seg_img_np > 0] = seg_bmp["colors"][0]
         seg_overlay[:, :, 1][seg_img_np > 0] = seg_bmp["colors"][1]

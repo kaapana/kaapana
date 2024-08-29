@@ -6,8 +6,8 @@ dependencies:
     version: 0.0.0
   - name: code-server-chart
     version: 0.0.0
-  - name: edk
-    version: 0.0.0
+  # - name: edk
+  #   version: 0.0.0
   - name: jupyterlab-chart
     version: 0.0.0
   - name: federated-setup-central-test-workflow

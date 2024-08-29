@@ -17,8 +17,6 @@ from multiprocessing.pool import ThreadPool
 import psutil
 from random import randint
 import pydicom
-from pydicom.pixel_data_handlers.util import apply_voi_lut
-from skimage import exposure
 
 logger = None
 processed_count = 0

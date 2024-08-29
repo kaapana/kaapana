@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware import Middleware
 from contextlib import asynccontextmanager
+import logging
 from .models import Base
 from .database import async_engine
 from .QIDO_RS.routes import router as qido_router
@@ -9,7 +11,12 @@ from .CUSTOM_RS.routes import router as custom_router
 from .WADO_URI.routes import router as wado_uri_router
 from .SUPPLEMENTS.routes import router as supplements_router
 from .proxy_request import proxy_request
-import logging
+from .auth_middleware import AuthMiddleware
+from .config import (
+    DWF_IDENTITY_OPENID_CONFIG_URL,
+    DWF_IDENTITY_OPENID_CLIENT_ID,
+    DWF_IDENTITY_OPENID_CLIENT_SECRET,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +68,14 @@ app = FastAPI(
     version="0.1.0",
     openapi_tags=tags_metadata,
     lifespan=lifespan,
+    middleware=[
+        Middleware(
+            AuthMiddleware,
+            config_url=DWF_IDENTITY_OPENID_CONFIG_URL,
+            client_id=DWF_IDENTITY_OPENID_CLIENT_ID,
+            client_secret=DWF_IDENTITY_OPENID_CLIENT_SECRET,
+        )
+    ],
 )
 
 app.include_router(qido_router)

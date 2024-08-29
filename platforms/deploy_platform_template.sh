@@ -485,20 +485,17 @@ function deploy_chart {
     --set-string global.instance_name="$INSTANCE_NAME" \
     --set global.dev_mode=$DEV_MODE \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
-<<<<<<< HEAD
     --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
     --set-string global.airflow_memory_limit="$AIRFLOW_MEMORY_LIMIT" \
     --set-string global.opensearch_memory_limit="$OPENSEARCH_MEMORY_LIMIT" \
     --set-string global.pacs_memory_request="$PACS_MEMORY_REQUEST" \
     --set-string global.airflow_memory_request="$AIRFLOW_MEMORY_REQUEST" \
     --set-string global.opensearch_memory_request="$OPENSEARCH_MEMORY_REQUEST" \
-=======
     --set-string global.smtp_host="$SMTP_HOST" \
     --set-string global.smtp_port="$SMTP_PORT" \
     --set-string global.smtp_username="$SMTP_USERNAME" \
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
->>>>>>> cabdcee61 (add emailing operator and dag)
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

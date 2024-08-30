@@ -1,6 +1,7 @@
 import httpx
+import jwt
+from jwt import PyJWKClient, InvalidTokenError
 from fastapi import Request, HTTPException
-from jose import JWTError, jwt
 from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 
@@ -8,13 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app, config_url: str, client_id: str, client_secret: str):
+    def __init__(self, app, config_url: str, client_id: str):
         super().__init__(app)
         self.config_url = config_url
         self.client_id = client_id
-        self.client_secret = client_secret
         self.jwks_url = None
         self.issuer = None
+        self.jwks_client = None
 
     async def load_openid_config(self):
         async with httpx.AsyncClient() as client:
@@ -23,30 +24,24 @@ class AuthMiddleware(BaseHTTPMiddleware):
             openid_config = response.json()
             self.jwks_url = openid_config["jwks_uri"]
             self.issuer = openid_config["issuer"]
+            self.jwks_client = PyJWKClient(self.jwks_url)
 
     async def authenticate(self, token: str):
-        if not self.jwks_url or not self.issuer:
+        if not self.jwks_url or not self.issuer or not self.jwks_client:
             await self.load_openid_config()
 
-        async with httpx.AsyncClient() as client:
-            jwks_response = await client.get(self.jwks_url)
-            jwks_response.raise_for_status()
-            jwks = jwks_response.json()
-
         try:
-            unverified_header = jwt.get_unverified_header(token)
-            rsa_key = next(
-                key for key in jwks["keys"] if key["kid"] == unverified_header["kid"]
-            )
+            signing_key = self.jwks_client.get_signing_key_from_jwt(token)
             payload = jwt.decode(
                 token,
-                key=rsa_key,
+                key=signing_key.key,
                 audience=self.client_id,
                 issuer=self.issuer,
                 algorithms=["RS256"],
             )
             return payload
-        except (JWTError, KeyError):
+        except (InvalidTokenError, KeyError) as e:
+            logger.error(f"Authentication error: {e}")
             raise HTTPException(status_code=403, detail="Invalid token or claims")
 
     async def dispatch(self, request: Request, call_next):

@@ -14,7 +14,6 @@ from .auth_middleware import AuthMiddleware
 from .config import (
     DWF_IDENTITY_OPENID_CONFIG_URL,
     DWF_IDENTITY_OPENID_CLIENT_ID,
-    DWF_IDENTITY_OPENID_CLIENT_SECRET,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,7 +67,6 @@ app = FastAPI(
             AuthMiddleware,
             config_url=DWF_IDENTITY_OPENID_CONFIG_URL,
             client_id=DWF_IDENTITY_OPENID_CLIENT_ID,
-            client_secret=DWF_IDENTITY_OPENID_CLIENT_SECRET,
         )
     ],
 )

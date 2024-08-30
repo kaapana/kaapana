@@ -51,8 +51,6 @@ spec:
           value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
         - name: DWF_IDENTITY_OPENID_CLIENT_ID
           value: "kaapana"
-        - name: DWF_IDENTITY_OPENID_CLIENT_SECRET
-          value: "{{ .Values.global.oidc_client_secret }}"
         ports:
           - containerPort: 8080
         resources:

@@ -1,10 +1,27 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 import httpx
-from ..proxy_request import proxy_request
 from ..config import DICOMWEB_BASE_URL
+from fastapi.responses import StreamingResponse
 
 router = APIRouter()
+
+
+async def proxy_request(
+    request: Request,
+    url: str,
+    method: str,
+    base_url=DICOMWEB_BASE_URL,
+):
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method=method,
+            url=f"{base_url}/{url}",
+            params=request.query_params,
+            headers=request.headers,
+        ) as response:
+            async for chunk in response.aiter_bytes():
+                yield chunk
 
 
 @router.post(
@@ -24,10 +41,13 @@ async def reject_study(
     Returns:
         response: Response object
     """
-    return await proxy_request(
-        request,
-        path=f"/studies/{study}/reject/{codeValue}^{codingSchemeDesignator}",
-        method="POST",
+
+    return StreamingResponse(
+        proxy_request(
+            request,
+            f"studies/{study}/reject/{codeValue}^{codingSchemeDesignator}",
+            "POST",
+        )
     )
 
 
@@ -54,10 +74,13 @@ async def reject_series(
     Returns:
         response: Response object
     """
-    return await proxy_request(
-        request,
-        path=f"/studies/{study}/series/{series}/reject/{codeValue}^{codingSchemeDesignator}",
-        method="POST",
+
+    return StreamingResponse(
+        proxy_request(
+            request,
+            f"studies/{study}/series/{series}/reject/{codeValue}^{codingSchemeDesignator}",
+            "POST",
+        )
     )
 
 
@@ -87,10 +110,13 @@ async def reject_instance(
     Returns:
         response: Response object
     """
-    return await proxy_request(
-        request,
-        path=f"/studies/{study}/series/{series}/instances/{instance}/reject/{codeValue}^{codingSchemeDesignator}",
-        method="POST",
+
+    return StreamingResponse(
+        proxy_request(
+            request,
+            f"studies/{study}/series/{series}/instances/{instance}/reject/{codeValue}^{codingSchemeDesignator}",
+            "POST",
+        )
     )
 
 
@@ -105,7 +131,8 @@ async def delete_study(study: str, request: Request):
     Returns:
         response: Response object
     """
-    return await proxy_request(request, path=f"/studies/{study}", method="DELETE")
+
+    return StreamingResponse(proxy_request(request, f"studies/{study}", "DELETE"))
 
 
 @router.delete("/reject/{codeValue}^{codingSchemeDesignator}", tags=["Custom"])
@@ -124,11 +151,13 @@ async def reject(codeValue: str, codingSchemeDesignator: str, request: Request):
     # Only keep part before "/aets" in DICOMWEB_BASE_URL
     base_url = DICOMWEB_BASE_URL.split("/aets")[0]
 
-    return await proxy_request(
-        request,
-        path=f"/reject/{codeValue}^{codingSchemeDesignator}",
-        method="DELETE",
-        base_url=base_url,
+    return StreamingResponse(
+        proxy_request(
+            request,
+            f"reject/{codeValue}^{codingSchemeDesignator}",
+            "DELETE",
+            base_url=base_url,
+        )
     )
 
 
@@ -155,12 +184,7 @@ async def reject_get_series(
     # TODO: Change this to a more general solution
     base_url = DICOMWEB_BASE_URL.replace("KAAPANA", "IOCM_QUALITY")
 
-    return await proxy_request(
-        request,
-        path=f"/studies/{study}/series",
-        method="GET",
-        base_url=base_url,
-    )
+    return StreamingResponse(request, f"/studies/{study}/series", "GET", base_url)
 
 
 # Currently not used
@@ -183,12 +207,7 @@ async def reject_get_studies(
     # Replace KAAPANA for IOCM_QUALITY in DICOMWEB_BASE_URL
     base_url = DICOMWEB_BASE_URL.replace("KAAPANA", "IOCM_QUALITY")
 
-    return await proxy_request(
-        request,
-        path=f"/studies",
-        method="GET",
-        base_url=base_url,
-    )
+    return StreamingResponse(request, "/studies", "GET", base_url)
 
 
 # get all series

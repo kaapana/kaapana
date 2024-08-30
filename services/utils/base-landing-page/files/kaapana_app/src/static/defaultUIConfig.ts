@@ -10,7 +10,12 @@ const settings = {
         tagBar: {
             multiple: false,
             tags: []
+
         },
+        itemsPerPagePagination: 1000,
+        sort: "00000000 TimestampArrived_datetime.keyword",
+        sortDirection: "desc",
+        executeSlicedSearch: false,
         props: [
             {
                 name: 'Series Description',

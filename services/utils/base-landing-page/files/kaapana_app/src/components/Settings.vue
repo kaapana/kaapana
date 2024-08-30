@@ -41,6 +41,36 @@
                 </v-row>
                 <v-row>
                   <v-col>
+                    <v-select
+                      v-model="settings.datasets.itemsPerPagePagination"
+                      :items="[50, 100, 200, 500, 1000, 5000, 10000]"
+                      label="Items per Page"
+                    ></v-select>
+                  </v-col>
+                  <v-col>
+                    <v-autocomplete
+                      v-model="selectedSortKey"
+                      :items="sortKeys"
+                      label="Sort"
+                    ></v-autocomplete>
+                  </v-col>
+                  <v-col>
+                    <v-select
+                      v-model="settings.datasets.sortDirection"
+                      :items="['asc', 'desc']"
+                      label="Sort direction"
+                    ></v-select>
+                  </v-col> 
+                  <v-col>
+                    <v-checkbox
+                      v-model="settings.datasets.executeSlicedSearch"
+                      label="Slicing Search"
+                    >
+                    </v-checkbox>
+                  </v-col>       
+                </v-row>
+                <v-row>
+                  <v-col>
                     <SettingsTable
                       ref="settingsTable"
                       :items.sync="settings.datasets.props"
@@ -115,43 +145,60 @@
   </div>
 </template>
 
+
+
 <script>
 import SettingsTable from "@/components/SettingsTable.vue";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import { loadDicomTagMapping } from "@/common/api.service";
 
 export default {
   data: () => ({
     dialog: false,
-    settings: defaultSettings,
     newTag: '',
+    settings: {},
     resetConfiguration: false,
     selectedTab: null,
     validateDicoms: {},
-    tagError: ""
+    tagError: "",
+    selectedSortKey: null,
+    sortMapping:{}
   }),
   components: {
     SettingsTable,
   },
   created() {
-    this.settings = JSON.parse(localStorage["settings"]);
-
+    this.loadSettings();
+    this.loadSortItems();
     // set the validateDicoms settings and ignored tags
     // ensure both workflows and validateDicoms settings are in
     // localstorage settings
     if (!this.settings.hasOwnProperty('workflows')) {
-      this.settings['workflows'] = structuredClone(defaultSettings['workflows']);
+    this.settings['workflows'] = structuredClone(defaultSettings['workflows']);
     }
-    
     this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
-
   },
-  watch: {
+  computed: {
+    sortKeys() {
+      return Object.keys(this.sortMapping);
+    },
   },
   methods: {
+    loadSettings() {
+      // Load settings from localStorage or use defaults if not available
+      try {
+        const storedSettings = localStorage.getItem("settings");
+        this.settings = storedSettings ? JSON.parse(storedSettings) : JSON.parse(JSON.stringify(defaultSettings));
+      } catch (error) {
+        console.error("Failed to load settings from localStorage:", error);
+        this.settings = JSON.parse(JSON.stringify(defaultSettings));
+      }
+    },
     restoreDefaultSettings() {
       // copy the defaultSettings value instead of get the value by reference
       this.settings = structuredClone(defaultSettings);
       this.validateDicoms = this.settings.workflows["validateDicoms"].properties;
+      this.loadSortItems();
     },
     onSave() {
       // save validate dicoms update to settings
@@ -233,12 +280,32 @@ export default {
       if (index !== -1) {
         this.validateDicoms.tagsWhitelist.splice(index, 1);
       }
-    }
+    },
+    loadSortItems() {
+      loadDicomTagMapping().then((data) => {
+        this.sortMapping = data; 
+        this.selectedSortKey = Object.keys(data).find(key => data[key] === this.settings.datasets.sort);
+      })
+    },
+  },
+  watch: {
+    selectedSortKey(newKey) {
+      this.settings.datasets.sort = this.sortMapping[newKey];
+      //console.log('selectedSortKey:', this.settings.datasets.sort);
+    },
   },
 };
 </script>
 
 <style lang="scss" scoped>
+.col {
+  padding-top: 0px;
+  padding-bottom: 0px;
+  margin: 0px;
+}
+</style>
+
+<style>
 .jsoneditor {
   height: 60vh !important;
 }

@@ -13,8 +13,7 @@ from typing import List, Tuple, Union
 
 import jsonschema
 import jsonschema.exceptions
-from app.datasets.utils import execute_opensearch_query
-from app.dependencies import get_db, get_opensearch
+from app.dependencies import get_db
 from app.workflows import crud, schemas
 from app.workflows.utils import get_dag_list
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -502,21 +501,11 @@ def check_for_remote_updates(db: Session = Depends(get_db)):
 def create_dataset(
     request: Request,
     dataset: Union[schemas.DatasetCreate, None] = None,
-    query: Union[str, None] = None,
-    db: Session = Depends(get_db),
-    os_client=Depends(get_opensearch),
+    db: Session = Depends(get_db)
 ):
-    if not dataset and query:
-        query_dict = json.loads(query)
-        dataset = schemas.DatasetCreate(
-            name=query_dict["name"],
-            identifiers=[
-                d["_id"]
-                for d in execute_opensearch_query(os_client, query_dict["query"])
-            ],
-        )
     dataset.username = request.headers["x-forwarded-preferred-username"]
     db_obj = crud.create_dataset(db=db, dataset=dataset)
+
     return schemas.Dataset(
         name=db_obj.name,
         time_created=db_obj.time_created,

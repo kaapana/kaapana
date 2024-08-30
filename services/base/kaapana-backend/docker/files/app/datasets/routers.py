@@ -1,12 +1,12 @@
-from fastapi import APIRouter, HTTPException, Body, Depends
-from fastapi.responses import JSONResponse
-
 from app.datasets.utils import (
-    get_metadata,
-    execute_opensearch_query,
+    execute_initial_search,
     get_field_mapping,
+    get_metadata,
+    requery_and_fill_missing_series_for_patients,
 )
 from app.dependencies import get_opensearch
+from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi.responses import JSONResponse
 
 router = APIRouter(tags=["datasets"])
 
@@ -67,19 +67,45 @@ async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
 
     structured: bool = data.get("structured", False)
     query: dict = data.get("query", {"query_string": {"query": "*"}})
+    page_index: int = data.get("pageIndex", 1)
+    page_length: int = data.get("pageLength", 1000)
+    aggregated_series_num: int = data.get("aggregatedSeriesNum", 1)
+    sort_param: str = data.get("sort", "00000000 TimestampArrived_datetime.keyword")
+    sort_direction: str = data.get("sortDirection", "desc").lower()
+    use_execute_sliced_search: bool = data.get("executeSlicedSearch", False)
 
+    if sort_direction not in ["asc", "desc"]:
+        sort_direction = "desc"
+    sort = [{sort_param: sort_direction}]
+
+    # important! only add source if needed, otherwise the hole datastructure is returned
+    source = False
     if structured:
-        hits = execute_opensearch_query(
-            os_client,
-            query=query,
-            source={
-                "includes": [
-                    "00100020 PatientID_keyword",
-                    "0020000D StudyInstanceUID_keyword",
-                    "0020000E SeriesInstanceUID_keyword",
-                ]
-            },
-        )
+        source = {
+            "includes": [
+                "00100020 PatientID_keyword",
+                "0020000D StudyInstanceUID_keyword",
+                "0020000E SeriesInstanceUID_keyword",
+            ]
+        }
+
+    hits = execute_initial_search(
+        os_client,
+        query,
+        source,
+        sort,
+        page_index,
+        page_length,
+        aggregated_series_num,
+        use_execute_sliced_search,
+    )
+    if structured:
+        if aggregated_series_num > page_length:
+            # The results have to be reorderd according to the patients,
+            # otherwise patients are not completed (because they can be on another page)
+            hits = requery_and_fill_missing_series_for_patients(
+                os_client, query, source, sort, page_length, hits
+            )
 
         res_array = [
             [
@@ -102,10 +128,34 @@ async def get_series(data: dict = Body(...), os_client=Depends(get_opensearch)):
                 for k, f in df.groupby("Patient ID")
             }
         )
-    elif not structured:
-        return JSONResponse(
-            [d["_id"] for d in execute_opensearch_query(os_client, query)]
-        )
+    else:
+        return JSONResponse([d["_id"] for d in hits])
+
+
+# This should actually be a get request but since the body is too large for a get request
+# we use a post request
+# sepcific function, to get a often needed aggregation request
+@router.post("/aggregatedSeriesNum")
+async def get_aggregatedSeriesNum(
+    data: dict = Body(...), os_client=Depends(get_opensearch)
+):
+    query: dict = data.get("query", {"query_string": {"query": "*"}})
+    res = os_client.search(
+        body={
+            "size": 0,
+            "query": query,
+            "aggs": {
+                "Series": {
+                    "cardinality": {
+                        "field": "0020000E SeriesInstanceUID_keyword.keyword",
+                    }
+                },
+            },
+            "_source": False,
+        }
+    )["aggregations"]["Series"]["value"]
+
+    return JSONResponse(res)
 
 
 @router.get("/series/{series_instance_uid}")
@@ -140,14 +190,19 @@ async def get_dashboard(config: dict = Body(...), os_client=Depends(get_opensear
         name: name_field_map[name] for name in names if name in name_field_map
     }
 
+    search_query = config.get("query", {})
+
+    if series_instance_uids:
+        query = {"query": {"ids": {"values": series_instance_uids}}}
+    elif search_query:
+        query = {"query": search_query}
+    else:
+        query = {}
+
     res = os_client.search(
         body={
             "size": 0,
-            **(
-                {"query": {"ids": {"values": series_instance_uids}}}
-                if series_instance_uids
-                else {}
-            ),
+            **(query),
             "aggs": {
                 "Series": {
                     "cardinality": {
@@ -201,7 +256,6 @@ async def get_dashboard(config: dict = Body(...), os_client=Depends(get_opensear
         Studies=res["Studies"]["value"],
         Patients=res["Patients"]["value"],
     )
-
     return JSONResponse(dict(histograms=histograms, metrics=metrics))
 
 

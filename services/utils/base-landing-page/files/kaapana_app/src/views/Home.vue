@@ -37,7 +37,7 @@
               v-flex(sm4)
                 <iframe src="/grafana/d-solo/adadsdasd/kubernetes?orgId=1&panelId=44" width="100%" height="auto" frameborder="0"></iframe>
           v-flex(sm3)
-            Dashboard(:seriesInstanceUIDs="seriesInstanceUIDs" :fields="this.settings.landingPage")
+            Dashboard(:seriesInstanceUIDs="[]" :allPatients="true" :fields="this.settings.landingPage")
       div(v-else)
         v-layout(align-center justify-center row fill-height)
           v-flex(sm12)
@@ -56,7 +56,6 @@ import { Component, Vue } from "vue-property-decorator";
 import { mapGetters } from "vuex";
 import KaapanaWelcome from "@/components/WelcomeViews/KaapanaWelcome.vue";
 import Dashboard from "@/components/Dashboard.vue";
-import { loadPatients } from "../common/api.service";
 import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
@@ -82,16 +81,6 @@ export default Vue.extend({
   },
   created() {
     this.settings = JSON.parse(localStorage["settings"]);
-    loadPatients({
-      structured: false,
-      query: { bool: { must: ["", { query_string: { query: "*" } }] } },
-    })
-      .then((data) => {
-        this.seriesInstanceUIDs = data;
-      })
-      .catch((e) => {
-        this.message = e;
-      });
   },
   methods: {
     reloadPage() {

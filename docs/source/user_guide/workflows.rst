@@ -390,7 +390,11 @@ Settings
 """"""""
 Settings can be found by clicking on the user icon in the top-right corner and then selecting 'Settings'. A dialog will open.
 
-The Dataset view is highly configurable. You can choose between the Gallery View and Structured Gallery View, decide how many items to display in one row, and determine whether to show just thumbnails or also series metadata. 
+The Dataset view is highly configurable, allowing you to tailor the display to your needs. 
+You can choose between the Gallery View and Structured Gallery View, set the number of items displayed per row, and decide whether to show only thumbnails or include series metadata as well. 
+
+Additionally, you can adjust the number of items displayed per page and specify the sorting value and direction.
+For large datasets, sorting can become slow. In such cases, it is recommended to use Slicing Search: the dataset is divided into slices, and only these slices are sorted, improving performance.
 
 For each field in the metadata, the following options are available: 
 

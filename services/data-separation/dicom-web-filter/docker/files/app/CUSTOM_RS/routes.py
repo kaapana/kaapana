@@ -184,7 +184,9 @@ async def reject_get_series(
     # TODO: Change this to a more general solution
     base_url = DICOMWEB_BASE_URL.replace("KAAPANA", "IOCM_QUALITY")
 
-    return StreamingResponse(request, f"/studies/{study}/series", "GET", base_url)
+    return StreamingResponse(
+        proxy_request(request, f"studies/{study}/series", "GET", base_url)
+    )
 
 
 # Currently not used
@@ -207,7 +209,7 @@ async def reject_get_studies(
     # Replace KAAPANA for IOCM_QUALITY in DICOMWEB_BASE_URL
     base_url = DICOMWEB_BASE_URL.replace("KAAPANA", "IOCM_QUALITY")
 
-    return StreamingResponse(request, "/studies", "GET", base_url)
+    return StreamingResponse(proxy_request(request, "studies", "GET", base_url))
 
 
 # get all series

@@ -11,6 +11,7 @@ from airflow.utils.state import State
 from kaapana.kubetools import pod_launcher
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.kubetools.volume import Volume
+from kaapana.kubetools.secret import Secret
 from kaapana.kubetools.pod import Pod
 from kaapana.kubetools.pod_stopper import PodStopper
 from airflow.models.skipmixin import SkipMixin
@@ -242,7 +243,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.pod_resources = pod_resources or None
         self.config_file = config_file
         self.api_version = api_version
-        self.secrets = secrets
+        self.secrets = secrets or []
         self.kind = kind
         self.data_dir = os.getenv("DATADIR", "")
         self.model_dir = os.getenv("MODELDIR", "")
@@ -429,6 +430,39 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.volumes.append(volume)
             self.volume_mounts.append(volumeMount)
 
+    def set_env_secrets(self):
+        """
+        Add env variables that are retrieved from kubernets secrets to self.secrets.
+        """
+        project_credentials_password = Secret(
+            deploy_type="env",
+            deploy_target="KAAPANA_PROJECT_USER_PASSWORD",
+            secret="project-user-credentials",
+            key="project-user-password",
+        )
+
+        project_credentials_username = Secret(
+            deploy_type="env",
+            deploy_target="KAAPANA_PROJECT_USER_NAME",
+            secret="project-user-credentials",
+            key="project-user",
+        )
+
+        oidc_client_secret = Secret(
+            deploy_type="env",
+            deploy_target="KAAPANA_CLIENT_SECRET",
+            secret="oidc-client-secret",
+            key="oidc-client-secret",
+        )
+
+        self.secrets.extend(
+            [
+                project_credentials_password,
+                project_credentials_username,
+                oidc_client_secret,
+            ]
+        )
+
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
     @federated_sharing_decorator
@@ -439,6 +473,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         except (KeyError, AttributeError):
             self.namespace = "project-admin"
         self.set_volumes_and_volume_mounts()
+        self.set_env_secrets()
 
         config_path = os.path.join(
             self.airflow_workflow_dir, context["run_id"], "conf", "conf.json"

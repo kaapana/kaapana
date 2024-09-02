@@ -65,6 +65,7 @@ DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
 SMTP_HOST="{{ smtp_host|default('')}}"
 SMTP_PORT="{{ smtp_port|default(0)|int }}"
 EMAIL_ADDRESS_SENDER="{{ email_address_sender|default('')}}"
+EMAIL_ADDRESS_RECEIVER="{{ email_address_receiver|default('')}}"
 SMTP_USERNAME="{{ smtp_username|default('')}}"
 SMTP_PASSWORD="{{ smtp_password|default('')}}"
 
@@ -461,6 +462,7 @@ function deploy_chart {
     --set-string global.smtp_username="$SMTP_USERNAME" \
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
+    --set-string global.email_address_receiver="$EMAIL_ADDRESS_RECEIVER" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

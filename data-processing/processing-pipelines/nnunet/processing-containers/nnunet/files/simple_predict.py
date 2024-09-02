@@ -195,7 +195,12 @@ def write_seg_info(task, target_dir, dataset_info_dir):
     with open(os.path.join(dataset_info_dir, "dataset.json"), "r") as file:
         dataset_dict = json.load(file)
 
-    seg_info = {"seg_info": dataset_dict["labels"]}
+    seg_info_list = [
+        {"label_name": key, "label_int": str(value)}
+        for key, value in dataset_dict["labels"].items()
+    ]
+
+    seg_info = {"seg_info": seg_info_list}
     seg_info["algorithm"] = str(task)
     json_path = os.path.join(target_dir, "seg_info.json")
 

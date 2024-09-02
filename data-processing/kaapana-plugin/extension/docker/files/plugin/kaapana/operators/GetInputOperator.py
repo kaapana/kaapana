@@ -35,7 +35,7 @@ class GetInputOperator(KaapanaBaseOperator):
         # data_form=None,
         check_modality=False,
         # dataset_limit=None,
-        # parallel_downloads=3,
+        parallel_downloads=3,
         include_custom_tag_property="",
         exclude_custom_tag_property="",
         batch_name=None,
@@ -59,6 +59,7 @@ class GetInputOperator(KaapanaBaseOperator):
             "EXCLUDE_CUSTOM_TAGS": exclude_custom_tag_property,
             "BATCH_NAME": batch_name,
             "CHECK_MODALITY": "False" if not check_modality else "True",
+            "PARALLEL_DOWNLOADS": str(parallel_downloads),
         }
 
         env_vars.update(envs)

@@ -10,7 +10,5 @@ COPY files/requirements.txt /kaapana/app/
 RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
 COPY files/get_input.py /kaapana/app/
-COPY files/HelperDcmWeb.py /kaapana/app/
-COPY files/HelperOpensearch.py /kaapana/app/
 
 CMD ["python","-u","/kaapana/app/get_input.py"]

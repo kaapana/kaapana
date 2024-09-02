@@ -3,9 +3,11 @@ from pydantic import Field
 from typing import Optional
 import os
 import json
+from multiprocessing.pool import ThreadPool
+import time
 
-from HelperDcmWeb import HelperDcmWeb
-from HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.helper import get_project_user_access_token
 from kaapanapy.logger import get_logger
 
@@ -30,6 +32,7 @@ class GetInputArguments(BaseSettings):
     exclude_custom_tag: str = ""
     batch_name: str = "batch"
     check_modality: bool = False
+    parallel_downloads: int = 3
 
 
 def load_workflow_config():
@@ -43,13 +46,14 @@ def load_workflow_config():
     return config
 
 
-def check_modality_of_workflow(workflow_config: dict, modality: str):
+def check_modality_of_workflow(modality: str):
     """
     Check if the modality specified in the workflow_form of the workflow matches the modality.
 
     :dag_config: Config dictionary of a workflow.
     :modality: Modality to compare against the workflow_form in workflow_config.
     """
+    workflow_config = load_workflow_config()
     workflow_modality = workflow_config.get("workflow_form").get("input")
     assert workflow_modality.lower() == modality.lower()
 
@@ -58,7 +62,7 @@ def get_data_from_pacs(target_dir: str, studyUID: str, seriesUID: str):
     """
     Download the dicom file of a series from a PACS into target_dir
     """
-    dcmweb_helper.download_series(
+    return dcmweb_helper.download_series(
         study_uid=studyUID, series_uid=seriesUID, target_dir=target_dir
     )
 
@@ -71,6 +75,60 @@ def get_data_from_opensearch(target_dir: str, seriesUID: str):
     json_path = os.path.join(target_dir, "metadata.json")
     with open(json_path, "w") as fp:
         json.dump(meta_data, fp, indent=4, sort_keys=True)
+    return True
+
+
+def get_data(dcm_uid_object):
+    """
+    Download series data either from PACS or from Opensearch based on the workflow_config.
+
+    Input:
+    :dcm_uid_object: {"dcm-uid": {"series-uid":<series_uid>, "study-uid":<study_uid>, "curated_modality": <curated_modality>}}
+
+    Output:
+    (download_successful, series_uid)
+    """
+    download_successful = False
+    operator_arguments = GetInputArguments()
+    data_type = operator_arguments.data_type
+
+    if operator_arguments.check_modality:
+        modality = dcm_uid_object.get("dcm-uid").get("curated_modality")
+        check_modality_of_workflow(modality)
+
+    series_uid = dcm_uid_object.get("dcm-uid").get("series-uid")
+    study_uid = dcm_uid_object.get("dcm-uid").get("study-uid")
+    target_dir = make_target_dir_for_series(series_uid=series_uid)
+
+    if data_type == "json":
+        download_successful = get_data_from_opensearch(
+            target_dir=target_dir, seriesUID=series_uid
+        )
+    elif data_type == "dicom":
+        download_successful = get_data_from_pacs(
+            target_dir=target_dir, studyUID=study_uid, seriesUID=series_uid
+        )
+    else:
+        raise NotImplementedError(
+            f"{data_type=} not supported! Must be one of ['json','dicom']"
+        )
+
+    return download_successful, series_uid
+
+
+def make_target_dir_for_series(series_uid: str):
+    """
+    Create the target directory for a series object
+    """
+    settings = OperatorSettings()
+    target_dir = os.path.join(
+        settings.workflow_dir,
+        settings.batch_name,
+        series_uid,
+        settings.operator_out_dir,
+    )
+    os.makedirs(target_dir, exist_ok=True)
+    return target_dir
 
 
 def download_data_for_workflow(workflow_config):
@@ -83,7 +141,7 @@ def download_data_for_workflow(workflow_config):
     logger.debug(f"{operator_arguments=}")
 
     identifiers = workflow_config.get("data_form").get("identifiers")
-    data_type = operator_arguments.data_type
+    parallel_downloads = operator_arguments.parallel_downloads
 
     dcm_uid_objects = HelperOpensearch.get_dcm_uid_objects(
         identifiers,
@@ -91,36 +149,36 @@ def download_data_for_workflow(workflow_config):
         exclude_custom_tag=operator_arguments.exclude_custom_tag,
     )
 
-    for dcm_uid_object in dcm_uid_objects:
-        logger.debug(f"Start download of {dcm_uid_object=}")
-        ### Check if the modality of the series matches the
-        modality = dcm_uid_object.get("dcm-uid").get("curated_modality")
-        if operator_arguments.check_modality:
-            check_modality_of_workflow(workflow_config, modality)
+    series_download_fail = []
+    num_done = 0
+    num_total = len(dcm_uid_objects)
+    time_start = time.time()
 
-        series_uid = dcm_uid_object.get("dcm-uid").get("series-uid")
-        study_uid = dcm_uid_object.get("dcm-uid").get("study-uid")
-        target_dir = os.path.join(
-            settings.workflow_dir,
-            settings.batch_name,
-            series_uid,
-            settings.operator_out_dir,
+    with ThreadPool(parallel_downloads) as threadpool:
+        results = threadpool.imap_unordered(get_data, dcm_uid_objects)
+        for download_successful, series_uid in results:
+            if not download_successful:
+                series_download_fail.append(series_uid)
+            num_done += 1
+            if num_done % 10 == 0:
+                time_elapsed = time.time() - time_start
+                logger.info(f"{num_done}/{num_total} done")
+                logger.info("Time elapsed: %d:%02d minutes" % divmod(time_elapsed, 60))
+                logger.info(
+                    "Estimated time remaining: %d:%02d minutes"
+                    % divmod(time_elapsed / num_done * (num_total - num_done), 60)
+                )
+                logger.info("Series per second: %.2f" % (num_done / time_elapsed))
+    if len(series_download_fail) > 0:
+        raise Exception(
+            "Some series could not be downloaded: {}".format(series_download_fail)
         )
-        os.makedirs(target_dir, exist_ok=True)
-        if data_type == "json":
-            get_data_from_opensearch(target_dir=target_dir, seriesUID=series_uid)
-        elif data_type == "dicom":
-            get_data_from_pacs(
-                target_dir=target_dir, studyUID=study_uid, seriesUID=series_uid
-            )
-        else:
-            raise NotImplementedError(
-                f"{data_type=} not supported! Must be one of ['json','dicom']"
-            )
+    logger.info("All series downloaded successfully")
 
 
 if __name__ == "__main__":
     logger.info("Start GetInputOperator.")
+    ### This helper is used in get_data_from_pacs()
     dcmweb_helper = HelperDcmWeb(access_token=get_project_user_access_token())
     logger.debug("HelperDcmWeb object initialized.")
     workflow_config = load_workflow_config()

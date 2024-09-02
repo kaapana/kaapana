@@ -126,9 +126,9 @@ The DAG file :code:`dag_example_extract_study_id.py` has to be stored in :code:`
 
 .. hint::
 
-    To access user-defined variables from the DAG workflow form, use the `workflow_form` key. The previously used :strike:`form_data` is now deprecated.
+    To access user-defined variables defined in DAG's workflow form inside the operators, use the `workflow_form` key of a `dag_run`. The previously used :strike:`form_data` is now deprecated.
 
-    To retrieve your variable, use the following code:
+    See the following code:
 
     :code:`kwargs["dag_run"].conf["workflow_form"]["<YOUR_VARIABLE>"]`
     

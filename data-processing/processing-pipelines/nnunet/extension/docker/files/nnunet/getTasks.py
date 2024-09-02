@@ -7,13 +7,10 @@ from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 def _get_dataset_json(model_path, installed_task):
     dataset_json_path = join(model_path, installed_task, "**", "dataset.json")
-    print(f"1. DATASET_JSON_PATH: {dataset_json_path=}")
     dataset_json_path = glob(dataset_json_path, recursive=True)
-    print(f"2. DATASET_JSON_PATH: {dataset_json_path=}")
     if len(dataset_json_path) > 0 and exists(dataset_json_path[-1]):
         dataset_json_path = dataset_json_path[-1]
-        print(f"3. DATASET_JSON_PATH: {dataset_json_path=}")
-        print(f"Found dataset.json at {dataset_json_path}")
+        print(f"Found dataset.json at {dataset_json_path[-1]}")
         with open(dataset_json_path) as f:
             dataset_json = json.load(f)
     else:
@@ -30,17 +27,12 @@ def _get_dataset_json(model_path, installed_task):
             targets.append(label)
     elif "labels" in dataset_json:
         keys = list(dataset_json["labels"].keys())
-        print(f"{keys=}")
-        keys.remove("background")
-        targets = keys
-        # keys = list(dataset_json["labels"].keys())
-        # print(f"{keys=}")
-        # keys.sort(key=int)
-        # for key in keys:
-        #     label = dataset_json["labels"][key]
-        #     if key == "0" and label == "Clear Label":
-        #         continue
-        #     targets.append(label)
+        keys.sort(key=int)
+        for key in keys:
+            label = dataset_json["labels"][key]
+            if key == "0" and label == "Clear Label":
+                continue
+            targets.append(label)
     else:
         targets.append("N/A")
     dataset_json["targets"] = targets
@@ -102,7 +94,7 @@ def _get_installed_tasks(af_home_path):
                         if "input-mode" in dataset_json
                         else "all"
                     ),
-                    "input": list(dataset_json["channel_names"].values()),
+                    "input": dataset_json["input"],
                     "body_part": (
                         dataset_json["body_part"]
                         if "body_part" in dataset_json
@@ -121,8 +113,6 @@ def _get_installed_tasks(af_home_path):
             if installed_model not in installed_tasks[installed_task]["model"]:
                 installed_tasks[installed_task]["model"].append(installed_model)
                 installed_tasks[installed_task]["model"].sort()
-
-    print(f"INSTALLED TASKS: {installed_tasks}")
     return installed_tasks
 
 

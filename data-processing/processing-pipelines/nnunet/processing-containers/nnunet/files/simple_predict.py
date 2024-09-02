@@ -1,4 +1,6 @@
-from nnunet.inference.predict import predict_from_folder
+# nnUNet imports
+from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
+
 from pathlib import Path
 import os
 import json
@@ -9,152 +11,6 @@ from os.path import join, dirname, basename, exists
 from glob import glob
 import torch
 import shutil
-
-
-def get_model_targets(model_dir, targets):
-    print(f"# Searching for dataset.json @: {model_dir}")
-    dataset_json = glob(join(model_dir, "**", "dataset.json"), recursive=True)
-    if len(dataset_json) != 0:
-        print(f"# Loading dataset.json: {dataset_json[0]}")
-        with open(dataset_json[0]) as f:
-            dataset_json = json.load(f)
-        return dataset_json
-
-    return None
-
-
-def predict(
-    model,
-    input_folder,
-    output_folder,
-    folds,
-    save_npz,
-    num_threads_preprocessing,
-    num_threads_nifti_save,
-    part_id,
-    num_parts,
-    tta,
-    mixed_precision,
-    overwrite_existing,
-    mode,
-    overwrite_all_in_gpu,
-    step_size,
-    checkpoint_name,
-    lowres_segmentations=None,
-):
-    global task, task_body_part, task_targets, task_protocols, inf_seg_filter, remove_if_empty
-
-    target_labels = {}
-    if task is None:
-        print("# Loading model-info-json ...")
-        model_info = get_model_targets(model_dir=model, targets=task_targets)
-        assert model_info is not None and "labels" in model_info
-        print("# model_info:")
-        print("# ")
-        print(json.dumps(model_info, indent=4, sort_keys=True, default=str))
-        print("# ")
-        local_task = model_info["name"]
-        target_labels = model_info["labels"]
-        local_task_protocols = (
-            ",".join(model_info["modality"].values())
-            if "modality" in model_info
-            else "N/A"
-        )
-
-    else:
-        print("# Using env configuration ...")
-        print("# ")
-        local_task = task
-        local_task_protocols = task_protocols
-        assert task_targets is not None
-        for index in range(0, len(task_targets)):
-            target_labels[index] = task_targets[index]
-
-    print(f"#")
-    print(f"# Start prediction....")
-    print(f"# task:       {local_task}")
-    print(f"# model:      {model}")
-    print(f"# folds:      {folds}")
-    print(f"#")
-    print(f"# target_labels:  {target_labels}")
-    print(f"# task_protocols: {local_task_protocols}")
-    print(f"#")
-
-    Path(element_output_dir).mkdir(parents=True, exist_ok=True)
-    predict_from_folder(
-        model=model,
-        input_folder=input_folder,
-        output_folder=output_folder,
-        folds=folds,
-        save_npz=save_npz,
-        num_threads_preprocessing=num_threads_preprocessing,
-        num_threads_nifti_save=num_threads_nifti_save,
-        part_id=part_id,
-        num_parts=num_parts,
-        tta=tta,
-        mixed_precision=mixed_precision,
-        overwrite_existing=overwrite_existing,
-        mode=mode,
-        overwrite_all_in_gpu=overwrite_all_in_gpu,
-        step_size=step_size,
-        checkpoint_name=checkpoint_name,
-        lowres_segmentations=lowres_segmentations,
-    )
-    torch.cuda.empty_cache()
-    print("#")
-    print(f"# Checking NIFTI output for {output_folder}")
-    print("#")
-    nifti_files = sorted(glob(join(output_folder, "*.nii*"), recursive=False))
-    assert len(nifti_files) > 0
-
-    labels_found = []
-    for int_encoding, label_key in target_labels.items():
-        labels_found.append({"label_name": label_key, "label_int": str(int_encoding)})
-
-    if remove_if_empty:
-        for nifti_file in nifti_files:
-            print(f"# Loading result NIFTI: {nifti_file}")
-            labels_file = list(np.unique(nib.load(nifti_file).get_fdata().astype(int)))
-            if len(labels_file) == 1:
-                print("#")
-                print("#")
-                print("#")
-                print("#")
-                print("#")
-                print("#")
-                print("##################################################### ")
-                print("#")
-                print("# No segmentation was found in result-NIFTI-file!")
-                print(f"# deleting NIFTI-file {nifti_files[0]}")
-                print("#")
-                print("##################################################### ")
-                print("#")
-                print("#")
-                print("#")
-                print("#")
-                print("#")
-                print("#")
-                print("#")
-                os.remove(nifti_file)
-
-    seg_info_json = {}
-    seg_info_json["task_id"] = (
-        local_task if local_task != None else model.split("/")[-2]
-    )
-    seg_info_json["task_body_part"] = task_body_part
-    seg_info_json["task_protocols"] = local_task_protocols
-    seg_info_json["task_targets"] = task
-    seg_info_json["algorithm"] = (
-        task.lower() if task != None else model.split("/")[-2].lower()
-    )
-
-    seg_info_json["seg_info"] = labels_found
-    seg_json_path = join(output_folder, "seg_info.json")
-    print(f"# Writing seg_info: {seg_json_path}")
-    with open(seg_json_path, "w") as outfile:
-        json.dump(seg_info_json, outfile, sort_keys=True, indent=4, default=str)
-    print("#")
-    print("##################################################### ")
 
 
 def create_dataset(search_dir):
@@ -299,7 +155,7 @@ def get_model_paths(batch_element_dir):
         if (
             len(
                 glob(
-                    join(model_path, "**", "model_final_checkpoint.model.pkl"),
+                    join(model_path, "**", "model_final_checkpoint.model"),
                     recursive=True,
                 )
             )
@@ -307,8 +163,7 @@ def get_model_paths(batch_element_dir):
         ):
             checkpoint_name = "model_final_checkpoint"
         elif (
-            len(glob(join(model_path, "**", "model_latest.model.pkl"), recursive=True))
-            > 0
+            len(glob(join(model_path, "**", "model_latest.model"), recursive=True)) > 0
         ):
             checkpoint_name = "model_latest"
         else:
@@ -332,17 +187,69 @@ def get_model_paths(batch_element_dir):
     return result_model_paths
 
 
-# def write_seg_info(task, targets, target_dir):
-#     print("# Writing seg_info.json ...")
-#     seg_info = {"seg_info": targets}
-#     seg_info["algorithm"] = task
-#     json_path = os.path.join(target_dir, 'seg_info.json')
+def write_seg_info(task, target_dir, dataset_info_dir):
+    print("# Writing seg_info.json ...")
 
-#     with open(json_path, 'w') as outfile:
-#         json.dump(seg_info, outfile, sort_keys=True, indent=4)
+    # get seg_info content form dataset.json
+    # seg_info_path = Path(target_dir).parent / operator_in_dir
+    with open(os.path.join(dataset_info_dir, "dataset.json"), "r") as file:
+        dataset_dict = json.load(file)
 
-#     print(json.dumps(seg_info, indent=4, sort_keys=True))
-#     print("#")
+    seg_info_list = [
+        {"label_name": key, "label_int": str(value)}
+        for key, value in dataset_dict["labels"].items()
+    ]
+
+    seg_info = {"seg_info": seg_info_list}
+    seg_info["algorithm"] = str(task)
+    json_path = os.path.join(target_dir, "seg_info.json")
+
+    with open(json_path, "w") as outfile:
+        json.dump(seg_info, outfile, sort_keys=True, indent=4)
+
+    print(json.dumps(seg_info, indent=4, sort_keys=True))
+    print("#")
+
+
+def predict(
+    input_data_dir,
+    element_output_dir,
+    model,
+    folds="all",
+    checkpoint_name="model_final_checkpoint",
+    enable_softmax="False",
+):
+    ### from nnU-Net V2 docs
+    # source: https://github.com/MIC-DKFZ/nnUNet/tree/master/nnunetv2/inference#recommended-nnu-net-default-predict-from-source-files
+    # instantiate the nnUNetPredictor
+    predictor = nnUNetPredictor(
+        tile_step_size=0.5,
+        use_gaussian=True,
+        use_mirroring=True,
+        perform_everything_on_device=True,
+        device=torch.device("cuda", 0),
+        verbose=False,
+        verbose_preprocessing=False,
+        allow_tqdm=True,
+    )
+    # initializes the network architecture, loads the checkpoint
+    predictor.initialize_from_trained_model_folder(
+        model,
+        use_folds=folds,
+        checkpoint_name=checkpoint_name + ".model",
+    )
+    # variant 1: give input and output folders
+    predictor.predict_from_files(
+        input_data_dir,
+        element_output_dir,
+        save_probabilities=enable_softmax,
+        overwrite=False,
+        num_processes_preprocessing=2,
+        num_processes_segmentation_export=2,
+        folder_with_segs_from_prev_stage=None,
+        num_parts=1,
+        part_id=0,
+    )
 
 
 folds = getenv("TRAIN_FOLD", "None")
@@ -358,8 +265,8 @@ task = task if task.lower() != "none" else None
 task_targets = os.getenv("TARGETS", "None")
 task_targets = task_targets.split(",") if task_targets.lower() != "none" else None
 
-if task_targets != None and task_targets[0] != "Clear Label":
-    task_targets.insert(0, "Clear Label")
+if task_targets != None and task_targets[0] != "background":
+    task_targets.insert(0, "background")
 
 task_body_part = getenv("BODY_PART", "N/A")
 task_protocols = getenv("INPUT", "NOT FOUND!").split(",")
@@ -426,136 +333,72 @@ copy_target_data = True
 if enable_softmax:
     inf_mode = "normal"
 
-print("##################################################")
-print("#")
-print("# Starting nnUNet simple predict....")
-print("#")
-print(f"# task:  {task}")
-print(f"# mode:  {mode}")
-print(f"# folds: {folds}")
-print("#")
-print(f"# task_targets: {task_targets}")
-print(f"# task_protocols: {task_protocols}")
-print(f"# task_body_part: {task_body_part}")
-print("#")
-print(f"# models_dir: {models_dir}")
-print(f"# batch_name:   {batch_name}")
-print(f"# workflow_dir: {workflow_dir}")
-print(f"# batch_dataset: {batch_dataset}")
-print(f"# enable_softmax: {enable_softmax}")
-print(f"# remove_if_empty: {remove_if_empty}")
-print(f"# operator_in_dir: {operator_in_dir}")
-print(f"# operator_out_dir: {operator_out_dir}")
-print(f"# input_modality_dirs: {input_modality_dirs}")
-print(f"# threads_nifiti:      {threads_nifiti}")
-print(f"# threads_preprocessing: {threads_preprocessing}")
-print(f"# model_arch:            {model_arch}")
-print(f"# train_network_trainer: {train_network_trainer}")
-print("#")
-print(f"# tta:  {tta}")
-print(f"# mixed_precision:       {mixed_precision}")
-print(f"# INTERPOLATION_ORDER:   {interpolation_order}")
-print(f"# cuda_visible_devices:  {cuda_visible_devices}")
-print("#")
-print("#")
-print(f"# inf_seg_filter:  {inf_seg_filter}")
-print("#")
-print("##################################################")
-print("#")
-print("# Starting processing on batch-element-level ...")
-print("#")
-print("##################################################")
-print("#")
 
-processed_count = 0
-batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
-for batch_element_dir in batch_folders:
-    input_data_dir, input_count = create_dataset(search_dir=batch_element_dir)
-    if input_count == 0:
-        print("#")
-        print("##################################################")
-        print("#")
-        print("# No NIFTI files found on batch-element-level!")
-        print("#")
-        print("##################################################")
-        print("#")
-        break
-
-    # element_input_dir = join(batch_element_dir, operator_in_dir)
-    element_output_dir = join(batch_element_dir, operator_out_dir)
-
-    # models/nnUNet/3d_lowres/Task003_Liver/nnUNetTrainerV2__nnUNetPlansv2.1/fold_1
-    model_paths = get_model_paths(batch_element_dir=batch_element_dir)
-    for model, checkpoint_name in model_paths:
-        if folds == None and exists(join(model, "all")):
-            folds = "all"
-        print("#")
-        print("##################################################")
-        print("#                                                #")
-        print(f"# Start prediction....                           #")
-        print("#                                                #")
-        print("##################################################")
-        print("#")
-        print(f"# model: {model}")
-        print("#")
-
-        predict(
-            model=model,
-            input_folder=input_data_dir,
-            output_folder=element_output_dir,
-            folds=folds,
-            save_npz=enable_softmax,
-            num_threads_preprocessing=threads_preprocessing,
-            num_threads_nifti_save=threads_nifiti,
-            lowres_segmentations=None,
-            part_id=part_id,
-            num_parts=num_parts,
-            tta=tta,
-            mixed_precision=mixed_precision,
-            overwrite_existing=override_existing,
-            mode=inf_mode,
-            overwrite_all_in_gpu=overwrite_all_in_gpu,
-            step_size=step_size,
-            checkpoint_name=checkpoint_name,
-        )
-        processed_count += 1
-        print("#")
-        print("##################################################")
-        print("#                                                #")
-        print("#                 Prediction ok                  #")
-        print("#                                                #")
-        print("##################################################")
-        print("#                                                #")
-        print(f"# model: {model}")
-        print("#")
-
-    input_data_dir = join("/", workflow_dir, "nnunet-input-data")
-    shutil.rmtree(input_data_dir, ignore_errors=True)
-
-if processed_count == 0:
+if __name__ == "__main__":
     print("##################################################")
     print("#")
-    print("# Starting processing on batch-level ...")
+    print("# Starting nnUNet simple predict....")
+    print("#")
+    print(f"# task:  {task}")
+    print(f"# mode:  {mode}")
+    print(f"# folds: {folds}")
+    print("#")
+    print(f"# task_targets: {task_targets}")
+    print(f"# task_protocols: {task_protocols}")
+    print(f"# task_body_part: {task_body_part}")
+    print("#")
+    print(f"# models_dir: {models_dir}")
+    print(f"# batch_name:   {batch_name}")
+    print(f"# workflow_dir: {workflow_dir}")
+    print(f"# batch_dataset: {batch_dataset}")
+    print(f"# enable_softmax: {enable_softmax}")
+    print(f"# remove_if_empty: {remove_if_empty}")
+    print(f"# operator_in_dir: {operator_in_dir}")
+    print(f"# operator_out_dir: {operator_out_dir}")
+    print(f"# input_modality_dirs: {input_modality_dirs}")
+    print(f"# threads_nifiti:      {threads_nifiti}")
+    print(f"# threads_preprocessing: {threads_preprocessing}")
+    print(f"# model_arch:            {model_arch}")
+    print(f"# train_network_trainer: {train_network_trainer}")
+    print("#")
+    print(f"# tta:  {tta}")
+    print(f"# mixed_precision:       {mixed_precision}")
+    print(f"# INTERPOLATION_ORDER:   {interpolation_order}")
+    print(f"# cuda_visible_devices:  {cuda_visible_devices}")
+    print("#")
+    print("#")
+    print(f"# inf_seg_filter:  {inf_seg_filter}")
     print("#")
     print("##################################################")
-    input_data_dir, input_count = create_dataset(search_dir=workflow_dir)
+    print("#")
+    print("# Starting processing on batch-element-level ...")
+    print("#")
+    print("##################################################")
+    print("#")
 
-    if input_count == 0:
-        print("#")
-        print("# No files on batch-level found -> continue")
-        print("#")
-    else:
+    processed_count = 0
+    batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
+    for batch_element_dir in batch_folders:
+        input_data_dir, input_count = create_dataset(search_dir=batch_element_dir)
+        if input_count == 0:
+            print("#")
+            print("##################################################")
+            print("#")
+            print("# No NIFTI files found on batch-element-level!")
+            print("#")
+            print("##################################################")
+            print("#")
+            break
+
         # element_input_dir = join(batch_element_dir, operator_in_dir)
-        output_dir = join(workflow_dir, operator_out_dir)
+        element_output_dir = join(batch_element_dir, operator_out_dir)
 
-        # models/nnUNet/3d_lowres/Task003_Liver/nnUNetTrainerV2__nnUNetPlansv2.1/fold_1
-        model_paths = get_model_paths(batch_element_dir=workflow_dir)
-        if folds == None and exists(join(model_paths, "all")):
-            folds = "all"
-
+        # e.g.: /models/nnUNet/Dataset579_10.135.76.130_010824-0934/nnUNetTrainer__nnUNetResEncUNetMPlans__3d_lowres/fold_all
+        model_paths = get_model_paths(batch_element_dir=batch_element_dir)
         for model, checkpoint_name in model_paths:
-            if folds == None and exists(join(model, "all")):
+            if folds == None and "fold_all" in model or folds == "all":
                 folds = "all"
+                model = Path(model).parent
             print("#")
             print("##################################################")
             print("#                                                #")
@@ -564,48 +407,103 @@ if processed_count == 0:
             print("##################################################")
             print("#")
             print(f"# model: {model}")
-            print(f"# folds: {folds}")
             print("#")
 
+            # predict via nnU-Net's predict function
             predict(
-                model=model,
-                input_folder=input_data_dir,
-                output_folder=output_dir,
-                folds=folds,
-                save_npz=enable_softmax,
-                num_threads_preprocessing=threads_preprocessing,
-                num_threads_nifti_save=threads_nifiti,
-                lowres_segmentations=None,
-                part_id=part_id,
-                num_parts=num_parts,
-                tta=tta,
-                mixed_precision=mixed_precision,
-                overwrite_existing=override_existing,
-                mode=inf_mode,
-                overwrite_all_in_gpu=overwrite_all_in_gpu,
-                step_size=step_size,
-                checkpoint_name=checkpoint_name,
+                input_data_dir,
+                element_output_dir,
+                model,
+                folds,
+                checkpoint_name,
+                enable_softmax,
             )
+            # write corresponding seg_info.json
+            write_seg_info(model, element_output_dir, dataset_info_dir=model)
+
             processed_count += 1
-            print(f"# Prediction ok.")
-            print(f"#")
+            print("#")
+            print("##################################################")
+            print("#                                                #")
+            print("#                 Prediction ok                  #")
+            print("#                                                #")
+            print("##################################################")
+            print("#                                                #")
+            print(f"# model: {model}")
+            print("#")
 
-    input_data_dir = join("/", workflow_dir, "nnunet-input-data")
-    shutil.rmtree(input_data_dir, ignore_errors=True)
+        input_data_dir = join("/", workflow_dir, "nnunet-input-data")
+        shutil.rmtree(input_data_dir, ignore_errors=True)
 
-if processed_count == 0:
-    print("#")
-    print("##################################################")
-    print("#")
-    print("##################  ERROR  #######################")
-    print("#")
-    print("# ----> NO FILES HAVE BEEN PROCESSED!")
-    print("#")
-    print("##################################################")
-    print("#")
-    exit(1)
-else:
-    print("#")
-    print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
-    print("#")
-    print("# DONE #")
+    if processed_count == 0:
+        print("##################################################")
+        print("#")
+        print("# Starting processing on batch-level ...")
+        print("#")
+        print("##################################################")
+        input_data_dir, input_count = create_dataset(search_dir=workflow_dir)
+
+        if input_count == 0:
+            print("#")
+            print("# No files on batch-level found -> continue")
+            print("#")
+        else:
+            # element_input_dir = join(batch_element_dir, operator_in_dir)
+            output_dir = join(workflow_dir, operator_out_dir)
+
+            # models/nnUNet/3d_lowres/Task003_Liver/nnUNetTrainerV2__nnUNetPlansv2.1/fold_1
+            model_paths = get_model_paths(batch_element_dir=workflow_dir)
+            if folds == None and exists(join(model_paths, "all")):
+                folds = "all"
+
+            for model, checkpoint_name in model_paths:
+                if folds == None and "fold_all" in model:
+                    folds = "all"
+                    model = Path(model).parent
+
+                print("#")
+                print("##################################################")
+                print("#                                                #")
+                print(f"# Start prediction....                           #")
+                print("#                                                #")
+                print("##################################################")
+                print("#")
+                print(f"# model: {model}")
+                print(f"# folds: {folds}")
+                print("#")
+
+                # predict via nnU-Net's predict function
+                predict(
+                    input_data_dir,
+                    output_dir,
+                    model,
+                    folds,
+                    checkpoint_name,
+                    enable_softmax,
+                )
+                # write corresponding seg_info.json
+                write_seg_info(model, task_targets, output_dir)
+
+                processed_count += 1
+                print(f"# Prediction ok.")
+                print(f"#")
+
+        input_data_dir = join("/", workflow_dir, "nnunet-input-data")
+        shutil.rmtree(input_data_dir, ignore_errors=True)
+
+    if processed_count == 0:
+        print("#")
+        print("##################################################")
+        print("#")
+        print("##################  ERROR  #######################")
+        print("#")
+        print("# ----> NO FILES HAVE BEEN PROCESSED!")
+        print("#")
+        print("##################################################")
+        print("#")
+        exit(1)
+    else:
+        print("#")
+        print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
+        print("#")
+        print("# DONE #")

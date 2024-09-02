@@ -396,7 +396,7 @@ if __name__ == "__main__":
         # e.g.: /models/nnUNet/Dataset579_10.135.76.130_010824-0934/nnUNetTrainer__nnUNetResEncUNetMPlans__3d_lowres/fold_all
         model_paths = get_model_paths(batch_element_dir=batch_element_dir)
         for model, checkpoint_name in model_paths:
-            if folds == None and "fold_all" in model:
+            if folds == None and "fold_all" in model or folds == "all":
                 folds = "all"
                 model = Path(model).parent
             print("#")

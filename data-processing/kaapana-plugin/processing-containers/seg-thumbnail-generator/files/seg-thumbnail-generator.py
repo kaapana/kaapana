@@ -7,19 +7,31 @@ import os
 from rt_utils import RTStructBuilder
 from logger_helper import get_logger
 import logging
-from PIL import Image
+from PIL import Image, ImageFilter, ImageDraw
 import re
 import shutil
 from subprocess import PIPE, run
 from colormath.color_objects import LabColor, sRGBColor
 from colormath.color_conversions import convert_color
+from matplotlib import cm
 from multiprocessing.pool import ThreadPool
 import psutil
 from random import randint
+import SimpleITK as sitk
+import pydicom
+from dataclasses import dataclass
 
 logger = None
 processed_count = 0
 execution_timeout = 10
+
+
+@dataclass
+class Slice:
+    slice_index: int
+    segmentation_classes: list
+    number_of_classes: int
+    number_of_foreground_pixels: int
 
 
 def print_mem_usage(msg=None):
@@ -157,9 +169,10 @@ def create_thumbnail(parameters):
         logger.info("modality == SEG")
         print_mem_usage()
         result = create_seg_thumbnail(
-            seg_dcm, base_series_uids, target_dir, seg_series_uid
+            image_dir=dcm_dir,
+            seg_dir=dcm_seg_dir,
+            target_dir=target_dir,
         )
-
     else:
         logger.error(f"modality == {modality} -> Error!")
         return False, dcm_seg_dir
@@ -375,165 +388,148 @@ def create_rtstruct_thumbnail(
     return True
 
 
-def create_seg_thumbnail(seg_dcm, base_series_uids, target_dir, seg_series_uid):
-    logger.info("in create_seg_thumbnail")
-    print_mem_usage()
-    seg_ref_image_info_cmd = (
-        f"dcmdump {seg_dcm} --prepend --load-short --search 0008,1155"
-    )
-    logger.info("Get seg_ref_img_info ...")
-    print_mem_usage()
-    seg_ref_img_info = execute_command(cmd=seg_ref_image_info_cmd, timeout=10)
-    seg_ref_img_info = seg_ref_img_info.stdout.split("\n")
+def create_seg_thumbnail(image_dir, seg_dir, target_dir):
 
-    seg_tmp_output_dir = join(target_dir, "tmp/seg")
-    shutil.rmtree(seg_tmp_output_dir, ignore_errors=True)
-    Path(seg_tmp_output_dir).mkdir(parents=True, exist_ok=True)
+    # Create target directory
+    os.makedirs(target_dir, exist_ok=True)
 
-    seg_image_info_cmd = f"dcmdump {seg_dcm} --prepend --load-short --search 0020,9157"
-    logger.info("Get seg_img_info ...")
-    print_mem_usage()
-    seg_img_info = execute_command(cmd=seg_image_info_cmd, timeout=10)
-    seg_img_info = seg_img_info.stdout.split("\n")
-    seg_img_info = [x for x in seg_img_info if "(5200,9230)" in x and x != ""]
+    # Load the image
+    image_reader = sitk.ImageSeriesReader()
 
-    seg_ref_image_info_cmd = (
-        f"dcmdump {seg_dcm} --prepend --load-short --search 0008,1155"
-    )
-    logger.info("Get seg_ref_img_info ...")
-    print_mem_usage()
-    seg_ref_img_info = execute_command(cmd=seg_ref_image_info_cmd, timeout=10)
-    seg_ref_img_info = seg_ref_img_info.stdout.split("\n")
-    seg_ref_img_info = [
-        x
-        for x in seg_ref_img_info
-        if (
-            "(5200,9230)" in x
-            or "(0008,1200).(0008,1115).(0008,114a).(0008,1155) UI" in x
+    dicom_names = image_reader.GetGDCMSeriesFileNames(image_dir)
+    image_reader.SetFileNames(dicom_names)
+
+    dicom_image = image_reader.Execute()
+    image_array = sitk.GetArrayFromImage(dicom_image)
+
+    del dicom_image
+
+    # Load the segmentation
+    file_name = os.path.join(seg_dir, os.listdir(seg_dir)[0])
+    dicom_seg = pydicom.dcmread(file_name)
+
+    seg_array = dicom_seg.pixel_array
+    seg_array_binary = np.where(seg_array > 0, 1, 0)
+
+    # Get Slices with most segmentation classes
+    slices = []
+
+    for i in range(image_array.shape[0]):
+        slice_seg_array = seg_array_binary[i, :, :]
+        slice_seg_array_binary = seg_array_binary[i, :, :]
+
+        number_of_classes = len(np.unique(slice_seg_array))
+        number_of_foreground_pixels = np.sum(slice_seg_array_binary)
+
+        slice = Slice(
+            slice_index=i,
+            segmentation_classes=np.unique(slice_seg_array),
+            number_of_classes=number_of_classes,
+            number_of_foreground_pixels=number_of_foreground_pixels,
         )
-        and x != ""
-    ]
 
-    dicomlab_color_image_info_cmd = (
-        f"dcmdump {seg_dcm} --prepend --load-short +U8 --print-all --search 0062,000d"
+        slices.append(slice)
+
+    # Find the slice with the most segmentation classes. If there are multiple slices with the same number of classes, choose the one with the most foreground pixels
+    slices.sort(
+        key=lambda x: (x.number_of_classes, x.number_of_foreground_pixels), reverse=True
     )
-    logger.info("Get dicomlab_color_img_info ...")
-    print_mem_usage()
-    dicomlab_color_img_info = execute_command(
-        cmd=dicomlab_color_image_info_cmd, timeout=10
-    )
-    dicomlab_color_img_info = dicomlab_color_img_info.stdout.split("\n")
-    dicomlab_color_img_info = [x for x in dicomlab_color_img_info if x != ""]
 
-    seg_image_bmp_cmd = (
-        f"dcm2pnm {seg_dcm} --write-bmp --all-frames {seg_tmp_output_dir}/seg"
-    )
-    logger.info("Generate seg_bmps ...")
-    print_mem_usage()
-    output_result = execute_command(cmd=seg_image_bmp_cmd, timeout=20)
-    seg_bmps = sorted(glob(join(seg_tmp_output_dir, "*.bmp"), recursive=False))
-    seg_bmps.sort(key=lambda f: int(re.sub("\D", "", f)))
+    best_slice = slices[0]
 
-    logger.info(f"len(seg_bmps):           {len(seg_bmps)}")
-    logger.info(f"len(seg_img_info):       {len(seg_img_info)}")
-    logger.info(f"len(seg_ref_img_info):   {len(seg_ref_img_info)}")
-    logger.info(f"len(dicomlab_color_img_info): {len(dicomlab_color_img_info)}")
+    # Iterate through the segments and extract the colors
+    segment_colors = {}
 
-    assert len(seg_bmps) == len(seg_img_info) == len(seg_ref_img_info)
+    # Look up the color for each class from dicom seg ob
+    if "SegmentSequence" in dicom_seg:
+        for segment in dicom_seg.SegmentSequence:
+            segment_number = segment.SegmentNumber
+            segment_label = segment.SegmentLabel
 
-    logger.info("Collect seg thumbnails ...")
-    print_mem_usage()
-    tmp_rand_colors = {}
-    seg_id_list = []
-    for index, info in enumerate(seg_img_info):
-        if info == "":
-            continue
-        info = info.split(" ")[2].replace("#", "").split("\\")
-        seg_id = int(info[0]) - 1
-        if seg_id not in seg_id_list:
-            seg_id_list.append(seg_id)
-        if len(dicomlab_color_img_info) > 0:
-            dicomlab = dicomlab_color_img_info[seg_id].split(" ")[2].split("\\")
-            dicomlab = [float(int(x)) for x in dicomlab]
-            color_rgb = dicomlab2LAB(dicomlab=dicomlab)
-            lab = LabColor(color_rgb[0], color_rgb[1], color_rgb[2])
-            color_rgb = convert_color(lab, sRGBColor).get_upscaled_value_tuple()
-            color_rgb = [max(min(x, 255), 0) for x in color_rgb]
-        else:
-            if str(seg_id) not in tmp_rand_colors:
-                logger.warning(
-                    f"No color information could be found -> using random colors for seg_id {seg_id} ..."
-                )
-                color_rgb = [randint(0, 255), randint(0, 255), randint(0, 255)]
-                tmp_rand_colors[str(seg_id)] = color_rgb
+            # Extract the color information
+            if hasattr(segment, "RecommendedDisplayCIELabValue"):
+                cie_lab_color_int = segment.RecommendedDisplayCIELabValue
+                cie_lab_color_float = [float(int(x)) for x in cie_lab_color_int]
+                color_rgb = dicomlab2LAB(dicomlab=cie_lab_color_float)
+                lab = LabColor(color_rgb[0], color_rgb[1], color_rgb[2])
+                color_rgb = convert_color(lab, sRGBColor).get_upscaled_value_tuple()
+                color = [max(min(x, 255), 0) for x in color_rgb]
+                color_type = "CIELab"
+            elif hasattr(segment, "RecommendedDisplayRGBValue"):
+                color = segment.RecommendedDisplayRGBValue
+                color_type = "RGB"
             else:
-                color_rgb = tmp_rand_colors[str(seg_id)]
-        slice_ref = (
-            seg_ref_img_info[index].split(" ")[2].replace("[", "").replace("]", "")
-        )
-        assert slice_ref in base_series_uids
-        base_series_uids[slice_ref]["seg_bmps"].append(
-            {"bmp_file": seg_bmps[index], "colors": color_rgb}
-        )
+                # If no color information is available, generate a random color
+                color = [randint(0, 255), randint(0, 255), randint(0, 255)]
+                color_type = "Random"
 
-    logger.info("Identify best thumbnail slice ...")
-    print_mem_usage()
-    slice_max_id = None
-    max_pixel_count = 0
-    slice_max_segs = 0
+            segment_colors[segment_number] = {
+                "label": segment_label,
+                "color_type": color_type,
+                "color": color,
+            }
 
-    for index, base_slice in enumerate(base_series_uids):
-        base_slice_element = base_series_uids[base_slice]
-        if len(base_slice_element["seg_bmps"]) == 0:
+    del dicom_seg
+
+    # Use the binary mask to get the relevant intensities
+    base_image_array = image_array[best_slice.slice_index, :, :]
+    del image_array
+
+    base_seg_array = seg_array[best_slice.slice_index, :, :]
+    del seg_array
+
+    base_seg_array_binary = seg_array_binary[best_slice.slice_index, :, :]
+    del seg_array_binary
+
+    masked_array = base_image_array * base_seg_array_binary
+
+    # Calculate the min and max intensity values within the masked region
+    min_intensity = np.min(masked_array[masked_array > 0])
+    max_intensity = np.max(masked_array[masked_array > 0])
+
+    # Add a 10% margin to the min and max intensities
+    margin = 0.1 * (max_intensity - min_intensity)
+    window_min = max(0, min_intensity - margin)
+    window_max = min(4095, max_intensity + margin)  # assuming 12-bit DICOM images
+
+    # Apply windowing to the original DICOM image
+    windowed_data = np.clip(base_image_array, window_min, window_max)
+
+    del base_image_array
+
+    # Normalize the windowed pixel values to 0-255
+    normalized_data = (windowed_data - window_min) / (window_max - window_min) * 255
+    normalized_data = normalized_data.astype(np.uint8)
+
+    # Create an RGBA image from the normalized data
+    image = Image.fromarray(normalized_data).convert("RGBA")
+
+    # Draw the segment borders and fill the inner part with the segment color
+    for seg_class in np.unique(base_seg_array):
+        if seg_class == 0:
             continue
+        color = segment_colors[seg_class]["color"]
+        mask = Image.fromarray(np.uint8(base_seg_array == seg_class) * 255, mode="L")
 
-        tmp_max_pixel_count = 0
-        for seg_thumb in base_slice_element["seg_bmps"]:
-            seg_thumb_bmp = seg_thumb["bmp_file"]
-            logger.info(f"Loading seg bmp: {basename(seg_thumb_bmp)}")
-            seg_img_np = load_img(img_path=seg_thumb_bmp, rgba=False)
-            pixel_count = int(np.sum(seg_img_np))
-            tmp_max_pixel_count += pixel_count
+        # Draw the border with full opacity
+        border_overlay = Image.new("RGBA", image.size, tuple(color) + (255,))
+        image = Image.composite(
+            border_overlay, image, mask.filter(ImageFilter.FIND_EDGES)
+        )
 
-        if tmp_max_pixel_count > max_pixel_count:
-            max_pixel_count = tmp_max_pixel_count
-            slice_max_id = base_slice
+        # Draw the inner part with 50% transparency
+        fill_overlay = Image.new("RGBA", image.size, tuple(color) + (0,))
+        draw = ImageDraw.Draw(fill_overlay)
+        draw.bitmap((0, 0), mask, fill=tuple(color) + (128,))
 
-    correct_slice = base_series_uids[slice_max_id]
-    logger.info(f"Best slice: {correct_slice}")
+        image = Image.alpha_composite(image, fill_overlay)
 
-    base_tmp_output_dir = join(target_dir, "tmp/base")
-    shutil.rmtree(base_tmp_output_dir, ignore_errors=True)
-    Path(base_tmp_output_dir).mkdir(parents=True, exist_ok=True)
-    base_image_bmp_cmd = f"dcm2pnm {correct_slice['base_dcm']} --write-bmp +Wm {base_tmp_output_dir}/base.bmp"
-    output_result = execute_command(cmd=base_image_bmp_cmd, timeout=20)
-    base_bmps = glob(join(base_tmp_output_dir, "*.bmp"), recursive=False)
-    logger.info(f"Found {len(base_bmps)} base bmps ...")
-    assert len(base_bmps) == 1
+    # Save the thumbnail
+    seg_series_uid = file_name.replace(".dcm", "").split("/")[-1]
+    target_png = os.path.join(target_dir, f"{seg_series_uid}.png")
+    image.save(target_png)
+    print(f"Thumbnail saved to {target_png}")
 
-    logger.info("Generating overlay ...")
-    print_mem_usage()
-    base_img_np = load_img(img_path=base_bmps[0])
-
-    seg_overlay = np.zeros_like(base_img_np)
-    for index, seg_bmp in enumerate(correct_slice["seg_bmps"]):
-        seg_img_np = load_img(img_path=seg_bmp["bmp_file"], rgba=False)
-        seg_overlay[:, :, 0][seg_img_np > 0] = seg_bmp["colors"][0]
-        seg_overlay[:, :, 1][seg_img_np > 0] = seg_bmp["colors"][1]
-        seg_overlay[:, :, 2][seg_img_np > 0] = seg_bmp["colors"][2]
-        seg_overlay[:, :, 3][seg_img_np > 0] = 200
-
-    logger.info("Saving target thumbnail png ...")
-    print_mem_usage()
-    target_png = join(target_dir, f"{seg_series_uid}.png")
-    im = Image.fromarray(base_img_np)
-    im_overlay = Image.fromarray(seg_overlay)
-    final_image = Image.alpha_composite(im, im_overlay)
-    final_image = final_image.resize(
-        (thumbnail_size, thumbnail_size), resample=Image.BICUBIC
-    )
-    final_image.save(target_png)
-    shutil.rmtree(join(target_dir, "tmp"), ignore_errors=True)
     return True
 
 

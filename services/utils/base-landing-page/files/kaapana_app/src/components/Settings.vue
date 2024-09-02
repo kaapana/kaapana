@@ -147,10 +147,10 @@ export default {
         settingsItems.push(item)
       });
 
-      console.log(settingsItems);
+      // console.log(settingsItems);
 
       kaapanaApiService
-          .federatedClientApiPut("/settings", settingsItems)
+          .kaapanaApiPut("/settings", settingsItems)
           .then((response) => {
             // console.log(response);
             if (reload_after) {

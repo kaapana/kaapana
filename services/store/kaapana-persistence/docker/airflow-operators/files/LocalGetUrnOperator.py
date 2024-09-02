@@ -28,9 +28,9 @@ class LocalGetUrnOperator(KaapanaPythonBaseOperator):
             print(f"# No URNs in conf object")
             print("#")
 
-        if "form_data" in self.conf:
+        if "workflow_form" in self.conf:
             urns.extend(
-                [x.strip() for x in self.conf["form_data"].get("urns", "").split(",")]
+                [x.strip() for x in self.conf["workflow_form"].get("urns", "").split(",")]
             )
 
         if not urns:

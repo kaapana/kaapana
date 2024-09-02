@@ -60,10 +60,10 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
         conf = kwargs["dag_run"].conf
 
-        if "form_data" in conf:
-            form_data = conf["form_data"]
-            if "annotator" in form_data:
-                payload["sets"]["annotator"] = form_data["annotator"]
+        if "workflow_form" in conf:
+            workflow_form = conf["workflow_form"]
+            if "annotator" in workflow_form:
+                payload["sets"]["annotator"] = workflow_form["annotator"]
 
         for set_key, set_value in self.sets.items():
             payload["sets"][set_key] = set_value

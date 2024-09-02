@@ -484,13 +484,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if (
             context["dag_run"].conf is not None
-            and "form_data" in context["dag_run"].conf
-            and context["dag_run"].conf["form_data"] is not None
+            and "workflow_form" in context["dag_run"].conf
+            and context["dag_run"].conf["workflow_form"] is not None
         ):
-            form_data = context["dag_run"].conf["form_data"]
-            logging.info(form_data)
+            workflow_form = context["dag_run"].conf["workflow_form"]
+            logging.info(workflow_form)
 
-            for key, value in form_data.items():
+            for key, value in workflow_form.items():
                 key = key.upper()
                 self.env_vars[key] = str(value)
 

@@ -346,15 +346,15 @@ class LocalModifySegLabelNamesOperator(KaapanaPythonBaseOperator):
         # load user input's label renaming look-up table
         conf = kwargs["dag_run"].conf
         print("CONF:")
-        print(conf["form_data"])
-        if ("old_labels" in conf["form_data"]) and ("new_labels" in conf["form_data"]):
-            self.old_label_names = conf["form_data"]["old_labels"].split(",")
+        print(conf["workflow_form"])
+        if ("old_labels" in conf["workflow_form"]) and ("new_labels" in conf["workflow_form"]):
+            self.old_label_names = conf["workflow_form"]["old_labels"].split(",")
             self.old_label_names = [
                 self.remove_special_characters(x) for x in self.old_label_names
             ]
 
             self.new_label_names = (
-                conf["form_data"]["new_labels"].replace(" ", "").lower().split(",")
+                conf["workflow_form"]["new_labels"].replace(" ", "").lower().split(",")
             )
             self.new_label_names = [
                 self.remove_special_characters(x) for x in self.new_label_names

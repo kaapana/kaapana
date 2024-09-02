@@ -236,7 +236,7 @@ def trigger_delete_dag(examples_send):
                 "delete_complete_study": False,
                 "single_execution": False,
             },
-            "form_data": {"username": "system"},
+            "workflow_form": {"username": "system"},
         }
         dag_id = "delete-series-from-platform"
         print("data", conf)

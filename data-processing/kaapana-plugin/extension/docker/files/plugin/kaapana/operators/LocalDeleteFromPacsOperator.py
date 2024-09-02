@@ -26,11 +26,11 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
         )
         print("conf", conf)
         if (
-            "form_data" in conf
-            and conf["form_data"] is not None
-            and "delete_complete_study" in conf["form_data"]
+            "workflow_form" in conf
+            and conf["workflow_form"] is not None
+            and "delete_complete_study" in conf["workflow_form"]
         ):
-            self.delete_complete_study = conf["form_data"]["delete_complete_study"]
+            self.delete_complete_study = conf["workflow_form"]["delete_complete_study"]
             print("Delete entire study set to ", self.delete_complete_study)
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [

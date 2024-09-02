@@ -653,7 +653,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 instance_name
                 for instance_name, _ in self.tmp_federated_site_info.items()
             ],
-            "form_data": {
+            "workflow_form": {
                 **self.local_conf_data,
                 **{f"external_schema_{k}": v for k, v in self.remote_conf_data.items()},
                 "tmp_federated_site_info": self.tmp_federated_site_info,

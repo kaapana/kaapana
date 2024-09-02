@@ -99,7 +99,7 @@ class HelperDcmWeb:
 
             conf_data = dag_run.conf
             try:
-                self.username = conf_data["form_data"].get("username")
+                self.username = conf_data["workflow_form"].get("username")
             except KeyError:
                 logger.debug(dag_run)
                 logger.debug(dag_run.dag)

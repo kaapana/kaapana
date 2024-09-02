@@ -23,11 +23,11 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         print("conf", conf)
         if (
             conf is not None
-            and "form_data" in conf
-            and conf["form_data"] is not None
-            and "zip_files" in conf["form_data"]
+            and "workflow_form" in conf
+            and conf["workflow_form"] is not None
+            and "zip_files" in conf["workflow_form"]
         ):
-            self.zip_files = conf["form_data"]["zip_files"]
+            self.zip_files = conf["workflow_form"]["zip_files"]
             print("Zip files set by form data", self.zip_files)
 
         if conf is not None and "data_form" in conf:

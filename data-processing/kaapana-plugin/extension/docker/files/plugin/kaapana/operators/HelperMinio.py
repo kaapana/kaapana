@@ -48,7 +48,7 @@ class HelperMinio(Minio):
         elif dag_run:
             conf_data = dag_run.conf
             try:
-                self.username = conf_data["form_data"].get("username")
+                self.username = conf_data["workflow_form"].get("username")
             except KeyError:
                 tags = dag_run.dag.tags
                 if "service" in tags:

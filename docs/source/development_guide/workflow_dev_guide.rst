@@ -124,7 +124,14 @@ The DAG file :code:`dag_example_extract_study_id.py` has to be stored in :code:`
 .. literalinclude:: ../../../templates_and_examples/examples/processing-pipelines/example/extension/docker/files/dag_example_extract_study_id.py 
     :caption: dag_example_extract_study_id.py 
 
+.. hint::
 
+    To access user-defined variables from the DAG workflow form, use the `workflow_form` key. The previously used :strike:`form_data` is now deprecated.
+
+    To retrieve your variable, use the following code:
+
+    :code:`kwargs["dag_run"].conf["workflow_form"]["<YOUR_VARIABLE>"]`
+    
 The DAG is just a sequence of different operators. In this example the ``LocalGetInputDataOperator`` 
 loads the data we want to work with. 
 The ``ExtractStudyIdOperator`` loads (so far) our empty base image and utilizes the Kaapana code-server as development server 

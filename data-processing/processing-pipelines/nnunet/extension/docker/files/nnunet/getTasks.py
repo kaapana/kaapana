@@ -7,10 +7,13 @@ from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 def _get_dataset_json(model_path, installed_task):
     dataset_json_path = join(model_path, installed_task, "**", "dataset.json")
+    print(f"1. DATASET_JSON_PATH: {dataset_json_path=}")
     dataset_json_path = glob(dataset_json_path, recursive=True)
+    print(f"2. DATASET_JSON_PATH: {dataset_json_path=}")
     if len(dataset_json_path) > 0 and exists(dataset_json_path[-1]):
         dataset_json_path = dataset_json_path[-1]
-        print(f"Found dataset.json at {dataset_json_path[-1]}")
+        print(f"3. DATASET_JSON_PATH: {dataset_json_path=}")
+        print(f"Found dataset.json at {dataset_json_path}")
         with open(dataset_json_path) as f:
             dataset_json = json.load(f)
     else:
@@ -27,12 +30,17 @@ def _get_dataset_json(model_path, installed_task):
             targets.append(label)
     elif "labels" in dataset_json:
         keys = list(dataset_json["labels"].keys())
-        keys.sort(key=int)
-        for key in keys:
-            label = dataset_json["labels"][key]
-            if key == "0" and label == "Clear Label":
-                continue
-            targets.append(label)
+        print(f"{keys=}")
+        keys.remove("background")
+        targets = keys
+        # keys = list(dataset_json["labels"].keys())
+        # print(f"{keys=}")
+        # keys.sort(key=int)
+        # for key in keys:
+        #     label = dataset_json["labels"][key]
+        #     if key == "0" and label == "Clear Label":
+        #         continue
+        #     targets.append(label)
     else:
         targets.append("N/A")
     dataset_json["targets"] = targets
@@ -83,28 +91,38 @@ def _get_installed_tasks(af_home_path):
                     model_path=model_path, installed_task=installed_task
                 )
                 installed_tasks[installed_task] = {
-                    "description": dataset_json["description"]
-                    if "description" in dataset_json
-                    else "N/A",
+                    "description": (
+                        dataset_json["description"]
+                        if "description" in dataset_json
+                        else "N/A"
+                    ),
                     "model": [],
-                    "input-mode": dataset_json["input-mode"]
-                    if "input-mode" in dataset_json
-                    else "all",
-                    "input": dataset_json["input"],
-                    "body_part": dataset_json["body_part"]
-                    if "body_part" in dataset_json
-                    else "N/A",
+                    "input-mode": (
+                        dataset_json["input-mode"]
+                        if "input-mode" in dataset_json
+                        else "all"
+                    ),
+                    "input": list(dataset_json["channel_names"].values()),
+                    "body_part": (
+                        dataset_json["body_part"]
+                        if "body_part" in dataset_json
+                        else "N/A"
+                    ),
                     "targets": dataset_json["targets"],
                     "supported": True,
                     "info": dataset_json["info"] if "info" in dataset_json else "N/A",
                     "url": dataset_json["url"] if "url" in dataset_json else "N/A",
-                    "task_url": dataset_json["task_url"]
-                    if "task_url" in dataset_json
-                    else "N/A",
+                    "task_url": (
+                        dataset_json["task_url"]
+                        if "task_url" in dataset_json
+                        else "N/A"
+                    ),
                 }
             if installed_model not in installed_tasks[installed_task]["model"]:
                 installed_tasks[installed_task]["model"].append(installed_model)
                 installed_tasks[installed_task]["model"].sort()
+
+    print(f"INSTALLED TASKS: {installed_tasks}")
     return installed_tasks
 
 
@@ -122,6 +140,21 @@ def get_tasks():
     except Exception as e:
         print("Error in getTasks.py: ", e)
         return [], {}, {}
+
+
+def get_all_checkpoints():
+    try:
+        nnunet_path = "/kaapana/mounted/workflows/models/nnUNet"
+        checkpoints = glob(f"{nnunet_path}/**/**/**/**/*.model")
+        checkpoints = [
+            "/".join(i.replace(nnunet_path, "")[1:].split("/")[:-1])
+            for i in checkpoints
+        ]
+        return checkpoints[::-1]
+
+    except Exception as e:
+        print("Error in get_all_model_checkpoints.py: ", e)
+        return []
 
 
 def get_available_protocol_names():

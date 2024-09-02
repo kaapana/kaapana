@@ -172,6 +172,7 @@ def create_thumbnail(parameters):
             image_dir=dcm_dir,
             seg_dir=dcm_seg_dir,
             target_dir=target_dir,
+            seg_series_uid=seg_series_uid,
         )
     else:
         logger.error(f"modality == {modality} -> Error!")
@@ -388,7 +389,7 @@ def create_rtstruct_thumbnail(
     return True
 
 
-def create_seg_thumbnail(image_dir, seg_dir, target_dir):
+def create_seg_thumbnail(image_dir, seg_dir, target_dir, seg_series_uid):
 
     # Create target directory
     os.makedirs(target_dir, exist_ok=True)
@@ -525,7 +526,6 @@ def create_seg_thumbnail(image_dir, seg_dir, target_dir):
         image = Image.alpha_composite(image, fill_overlay)
 
     # Save the thumbnail
-    seg_series_uid = file_name.replace(".dcm", "").split("/")[-1]
     target_png = os.path.join(target_dir, f"{seg_series_uid}.png")
     image.save(target_png)
     print(f"Thumbnail saved to {target_png}")

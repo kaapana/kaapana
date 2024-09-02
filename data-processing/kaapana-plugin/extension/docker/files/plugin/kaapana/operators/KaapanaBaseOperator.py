@@ -463,18 +463,100 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             ]
         )
 
+    def launch_dev_server(self, context):
+        """
+        Launch a dev-server as pending application.
+        """
+        url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
+        env_vars_sets = {}
+        for idx, (k, v) in enumerate(
+            {"WORKSPACE": "/kaapana", **self.env_vars}.items()
+        ):
+            env_vars_sets.update(
+                {
+                    f"global.envVars[{idx}].name": f"{k}",
+                    f"global.envVars[{idx}].value": f"{v}",
+                }
+            )
+
+        volume_mounts_lookup = {}
+        for volume_mount in self.volume_mounts:
+            if (
+                volume_mount.name in volume_mounts_lookup.values()
+                or volume_mount.name == "dshm"
+            ):
+                logging.warning(
+                    f"Warning {volume_mount.name} already in volume_mount dict!"
+                )
+                continue
+            volume_mounts_lookup.update({volume_mount.name: volume_mount.mount_path})
+        logging.info(volume_mounts_lookup)
+
+        volume_claims_lookup = {}
+        for volume in self.volumes:
+            if "PersistentVolumeClaim" in volume.configs:
+                if (
+                    volume.name in volume_claims_lookup.values()
+                    or volume.name == "dshm"
+                ):
+                    logging.warning(f"Warning {volume.name} already in volume dict!")
+                    continue
+                volume_claims_lookup.update(
+                    {
+                        volume.name: volume.configs["PersistentVolumeClaim"][
+                            "claim_name"
+                        ].replace("-pv-claim", "")
+                    }
+                )
+        logging.info(volume_claims_lookup)
+
+        dynamic_volumes = {}
+        for idx, (k, name) in enumerate(volume_claims_lookup.items()):
+            dynamic_volumes.update(
+                {
+                    f"global.dynamicVolumes[{idx}].name": f"{name}",
+                    f"global.dynamicVolumes[{idx}].mount_path": f"{volume_mounts_lookup[k]}",
+                }
+            )
+        helm_sets = {
+            "global.complete_image": self.image,
+            "global.namespace": self.services_namespace,
+            "global.ingress_path": "{{ .Release.Name }}",
+            **env_vars_sets,
+            **dynamic_volumes,
+        }
+        logging.info(helm_sets)
+        # kaapanaint is there, so that it is recognized as a pending application!
+        release_name = get_release_name(context)
+        payload = {
+            "name": "code-server-chart",
+            "version": KAAPANA_BUILD_VERSION,
+            "release_name": release_name,
+            "sets": helm_sets,
+        }
+        logging.info("payload")
+        logging.info(payload)
+        r = requests.post(url, json=payload)
+        logging.info(r)
+        logging.info(r.text)
+        r.raise_for_status()
+        t_end = time.time() + KaapanaBaseOperator.TIMEOUT
+        while time.time() < t_end:
+            time.sleep(15)
+            url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
+            r = requests.get(url, params={"release_name": release_name})
+            if r.status_code == 500 or r.status_code == 404:
+                logging.info(
+                    f"Release {release_name} was uninstalled. My job is done here!"
+                )
+                break
+            r.raise_for_status()
+        return
+
     # The order of this decorators matters because of the whitelist_federated_learning variable, do not change them!
     @cache_operator_output
     @federated_sharing_decorator
     def execute(self, context):
-        try:
-            project_form = context.get("params").get("project_form")
-            self.namespace = "project-" + project_form.get("name")
-        except (KeyError, AttributeError):
-            self.namespace = "project-admin"
-        self.set_volumes_and_volume_mounts()
-        self.set_env_secrets()
-
         config_path = os.path.join(
             self.airflow_workflow_dir, context["run_id"], "conf", "conf.json"
         )
@@ -530,99 +612,19 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         logging.info("CONTAINER ENVS:")
         logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
-        if self.dev_server is not None:
-            url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
-            env_vars_sets = {}
-            for idx, (k, v) in enumerate(
-                {"WORKSPACE": "/kaapana", **self.env_vars}.items()
-            ):
-                env_vars_sets.update(
-                    {
-                        f"global.envVars[{idx}].name": f"{k}",
-                        f"global.envVars[{idx}].value": f"{v}",
-                    }
-                )
 
-            volume_mounts_lookup = {}
-            for volume_mount in self.volume_mounts:
-                if (
-                    volume_mount.name in volume_mounts_lookup.values()
-                    or volume_mount.name == "dshm"
-                ):
-                    logging.warning(
-                        f"Warning {volume_mount.name} already in volume_mount dict!"
-                    )
-                    continue
-                volume_mounts_lookup.update(
-                    {volume_mount.name: volume_mount.mount_path}
-                )
-            logging.info(volume_mounts_lookup)
+        if self.dev_server in ["code-server"]:
+            return self.launch_dev_server(context)
+        elif self.dev_server is not None:
+            raise NameError("dev_server must be either None or code-server!")
 
-            volume_claims_lookup = {}
-            for volume in self.volumes:
-                if "PersistentVolumeClaim" in volume.configs:
-                    if (
-                        volume.name in volume_claims_lookup.values()
-                        or volume.name == "dshm"
-                    ):
-                        logging.warning(
-                            f"Warning {volume.name} already in volume dict!"
-                        )
-                        continue
-                    volume_claims_lookup.update(
-                        {
-                            volume.name: volume.configs["PersistentVolumeClaim"][
-                                "claim_name"
-                            ].replace("-pv-claim", "")
-                        }
-                    )
-            logging.info(volume_claims_lookup)
-
-            dynamic_volumes = {}
-            for idx, (k, name) in enumerate(volume_claims_lookup.items()):
-                dynamic_volumes.update(
-                    {
-                        f"global.dynamicVolumes[{idx}].name": f"{name}",
-                        f"global.dynamicVolumes[{idx}].mount_path": f"{volume_mounts_lookup[k]}",
-                    }
-                )
-            helm_sets = {
-                "global.complete_image": self.image,
-                "global.namespace": self.namespace,
-                "global.ingress_path": "{{ .Release.Name }}",
-                **env_vars_sets,
-                **dynamic_volumes,
-            }
-            logging.info(helm_sets)
-            # kaapanaint is there, so that it is recognized as a pending application!
-            release_name = get_release_name(context)
-            if self.dev_server == "code-server":
-                payload = {
-                    "name": "code-server-chart",
-                    "version": KAAPANA_BUILD_VERSION,
-                    "release_name": release_name,
-                    "sets": helm_sets,
-                }
-            else:
-                raise NameError("dev_server must be either None or code-server!")
-            logging.info("payload")
-            logging.info(payload)
-            r = requests.post(url, json=payload)
-            logging.info(r)
-            logging.info(r.text)
-            r.raise_for_status()
-            t_end = time.time() + KaapanaBaseOperator.TIMEOUT
-            while time.time() < t_end:
-                time.sleep(15)
-                url = f"{KaapanaBaseOperator.HELM_API}/view-chart-status"
-                r = requests.get(url, params={"release_name": release_name})
-                if r.status_code == 500 or r.status_code == 404:
-                    logging.info(
-                        f"Release {release_name} was uninstalled. My job is done here!"
-                    )
-                    break
-                r.raise_for_status()
-            return
+        try:
+            project_form = context.get("params").get("project_form")
+            self.namespace = "project-" + project_form.get("name")
+        except (KeyError, AttributeError):
+            self.namespace = "project-admin"
+        self.set_volumes_and_volume_mounts()
+        self.set_env_secrets()
 
         if self.delete_output_on_start is True:
             self.delete_operator_out_dir(context["run_id"], self.operator_out_dir)

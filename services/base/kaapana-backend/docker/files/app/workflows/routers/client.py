@@ -1,39 +1,27 @@
+import asyncio
 import copy
 import json
 import logging
+import os
 import random
+import shutil
 import string
 import uuid
-import shutil
-import os
 from datetime import datetime, timedelta
-from typing import List, Union
-import asyncio
-from threading import Thread
-from sqlalchemy import func
-
 from pathlib import Path
+from threading import Thread
+from typing import List, Union
+
 import jsonschema
+import jsonschema.exceptions
 from app.datasets.utils import execute_opensearch_query
 from app.dependencies import get_db
-from app.workflows import crud
-from app.workflows import schemas
-from app.config import settings
-from app.workflows import models
+from app.workflows import crud, models, schemas
 from app.workflows.utils import get_dag_list
-from fastapi import (
-    APIRouter,
-    Depends,
-    UploadFile,
-    File,
-    Request,
-    HTTPException,
-)
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
-from pydantic import ValidationError
-from pydantic.schema import schema
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-
 
 logging.getLogger().setLevel(logging.DEBUG)
 
@@ -197,6 +185,7 @@ def put_remote_kaapana_instance(
         db=db, remote_kaapana_instance=remote_kaapana_instance, action="update"
     )
 
+
 @router.put("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
 def put_client_kaapana_instance(
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
@@ -258,10 +247,6 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
 # also okay: JobWithWorkflow
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     job = crud.get_job(db, job_id, run_id)
-    if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance.clean_return(
-            job.kaapana_instance
-        )
     return job
 
 
@@ -277,7 +262,14 @@ def get_jobs(
     db: Session = Depends(get_db),
 ):
     jobs = crud.get_jobs(
-        db, instance_name, workflow_name, status, remote=False, limit=limit, dag_id=dag_id, username=username
+        db,
+        instance_name,
+        workflow_name,
+        status,
+        remote=False,
+        limit=limit,
+        dag_id=dag_id,
+        username=username,
     )
     for job in jobs:
         if job.kaapana_instance:
@@ -484,7 +476,7 @@ def ui_form_schemas(
             status_code=404,
             detail=f"Dag {dag_id} is not part of the dag list. In remote execution the issue might be that is it not part of the allowed dags, please add it!",
         )
-    
+
 
 @router.post("/dataset", response_model=schemas.Dataset)
 def create_dataset(
@@ -583,8 +575,11 @@ def create_workflow(
 ):
     # validate incoming json_schema_data
     try:
-        jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
-    except ValidationError as e:
+        jsonschema.validate(
+            json.loads(json_schema_data.model_dump_json()),
+            schemas.JsonSchemaData.model_json_schema(),
+        )
+    except jsonschema.exceptions.ValidationError as e:
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
         raise HTTPException(
             status_code=400, detail="JSON Schema is not valid for the Pydantic model."
@@ -660,7 +655,9 @@ def create_workflow(
     # all sync
     # crud.queue_generate_jobs_and_add_to_workflow(db, db_workflow, json_schema_data)
 
-    return crud.queue_generate_jobs_and_add_to_workflow(db, json_schema_data, workflow=workflow)
+    return crud.queue_generate_jobs_and_add_to_workflow(
+        db, json_schema_data, workflow=workflow
+    )
 
     # # thread async w/ db session in thread
     # if (
@@ -675,6 +672,7 @@ def create_workflow(
     #     # solution in additional thread for purely local workflows (these are probably also the only one which are conducted at large scale)
 
     # directly return created db_workflow for fast feedback
+
 
 # get_workflow
 @router.get("/workflow", response_model=schemas.WorkflowWithKaapanaInstance)
@@ -693,7 +691,7 @@ def get_workflow(
 
 # get_workflows
 @router.get(
-    "/workflows", #response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
+    "/workflows",  # response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
 )
 # also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
 def get_workflows(
@@ -712,7 +710,7 @@ def get_workflows(
         db.query(
             models.Job.workflow_id,
             models.Job.status,
-            func.count(models.Job.status).label('status_count')
+            func.count(models.Job.status).label("status_count"),
         )
         .group_by(models.Job.workflow_id, models.Job.status)
         .all()
@@ -723,11 +721,11 @@ def get_workflows(
         workflow_id = job_count.workflow_id
         status = job_count.status
         count = job_count.status_count
-        
+
         if workflow_id not in status_counts_by_workflow:
             status_counts_by_workflow[workflow_id] = []
-        
-        status_counts_by_workflow[workflow_id] += count*[status]
+
+        status_counts_by_workflow[workflow_id] += count * [status]
 
     workflows = []
     for db_workflow in db_workflows:
@@ -736,7 +734,9 @@ def get_workflows(
                 db_workflow.kaapana_instance
             )
         workflow = schemas.WorkflowWithKaapanaInstance.from_orm(db_workflow).dict()
-        workflow["workflow_jobs"] = status_counts_by_workflow.get(db_workflow.workflow_id, [])
+        workflow["workflow_jobs"] = status_counts_by_workflow.get(
+            db_workflow.workflow_id, []
+        )
         workflows.append(workflow)
     return workflows
 
@@ -747,18 +747,19 @@ def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)
     if workflow.workflow_status == "abort":
         db_jobs_to_abort = (
             db.query(models.Job)
-            .join(models.KaapanaInstance, models.Job.kaapana_instance)  # Join with the KaapanaInstance table
+            .join(
+                models.KaapanaInstance, models.Job.kaapana_instance
+            )  # Join with the KaapanaInstance table
             .filter(models.Job.workflow_id == workflow.workflow_id)
             .filter(models.Job.status.in_(["queued", "running"]))
-            .filter(models.KaapanaInstance.remote == False)  # Add the filter for kaapana_instance.remote
+            .filter(
+                models.KaapanaInstance.remote == False
+            )  # Add the filter for kaapana_instance.remote
             .all()
         )
-        Thread(
-            target=crud.abort_jobs_in_chunks,
-            args=(db_jobs_to_abort,)
-        ).start()
+        Thread(target=crud.abort_jobs_in_chunks, args=(db_jobs_to_abort,)).start()
         return "Jobs will be aborted"
-    
+
     elif (
         workflow.workflow_status == "scheduled"
         or workflow.workflow_status == "confirmed"
@@ -781,7 +782,9 @@ def put_workflow_jobs(
     # workflow_id: str=None,
     db: Session = Depends(get_db),
 ):
-    r = crud.queue_generate_jobs_and_add_to_workflow(json_schema_data, db, use_thread=False)
+    r = crud.queue_generate_jobs_and_add_to_workflow(
+        json_schema_data, db, use_thread=False
+    )
     resp = r["jobs"]
     return resp
 

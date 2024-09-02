@@ -240,7 +240,7 @@ export default Vue.extend({
       return converted;
     },
     getSettingsFromDb() {
-      kaapanaApiService.federatedClientApiGet('/settings')
+      kaapanaApiService.kaapanaApiGet('/settings')
         .then((response: any) => {
           let settingsFromDb = this.settingsResponseToObject(response.data);
           const updatedSettings = Object.assign({}, defaultSettings, settingsFromDb);
@@ -263,7 +263,7 @@ export default Vue.extend({
       });
 
       kaapanaApiService
-          .federatedClientApiPut("/settings", settingsItems)
+          .kaapanaApiPut("/settings", settingsItems)
           .then((response) => {
             // console.log(response);
             if (reload_after) {

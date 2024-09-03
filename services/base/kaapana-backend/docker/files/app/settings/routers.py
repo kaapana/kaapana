@@ -57,6 +57,16 @@ def create_or_update_settings(
     return True
 
 
+@router.put("/item")
+def create_or_update_settings_item(
+    settings_item: schemas.SettingsBase, db: Session = Depends(get_db)
+):
+    updated_item = crud.create_or_update_settings(db, settings_item)
+    settings_item.value = updated_item.value
+
+    return settings_item
+
+
 def convert_dict_keys_to_snake_case(target_dict):
     new_dict = {}
     for key in target_dict.keys():

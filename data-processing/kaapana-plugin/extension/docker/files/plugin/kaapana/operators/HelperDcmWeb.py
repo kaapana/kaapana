@@ -452,6 +452,10 @@ class HelperDcmWeb:
         """
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/reject/113001^DCM"
         response = self.session.post(url, verify=False)
+        if response.status_code == 404:
+            if "errorMessage" in response.json():
+                logger.error(f"Some error occurred: {response.json()['errorMessage']}")
+                return response
         response.raise_for_status()
         return response
 
@@ -472,8 +476,12 @@ class HelperDcmWeb:
 
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}"
         response = self.session.delete(url)
-        response.raise_for_status()
 
+        if response.status_code == 404:
+            if "errorMessage" in response.json():
+                logger.error(f"Some error occurred: {response.json()['errorMessage']}")
+                return response
+        response.raise_for_status()
         logger.info(f"Study {study_uid} deleted")
 
         return response

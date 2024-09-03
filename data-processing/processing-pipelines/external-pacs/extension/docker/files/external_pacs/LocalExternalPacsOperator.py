@@ -5,7 +5,7 @@ import os
 from typing import Any, Dict
 
 from external_pacs.HelperDcmWebEndpointsManager import HelperDcmWebEndpointsManager
-from kaapana.kubetools.secret import (
+from external_pacs.utils import (
     create_k8s_secret,
     delete_k8s_secret,
     get_k8s_secret,
@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__file__)
 
 
-class ExternalPacsOperator(KaapanaPythonBaseOperator):
+class LocalExternalPacsOperatorperator(KaapanaPythonBaseOperator):
 
     def __init__(
         self,
@@ -115,12 +115,19 @@ class ExternalPacsOperator(KaapanaPythonBaseOperator):
         helper = get_dcmweb_helper(
             dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
         )
+        if not helper:
+            logger.error(
+                f"Cannot create HelperDcmWeb {dcmweb_endpoint} with provided credentials."
+            )
+            logger.error("Not saving credentials and exiting!")
+            exit(1)
+
         if not helper.check_reachability():
             logger.error(f"Cannot reach {dcmweb_endpoint} with provided credentials.")
             logger.error("Not saving credentials and exiting!")
             exit(1)
 
-        secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
+        secret_name = hash_secret_name(name=dcmweb_endpoint)
         create_k8s_secret(secret_name=secret_name, secret_data=service_account_info)
 
         secret = get_k8s_secret(secret_name=secret_name)
@@ -131,7 +138,7 @@ class ExternalPacsOperator(KaapanaPythonBaseOperator):
             logger.info("Secret successfully saved.")
 
     def delete_secret(self, dcmweb_endpoint: str):
-        secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
+        secret_name = hash_secret_name(name=dcmweb_endpoint)
         secret = get_k8s_secret(secret_name=secret_name)
         if not secret:
             logger.error("No secret to remove, can't remove.")
@@ -150,7 +157,9 @@ class ExternalPacsOperator(KaapanaPythonBaseOperator):
             "query": {
                 "bool": {
                     "must": {
-                        "term": {f"{HelperOpensearch.dcmweb_endpoint_tag}.keyword": dcmweb_endpoint}
+                        "term": {
+                            f"{HelperOpensearch.dcmweb_endpoint_tag}.keyword": dcmweb_endpoint
+                        }
                     }
                 }
             }

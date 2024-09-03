@@ -120,15 +120,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                             obj = json.loads(line)
                             self.push_json(obj)
             else:
-                # TODO: is this dcm check necessary? InstanceID is set in upload
-                # dcm_files = sorted(
-                #     glob.glob(
-                #         os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"),
-                #         recursive=True,
-                #     )
-                # )
-                # self.set_id(dcm_files[0])
-
                 json_dir = os.path.join(
                     batch_element_dir, self.json_operator.operator_out_dir
                 )

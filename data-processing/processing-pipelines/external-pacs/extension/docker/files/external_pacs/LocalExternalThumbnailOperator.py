@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 
 from external_pacs.HelperDcmWebGcloud import HelperDcmWebGcloud
-from kaapana.kubetools.secret import get_k8s_secret, hash_secret_name
+from external_pacs.utils import get_k8s_secret, hash_secret_name
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__file__)
 
 
-class ExternalThumbnailOperator(KaapanaPythonBaseOperator):
+class LocalExternalThumbnailOperator(KaapanaPythonBaseOperator):
     def __init__(
         self,
         dag,
@@ -29,7 +29,7 @@ class ExternalThumbnailOperator(KaapanaPythonBaseOperator):
     def start(self, ds, **kwargs):
         workflow_form = kwargs["dag_run"].conf["workflow_form"]
         dcmweb_endpoint = workflow_form["dcmweb_endpoint"]
-        secret_name = hash_secret_name(dcmweb_endpoint=dcmweb_endpoint)
+        secret_name = hash_secret_name(name=dcmweb_endpoint)
         secret = get_k8s_secret(secret_name=secret_name)
 
         if not secret:

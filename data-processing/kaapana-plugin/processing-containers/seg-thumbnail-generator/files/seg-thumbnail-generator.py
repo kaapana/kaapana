@@ -16,7 +16,20 @@ import pydicom
 from dataclasses import dataclass
 import cv2
 
-logger = None
+log_level = getenv("LOG_LEVEL", "warning").lower()
+
+log_levels = {
+    "debug": logging.DEBUG,
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+}
+
+log_level_int = log_levels.get(log_level, logging.INFO)
+
+logger = get_logger(__name__, log_level_int)
+
 processed_count = 0
 
 
@@ -28,7 +41,15 @@ class Slice:
     number_of_foreground_pixels: int
 
 
-def dicomlab2LAB(dicomlab):
+def dicomlab2LAB(dicomlab: list) -> list:
+    """Converts DICOM Lab values to CIELab values
+
+    Args:
+        dicomlab (list): DICOM Lab values
+
+    Returns:
+        list: CIELab values
+    """
     lab = [
         (dicomlab[0] * 100.0) / 65535.0,
         (dicomlab[1] * 255.0) / 65535.0 - 128,
@@ -37,21 +58,32 @@ def dicomlab2LAB(dicomlab):
     return lab
 
 
-def create_thumbnail(parameters):
+def create_thumbnail(parameters: tuple) -> tuple:
+    """Creates a thumbnail image from a DICOM segmentation object or RTSTRUCT file
+
+    Args:
+        parameters (tuple): Tuple containing the paths to the DICOM segmentation object or RTSTRUCT file, the DICOM image directory, and the target directory
+
+    Returns:
+        tuple: Tuple containing a boolean indicating success and the path to the generated thumbnail
+    """
     global processed_count
 
     dcm_seg_dir, dcm_dir, target_dir = parameters
 
-    print(f"dcm_seg_dir: {dcm_seg_dir}")
-    print(f"dcm_dir: {dcm_dir}")
-    print(f"target_dir: {target_dir}")
+    logger.info(f"dcm_seg_dir: {dcm_seg_dir}")
+    logger.info(f"dcm_dir: {dcm_dir}")
+    logger.info(f"target_dir: {target_dir}")
 
+    # Load the DICOM segmentation object or RTSTRUCT file to determine the modality and series UID
     ds = pydicom.dcmread(os.path.join(dcm_seg_dir, os.listdir(dcm_seg_dir)[0]))
     modality = ds.Modality
     seg_series_uid = ds.SeriesInstanceUID
 
+    # Create the target directory if it does not exist
     os.makedirs(target_dir, exist_ok=True)
 
+    # Load the image and segmentation (and segment colors)
     if modality == "RTSTRUCT":
         image_array, seg_array, segment_colors = (
             load_image_and_segmenation_from_rtstruct(dcm_dir, dcm_seg_dir)
@@ -64,6 +96,7 @@ def create_thumbnail(parameters):
         logger.error(f"Modality {modality} not supported")
         return False
 
+    # Convert the segmentation to a binary mask
     seg_array_binary = np.where(seg_array > 0, 1, 0)
 
     # Get Slices with most segmentation classes
@@ -90,21 +123,26 @@ def create_thumbnail(parameters):
         key=lambda x: (x.number_of_classes, x.number_of_foreground_pixels), reverse=True
     )
 
+    # Select the best slice
     best_slice = slices[0]
-    print(
+
+    logger.info(
         f"Best slice: {best_slice.slice_index} with {best_slice.number_of_classes} classes and {best_slice.number_of_foreground_pixels} foreground pixels"
     )
 
-    # Use the binary mask to get the relevant intensities
+    # Select the best image slice
     base_image_array = image_array[best_slice.slice_index, :, :]
     del image_array
 
+    # Select the corresponding segmentation
     base_seg_array = seg_array[best_slice.slice_index, :, :]
     del seg_array
 
+    # Select the corresponding binary mask
     base_seg_array_binary = seg_array_binary[best_slice.slice_index, :, :]
     del seg_array_binary
 
+    # Use the binary mask to get the relevant intensities (To see the regions within the mask better)
     masked_array = base_image_array * base_seg_array_binary
 
     # Calculate the min and max intensity values within the masked region
@@ -151,14 +189,24 @@ def create_thumbnail(parameters):
     # Save the thumbnail
     target_png = os.path.join(target_dir, f"{seg_series_uid}.png")
     image.save(target_png)
-    print(f"Thumbnail saved to {target_png}")
+    logger.info(f"Thumbnail saved to {target_png}")
 
     processed_count += 1
 
     return True, target_png
 
 
-def load_image_and_segmenation_from_dicom_segmentation(image_dir, seg_dir):
+def load_image_and_segmenation_from_dicom_segmentation(image_dir: str, seg_dir: str) -> tuple:
+    """Load the image and segmentation from a DICOM segmentation object
+
+    Args:
+        image_dir (str): Directory containing the DICOM image files
+        seg_dir (str): Directory containing the DICOM segmentation object
+
+    Returns:
+        tuple: Tuple containing the image array, segmentation array, and segment colors
+    """
+    
     # Load the image
     image_reader = sitk.ImageSeriesReader()
 
@@ -211,7 +259,16 @@ def load_image_and_segmenation_from_dicom_segmentation(image_dir, seg_dir):
     return image_array, seg_array, segment_colors
 
 
-def load_image_and_segmenation_from_rtstruct(image_dir, rt_struct_dir):
+def load_image_and_segmenation_from_rtstruct(image_dir: str, rt_struct_dir: str) -> tuple:
+    """Load the image and segmentation from an RTSTRUCT file
+
+    Args:
+        image_dir (str): Directory containing the DICOM image files
+        rt_struct_dir (str): Directory containing the RTSTRUCT file
+
+    Returns:
+        tuple: Tuple containing the image array, segmentation array, and segment colors
+    """
 
     # Load the RTSTRUCT
     rtstruct = pydicom.dcmread(
@@ -291,21 +348,6 @@ if __name__ == "__main__":
     thumbnail_size = int(getenv("SIZE", "300"))
     thread_count = int(getenv("THREADS", "3"))
 
-    log_level = getenv("LOG_LEVEL", "info").lower()
-    log_level_int = None
-    if log_level == "debug":
-        log_level_int = logging.DEBUG
-    elif log_level == "info":
-        log_level_int = logging.INFO
-    elif log_level == "warning":
-        log_level_int = logging.WARNING
-    elif log_level == "critical":
-        log_level_int = logging.CRITICAL
-    elif log_level == "error":
-        log_level_int = logging.ERROR
-
-    logger = get_logger(__name__, log_level_int)
-
     workflow_dir = getenv("WORKFLOW_DIR", "None")
     workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
     assert workflow_dir is not None
@@ -328,42 +370,32 @@ if __name__ == "__main__":
     operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
     assert operator_out_dir is not None
 
-    print("##################################################")
-    print("#")
-    print("# Starting Thumbnail Operator:")
-    print("#")
-    print(f"# thumbnail_size:      {thumbnail_size}")
-    print(f"# thread_count:        {thread_count}")
-    print("#")
-    print(f"# workflow_dir:        {workflow_dir}")
-    print(f"# batch_name:          {batch_name}")
-    print(f"# operator_in_dir:     {operator_in_dir}")
-    print(f"# operator_out_dir:    {operator_out_dir}")
-    print(f"# org_image_input_dir: {org_image_input_dir}")
-    print("#")
-    print("##################################################")
-    print("#")
-    print("# Starting processing on BATCH-ELEMENT-level ...")
-    print("#")
-    print("##################################################")
-    print("#")
+    logger.info("Starting thumbnail generation")
+
+    logger.info(f"thumbnail_size: {thumbnail_size}")
+    logger.info(f"thread_count: {thread_count}")
+    logger.info(f"workflow_dir: {workflow_dir}")
+    logger.info(f"batch_name: {batch_name}")
+    logger.info(f"operator_in_dir: {operator_in_dir}")
+    logger.info(f"operator_out_dir: {operator_out_dir}")
+    logger.info(f"org_image_input_dir: {org_image_input_dir}")
+
+    logger.info("Starting processing on BATCH-ELEMENT-level ...")
 
     queue = []
     batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
     for batch_element_dir in batch_folders:
-        print("#")
-        print(f"# Processing batch-element {batch_element_dir}")
-        print("#")
+
+        logger.info(f"Processing batch-element {batch_element_dir}")
+
         seg_element_input_dir = join(batch_element_dir, operator_in_dir)
         orig_element_input_dir = join(batch_element_dir, org_image_input_dir)
         element_output_dir = join(batch_element_dir, operator_out_dir)
 
         # check if input dir present
         if not exists(seg_element_input_dir):
-            print("#")
-            print(f"# Input-dir: {seg_element_input_dir} does not exists!")
-            print("# -> skipping")
-            print("#")
+            logger.warning(f"Input-dir: {seg_element_input_dir} does not exists!")
+            logger.warning("-> skipping")
             continue
 
         queue.append(
@@ -373,28 +405,17 @@ if __name__ == "__main__":
     with ThreadPool(thread_count) as threadpool:
         results = threadpool.imap_unordered(create_thumbnail, queue)
         for result, input_file in results:
-            print(f"#  Done: {input_file}")
+            logger.info(f"Done: {input_file}")
         if not result:
             exit(1)
 
-    print("#")
-    print("##################################################")
-    print("#")
-    print("# BATCH-ELEMENT-level processing done.")
-    print("#")
-    print("##################################################")
-    print("#")
+    logger.info("BATCH-ELEMENT-level processing done.")
 
     if processed_count == 0:
         queue = []
-        print("##################################################")
-        print("#")
-        print("# -> No files have been processed so far!")
-        print("#")
-        print("# Starting processing on BATCH-LEVEL ...")
-        print("#")
-        print("##################################################")
-        print("#")
+
+        logger.warning("No files have been processed so far!")
+        logger.warning("Starting processing on BATCH-LEVEL ...")
 
         batch_input_dir = join("/", workflow_dir, operator_in_dir)
         batch_org_image_input = join("/", workflow_dir, org_image_input_dir)
@@ -402,10 +423,8 @@ if __name__ == "__main__":
 
         # check if input dir present
         if not exists(batch_input_dir):
-            print("#")
-            print(f"# Input-dir: {batch_input_dir} does not exists!")
-            print("# -> skipping")
-            print("#")
+            logger.warning(f"Input-dir: {batch_input_dir} does not exists!")
+            logger.warning("# -> skipping")
         else:
             # creating output dir
             Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
@@ -415,29 +434,12 @@ if __name__ == "__main__":
         with ThreadPool(thread_count) as threadpool:
             results = threadpool.imap_unordered(create_thumbnail, queue)
             for result, input_file in results:
-                print(f"#  Done: {input_file}")
+                logger.info(f"Done: {input_file}")
 
-        print("#")
-        print("##################################################")
-        print("#")
-        print("# BATCH-LEVEL-level processing done.")
-        print("#")
-        print("##################################################")
-        print("#")
+        logger.info("BATCH-LEVEL-level processing done.")
 
     if processed_count == 0:
-        print("#")
-        print("##################################################")
-        print("#")
-        print("##################  ERROR  #######################")
-        print("#")
-        print("# ----> NO FILES HAVE BEEN PROCESSED!")
-        print("#")
-        print("##################################################")
-        print("#")
-        exit(1)
+        logger.error("No files have been processed!")
+        raise Exception("No files have been processed!")
     else:
-        print("#")
-        print(f"# ----> {processed_count} FILES HAVE BEEN PROCESSED!")
-        print("#")
-        print("# DONE #")
+        logger.info(f"{processed_count} files have been processed!")

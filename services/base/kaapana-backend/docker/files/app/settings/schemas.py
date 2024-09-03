@@ -1,9 +1,8 @@
 import datetime
 from typing import Any, List, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, field_validator, model_validator
-from sqlalchemy_json import NestedMutableDict, NestedMutableList
-from typing_extensions import Self
+from pydantic import BaseModel, ConfigDict, field_validator
+from sqlalchemy_json import NestedMutableDict
 
 
 class SettingsBase(BaseModel):

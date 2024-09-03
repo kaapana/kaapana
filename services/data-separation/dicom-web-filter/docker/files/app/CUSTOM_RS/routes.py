@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 import httpx
-from ..proxy_request import proxy_request
 from ..config import DICOMWEB_BASE_URL
+from fastapi.responses import StreamingResponse
 
 router = APIRouter()
 
@@ -24,11 +24,14 @@ async def reject_study(
     Returns:
         response: Response object
     """
-    return await proxy_request(
-        request,
-        path=f"/studies/{study}/reject/{codeValue}^{codingSchemeDesignator}",
-        method="POST",
-    )
+
+    with httpx.Client() as client:
+        response = client.post(
+            f"{DICOMWEB_BASE_URL}/studies/{study}/reject/{codeValue}%5E{codingSchemeDesignator}",
+            headers=request.headers,
+        )
+
+        return Response(content=response.content, status_code=response.status_code)
 
 
 @router.post(
@@ -54,11 +57,14 @@ async def reject_series(
     Returns:
         response: Response object
     """
-    return await proxy_request(
-        request,
-        path=f"/studies/{study}/series/{series}/reject/{codeValue}^{codingSchemeDesignator}",
-        method="POST",
-    )
+
+    with httpx.Client() as client:
+        response = client.post(
+            f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/reject/{codeValue}%5E{codingSchemeDesignator}",
+            headers=request.headers,
+        )
+
+        return Response(content=response.content, status_code=response.status_code)
 
 
 # Currently not used
@@ -87,11 +93,14 @@ async def reject_instance(
     Returns:
         response: Response object
     """
-    return await proxy_request(
-        request,
-        path=f"/studies/{study}/series/{series}/instances/{instance}/reject/{codeValue}^{codingSchemeDesignator}",
-        method="POST",
-    )
+
+    with httpx.Client() as client:
+        response = client.post(
+            f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/reject/{codeValue}%5E{codingSchemeDesignator}",
+            headers=request.headers,
+        )
+
+        return Response(content=response.content, status_code=response.status_code)
 
 
 @router.delete("/studies/{study}", tags=["Custom"])
@@ -105,7 +114,14 @@ async def delete_study(study: str, request: Request):
     Returns:
         response: Response object
     """
-    return await proxy_request(request, path=f"/studies/{study}", method="DELETE")
+
+    with httpx.Client() as client:
+        response = client.delete(
+            f"{DICOMWEB_BASE_URL}/studies/{study}",
+            headers=request.headers,
+        )
+
+        return Response(content=response.content, status_code=response.status_code)
 
 
 @router.delete("/reject/{codeValue}^{codingSchemeDesignator}", tags=["Custom"])
@@ -124,12 +140,13 @@ async def reject(codeValue: str, codingSchemeDesignator: str, request: Request):
     # Only keep part before "/aets" in DICOMWEB_BASE_URL
     base_url = DICOMWEB_BASE_URL.split("/aets")[0]
 
-    return await proxy_request(
-        request,
-        path=f"/reject/{codeValue}^{codingSchemeDesignator}",
-        method="DELETE",
-        base_url=base_url,
-    )
+    with httpx.Client() as client:
+        response = client.delete(
+            f"{base_url}/reject/{codeValue}%5E{codingSchemeDesignator}",
+            headers=request.headers,
+        )
+
+        return Response(content=response.content, status_code=response.status_code)
 
 
 # Only used in dicom web helper to delete series from study
@@ -155,12 +172,13 @@ async def reject_get_series(
     # TODO: Change this to a more general solution
     base_url = DICOMWEB_BASE_URL.replace("KAAPANA", "IOCM_QUALITY")
 
-    return await proxy_request(
-        request,
-        path=f"/studies/{study}/series",
-        method="GET",
-        base_url=base_url,
-    )
+    with httpx.Client() as client:
+        response = client.get(
+            f"{base_url}/studies/{study}/series",
+            headers=request.headers,
+        )
+
+        return Response(content=response.content, status_code=response.status_code)
 
 
 # Currently not used
@@ -183,12 +201,13 @@ async def reject_get_studies(
     # Replace KAAPANA for IOCM_QUALITY in DICOMWEB_BASE_URL
     base_url = DICOMWEB_BASE_URL.replace("KAAPANA", "IOCM_QUALITY")
 
-    return await proxy_request(
-        request,
-        path=f"/studies",
-        method="GET",
-        base_url=base_url,
-    )
+    with httpx.Client() as client:
+        response = client.get(
+            f"{base_url}/studies",
+            headers=request.headers,
+        )
+
+        return Response(content=response.content, status_code=response.status_code)
 
 
 # get all series
@@ -206,7 +225,10 @@ async def get_series(
             params=request.query_params,
             headers=request.headers,
         )
-        studies = response.json()
+        try:
+            studies = response.json()
+        except:
+            return Response(status_code=204)
 
     # Get all series of all studies
     series = []

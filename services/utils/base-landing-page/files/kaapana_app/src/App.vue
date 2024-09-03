@@ -203,7 +203,7 @@ export default Vue.extend({
       this.settings["darkMode"] = v;
       localStorage["settings"] = JSON.stringify(this.settings);
       this.$vuetify.theme.dark = v;
-      this.storeSettingsInDb(false);
+      this.storeSettingsItemInDb("darkMode");
     },
     login() {
       this.$store
@@ -239,28 +239,23 @@ export default Vue.extend({
           localStorage["settings"] = JSON.stringify(defaultSettings);
         })
     },
-    storeSettingsInDb(reload_after = true) {
-      let settingsItems: Object[] = []
-      const settings = this.settings as Object
-      Object.keys(settings).forEach(key => {
-        let item = {
-          'key': key,
-          'value': settings[key as keyof Object],
-        }
-        settingsItems.push(item)
-      });
+    storeSettingsItemInDb(item_name: string) {
+      if (item_name in this.settings) {
+          let item = {
+            'key': item_name,
+            'value': this.settings[item_name as keyof Object],
+          }
 
-      kaapanaApiService
-          .kaapanaApiPut("/settings", settingsItems)
-          .then((response) => {
-            // console.log(response);
-            if (reload_after) {
-              window.location.reload();
-            }
-          })
-          .catch((err) => {
-            console.log(err);
-          });
+          kaapanaApiService
+            .kaapanaApiPut("/settings/item", item)
+            .then((response) => {
+              // console.log(response);
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+
+      }
     },
   },
   beforeCreate() {

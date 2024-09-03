@@ -225,7 +225,10 @@ async def get_series(
             params=request.query_params,
             headers=request.headers,
         )
-        studies = response.json()
+        try:
+            studies = response.json()
+        except:
+            return Response(status_code=204)
 
     # Get all series of all studies
     series = []

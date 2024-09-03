@@ -5,7 +5,6 @@ from typing import Any, List, Tuple, Union
 import jsonschema.exceptions
 from app.dependencies import get_db
 from app.settings import crud, schemas
-from app.settings.models import JSONOrString
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session

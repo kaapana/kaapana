@@ -115,6 +115,18 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
             # return empty response with status code 204
             return Response(status_code=HTTP_204_NO_CONTENT)
 
+    # Perform a HEAD request to check the response code without retrieving the body
+    async with httpx.AsyncClient() as client:
+        response = await client.head(
+            f"{DICOMWEB_BASE_URL}/studies",
+            params=dict(request.query_params),
+            headers=dict(request.headers),
+        )
+
+        if response.status_code == 204:
+            # Return empty response with status code 204
+            return Response(status_code=HTTP_204_NO_CONTENT)
+
     return StreamingResponse(
         metadata_replace_stream(
             method="GET",
@@ -173,6 +185,18 @@ async def query_series(
     # Update the query parameters
     request._query_params = query_params
 
+    # Perform a HEAD request to check the response code without retrieving the body
+    async with httpx.AsyncClient() as client:
+        response = await client.head(
+            f"{DICOMWEB_BASE_URL}/studies",
+            params=dict(request.query_params),
+            headers=dict(request.headers),
+        )
+
+        if response.status_code == 204:
+            # Return empty response with status code 204
+            return Response(status_code=HTTP_204_NO_CONTENT)
+
     # Send the request to the DICOM Web server
     return StreamingResponse(
         metadata_replace_stream(
@@ -225,6 +249,18 @@ async def query_instances(
         series_instance_uid=series,
     ):
         return Response(status_code=HTTP_204_NO_CONTENT)
+
+    # Perform a HEAD request to check the response code without retrieving the body
+    async with httpx.AsyncClient() as client:
+        response = await client.head(
+            f"{DICOMWEB_BASE_URL}/studies",
+            params=dict(request.query_params),
+            headers=dict(request.headers),
+        )
+
+        if response.status_code == 204:
+            # Return empty response with status code 204
+            return Response(status_code=HTTP_204_NO_CONTENT)
 
     # Send the request to the DICOM Web server
     return StreamingResponse(

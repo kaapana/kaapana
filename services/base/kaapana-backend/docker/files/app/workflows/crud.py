@@ -1001,7 +1001,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 )
         bulk_update_jobs(db, jobs_to_update)
 
-    elif len(diff_db_to_airflow) > 0:
+    if len(diff_db_to_airflow) > 0:
         run_ids = [diff_db_job.run_id for diff_db_job in diff_db_to_airflow if diff_db_job.run_id is not None and diff_db_job.remote is False]
         # Get diff states:
         try:
@@ -1028,11 +1028,6 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
                 )
                 jobs_to_update.append(job_update)
         bulk_update_jobs(db, jobs_to_update)
-
-    elif len(diff_airflow_to_db) == 0 and len(diff_db_to_airflow) == 0:
-        pass  # airflow and db in sync :)
-    else:
-        logging.error("Error while syncing kaapana-backend with Airflow")
 
 
 global_service_jobs = {}

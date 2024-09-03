@@ -11,7 +11,7 @@ from app.workflows.utils import (
     requests_retry_session,
     TIMEOUT,
     raise_kaapana_connection_error,
-    os_processor
+    # os_processor
 )
 from app.logger import get_logger
 

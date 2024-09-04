@@ -1,0 +1,8 @@
+apiVersion: v1
+appVersion: "0.0.1"
+description: Install PACS system (e.g. specific Google Dicom Store) to use in viewers and workflows without importing into LocalPACs system. (Downloaded everytime it needs to be used)
+name: dicom-web-multiplexer-chart
+version: "0.0.0"
+keywords:
+- kaapanaapplication
+- kaapanamultiinstallable

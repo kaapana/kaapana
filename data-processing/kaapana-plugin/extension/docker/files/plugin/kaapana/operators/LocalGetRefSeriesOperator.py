@@ -6,11 +6,12 @@ from os.path import join
 from pathlib import Path
 
 import pydicom
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.HelperCaching import cache_operator_output
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
@@ -98,8 +99,6 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         dcmweb_endpoint = workflow_form.get("dcmweb_endpoint")
 
         self.dcmweb_helper = get_dcmweb_helper(
-            application_entity=self.aetitle,
-            dag_run=kwargs["dag_run"],
             dcmweb_endpoint=dcmweb_endpoint,
         )
         if self.dcmweb_helper is None:

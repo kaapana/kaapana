@@ -1,7 +1,6 @@
 import traceback
 from typing import Dict, List
 
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.settings import OpensearchSettings
 from kaapanapy.logger import get_logger
@@ -19,7 +18,7 @@ class HelperOpensearch:
     dcmweb_endpoint_tag = "00020026 SourcePresentationAddress_keyword"
     custom_tag = "00000000 Tags_keyword"
 
-    host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
+    host = f"opensearch-service.{OpensearchSettings().services_namespace}.svc"
     port = "9200"
     index = OpensearchSettings().default_index
 

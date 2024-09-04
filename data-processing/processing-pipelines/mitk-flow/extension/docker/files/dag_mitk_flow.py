@@ -4,7 +4,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from mitk_flow.LocalMiktInputOperator import LocalMiktInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.blueprints.kaapana_global_variables import KAAPANA_BUILD_VERSION
@@ -48,7 +48,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 mitk = LocalMiktInputOperator(
     dag=dag, input_operator=get_input, operator_out_dir="mitk-results"
 )

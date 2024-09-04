@@ -1,7 +1,7 @@
 import glob
 import os
 import json
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -28,7 +28,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
-        self.dcmweb_helper = HelperDcmWeb(dag_run=kwargs["dag_run"])
+        self.dcmweb_helper = HelperDcmWeb()
         print("conf", conf)
 
         self.delete_complete_study = conf.get("form_data", {}).get(

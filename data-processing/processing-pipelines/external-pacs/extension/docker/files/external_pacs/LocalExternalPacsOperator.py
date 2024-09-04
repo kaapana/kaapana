@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__file__)
 
 
-class LocalExternalPacsOperatorperator(KaapanaPythonBaseOperator):
+class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
     def __init__(
         self,
@@ -169,7 +169,7 @@ class LocalExternalPacsOperatorperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def start(self, ds, **kwargs):
-        logger.info("# Starting module ExternalPacsOperator...")
+        logger.info("# Starting module LocalExternalPacsOperator...")
         self.dag_run_id = kwargs["dag_run"].run_id
 
         workflow_form = kwargs["dag_run"].conf["workflow_form"]

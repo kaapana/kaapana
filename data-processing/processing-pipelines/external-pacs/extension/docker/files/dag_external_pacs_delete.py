@@ -3,8 +3,8 @@ from datetime import timedelta
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from external_pacs.ExternalPacsOperator import ExternalPacsOperator
 from external_pacs.HelperDcmWebEndpointsManager import HelperDcmWebEndpointsManager
+from external_pacs.LocalExternalPacsOperator import LocalExternalPacsOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
@@ -43,7 +43,7 @@ dag = DAG(
     max_active_runs=1,
     schedule_interval=None,
 )
-init_operator = ExternalPacsOperator(dag=dag, action="delete")
+init_operator = LocalExternalPacsOperator(dag=dag, action="delete")
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (init_operator >> clean)  # type: ignore

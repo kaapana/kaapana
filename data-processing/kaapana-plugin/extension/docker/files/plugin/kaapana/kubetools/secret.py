@@ -15,15 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import base64
-import hashlib
 import os
-from typing import Dict, List
 
 import kubernetes
 from kaapanapy.logger import get_logger
-from kube_client import get_kube_client
-from kubernetes import client
 
 logger = get_logger(__file__)
 

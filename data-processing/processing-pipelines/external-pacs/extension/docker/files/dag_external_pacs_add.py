@@ -3,8 +3,8 @@ from datetime import timedelta
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from external_pacs.ExternalPacsOperator import ExternalPacsOperator
-from external_pacs.ExternalThumbnailOperator import ExternalThumbnailOperator
+from external_pacs.LocalExternalPacsOperator import LocalExternalPacsOperator
+from external_pacs.LocalExternalThumbnailOperator import LocalExternalThumbnailOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
@@ -69,7 +69,9 @@ dag = DAG(
     schedule_interval=None,
 )
 
-init_operator = ExternalPacsOperator(dag=dag, operator_out_dir="get-input-data", action="add")
+init_operator = LocalExternalPacsOperator(
+    dag=dag, operator_out_dir="get-input-data", action="add"
+)
 extract_metadata = LocalDcm2JsonOperator(
     dag=dag, input_operator=init_operator, data_type="json"
 )
@@ -78,7 +80,7 @@ add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metad
 push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=init_operator, json_operator=extract_metadata
 )
-external_thumbnail = ExternalThumbnailOperator(
+external_thumbnail = LocalExternalThumbnailOperator(
     dag=dag,
     input_operator=extract_metadata,
 )

@@ -57,6 +57,10 @@ class ProjectSettings(KaapanaSettings):
 
 
 class OperatorSettings(BaseSettings):
+    """
+    General variables available in all processing-containers.
+    """
+
     run_id: str
     dag_id: str
     workflow_dir: str

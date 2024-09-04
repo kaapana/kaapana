@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from kaapana.operators.TrainTestSplitOperator import TrainTestSplitOperator
 
@@ -73,7 +73,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
+get_input = GetInputOperator(dag=dag, data_type="json")
 train_test_split = TrainTestSplitOperator(dag=dag, input_operator=get_input)
 tag_dataset = LocalTaggingOperator(
     dag=dag,

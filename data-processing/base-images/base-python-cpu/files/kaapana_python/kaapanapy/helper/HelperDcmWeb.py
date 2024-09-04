@@ -9,16 +9,16 @@ from io import BytesIO
 from typing import List
 from os.path import join
 from pathlib import Path
-from kaapana.blueprints.kaapana_global_variables import (
-    SERVICES_NAMESPACE,
-    OIDC_CLIENT_SECRET,
-    SYSTEM_USER_PASSWORD,
-)
 from requests_toolbelt.multipart import decoder
 from concurrent.futures import ThreadPoolExecutor
+from kaapanapy.settings import ProjectSettings
+from kaapanapy.helper import get_project_user_access_token
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+SERVICES_NAMESPACE = ProjectSettings().services_namespace
 
 DEFAULT_DICOM_WEB_RS_ENDPOINT = (
     f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080"
@@ -37,8 +37,6 @@ class HelperDcmWeb:
         self,
         dcmweb_rs_endpoint: str = DEFAULT_DICOM_WEB_RS_ENDPOINT,
         dcmweb_uri_endpoint: str = DEFAULT_DICOM_WEB_URI_ENDPOINT,
-        dag_run: dict = None,
-        username: str = None,
         access_token: str = None,
     ):
         """Initialize the HelperDcmWeb class.
@@ -46,41 +44,13 @@ class HelperDcmWeb:
         Args:
             dcmweb_rs_endpoint (str, optional): Dicomweb RESTful services endpoint. Defaults to DEFAULT_DICOM_WEB_RS_ENDPOINT.
             dcmweb_uri_endpoint (str, optional): Dicomweb URI endpoint. Defaults to DEFAULT_DICOM_WEB_URI_ENDPOINT.
-            dag_run (dict, optional): The dag_run object. Defaults to None.
             username (str, optional): The username of the user who started the dag. Defaults to None.
             access_token (str, optional): The access token of the user. Defaults to None.
         """
-        assert dag_run or username or access_token
         self.dcmweb_rs_endpoint = dcmweb_rs_endpoint
         self.dcmweb_uri_endpoint = dcmweb_uri_endpoint
-        self.system_user = "system"
-        self.system_user_password = SYSTEM_USER_PASSWORD
-        self.client_secret = OIDC_CLIENT_SECRET
-        self.client_id = "kaapana"
 
-        ### Determine user
-        if username:
-            self.username = username
-        elif dag_run:
-            conf_data = dag_run.conf
-            try:
-                self.username = conf_data["form_data"].get("username")
-            except KeyError:
-                tags = dag_run.dag.tags
-                if "service" in tags:
-                    self.username = self.system_user
-                    logger.info("Task belongs to a service dag-run")
-        else:
-            assert access_token
-            self.username = None
-
-        ### Set access token for requests to dicomweb server
-        if access_token:
-            self.access_token = access_token
-        elif self.username == self.system_user:
-            self.access_token = self.get_system_user_token()
-        else:
-            self.access_token = self.impersonate_user()
+        self.access_token = access_token or get_project_user_access_token()
         self.auth_headers = {
             "Authorization": f"Bearer {self.access_token}",
             "x-forwarded-access-token": self.access_token,
@@ -91,52 +61,6 @@ class HelperDcmWeb:
         )
         self.session = requests.Session()
         self.session.headers.update(self.auth_headers)
-
-    def get_system_user_token(
-        self,
-        ssl_check: bool = False,
-    ) -> str:
-        """Get the access token for the system user.
-
-        Args:
-            ssl_check (bool, optional): Flag to check SSL certificate. Defaults to False.
-
-        Returns:
-            str: The access token for the system user.
-        """
-        payload = {
-            "username": self.system_user,
-            "password": self.system_user_password,
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "grant_type": "password",
-        }
-        url = f"http://keycloak-external-service.admin.svc:80/auth/realms/{self.client_id}/protocol/openid-connect/token"
-        r = requests.post(url, verify=ssl_check, data=payload)
-        access_token = r.json()["access_token"]
-        return access_token
-
-    def impersonate_user(self) -> str:
-        """Impersonate a user by exchanging the system user token for an impersonated user token.
-
-        Returns:
-            str: The impersonated user token.
-        """
-        admin_access_token = self.get_system_user_token()
-        url = f"http://keycloak-external-service.admin.svc:80/auth/realms/{self.client_id}/protocol/openid-connect/token"
-        data = {
-            "client_id": self.client_id,
-            "client_secret": OIDC_CLIENT_SECRET,
-            "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
-            "subject_token": admin_access_token,  # Replace with your actual subject_token
-            "requested_token_type": "urn:ietf:params:oauth:token-type:access_token",
-            "audience": "kaapana",
-            "requested_subject": self.username,
-        }
-
-        r = requests.post(url, data=data, verify=False)
-        impersonated_access_token = r.json()["access_token"]
-        return impersonated_access_token
 
     def check_if_series_in_archive(self, seriesUID: str, studyUID: str) -> bool:
         """This function checks if a series exists in the archive.

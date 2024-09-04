@@ -1,8 +1,8 @@
 import json
 import os
 from glob import glob
-from os.path import join, basename, dirname, normpath, exists
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from os.path import join, basename, normpath, exists
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 
 
 def _get_dataset_json(model_path, installed_task):

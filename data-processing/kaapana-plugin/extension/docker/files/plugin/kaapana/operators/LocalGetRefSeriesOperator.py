@@ -5,11 +5,10 @@ from os.path import join
 from datetime import timedelta
 from pathlib import Path
 from multiprocessing.pool import ThreadPool
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
@@ -93,7 +92,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-        self.dcmweb_helper = HelperDcmWeb(dag_run=kwargs["dag_run"])
+        self.dcmweb_helper = HelperDcmWeb()
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]

@@ -90,7 +90,7 @@ def _get_installed_tasks(af_home_path):
                 dataset_json = _get_dataset_json(
                     model_path=model_path, installed_task=installed_task
                 )
-                installed_tasks[installed_task] = {
+                installed_tasks[f"{installed_model} --- {installed_task}"] = {
                     "description": dataset_json["description"]
                     if "description" in dataset_json
                     else "N/A",
@@ -110,9 +110,9 @@ def _get_installed_tasks(af_home_path):
                     if "task_url" in dataset_json
                     else "N/A",
                 }
-            if installed_model not in installed_tasks[installed_task]["model"]:
-                installed_tasks[installed_task]["model"].append(installed_model)
-                installed_tasks[installed_task]["model"].sort()
+            # if installed_model not in installed_tasks[installed_task]["model"]:
+            #     installed_tasks[installed_task]["model"].append(installed_model)
+            #     installed_tasks[installed_task]["model"].sort()
 
     print(f"INSTALLED TASKS: {installed_tasks}")
     return installed_tasks
@@ -166,6 +166,7 @@ def get_available_protocol_names():
             },
             index="meta-index",
         )
+        print(f"HITS: {hits=}")
 
         available_protocol_names = []
         if hits is not None:
@@ -179,6 +180,7 @@ def get_available_protocol_names():
                     available_protocol_names = (
                         available_protocol_names + available_protocol_name_hits
                     )
+        print(f"AVAILABLE_PROTOCOL_NAMES: {available_protocol_names=}")
         return available_protocol_names
 
     except Exception as e:

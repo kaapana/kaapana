@@ -25,6 +25,8 @@ spec:
           volumeMounts:
             - name: rego-config
               mountPath: /kaapana/app/authz/
+            - name: rego-configmap
+              mountPath: /kaapana/app/bundle/httpapi/authz/
       containers:
       - name: auth-backend
         image: "{{ .Values.global.registry_url }}/auth-backend:{{ .Values.global.kaapana_build_version }}"
@@ -45,21 +47,12 @@ spec:
         volumeMounts:
             - name: rego-config
               mountPath: /kaapana/app/authz/
-            - name: auth-polices-rego-config
-              mountPath: /kaapana/app/bundle/httpapi/authz/auth-policies.rego
-              subPath: auth-policies.rego
-            - name: data-rego-config
-              mountPath: /kaapana/app/bundle/httpapi/authz/data.rego
-              subPath: data.rego
       volumes:
         - name: rego-config
           emptyDir: {}
-        - name: auth-polices-rego-config
+        - name: rego-configmap
           configMap:
-            name: auth-polices-rego-config
-        - name: data-rego-config
-          configMap:
-            name: data-rego-config
+            name: rego-configmap
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret

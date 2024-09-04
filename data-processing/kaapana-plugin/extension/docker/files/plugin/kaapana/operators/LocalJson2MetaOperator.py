@@ -1,18 +1,16 @@
 import os
 import json
 import glob
-import traceback
-import logging
 import pydicom
-import errno
 import time
 
-import requests
 
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.logger import get_logger
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperOpensearch import HelperOpensearch
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+
+logger = get_logger(__name__)
 
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
@@ -88,9 +86,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         global es
-        self.dcmweb_helper = HelperDcmWeb(
-            dag_run=kwargs["dag_run"]
-        )
+        self.dcmweb_helper = HelperDcmWeb()
 
         self.ti = kwargs["ti"]
         print("# Starting module json2meta")

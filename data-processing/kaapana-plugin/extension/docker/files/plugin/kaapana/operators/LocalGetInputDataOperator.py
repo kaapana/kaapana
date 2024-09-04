@@ -4,8 +4,8 @@ import os
 import json
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from multiprocessing.pool import ThreadPool
 from os.path import join, exists, dirname
 import shutil
@@ -307,7 +307,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if len(download_list) == 0:
             raise Exception("No series to download !!")
         series_download_fail = []
-        self.dcmweb_helper = HelperDcmWeb(dag_run=kwargs["dag_run"])
+        self.dcmweb_helper = HelperDcmWeb()
 
         num_done = 0
         num_total = len(download_list)

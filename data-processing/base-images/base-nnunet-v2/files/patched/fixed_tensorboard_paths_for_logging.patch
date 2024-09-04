@@ -1,0 +1,40 @@
+commit 514f0fb589ab9b5a8ea0537101aa86641f43ec58
+Author: Bujotzek, Markus <markus.bujotzek@dkfz-heidelberg.de>
+Date:   Wed Sep 4 10:10:47 2024 +0200
+
+    fixed tensorboard paths for logging
+
+diff --git a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+index 767ef66..ccbb896 100644
+--- a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
++++ b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+@@ -237,8 +237,7 @@ class nnUNetTrainer(object):
+         # This is maybe a little bit ugly...
+         tensorboard_log_dir = Path(
+             os.path.join(
+-                "/minio",
+-                "tensorboard",
++                "/tensorboard",
+                 os.getenv("RUN_ID"),
+                 os.getenv("OPERATOR_OUT_DIR"),
+             )
+@@ -254,8 +253,7 @@ class nnUNetTrainer(object):
+         ):
+             previous_tensorboard_log_dir = Path(
+                 os.path.join(
+-                    "/minio",
+-                    "tensorboard",
++                    "/tensorboard",
+                     conf_data["federated_form"]["from_previous_dag_run"],
+                     os.getenv("OPERATOR_OUT_DIR"),
+                 )
+@@ -275,8 +273,7 @@ class nnUNetTrainer(object):
+         ):
+             before_previous_tensorboard_log_dir = Path(
+                 os.path.join(
+-                    "/minio",
+-                    "tensorboard",
++                    "/tensorboard",
+                     conf_data["federated_form"]["before_previous_dag_run"],
+                     os.getenv("OPERATOR_OUT_DIR"),
+                 )

@@ -1,5 +1,5 @@
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 import os
 import json
 import pydicom
@@ -7,7 +7,7 @@ import glob
 
 
 class LocalMiktInputOperator(KaapanaPythonBaseOperator):
-    
+
     def __init__(self, dag, operator_out_dir="mitk-results", **kwargs):
         super().__init__(
             dag=dag,
@@ -43,7 +43,7 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
             json.dump(tasklist, f, ensure_ascii=False, indent=4)
 
     def get_files(self, ds, **kwargs):
-        self.dcmweb_helper = HelperDcmWeb(dag_run=kwargs["dag_run"])
+        self.dcmweb_helper = HelperDcmWeb()
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [

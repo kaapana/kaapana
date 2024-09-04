@@ -1,6 +1,7 @@
 import requests
+import os, json
 
-from kaapanapy.settings import OpensearchSettings, KaapanaSettings
+from kaapanapy.settings import OpensearchSettings, KaapanaSettings, OperatorSettings
 from opensearchpy import OpenSearch
 from minio import Minio
 import xml.etree.ElementTree as ET
@@ -81,3 +82,14 @@ def get_project_user_access_token():
     r = requests.post(url, verify=False, data=payload)
     access_token = r.json()["access_token"]
     return access_token
+
+
+def load_workflow_config():
+    """
+    Load and return the workflow config.
+    """
+    settings = OperatorSettings()
+    config_path = os.path.join(settings.workflow_dir, "conf", "conf.json")
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    return config

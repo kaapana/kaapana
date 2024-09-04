@@ -5,7 +5,7 @@ from enum import Enum
 from typing import List
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.settings import OpensearchSettings
 
 

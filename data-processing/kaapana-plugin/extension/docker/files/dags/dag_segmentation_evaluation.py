@@ -3,10 +3,9 @@ from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.SegmentationEvaluationOperator import (
     SegmentationEvaluationOperator,
@@ -20,7 +19,6 @@ from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
 default_interpolation_order = "default"
 default_prep_thread_count = 1
 default_nifti_thread_count = 1
-test_dataset_limit = None
 organ_filter = None
 
 parallel_processes = 3
@@ -120,21 +118,19 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_gt_images = LocalGetInputDataOperator(
+get_gt_images = GetInputOperator(
     dag=dag,
     name="get-gt-images",
     batch_name="gt-dataset",
-    dataset_limit=None,
     parallel_downloads=5,
     check_modality=False,
     exclude_custom_tag_property="test_tag",
 )
 
-get_test_images = LocalGetInputDataOperator(
+get_test_images = GetInputOperator(
     dag=dag,
     name="get-test-images",
     batch_name="test-dataset",
-    dataset_limit=None,
     parallel_downloads=5,
     check_modality=False,
     include_custom_tag_property="test_tag",

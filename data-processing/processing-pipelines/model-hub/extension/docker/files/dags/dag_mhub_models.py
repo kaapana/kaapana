@@ -3,11 +3,8 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from mhub.mHubOperator import mHubOperator
 
@@ -48,7 +45,7 @@ args = {
 dag = DAG(dag_id="mhub-models", default_args=args, schedule_interval=None)
 
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 
 mhub = mHubOperator(dag=dag, input_operator=get_input)
 

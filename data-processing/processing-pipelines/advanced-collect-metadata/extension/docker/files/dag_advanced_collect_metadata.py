@@ -2,7 +2,7 @@ from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
 from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -61,7 +61,7 @@ dag = DAG(
 )
 
 ### COMMON ###
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 
 anonymizer = LocalDcmAnonymizerOperator(
     dag=dag,

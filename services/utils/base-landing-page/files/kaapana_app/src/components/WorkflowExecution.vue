@@ -8,8 +8,8 @@
             <v-btn v-on="on" @click='getKaapanaInstances()' small icon>
               <v-icon color="primary" dark>
                 mdi-refresh
-              </v-icon> 
-            </v-btn> 
+              </v-icon>
+            </v-btn>
           </template>
           <span>refresh Workflow Execution component</span>
         </v-tooltip>
@@ -22,46 +22,26 @@
           </v-row>
           <v-row v-if="available_kaapana_instance_names.length > 1">
             <v-col cols="12">
-              <v-select
-                v-model="selected_kaapana_instance_names"
-                :items="available_kaapana_instance_names"
-                label="Runner instances"
-                multiple
-                chips
-                hint="On which instances do you want to execute the workflow?"
-              ></v-select>
+              <v-select v-model="selected_kaapana_instance_names" :items="available_kaapana_instance_names"
+                label="Runner instances" multiple chips
+                hint="On which instances do you want to execute the workflow?"></v-select>
             </v-col>
           </v-row>
           <!-- DAG: select dag -->
           <v-row>
             <v-col cols="12" v-if="available_dags.length">
-              <v-select
-                v-if="selected_kaapana_instance_names.length"
-                v-model="dag_id"
-                :items="available_dags"
-                label="Workflow"
-                chips
-                hint="Workflow to execute"
-                :rules="dagRules()"
-                required
-              ></v-select>
+              <v-select v-if="selected_kaapana_instance_names.length" v-model="dag_id" :items="available_dags"
+                label="Workflow" chips hint="Workflow to execute" :rules="dagRules()" required></v-select>
             </v-col>
             <v-col cols="12" align="center" justify="center" v-else>
-              <v-progress-circular
-                indeterminate
-                color="primary"
-              ></v-progress-circular>
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
             </v-col>
           </v-row>
           <!-- Workflow name -->
           <v-row v-if="dag_id">
             <v-col cols="12">
-              <v-text-field
-                label="Workflow name"
-                v-model="workflow_name"
-                :rules="workflownameRules()"
-                required
-              ></v-text-field>
+              <v-text-field label="Workflow name" v-model="workflow_name" :rules="workflownameRules()"
+                required></v-text-field>
             </v-col>
             <!-- don't do workflow_id rn-->
           </v-row>
@@ -69,11 +49,7 @@
           <v-row v-if="datasets_available" :key="dag_id">
             <v-col v-for="(schema, name) in schemas" cols="12">
               <!-- <p>{{name}}</p> -->
-              <v-jsf
-                v-model="formData[name]"
-                :schema="schema"
-                required="required"
-              ></v-jsf>
+              <v-jsf v-model="formData[name]" :schema="schema" required="required"></v-jsf>
             </v-col>
           </v-row>
           <!-- Select remote instance for remote workflow -->
@@ -82,25 +58,16 @@
               <h3>Remote Workflow</h3>
             </v-col>
             <v-col cols="12">
-              <v-select
-                v-model="selected_remote_instances_w_external_dag_available"
-                :items="remote_instances_w_external_dag_available"
-                label="External Instance names"
-                multiple
-                chips
-                hint="On which (remote) nodes do you want to execute the workflow"
-              ></v-select>
+              <v-select v-model="selected_remote_instances_w_external_dag_available"
+                :items="remote_instances_w_external_dag_available" label="External Instance names" multiple chips
+                hint="On which (remote) nodes do you want to execute the workflow"></v-select>
             </v-col>
           </v-row>
           <!-- Forms of external workflows -->
           <v-row v-if="Object.keys(external_schemas).length">
             <v-col v-for="(schema, name) in external_schemas" cols="12">
               <p>{{ name }}</p>
-              <v-jsf
-                v-model="formData['external_schema_' + name]"
-                :schema="schema"
-                required="required"
-              ></v-jsf>
+              <v-jsf v-model="formData['external_schema_' + name]" :schema="schema" required="required"></v-jsf>
             </v-col>
           </v-row>
           <!-- Conf data summarizing the configured workflow -->
@@ -115,13 +82,13 @@
                 <pre class="text-left">Workflow name: {{ workflow_name }}</pre>
                 <pre class="text-left">Dag id: {{ dag_id }}</pre>
                 <pre class="text-left">
-                  Instance name: {{ selected_kaapana_instance_names }}
-                </pre>
+            Instance name: {{ selected_kaapana_instance_names }}
+          </pre>
                 <pre class="text-left">
-                  External instance name: {{
-                    selected_remote_instances_w_external_dag_available
-                  }}
-                </pre>
+            External instance name: {{
+              selected_remote_instances_w_external_dag_available
+            }}
+          </pre>
                 <pre class="text-left">{{ formDataFormatted }}</pre>
               </v-tooltip>
             </v-col>
@@ -133,9 +100,7 @@
         <v-btn color="primary" @click="submissionValidator()">
           Start Workflow
         </v-btn>
-        <v-btn
-          @click="isDialog ? cancel() : clearForm()"
-        >
+        <v-btn @click="isDialog ? cancel() : clearForm()">
           {{ this.isDialog ? "Cancel" : "Clear" }}
         </v-btn>
       </v-card-actions>
@@ -180,7 +145,7 @@ export default {
       default: () => [],
     },
   },
-  created() {},
+  created() { },
   mounted() {
     this.refreshClient();
     this.loadWorkflowSettings();
@@ -197,7 +162,7 @@ export default {
         ];
       }
       this.getUiFormSchemas();
-      this.getDags();      
+      this.getDags();
       // reset dag_id and external_dag_id if instance changes
       this.dag_id = null;
       this.external_dag_id = null;
@@ -246,7 +211,7 @@ export default {
 
       if (this.schemas["data_form"] !== null && this.schemas["data_form"] !== undefined) {
         Object.entries(this.schemas["data_form"]).forEach(([key, value]) => {
-          if ( key.startsWith("__emtpy__") ) {
+          if (key.startsWith("__emtpy__")) {
             this.datasets_available = false;
             this.$notify({
               type: "error",
@@ -275,7 +240,7 @@ export default {
       });
     },
     validDags(dags, olddags) {
-      if (dags.length != olddags.length){
+      if (dags.length != olddags.length) {
         this.getDags();
       }
     },
@@ -311,7 +276,7 @@ export default {
         workflow_name: null, // or to ''
         showConfData: false,
         datasets_available: true,
-        workflowsSettings: {},
+        workflowsSettings: {}
       };
     },
     reset() {
@@ -322,7 +287,7 @@ export default {
     refreshClient() {
       this.getKaapanaInstances();
     },
-    loadWorkflowSettings(){
+    loadWorkflowSettings() {
       const settings = JSON.parse(localStorage["settings"]);
       if (settings.hasOwnProperty('workflows')) {
         this.workflowsSettings = settings['workflows'];
@@ -380,31 +345,31 @@ export default {
     * }
     */
     processDefaultsFromSettings(schema) {
-      if(!this.workflow_name) {
+      if (!this.workflow_name) {
         return
       }
 
       var workflowName = this.toCamelCase(this.workflow_name);
-      if(!this.workflowsSettings.hasOwnProperty(workflowName)) {
+      if (!this.workflowsSettings.hasOwnProperty(workflowName)) {
         return
       }
 
-      var parsedSchema = JSON.parse(JSON.stringify(schema));  
-      if(parsedSchema.hasOwnProperty('workflow_form')) {
+      var parsedSchema = JSON.parse(JSON.stringify(schema));
+      if (parsedSchema.hasOwnProperty('workflow_form')) {
         const props = parsedSchema['workflow_form']['properties'];
         const wfOptions = this.workflowsSettings[workflowName];
         const defaults = wfOptions['properties']
 
         for (const [key, value] of Object.entries(props)) {
           const propsKey = this.toCamelCase(key);
-          if(defaults.hasOwnProperty(propsKey)) {
+          if (defaults.hasOwnProperty(propsKey)) {
             props[key]['default'] = defaults[propsKey];
             // check if the option for the settings should be visible
             // on the UI.
             if (wfOptions.hideOnUI.includes(propsKey)) {
               props[key]['x-style'] = "display: none;";
-            }            
-          }          
+            }
+          }
         }
 
         this.schemas['workflow_form']['properties'] = props;
@@ -437,9 +402,9 @@ export default {
     submissionValidator() {
       let valid_check = [];
       let invalid_fields = [];
-      if ( this.datasets_available !== true) {
-       // NOT all checks have been successful --> return false
-       const message = "The selected runner instances have no common allowed datasets!";
+      if (this.datasets_available !== true) {
+        // NOT all checks have been successful --> return false
+        const message = "The selected runner instances have no common allowed datasets!";
         this.$notify({
           type: "error",
           title: message,
@@ -647,6 +612,7 @@ export default {
 .is-invalid {
   border: 1px solid red;
 }
+
 .justify-space-between {
   justify-content: 0;
 }

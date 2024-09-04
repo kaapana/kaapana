@@ -15,8 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import kubernetes
 import os
+
+import kubernetes
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__file__)
 
 
 class Secret:

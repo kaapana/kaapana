@@ -1,4 +1,6 @@
-from typing import List, Dict
+import traceback
+from typing import Dict, List
+
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.logger import get_logger
@@ -13,6 +15,7 @@ class HelperOpensearch:
     modality_tag = "00080060 Modality_keyword"
     protocol_name = "00181030 ProtocolName_keyword"
     curated_modality_tag = "00000000 CuratedModality_keyword"
+    dcmweb_endpoint_tag = "00020026 SourcePresentationAddress_keyword"
     custom_tag = "00000000 Tags_keyword"
 
     host = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
@@ -48,10 +51,10 @@ class HelperOpensearch:
             HelperOpensearch.curated_modality_tag,
         ]
         if include_custom_tag != "":
-            includes.append(HelperOpensearch.include_custom_tag)
+            includes.append(include_custom_tag)
         excludes = []
         if exclude_custom_tag != "":
-            excludes.append(HelperOpensearch.exclude_custom_tag)
+            excludes.append(exclude_custom_tag)
 
         query_dict = {
             "query": query,
@@ -150,6 +153,7 @@ class HelperOpensearch:
                     HelperOpensearch.SOPInstanceUID_tag,
                     HelperOpensearch.modality_tag,
                     HelperOpensearch.curated_modality_tag,
+                    HelperOpensearch.dcmweb_endpoint_tag,
                 ]
             },
         )
@@ -163,6 +167,9 @@ class HelperOpensearch:
                     "curated_modality": hit["_source"][
                         HelperOpensearch.curated_modality_tag
                     ],
+                    "source_presentation_address": hit["_source"].get(
+                        HelperOpensearch.dcmweb_endpoint_tag
+                    ),
                 }
             }
             for hit in res
@@ -188,6 +195,8 @@ class HelperOpensearch:
             res = HelperOpensearch.os_client.delete_by_query(index=index, body=query)
             print(res)
         except Exception as e:
+
             print(f"# ERROR deleting from Opensearch: {str(e)}")
             print(f"# query: {query}")
+            traceback.print_exc()
             exit(1)

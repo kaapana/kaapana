@@ -1,18 +1,17 @@
-import os
-import json
-import glob
-import traceback
-import logging
-import pydicom
 import errno
+import glob
+import json
+import logging
+import os
 import time
+import traceback
 
+import pydicom
 import requests
-
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
@@ -121,15 +120,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                             obj = json.loads(line)
                             self.push_json(obj)
             else:
-                # TODO: is this dcm check necessary? InstanceID is set in upload
-                dcm_files = sorted(
-                    glob.glob(
-                        os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"),
-                        recursive=True,
-                    )
-                )
-                self.set_id(dcm_files[0])
-
                 json_dir = os.path.join(
                     batch_element_dir, self.json_operator.operator_out_dir
                 )

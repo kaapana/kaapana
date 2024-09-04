@@ -24,6 +24,7 @@ class HelperDcmWebEndpointsManager:
     def add_endpoint(self, dcmweb_endpoint: str):
         endpoints = self.minio_client.get_json(self.bucket_name, self.object_name)
         endpoints.append(dcmweb_endpoint)
+        self.minio_client.make_bucket(self.bucket_name)
         self.minio_client.put_json(self.bucket_name, self.object_name, data=endpoints)
         if dcmweb_endpoint not in self.minio_client.get_json(
             self.bucket_name, self.object_name

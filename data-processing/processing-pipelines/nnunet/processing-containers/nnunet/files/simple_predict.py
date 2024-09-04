@@ -82,17 +82,45 @@ def create_dataset(search_dir):
 
 def get_model_paths(batch_element_dir):
     global workflow_dir, task, models_dir, model_arch, batch_name
-    task_n_modelname = task.split("---")
-    task = task_n_modelname[0]
-    modelname = task_n_modelname[1]
+
+    if task and "---" in task:
+        # format if called from nnunet-predict
+        task_n_modelname = task.split("---")
+        task = task_n_modelname[0]
+        modelname = task_n_modelname[1]
+    elif task is None:
+        # retrieve infromation if called from nnunet-ensemble
+        checkpoint_file = glob(
+            f"{batch_element_dir}/**/checkpoint_final.pth", recursive=True
+        )[0]
+        checkpoint_file_substring = checkpoint_file.split("/")
+        task = next(
+            (
+                element
+                for element in checkpoint_file_substring
+                if element.startswith("Dataset")
+            ),
+            None,
+        )
+        modelname = next(
+            (
+                element
+                for element in checkpoint_file_substring
+                if element.startswith("nnUNetTrainer")
+            ),
+            None,
+        )
+
     model_paths = []
     if models_dir == "/models":
-        model_path = join(models_dir, "nnUNet", task)
+        # that's the case if called from nnunet-predict
+        model_path = join(models_dir, "nnUNet", task, modelname)
         print(f"# Default models dir: {model_path} -> continue")
         model_paths.append(model_path)
     else:
-        model_path = join(batch_element_dir, models_dir, model_arch)
-        batch_models_dir = join("/", workflow_dir, models_dir, model_arch)
+        # that's the case if called from nnunet-ensemble
+        model_path = join(batch_element_dir, models_dir, task, modelname)
+        batch_models_dir = join("/", workflow_dir, models_dir, task, modelname)
         print(f"# Batch-element models dir: {model_path}")
         print(f"# Batch models dir: {batch_models_dir}")
         if exists(model_path):
@@ -130,7 +158,7 @@ def get_model_paths(batch_element_dir):
             model_path = join(model_path, task_idenified)
         else:
             print(f"# Task: {task}")
-            model_path = join(model_path, modelname)
+            # model_path = join(model_path, modelname)
             print(f"# Final model_path: {model_path}")
 
         assert exists(model_path)

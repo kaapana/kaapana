@@ -21,7 +21,9 @@ class LocalDataorganizerOperator(KaapanaPythonBaseOperator):
             )
             print(f"# filter_id: {filter_id}")
             json_file_filtered = [
-                json_file for json_file in json_list if filter_id in json_file
+                json_file
+                for json_file in json_list
+                if filter_id in json_file or "seg_info" in json_file
             ]
             ensemble_file_filtered = [
                 json_file

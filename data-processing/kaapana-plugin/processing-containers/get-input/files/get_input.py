@@ -1,6 +1,5 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from typing import Optional
 import os
 import json
 from multiprocessing.pool import ThreadPool
@@ -8,22 +7,11 @@ import time
 
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapanapy.helper import get_project_user_access_token
+from kaapanapy.helper import load_workflow_config
 from kaapanapy.logger import get_logger
+from kaapanapy.settings import OperatorSettings
 
 logger = get_logger(__name__)
-
-
-class OperatorSettings(BaseSettings):
-    run_id: str
-    dag_id: str
-    workflow_dir: str
-    batch_name: str = "batch"
-    workflow_name: str
-    operator_out_dir: str
-    batches_input_dir: str
-
-    operator_in_dir: Optional[str] = None
 
 
 class GetInputArguments(BaseSettings):
@@ -33,17 +21,6 @@ class GetInputArguments(BaseSettings):
     batch_name: str = "batch"
     check_modality: bool = False
     parallel_downloads: int = 3
-
-
-def load_workflow_config():
-    """
-    Load and return the workflow config.
-    """
-    settings = OperatorSettings()
-    config_path = os.path.join(settings.workflow_dir, "conf", "conf.json")
-    with open(config_path, "r") as f:
-        config = json.load(f)
-    return config
 
 
 def check_modality_of_workflow(modality: str):
@@ -149,6 +126,10 @@ def download_data_for_workflow(workflow_config):
         exclude_custom_tag=operator_arguments.exclude_custom_tag,
     )
 
+    dataset_limit = workflow_config.get("data_form").get("dataset_limit")
+    if workflow_config.get("data_form").get("dataset_limit"):
+        dcm_uid_objects = dcm_uid_objects[:dataset_limit]
+
     series_download_fail = []
     num_done = 0
     num_total = len(dcm_uid_objects)
@@ -179,7 +160,7 @@ def download_data_for_workflow(workflow_config):
 if __name__ == "__main__":
     logger.info("Start GetInputOperator.")
     ### This helper is used in get_data_from_pacs()
-    dcmweb_helper = HelperDcmWeb(access_token=get_project_user_access_token())
+    dcmweb_helper = HelperDcmWeb()
     logger.debug("HelperDcmWeb object initialized.")
     workflow_config = load_workflow_config()
     logger.debug("Workflow config loaded.")

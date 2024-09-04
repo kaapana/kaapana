@@ -50,14 +50,14 @@ properties_template = {
         "type": "string",
         "readOnly": True,
     },
-    "model": {
-        "title": "Pre-trained models",
-        "description": "Select one of the available models.",
-        "type": "string",
-        "required": True,
-        "enum": [],
-        "default": "3d_lowres",
-    },
+    # "model": {
+    #     "title": "Pre-trained models",
+    #     "description": "Select one of the available models.",
+    #     "type": "string",
+    #     "required": True,
+    #     "enum": [],
+    #     "default": "3d_lowres",
+    # },
     "inf_softmax": {
         "title": "enable softmax",
         "description": "Enable softmax export?",
@@ -110,7 +110,7 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
     print(f"{task_name=}")
     print(f"{task_values=}")
     task_selection = {
-        "title": task_values["model"][0],
+        "title": task_name,  # task_values["model"][0],
         "properties": {"task_ids": {"type": "string", "const": task_name}},
     }
     task_properties = copy.deepcopy(properties_template)

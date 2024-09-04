@@ -231,9 +231,18 @@ def write_seg_info(task, target_dir, dataset_info_dir):
         {"label_name": key, "label_int": str(value)}
         for key, value in dataset_dict["labels"].items()
     ]
-
     seg_info = {"seg_info": seg_info_list}
-    seg_info["algorithm"] = str(task)
+
+    task_substrings = str(task).split("/")
+    seg_info["task_id"] = next(
+        (element for element in task_substrings if element.startswith("Dataset")), None
+    )
+    algo_id = next(
+        (element for element in task_substrings if element.startswith("nnUNetTrainer")),
+        None,
+    )
+    seg_info["algorithm"] = seg_info["task_id"] + algo_id
+
     json_path = os.path.join(target_dir, "seg_info.json")
 
     with open(json_path, "w") as outfile:

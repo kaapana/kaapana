@@ -1,10 +1,9 @@
-import glob
 import os
 from datetime import timedelta
 from pathlib import Path
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 
 
 class LocalDicomSendOperator(KaapanaPythonBaseOperator):
@@ -28,7 +27,7 @@ class LocalDicomSendOperator(KaapanaPythonBaseOperator):
         )
 
     def start(self, **kwargs):
-        self.dcmweb_helper = HelperDcmWeb(dag_run=kwargs["dag_run"])
+        self.dcmweb_helper = HelperDcmWeb()
 
         run_dir = (
             Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name

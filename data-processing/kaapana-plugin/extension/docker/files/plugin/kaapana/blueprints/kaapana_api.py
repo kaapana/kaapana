@@ -7,7 +7,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed as set_dag_run_failed,
 )
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun, DagModel, DagBag, DAG
+from airflow.models import DagRun, DagModel, DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import State, TaskInstanceState, DagRunState
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -20,13 +20,10 @@ from flask import current_app as app
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
 
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import (
     generate_run_id,
-    generate_minio_credentials,
     parse_ui_dict,
 )
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 _log = LoggingMixin().log
 parallel_processes = 1

@@ -1,16 +1,16 @@
-import os
-import json
 import glob
-import pydicom
-from os.path import join, basename, dirname
+import json
 from datetime import timedelta
-from pathlib import Path
 from multiprocessing.pool import ThreadPool
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from os.path import join
+from pathlib import Path
+
+import pydicom
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb, get_dcmweb_helper
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
@@ -56,9 +56,17 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-        self.dcmweb_helper = HelperDcmWeb(
-            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
+        workflow_form = kwargs["dag_run"].conf["workflow_form"]
+        dcmweb_endpoint = workflow_form.get("dcmweb_endpoint")
+
+        self.dcmweb_helper = get_dcmweb_helper(
+            application_entity=self.aetitle,
+            dag_run=kwargs["dag_run"],
+            dcmweb_endpoint=dcmweb_endpoint,
         )
+        if self.dcmweb_helper is None:
+            print("HelperDcmWeb couldn't be retrieved. Abort")
+            exit(1)
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]
@@ -72,7 +80,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         print(f"# Expected_count: {self.expected_file_count}")
         print("#")
 
-        if self.target_level == "batch" and self.search_policy == None:
+        if self.target_level == "batch" and self.search_policy is None:
             target_dir = join(run_dir, self.operator_out_dir)
             print("#")
             print(f"# Target:     batch-level")
@@ -85,54 +93,11 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             print("# Searching for series with the following filters:")
             print(json.dumps(search_filters, indent=4, sort_keys=True))
             print("#")
-            pacs_series = self.dcmweb_helper.search_for_series(
-                search_filters=search_filters
-            )
-            print(f"Found series: {len(pacs_series)}")
-            if len(pacs_series) == 0 or (
-                self.expected_file_count != "all"
-                and len(pacs_series) != self.expected_file_count
-            ):
-                print(
-                    "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                )
-                print("# ")
-                print(f"Found images != expected file_count.")
-                print(
-                    f"Expected {self.expected_file_count} series - found {len(pacs_series)} series"
-                )
-                print("# Abort.")
-                print("# ")
-                print(
-                    "# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-                )
-                raise ValueError("ERROR")
-            for series in pacs_series:
-                series_uid = series["0020000E"]["Value"][0]
-                download_series_list.append(
-                    {
-                        "reference_series_uid": series_uid,
-                        "target_dir": join(
-                            target_dir, series_uid, self.operator_out_dir
-                        ),
-                    }
-                )
 
-            target_dir = join(run_dir, self.operator_out_dir)
-            print("#")
-            print(f"# Target:     batch-level")
-            print(f"# target_dir: {target_dir}")
-            print("#")
-            search_filters = {}
-            for dicom_tag in self.dicom_tags:
-                search_filters[dicom_tag["id"]] = dicom_tag["value"]
-            print("#")
-            print("# Searching for series with the following filters:")
-            print(json.dumps(search_filters, indent=4, sort_keys=True))
-            print("#")
             pacs_series = self.dcmweb_helper.search_for_series(
                 search_filters=search_filters
             )
+
             print(f"Found series: {len(pacs_series)}")
             if len(pacs_series) == 0 or (
                 self.expected_file_count != "all"
@@ -203,17 +168,17 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                             .value[0][0x3006, 0x0014]
                             .value[0]
                         )
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x3006, 0x0016].value))
 
                     elif incoming_dcm.Modality == "SEG":
                         assert (0x0008, 0x1115) in incoming_dcm
                         ref_object = incoming_dcm[0x0008, 0x1115].value[0]
-                        search_filters[
-                            "SeriesInstanceUID"
-                        ] = ref_object.SeriesInstanceUID
+                        search_filters["SeriesInstanceUID"] = (
+                            ref_object.SeriesInstanceUID
+                        )
                         object_count = len(list(ref_object[0x0008, 0x114A].value))
                     else:
                         raise ValueError(
@@ -337,7 +302,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             )
             raise ValueError("ERROR")
 
-        if self.limit_file_count != None:
+        if self.limit_file_count is not None:
             download_series_list = download_series_list[: self.limit_file_count]
 
         with ThreadPool(self.parallel_downloads) as threadpool:

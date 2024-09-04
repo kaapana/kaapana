@@ -1,22 +1,62 @@
-import requests
 import logging
 import os
 import tempfile
 import time
-import pydicom
-from dicomweb_client.api import DICOMwebClient
-from typing import List
+from glob import glob
 from os.path import join
 from pathlib import Path
-from glob import glob
+from typing import Dict, List
+
+import pydicom
+import requests
+from dicomweb_client.api import DICOMwebClient
 from kaapana.blueprints.kaapana_global_variables import (
-    SERVICES_NAMESPACE,
     OIDC_CLIENT_SECRET,
+    SERVICES_NAMESPACE,
     SYSTEM_USER_PASSWORD,
 )
 
-
 logger = logging.getLogger(__name__)
+
+
+def get_dcmweb_helper(
+    application_entity: str = "KAAPANA",
+    dag_run=None,
+    dcmweb_endpoint=None,
+    service_account_info=None,
+):
+    if dcmweb_endpoint:
+        try:
+            # Check if external_pacs extension was installed
+            from external_pacs.HelperDcmWebGcloud import HelperDcmWebGcloud
+            from external_pacs.utils import get_k8s_secret, hash_secret_name
+
+            secret_name = hash_secret_name(name=dcmweb_endpoint)
+            if not service_account_info:
+                service_account_info = get_k8s_secret(secret_name)
+            if not service_account_info:
+                raise FileNotFoundError(f"Cannot retrieve secret for {dcmweb_endpoint}")
+
+            if "google" in dcmweb_endpoint and service_account_info:
+                return HelperDcmWebGcloud(
+                    dcmweb_endpoint=dcmweb_endpoint,
+                    service_account_info=service_account_info,
+                )
+            else:
+                logger.error(f"Unsupported dcmweb_endpoint: {dcmweb_endpoint}")
+                exit(1)
+
+        except ModuleNotFoundError:
+            logger.error(
+                "There is no external helper installed - see extensions external-pacs"
+            )
+            exit(1)
+
+        except Exception:
+            logger.error(f"Unknown dcmweb_endpoint: {dcmweb_endpoint}")
+            exit(1)
+    else:
+        return HelperDcmWeb(application_entity=application_entity, dag_run=dag_run)
 
 
 class DcmWebException(Exception):
@@ -52,14 +92,19 @@ class HelperDcmWeb:
         self.client_id = "kaapana"
 
         ### Determine user
+
         if username:
             self.username = username
         elif dag_run:
+
             conf_data = dag_run.conf
             try:
                 self.username = conf_data["form_data"].get("username")
             except KeyError:
+                logger.debug(dag_run)
+                logger.debug(dag_run.dag)
                 tags = dag_run.dag.tags
+                logger.debug(tags)
                 if "service" in tags:
                     self.username = self.system_user
                     logger.info("Task belongs to a service dag-run")
@@ -407,5 +452,22 @@ class HelperDcmWeb:
             dataset = pydicom.dcmread(file)
             self.client.store_instances(datasets=[dataset])
 
-    def search_for_series(self, search_filters):
+    def search_for_series(self, search_filters={}) -> List[Dict] | None:
         return self.client.search_for_series(search_filters=search_filters)
+
+    def search_for_instances(self, search_filters={}) -> List[Dict] | None:
+        return self.client.search_for_instances(search_filters=search_filters)
+
+    def check_reachability(self) -> bool:
+        for i in range(10):
+            try:
+                if self.search_for_series() is not None:
+                    return True
+            except Exception as e:
+                logger.error(f"Connecting to PACS failed: {e}. Retry {i}")
+                time.sleep(1)
+
+        logger.error(
+            f"Dcmweb endpoint {self.dcmweb_endpoint} is not available or wrong credentials."
+        )
+        return False

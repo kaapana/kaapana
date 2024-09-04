@@ -19,7 +19,7 @@ dependencies:
   - name: slicer-workbench-chart
     version: 0.0.0
   - name: mitk-flow-chart
-    version: 0.0.0 
+    version: 0.0.0
   - name: mitk-flow-workflow
     version: 0.0.0
   - name: bodypartregression-workflow
@@ -81,4 +81,6 @@ dependencies:
   - name: collabora-chart
     version: 0.0.0
   - name: minio-sync-chart
+    version: 0.0.0
+  - name: external-pacs-workflow
     version: 0.0.0

@@ -82,9 +82,12 @@ def create_dataset(search_dir):
 
 def get_model_paths(batch_element_dir):
     global workflow_dir, task, models_dir, model_arch, batch_name
+    task_n_modelname = task.split("---")
+    task = task_n_modelname[0]
+    modelname = task_n_modelname[1]
     model_paths = []
     if models_dir == "/models":
-        model_path = join(models_dir, "nnUNet", model_arch)
+        model_path = join(models_dir, "nnUNet", task)
         print(f"# Default models dir: {model_path} -> continue")
         model_paths.append(model_path)
     else:
@@ -127,16 +130,16 @@ def get_model_paths(batch_element_dir):
             model_path = join(model_path, task_idenified)
         else:
             print(f"# Task: {task}")
-            model_path = join(model_path, task)
+            model_path = join(model_path, modelname)
             print(f"# Final model_path: {model_path}")
 
         assert exists(model_path)
-        trainer = [f.name for f in os.scandir(model_path) if f.is_dir()]
-        if len(trainer) == 1:
-            model_path = join(model_path, trainer[0])
-            print(f"# Trainer indenified: {trainer[0]}")
+        fold = [f.name for f in os.scandir(model_path) if f.is_dir()]
+        if len(fold) == 1:
+            model_path = join(model_path, fold[0])
+            print(f"# Fold indenified: {fold[0]}")
         else:
-            print("# Trainer could not be identified...")
+            print("# Fold could not be identified...")
             print("# ABORT !")
             exit(1)
 
@@ -155,17 +158,18 @@ def get_model_paths(batch_element_dir):
         if (
             len(
                 glob(
-                    join(model_path, "**", "model_final_checkpoint.model"),
+                    join(model_path, "**", "checkpoint_final.pth"),
                     recursive=True,
                 )
             )
             > 0
         ):
-            checkpoint_name = "model_final_checkpoint"
+            checkpoint_name = "checkpoint_final"
         elif (
-            len(glob(join(model_path, "**", "model_latest.model"), recursive=True)) > 0
+            len(glob(join(model_path, "**", "checkpoint_latest.pth"), recursive=True))
+            > 0
         ):
-            checkpoint_name = "model_latest"
+            checkpoint_name = "checkpoint_latest"
         else:
             print("#")
             print("##################################################")
@@ -236,7 +240,7 @@ def predict(
     predictor.initialize_from_trained_model_folder(
         model,
         use_folds=folds,
-        checkpoint_name=checkpoint_name + ".model",
+        checkpoint_name=checkpoint_name + ".pth",
     )
     # variant 1: give input and output folders
     predictor.predict_from_files(

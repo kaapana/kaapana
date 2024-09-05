@@ -195,13 +195,14 @@
                             template(v-slot:activator="{ on, attrs }")
                               v-icon(v-bind="attrs" v-on="on") mdi-tooltip-question
                             div(v-html="param.help")
+
                       v-file-input(
                         v-if="param.type == 'file_upload'"
                         :label="param.definition ? `${param.definition} (${key}) ` : key"
                         v-model="popUpExtension[key]"
-                        :rules="popUpRulesFileUpload"
                         clearable
                         accept=".json"
+                        @change="(event) => handleFileUpload(event, key)"
                       )
                         template(v-if="param.help" v-slot:append-outer)
                           v-tooltip(right)
@@ -247,6 +248,8 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 import Upload from "@/components/Upload.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
 
+
+
 export default Vue.extend({
   components: {
     Upload,
@@ -281,10 +284,6 @@ export default Vue.extend({
     ],
     popUpRulesMultiList: [
       (v: any) => v.length > 0 || "Empty multi-selectable list field",
-    ],
-    popUpRulesFileUpload: [
-      (v: any) => !v || (v.type === 'application/json') || 'Only JSON files are allowed',
-      (v: any) => !v || (v.size <= 5 * 1024 * 1024) || 'File size should not exceed 5MB' // 5MB limit
     ],
     headers: [
       {
@@ -388,6 +387,32 @@ export default Vue.extend({
     ]),
   },
   methods: {
+    handleFileUpload(file: File, key: string) {
+      console.log("file", file)
+      if (file && file.type === "application/json") {
+        const reader = new FileReader();
+
+        reader.onload = (e: ProgressEvent<FileReader>) => {
+          try {
+            const contents = e.target?.result as string;
+            // Parse the contents as JSON and update popUpExtension[key]
+
+            this.popUpExtension[key] = JSON.parse(contents);
+            console.log("Read extension param file", this.popUpExtension);
+          } catch (error) {
+            console.error("Error parsing JSON file:", error);
+          }
+        };
+
+        reader.onerror = (error) => {
+          console.error("Error reading file:", error);
+        };
+
+        reader.readAsText(file);
+      } else {
+        console.error("Invalid file type. Please upload a JSON file.");
+      }
+    },
     getHref(link: string) {
       return link.match(/^:(\d+)(.*)/)
         ? "http://" + window.location.hostname + link

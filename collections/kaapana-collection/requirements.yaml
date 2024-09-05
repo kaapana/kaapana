@@ -8,54 +8,54 @@ dependencies:
     version: 0.0.0
   # - name: edk
   #   version: 0.0.0
-  - name: jupyterlab-chart
-    version: 0.0.0
-  - name: federated-setup-central-test-workflow
-    version: 0.0.0
-  - name: federated-setup-node-test-workflow
-    version: 0.0.0
-  - name: mitk-workbench-chart
-    version: 0.0.0
-  - name: slicer-workbench-chart
-    version: 0.0.0
-  - name: mitk-flow-chart
-    version: 0.0.0
-  - name: mitk-flow-workflow
-    version: 0.0.0
-  - name: bodypartregression-workflow
-    version: 0.0.0
-  - name: wsiconv-workflow
-    version: 0.0.0
-  - name: nnunet-workflow
-    version: 0.0.0
-  - name: total-segmentator-workflow
-    version: 0.0.0
-  - name: nnunet-federated-workflow
-    version: 0.0.0
-  - name: radiomics-workflow
-    version: 0.0.0
-  - name: radiomics-federated-workflow
-    version: 0.0.0
-  - name: shapemodel-workflow
-    version: 0.0.0
-  - name: tfda-spe-orchestrator-workflow
-    version: 0.0.0
+  # - name: jupyterlab-chart
+  #   version: 0.0.0
+  # - name: federated-setup-central-test-workflow
+  #   version: 0.0.0
+  # - name: federated-setup-node-test-workflow
+  #   version: 0.0.0
+  # - name: mitk-workbench-chart
+  #   version: 0.0.0
+  # - name: slicer-workbench-chart
+  #   version: 0.0.0
+  # - name: mitk-flow-chart
+  #   version: 0.0.0
+  # - name: mitk-flow-workflow
+  #   version: 0.0.0
+  # - name: bodypartregression-workflow
+  #   version: 0.0.0
+  # - name: wsiconv-workflow
+  #   version: 0.0.0
+  # - name: nnunet-workflow
+  #   version: 0.0.0
+  # - name: total-segmentator-workflow
+  #   version: 0.0.0
+  # - name: nnunet-federated-workflow
+  #   version: 0.0.0
+  # - name: radiomics-workflow
+  #   version: 0.0.0
+  # - name: radiomics-federated-workflow
+  #   version: 0.0.0
+  # - name: shapemodel-workflow
+  #   version: 0.0.0
+  # - name: tfda-spe-orchestrator-workflow
+  #   version: 0.0.0
   # - name: rateme-workflow
   #   version: 0.0.0
   # - name: rateme-chart
   #   version: 0.0.0
-  - name: tensorboard-chart
-    version: 0.0.0
-  - name: kaapana-persistence-chart
-    version: 0.0.0
+  # - name: tensorboard-chart
+  #   version: 0.0.0
+  # - name: kaapana-persistence-chart
+  #   version: 0.0.0
   # - name: mhub-models-workflow
   #   version: 0.0.0
-  - name: debug-container-chart
-    version: 0.0.0
-  - name: advanced-collect-metadata-workflow
-    version: 0.0.0
-  - name: advanced-collect-metadata-federated-workflow
-    version: 0.0.0
+  # - name: debug-container-chart
+  #   version: 0.0.0
+  # - name: advanced-collect-metadata-workflow
+  #   version: 0.0.0
+  # - name: advanced-collect-metadata-federated-workflow
+  #   version: 0.0.0
   - name: slim-chart
     version: 0.0.0
   # - name: openedc-chart
@@ -74,13 +74,15 @@ dependencies:
   #   version: 0.0.0
   # - name: podman-chart # lives here before build script can handle the code-server as dependency
   #   version: 0.0.0
-  - name: classification-training-workflow
-    version: 0.0.0
-  - name: modify-dcmseg-workflow
-    version: 0.0.0
-  - name: collabora-chart
-    version: 0.0.0
+  # - name: classification-training-workflow
+  #   version: 0.0.0
+  # - name: modify-dcmseg-workflow
+  #   version: 0.0.0
+  # - name: collabora-chart
+  #   version: 0.0.0
   - name: minio-sync-chart
     version: 0.0.0
   - name: external-pacs-workflow
+    version: 0.0.0
+  - name: dicom-web-multiplexer-chart
     version: 0.0.0

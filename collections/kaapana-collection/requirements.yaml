@@ -44,18 +44,18 @@ dependencies:
   #   version: 0.0.0
   # - name: rateme-chart
   #   version: 0.0.0
-  - name: tensorboard-chart
-    version: 0.0.0
-  - name: kaapana-persistence-chart
-    version: 0.0.0
+  # - name: tensorboard-chart
+  #   version: 0.0.0
+  # - name: kaapana-persistence-chart
+  #   version: 0.0.0
   # - name: mhub-models-workflow
   #   version: 0.0.0
-  - name: debug-container-chart
-    version: 0.0.0
-  - name: advanced-collect-metadata-workflow
-    version: 0.0.0
-  - name: advanced-collect-metadata-federated-workflow
-    version: 0.0.0
+  # - name: debug-container-chart
+  #   version: 0.0.0
+  # - name: advanced-collect-metadata-workflow
+  #   version: 0.0.0
+  # - name: advanced-collect-metadata-federated-workflow
+  #   version: 0.0.0
   - name: slim-chart
     version: 0.0.0
   # - name: openedc-chart
@@ -75,6 +75,8 @@ dependencies:
   - name: project-namespace
     version: 0.0.0
   - name: custom-registry-chart
+    version: 0.0.0
+  - name: dicom-web-multiplexer-chart
     version: 0.0.0
   - name: dev-server-chart
     version: 0.0.0

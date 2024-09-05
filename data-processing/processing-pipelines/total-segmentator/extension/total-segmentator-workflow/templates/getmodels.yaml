@@ -42,7 +42,7 @@ spec:
       volumes:
       - name: modeldata
         persistentVolumeClaim:
-          claimName: models-jobs-pv-claim
+          claimName: models-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

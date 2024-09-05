@@ -10,8 +10,6 @@ from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperCaching import cache_operator_output
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
@@ -95,15 +93,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-        workflow_form = kwargs["dag_run"].conf["workflow_form"]
-        dcmweb_endpoint = workflow_form.get("dcmweb_endpoint")
-
-        self.dcmweb_helper = get_dcmweb_helper(
-            dcmweb_endpoint=dcmweb_endpoint,
-        )
-        if self.dcmweb_helper is None:
-            print("HelperDcmWeb couldn't be retrieved. Abort")
-            exit(1)
+        self.dcmweb_helper = get_dcmweb_helper()
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]

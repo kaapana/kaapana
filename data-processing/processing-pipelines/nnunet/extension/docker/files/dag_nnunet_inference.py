@@ -104,9 +104,13 @@ workflow_form = {
     "oneOf": [],
 }
 
-for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
+# for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
+for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
+    print(f"{idx=}")
+    print(f"{task_name=}")
+    print(f"{task_values=}")
     task_selection = {
-        "title": task_name,
+        "title": task_values["model"][0],
         "properties": {"task_ids": {"type": "string", "const": task_name}},
     }
     task_properties = copy.deepcopy(properties_template)

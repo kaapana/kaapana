@@ -24,22 +24,7 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     echo "# Starting preprocessing..."
     echo "#"
-    echo "# PREPROCESS:      $PREP_PREPROCESS";
-    echo "# PREP_INCREMENT_STEP: $PREP_INCREMENT_STEP";
-    echo "# CHECK_INTEGRITY: $PREP_CHECK_INTEGRITY";
-    echo "#"
-    echo "# OMP_THREAD_LIMIT" $OMP_THREAD_LIMIT
-    echo "# OMP_NUM_THREADS" $OMP_NUM_THREADS
-    echo "# PREP_TL" $PREP_TL
-    echo "# PREP_TF" $PREP_TF
-    echo "#"
-    echo "# NIFTI_DIRS: $INPUT_MODALITY_DIRS";
-    echo "# LABEL_DIR: $PREP_LABEL_DIRS";
-    echo "# MODALITIES: $PREP_MODALITIES";
-    echo "#"
-    echo "# nnUNet_raw_data_base: $nnUNet_raw_data_base";
-    echo "# nnUNet_preprocessed:  $nnUNet_preprocessed";
-    echo "# RESULTS_FOLDER:       $RESULTS_FOLDER";
+    
     if [ "$PREP_INCREMENT_STEP" = "all" ] || [ "$PREP_INCREMENT_STEP" = "to_dataset_properties" ]; then
         echo "#"
         echo "# Starting create_dataset..."
@@ -85,7 +70,6 @@ if [ "$MODE" = "preprocess" ]; then
         overwrite_plans=""
     fi
 
-    echo "# COMMAND: nnUNet_plan_and_preprocess -t $TASK_NUM -tl $PREP_TL -tf $PREP_TF $preprocess $preprocess_verify --increment_step $PREP_INCREMENT_STEP"
     echo "#"
     echo "# PREPROCESS:             $PREP_PREPROCESS";
     echo "# PREP_INCREMENT_STEP:    $PREP_INCREMENT_STEP";

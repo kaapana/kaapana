@@ -476,6 +476,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 current_federated_round_dir, processed_site_model_weights_dict
             )
 
+            # last fl_round
             if (
                 self.remote_conf_data["federated_form"]["federated_total_rounds"]
                 == federated_round + 1
@@ -509,7 +510,10 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             ] = self.remote_conf_data["federated_form"]["skip_operators"] + [
                 "get-input-data",
                 "get-ref-series-ct",
-                "dcmseg2nrrd",
+                "mask2nifti",
+                "filter-masks",
+                "fuse-masks",
+                "rename-seg-label-names",
                 "dcm-converter-ct",
                 "seg-check",
             ]

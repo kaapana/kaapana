@@ -195,6 +195,20 @@
                             template(v-slot:activator="{ on, attrs }")
                               v-icon(v-bind="attrs" v-on="on") mdi-tooltip-question
                             div(v-html="param.help")
+                      v-file-input(
+                        v-if="param.type == 'file_upload'"
+                        :label="param.definition ? `${param.definition} (${key}) ` : key"
+                        v-model="popUpExtension[key]"
+                        :rules="popUpRulesFileUpload"
+                        clearable
+                        accept=".json"
+                      )
+                        template(v-if="param.help" v-slot:append-outer)
+                          v-tooltip(right)
+                            template(v-slot:activator="{ on, attrs }")
+                              v-icon(v-bind="attrs" v-on="on") mdi-tooltip-question
+                            div(v-html="param.help")
+
                 v-card-actions
                   v-spacer
                   v-btn(color="error", @click="resetFormInfo(item.releaseName)") Abort
@@ -267,6 +281,10 @@ export default Vue.extend({
     ],
     popUpRulesMultiList: [
       (v: any) => v.length > 0 || "Empty multi-selectable list field",
+    ],
+    popUpRulesFileUpload: [
+      (v: any) => !v || (v.type === 'application/json') || 'Only JSON files are allowed',
+      (v: any) => !v || (v.size <= 5 * 1024 * 1024) || 'File size should not exceed 5MB' // 5MB limit
     ],
     headers: [
       {

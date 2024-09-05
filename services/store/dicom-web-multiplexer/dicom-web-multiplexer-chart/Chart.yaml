@@ -4,5 +4,5 @@ description: Install PACS system (e.g. specific Google Dicom Store) to use in vi
 name: dicom-web-multiplexer-chart
 version: "0.0.0"
 keywords:
-- kaapanaapplication
-- kaapanamultiinstallable
+  - kaapanaapplication
+  - kaapanamultiinstallable

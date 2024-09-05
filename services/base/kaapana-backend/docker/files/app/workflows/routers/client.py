@@ -160,7 +160,6 @@ def create_remote_kaapana_instance(
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
-
     return crud.create_and_update_remote_kaapana_instance(
         db=db, remote_kaapana_instance=remote_kaapana_instance
     )
@@ -783,10 +782,9 @@ def put_workflow_jobs(
     db: Session = Depends(get_db),
 ):
     r = crud.queue_generate_jobs_and_add_to_workflow(
-        json_schema_data, db, use_thread=False
+        db=db, json_schema_data=json_schema_data, use_thread=False
     )
-    resp = r["jobs"]
-    return resp
+    return r
 
 
 # delete_workflow

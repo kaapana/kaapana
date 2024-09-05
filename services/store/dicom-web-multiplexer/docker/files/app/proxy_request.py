@@ -3,17 +3,14 @@ import logging
 import httpx
 from fastapi import Request, Response
 
-from .config import DICOMWEB_BASE_URL
-
 logger = logging.getLogger(__name__)
 
 logging.basicConfig(level=logging.WARNING)  # TODO: Change before deployment
 
 
 async def proxy_request(
-    request: Request, path: str, method: str, base_url=DICOMWEB_BASE_URL, timeout=10
+    request: Request, url: str, method: str, timeout=10
 ):
-    url = f"{base_url}{path}"
     headers = dict(request.headers)
     # logger.info(f"Request URL: {url}")
     # logger.info(f"Request headers: {headers}")

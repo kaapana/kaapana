@@ -15,7 +15,6 @@ from pathlib import Path
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__file__)
@@ -83,7 +82,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            download_successful = self.dcmweb_helper.downloadSeries(
+            download_successful = self.dcmweb_helper.download_series(
                 series_uid=seriesUID, target_dir=Path(target_dir)
             )
             if not download_successful:

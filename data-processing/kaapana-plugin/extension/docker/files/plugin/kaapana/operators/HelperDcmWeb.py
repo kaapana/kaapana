@@ -1,5 +1,5 @@
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
-from kaapanpy.logger import get_logger
+from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
 

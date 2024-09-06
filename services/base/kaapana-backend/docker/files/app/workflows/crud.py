@@ -202,12 +202,15 @@ def create_and_update_client_kaapana_instance(
         for dataset_name in client_kaapana_instance.allowed_datasets:
             db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
             if db_dataset:
-                dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
-                identifiers = [identifier.id for identifier in db_dataset.identifiers]
+                dataset = dict(**(db_dataset).__dict__)
+                dataset["identifiers"] = [
+                    identifier.id for identifier in db_dataset.identifiers
+                ]
+                dataset = schemas.AllowedDatasetCreate(**(dataset)).model_dump()
                 meta_information = {}
                 # Todo add here unique studies and patients to the db_dataset object!
                 meta_data = get_meta_data(
-                    identifiers,
+                    dataset["identifiers"],
                     drop_duplicate_studies=False,
                     drop_duplicated_patients=False,
                 )
@@ -221,7 +224,7 @@ def create_and_update_client_kaapana_instance(
                     }
                 )
                 meta_data = get_meta_data(
-                    identifiers,
+                    dataset["identifiers"],
                     drop_duplicate_studies=True,
                     drop_duplicated_patients=False,
                 )
@@ -235,7 +238,7 @@ def create_and_update_client_kaapana_instance(
                     }
                 )
                 meta_data = get_meta_data(
-                    identifiers,
+                    dataset["identifiers"],
                     drop_duplicate_studies=False,
                     drop_duplicated_patients=True,
                 )

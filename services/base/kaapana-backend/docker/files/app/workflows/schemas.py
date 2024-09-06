@@ -1,7 +1,7 @@
 from typing import Optional, List
 from sqlalchemy_json import NestedMutableDict, NestedMutableList
 import datetime
-from pydantic import field_validator, ConfigDict, BaseModel, model_validator
+from pydantic import field_validator, Field, ConfigDict, BaseModel, model_validator
 from typing_extensions import Self
 
 
@@ -188,7 +188,7 @@ class Dataset(DatasetBase):
     time_updated: datetime.datetime
     username: Optional[str] = None
     identifiers: Optional[List[str]]
-    meta_information: Optional[NestedMutableDict] = None
+    meta_information: Optional[NestedMutableDict] = Field(default_factory=dict)
 
     @field_validator("time_updated", mode="before")
     @classmethod

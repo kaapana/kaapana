@@ -1,5 +1,6 @@
 import re
 import os
+import glob
 import shutil
 import requests
 import tarfile
@@ -196,6 +197,35 @@ def clean_previous_dag_run(airflow_workflow_dir, conf, run_identifier):
             print(f"Removing batch files from {run_identifier}: {dag_run_dir}")
             if os.path.isdir(dag_run_dir):
                 shutil.rmtree(dag_run_dir)
+
+
+def from_previous_dag_run_action(
+    airflow_workflow_dir, batch_name, operator_out_dir, action, dag_run_dir, federated
+):
+    if action == "from_previous_dag_run":
+        src = os.path.join(
+            airflow_workflow_dir, federated["from_previous_dag_run"], operator_out_dir
+        )
+        print(src)
+        dst = os.path.join(dag_run_dir, operator_out_dir)
+        print(dst)
+        if os.path.isdir(src):
+            print(f"Copying batch files from {src} to {dst}")
+            shutil.copytree(src=src, dst=dst)
+
+    if action == "from_previous_dag_run":
+        src_root_dir = os.path.join(
+            airflow_workflow_dir, federated["from_previous_dag_run"], batch_name
+        )
+        dst_root_dir = os.path.join(dag_run_dir, batch_name)
+        batch_folders = sorted([f for f in glob.glob(os.path.join(src_root_dir, "*"))])
+        for batch_element_dir in batch_folders:
+            src = os.path.join(batch_element_dir, operator_out_dir)
+            rel_dir = os.path.relpath(src, src_root_dir)
+            dst = os.path.join(dst_root_dir, rel_dir)
+            if os.path.isdir(src):
+                print(f"Moving batch element files from {src} to {dst}")
+                shutil.copytree(src=src, dst=dst)
 
 
 def parse_ui_dict(dag_dict):

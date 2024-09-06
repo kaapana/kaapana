@@ -39,15 +39,15 @@ def properties_dataset_form(filter_keys: list = None):
     return {
         "dataset_name": {
             "type": "string",
-            "title": "Dataset name (size)",
+            "title": "Dataset name",
             "oneOf": [],
             "required": True,
         },
-        "dataset_limit": {
-            "type": "integer",
-            "title": "Limit dataset size",
-            "description": "Limit dataset to this many cases.",
-        },
+        # "dataset_limit": {
+        #     "type": "integer",
+        #     "title": "Limit dataset size",
+        #     "description": "Limit dataset to this many cases.",
+        # },
     }
 
 

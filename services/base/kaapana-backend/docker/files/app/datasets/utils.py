@@ -11,11 +11,11 @@ from app.workflows.utils import (
     requests_retry_session,
     TIMEOUT,
     raise_kaapana_connection_error,
-    # os_processor
 )
 from app.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
+
 
 def execute_opensearch_query(
     query: Dict = dict(),
@@ -64,8 +64,13 @@ def execute_opensearch_query(
             else:
                 return res["hits"]["hits"]
         except Exception as e:
-            if "No mapping found for [0020000E SeriesInstanceUID_keyword.keyword]" in str(e):
-                print("No mapping found for [0020000E SeriesInstanceUID_keyword.keyword] -> empty index -> skipping")
+            if (
+                "No mapping found for [0020000E SeriesInstanceUID_keyword.keyword]"
+                in str(e)
+            ):
+                print(
+                    "No mapping found for [0020000E SeriesInstanceUID_keyword.keyword] -> empty index -> skipping"
+                )
                 return []
             else:
                 raise
@@ -215,7 +220,9 @@ async def get_field_mapping(index="meta-index") -> Dict:
         return {}
 
 
-def get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=False):
+def get_meta_data(
+    identifiers, drop_duplicate_studies=False, drop_duplicated_patients=False
+):
     import pandas as pd
 
     if drop_duplicate_studies or drop_duplicated_patients:
@@ -230,7 +237,7 @@ def get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_pat
                 "0020000D StudyInstanceUID_keyword",
                 "0020000E SeriesInstanceUID_keyword",
                 "00081030 StudyDescription_keyword",
-                "00000000 Tags_keyword"
+                "00000000 Tags_keyword",
             ]
         },
     )
@@ -240,7 +247,7 @@ def get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_pat
             hit["_source"].get("0020000D StudyInstanceUID_keyword", "N/A"),
             hit["_source"].get("0020000E SeriesInstanceUID_keyword", "N/A"),
             hit["_source"].get("00081030 StudyDescription_keyword", "N/A"),
-            hit["_source"].get("00000000 Tags_keyword", []),            
+            hit["_source"].get("00000000 Tags_keyword", []),
         ]
         for hit in hits
     ]

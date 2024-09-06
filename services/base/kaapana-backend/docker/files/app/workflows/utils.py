@@ -29,6 +29,7 @@ def generate_run_id(dag_id):
     run_id = "{}-{}".format(dag_id, run_id)
     return run_id
 
+
 class HelperMinio(Minio):
     """
     Helper class for making authorized requests to the minio API
@@ -276,11 +277,11 @@ def abort_job_airflow(run_ids, status="failed"):
         resp = requests_retry_session(session=s).post(
             f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/abort",
             timeout=Timeout(60),
-                json={
-                    "state": status,
-                    "run_ids": run_ids,
-                }
-            )
+            json={
+                "state": status,
+                "run_ids": run_ids,
+            },
+        )
     raise_kaapana_connection_error(resp)
     return resp
 
@@ -301,7 +302,7 @@ def get_dagrun_tasks_airflow(dag_id, dag_run_id):
 def get_dagrun_details_airflow(run_ids):
     url = f"http://airflow-webserver-service.{settings.services_namespace}.svc:8080/flow/kaapana/api/dagdetails"
     payload = {"run_ids": run_ids}
-    
+
     with requests.Session() as s:
         resp = requests_retry_session(session=s).post(
             url,
@@ -446,6 +447,3 @@ class OsBatchProcessor:
                 return self.update_tags_in_series_bulk(bulk_operations, mode, tries + 1)
             else:
                 return False
-
-
-# os_processor = OsBatchProcessor()

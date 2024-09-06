@@ -396,8 +396,8 @@ export default Vue.extend({
           try {
             const contents = e.target?.result as string;
             // Parse the contents as JSON and update popUpExtension[key]
-
-            this.popUpExtension[key] = JSON.parse(contents);
+            // TODO transfer as .json into kube-helm-api (needs to be adjusted)
+            this.popUpExtension[key] = JSON.stringify(JSON.parse(contents));
             console.log("Read extension param file", this.popUpExtension);
           } catch (error) {
             console.error("Error parsing JSON file:", error);

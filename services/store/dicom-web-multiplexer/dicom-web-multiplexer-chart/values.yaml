@@ -1,27 +1,2 @@
 global:
-  # extension_params
-  ae_title: ""
-  dcmweb_endpoint: ""
-  credentials: ""
-
-# .Values.global.sync_strategy
-
-extension_params:
-  ae_title:
-    default: "external-data"
-    value: ""
-    definition: "Name of the dataset appearing in the Kaapana"
-    type: "string"
-
-  dcmweb_endpoint:
-    definition: "Dicom Web Endpoint to add into Kaapana"
-    # default: "https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/dicomStores?dicomStoreId=DICOM_STORE_ID"
-    default: https://healthcare.googleapis.com/v1/projects/idc-external-031/locations/europe-west2/datasets/kaapana-integration-test/dicomStores?dicomStoreId=kaapana-integration-test-store
-    type: "string"
-    value: ""
-
-  credentials:
-    default: ""
-    value: ""
-    definition: "Service account credentials file: credentials.json"
-    type: file_upload
+  pull_policy_images: "IfNotPresent"

@@ -1,7 +1,11 @@
-from typing import Optional, List
-from sqlalchemy_json import NestedMutableDict, NestedMutableList
+from typing import Optional, List, Union
 import datetime
-from pydantic import field_validator, ConfigDict, BaseModel, model_validator
+from pydantic import (
+    field_validator,
+    ConfigDict,
+    BaseModel,
+    model_validator,
+)
 from typing_extensions import Self
 
 
@@ -35,6 +39,17 @@ class RemoteKaapanaInstanceUpdateExternal(BaseModel):
     automatic_workflow_execution: bool = False
 
 
+class AllowedDataset(BaseModel):
+    """ """
+
+    name: str
+    username: Optional[str] = None
+    identifiers: List[str]
+
+
+AllowedDataset = List[AllowedDataset]
+
+
 class KaapanaInstance(KaapanaInstanceBase):
     model_config = ConfigDict(arbitrary_types_allowed=True, from_attributes=True)
     id: int
@@ -46,8 +61,8 @@ class KaapanaInstance(KaapanaInstanceBase):
     fernet_key: str
     encryption_key: str
     remote: bool
-    allowed_dags: Optional[NestedMutableDict] = ...
-    allowed_datasets: Optional[NestedMutableList] = ...
+    allowed_dags: Union[dict, list, None] = None
+    allowed_datasets: Optional[AllowedDataset] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
     workflow_in_which_involved: Optional[str]
@@ -100,7 +115,7 @@ class JobBase(BaseModel):
 class Job(JobBase):
     model_config = ConfigDict(arbitrary_types_allowed=True, from_attributes=True)
     id: int
-    conf_data: Optional[NestedMutableDict] = ...
+    conf_data: Optional[dict] = None
     username: Optional[str] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime

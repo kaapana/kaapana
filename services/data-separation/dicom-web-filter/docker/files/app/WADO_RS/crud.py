@@ -1,10 +1,9 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import (
-    DicomData,
-    DataProjects,
-)
-from sqlalchemy import select
 from typing import List
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..models import DataProjects, DicomData
 
 
 async def get_series_instance_uids_of_study_which_are_mapped_to_project(

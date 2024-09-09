@@ -1,10 +1,9 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import (
-    DicomData,
-    DataProjects,
-)
-from sqlalchemy import select
 from typing import List
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..models import DataProjects, DicomData
 
 
 async def get_all_studies_mapped_to_project(session: AsyncSession, project_id: int) -> List[str]:

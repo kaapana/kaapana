@@ -1,9 +1,10 @@
+import logging
+
 import httpx
 import jwt
-from jwt import PyJWKClient, InvalidTokenError
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
+from jwt import InvalidTokenError, PyJWKClient
 from starlette.middleware.base import BaseHTTPMiddleware
-import logging
 
 logger = logging.getLogger(__name__)
 

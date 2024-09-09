@@ -1,8 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import (
-    DicomData,
-    DataProjects,
-)
+
+from ..models import DataProjects, DicomData
 
 
 async def add_dicom_data(

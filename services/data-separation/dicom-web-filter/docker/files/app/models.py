@@ -1,6 +1,5 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy import ForeignKey
 from sqlalchemy.schema import UniqueConstraint
 
 Base = declarative_base()

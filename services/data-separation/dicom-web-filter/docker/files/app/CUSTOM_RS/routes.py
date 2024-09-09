@@ -1,8 +1,8 @@
+import httpx
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
-import httpx
+
 from ..config import DICOMWEB_BASE_URL
-from fastapi.responses import StreamingResponse
 
 router = APIRouter()
 

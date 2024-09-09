@@ -242,7 +242,7 @@ async def query_instances(
     # Update the query parameters
     request._query_params = query_params
 
-    if not crud.check_if_series_in_given_study_is_mapped_to_project(
+    if not await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,

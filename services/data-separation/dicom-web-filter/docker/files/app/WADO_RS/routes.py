@@ -1,14 +1,17 @@
-from ..database import get_session
-from . import crud
-from ..config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
-from sqlalchemy.ext.asyncio import AsyncSession
-import re
-import httpx
-from fastapi import APIRouter, Request, Depends, Response
-from fastapi.responses import StreamingResponse
-import logging
 import binascii
+import logging
 import os
+import re
+
+import httpx
+from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
+from ..database import get_session
+from ..streaming_helpers import metadata_replace_stream
+from . import crud
 
 # Create a router
 router = APIRouter()
@@ -16,6 +19,24 @@ router = APIRouter()
 # Set logging level
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
+def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) -> bytes:
+    """Replace the boundary in the buffer.
+
+    Args:
+        buffer (bytes): Buffer
+        old_boundary (bytes): Old boundary
+        new_boundary (bytes): New boundary
+
+    Returns:
+        bytes: Buffer with replaced boundary
+    """
+    return buffer.replace(
+        f"--{old_boundary.decode()}".encode(),
+        f"--{new_boundary.decode()}".encode(),
+    ).replace(
+        f"--{old_boundary.decode()}--".encode(),
+        f"--{new_boundary.decode()}--".encode(),
+    )
 
 def get_boundary() -> bytes:
     """Generate a random boundary for the multipart message.
@@ -24,47 +45,6 @@ def get_boundary() -> bytes:
         bytes: Random boundary
     """
     return binascii.hexlify(os.urandom(16))
-
-
-async def metadata_replace_stream(
-    method: str = "GET",
-    url: str = None,
-    request_headers: dict = None,
-    search: bytes = None,
-    replace: bytes = None,
-):
-    """Replace a part of the response stream with another part. Used to replace the boundary used in multipart responses.
-       There was a problem with the boundary being split across chunks, which is why we need to buffer the data and replace the boundary in the buffer.
-
-    Args:
-        method (str, optional): Method to use for the request. Defaults to "GET".
-        url (str, optional): URL to send the request to. Defaults to None.
-        request_headers (dict, optional): Request headers. Defaults to None.
-        search (bytes, optional): Part of the response to search for (which will be replaced). Defaults to None.
-        replace (bytes, optional): Bytes to replace the search with. Defaults to None.
-
-    Yields:
-        bytes: Part of the response stream
-    """
-    buffer = b""
-    pattern_size = len(search)
-    async with httpx.AsyncClient() as client:
-        async with client.stream(
-            method,
-            url,
-            headers=dict(request_headers),
-        ) as response:
-            async for chunk in response.aiter_bytes():
-                buffer += chunk
-                # Process the buffer
-                buffer = buffer.replace(search, replace)
-                to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
-                yield to_yield
-                buffer = buffer[-pattern_size:]  # Retain this much of the buffer
-
-            # Yield any remaining buffer after the last chunk
-            if buffer:
-                yield buffer
 
 
 async def stream(
@@ -106,12 +86,8 @@ async def stream(
                     first_chunk = False
                 buffer += chunk
                 # Replace the boundary in the buffer
-                buffer = buffer.replace(
-                    f"--{response_boundary.decode()}\r\n".encode(),
-                    f"--{new_boundary.decode()}\r\n".encode(),
-                ).replace(
-                    f"\r\n--{response_boundary.decode()}--".encode(),
-                    f"\r\n--{new_boundary.decode()}--".encode(),
+                buffer = replace_boundary(
+                    buffer=buffer, old_boundary=response_boundary, new_boundary=new_boundary
                 )
                 to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
                 yield to_yield
@@ -197,12 +173,8 @@ async def retrieve_study(
                         buffer += chunk
 
                         # Process the buffer
-                        buffer = buffer.replace(
-                            f"--{boundary.decode()}\r\n".encode(),
-                            f"--{new_boundary.decode()}\r\n".encode(),
-                        ).replace(
-                            f"\r\n--{boundary.decode()}--".encode(),
-                            f"\r\n--{new_boundary.decode()}--".encode(),
+                        buffer = replace_boundary(
+                            buffer=buffer, old_boundary=boundary, new_boundary=new_boundary
                         )
 
                         # Decide how much of the buffer to yield and retain
@@ -412,7 +384,7 @@ async def retrieve_study_metadata(
             metadata_replace_stream(
                 method="GET",
                 url=f"{DICOMWEB_BASE_URL}/studies/{study}/metadata",
-                request_headers=request.headers,
+                request=request,
                 search="/".join(
                     DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
                 ).encode(),
@@ -490,7 +462,7 @@ async def retrieve_series_metadata(
             metadata_replace_stream(
                 "GET",
                 f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/metadata",
-                request.headers,
+                request=request,
                 search="/".join(
                     DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
                 ).encode(),
@@ -535,7 +507,7 @@ async def retrieve_instance_metadata(
             metadata_replace_stream(
                 "GET",
                 f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/metadata",
-                request.headers,
+                request=request,
                 search="/".join(
                     DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
                 ).encode(),
@@ -593,7 +565,6 @@ async def retrieve_study_rendered(
                 "Content-Type": f"multipart/related; boundary={boundary.decode()}",
             },
         )
-    # TODO: Adjust the boundary for the multipart message
 
     async def stream_filtered_series():
         """Stream the series which are mapped to the project. The boundary in the multipart message is replaced, because each response has its own boundary.
@@ -634,13 +605,7 @@ async def retrieve_study_rendered(
                     async for chunk in response.aiter_bytes():
                         # if boundary is not first_boundary: replace the boundary
                         if boundary != first_boundary:
-                            chunk = chunk.replace(
-                                f"--{boundary.decode()}\r\n".encode(),
-                                f"--{first_boundary.decode()}\r\n".encode(),
-                            ).replace(
-                                f"\r\n--{boundary.decode()}--".encode(),
-                                f"\r\n--{first_boundary.decode()}--".encode(),
-                            )
+                            chunk = replace_boundary(buffer=chunk, old_boundary=boundary, new_boundary=first_boundary)
                         yield chunk
 
     return StreamingResponse(stream_filtered_series())

@@ -960,7 +960,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
     airflow_jobs_in_state = get_dagruns_airflow(tuple([status]))
     # get list from db with all db_jobs in status=status
     db_jobs_in_state = (
-        db.query(models.Job.id, models.Job.run_id, models.KaapanaInstance.remote)
+        db.query(models.Job.id, models.Job.run_id, models.Job.description, models.KaapanaInstance.remote)
         .join(models.Job.kaapana_instance)
         .filter(models.Job.status == status)
         .all()
@@ -1011,22 +1011,43 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
             return
         resp = json.loads(resp.text)
 
+        results = resp.get("results", {})
+        warning = resp.get("warning", None)
+        if warning:
+            logging.error(f"Warning in return results syncing kaapana-backend with Airflow: {warning}")
         # update db_jobs of all jobs in diff_db_to_airflow
         jobs_to_update = []
         for diff_db_job in diff_db_to_airflow:
             # update db_job w/ updated state
-            if diff_db_job.run_id in resp:
+            if diff_db_job.run_id in results:
                 job_update = schemas.JobUpdate(
                     **{
                         "job_id": diff_db_job.id,
+                        "description": "The workflow was triggered!",
                         "status": (
                             "finished"
-                            if resp[diff_db_job.run_id]["state"] == "success"
-                            else resp[diff_db_job.run_id]["state"]
+                            if results[diff_db_job.run_id]["state"] == "success"
+                            else results[diff_db_job.run_id]["state"]
                         ),
                     }
                 )
                 jobs_to_update.append(job_update)
+            elif status != "scheduled":
+                logging.error(f"Job not found in Airflow: {diff_db_job.run_id}")
+                tries = 0
+                if diff_db_job.description:
+                    tries_str = diff_db_job.description.split(" ")[-1]
+                    tries = int(tries_str) if tries_str.isdigit() else 0
+                tries = tries + 1
+                job_update = schemas.JobUpdate(
+                    **{
+                        "job_id": diff_db_job.id,
+                        "description": f"Job not found in Airflow! Try {tries}",
+                        "status": status if tries < 6 else "failed",
+                    }
+                )
+                jobs_to_update.append(job_update)
+
         bulk_update_jobs(db, jobs_to_update)
 
 

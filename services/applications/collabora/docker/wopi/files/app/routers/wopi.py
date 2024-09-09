@@ -32,7 +32,9 @@ async def read_file_meta(
     file_id: str, doc_store: DocumentStore = Depends(get_document_store)
 ):
     return {
-        "BaseFileName": doc_store.filename(file_id),
+        "BaseFileName": doc_store.filename(file_id).split("/")[
+            -1
+        ],  # Only the accutal filename instead of the filepath
         "Size": doc_store.size(file_id),
         "UserCanWrite": doc_store.writable(file_id),
     }

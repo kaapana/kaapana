@@ -879,6 +879,9 @@ helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSW
 --- "Systemd Status"
 systemd status
 
+--- "Kernel Modules"
+lsmod
+
 --- "Storage"
 df -h
 
@@ -893,6 +896,12 @@ microk8s.kubectl describe pods -A
 
 --- "k8s Node Status"
 microk8s.kubectl describe node
+
+--- "GPU Hardware"
+lshw -C Display
+
+--- "GPU Kernel Module"
+modinfo nvidia | grep ^version
 
 --- "GPU"
 nvidia-smi

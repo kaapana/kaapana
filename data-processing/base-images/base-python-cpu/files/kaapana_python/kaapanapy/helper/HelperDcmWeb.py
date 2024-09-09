@@ -1,22 +1,19 @@
+import json
 import logging
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 from os.path import join
 from pathlib import Path
 from typing import List
 
-import json
-import time
 import pydicom
 import requests
 from dicomweb_client.api import DICOMwebClient
-from io import BytesIO
-from typing import List
-from os.path import join
-from pathlib import Path
-from requests_toolbelt.multipart import decoder
-from concurrent.futures import ThreadPoolExecutor
-from kaapanapy.settings import ProjectSettings
 from kaapanapy.helper import get_project_user_access_token
+from kaapanapy.settings import ProjectSettings
+from requests_toolbelt.multipart import decoder
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -136,62 +133,78 @@ class HelperDcmWeb:
         dicom_file = pydicom.dcmread(BytesIO(part.content))
 
         try:
-            instance_number = dicom_file.InstanceNumber
+            instance_number = dicom_file.SOPInstanceUID
         except AttributeError:
             instance_number = index
 
         file_path = os.path.join(target_dir, f"{instance_number}.dcm")
         dicom_file.save_as(file_path)
 
-    def download_series_slicewise(
-        self,
-        study_uid: str = None,
-        series_uid: str = None,
-        target_dir: str = None,
-        include_series_dir: bool = False,
-    ) -> bool:
-        """This function downloads a series from the DICOMWeb server slice-wise. It sends a GET request to the DICOMWeb server to retrieve the series and saves the DICOM files to the target directory.
+    def get_instances_of_series(self, study_uid: str, series_uid: str) -> List[dict]:
+        """This function retrieves all instances of a series from the PACS.
+
         Args:
-            study_uid (str, optional): Study Instance UID of the series. Defaults to None.
-            series_uid (str, optional): Series Instance UID of the series. Defaults to None.
-            target_dir (str, optional): Target directory to save the DICOM files. Defaults to None.
-            include_series_dir (bool, optional): Flag to include the series UID as a subdirectory in the target directory. Defaults to False.
+            study_uid (str): Study Instance UID of the series to retrieve the instances from.
+            series_uid (str): Series Instance UID of the series to retrieve the instances from.
 
         Returns:
-            bool: True if the series was downloaded successfully, False otherwise.
+            List[dict]: List of instances of the series. Each instance is represented as a dictionary containing the instance metadata
         """
-
-        # Check if study_uid is provided, if not get it from metadata of given series
-        if not study_uid:
-            logger.warning("Study UID not provided")
-            study_uid = self.__get_study_uid_by_series_uid(series_uid)
-            if not study_uid:
-                logger.error("Study UID not found")
-                return False
-
-        # Create target directory
-        if include_series_dir:
-            target_dir = join(target_dir, series_uid)
-        Path(target_dir).mkdir(parents=True, exist_ok=True)
-
-        # Get all instances of the series
-        instances = self.get_instances_of_series(study_uid, series_uid)
-
-        # Download all objects in the series
-        for instance in instances:
-            instance_uid = instance["00080018"]["Value"][0]
-            url = f"{self.dcmweb_uri_endpoint}"
-            params = {
-                "requestType": "WADO",
-                "studyUID": study_uid,
-                "seriesUID": series_uid,
-                "objectUID": instance_uid,
-            }
-            response = self.session.get(url, params=params)
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
+        response = self.session.get(url)
+        if response.status_code == 204:
+            return []
+        elif response.status_code == 404:
+            return None
+        else:
             response.raise_for_status()
+            return response.json()
 
-            with open(join(target_dir, f"{instance_uid}.dcm"), "wb") as f:
-                f.write(response.content)
+    def get_series_of_study(self, study_uid: str) -> List[dict]:
+        """This function retrieves all series of a study from the PACS.
+
+        Args:
+            study_uid (str): Study Instance UID of the study to retrieve the series from.
+
+        Returns:
+            List[dict]: List of series of the study. Each series is represented as a dictionary containing the series metadata
+        """
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
+        r = self.session.get(url)
+        if r.status_code == 204:
+            return []
+        elif r.status_code == 404:
+            return None
+        else:
+            r.raise_for_status()
+            return r.json()
+
+    def download_instance(
+        self, study_uid: str, series_uid: str, instance_uid: str, target_dir: str
+    ) -> bool:
+        """This function downloads a single instance from the DICOMWeb server. It sends a GET request to the DICOMWeb server to retrieve the instance and saves the DICOM file to the target directory.
+
+        Args:
+            study_uid (str): Study Instance UID of the instance.
+            series_uid (str): Series Instance UID of the instance.
+            instance_uid (str): SOP Instance UID of the instance.
+            target_dir (str): Target directory to save the DICOM file.
+
+        Returns:
+            bool: True if the instance was downloaded successfully, False otherwise.
+        """
+        url = f"{self.dcmweb_uri_endpoint}"
+        params = {
+            "requestType": "WADO",
+            "studyUID": study_uid,
+            "seriesUID": series_uid,
+            "objectUID": instance_uid,
+        }
+        response = self.session.get(url, params=params)
+        response.raise_for_status()
+
+        with open(join(target_dir, f"{instance_uid}.dcm"), "wb") as f:
+            f.write(response.content)
 
         return True
 
@@ -227,16 +240,8 @@ class HelperDcmWeb:
             target_dir = join(target_dir, series_uid)
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
-        # If expected_object_count is provided, check if it matches the number of objects in the series
-        if not expected_object_count is None:
-            object_uid_list = self.__get_object_uid_list(study_uid, series_uid)
-            if not object_uid_list:
-                raise Exception("Error in getting object UID list")
-
-            if not self.__validate_object_count(expected_object_count, object_uid_list):
-                raise Exception(
-                    f"Error in validating object count! HelperDcmWeb: {expected_object_count=} ; {len(object_uid_list)=} ; {object_uid_list=}"
-                )
+        # Get list of object UIDs in the series
+        list_of_object_uids = self.__get_object_uid_list(study_uid, series_uid)
 
         num_retries = 10
         for i in range(num_retries):
@@ -275,23 +280,24 @@ class HelperDcmWeb:
                     # Wait for 5 seconds before retrying
                     time.sleep(5)
                     continue
-                else:
-                    # Last try: try to download the series slice-wise
-                    if self.download_series_slicewise(
-                        study_uid=study_uid,
-                        series_uid=series_uid,
-                        target_dir=target_dir,
-                        include_series_dir=include_series_dir,
-                    ):
-                        logger.info(
-                            f"Successfully downloaded series {series_uid} of study {study_uid} slice-wise"
-                        )
-                        return True
 
-                    logger.error(
-                        f"Failed to download series {series_uid} of study {study_uid} after {num_retries} retries"
-                    )
-                    return False
+        # Get downloaded instances
+        downloaded_instances = [file.split(".")[0] for file in os.listdir(target_dir)]
+
+        # Get not downloaded instances
+        not_downloaded_instances = [
+            object_uid[1]
+            for object_uid in list_of_object_uids
+            if object_uid[1] not in downloaded_instances
+        ]
+
+        logging.error(
+            f"Failed to download {len(not_downloaded_instances)} instances of series {series_uid} of study {study_uid}. Retrying download of not downloaded instances."
+        )
+
+        # Retry download of not downloaded instances
+        for object_uid in not_downloaded_instances:
+            self.download_instance(study_uid, series_uid, object_uid, target_dir)
 
         return True
 
@@ -345,33 +351,6 @@ class HelperDcmWeb:
         else:
             response.raise_for_status()
             return None
-
-    def __validate_object_count(
-        self, expected_object_count: int, object_uid_list: list
-    ) -> bool:
-        """This function validates if the expected object count matches the number of objects in the series.
-
-        Args:
-            expected_object_count (int): The expected number of objects in the series.
-            object_uid_list (_type_): The list of objects in the series.
-
-        Returns:
-            bool: True if the expected object count matches the number of objects in the series, False otherwise.
-        """
-        if expected_object_count is not None and expected_object_count > len(
-            object_uid_list
-        ):
-            first_object_frames = object_uid_list[0][-1]
-            if len(object_uid_list) == 1 and first_object_frames is not None:
-                if expected_object_count <= int(first_object_frames):
-                    print("Success: Expected object count matches number of frames.")
-                else:
-                    raise ValueError("Expected object count exceeds number of frames.")
-            else:
-                raise ValueError("Not all expected objects have been found.")
-        elif expected_object_count is not None:
-            print("Expected object count is within the range of object list length.")
-        return True
 
     def reject_study(self, study_uid: str) -> requests.Response:
         """This function rejects a study from the PACS. It sends a POST request to the DICOMWeb server to reject the study.
@@ -501,14 +480,28 @@ class HelperDcmWeb:
 
             url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/reject/113001^DCM"
             response = self.session.post(url, verify=False)
-            response.raise_for_status()
+            if response.status_code == 404:
+                if "errorMessage" in response.json():
+                    logger.error(
+                        f"Some error occurred: {response.json()['errorMessage']}"
+                    )
+                else:
+                    response.raise_for_status()
+            else:
+                response.raise_for_status
 
         # Delete all rejected instances
         logger.info(f"Deleting series {series_uids} in study {study_uid}")
 
         url = f"{self.dcmweb_rs_endpoint}/reject/113001^DCM"
         response = self.session.delete(url, verify=False)
-        response.raise_for_status()
+        if response.status_code == 404:
+            if "errorMessage" in response.json():
+                logger.error(f"Some error occurred: {response.json()['errorMessage']}")
+            else:
+                response.raise_for_status()
+        else:
+            response.raise_for_status
 
     def search_for_series(self, search_filters):
         return self.client.search_for_series(search_filters=search_filters)

@@ -158,7 +158,6 @@ get_test_images = LocalGetInputDataOperator(
     dag=dag,
     name="nnunet-dataset",
     batch_name="nnunet-dataset",
-    dataset_limit=None,
     parallel_downloads=5,
     check_modality=False,
 )

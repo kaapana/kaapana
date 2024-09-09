@@ -86,8 +86,8 @@ def get_model_paths(batch_element_dir):
     if task and "---" in task:
         # format if called from nnunet-predict
         task_n_modelname = task.split("---")
-        task = task_n_modelname[0]
-        modelname = task_n_modelname[1]
+        task = task_n_modelname[0].strip()
+        modelname = task_n_modelname[1].strip()
     elif task is None:
         # retrieve infromation if called from nnunet-ensemble
         checkpoint_file = glob(

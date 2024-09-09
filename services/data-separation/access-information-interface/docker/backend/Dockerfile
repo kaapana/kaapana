@@ -6,10 +6,6 @@ LABEL BUILD_IGNORE="False"
 
 WORKDIR /app
 
-# RUN apt-get update -y && apt-get install -y --no-install-recommends \
-#     libmagic1 \
-#     && rm -rf /var/lib/apt/lists/*
-
 COPY files/requirements.txt /app/
 RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /app/requirements.txt
 

@@ -30,10 +30,9 @@ ae_title = "nnUnet-results"
 
 ## FL releated
 remote_dag_id = "nnunet-training"
-# skip_operators = ["zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"]
-# federated_operators = ["nnunet-training"]
 skip_operators = [
     "nnunet-training",
+    "nnunet-get-notebook-from-minio",
     "zip-unzip-training",
     "model2dicom",
     "dcmsend",
@@ -45,12 +44,18 @@ skip_operators = [
     "workflow-cleaner",
 ]
 federated_operators = ["nnunet-preprocess", "nnunet-training"]
+
 ui_forms = {
     "data_form": {},
     "external_schema_federated_form": {
         "type": "object",
         "properties": {
-            **properties_external_federated_form(["federated_total_rounds"]),
+            **properties_external_federated_form(
+                [
+                    "federated_total_rounds",
+                    "aggregation_strategy",
+                ]
+            ),
             "remote_dag_id": {
                 "type": "string",
                 "title": "Remote dag id",
@@ -80,6 +85,15 @@ ui_forms = {
                 "required": True,
                 "readOnly": True,
             },
+            "global_fingerprint": {
+                "type": "string",
+                "title": "Global fingerprint generation",
+                "enum": ["accurate", "estimate"],
+                "description": "accurate: Clients share partially voxel data for accurate fingerprint statistic computation; more accurate, less privacy-preserving, slower!\nestimate: Clients share data fingerprints, server estimates global data fingerprint statistics; less accurate, more privacy-preserving, faster!",
+                "default": "estimate",
+                "required": True,
+                "readOnly": False,
+            },
         },
     },
     "external_schemas": remote_dag_id,
@@ -102,13 +116,16 @@ dag = DAG(
     schedule_interval=None,
 )
 
-nnunet_federated = nnUNetFederatedOperator(dag=dag, dev_server=None)
+nnunet_federated = nnUNetFederatedOperator(
+    dag=dag,
+    # dev_server="code-server"
+)
 
 zip_model = ZipUnzipOperator(
     dag=dag,
     target_filename=f"nnunet_model.zip",
-    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*.json,*.png,*.pdf",
-    subdir="results/nnUNet",
+    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*pth,*.json,*.png,*.pdf",
+    subdir="results",
     mode="zip",
     batch_level=True,
     operator_in_dir="nnunet-training",

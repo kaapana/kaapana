@@ -1,0 +1,181 @@
+diff --git a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+index decda30..98b2395 100644
+--- a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
++++ b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+@@ -64,6 +64,34 @@ from torch import distributed as dist
+ from torch.cuda import device_count
+ from torch.cuda.amp import GradScaler
+ from torch.nn.parallel import DistributedDataParallel as DDP
++import json
++from torch.utils.tensorboard import SummaryWriter
++from pathlib import Path
++
++
++class JsonWriter(object):
++    @staticmethod
++    def _write_json(filename, data):
++        with open(filename, "w") as json_file:
++            json.dump(data, json_file)
++
++    @staticmethod
++    def _load_json(filename):
++        try:
++            with open(filename) as json_file:
++                workflow_data = json.load(json_file)
++        except FileNotFoundError:
++            workflow_data = []
++        return workflow_data
++
++    def __init__(self, log_dir) -> None:
++        self.filename = os.path.join(log_dir, "experiment_results.json")
++        # not accumulating anything because this leads to a decrease in speed over many epochs!
++
++    def append_data_dict(self, data_dict):
++        workflow_data = JsonWriter._load_json(self.filename)
++        workflow_data.append(data_dict)
++        JsonWriter._write_json(self.filename, workflow_data)
+ 
+ 
+ class nnUNetTrainer(object):
+@@ -141,14 +169,15 @@ class nnUNetTrainer(object):
+                 if self.is_cascaded else None
+ 
+         ### Some hyperparameters for you to fiddle with
+-        self.initial_lr = 1e-2
+-        self.weight_decay = 3e-5
+-        self.oversample_foreground_percent = 0.33
+-        self.num_iterations_per_epoch = 250
+-        self.num_val_iterations_per_epoch = 50
+-        self.num_epochs = 1000
+-        self.current_epoch = 0
+-        self.enable_deep_supervision = True
++        self.initial_lr = float(os.getenv("INITIAL_LEARNING_RATE", 1e-2))
++        self.weight_decay = float(os.getenv("WEIGHT_DECAY", 3e-5))
++        self.oversample_foreground_percent = float(os.getenv("OVERSAMPLE_FOREGROUND_PERCENT", 0.33))
++        self.num_iterations_per_epoch = int(os.getenv("NUM_BATCHES_PER_EPOCH", 250))
++        self.num_val_iterations_per_epoch = int(os.getenv("NUM_VAL_BATCHES_PER_EPOCH", 50))
++        self.num_epochs = int(os.getenv("TRAIN_MAX_EPOCHS", 1000))
++        self.epochs_per_round = int(os.getenv("EPOCHS_PER_ROUND", self.num_epochs))
++        self.current_epoch = int(os.getenv("CURRENT_EPOCH", 0))
++        self.enable_deep_supervision = bool(os.getenv("ENABLE_DEEP_SUPERVISION", True))
+ 
+         ### Dealing with labels/regions
+         self.label_manager = self.plans_manager.get_label_manager(dataset_json)
+@@ -183,7 +212,7 @@ class nnUNetTrainer(object):
+ 
+         ### checkpoint saving stuff
+         self.save_every = 50
+-        self.disable_checkpointing = False
++        self.disable_checkpointing = bool(os.getenv("DISABLE_CHECKPOINTING", True))
+ 
+         ## DDP batch size and oversampling can differ between workers and needs adaptation
+         # we need to change the batch size in DDP because we don't use any of those distributed samplers
+@@ -199,6 +228,91 @@ class nnUNetTrainer(object):
+                                "#######################################################################\n",
+                                also_print_to_console=True, add_timestamp=False)
+ 
++        
++        ################################## Adapted for KaapanaFed ##################################
++        # self.save_best_checkpoint = False  # whether or not to save the best checkpoint according to self.best_val_eval_criterion_MA
++
++        # This is maybe a little bit ugly...
++        tensorboard_log_dir = Path(
++            os.path.join(
++                "/minio",
++                "tensorboard",
++                os.getenv("RUN_ID"),
++                os.getenv("OPERATOR_OUT_DIR"),
++            )
++        )
++        with open(
++            os.path.join("/", os.getenv("WORKFLOW_DIR"), "conf", "conf.json"), "r"
++        ) as f:
++            conf_data = json.load(f)
++        if (
++            "federated_form" in conf_data
++            and "from_previous_dag_run" in conf_data["federated_form"]
++            and conf_data["federated_form"]["from_previous_dag_run"] is not None
++        ):
++            previous_tensorboard_log_dir = Path(
++                os.path.join(
++                    "/minio",
++                    "tensorboard",
++                    conf_data["federated_form"]["from_previous_dag_run"],
++                    os.getenv("OPERATOR_OUT_DIR"),
++                )
++            )
++            if (
++                previous_tensorboard_log_dir.is_dir()
++                and not tensorboard_log_dir.is_dir()
++            ):
++                print("Removing log from previous round!")
++                shutil.copytree(previous_tensorboard_log_dir, tensorboard_log_dir)
++        else:
++            tensorboard_log_dir.mkdir(exist_ok=True, parents=True)
++        if (
++            "federated_form" in conf_data
++            and "before_previous_dag_run" in conf_data["federated_form"]
++            and conf_data["federated_form"]["before_previous_dag_run"] is not None
++        ):
++            before_previous_tensorboard_log_dir = Path(
++                os.path.join(
++                    "/minio",
++                    "tensorboard",
++                    conf_data["federated_form"]["before_previous_dag_run"],
++                    os.getenv("OPERATOR_OUT_DIR"),
++                )
++            )
++            if before_previous_tensorboard_log_dir.is_dir():
++                print("Removing log from previous round!")
++                shutil.rmtree(before_previous_tensorboard_log_dir)
++
++        if os.getenv("MODE") == "training":
++            self.writer = SummaryWriter(log_dir=tensorboard_log_dir)
++            dataset_info_preprocessing_path = os.path.join(
++                "/",
++                os.getenv("WORKFLOW_DIR"),
++                os.getenv("OPERATOR_IN_DIR"),
++                "nnUNet_raw",
++                os.getenv("TASK").replace("Task", "Dataset"),
++                "dataset.json",
++            )
++            dataset_info_path = os.path.join(self.output_folder, "dataset.json")
++            print(
++                f"Copying dataset.json from {dataset_info_preprocessing_path}  to {dataset_info_path}"
++            )
++            os.makedirs(os.path.dirname(dataset_info_path), exist_ok=True)
++            shutil.copyfile(dataset_info_preprocessing_path, dataset_info_path)
++            with open(dataset_info_path, "r", encoding="utf-8") as jsonData:
++                dataset = json.load(jsonData)
++            self.dataset_labels = dataset["labels"]
++
++        json_log_dir = Path(
++            os.path.join("/", os.getenv("WORKFLOW_DIR"), os.getenv("OPERATOR_OUT_DIR"))
++        )
++        # if json_log_dir.is_dir():
++        #     print(f'Cleaning log dir {json_log_dir}, in case there was something running before')
++        #     shutil.rmtree(json_log_dir)
++        self.json_writer = JsonWriter(log_dir=json_log_dir)
++        # #########################################################################################
++
++
+     def initialize(self):
+         if not self.was_initialized:
+             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
+@@ -1304,4 +1418,15 @@ class nnUNetTrainer(object):
+ 
+             self.on_epoch_end()
+ 
++            ### ADAPTED FOR KAAPANAFED ###
++            if ((epoch + 1) % self.epochs_per_round == 0) and (
++                (epoch + 1) != self.num_epochs
++            ):
++                print("Interrupting training ")
++                self.print_to_log_file(
++                    f"Interrupting training due to epochs_per_round={self.epochs_per_round}"
++                )
++                break
++            ##############################
++
+         self.on_train_end()
+-- 

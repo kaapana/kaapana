@@ -266,7 +266,9 @@ class KaapanaFederatedTrainingBase(ABC):
     def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data["federated_form"]["federated_round"] = federated_round
+
         for site_info in self.remote_sites:
+            # update previous_dag_run attributes necessary for caching and restarting processes
             if site_info["instance_name"] not in self.tmp_federated_site_info:
                 self.tmp_federated_site_info[site_info["instance_name"]] = {}
                 self.remote_conf_data["federated_form"]["from_previous_dag_run"] = None
@@ -285,6 +287,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     "from_previous_dag_run"
                 ]
 
+            # create at local instance jobs for remote sites
             with requests.Session() as s:
                 r = requests_retry_session(session=s).put(
                     f"{self.client_url}/workflow_jobs",
@@ -432,6 +435,134 @@ class KaapanaFederatedTrainingBase(ABC):
     @timeit
     def update_data(self, federated_round, tmp_central_site_info):
         pass
+
+    # @timeit
+    def load_model_weights(self, current_federated_round_dir=None):
+        """
+        Load checkpoints and return as dict.
+        """
+        print("Load checkpoints and return as dict.")
+        site_model_weights_dict = collections.OrderedDict()
+        for idx, fname in enumerate(
+            current_federated_round_dir.rglob("checkpoint_final.pth")
+        ):
+            print(f"Loading model_weights from: {fname}")
+            checkpoint = torch.load(fname, map_location=torch.device("cpu"))
+
+            # retrieve site_name from current_federated_round_dir
+            modified_fname = str(fname).replace(str(current_federated_round_dir), "")
+            site_name = modified_fname.split("/")[1]
+
+            site_model_weights_dict[site_name] = checkpoint["network_weights"]
+        return site_model_weights_dict
+
+    # @timeit
+    def fed_avg(self, site_model_weights_dict=None):
+        """
+        FedAvg: Communication-efficient Learning of Deep networks from Decentralized Data (https://arxiv.org/abs/1602.05629)
+        Sum model_weights up.
+        Divide summed model_weights by num_sites.
+        Return a site_model_weights_dict with always the same model_weights per site.
+        """
+        # sum model_weights up
+        # site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
+        sum_model_weights = collections.OrderedDict()
+        for site_key, site_value in site_model_weights_dict.items():
+            for key, value in site_value.items():
+                if key not in sum_model_weights:
+                    sum_model_weights[key] = value
+                else:
+                    sum_model_weights[key] = sum_model_weights[key] + value
+
+        num_sites = len(site_model_weights_dict)
+        # average model_weights
+        averaged_model_weights = collections.OrderedDict()
+        for key, value in sum_model_weights.items():
+            averaged_model_weights[key] = sum_model_weights[key] / num_sites
+
+        # return site_model_weights_dict with same averaged model per site
+        return_model_weights_dict = collections.OrderedDict()
+        for site in site_model_weights_dict.keys():
+            return_model_weights_dict[site] = averaged_model_weights
+
+        return return_model_weights_dict
+
+    # @timeit
+    def fed_dc(
+        self,
+        site_model_weights_dict=None,
+        federated_round=None,
+    ):
+        """
+        FedDC: Federated Learning from Small Datasets (https://arxiv.org/abs/2110.03469)
+        Daisy chaining if (federated_round % dc_rate) == (dc_rate - 1).
+        Aggregate local models if (federated_round % agg_rate) == (agg_rate - 1).
+
+        Input:
+        * site_model_weights_dict: site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
+        * federated_round: current federated communication round
+        * agg_rate: aggregation rate; defines how often local model weights are aggregated (avereaged)
+        * dc_rate: daisy chaining rate; defines how often local models are randomly sent to other site
+
+        Output:
+        * return_model_weights_dict: with eiter just randomly permuted site keys or aggregated model_weights.
+        """
+
+        # do either daisy-chaining or aggregation
+        if (federated_round % self.dc_rate) == (self.dc_rate - 1):
+            # daisy chaining
+            site_keys = list(site_model_weights_dict.keys())
+            shuffled_site_keys = random.sample(site_keys, len(site_keys))
+            return_model_weights_dict = dict(
+                zip(
+                    shuffled_site_keys,
+                    [site_model_weights_dict[key] for key in shuffled_site_keys],
+                )
+            )
+        if (federated_round % self.agg_rate) == (self.agg_rate - 1):
+            # aggregation via FedAvg
+            return_model_weights_dict = self.fed_avg(site_model_weights_dict)
+        if ((federated_round % self.agg_rate) != (self.agg_rate - 1)) and (
+            (federated_round % self.dc_rate) != (self.dc_rate - 1)
+        ):
+            raise ValueError(
+                "Error while FedDC: Neither Daisy Chaining nor Aggregation was computed!"
+            )
+        return return_model_weights_dict
+
+    # @timeit
+    def _save_model_weights(self, fname=None, model_weights=None):
+        """
+        Saves model_weights to checkpoint in fname.
+        """
+        checkpoint = torch.load(str(fname), map_location=torch.device("cpu"))
+        # delete here fname first and save it then again from scratch
+        os.remove(fname)
+        checkpoint["network_weights"] = model_weights
+        torch.save(checkpoint, str(fname))
+
+    # @timeit
+    def save_model_weights(
+        self, current_federated_round_dir=None, processed_site_model_weights_dict=None
+    ):
+        """
+        Save processed model to site-corresponding minio folders.
+        """
+        print("Saving processed model checkpoints")
+        for idx, fname in enumerate(
+            current_federated_round_dir.rglob("checkpoint_final.pth")
+        ):
+            # retrieve site_name from current_federated_round_dir
+            modified_fname = str(fname).replace(str(current_federated_round_dir), "")
+            site_name = modified_fname.split("/")[1]
+
+            print(f"Save centrally processed model to {site_name}")
+
+            self._save_model_weights(
+                str(fname), processed_site_model_weights_dict[site_name]
+            )
+
+        return str(fname)
 
     @timeit
     def upload_workflow_dir_to_minio_object(

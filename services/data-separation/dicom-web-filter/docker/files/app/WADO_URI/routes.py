@@ -6,9 +6,9 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_204_NO_CONTENT
 
+from .. import crud
 from ..config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL_WADO_URI
 from ..database import get_session
-from . import crud
 
 router = APIRouter()
 

@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .. import crud
 from ..config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
 from ..database import get_session
-from . import crud
 
 # Create a router
 router = APIRouter()

@@ -7,9 +7,8 @@ from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .. import config
+from .. import config, crud
 from ..database import get_session
-from . import crud
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

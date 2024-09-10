@@ -58,9 +58,15 @@ spec:
             memory: "5Gi"
           requests:
             memory: "256Mi"
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
+      volumes:
+      - name: tmp
+        emptyDir: {}

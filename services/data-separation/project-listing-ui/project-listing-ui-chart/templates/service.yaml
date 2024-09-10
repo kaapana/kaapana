@@ -1,15 +1,15 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "project-listing-ui-chart.fullname" . }}
-  labels:
-    {{- include "project-listing-ui-chart.labels" . | nindent 4 }}
+  name: project-listing-ui-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels: 
+    app-name: project-listing-ui-service
 spec:
-  type: {{ .Values.service.type }}
+  selector: 
+    app-name: project-listing-ui-app
+ 
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
-  selector:
-    {{- include "project-listing-ui-chart.selectorLabels" . | nindent 4 }}
+    - port: 80
+      targetPort: 80
+      nodePort: 30199

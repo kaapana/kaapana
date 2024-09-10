@@ -80,7 +80,7 @@ class KaapanaInstance(KaapanaInstanceBase):
 
 
 class JobBase(BaseModel):
-    status: str = "pending"
+    status: str = "created"
     dag_id: Optional[str] = None
     run_id: Optional[str] = None
     description: Optional[str] = None
@@ -102,8 +102,9 @@ class Job(JobBase):
     @classmethod
     def check_status(cls, v):
         allowed_states = [
-            "queued",
+            "created",
             "pending",
+            "queued",
             "scheduled",
             "running",
             "finished",

@@ -6,6 +6,9 @@ import json
 import os
 import uuid
 import shutil
+import collections
+import torch
+import random
 import tarfile
 import functools
 from minio import Minio
@@ -114,7 +117,9 @@ class KaapanaFederatedTrainingBase(ABC):
     @staticmethod
     def fernet_encryptfile(filepath, key):
         if key == "deactivated":
+            print("Key deactivated")
             return
+        print(f"Encrypting {filepath} with key {key}")
         fernet = Fernet(key.encode())
         with open(filepath, "rb") as file:
             original = file.read()
@@ -126,7 +131,9 @@ class KaapanaFederatedTrainingBase(ABC):
     @staticmethod
     def fernet_decryptfile(filepath, key):
         if key == "deactivated":
+            print("Key deactivated")
             return
+        print(f"Decrypting {filepath} with key {key}")
         fernet = Fernet(key.encode())
         with open(filepath, "rb") as enc_file:
             encrypted = enc_file.read()
@@ -186,7 +193,6 @@ class KaapanaFederatedTrainingBase(ABC):
         secret_key="Kaapana2020",
         minio_host=f"minio-service.{SERVICES_NAMESPACE}.svc",
         minio_port="9000",
-        **kwargs,
     ):
         self.run_in_parallel = False
         self.federated_dir = os.getenv("RUN_ID", str(uuid.uuid4()))
@@ -255,12 +261,28 @@ class KaapanaFederatedTrainingBase(ABC):
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.remote_sites = r.json()
 
+        # instantiate Minio client
         self.minioClient = Minio(
             minio_host + ":" + minio_port,
             access_key=access_key,
             secret_key=secret_key,
             secure=False,
         )
+
+        # FL aggregation strategy
+        if "aggregation_strategy" in self.remote_conf_data["federated_form"]:
+            # get defined FL aggregation strategy
+            self.aggregation_strategy = self.remote_conf_data["federated_form"][
+                "aggregation_strategy"
+            ]["agg_strategy_method"]
+            # special params for FedDC
+            if self.aggregation_strategy == "feddc":
+                self.agg_rate = self.remote_conf_data["federated_form"][
+                    "aggregation_strategy"
+                ]["feddc_aggregation_rate"]
+                self.dc_rate = self.remote_conf_data["federated_form"][
+                    "aggregation_strategy"
+                ]["feddc_daisychaining_rate"]
 
     @timeit
     def distribute_jobs(self, federated_round):

@@ -529,7 +529,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data["workflow_form"]["prep_increment_step"] = ""
         else:
             self.remote_conf_data["workflow_form"]["train_continue"] = True
-            self.run_in_parallel = True
+            # self.run_in_parallel = True # TODO needs to be fixed, since it is not working
         print(
             f"Current fl_round={federated_round} out of {self.remote_conf_data['federated_form']['federated_total_rounds']} total fl_rounds."
         )

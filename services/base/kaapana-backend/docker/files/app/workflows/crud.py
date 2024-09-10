@@ -202,15 +202,17 @@ def create_and_update_client_kaapana_instance(
         for dataset_name in client_kaapana_instance.allowed_datasets:
             db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
             if db_dataset:
-                dataset = dict(**(db_dataset).__dict__)
-                dataset["identifiers"] = [
-                    identifier.id for identifier in db_dataset.identifiers
-                ]
-                dataset = schemas.AllowedDatasetCreate(**(dataset)).model_dump()
+                identifiers = [identifier.id for identifier in db_dataset.identifiers]
+                dataset = schemas.AllowedDatasetCreate(
+                    name=db_dataset.name,
+                    username=db_dataset.username,
+                    identifiers=identifiers,
+                ).model_dump()
+            
                 meta_information = {}
                 # Todo add here unique studies and patients to the db_dataset object!
                 meta_data = get_meta_data(
-                    dataset["identifiers"],
+                    identifiers,
                     drop_duplicate_studies=False,
                     drop_duplicated_patients=False,
                 )
@@ -224,7 +226,7 @@ def create_and_update_client_kaapana_instance(
                     }
                 )
                 meta_data = get_meta_data(
-                    dataset["identifiers"],
+                    identifiers,
                     drop_duplicate_studies=True,
                     drop_duplicated_patients=False,
                 )
@@ -238,7 +240,7 @@ def create_and_update_client_kaapana_instance(
                     }
                 )
                 meta_data = get_meta_data(
-                    dataset["identifiers"],
+                    identifiers,
                     drop_duplicate_studies=False,
                     drop_duplicated_patients=True,
                 )
@@ -635,7 +637,7 @@ def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate], remote=False):
         db.commit()
 
     for db_job in update_data:
-        if db_job.status == "scheduled":
+        if db_job.status == "scheduled" and db_job.kaapana_instance.remote == False:
             try:
                 airflow_execute_resp = execute_job_airflow(db_job)
             except Exception as e:
@@ -846,7 +848,7 @@ def get_remote_updates(db: Session, periodically=False):
 
         job_params = {
             "instance_name": db_client_kaapana.instance_name,
-            "status": "queued",
+            "status": "created",
         }
         remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-remote/remote"
         with requests.Session() as s:
@@ -1000,10 +1002,10 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
             models.Job.id,
             models.Job.run_id,
             models.Job.description,
-            models.KaapanaInstance.remote,
         )
-        .join(models.Job.kaapana_instance)
+        .join(models.KaapanaInstance)
         .filter(models.Job.status == status)
+        .filter(models.KaapanaInstance.remote == False)
         .all()
     )
 
@@ -1050,7 +1052,7 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         run_ids = [
             diff_db_job.run_id
             for diff_db_job in diff_db_to_airflow
-            if diff_db_job.run_id is not None and diff_db_job.remote is False
+            if diff_db_job.run_id is not None
         ]
         # Get diff states:
         try:
@@ -1432,14 +1434,15 @@ def thread_create_objects_and_trigger_workflows(
         if db_workflow.automatic_execution:
             jobs_to_update = []
             for db_job in db_jobs:
-                job = schemas.JobUpdate(
-                    **{
-                        "job_id": db_job.id,
-                        "status": "scheduled",
-                        "description": "The workflow was triggered!",
-                    }
-                )
-                jobs_to_update.append(job)
+                if db_job.kaapana_instance.remote == False:
+                    job = schemas.JobUpdate(
+                        **{
+                            "job_id": db_job.id,
+                            "status": "scheduled",
+                            "description": "The workflow was triggered!",
+                        }
+                    )
+                    jobs_to_update.append(job)
             bulk_update_jobs(db, jobs_to_update)
         return db_jobs
 
@@ -1604,7 +1607,7 @@ def queue_generate_jobs_and_add_to_workflow(
         for jobs_to_create in queued_jobs:
             job = schemas.JobCreate(
                 **{
-                    "status": "pending",
+                    "status": "created",
                     "kaapana_instance_id": db_kaapana_instance.id,
                     "owner_kaapana_instance_name": settings.instance_name,
                     "automatic_execution": False,

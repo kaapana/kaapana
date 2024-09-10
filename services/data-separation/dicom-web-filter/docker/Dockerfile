@@ -4,12 +4,14 @@ LABEL IMAGE="dicom-web-filter"
 LABEL VERSION="0.1.0"
 LABEL BUILD_IGNORE="False"
 
-WORKDIR /app
+RUN apt-get update
 
-COPY files/requirements.txt /app/
-RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /app/requirements.txt
+WORKDIR /kaapana/app
 
-COPY files/ /app
-RUN chmod +x /app/boot.sh
+COPY files/requirements.txt /kaapana/app/
+RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
-CMD ["/app/boot.sh"]
+COPY files/ /kaapana/app
+RUN chmod +x /kaapana/app/boot.sh
+
+CMD ["/bin/sh", "/kaapana/app/boot.sh"]

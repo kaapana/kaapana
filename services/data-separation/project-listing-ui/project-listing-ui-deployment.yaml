@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: project-listing-ui-deployment
+  name: project-listing-ui
 spec:
   replicas: 1
   selector:
@@ -16,7 +16,7 @@ spec:
       - name: registry-secret
       containers:
       - name: project-listing-ui-container
-        image: registry.hzdr.de/rajesh.baidya/kaapana-tutorial/project-listing-ui:0.3.4-253-g460f8facd
+        image: registry.hzdr.de/rajesh.baidya/kaapana-tutorial/project-listing-ui:0.3.4-258-gaac23272e
         ports:
         - containerPort: 80
 ---
@@ -29,6 +29,6 @@ spec:
   ports:
     - port: 80
       targetPort: 80
-      nodePort: 8199 # You can specify the NodePort for access
+      nodePort: 30199 # You can specify the NodePort for access
   selector:
-    app: nginx-app
+    app: project-listing-ui-app

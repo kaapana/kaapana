@@ -65,7 +65,10 @@ def trigger_dag(dag_id):
 
     ################################################################################################
 
-    run_id = generate_run_id(dag_id)
+    if "run_id" in data and data["run_id"] is not None:
+        run_id = data["run_id"]
+    else:
+        run_id = generate_run_id(dag_id)
 
     print(json.dumps(tmp_conf, indent=2))
 
@@ -132,138 +135,64 @@ def get_dagrun_tasks(dag_id, run_id):
 
 
 @csrf.exempt
-@kaapanaApi.route("/api/abort/<dag_id>/<run_id>", methods=["POST"])
-def abort_dag_run(dag_id, run_id):
-    # abort dag_run by executing set_dag_run_state_to_failed() (source: https://github.com/apache/airflow/blob/main/airflow/api/common/mark_tasks.py#L421)
-    dag_objects = DagBag().dags  # returns all DAGs available on platform
-    desired_dag = dag_objects[
-        dag_id
-    ]  # filter desired_dag from all available dags via dag_id
+@kaapanaApi.route("/api/abort", methods=["POST"])
+def abort_dag_runs():
+    """
+    This API endpoint aborts multiple DAG runs based on a list of run_ids.
+    """
+    data = request.get_json(force=True)
+    run_ids = data.get("run_ids", [])
+    if not run_ids:
+        return jsonify({"error": "No run_ids provided"}), 400
 
     session = settings.Session()
-    dag_runs_of_desired_dag = session.query(DagRun).filter(
-        DagRun.dag_id == desired_dag.dag_id
-    )
-    for dag_run_of_desired_dag in dag_runs_of_desired_dag:
-        if dag_run_of_desired_dag.run_id == run_id:
-            desired_execution_date = dag_run_of_desired_dag.execution_date
-            break
-        else:
-            desired_execution_date = None
+    try:
+        # Fetch all relevant DAG runs
+        dag_runs = session.query(DagRun).filter(DagRun.run_id.in_(run_ids)).all()
+        if not dag_runs:
+            return jsonify({"error": "No matching DAG runs found"}), 404
 
-    message = []
+        dag_ids = {dag_run.dag_id for dag_run in dag_runs}
 
-    # Own solution highly inspred by airflow latest (2.4.3) -> def set_dag_run_state_to_failed(*, dag: DAG, execution_date: datetime | None = None, run_id: str | None = None, commit: bool = False, session: SASession = NEW_SESSION,)
-    dag = desired_dag
-    execution_date = desired_execution_date
-    run_id = run_id
-    commit = True
-    session = session
-    state = TaskInstanceState.FAILED
-
-    if not dag:
-        return []
-    if execution_date:
-        if not timezone.is_localized(execution_date):
-            raise ValueError(f"Received non-localized date {execution_date}")
-        dag_run = dag.get_dagrun(execution_date=execution_date)
-        if not dag_run:
-            raise ValueError(f"DagRun with execution_date: {execution_date} not found")
-        run_id = dag_run.run_id
-    if not run_id:
-        raise ValueError(f"Invalid dag_run_id: {run_id}")
-
-    # Mark the dag run to failed.
-    if commit:
-        # _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
-        # definition: def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SASession = NEW_SESSION)
-        dag_run_state = DagRunState.FAILED
-        dag_run = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
-            .one()
+        # Bulk update DAG run states
+        session.query(DagRun).filter(DagRun.run_id.in_(run_ids)).update(
+            {DagRun.state: DagRunState.FAILED, DagRun.end_date: timezone.utcnow()},
+            synchronize_session=False,
         )
-        dag_run.state = dag_run_state
-        if dag_run_state == State.RUNNING:
-            dag_run.start_date = timezone.utcnow()
-            dag_run.end_date = None
-        else:
-            dag_run.end_date = timezone.utcnow()
-        session.merge(dag_run)
 
-    # Mark only RUNNING task instances.
-    task_ids = [task.task_id for task in dag.tasks]
-    tis_r = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag.dag_id,
-        TaskInstance.run_id == run_id,
-        TaskInstance.task_id.in_(task_ids),
-        TaskInstance.state == (TaskInstanceState.RUNNING),
-    )
-    tis_r = [ti for ti in tis_r]
-    if commit:
-        for ti in tis_r:
-            message.append(f"Running Task {ti} and its state {ti.state}")
-            ti.set_state(
-                State.FAILED
-            )  # set non-running and not finished tasks to skipped
-
-    # Mark non-finished and not running tasks as SKIPPED.
-    tis = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag.dag_id,
-        TaskInstance.run_id == run_id,
-        TaskInstance.state != (TaskInstanceState.SUCCESS),
-        TaskInstance.state != (TaskInstanceState.RUNNING),
-        TaskInstance.state != (TaskInstanceState.FAILED),
-    )
-    tis = [ti for ti in tis]
-    if commit:
-        for ti in tis:
-            message.append(f"Non-finished Task {ti} and its state {ti.state}")
-            ti.set_state(
-                State.SKIPPED
-            )  # set non-running and not finished tasks to skipped
-
-    # Mark tasks in state None as SKIPPED
-    tis_n = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag.dag_id,
-        TaskInstance.run_id == run_id,
-        TaskInstance.state == None,
-    )
-    tis_n = [ti for ti in tis_n]
-    if commit:
-        for ti in tis_n:
-            message.append(f"None-state Task {ti} and its state {ti.state}")
-            ti.set_state(State.SKIPPED)  # set None-state tasks to skipped
-
-    # if no task is marked as FAILED so far, take last task marked as SUCCESS and set it to FAILED --> such that whole dag_run is also marked as failed!
-    # query tasks for failed
-    tis_f = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag.dag_id,
-        TaskInstance.run_id == run_id,
-        TaskInstance.state == (TaskInstanceState.FAILED),
-    )
-    tis_f = [ti for ti in tis_f]
-    message.append(f"So far FAILED tasks: {tis_f}")
-    if len(tis_f) == 0:
-        # if no failed task found -> query tasks for succes; select last succeeded task and set is to failed
-        tis_s = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == dag.dag_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.state == (TaskInstanceState.SUCCESS),
+        # Fetch all relevant TaskInstances
+        task_instances = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id.in_(dag_ids),
+                TaskInstance.run_id.in_(run_ids),
+            )
+            .all()
         )
-        message.append(f"tis_s: {tis_s}")
-        latest_ti_s = tis_s.order_by(TaskInstance.start_date.desc()).first()
-        message.append(f"So far SUCCESS task, to.be changed to FAILED: {latest_ti_s}")
-        latest_ti_s.set_state(State.FAILED)
 
-    all_tis = [tis_r, tis, tis_n]
+        # Bulk update TaskInstance states
+        for task_instance in task_instances:
+            if task_instance.state == TaskInstanceState.RUNNING:
+                task_instance.state = TaskInstanceState.FAILED
+            elif task_instance.state not in [
+                TaskInstanceState.SUCCESS,
+                TaskInstanceState.FAILED,
+                TaskInstanceState.RUNNING,
+            ]:
+                task_instance.state = TaskInstanceState.FAILED
+            elif task_instance.state is None:
+                task_instance.state = TaskInstanceState.FAILED
 
-    # prevent DAG from restarting due to set 'retries' argument
-    dag.default_args["retries"] = 0
+        session.bulk_save_objects(task_instances)
+        session.commit()
 
-    message.append(f"Result of Job abortion: {all_tis}")
-    response = jsonify(message=message)
-    return response
+        return jsonify({"message": f"Aborted DAG runs: {run_ids}"}), 200
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
 
 
 @kaapanaApi.route("/api/getdagruns", methods=["POST"])
@@ -425,31 +354,51 @@ def get_num_dag_runs_by_state(dag_id, state):
     return jsonify(number_of_dagruns=number_of_dagruns)
 
 
-@kaapanaApi.route("/api/dagdetails/<dag_id>/<run_id>", methods=["GET"])
+@kaapanaApi.route("/api/dagdetails", methods=["POST"])
 @csrf.exempt
-def dag_run_status(dag_id, run_id):
-    session = settings.Session()
+def dag_run_status_batch():
+    """
+    This API endpoint returns the status of multiple DAG runs based on a list of run_ids.
+    """
+    data = request.get_json(force=True)
+    run_ids = data.get("run_ids", [])
+    if not run_ids:
+        return jsonify({"error": "No run_ids provided"}), 400
 
-    error_response = check_dag_exists(session, dag_id)
-    if error_response:
-        return error_response
+    session = settings.Session()
+    results = {}
+    time_format = "%Y-%m-%dT%H:%M:%S"
 
     try:
-        dag_run = (
-            session.query(DagRun)
-            .filter(and_(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
-            .one()
-        )
-    except NoResultFound:
-        return Response(
-            "RunId {} does not exist for Dag {}".format(run_id, dag_id),
-            HTTPStatus.BAD_REQUEST,
-        )
+        dag_runs = session.query(DagRun).filter(DagRun.run_id.in_(run_ids)).all()
 
-    time_format = "%Y-%m-%dT%H:%M:%S"
-    return jsonify(
-        dag_id=dag_id,
-        run_id=run_id,
-        state=dag_run.state,
-        execution_date=dag_run.execution_date.strftime(time_format),
-    )
+        if not dag_runs:
+            return jsonify({"error": "No matching DAG runs found"}), 404
+
+        for dag_run in dag_runs:
+            results[dag_run.run_id] = {
+                "dag_id": dag_run.dag_id,
+                "state": dag_run.state,
+                "execution_date": dag_run.execution_date.strftime(time_format),
+            }
+
+        # Identify any missing run_ids
+        found_run_ids = {dag_run.run_id for dag_run in dag_runs}
+        missing_run_ids = set(run_ids) - found_run_ids
+        if missing_run_ids:
+            return (
+                jsonify(
+                    {
+                        "error": f"RunIds {missing_run_ids} do not exist",
+                        "results": results,
+                    }
+                ),
+                HTTPStatus.PARTIAL_CONTENT,
+            )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        session.close()
+
+    return jsonify(results)

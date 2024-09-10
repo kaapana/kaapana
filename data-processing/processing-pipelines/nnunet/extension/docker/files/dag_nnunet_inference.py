@@ -50,13 +50,14 @@ properties_template = {
         "type": "string",
         "readOnly": True,
     },
-    "model": {
-        "title": "Pre-trained models",
-        "description": "Select one of the available models.",
-        "type": "string",
-        "required": True,
-        "enum": [],
-    },
+    # "model": {
+    #     "title": "Pre-trained models",
+    #     "description": "Select one of the available models.",
+    #     "type": "string",
+    #     "required": True,
+    #     "enum": [],
+    #     "default": "3d_lowres",
+    # },
     "inf_softmax": {
         "title": "enable softmax",
         "description": "Enable softmax export?",
@@ -103,9 +104,13 @@ workflow_form = {
     "oneOf": [],
 }
 
-for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
+# for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
+for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
+    print(f"{idx=}")
+    print(f"{task_name=}")
+    print(f"{task_values=}")
     task_selection = {
-        "title": task_name,
+        "title": task_name,  # task_values["model"][0],
         "properties": {"task_ids": {"type": "string", "const": task_name}},
     }
     task_properties = copy.deepcopy(properties_template)
@@ -114,6 +119,10 @@ for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
             to_be_placed = task_values[key]
             if key == "model":
                 item["enum"] = to_be_placed
+                # set the first available model or `3d_lowres` as default model
+                item["default"] = next(iter(to_be_placed), None)
+                if "3d_lowres" in to_be_placed:
+                    item["default"] = "3d_lowres"
             else:
                 if isinstance(to_be_placed, list):
                     to_be_placed = ",".join(to_be_placed)

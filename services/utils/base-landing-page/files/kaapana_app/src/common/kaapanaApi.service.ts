@@ -12,7 +12,7 @@ import AuthService from '@/common/auth.service'
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.toJSON())
         reject(error)
       })
     })
@@ -24,7 +24,7 @@ import AuthService from '@/common/auth.service'
       request.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.toJSON())
         reject(error)
       })
     })
@@ -112,12 +112,12 @@ import AuthService from '@/common/auth.service'
     return availableRoute
   }
 
-  const federatedClientApiPost = (subUrl: any, payload: any = null, params: any=null) => {
+  const federatedClientApiPost = (subUrl: any, payload: any = null, params: any=null, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
-      request.post('/kaapana-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
+      request.post('/kaapana-backend/client' + subUrl, payload, { params: params, timeout: timeout}).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.toJSON())
         reject(error)
       })
     })
@@ -128,7 +128,18 @@ import AuthService from '@/common/auth.service'
       request.get('/kaapana-backend/client' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.toJSON())
+        reject(error)
+      })
+    })
+  }
+
+  const federatedSyncApiGet = (subUrl: any, params: any = null) => {
+    return new Promise((resolve, reject) => {
+      request.get('/kaapana-sync/sync' + subUrl, { params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.toJSON())
         reject(error)
       })
     })
@@ -139,7 +150,7 @@ import AuthService from '@/common/auth.service'
       request.put('/kaapana-backend/client' + subUrl,  payload, { params: params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.toJSON())
         reject(error)
       })
     })
@@ -150,7 +161,7 @@ import AuthService from '@/common/auth.service'
       request.delete('/kaapana-backend/client' + subUrl, { params: params} ).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.response.data)
+        console.log('Failed: ' + error.toJSON())
         reject(error)
       })
     })
@@ -159,10 +170,10 @@ import AuthService from '@/common/auth.service'
   const federatedRemoteApiPut = (subUrl: any, payload: any = null,  params: any=null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
-        request.put('/kaapana-backend/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
+        request.put('/kaapana-remote/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
-          console.log('Failed: ' + error.response.data)
+          console.log('Failed: ' + error.toJSON())
           reject(error)
         })
       }).catch((error: any) => {
@@ -175,10 +186,10 @@ import AuthService from '@/common/auth.service'
   const federatedRemoteApiPost = (subUrl: any, payload: any=null, params: any=null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
-        request.post('/kaapana-backend/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
+        request.post('/kaapana-remote/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
-          console.log('Failed: ' + error.response.data)
+          console.log('Failed: ' + error.toJSON())
           reject(error)
         })
       }).catch((error: any) => {
@@ -191,10 +202,10 @@ import AuthService from '@/common/auth.service'
   const federatedRemoteApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
-        request.get('/kaapana-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
+        request.get('/kaapana-remote/remote' + subUrl, { params , headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
-          console.log('Failed: ' + error.response.data)
+          console.log('Failed: ' + error.toJSON())
           reject(error)
         })
       }).catch((error: any) => {
@@ -206,10 +217,10 @@ import AuthService from '@/common/auth.service'
   const federatedRemoteApiDelete = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
-        request.delete('/kaapana-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
+        request.delete('/kaapana-remote/remote' + subUrl, { params , headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
-          console.log('Failed: ' + error.response.data)
+          console.log('Failed: ' + error.toJSON())
           reject(error)
         })
       }).catch((error: any) => {
@@ -223,14 +234,14 @@ import AuthService from '@/common/auth.service'
       request.get('/kaapana-backend/' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.data)
+        console.log('Failed: ' + error.toJSON())
         reject(error)
       })
     })
   }
 
   const syncRemoteInstances = () => {
-        return federatedClientApiGet("/check-for-remote-updates")
+        return federatedSyncApiGet("/check-for-remote-updates")
         .then((response) => {
           Vue.notify({
             type: 'success',

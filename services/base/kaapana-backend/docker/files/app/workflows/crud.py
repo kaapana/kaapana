@@ -36,6 +36,7 @@ from .utils import (
     # os_processor,
 )
 from app.datasets.utils import get_meta_data
+
 logging.getLogger().setLevel(logging.INFO)
 
 TIMEOUT_SEC = 5
@@ -201,36 +202,55 @@ def create_and_update_client_kaapana_instance(
         for dataset_name in client_kaapana_instance.allowed_datasets:
             db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
             if db_dataset:
-                dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
-                identifiers = [
+                dataset = dict(**(db_dataset).__dict__)
+                dataset["identifiers"] = [
                     identifier.id for identifier in db_dataset.identifiers
                 ]
+                dataset = schemas.AllowedDatasetCreate(**(dataset)).model_dump()
                 meta_information = {}
                 # Todo add here unique studies and patients to the db_dataset object!
-                meta_data = get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=False)
+                meta_data = get_meta_data(
+                    dataset["identifiers"],
+                    drop_duplicate_studies=False,
+                    drop_duplicated_patients=False,
+                )
                 dataset["identifiers_count"] = len(meta_data)
-                meta_information.update({
-                    "identifiers": {
-                        "identifiers": list(meta_data.keys()),
-                        "meta_data": meta_data,
+                meta_information.update(
+                    {
+                        "identifiers": {
+                            "identifiers": list(meta_data.keys()),
+                            "meta_data": meta_data,
+                        }
                     }
-                })
-                meta_data = get_meta_data(identifiers, drop_duplicate_studies=True, drop_duplicated_patients=False)
+                )
+                meta_data = get_meta_data(
+                    dataset["identifiers"],
+                    drop_duplicate_studies=True,
+                    drop_duplicated_patients=False,
+                )
                 dataset["series_uids_with_unique_study_uids_count"] = len(meta_data)
-                meta_information.update({
-                    "series_uids_with_unique_study_uids_count": {
-                        "identifiers": list(meta_data.keys()),
-                        "meta_data": meta_data,
+                meta_information.update(
+                    {
+                        "series_uids_with_unique_study_uids_count": {
+                            "identifiers": list(meta_data.keys()),
+                            "meta_data": meta_data,
+                        }
                     }
-                })
-                meta_data = get_meta_data(identifiers, drop_duplicate_studies=False, drop_duplicated_patients=True)
+                )
+                meta_data = get_meta_data(
+                    dataset["identifiers"],
+                    drop_duplicate_studies=False,
+                    drop_duplicated_patients=True,
+                )
                 dataset["series_ids_with_unique_patient_ids_count"] = len(meta_data)
-                meta_information.update({
-                    "series_ids_with_unique_patient_ids_count": {
-                        "identifiers": list(meta_data.keys()),
-                        "meta_data": meta_data,
+                meta_information.update(
+                    {
+                        "series_ids_with_unique_patient_ids_count": {
+                            "identifiers": list(meta_data.keys()),
+                            "meta_data": meta_data,
+                        }
                     }
-                })
+                )
                 db_dataset.meta_information = meta_information
 
                 db.commit()
@@ -383,7 +403,7 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         username=job.username,
         dag_id=job.dag_id,
         # run_id only for service-jobs which are already running in airflow w/known run_id before corresponding db_job is created
-        run_id= job.run_id if job.run_id else generate_run_id(job.dag_id),
+        run_id=job.run_id if job.run_id else generate_run_id(job.dag_id),
         kaapana_id=job.kaapana_instance_id,
         owner_kaapana_instance_name=job.owner_kaapana_instance_name,
         # replaced addressed_kaapana_instance_name w/ owner_kaapana_instance_name or None
@@ -483,7 +503,7 @@ def get_jobs(
     status: str = None,
     remote: bool = True,
     limit=None,
-    dag_id: str =None,
+    dag_id: str = None,
     username: str = None,
 ):
     query = db.query(models.Job)
@@ -491,12 +511,11 @@ def get_jobs(
         query = query.filter_by(dag_id=dag_id)
     if username is not None:
         query = query.filter_by(username=username)
-        
+
     # The rest could be cleaned up someday, but it needs to be assessed what really needs to be returned depending on the if conditions...
     if instance_name is not None and status is not None:
         return (
-            query
-            .filter_by(status=status)
+            query.filter_by(status=status)
             .join(models.Job.kaapana_instance, aliased=True)
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
@@ -505,8 +524,7 @@ def get_jobs(
         )  # same as org but w/o filtering by remote
     elif workflow_name is not None and status is not None:
         return (
-            query
-            .filter_by(status=status)
+            query.filter_by(status=status)
             .join(models.Job.workflow, aliased=True)
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
@@ -515,8 +533,7 @@ def get_jobs(
         )
     elif instance_name is not None:
         return (
-            query
-            .join(models.Job.kaapana_instance, aliased=True)
+            query.join(models.Job.kaapana_instance, aliased=True)
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -524,8 +541,7 @@ def get_jobs(
         )  # same as org but w/o filtering by remote
     elif workflow_name is not None:
         return (
-            query
-            .join(models.Job.workflow, aliased=True)
+            query.join(models.Job.workflow, aliased=True)
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -533,8 +549,7 @@ def get_jobs(
         )
     elif status is not None:
         return (
-            query
-            .filter_by(status=status)
+            query.filter_by(status=status)
             .join(models.Job.kaapana_instance, aliased=True)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -542,8 +557,7 @@ def get_jobs(
         )  # same as org but w/o filtering by remote
     else:
         return (
-            query
-            .join(models.Job.workflow, aliased=True)
+            query.join(models.Job.workflow, aliased=True)
             .join(models.Workflow.kaapana_instance, aliased=True)
             .filter_by(remote=remote)
             .order_by(desc(models.Job.time_updated))
@@ -564,7 +578,7 @@ def prepare_job_update(db_job, job, remote=False):
         db_job.status = "scheduled"
     else:
         db_job.status = job.status
-    
+
     if db_job.status == "scheduled" and db_job.kaapana_instance.remote == False:
         # or (job.status == 'failed'); status='scheduled' for restarting, status='failed' for aborting
         conf_data = db_job.conf_data
@@ -596,9 +610,10 @@ def prepare_job_update(db_job, job, remote=False):
     db_job.time_updated = utc_timestamp
     return db_job
 
+
 def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate], remote=False):
     job_ids = [job.job_id for job in jobs]
-    
+
     db_jobs = db.query(models.Job).filter(models.Job.id.in_(job_ids)).all()
     job_map = {job.id: job for job in db_jobs}
     update_data = []
@@ -619,21 +634,20 @@ def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate], remote=False):
         db.bulk_save_objects(update_data)
         db.commit()
 
-
     for db_job in update_data:
         if db_job.status == "scheduled":
             try:
                 airflow_execute_resp = execute_job_airflow(db_job)
             except Exception as e:
                 print(f"Failed to execute job {db_job.id}: {str(airflow_execute_resp)}")
-                job = schemas.JobUpdate(**{
+                job = schemas.JobUpdate(
+                    **{
                         "job_id": db_job.id,
                         "status": "failed",
-                        "description": "Failed to execute job"
-                })
-                bulk_update_jobs(
-                    db, [job]
+                        "description": "Failed to execute job",
+                    }
                 )
+                bulk_update_jobs(db, [job])
     return update_data
 
 
@@ -814,7 +828,6 @@ def update_external_job(db: Session, db_job):
 
 
 def get_remote_updates(db: Session, periodically=False):
-
     db_client_kaapana = get_kaapana_instance(db)
     if periodically is True and db_client_kaapana.automatic_update is False:
         return
@@ -902,27 +915,49 @@ def get_remote_updates(db: Session, periodically=False):
                 and "data_form" in incoming_job["conf_data"]
                 and "identifiers" in incoming_job["conf_data"]["data_form"]
             ):
-                drop_duplicate_studies = incoming_job["conf_data"].get("workflow_form", {}).get(
-                    "series_uids_with_unique_study_uids", False
+                drop_duplicate_studies = (
+                    incoming_job["conf_data"]
+                    .get("workflow_form", {})
+                    .get("series_uids_with_unique_study_uids", False)
                 )
-                drop_duplicated_patients = incoming_job["conf_data"].get("workflow_form", {}).get(
-                    "series_ids_with_unique_patient_ids", False
+                drop_duplicated_patients = (
+                    incoming_job["conf_data"]
+                    .get("workflow_form", {})
+                    .get("series_ids_with_unique_patient_ids", False)
                 )
 
                 dataset_name = incoming_job["conf_data"]["data_form"]["dataset_name"]
                 db_dataset = get_dataset(db, dataset_name)
                 if drop_duplicate_studies:
-                    identifiers = db_dataset.meta_information["series_uids_with_unique_study_uids_count"]["identifiers"]
-                    meta_data = db_dataset.meta_information["series_uids_with_unique_study_uids_count"]["meta_data"]
+                    identifiers = db_dataset.meta_information[
+                        "series_uids_with_unique_study_uids_count"
+                    ]["identifiers"]
+                    meta_data = db_dataset.meta_information[
+                        "series_uids_with_unique_study_uids_count"
+                    ]["meta_data"]
                 elif drop_duplicated_patients:
-                    identifiers = db_dataset.meta_information["series_ids_with_unique_patient_ids_count"]["identifiers"]
-                    meta_data = db_dataset.meta_information["series_ids_with_unique_patient_ids_count"]["meta_data"]
+                    identifiers = db_dataset.meta_information[
+                        "series_ids_with_unique_patient_ids_count"
+                    ]["identifiers"]
+                    meta_data = db_dataset.meta_information[
+                        "series_ids_with_unique_patient_ids_count"
+                    ]["meta_data"]
                 else:
-                    identifiers = db_dataset.meta_information["identifiers"]["identifiers"]
+                    identifiers = db_dataset.meta_information["identifiers"][
+                        "identifiers"
+                    ]
                     meta_data = db_dataset.meta_information["identifiers"]["meta_data"]
 
-                incoming_job["conf_data"]["data_form"]["identifiers"] = [identifiers[idx] for idx in incoming_job["conf_data"]["data_form"]["identifiers"]]
-                incoming_job["conf_data"]["data_form"]["meta_data"] = [meta_data[identifier] for identifier in incoming_job["conf_data"]["data_form"]["identifiers"]]
+                incoming_job["conf_data"]["data_form"]["identifiers"] = [
+                    identifiers[idx]
+                    for idx in incoming_job["conf_data"]["data_form"]["identifiers"]
+                ]
+                incoming_job["conf_data"]["data_form"]["meta_data"] = [
+                    meta_data[identifier]
+                    for identifier in incoming_job["conf_data"]["data_form"][
+                        "identifiers"
+                    ]
+                ]
 
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
             incoming_job["owner_kaapana_instance_name"] = (
@@ -955,12 +990,18 @@ def get_remote_updates(db: Session, periodically=False):
 
     return {f"Federated backend is up and running!"}
 
+
 def sync_states_from_airflow(db: Session, status: str = None, periodically=False):
     # get list from airflow for jobs in status=status: {'dag_run_id': 'state'} -> airflow_jobs_in_qsr_state
     airflow_jobs_in_state = get_dagruns_airflow(tuple([status]))
     # get list from db with all db_jobs in status=status
     db_jobs_in_state = (
-        db.query(models.Job.id, models.Job.run_id, models.Job.description, models.KaapanaInstance.remote)
+        db.query(
+            models.Job.id,
+            models.Job.run_id,
+            models.Job.description,
+            models.KaapanaInstance.remote,
+        )
         .join(models.Job.kaapana_instance)
         .filter(models.Job.status == status)
         .all()
@@ -971,10 +1012,14 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
     db_run_ids = {db_job.run_id for db_job in db_jobs_in_state}
 
     # Find elements which are in current airflow_jobs_runids but not in db_jobs_runids from previous round
-    diff_airflow_to_db = [job for job in airflow_jobs_in_state if job["run_id"] not in db_run_ids]
+    diff_airflow_to_db = [
+        job for job in airflow_jobs_in_state if job["run_id"] not in db_run_ids
+    ]
 
     # Find elements which are in db_jobs_runids from previous round but not in current airflow_jobs_runids
-    diff_db_to_airflow = [db_job for db_job in db_jobs_in_state if db_job.run_id not in airflow_run_ids]
+    diff_db_to_airflow = [
+        db_job for db_job in db_jobs_in_state if db_job.run_id not in airflow_run_ids
+    ]
 
     if len(diff_airflow_to_db) > 0:
         # request airflow for states of all jobs in diff_airflow_to_db && update db_jobs of all jobs in diff_airflow_to_db
@@ -1002,7 +1047,11 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         bulk_update_jobs(db, jobs_to_update)
 
     if len(diff_db_to_airflow) > 0:
-        run_ids = [diff_db_job.run_id for diff_db_job in diff_db_to_airflow if diff_db_job.run_id is not None and diff_db_job.remote is False]
+        run_ids = [
+            diff_db_job.run_id
+            for diff_db_job in diff_db_to_airflow
+            if diff_db_job.run_id is not None and diff_db_job.remote is False
+        ]
         # Get diff states:
         try:
             resp = get_dagrun_details_airflow(run_ids)
@@ -1014,7 +1063,9 @@ def sync_states_from_airflow(db: Session, status: str = None, periodically=False
         results = resp.get("results", {})
         warning = resp.get("warning", None)
         if warning:
-            logging.error(f"Warning in return results syncing kaapana-backend with Airflow: {warning}")
+            logging.error(
+                f"Warning in return results syncing kaapana-backend with Airflow: {warning}"
+            )
         # update db_jobs of all jobs in diff_db_to_airflow
         jobs_to_update = []
         for diff_db_job in diff_db_to_airflow:
@@ -1353,15 +1404,17 @@ def create_workflow(
 # TODO removed async because our current database is not able to execute async methods
 # async def queue_generate_jobs_and_add_to_workflow(
 
-def thread_create_objects_and_trigger_workflows(jobs_to_create_list: List, workflow=None, workflow_id=None):
-    with SessionLocal() as db:
 
+def thread_create_objects_and_trigger_workflows(
+    jobs_to_create_list: List, workflow=None, workflow_id=None
+):
+    with SessionLocal() as db:
         db_jobs = []
 
         for job in jobs_to_create_list:
             db_job = create_job(db, job)
             db_jobs.append(db_job)
-        
+
         if workflow is not None:
             workflow.workflow_jobs = db_jobs
             db_workflow = create_workflow(db=db, workflow=workflow)
@@ -1451,8 +1504,12 @@ def queue_generate_jobs_and_add_to_workflow(
                         conf_data["data_form"].update(
                             {
                                 "identifiers_count": dataset_info["identifiers_count"],
-                                "series_uids_with_unique_study_uids_count": dataset_info["series_uids_with_unique_study_uids_count"],
-                                "series_ids_with_unique_patient_ids_count": dataset_info["series_ids_with_unique_patient_ids_count"]
+                                "series_uids_with_unique_study_uids_count": dataset_info[
+                                    "series_uids_with_unique_study_uids_count"
+                                ],
+                                "series_ids_with_unique_patient_ids_count": dataset_info[
+                                    "series_ids_with_unique_patient_ids_count"
+                                ],
                             }
                         )
                         break
@@ -1463,7 +1520,7 @@ def queue_generate_jobs_and_add_to_workflow(
         drop_duplicated_patients = conf_data.get("workflow_form", {}).get(
             "series_ids_with_unique_patient_ids", False
         )
-        
+
         if "data_form" in conf_data and "identifiers" in conf_data["data_form"]:
             # Local instance
             meta_data = get_meta_data(
@@ -1476,13 +1533,33 @@ def queue_generate_jobs_and_add_to_workflow(
 
             # TODO dag running tagging for running series_uids
             # os_processor.queue_operations(instance_ids=tagging, dags_running=[json_schema_data.dag_id])
-        elif db_kaapana_instance.remote and "data_form" in conf_data and "identifiers_count" in conf_data["data_form"]:
+        elif (
+            db_kaapana_instance.remote
+            and "data_form" in conf_data
+            and "identifiers_count" in conf_data["data_form"]
+        ):
             if drop_duplicate_studies:
-                conf_data["data_form"]["identifiers"] = list(range(0, conf_data["data_form"]["series_uids_with_unique_study_uids_count"]))
+                conf_data["data_form"]["identifiers"] = list(
+                    range(
+                        0,
+                        conf_data["data_form"][
+                            "series_uids_with_unique_study_uids_count"
+                        ],
+                    )
+                )
             elif drop_duplicated_patients:
-                conf_data["data_form"]["identifiers"] = list(range(0, conf_data["data_form"]["series_ids_with_unique_patient_ids_count"]))
+                conf_data["data_form"]["identifiers"] = list(
+                    range(
+                        0,
+                        conf_data["data_form"][
+                            "series_ids_with_unique_patient_ids_count"
+                        ],
+                    )
+                )
             else:
-                conf_data["data_form"]["identifiers"] = list(range(0, conf_data["data_form"]["identifiers_count"]))
+                conf_data["data_form"]["identifiers"] = list(
+                    range(0, conf_data["data_form"]["identifiers_count"])
+                )
 
         # compose queued_jobs according to 'single_execution'
         queued_jobs = []
@@ -1503,9 +1580,16 @@ def queue_generate_jobs_and_add_to_workflow(
                     }
                 )
         else:
-            check_for_empty_identifiers = conf_data.get("data_form", {}).get("identifiers", None)
-            if check_for_empty_identifiers is not None and len(check_for_empty_identifiers) == 0:
-                logging.warning("No identifiers found in data_form, no job will be created")
+            check_for_empty_identifiers = conf_data.get("data_form", {}).get(
+                "identifiers", None
+            )
+            if (
+                check_for_empty_identifiers is not None
+                and len(check_for_empty_identifiers) == 0
+            ):
+                logging.warning(
+                    "No identifiers found in data_form, no job will be created"
+                )
                 continue
             # if identifiers:
             #     conf_data["data_form"].update({"identifiers": identifiers})
@@ -1535,10 +1619,15 @@ def queue_generate_jobs_and_add_to_workflow(
     if use_thread:
         Thread(
             target=thread_create_objects_and_trigger_workflows,
-            args=(jobs_to_create_list, workflow,)
+            args=(
+                jobs_to_create_list,
+                workflow,
+            ),
         ).start()
     else:
-        return thread_create_objects_and_trigger_workflows(jobs_to_create_list, workflow_id=json_schema_data.workflow_id)
+        return thread_create_objects_and_trigger_workflows(
+            jobs_to_create_list, workflow_id=json_schema_data.workflow_id
+        )
 
     return Response("Workflow and jobs will be created", status_code=200)
 
@@ -1688,10 +1777,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                     detail="Job updating while updating the workflow failed!",
                 )
 
-        Thread(
-            target=thread_bulk_update_jobs,
-            args=(jobs_to_update,)
-        ).start()
+        Thread(target=thread_bulk_update_jobs, args=(jobs_to_update,)).start()
         # do call to remote's experiment to start jobs there
         # extract all remote involved_instances of workflow
         involved_instances = db_workflow.involved_kaapana_instances.strip("{}").split(
@@ -1796,11 +1882,11 @@ def delete_workflow(db: Session, workflow_id: str):
         db.commit()
         return {
             "type": "success",
-            "title": "Successfully deleted workflow with all its jobs."
+            "title": "Successfully deleted workflow with all its jobs.",
         }
     return {
         "type": "warning",
-        "title": f"Deleted {count} jobs! To delete the workflow first abort all jobs or wait until they are finished."
+        "title": f"Deleted {count} jobs! To delete the workflow first abort all jobs or wait until they are finished.",
     }
 
 

@@ -157,6 +157,7 @@ def collect_labels(queue_list):
                 if label_key not in found_label_keys:
                     found_label_keys.append(label_key)
 
+    # python's sorted() function sorts the list found_label_keys by default in an ascending sort in alphabetic (lexicographic) order.
     found_label_keys = sorted(found_label_keys)
     print(f"# Found {len(found_label_keys)} labels -> generating global seg info...")
 
@@ -166,6 +167,7 @@ def collect_labels(queue_list):
         label_encoding_counter += 1
         assert label_encoding_counter not in global_labels_info.values()
         assert label_found not in global_labels_info
+        # new globally valid label encodings get assigned to found_labels
         global_labels_info[label_found] = label_encoding_counter
     print("#")
     print("##################################################")
@@ -387,18 +389,18 @@ def check_overlap(gt_map, new_map, seg_nifti):
 def merge_niftis(queue_dict):
     global merge_found_niftis, global_labels_info, global_labels_info_count, merged_counter, delete_merged_data, fail_if_overlap, skipping_level
 
+    # load queue_dict entries to variables
     target_dir = queue_dict["target_dir"]
     base_image_path = queue_dict["base_image"]
     seg_nifti_list = queue_dict["seg_files"]
     multi = queue_dict["multi"]
     Path(target_dir).mkdir(parents=True, exist_ok=True)
 
+    # start merging process by defining new_gt_map as shaped as base_image
     base_image_loaded = nib.load(base_image_path)
     base_image_dimensions = base_image_loaded.shape
     try:
-        new_gt_map = np.zeros_like(
-            base_image_loaded.get_fdata().astype(int)
-        )  # This one fails!
+        new_gt_map = np.zeros_like(base_image_loaded.get_fdata().astype(int))
     except EOFError:
         return queue_dict, "false satori export"
     # new_gt_map_int_encodings = list(np.unique(new_gt_map))
@@ -416,6 +418,7 @@ def merge_niftis(queue_dict):
     print("#")
     print("#")
 
+    # iterate over corresponding seg_niftis of current base_image
     for seg_nifti in seg_nifti_list:
         seg_nifti_id = basename(seg_nifti).replace(".nii.gz", "")
 
@@ -429,6 +432,8 @@ def merge_niftis(queue_dict):
             local_labels_info = {"Clear Label": 0}
         print(f"# Processing NIFTI: {seg_nifti}")
         print("#")
+
+        # get existing_configuration from meta_info: {"<label_name>": <label_int>}
         existing_configuration = get_seg_info(input_nifti=seg_nifti)
 
         if existing_configuration is None:
@@ -439,6 +444,8 @@ def merge_niftis(queue_dict):
         print("#")
         print(f"# Loading NIFTI: {seg_nifti}")
         loaded_nib_nifti = nib.load(seg_nifti)
+
+        # check dims of seg_nifti and resample if not fitting with base_image's dims
         if base_image_dimensions != loaded_nib_nifti.shape:
             print("# Issue with different dimensions in seg-NIFTIS!")
             print("# -> starting resampling..")
@@ -454,7 +461,7 @@ def merge_niftis(queue_dict):
         else:
             print("# No resampling needed.")
 
-        print(f"#")
+        #
         transformations = check_transformations(current_config=existing_configuration)
         if len(transformations) == 0:
             print(f"# No transformations needed!")
@@ -868,6 +875,8 @@ if target_dict_dir is not None:
     print("#")
 
 batch_dir_path = join("/", workflow_dir, batch_name)
+
+### COMPOSE base_image_ref_dict ###
 # Loop for every batch-element (usually series)
 batch_folders = sorted([f for f in glob(join(batch_dir_path, "*"))])
 for batch_element_dir in batch_folders:
@@ -954,8 +963,28 @@ for batch_element_dir in batch_folders:
         ][batch_element_dir]
 
     base_image_ref_dict[base_series_id]["batch_elements"] = batch_elements_sorted
+### base_image_ref_dict composed and is strcutured as described in the following
+# {
+#   "<ct_nifti_fname>": {
+#       "base_file": "<path_to_ct_nifti_fname>",
+#       "output_dir": "<path_to_segcheck_out_dir>",
+#       "batch_elements": {
+#           "<path_of_batch_element>": {
+#               "file_count": <number_of_segnifti_belonging_to_ctnifti>,
+#               "seg_files": [
+#                   <list_of_paths_to_segniftis>
+#               ]
+#           }
+#       }
+#   },
+#   "<ct_nifti_fname>": {
+#       ...
+#   }
+# }
 
+### COMPOSE queue_dicts ###
 queue_dicts = []
+# iterate over ct_nifti_fname of base_image_ref_dict
 for key in sorted(
     base_image_ref_dict.keys(),
     key=lambda key: base_image_ref_dict[key]["batch_elements"][
@@ -1003,8 +1032,32 @@ for key in sorted(
 
         # for seg_element_file in info_dict["seg_files"]:
     queue_dicts.append(segs_to_merge)
+### queue_dicts composed and is strcutured as described in the following
+# [
+#   {
+#       "base_image": "<path_to_ct_nifti_fname>",
+#       "target_dir": "<path_to_segcheck_out_dir>",
+#       "multi": <indicator_whether_multiple_base_images_are_present>
+#       "seg_files": [
+#           <list_of_paths_to_segniftis>
+#       ],
+#       "batch_elements_to_remove": [
+#           <list_of_paths_of_base_images_to_remove>
+#       ],
+#   }
+# ]
 
+#
 if target_dict_dir is None:
+    # collects labels from all present batch elements, sorts in alphabetic order and assigns new ascending label encodings
+    # writes global_seg_info to global_seg_info.json:
+    # {
+    #     "Clear Label": 0,
+    #     "aorta": 1,
+    #     "esophagus": 2,
+    #     "gallbladder": 3,
+    #     ...,
+    # }
     collect_labels(queue_list=queue_dicts)
 
 print("#")

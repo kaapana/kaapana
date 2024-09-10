@@ -20,4 +20,7 @@ Werkzeug==3.0.1
 cryptography==42.0.5
 jupyter-server==2.12.5
 pyjwt==2.8.0
-pydantic==1.10.14
+pydantic==2.7.4
+pydantic-settings==2.3.3
+prometheus-client==0.20.0
+aiohttp==3.9.5

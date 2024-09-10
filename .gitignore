@@ -35,4 +35,3 @@ request_config.yaml
 .venv/
 tests/airflow_workflow_dir/*
 tests/venv/*
-test.py

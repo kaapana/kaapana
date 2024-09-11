@@ -34,7 +34,7 @@ export default defineConfig({
     }),
   ],
   define: { 'process.env': {} },
-  base: "/projectsui",
+  base: "/projects-ui",
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

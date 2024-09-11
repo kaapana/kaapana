@@ -21,7 +21,7 @@ spec:
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
             - name: WAIT
-              value: "dcm4che,dcm4chee-service.{{ .Values.global.services_namespace }}.svc,11115;"
+              value: "dcm4chee,dcm4chee-service.{{ .Values.global.services_namespace }}.svc,11115;"
             - name: DELAY
               value: "2"
             - name: TIMEOUT
@@ -36,9 +36,9 @@ spec:
             - name: WORKERS
               value: "4"
             - name: DICOMWEB_BASE_URL
-              value: "http://dcm4chee-service.{{ .Values.global.services_namespace }}.svc:8080/dcm4chee-arc/aets/KAAPANA/rs"
+              value: "/dicom-web-filter"
             - name: DICOMWEB_BASE_URL_WADO_URI
-              value: "http://dcm4chee-service.{{ .Values.global.services_namespace }}.svc:8080/dcm4chee-arc/aets/KAAPANA/wado"
+              value: "/dicom-web-filter/wado-uri"
 
           ports:
             - containerPort: 8080

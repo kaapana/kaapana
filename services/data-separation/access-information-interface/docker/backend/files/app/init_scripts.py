@@ -6,14 +6,9 @@ from kaapanapy.helper import get_project_user_access_token
 from sqlalchemy.exc import IntegrityError
 
 from .database import async_session
-from .projects.crud import (
-    create_rights,
-    create_roles,
-    create_roles_rights_mapping,
-    get_projects,
-    get_rights,
-    get_roles,
-)
+from .projects.crud import (create_rights, create_roles,
+                            create_roles_rights_mapping, get_projects,
+                            get_rights, get_roles)
 from .projects.schemas import CreateRight, CreateRole
 
 logger = logging.getLogger(__name__)

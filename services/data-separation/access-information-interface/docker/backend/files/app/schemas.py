@@ -1,45 +1,8 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
 
 
 class OrmBaseModel(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
-
-class User(OrmBaseModel):
-    keycloak_id: str
-
-
-class Project(OrmBaseModel):
-    id: int
-    external_id: Optional[str] = None
-    name: str
-    description: str
-
-
-class Right(OrmBaseModel):
-    description: str
-    claim_key: str
-    claim_value: str
-
-
-class Role(OrmBaseModel):
-    description: str
-    name: str
-
-
-class Data(OrmBaseModel):
-    description: str
-    data_type: str
-    series_instance_uid: str
-
-
-class DICOMSeries(Data):
-    series_instance_uid: str
-
-
-class DummyDataType(Data):
-    dummy_text: str
 
 
 # AII

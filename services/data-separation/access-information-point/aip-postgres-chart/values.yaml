@@ -4,4 +4,3 @@ global:
   - name: access-information-point
     host_path: /postgres-access-information-point
     mount_path: "/var/lib/postgresql/data"
-  postgres_user: kaapanauser

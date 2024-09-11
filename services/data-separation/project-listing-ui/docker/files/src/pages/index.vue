@@ -1,20 +1,29 @@
 <template>
   <v-container>
+    <h4 class="text-h4 py-8">User Projects</h4>
     <v-table>
       <thead>
         <tr>
           <th class="text-left">
+            Project ID
+          </th>
+          <th class="text-left">
             Name
           </th>
           <th class="text-left">
-            Calories
+            Description
+          </th>
+          <th class="text-left">
+            External ID
           </th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="item in desserts" :key="item.name">
+        <tr v-for="item in projects" :key="item.name">
+          <td>{{ item.id }}</td>
           <td>{{ item.name }}</td>
-          <td>{{ item.calories }}</td>
+          <td>{{ item.description }}</td>
+          <td>{{ item.external_id }}</td>
         </tr>
       </tbody>
     </v-table>
@@ -22,66 +31,35 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { defineComponent } from 'vue';
 import axios, { AxiosResponse } from 'axios';
 
 const client = axios.create({
   baseURL: 'https://e230-pc25.inet.dkfz-heidelberg.de/aii',
 });
 
+type ProjectItem = {
+  id: number,
+  external_id?: number,
+  name: string,
+  description?: string,
+}
 
 export default defineComponent({
   props: {},
   data() {
     return {
-      desserts: [
-        {
-          name: 'Frozen Yogurt',
-          calories: 159,
-        },
-        {
-          name: 'Ice cream sandwich',
-          calories: 237,
-        },
-        {
-          name: 'Eclair',
-          calories: 262,
-        },
-        {
-          name: 'Cupcake',
-          calories: 305,
-        },
-        {
-          name: 'Gingerbread',
-          calories: 356,
-        },
-        {
-          name: 'Jelly bean',
-          calories: 375,
-        },
-        {
-          name: 'Lollipop',
-          calories: 392,
-        },
-        {
-          name: 'Honeycomb',
-          calories: 408,
-        },
-        {
-          name: 'Donut',
-          calories: 452,
-        },
-        {
-          name: 'KitKat',
-          calories: 518,
-        },
-      ],
+      projects: [] as ProjectItem[],
     }
   },
   mounted() {
-    client.get('projects').then((resp: AxiosResponse) => {
-      console.log(resp);
-    })
+    try {
+      client.get('projects').then((resp: AxiosResponse) => {
+        this.projects = resp.data as ProjectItem[]
+      })
+    } catch (error: unknown) {
+      console.log(error)
+    }
   },
 })
 </script>

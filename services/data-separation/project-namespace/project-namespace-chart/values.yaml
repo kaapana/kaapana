@@ -2,7 +2,6 @@
 global:
   default_jobs_requests_mem: "50Mi"
   default_jobs_limits_mem: "50Mi"
-  project_namespace: "project-admin"
   dynamicVolumes:
   - name: tensorboard
     host_path: /tensorboard

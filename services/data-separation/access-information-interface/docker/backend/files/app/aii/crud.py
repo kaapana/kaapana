@@ -1,14 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..models import (
-    Projects,
-    Data,
-    Rights,
-    Roles,
-    UsersProjectsRoles,
-    DataProjects,
-    RolesRights,
-)
+
+from ..models import Projects, Rights, Roles, RolesRights, UsersProjectsRoles
 
 
 async def get_user_projects(session: AsyncSession, keycloak_id: str):
@@ -42,16 +35,6 @@ async def get_user_rights(session: AsyncSession, keycloak_id: str):
     )
 
     return result.all()
-
-
-async def get_project_data(session: AsyncSession, project_id: int):
-    result = await session.execute(
-        select(Data)
-        .join(DataProjects, Data.id == DataProjects.data_id)
-        .filter(DataProjects.project_id == project_id)
-    )
-    return result.scalars().all()
-
 
 async def get_projects(session: AsyncSession, name: str = None):
     stmt = select(Projects)

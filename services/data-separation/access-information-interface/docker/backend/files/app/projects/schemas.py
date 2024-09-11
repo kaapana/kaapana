@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict
 from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 class OrmBaseModel(BaseModel):
@@ -43,16 +44,3 @@ class Role(OrmBaseModel):
     id: int
     description: str
     name: str
-
-
-class CreateData(OrmBaseModel):
-    description: str
-    data_type: str
-    series_instance_uid: str
-
-
-class Data(OrmBaseModel):
-    id: int
-    description: str
-    data_type: str
-    series_instance_uid: str

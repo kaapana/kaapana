@@ -1,45 +1,34 @@
-import os
 import glob
-import re
-import shutil
-import requests
-import time
-from datetime import datetime
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.utils.state import State
-from kaapana.kubetools import pod_launcher
-from kaapana.kubetools.volume_mount import VolumeMount
-from kaapana.kubetools.volume import Volume
-from kaapana.kubetools.secret import Secret
-from kaapana.kubetools.pod import Pod
-from kaapana.kubetools.pod_stopper import PodStopper
-from airflow.models.skipmixin import SkipMixin
-from kaapana.kubetools.resources import Resources as PodResources
-from datetime import datetime, timedelta
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.dates import days_ago
-from airflow.exceptions import AirflowSkipException
-from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
-from kaapana.blueprints.kaapana_global_variables import (
-    AIRFLOW_WORKFLOW_DIR,
-    BATCH_NAME,
-    PROCESSING_WORKFLOW_DIR,
-    ADMIN_NAMESPACE,
-    PULL_POLICY_IMAGES,
-    DEFAULT_REGISTRY,
-    KAAPANA_BUILD_VERSION,
-    PLATFORM_VERSION,
-    GPU_SUPPORT,
-)
-
-from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperFederated import federated_sharing_decorator
-import uuid
 import json
 import logging
-from airflow.models import Variable
+import os
+import re
+import shutil
+import time
+from datetime import datetime, timedelta
 
+import requests
+from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.models import BaseOperator, Variable
+from airflow.models.skipmixin import SkipMixin
+from airflow.utils.dates import days_ago
+from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
+from kaapana.blueprints.kaapana_global_variables import (
+    ADMIN_NAMESPACE, AIRFLOW_WORKFLOW_DIR, BATCH_NAME, DEFAULT_REGISTRY,
+    GPU_SUPPORT, KAAPANA_BUILD_VERSION, PLATFORM_VERSION,
+    PROCESSING_WORKFLOW_DIR, PULL_POLICY_IMAGES)
+from kaapana.blueprints.kaapana_utils import (cure_invalid_name,
+                                              get_release_name)
+from kaapana.kubetools import pod_launcher
+from kaapana.kubetools.pod import Pod
+from kaapana.kubetools.pod_stopper import PodStopper
+from kaapana.kubetools.resources import Resources as PodResources
+from kaapana.kubetools.secret import Secret
+from kaapana.kubetools.volume import Volume
+from kaapana.kubetools.volume_mount import VolumeMount
+from kaapana.operators.HelperCaching import cache_operator_output
+from kaapana.operators.HelperFederated import federated_sharing_decorator
 
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
@@ -742,9 +731,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 f"Release {release_name} was uninstalled or never installed. My job is done here!"
             )
         else:
-            from kaapana.operators.KaapanaApplicationOperator import (
-                KaapanaApplicationOperator,
-            )
+            from kaapana.operators.KaapanaApplicationOperator import \
+                KaapanaApplicationOperator
 
             KaapanaApplicationOperator.uninstall_helm_chart(context)
 

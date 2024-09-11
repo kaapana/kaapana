@@ -9,5 +9,17 @@ spec:
   selector:
     app-name: dicom-web-multiplexer
   ports:
-    - port: 8081
-      targetPort: 8081
+{{- if .Values.global.dev_files }}
+    - name: dcm4che-http
+      port: 8080 
+      targetPort: 8080
+      nodePort: 8080 # only for development!
+  type: NodePort # only for development!
+{{- else }}
+    - name: dcm4che-http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
+{{- end }}
+    

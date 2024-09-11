@@ -1,11 +1,13 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+
+from . import init_scripts
 from .aii.routes import router as aii_router
-from .projects.routes import router as projects_router
 from .database import async_engine
 from .models import Base
-from contextlib import asynccontextmanager
-from . import init_scripts
-import logging
+from .projects.routes import router as projects_router
 
 logger = logging.getLogger(__name__)
 

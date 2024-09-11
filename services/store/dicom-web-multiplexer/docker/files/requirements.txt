@@ -4,5 +4,4 @@ SQLAlchemy==2.0.30
 # Dev dependencies
 gunicorn==21.2.0
 debugpy==1.5.1
-aiohttp==3.9.5 
-requests
+aiohttp==3.9.5

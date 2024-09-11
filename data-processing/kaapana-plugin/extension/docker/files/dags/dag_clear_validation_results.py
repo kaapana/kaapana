@@ -6,7 +6,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 ui_forms = {
@@ -29,9 +29,7 @@ args = {
 
 dag = DAG(dag_id="clear-validation-results", default_args=args, schedule_interval=None)
 
-get_input_json = LocalGetInputDataOperator(
-    dag=dag, name="get-json-input-data", data_type="json"
-)
+get_input_json = GetInputOperator(dag=dag, name="get-json-input-data", data_type="json")
 
 clear_validation_results = LocalClearValidationResultOperator(
     dag=dag,

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from modify_dcmseg.LocalModifySegLabelNamesOperator import (
@@ -78,7 +78,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(
+get_input = GetInputOperator(
     dag=dag, name="get-input", check_modality=True, parallel_downloads=5
 )
 

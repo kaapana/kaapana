@@ -4,8 +4,10 @@ import glob
 import json
 import os
 import shutil
-from collections import defaultdict
+import time
 from datetime import timedelta
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, join
 from pathlib import Path
@@ -13,8 +15,6 @@ from pathlib import Path
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
-from kaapana.operators.HelperOpensearch import HelperOpensearch
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__file__)
@@ -53,11 +53,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         ):
             dag_modalities = config["form_data"]["input"].lower()
             if input_modality not in dag_modalities:
-                logger.error("check_dag_modality failed!")
-                logger.error(
-                    f"DAG modality vs input modality: {dag_modalities} vs {input_modality}"
+                raise Exception(
+                    "check_dag_modality failed! Wrong modality for this DAG! ABORT. DAG modality vs input modality: {} vs {}".format(
+                        dag_modalities, input_modality
+                    )
                 )
-                raise ValueError("Wrong modality for this DAG. Abort.")
             else:
                 logger.warning("Could not find DAG modality in DAG-run conf")
                 logger.warning("Skipping 'check_dag_modality'")
@@ -70,7 +70,6 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             series_dict["seriesUID"],
             series_dict["dag_run_id"],
         )
-        logger.info(f"Start download series: {seriesUID}")
         target_dir = os.path.join(
             self.airflow_workflow_dir,
             dag_run_id,
@@ -78,13 +77,12 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             seriesUID,
             self.operator_out_dir,
         )
-        logger.info(f"# Target_dir: {target_dir}")
 
         if not os.path.exists(target_dir):
             os.makedirs(target_dir)
 
         if self.data_type == "dicom":
-            download_successful = self.dcmweb_helper.downloadSeries(
+            download_successful = self.dcmweb_helper.download_series(
                 series_uid=seriesUID, target_dir=Path(target_dir)
             )
             if not download_successful:
@@ -225,12 +223,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 return
 
         if "query" in self.data_form and "identifiers" in self.data_form:
-            logger.error(
+            raise Exception(
                 "You defined 'identifiers' and a 'query', only one definition is supported!"
             )
-            exit(1)
         if "query" in self.data_form:
-            print(
+            logger.info(
                 HelperOpensearch.get_query_dataset(
                     self.data_form["query"], only_uids=True
                 )
@@ -245,9 +242,27 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         dataset_limit = int(self.data_form.get("dataset_limit", 0))
         self.dataset_limit = dataset_limit if dataset_limit > 0 else None
 
-        if not self.data_form["identifiers"]:
-            logger.error("Issue with data form -> exit. ")
-            exit(1)
+        if len(self.data_form["identifiers"]) > 0:
+            logger.info(
+                f"{self.include_custom_tag_property=}, {self.exclude_custom_tag_property=}"
+            )
+            include_custom_tag = ""
+            exclude_custom_tag = ""
+            if self.include_custom_tag_property != "":
+                include_custom_tag = self.conf["workflow_form"][
+                    self.include_custom_tag_property
+                ]
+            if self.exclude_custom_tag_property != "":
+                exclude_custom_tag = self.conf["workflow_form"][
+                    self.exclude_custom_tag_property
+                ]
+            self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(
+                self.data_form["identifiers"],
+                include_custom_tag=include_custom_tag,
+                exclude_custom_tag=exclude_custom_tag,
+            )
+        else:
+            raise Exception(f"Issue with data form! {self.data_form}")
 
         logger.debug(f"{self.include_custom_tag_property=}")
         logger.debug(f"{self.exclude_custom_tag_property=}")
@@ -311,32 +326,45 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         )
         logger.debug(f"SERIES TO LOAD: {len(download_list)}")
         if len(download_list) == 0:
-            raise AssertionError("No series to download!")
+            raise Exception("No series to download !!")
         series_download_fail = []
+        self.dcmweb_helper = get_dcmweb_helper()
 
-        grouped_downloads = defaultdict(list)
+        num_done = 0
+        num_total = len(download_list)
+        time_start = time.time()
 
-        for item in download_list:
-            grouped_downloads[item["dcmweb_endpoint"]].append(item)
+        with ThreadPool(self.parallel_downloads) as threadpool:
+            results = threadpool.imap_unordered(self.get_data, download_list)
+            for download_successful, series_uid in results:
+                if not download_successful:
+                    series_download_fail.append(series_uid)
 
-        for dcmweb_endpoint, group_download_list in grouped_downloads.items():
-            self.dcmweb_helper = get_dcmweb_helper(
-                application_entity="KAAPANA",
-                dag_run=kwargs["dag_run"],
-                dcmweb_endpoint=dcmweb_endpoint,
-            )
-            logger.info(f"Retrieve files from endpoint: {dcmweb_endpoint}")
-            with ThreadPool(self.parallel_downloads) as threadpool:
-                results = threadpool.imap_unordered(self.get_data, group_download_list)
-                for download_successful, series_uid in results:
-                    logger.info(f"Series download successful: {series_uid=}")
-                    if not download_successful:
-                        series_download_fail.append(series_uid)
+                num_done += 1
 
-                if len(series_download_fail) > 0:
-                    raise AssertionError(
-                        f"Some series could not be downloaded : {series_download_fail=} "
+                if num_done % 10 == 0:
+                    time_elapsed = time.time() - time_start
+                    logger.info(f"{num_done}/{num_total} done")
+                    # Format nicely in minutes and seconds
+                    logger.info(
+                        "Time elapsed: %d:%02d minutes" % divmod(time_elapsed, 60)
                     )
+                    # Format nicely in minutes and seconds
+                    logger.info(
+                        "Estimated time remaining: %d:%02d minutes"
+                        % divmod(time_elapsed / num_done * (num_total - num_done), 60)
+                    )
+                    # Log how many series are being downloaded per second on average
+                    logger.info("Series per second: %.2f" % (num_done / time_elapsed))
+
+            if len(series_download_fail) > 0:
+                raise Exception(
+                    "Some series could not be downloaded: {}".format(
+                        series_download_fail
+                    )
+                )
+
+        logger.info("## All series downloaded successfully")
 
     def __init__(
         self,

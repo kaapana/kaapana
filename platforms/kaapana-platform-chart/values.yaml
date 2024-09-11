@@ -108,11 +108,6 @@ extension_params:
         definition: Namespace for helm charts of this platform
         type: string
         value: ""
-    jobs_namespace:
-        default: jobs
-        definition: Kubernetes namespace for jobs
-        type: string
-        value: ""
     services_namespace:
         default: services
         definition: "Namespace for fundamental resources in this platform, such as the backend and the landing page"

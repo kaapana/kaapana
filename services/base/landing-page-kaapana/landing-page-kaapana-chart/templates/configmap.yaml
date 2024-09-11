@@ -16,11 +16,6 @@ data:
         "linkTo": "/api",
         "description": "The Store is the place where the data like images, object, etc. are stored. I.e. the platform has its own PACS system to which one can send images from another PACS. All application running within the platofmr will communicate with the PACS of the platform. Besides the PACS there can be other storage applications or tools like XNAT or Minio activated.",
         "subSections": {
-          "dcm4che": {
-            "label": "PACS",
-            "endpoint": "/dcm4chee-arc",
-            "linkTo": "/dcm4chee-arc/ui2/"
-          },
           "ohif": {
             "label": "OHIF",
             "endpoint": "/ohif",

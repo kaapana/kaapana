@@ -13,7 +13,7 @@ from external_pacs.utils import (
 )
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 logging.basicConfig(

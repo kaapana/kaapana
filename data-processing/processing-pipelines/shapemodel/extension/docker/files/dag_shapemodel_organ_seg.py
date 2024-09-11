@@ -8,7 +8,7 @@ from datetime import datetime
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 from shapemodel.OrganSegmentationOperator import OrganSegmentationOperator
@@ -109,7 +109,7 @@ dag = DAG(
     max_active_runs=15,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
+get_input = GetInputOperator(dag=dag, check_modality=True)
 
 # Convert DICOM to NRRD
 dcm2nrrd = DcmConverterOperator(dag=dag, input_operator=get_input, output_format="nrrd")

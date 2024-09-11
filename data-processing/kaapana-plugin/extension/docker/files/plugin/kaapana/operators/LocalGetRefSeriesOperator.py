@@ -6,11 +6,10 @@ from os.path import join
 from pathlib import Path
 
 import pydicom
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb, get_dcmweb_helper
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 
 
 class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
@@ -21,11 +20,49 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     The downloading is executed in a structured manner such that the downloaded data is saved to target directories named with the series_uid.
     """
 
+    def __init__(
+        self,
+        dag,
+        name: str = "get-ref-series",
+        search_policy: str = "reference_uid",  # reference_uid, study_uid, patient_uid
+        data_type: str = "dicom",
+        modality: str = None,
+        target_level: str = "batch_element",
+        dicom_tags: list = [],
+        expected_file_count: str = "all",  # int or 'all'
+        limit_file_count: int = None,
+        parallel_downloads: int = 3,
+        batch_name: str = None,
+        **kwargs,
+    ):
+        self.modality = modality
+        self.data_type = data_type
+        self.target_level = target_level
+        self.dicom_tags = (
+            dicom_tags  # studyID dicom_tags=[{'id':'StudyID','value':'nnUnet'},{...}]
+        )
+        self.expected_file_count = expected_file_count
+        self.limit_file_count = limit_file_count
+        self.search_policy = search_policy
+
+        self.parallel_downloads = parallel_downloads
+        self.batch_name = batch_name
+
+        super().__init__(
+            dag=dag,
+            name=name,
+            batch_name=batch_name,
+            python_callable=self.get_files,
+            execution_timeout=timedelta(minutes=120),
+            **kwargs,
+        )
+
     def download_series(self, series):
         print("# Downloading series: {}".format(series["reference_series_uid"]))
         try:
             if self.data_type == "dicom":
-                download_successful = self.dcmweb_helper.downloadSeries(
+                download_successful = self.dcmweb_helper.download_series(
+                    study_uid=None,
                     series_uid=series["reference_series_uid"],
                     target_dir=series["target_dir"],
                     expected_object_count=series["expected_object_count"],
@@ -56,17 +93,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         print("# Starting module LocalGetRefSeriesOperator")
-        workflow_form = kwargs["dag_run"].conf["workflow_form"]
-        dcmweb_endpoint = workflow_form.get("dcmweb_endpoint")
-
-        self.dcmweb_helper = get_dcmweb_helper(
-            application_entity=self.aetitle,
-            dag_run=kwargs["dag_run"],
-            dcmweb_endpoint=dcmweb_endpoint,
-        )
-        if self.dcmweb_helper is None:
-            print("HelperDcmWeb couldn't be retrieved. Abort")
-            exit(1)
+        self.dcmweb_helper = get_dcmweb_helper()
 
         run_dir = join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [f for f in glob.glob(join(run_dir, self.batch_name, "*"))]
@@ -314,66 +341,3 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 print(result)
                 if "error" in result.lower():
                     raise ValueError("ERROR")
-
-    def __init__(
-        self,
-        dag,
-        name="get-ref-series",
-        search_policy="reference_uid",  # reference_uid, study_uid, patient_uid
-        data_type="dicom",
-        modality=None,
-        target_level="batch_element",
-        dicom_tags=[],
-        expected_file_count="all",  # int or 'all'
-        limit_file_count=None,
-        parallel_downloads=3,
-        pacs_dcmweb_host=f"http://dcm4chee-service.{SERVICES_NAMESPACE}.svc",
-        pacs_dcmweb_port="8080",
-        aetitle="KAAPANA",
-        batch_name=None,
-        **kwargs,
-    ):
-        """
-        :param name: "get-ref-series" (default)
-        :param search_policy: reference_uid
-        :param data_type: 'dicom' or 'json'
-        :param modality: None (defalut)
-        :param taget_level: "batch_element" (default)
-        :param dicom_tags: (empty list by default)
-        :param expected_file_count: either number of files (type: int) or "all"
-        :param limit_file_count: to limit number of files
-        :param parallel_downloads: number of files to download in parallel (default: 3)
-        :param pacs_dcmweb_host: "http://dcm4chee-service.{SERVICES_NAMESPACE}.svc" (default)
-        :param pacs_dcmweb_port: 8080 (default)
-        :param aetitle: "KAAPANA" (default)
-        :param batch_name: None (default)
-        """
-
-        self.modality = modality
-        self.data_type = data_type
-        self.target_level = target_level
-        self.dicom_tags = (
-            dicom_tags  # studyID dicom_tags=[{'id':'StudyID','value':'nnUnet'},{...}]
-        )
-        self.aetitle = aetitle
-        self.expected_file_count = expected_file_count
-        self.limit_file_count = limit_file_count
-        self.search_policy = search_policy
-        self.pacs_dcmweb = (
-            pacs_dcmweb_host
-            + ":"
-            + pacs_dcmweb_port
-            + "/dcm4chee-arc/aets/"
-            + aetitle.upper()
-        )
-        self.parallel_downloads = parallel_downloads
-        self.batch_name = batch_name
-
-        super().__init__(
-            dag=dag,
-            name=name,
-            batch_name=batch_name,
-            python_callable=self.get_files,
-            execution_timeout=timedelta(minutes=120),
-            **kwargs,
-        )

@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 
+from .config import DICOMWEB_BASE_URL
 from .proxy_request import proxy_request
 
 app = FastAPI(
@@ -12,27 +13,18 @@ app = FastAPI(
 
 
 async def get_endpoint_from_opensearch(series_uid: str):
-    """
-    Mock OpenSearch call. Replace this with actual OpenSearch querying logic.
-    Returns:
-    - 'local': for local processing
-    - 'remote': for remote processing
-    """
-    # Placeholder logic, return 'local' or 'remote' based on some condition.
-    return "Local"
+    return "local"
 
 
 @app.middleware("http")
-async def process_request_middleware(request: Request):
-
+async def process_request_middleware(request: Request, call_next):
     series_uid = request.query_params.get("SeriesUID", "default")
     endpoint = await get_endpoint_from_opensearch(series_uid)
 
     if endpoint == "local":
-        return proxy_request(request, str(request.url), request.method, timeout=10)
-    elif endpoint == "google":
-        print("Google Dcm Web")
-    else:
-        raise NotImplementedError(
-            "This will be implemented in the future. Currently supported PACS are: google, dcm4chee"
+        return await proxy_request(
+            request, str(request.url), request.method, timeout=10
         )
+    else:
+        response = await call_next(request)
+        return response

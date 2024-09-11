@@ -32,7 +32,7 @@ extension_params:
       <h1>Host Directory</h1><br/>
       <p>A subdirectory of $FAST_DATA_DIR on the machine Kaapana is running on (e.g. /minio-sync referes to $FAST_DAT_DIR/minio-sync)</p>
     type: "string"
-    value: ""
+    value: "/minio-sync"
     default: "/minio-sync"
 
   minio_path:

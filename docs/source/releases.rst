@@ -3,6 +3,26 @@
 Changelog
 #########
 
+.. _release-0.3.5:
+
+-------------------------
+
+********************
+Release Notes v0.3.5
+********************
+
+September 11, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Build fix - wsi-converter dependency link updated
+* Removed breaking LocalDiceOperator from nnUNet
+* Fix file opening issue in Collabora for nested files
+
+
 .. _release-0.3.4:
 
 -------------------------

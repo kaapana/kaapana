@@ -17,7 +17,7 @@ RUN chmod 755 ./opa
 
 COPY files/bundle/ bundle/
 RUN mkdir -p /kaapana/app/authz 
-RUN ./opa build -b bundle/ -o authz/endpoints.tar.gz
+# RUN ./opa build -b bundle/ -o authz/endpoints.tar.gz
 
 ### DEVELOP
 #CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000", "--reload"]

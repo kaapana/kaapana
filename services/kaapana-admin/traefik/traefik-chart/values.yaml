@@ -6,5 +6,5 @@ global:
   https_port: 443
   namespace: "{{ .Values.global.admin_namespace }}"
   dynamicVolumes:
-  - name: treaefik
+  - name: traefik
     host_path: /traefik

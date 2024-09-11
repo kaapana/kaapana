@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dicom-web-filter-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels: 
+    app-name: dicom-web-filter
+spec:
+  selector: 
+    app-name: dicom-web-filter
+  ports:
+    - port: 8080
+      targetPort: 8080

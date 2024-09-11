@@ -22,21 +22,6 @@
       "userinfo.token.claim" : "true"
     }
   }, {
-    "name" : "KaapanaMinioAudience",
-    "protocol" : "openid-connect",
-    "protocolMapper" : "oidc-usermodel-attribute-mapper",
-    "consentRequired" : false,
-    "config" : {
-      "aggregate.attrs": "true",
-      "userinfo.token.claim" : "true",
-      "multivalued": "true",
-      "user.attribute" : "policy",
-      "id.token.claim" : "true",
-      "access.token.claim" : "true",
-      "claim.name" : "policy",
-      "jsonType.label" : "String"
-    }
-  }, {
     "name" : "kaapana-audience",
     "protocol" : "openid-connect",
     "protocolMapper" : "oidc-audience-mapper",
@@ -63,19 +48,45 @@
       "claim.name": "application_entity",
       "jsonType.label": "String"
       }
-    }, {
-      "name": "realmRoleMapper",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-usermodel-realm-role-mapper",
-      "consentRequired": false,
-      "config": {
-        "introspection.token.claim": "true",
-        "multivalued": "true",
-        "userinfo.token.claim": "true",
-        "id.token.claim": "true",
-        "access.token.claim": "true",
-        "claim.name": "roles",
-        "jsonType.label": "String"
-      }
-  } ]
+  },
+  {
+    "name": "access-information-point-rights-mapper",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-access-information-point-rights-mapper",
+    "consentRequired": false,
+    "config": 
+    {
+      "claim.name": "access_information_point_rights",
+      "id.token.claim": "true",
+      "access.token.claim": "true",
+      "userinfo.token.claim": "true"
+    }
+  },
+  {
+    "name": "access-information-point-projects-mapper",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-access-information-point-projects-mapper",
+    "consentRequired": false,
+    "config": 
+    {
+      "claim.name": "access_information_point_projects",
+      "id.token.claim": "true",
+      "access.token.claim": "true",
+      "userinfo.token.claim": "true"
+    }
+  },
+  {
+    "name": "admin-mapper",
+    "protocol": "openid-connect",
+    "protocolMapper": "oidc-admin-mapper",
+    "consentRequired": false,
+    "config": 
+    {
+      "claim.name": "admin",
+      "id.token.claim": "true",
+      "access.token.claim": "true",
+      "userinfo.token.claim": "true"
+    }
   }
+]
+}

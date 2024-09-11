@@ -3,15 +3,11 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
-from airflow.utils.trigger_rule import TriggerRule
 
 from kaapana.blueprints.json_schema_templates import schema_upload_form
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.Itk2DcmOperator import Itk2DcmOperator
-from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR
@@ -64,7 +60,7 @@ dag = DAG(
     dag_id="convert-nifitis-to-dicoms-and-import-to-pacs",
     default_args=args,
     schedule_interval=None,
-    tags= ["import"]
+    tags=["import"],
 )
 
 get_object_from_uploads = LocalVolumeMountOperator(
@@ -99,7 +95,7 @@ convert_seg = Itk2DcmSegOperator(
     segmentation_in_dir="segmentations",
     input_type="multi_label_seg",
     skip_empty_slices=True,
-    fail_on_no_segmentation_found=False
+    fail_on_no_segmentation_found=False,
 )
 
 dcm_send_seg = DcmSendOperator(name="dcm-send-seg", dag=dag, input_operator=convert_seg)
@@ -111,7 +107,11 @@ dcm_send_img = DcmSendOperator(
 )
 
 remove_object_from_uploads = LocalVolumeMountOperator(
-    dag=dag, name="removing-object-from-uploads", mount_path="/kaapana/app/uploads", action="remove", whitelisted_file_endings=(".zip",)
+    dag=dag,
+    name="removing-object-from-uploads",
+    mount_path="/kaapana/app/uploads",
+    action="remove",
+    whitelisted_file_endings=(".zip",),
 )
 
 clean = LocalWorkflowCleanerOperator(

@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: access-information-interface-config
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  initial_rights.json: | # This is the initial rights that will be created
+    [
+      {
+        "name": "read",
+        "description": "Read rights",
+        "claim_key": "aii_test1",
+        "claim_value": "lol"
+      },
+      {
+        "name": "write",
+        "description": "Write rights",
+        "claim_key": "aii_test1",
+        "claim_value": "rofl"
+      },
+      {
+        "name": "delete",
+        "description": "Delete rights",
+        "claim_key": "aii_test2",
+        "claim_value": "hdgdl"
+      },
+      {
+        "name": "opensearch_read",
+        "description": "Read opensearch index data per project",
+        "claim_key": "opensearch",
+        "claim_value": "read_project"
+      },
+      {
+        "name": "opensearch_admin",
+        "description": "Opensearch admin role for the project index",
+        "claim_key": "opensearch",
+        "claim_value": "admin_project"
+      },
+      {
+        "name": "minio_read",
+        "description": "Read policy for the project bucket in minio",
+        "claim_key": "policy",
+        "claim_value": "read_project"
+      },
+      {
+        "name": "minio_admin",
+        "description": "Admin policy for the project bucket in minio",
+        "claim_key": "policy",
+        "claim_value": "admin_project"
+      }
+    ]
+  initial_roles.json: | # This is the initial roles that will be created
+    [
+      {
+        "name": "admin",
+        "description": "Admin role"
+      },
+      {
+        "name": "read-only",
+        "description": "Read only role"
+      }
+    ]
+  initial_projects.json: | # This is the initial admin project that will be created
+    [
+      {
+        "name": "admin",
+        "description": "Initial admin project"
+      }
+    ]
+  initial_roles_rights_mapping.json: | # This is the mapping of roles to rights
+    [
+      {
+        "role": "admin",
+        "rights": ["read", "write", "delete", "opensearch_admin", "minio_admin"]
+      },
+      {
+        "role": "read-only",
+        "rights": ["read","opensearch_read","minio_read"]
+      }
+    ]
+
+  # Init User, Project and Role mapping will be done at a later stage (FastAPI lifespan init function) to dynamically incorporate the keycloak id.

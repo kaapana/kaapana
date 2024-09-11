@@ -4,7 +4,6 @@ from airflow.models import DAG
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
 from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
 
-# from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from nnunet.getTasks import get_tasks, get_available_protocol_names

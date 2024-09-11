@@ -1,5 +1,6 @@
 from pydantic import Field, AliasChoices
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 
 class KaapanaSettings(BaseSettings):
@@ -27,6 +28,16 @@ class OpensearchSettings(KaapanaSettings):
 
     opensearch_host: str = "opensearch-service.services.svc"
     opensearch_port: str = "9200"
+    default_index: str = "project_1"
+
+
+class MinioSettings(KaapanaSettings):
+    """
+    Settings for MinIO
+    """
+
+    minio_system_user: str = "kaapanaminio"
+    minio_system_password: str = "Kaapana2020"
 
 
 class ProjectSettings(KaapanaSettings):
@@ -43,3 +54,19 @@ class ProjectSettings(KaapanaSettings):
             "KAAPANA_PROJECT_USER_PASSWORD", "SYSTEM_USER_PASSWORD"
         )
     )
+
+
+class OperatorSettings(BaseSettings):
+    """
+    General variables available in all processing-containers.
+    """
+
+    run_id: str
+    dag_id: str
+    workflow_dir: str
+    batch_name: str = "batch"
+    workflow_name: str
+    operator_out_dir: str
+    batches_input_dir: str
+
+    operator_in_dir: Optional[str] = None

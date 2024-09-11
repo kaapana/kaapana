@@ -25,15 +25,11 @@ dag = DAG(
     tags=["service"],
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag, delete_input_on_success=True)
 
 dcm_send = LocalDicomSendOperator(
     dag=dag,
     input_operator=get_input,
-    pacs_host=f"dcm4chee-service.{SERVICES_NAMESPACE}.svc",
-    pacs_port=11115,
-    ae_title="KAAPANA",
-    check_arrival=True,
 )
 
 auto_trigger_operator = LocalAutoTriggerOperator(dag=dag, input_operator=get_input)

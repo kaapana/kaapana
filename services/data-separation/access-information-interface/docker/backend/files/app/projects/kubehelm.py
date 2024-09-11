@@ -1,5 +1,7 @@
-import requests
 import os
+
+import requests
+
 from .schemas import Project
 
 kube_helm_api = "http://kube-helm-service.admin.svc:5000/kube-helm-api"

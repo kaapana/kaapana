@@ -1,15 +1,7 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
 from sqlalchemy import select
-from ..models import (
-    Projects,
-    Rights,
-    Roles,
-    RolesRights,
-    UsersProjectsRoles,
-    Data,
-    DataProjects,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..models import Projects, Rights, Roles, RolesRights, UsersProjectsRoles
 from . import schemas
 
 
@@ -80,33 +72,5 @@ async def create_users_projects_roles_mapping(
         project_id=project_id, role_id=role_id, keycloak_id=keycloak_id
     )
     session.add(new_user_project_role)
-    await session.commit()
-    return True
-
-
-async def get_data(session: AsyncSession, series_instance_uid: str = None):
-    # TODO Should data only be accessible in a project
-    stmt = select(Data)
-    stmt = stmt.filter(Data.series_instance_uid == series_instance_uid)
-    result = await session.execute(stmt)
-    return result.scalars().all()
-
-
-async def create_data(session: AsyncSession, data: schemas.CreateData):
-    new_data = Data(
-        description=data.description,
-        data_type=data.data_type,
-        series_instance_uid=data.series_instance_uid,
-    )
-    session.add(new_data)
-    await session.commit()
-    return new_data
-
-
-async def create_data_projects_mapping(
-    session: AsyncSession, project_id: int, data_id: int
-):
-    new_data_projects = DataProjects(project_id=project_id, data_id=data_id)
-    session.add(new_data_projects)
     await session.commit()
     return True

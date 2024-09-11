@@ -1,16 +1,12 @@
-from fastapi import APIRouter, Depends
-from fastapi.responses import Response
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
+import logging
 from typing import List
-from . import schemas
-from . import crud
-from . import opensearch
-from . import minio
-from . import kubehelm
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_session
-import logging
+from . import crud, kubehelm, minio, opensearch, schemas
 
 router = APIRouter()
 
@@ -68,29 +64,3 @@ async def post_user_project_role_mapping(
     return await crud.create_users_projects_roles_mapping(
         session, db_project[0].id, db_role[0].id, user_id
     )
-
-
-@router.post("/{project_name}/data", response_model=schemas.Data, tags=["Projects"])
-async def create_data(
-    project_name: str,
-    data: schemas.CreateData,
-    session: AsyncSession = Depends(get_session),
-):
-    try:
-        stored_data = await crud.create_data(session, data)
-    except IntegrityError as e:
-        logger.warning(f"{data=} already exists")
-        await session.rollback()
-        stored_data = await crud.get_data(
-            session=session, series_instance_uid=data.series_instance_uid
-        )
-        stored_data = stored_data[0]
-    projects = await crud.get_projects(session, name=project_name)
-    try:
-        await crud.create_data_projects_mapping(
-            session, project_id=projects[0].id, data_id=stored_data.id
-        )
-    except IntegrityError as e:
-        logger.warning(f"DataProjects mapping already exists")
-        return Response("Data mapping already exists", 200)
-    return stored_data

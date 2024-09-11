@@ -1,23 +1,13 @@
+from typing import List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
-from ..schemas import Data, AiiRightResponse, AiiProjectResponse
-from .crud import get_user_projects, get_project_data, get_user_rights, get_projects
 
 from ..database import get_session
+from ..schemas import AiiProjectResponse, AiiRightResponse
+from .crud import get_user_projects, get_user_rights
 
 router = APIRouter()
-
-
-# @router.get("/projects/{keycloak_id}", response_model=List[Project], tags=["Aii"])
-# async def projects(keycloak_id: str, session: AsyncSession = Depends(get_session)):
-#    return await get_user_projects(session, keycloak_id)
-
-
-@router.get("/projects/{project_name}/data", response_model=List[Data], tags=["Aii"])
-async def project_data(project_name: str, session: AsyncSession = Depends(get_session)):
-    projects = await get_projects(session, name=project_name)
-    return await get_project_data(session, projects[0].id)
 
 
 @router.get(

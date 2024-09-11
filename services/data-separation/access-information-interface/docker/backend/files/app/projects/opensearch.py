@@ -1,10 +1,11 @@
-from fastapi import Request
 import requests
-from .schemas import Project
+from fastapi import Request
 from kaapanapy.helper import get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
 from kaapanapy.logger import get_logger
+from kaapanapy.settings import OpensearchSettings
 from opensearchpy.exceptions import RequestError
+
+from .schemas import Project
 
 logger = get_logger(__name__)
 

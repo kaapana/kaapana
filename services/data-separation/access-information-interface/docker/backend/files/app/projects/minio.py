@@ -1,9 +1,11 @@
+import json
+
+import requests
+from fastapi import Request
 from kaapanapy.helper import get_minio_client, minio_credentials
 from kaapanapy.logger import get_logger
-from fastapi import Request
+
 from .schemas import Project
-import json
-import requests
 
 logger = get_logger(__name__)
 

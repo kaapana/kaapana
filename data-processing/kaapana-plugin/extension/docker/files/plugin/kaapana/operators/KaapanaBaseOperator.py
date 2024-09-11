@@ -613,7 +613,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info("CONTAINER ENVS:")
         logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
-        if self.dev_server in ["code-server"]:
+        if self.dev_server == "code-server":
             return self.launch_dev_server(context)
         elif self.dev_server is not None:
             raise NameError("dev_server must be either None or code-server!")

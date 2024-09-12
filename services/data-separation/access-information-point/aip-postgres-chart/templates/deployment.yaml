@@ -22,7 +22,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env: 
         - name: POSTGRES_USER
-          value: kaapanauser
+          value: {{ .Values.global.credentials_postgres_aip_username }}
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:

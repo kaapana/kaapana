@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: total-get-zenodo-models
-  namespace: "{{ .Values.global.services_namespace }}"
+  namespace: "{{ .Values.global.jobs_namespace }}"
 spec:
   template:
     metadata:
@@ -42,7 +42,7 @@ spec:
       volumes:
       - name: modeldata
         persistentVolumeClaim:
-          claimName: models-pv-claim
+          claimName: models-jobs-pv-claim
       restartPolicy: Never
       imagePullSecrets:
       - name: registry-secret

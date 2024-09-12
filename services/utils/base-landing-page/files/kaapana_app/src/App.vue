@@ -33,7 +33,10 @@
           </v-list-group>
           <v-list-group
             :prepend-icon="section.icon"
-            v-if="isAuthenticated && checkAuthSection(policyData, section, currentUser)"
+            v-if="
+              isAuthenticated &&
+              checkAuthSection(policyData, section, currentUser)
+            "
             v-for="(section, sectionKey) in externalWebpages"
             :key="section.id"
           >
@@ -59,7 +62,10 @@
           <!-- EXTENSIONS -->
           <v-list-item
             :to="'/extensions'"
-            v-if="isAuthenticated && _checkAuthR(policyData, '/extensions', currentUser)"
+            v-if="
+              isAuthenticated &&
+              _checkAuthR(policyData, '/extensions', currentUser)
+            "
           >
             <v-list-item-action>
               <!-- <v-icon>mdi-view-comfy</v-icon> -->
@@ -77,14 +83,6 @@
         <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
         <v-toolbar-title>{{ commonData.name }}</v-toolbar-title>
         <v-spacer></v-spacer>
-        <v-menu offset-y v-if="isAuthenticated" :close-on-content-click="false">
-          <template v-slot:activator="{ on }">
-            <v-btn color="secondary" dark v-on="on">
-              Project: {{ selectedProject.name }}
-            </v-btn>
-          </template>
-          <ProjectSelection v-on="on"> </ProjectSelection>
-        </v-menu>
         <v-menu
           v-if="isAuthenticated"
           :close-on-content-click="false"
@@ -155,16 +153,14 @@ import Settings from "@/components/Settings.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
 import { settings } from "@/static/defaultUIConfig";
 import { checkAuthR } from "@/utils/utils.js";
-import ProjectSelection from "@/components/ProjectSelection.vue";
 
 export default Vue.extend({
   name: "App",
-  components: { Settings, IdleTracker, ProjectSelection },
+  components: { Settings, IdleTracker },
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
     settings: settings,
-    selectedProject: null,
   }),
   created() {
     this.$store.watch(
@@ -175,7 +171,6 @@ export default Vue.extend({
         }
       }
     );
-    this.loadSelectedProject();
   },
 
   computed: {
@@ -189,12 +184,6 @@ export default Vue.extend({
     ]),
   },
   methods: {
-    loadSelectedProject() {
-      const storedProject = localStorage.getItem("selectedProject");
-      if (storedProject) {
-        this.selectedProject = JSON.parse(storedProject);
-      }
-    },
     _checkAuthR(policyData: any, endpoint: string, currentUser: any): boolean {
       "Check if the user has a role that authorizes him to access the requested endpoint";
       return checkAuthR(policyData, endpoint, currentUser);
@@ -214,7 +203,9 @@ export default Vue.extend({
       this.$vuetify.theme.dark = v;
     },
     login() {
-      this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "home" }));
+      this.$store
+        .dispatch(LOGIN)
+        .then(() => this.$router.push({ name: "home" }));
     },
     logout() {
       this.$store.dispatch(LOGOUT);
@@ -231,16 +222,6 @@ export default Vue.extend({
     this.$store.dispatch(GET_POLICY_DATA);
     if (!localStorage["settings"]) {
       localStorage["settings"] = JSON.stringify(settings);
-    }
-    if (!localStorage["selectedProject"]) {
-      localStorage.setItem(
-        "selectedProject",
-        JSON.stringify({
-          name: "",
-          id: null,
-          description: "No project selected!",
-        })
-      );
     }
   },
   mounted() {

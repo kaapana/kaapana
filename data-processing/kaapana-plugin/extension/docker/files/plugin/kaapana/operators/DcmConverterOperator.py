@@ -42,10 +42,12 @@ class DcmConverterOperator(KaapanaBaseOperator):
 
         env_vars.update(envs)
 
-        if output_format not in ["nrrd", "nii.gz", "nii"]:
-            raise ValueError(
-                f"Output format not supported: {output_format}. Supported formats: nrrd, nii.gz, nii"
-            )
+        if output_format != "nrrd" and (
+            output_format != "nii.gz" and output_format != "nii"
+        ):
+            print(("output format %s is currently not supported!" % output_format))
+            print("Dcm2nrrdOperator options: 'nrrd' or 'nii'")
+            raise ValueError("ERROR")
 
         super().__init__(
             dag=dag,

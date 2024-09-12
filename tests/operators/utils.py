@@ -11,7 +11,6 @@ def mock_modules():
     sys.modules["kaapana.kubetools.pod"] = MagicMock()
     sys.modules["kaapana.kubetools.pod_stopper"] = MagicMock()
     sys.modules["kaapana.kubetools.resources"] = MagicMock()
-    sys.modules["kaapana.kubetools.secret"] = MagicMock()
 
     # Flask
     sys.modules["requests"] = MagicMock()

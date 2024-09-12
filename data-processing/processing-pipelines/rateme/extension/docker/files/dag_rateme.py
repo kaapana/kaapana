@@ -1,7 +1,7 @@
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.KaapanaApplicationOperator import KaapanaApplicationOperator
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
@@ -61,7 +61,9 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=True)
+get_input = LocalGetInputDataOperator(
+    dag=dag, parallel_downloads=5, check_modality=True
+)
 
 rateme = KaapanaApplicationOperator(
     dag=dag,

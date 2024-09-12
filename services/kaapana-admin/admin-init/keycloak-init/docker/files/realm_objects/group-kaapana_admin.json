@@ -1,4 +1,9 @@
 {
   "name" : "kaapana_admin",
-  "path" : "/kaapana_admin"
+  "path" : "/kaapana_admin",
+  "attributes": {
+    "policy": [
+      "consoleAdmin"
+    ]
+  }
 }

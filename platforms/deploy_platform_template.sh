@@ -30,6 +30,7 @@ OFFLINE_MODE=false
 INSTANCE_UID=""
 SERVICES_NAMESPACE="{{ services_namespace }}"
 ADMIN_NAMESPACE="{{ admin_namespace }}"
+JOBS_NAMESPACE="{{ jobs_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 
@@ -103,6 +104,7 @@ if [ ! -z $INSTANCE_UID ]; then
     echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
     SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
     # ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
+    JOBS_NAMESPACE="$INSTANCE_UID-$JOBS_NAMESPACE"
     EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
     HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
 
@@ -112,6 +114,7 @@ if [ ! -z $INSTANCE_UID ]; then
     INCLUDE_REVERSE_PROXY=true
 fi
 echo ""
+echo "JOBS_NAMESPACE:       $JOBS_NAMESPACE "
 echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
 echo "ADMIN_NAMESPACE:      $ADMIN_NAMESPACE "
 echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
@@ -243,7 +246,7 @@ function delete_deployment {
             echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
             helm -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "helm -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
         fi
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
+        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
         echo -e ""
         UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
@@ -282,7 +285,7 @@ function delete_deployment {
 }
 
 function nuke_pods {
-    for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+    for namespace in $JOBS_NAMESPACE $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
         echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}"; 
         for mypod in $(microk8s.kubectl get pods -n $namespace -o jsonpath="{.items[*].metadata.name}");
         do
@@ -294,7 +297,7 @@ function nuke_pods {
 
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
+    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE; # $HELM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -446,6 +449,7 @@ function deploy_chart {
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
+    --set-string global.jobs_namespace=$JOBS_NAMESPACE \
     --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
     --set-string global.gpu_support="$GPU_SUPPORT" \

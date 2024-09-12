@@ -3,7 +3,7 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.KaapanaBranchPythonBaseOperator import (
@@ -78,7 +78,7 @@ class BranchIfNiftiOperator(KaapanaBranchPythonBaseOperator):
         )
 
 
-get_input = GetInputOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag)
 branch_if_nifti = BranchIfNiftiOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(
     dag=dag, input_operator=get_input, output_format="nii.gz"

@@ -3,9 +3,9 @@ import json
 import os
 import re
 
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperMinio import HelperMinio
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapanapy.settings import OpensearchSettings
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -170,7 +170,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         name: str = "clear-validation-results",
         result_bucket: str = "staticwebsiteresults",
         validation_tag: str = "00111001",
-        opensearch_index=None,
+        opensearch_index="meta-index",
         *args,
         **kwargs,
     ):
@@ -182,7 +182,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             name (str): The name of the operator. Defaults to "clear-validation-results".
             results_bucket (str): minio bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
             validation_tag (str): Base tag used to store validation results on OpenSearch (default: "00111001").
-            opensearch_index (str): Index in OpenSearch where metadata will be stored. Defaults to OpensearchSettings().default_index.
+            opensearch_index (str): Index in OpenSearch where metadata will be stored. Defaults to "meta-index".
             *args: Additional arguments for the parent class.
             **kwargs: Additional keyword arguments for the parent class.
 
@@ -193,6 +193,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         self.os_client = None
         self.validation_field = f"{validation_tag} ValidationResults_object"
         self.result_bucket = result_bucket
-        self.opensearch_index = opensearch_index or OpensearchSettings().default_index
+        self.opensearch_index = opensearch_index
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

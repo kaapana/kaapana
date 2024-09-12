@@ -76,6 +76,8 @@ spec:
           value: "{{ .Values.global.extensions_namespace }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
+        - name: JOBS_NAMESPACE
+          value: "{{ .Values.global.jobs_namespace }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
         - name: PULL_POLICY_IMAGES
@@ -114,6 +116,8 @@ spec:
           value: "{{ .Values.global.instance_id }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
+        - name: JOBS_NAMESPACE
+          value: "{{ .Values.global.jobs_namespace }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
         - name: MINIODIR

@@ -2,7 +2,6 @@ import os
 from typing import List
 import logging
 from kaapanapy.helper import get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
 
 # Create a custom logger
 logging.getLogger().setLevel(logging.DEBUG)
@@ -20,7 +19,7 @@ logger.addHandler(c_handler)
 SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]
 HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
 PORT = "9200"
-INDEX = OpensearchSettings().default_index
+INDEX = "meta-index"
 
 os_client = get_opensearch_client()
 

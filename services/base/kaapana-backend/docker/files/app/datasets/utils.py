@@ -12,8 +12,6 @@ from app.workflows.utils import (
     requests_retry_session,
 )
 from fastapi import HTTPException
-from app.logger import get_logger
-from kaapanapy.settings import OpensearchSettings
 
 # Opensearch values (defaults)
 MAX_RETURN_LIMIT = 10000
@@ -69,7 +67,7 @@ def execute_from_size_search(
     os_client,
     query: Dict = dict(),
     source=False,
-    index=None,
+    index="meta-index",
     sort=[{"00000000 TimestampArrived_datetime.keyword": "desc"}],
     start_from=1,
     size=1000,
@@ -91,7 +89,6 @@ def execute_from_size_search(
     :param size: the result size
     :return: aggregated search results
     """
-    index = index or OpensearchSettings().default_index
     start_from = (start_from - 1) * size
     res = os_client.search(
         body={
@@ -269,6 +266,10 @@ def requery_and_fill_missing_series_for_patients(
     return final_hits
 
 
+def contains_numbers(s):
+    return bool(re.search(r"\d", s))
+
+
 def camel_case_to_space(s):
     removed_tag = s.split(" ")[-1]
     removed_type = removed_tag.split("_")[0]
@@ -295,10 +296,8 @@ def type_suffix(v):
         return ""
 
 
-async def get_metadata(os_client, series_instance_uid: str) -> Dict[str, str]:
-    data = os_client.get(
-        index=OpensearchSettings().default_index, id=series_instance_uid
-    )["_source"]
+async def get_metadata_opensearch(os_client, series_instance_uid: str) -> dict:
+    data = os_client.get(index="meta-index", id=series_instance_uid)["_source"]
 
     # filter for dicoms tags
     return {
@@ -309,7 +308,75 @@ async def get_metadata(os_client, series_instance_uid: str) -> Dict[str, str]:
     }
 
 
-async def get_field_mapping(os_client, index=None) -> Dict:
+async def get_metadata(os_client, series_instance_uid: str) -> Dict[str, str]:
+    # TODO: retrieve study_instance_uid using meta-index
+    # pacs_metadata: dict = await get_metadata_pacs(
+    #     study_instance_uid, series_instance_uid
+    # )
+    opensearch_metadata: dict = await get_metadata_opensearch(
+        os_client, series_instance_uid
+    )
+
+    # return {**pacs_metadata, **opensearch_metadata}
+    return opensearch_metadata
+
+
+async def get_metadata_pacs(study_instance_UID: str, series_instance_UID: str) -> dict:
+    def load_metadata_form_pacs(study_uid, series_uid) -> dict:
+        url = (
+            f"http://dcm4chee-service.{settings.services_namespace}.svc:8080/dcm4chee-arc/aets/KAAPANA"
+            + f"/rs/studies/{study_uid}/series/{series_uid}/metadata"
+        )
+        with requests.Session() as s:
+            http_response = requests_retry_session(retries=5, session=s).get(
+                url,
+                timeout=TIMEOUT,
+            )
+            raise_kaapana_connection_error(http_response)
+
+        if http_response.status_code == 200:
+            return http_response.json()
+        else:
+            print("################################")
+            print("#")
+            print("# Can't request metadata from PACS!")
+            print(f"# StudyUID: {study_uid}")
+            print(f"# SeriesUID: {series_uid}")
+            print(f"# Status code: {http_response.status_code}")
+            print(http_response.text)
+            print("#")
+            print("################################")
+            return {}
+
+    try:
+        data = load_metadata_form_pacs(study_instance_UID, series_instance_UID)
+    except Exception as e:
+        print("Exception", e)
+        raise HTTPException(500, e)
+
+    from dicom_parser.utils.vr_to_data_element import get_data_element_class
+    from pydicom import Dataset
+
+    dataset = Dataset.from_json(data[0])
+    parsed_and_filtered_data = [
+        get_data_element_class(dataElement)(dataElement)
+        for _, dataElement in dataset.items()
+        if dataElement.VR != "SQ"
+        and dataElement.VR != "OW"
+        and dataElement.keyword != ""
+    ]
+
+    res = {}
+    for d_ in parsed_and_filtered_data:
+        value = d_.value
+        if d_.VALUE_REPRESENTATION.name == "PN":
+            value = "".join([v + " " for v in d_.value.values() if v != ""])
+        # res[d_.description] = dict(value=str(value), tag=d_.tag)
+        res[d_.description] = str(value)
+    return res
+
+
+async def get_field_mapping(os_client, index="meta-index") -> Dict:
     """
     Returns a mapping of field for a given index form open search.
     This looks like:
@@ -319,7 +386,6 @@ async def get_field_mapping(os_client, index=None) -> Dict:
     #   ...
     # }
     """
-    index = index or OpensearchSettings().default_index
     import re
 
     res = os_client.indices.get_mapping(index=index)[index]["mappings"]["properties"]

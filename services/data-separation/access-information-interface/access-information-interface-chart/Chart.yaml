@@ -1,6 +1,0 @@
----
-apiVersion: v1
-appVersion: "0.1.1"
-description: Chart for the access information interface
-name: access-information-interface
-version: "0.0.0"

@@ -1,10 +1,7 @@
 import requests
-import os, json
 
-from kaapanapy.settings import OpensearchSettings, KaapanaSettings, OperatorSettings
+from kaapanapy.settings import OpensearchSettings
 from opensearchpy import OpenSearch
-from minio import Minio
-import xml.etree.ElementTree as ET
 
 
 def get_opensearch_client(access_token=None):
@@ -28,41 +25,6 @@ def get_opensearch_client(access_token=None):
     )
 
 
-def get_minio_client(access_token=None):
-    """
-    :access_token: Access token that should be used for communication with minio.
-    """
-    access_token = access_token or get_project_user_access_token()
-    access_key, secret_key, session_token = minio_credentials(access_token)
-
-    return Minio(
-        f"minio-service.{KaapanaSettings().services_namespace}.svc:9000",
-        access_key=access_key,
-        secret_key=secret_key,
-        session_token=session_token,
-        secure=False,
-    )
-
-
-def minio_credentials(access_token):
-    r = requests.post(
-        f"http://minio-service.{KaapanaSettings().services_namespace}.svc:9000?Action=AssumeRoleWithWebIdentity&WebIdentityToken={access_token}&Version=2011-06-15"
-    )
-    xml_response = r.text
-    root = ET.fromstring(xml_response)
-    credentials = root.find(".//{https://sts.amazonaws.com/doc/2011-06-15/}Credentials")
-    access_key_id = credentials.find(
-        ".//{https://sts.amazonaws.com/doc/2011-06-15/}AccessKeyId"
-    ).text
-    secret_access_key = credentials.find(
-        ".//{https://sts.amazonaws.com/doc/2011-06-15/}SecretAccessKey"
-    ).text
-    session_token = credentials.find(
-        ".//{https://sts.amazonaws.com/doc/2011-06-15/}SessionToken"
-    ).text
-    return access_key_id, secret_access_key, session_token
-
-
 def get_project_user_access_token():
     """
     Return an access token of the project user.
@@ -82,14 +44,3 @@ def get_project_user_access_token():
     r = requests.post(url, verify=False, data=payload)
     access_token = r.json()["access_token"]
     return access_token
-
-
-def load_workflow_config():
-    """
-    Load and return the workflow config.
-    """
-    settings = OperatorSettings()
-    config_path = os.path.join(settings.workflow_dir, "conf", "conf.json")
-    with open(config_path, "r") as f:
-        config = json.load(f)
-    return config

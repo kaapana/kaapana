@@ -8,9 +8,9 @@ class Settings(BaseSettings):
     mongodb_db: str = "kaapana"
     schema_folder: str = "types"
     os_base_url: str = "http://opensearch-service.services.svc:9200"
-    quido_base_url: str = "http://dicom-web-filter-service.services.svc:8080"
-    wado_base_url: str = "http://dicom-web-filter-service.services.svc:8080"
-    stow_root_url: str = "http://dicom-web-filter-service.services.svc:8080"
+    quido_base_url: str = "http://dcm4chee-service.services.svc:8080/dcm4chee-arc/aets"
+    wado_base_url: str = "http://dcm4chee-service.services.svc:8080/dcm4chee-arc/aets"
+    stow_root_url: str = "http://dcm4chee-service.services.svc:8080/dcm4chee-arc/aets"
     ohif_viewer: str = ""  # "https://vm-128-212.cloud.dkfz-heidelberg.de/ohif/viewer"
     cas_root_path: str
     dev: bool = False

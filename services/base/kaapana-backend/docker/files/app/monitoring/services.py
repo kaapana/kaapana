@@ -6,7 +6,6 @@ from prometheus_api_client import PrometheusConnect
 from prometheus_client import CollectorRegistry, Info, Gauge, generate_latest
 import logging
 from kaapanapy.helper import get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
 
 
 class MonitoringService:
@@ -33,7 +32,7 @@ class MonitoringService:
     def es_query(query):
         try:
             res = MonitoringService.opensearchClient.search(
-                index=OpensearchSettings().default_index,
+                index="meta-index",
                 body=query,
                 size=10000,
                 from_=0,

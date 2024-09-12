@@ -1,11 +1,18 @@
 import os
+import shutil
+import glob
 import time
+import secrets
+import json
 import requests
+from airflow.exceptions import AirflowException
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
     PROCESSING_WORKFLOW_DIR,
     ADMIN_NAMESPACE,
+    SERVICES_NAMESPACE,
+    JOBS_NAMESPACE,
 )
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 
@@ -16,20 +23,14 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         print(kwargs)
-        conf = kwargs["dag_run"].conf
         release_name = (
             get_release_name(kwargs) if self.release_name is None else self.release_name
         )
 
-        try:
-            project_form = conf.get("project_form")
-            self.namespace = "project-" + project_form.get("name")
-        except (KeyError, AttributeError):
-            self.namespace = "project-admin"
-
         dynamic_volumes_dict = {
-            f"{self.namespace}-workflow-data": PROCESSING_WORKFLOW_DIR,
-            f"{self.namespace}-mounted-scripts": "/kaapana/mounted/workflows/mounted_scripts",
+            "af-data-jobs": PROCESSING_WORKFLOW_DIR,
+            "minio-jobs": "/minio",
+            "mounted-scripts-jobs": "/kaapana/mounted/workflows/mounted_scripts",
         }
 
         dynamic_volumes = {}
@@ -46,8 +47,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             "version": self.version,
             "release_name": release_name,
             "sets": {
-                "global.namespace": self.namespace,
-                "global.project_namespace": self.namespace,
+                "global.namespace": JOBS_NAMESPACE,
                 **dynamic_volumes,
                 "mount_path": f'{self.data_dir}/{kwargs["run_id"]}',
                 "workflow_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{kwargs["run_id"]}',
@@ -57,6 +57,8 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                 "batches_input_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{kwargs["run_id"]}/{self.batch_name}',
             },
         }
+
+        conf = kwargs["dag_run"].conf
 
         if "form_data" in conf:
             form_data = conf["form_data"]

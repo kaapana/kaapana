@@ -8,7 +8,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from extract_scanparameter.ExtractScanparameterOperator import (
     ExtractScanparameterOperator,
 )
-from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -49,7 +49,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = GetInputOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag)
 extract_scanparameter = ExtractScanparameterOperator(dag=dag)
 put_to_minio = LocalMinioOperator(
     dag=dag,

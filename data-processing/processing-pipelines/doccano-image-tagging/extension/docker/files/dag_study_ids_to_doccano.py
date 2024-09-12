@@ -4,7 +4,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from doccano.LocalDoccanoUploadDatasetOperator import LocalDoccanoUploadDatasetOperator
 from doccano.LocalCreateStudyIDJsonOperator import LocalCreateStudyIDJsonOperator
-from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
@@ -60,7 +60,7 @@ args = {
 dag = DAG(dag_id="study-ids-to-doccano", default_args=args, schedule_interval=None)
 
 
-get_input = GetInputOperator(
+get_input = LocalGetInputDataOperator(
     dag=dag, operator_out_dir="get-input-data", data_type="json"
 )
 create_doccano_json = LocalCreateStudyIDJsonOperator(dag=dag, input_operator=get_input)

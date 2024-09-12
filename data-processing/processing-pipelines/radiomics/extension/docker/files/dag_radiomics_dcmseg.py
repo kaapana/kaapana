@@ -7,7 +7,7 @@ from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
-from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from radiomics.RadiomicsOperator import RadiomicsOperator
 
@@ -59,7 +59,7 @@ dag = DAG(
     max_active_runs=15,
 )
 
-get_input = GetInputOperator(dag=dag, check_modality=True)
+get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
 
 dcmseg2nrrd = Mask2nifitiOperator(
     dag=dag,

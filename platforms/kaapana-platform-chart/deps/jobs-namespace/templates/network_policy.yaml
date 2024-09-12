@@ -1,0 +1,114 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all-traffic
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress: []
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kube-dns
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress: 
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    - podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+---
+## Allow access to external IPs
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-external-ips
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      network-access: "external-ips"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.152.183.0/24 ### Default range for services in microk8s https://microk8s.io/docs/change-cidr
+        - 10.1.0.0/16 ### Default range for pods in microk8s https://microk8s.io/docs/change-cidr
+---
+## Allow access to ctp
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-access-to-ctp
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      network-access: "ctp"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+    - podSelector:
+        matchLabels:
+          app-name: ctp
+---
+### Allow ingress from traefik for dev_server
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-ingress-from-traefik
+  namespace: {{ .Values.global.jobs_namespace }}
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
+    - podSelector:
+        matchLabels:
+          app: 'traefik'
+---
+### Allow access to opensearch from jobs with label {"network-access": "opensearch"}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-opensearch-egress
+  namespace: jobs
+spec:
+  podSelector:
+    matchLabels:
+      network-access: "opensearch" # for pods that need access to OpenSearch
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: services
+    - podSelector:
+        matchLabels:
+          app-name: opensearch
+    ports:
+    - protocol: TCP
+      port: 9200

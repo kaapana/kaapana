@@ -1,0 +1,18 @@
+---
+global:
+  namespace: "{{ .Values.global.jobs_namespace }}"
+  default_jobs_requests_mem: "50Mi"
+  default_jobs_limits_mem: "50Mi"
+    # default_jobs_requests_cpu: 0.5
+    # default_jobs_limits_cpu: 1
+  dynamicVolumes:
+  - name: tb-jobs
+    host_path: /tensorboard
+  - name: models-jobs
+    host_path: /workflows/models
+  - name: minio-jobs
+    host_path: /minio
+  - name: af-data-jobs
+    host_path: /workflows/data
+  - name: mounted-scripts-jobs
+    host_path: /workflows/mounted_scripts

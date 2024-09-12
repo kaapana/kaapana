@@ -25,7 +25,7 @@ spec:
             - '--accesslog'
             - '--providers.kubernetesingress'
             - '--providers.kubernetescrd'
-            # - '--providers.kubernetesingress.namespaces={{  .Values.global.admin_namespace  }},{{  .Values.global.services_namespace  }},{{  .Values.global.extensions_namespace  }}'
+            - '--providers.kubernetesingress.namespaces={{  .Values.global.admin_namespace  }},{{  .Values.global.jobs_namespace  }},{{  .Values.global.services_namespace  }},{{  .Values.global.extensions_namespace  }}'
             - '--providers.file.filename=/config/conf.toml'
             - '--providers.file.watch=true'
 {{- if ne (.Values.global.http_port | int) 0 }}
@@ -76,7 +76,7 @@ spec:
       volumes:
         - name: traefiklog
           persistentVolumeClaim:
-            claimName: traefik-pv-claim
+            claimName: treaefik-pv-claim
         - name: traefik-config-file
           configMap:
             name: traefik-config

@@ -10,7 +10,6 @@ RUN mkdir /dashboards
 COPY files/requirements.txt ./
 RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r requirements.txt
 
-COPY files/start.py /start.py
-COPY files/saved_objects /
+COPY files/init_meta.py /init_meta.py
 
-CMD [ "python","-u", "/start.py"]
+CMD [ "python","-u", "/init_meta.py" ]

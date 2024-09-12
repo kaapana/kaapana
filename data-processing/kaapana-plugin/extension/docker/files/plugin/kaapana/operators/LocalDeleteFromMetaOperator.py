@@ -4,7 +4,7 @@ import pydicom
 import json
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 
 class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):

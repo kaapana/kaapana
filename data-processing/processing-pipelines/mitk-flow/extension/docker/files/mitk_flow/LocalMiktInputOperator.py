@@ -1,31 +1,25 @@
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+from xml.etree import ElementTree
 import os
 import json
+from dicomweb_client.api import DICOMwebClient
 import pydicom
+import time
 import glob
+import requests
 
 
 class LocalMiktInputOperator(KaapanaPythonBaseOperator):
-
-    def __init__(self, dag, operator_out_dir="mitk-results", **kwargs):
-        super().__init__(
-            dag=dag,
-            name="get-mitk-input",
-            operator_out_dir=operator_out_dir,
-            python_callable=self.get_files,
-            **kwargs
-        )
-
     def downloadSeries(self, studyUID: str, seriesUID: str, target_dir: str):
-        print("Downloading Series %s from Study %s" % (seriesUID, studyUID))
+        print("Downloading Series: %s" % seriesUID)
         print("Target DIR: %s" % target_dir)
-        result = self.dcmweb_helper.download_series(
-            study_uid=studyUID, series_uid=seriesUID, target_dir=target_dir
+        result = self.dcmweb_helper.downloadSeries(
+            series_uid=seriesUID, target_dir=target_dir
         )
         return result
 
-    def createTasklist(self, run_dir: str, tasks: list):
+    def createTasklist(self, run_dir: str, tasks: list()):
         print(
             "create json tasklist and dump it to batch level of the current airflow task run,"
         )
@@ -43,7 +37,9 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
             json.dump(tasklist, f, ensure_ascii=False, indent=4)
 
     def get_files(self, ds, **kwargs):
-        self.dcmweb_helper = HelperDcmWeb()
+        self.dcmweb_helper = HelperDcmWeb(
+            application_entity=self.aetitle, dag_run=kwargs["dag_run"]
+        )
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [
@@ -116,3 +112,29 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
                 print("task successfully added:")
                 print(task)
         self.createTasklist(run_dir, tasks)
+
+    def __init__(
+        self,
+        dag,
+        pacs_dcmweb_host="http://dcm4chee-service.store.svc",
+        pacs_dcmweb_port="8080",
+        operator_out_dir="mitk-results",
+        aetitle="KAAPANA",
+        **kwargs
+    ):
+        self.aetitle = aetitle
+        self.pacs_dcmweb = (
+            pacs_dcmweb_host
+            + ":"
+            + pacs_dcmweb_port
+            + "/dcm4chee-arc/aets/"
+            + aetitle.upper()
+        )
+
+        super().__init__(
+            dag=dag,
+            name="get-mitk-input",
+            operator_out_dir=operator_out_dir,
+            python_callable=self.get_files,
+            **kwargs
+        )

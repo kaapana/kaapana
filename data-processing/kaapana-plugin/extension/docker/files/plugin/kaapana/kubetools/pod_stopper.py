@@ -19,6 +19,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from kubernetes.client.rest import ApiException
 from kubernetes import client
 from kaapana.kubetools.kube_client import get_kube_client
+from kaapana.blueprints.kaapana_global_variables import JOBS_NAMESPACE
 import time
 
 
@@ -50,7 +51,7 @@ class PodStopper(LoggingMixin):
             self.log.exception("Exception when attempting to delete namespaced Pod.")
             raise
 
-    def stop_pod_by_name(self, pod_id, namespace, phases=None):
+    def stop_pod_by_name(self, pod_id, namespace=JOBS_NAMESPACE, phases=None):
         max_tries = 20
         delay = 6
         tries = 0

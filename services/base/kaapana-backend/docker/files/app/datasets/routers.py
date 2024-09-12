@@ -7,7 +7,6 @@ from app.datasets.utils import (
 from app.dependencies import get_opensearch
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from kaapanapy.settings import OpensearchSettings
 
 router = APIRouter(tags=["datasets"])
 
@@ -28,9 +27,7 @@ async def tag_data(data: list = Body(...), os_client=Depends(get_opensearch)):
         print(f"Tags 2 delete: {tags2delete}")
 
         # Read Tags
-        doc = os_client.get(
-            index=OpensearchSettings().default_index, id=series_instance_uid
-        )
+        doc = os_client.get(index="meta-index", id=series_instance_uid)
         print(doc)
         index_tags = doc["_source"].get("00000000 Tags_keyword", [])
 
@@ -44,9 +41,7 @@ async def tag_data(data: list = Body(...), os_client=Depends(get_opensearch)):
 
         # Write Tags back
         body = {"doc": {"00000000 Tags_keyword": final_tags}}
-        os_client.update(
-            index=OpensearchSettings().default_index, id=series_instance_uid, body=body
-        )
+        os_client.update(index="meta-index", id=series_instance_uid, body=body)
 
     try:
         for series in data:
@@ -180,7 +175,7 @@ async def get_data(series_instance_uid, os_client=Depends(get_opensearch)):
         thumbnail_src = f"/thumbnails/{path}"
     else:
         thumbnail_src = (
-            f"/dicom-web-filter/studies/{metadata['Study Instance UID']}/"
+            f"/dcm4chee-arc/aets/KAAPANA/rs/studies/{metadata['Study Instance UID']}/"
             f"series/{series_instance_uid}/thumbnail?viewport=300,300"
         )
 
@@ -319,9 +314,7 @@ async def get_field_names(os_client=Depends(get_opensearch)):
 
 @router.get("/fields")
 async def get_fields(
-    index: str = OpensearchSettings().default_index,
-    field: str = None,
-    os_client=Depends(get_opensearch),
+    index: str = "meta-index", field: str = None, os_client=Depends(get_opensearch)
 ):
     mapping = await get_field_mapping(os_client, index)
     if field:

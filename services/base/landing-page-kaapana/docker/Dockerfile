@@ -1,4 +1,4 @@
-FROM local-only/base-landing-page:latest AS build-stage
+FROM local-only/base-landing-page:latest as build-stage
 
 LABEL IMAGE="landing-page-kaapana"
 LABEL VERSION="0.2.1"

@@ -10,10 +10,10 @@ window.config = {
   servers: {
     dicomWeb: [
       {
-        name: 'DicomWebFilter',
-        wadoUriRoot: 'https://' + hostname + '/dicom-web-filter/wado-uri/wado',
-        qidoRoot: 'https://' + hostname + '/dicom-web-filter',
-        wadoRoot: 'https://' + hostname + '/dicom-web-filter',
+        name: 'DCM4CHEE',
+        wadoUriRoot: 'https://' + hostname + '/dcm4chee-arc/aets/KAAPANA/wado',
+        qidoRoot: 'https://' + hostname + '/dcm4chee-arc/aets/KAAPANA/rs',
+        wadoRoot: 'https://' + hostname + '/dcm4chee-arc/aets/KAAPANA/rs',
         qidoSupportsIncludeField: true,
         imageRendering: 'wadors',
         thumbnailRendering: 'wadors',

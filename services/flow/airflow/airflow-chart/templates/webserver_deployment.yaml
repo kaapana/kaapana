@@ -70,6 +70,8 @@ spec:
           value: "{{ .Values.global.https_port }}"
         - name: INSTANCE_NAME
           value: "{{ .Values.global.instance_name }}"
+        - name: JOBS_NAMESPACE
+          value: "{{ .Values.global.jobs_namespace }}"
         - name: KAAPANA_BUILD_VERSION
           value: "{{ .Values.global.kaapana_build_version }}"
         - name: MINIOUSER
@@ -120,6 +122,21 @@ spec:
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
+        # readinessProbe:
+        #   initialDelaySeconds: 120
+        #   timeoutSeconds: 5
+        #   periodSeconds: 5
+        #   httpGet:
+        #     path: /flow/kaapana/api/getdags
+        #     port: 8080
+        # livenessProbe:
+        #   initialDelaySeconds: 300
+        #   periodSeconds: 120
+        #   timeoutSeconds: 5
+        #   failureThreshold: 5
+        #   httpGet:
+        #     path: /flow
+        #     port: 8080
       volumes:
       - name: airflow-configmap
         configMap:
@@ -143,6 +160,22 @@ spec:
         emptyDir: {}
       - name: tmpfs
         emptyDir: {}
+      # - name: airflow-statsd-config
+      #   configMap:
+      #     name: airflow-statsd-config
+
+      # - name: modeldata
+      #   persistentVolumeClaim:
+      #     claimName: models-pv-claim
+      # - name: ctpinput
+      #   persistentVolumeClaim:
+      #     claimName: ctp-data-pv-claim
+      # - name: workflowdata
+      #   persistentVolumeClaim:
+      #     claimName: af-data-pv-claim
+      # - name: dicomdir
+      #   persistentVolumeClaim:
+      #     claimName: dcm4chee-dicom-pv-claim
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

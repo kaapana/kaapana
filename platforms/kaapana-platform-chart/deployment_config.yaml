@@ -11,6 +11,7 @@ https_port: 443
 dicom_port: 11112
 services_namespace: "services"
 admin_namespace: "admin"
+jobs_namespace: "jobs"
 extensions_namespace: "extensions"
 helm_namespace: "services"
 mount_points_to_monitor: "/"

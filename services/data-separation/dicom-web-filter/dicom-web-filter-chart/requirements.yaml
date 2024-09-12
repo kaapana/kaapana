@@ -1,5 +1,0 @@
----
-dependencies:
-  - name: dicom-project-mapping-postgres-chart
-    version: 0.0.0
-    repository: file://deps/dicom-project-mapping-postgres

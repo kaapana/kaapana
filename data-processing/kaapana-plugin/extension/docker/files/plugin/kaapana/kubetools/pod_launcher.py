@@ -135,9 +135,7 @@ class PodLauncher(LoggingMixin):
             self.log.debug(
                 "Pod already exists, we will delete it and then start your pod."
             )
-            PodLauncher.pod_stopper.stop_pod_by_name(
-                pod_id=resp.metadata.name, namespace=pod.namespace
-            )
+            PodLauncher.pod_stopper.stop_pod_by_name(pod_id=resp.metadata.name)
         except ApiException as e:
             if e.status != 404:
                 raise

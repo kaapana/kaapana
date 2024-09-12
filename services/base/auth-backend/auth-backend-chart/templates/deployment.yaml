@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,18 +16,6 @@ spec:
       labels:
         app-name: auth-backend
     spec:
-      initContainers:
-        - name: opa-build
-          image: "{{ .Values.global.registry_url }}/auth-backend:{{ .Values.global.kaapana_build_version }}"
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              /kaapana/app/opa build -b /kaapana/app/bundle/ -o /kaapana/app/authz/endpoints.tar.gz
-          volumeMounts:
-            - name: rego-config
-              mountPath: /kaapana/app/authz/
-            - name: rego-configmap
-              mountPath: /kaapana/app/bundle/httpapi/authz/
       containers:
       - name: auth-backend
         image: "{{ .Values.global.registry_url }}/auth-backend:{{ .Values.global.kaapana_build_version }}"
@@ -44,15 +33,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-        volumeMounts:
-            - name: rego-config
-              mountPath: /kaapana/app/authz/
-      volumes:
-        - name: rego-config
-          emptyDir: {}
-        - name: rego-configmap
-          configMap:
-            name: rego-configmap
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
+---

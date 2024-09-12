@@ -7,8 +7,8 @@ from enum import Enum
 from html.parser import HTMLParser
 from typing import List
 
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapanapy.settings import OpensearchSettings
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from pytz import timezone
 
@@ -279,7 +279,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         validator_output_dir: str,
         validation_tag: str = "00111001",
         name: str = "results-to-open-search",
-        opensearch_index=None,
+        opensearch_index="meta-index",
         *args,
         **kwargs,
     ):
@@ -293,7 +293,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                     Multiple items of the validation results will be tagged by incrementing
                     this tag. e.g. 00111002, 00111003, ..
             name (str): Name of the operator (default: "results-to-open-search").
-            opensearch_index (str): Index in OpenSearch where metadata will be stored (default: None).
+            opensearch_index (str): Index in OpenSearch where metadata will be stored (default: "meta-index").
             *args: Additional arguments for the parent class.
             **kwargs: Additional keyword arguments for the parent class.
 
@@ -304,7 +304,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         self.validator_output_dir = validator_output_dir
         self.validation_tag = validation_tag
         self.tag_field = f"{validation_tag} ValidationResults_object"
-        self.opensearch_index = opensearch_index or OpensearchSettings().default_index
+        self.opensearch_index = opensearch_index
         self.os_client = None
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

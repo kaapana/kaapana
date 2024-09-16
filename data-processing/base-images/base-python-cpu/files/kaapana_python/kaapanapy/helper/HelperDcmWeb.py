@@ -225,6 +225,8 @@ class HelperDcmWeb:
             expected_object_count (int, optional): The expected number of objects in the series. Defaults to None.
             include_series_dir (bool, optional): Flag to include the series UID as a subdirectory in the target directory. Defaults to False.
 
+        Returns:
+            bool: True if the series was downloaded successfully, False otherwise.
         """
 
         # Check if study_uid is provided, if not get it from metadata of given series
@@ -234,7 +236,8 @@ class HelperDcmWeb:
             )
             study_uid = self.__get_study_uid_by_series_uid(series_uid)
             if not study_uid:
-                raise ValueError("Study UID could not be retrieved.")
+                logging.error("Study UID could not be retrieved.")
+                return False
 
         # Create target directory
         if include_series_dir:
@@ -268,7 +271,7 @@ class HelperDcmWeb:
                     logger.info(
                         f"Successfully downloaded series {series_uid} of study {study_uid} after {i} retries"
                     )
-                return
+                return True
 
             except Exception as e:
                 logger.error(
@@ -300,7 +303,7 @@ class HelperDcmWeb:
         for object_uid in not_downloaded_instances:
             self.download_instance(study_uid, series_uid, object_uid, target_dir)
 
-        return
+        return True
 
     def __get_study_uid_by_series_uid(self, series_uid: str) -> str:
         """This function retrieves the Study Instance UID of a series.

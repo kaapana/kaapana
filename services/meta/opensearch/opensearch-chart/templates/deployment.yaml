@@ -51,6 +51,8 @@ spec:
             value: "0.0.0.0"
           - name: OPENSEARCH_JAVA_OPTS
             value: '-Xms{{ div .Values.global.opensearch_memory_request 2 }}m -Xmx{{ div .Values.global.opensearch_memory_request 2 }}m'
+          - name: SERVICES_NAMESPACE
+            value: "{{ .Values.global.services_namespace }}"
           resources:
             requests:
               memory: "{{ .Values.global.opensearch_memory_request }}Mi"
@@ -79,6 +81,12 @@ spec:
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch.yml
               subPath: opensearch.yml
+            - name: sec-config
+              mountPath: /usr/share/opensearch/config/opensearch-security/config.yml
+              subPath: config.yml
+            - name: sec-config
+              mountPath: /usr/share/opensearch/config/opensearch-security/internal_users.yml
+              subPath: internal_users.yml
           securityContext:
             allowPrivilegeEscalation: false
       volumes:
@@ -97,6 +105,10 @@ spec:
           items:
           - key: opensearch.yml
             path: opensearch.yml
+          - key: config.yml
+            path: config.yml
+          - key: internal_users.yml
+            path: internal_users.yml
       imagePullSecrets:
       - name: registry-secret
 ---

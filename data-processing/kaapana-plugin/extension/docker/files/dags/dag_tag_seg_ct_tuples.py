@@ -82,7 +82,6 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     parallel_downloads=5,
     parallel_id="ct",
     data_type="json",
-    modality=None,
 )
 
 tag_cts = LocalTaggingOperator(

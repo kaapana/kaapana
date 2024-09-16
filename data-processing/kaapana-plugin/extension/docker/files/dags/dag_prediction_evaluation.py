@@ -190,7 +190,6 @@ get_ref_ct = LocalGetRefSeriesOperator(
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="gt",
-    modality=None,
     batch_name="nnunet-dataset",
 )
 

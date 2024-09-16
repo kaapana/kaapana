@@ -19,6 +19,7 @@ router = APIRouter()
 # Set logging level
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
+
 def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) -> bytes:
     """Replace the boundary in the buffer.
 
@@ -37,6 +38,7 @@ def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) ->
         f"--{old_boundary.decode()}--".encode(),
         f"--{new_boundary.decode()}--".encode(),
     )
+
 
 def get_boundary() -> bytes:
     """Generate a random boundary for the multipart message.
@@ -87,7 +89,9 @@ async def stream(
                 buffer += chunk
                 # Replace the boundary in the buffer
                 buffer = replace_boundary(
-                    buffer=buffer, old_boundary=response_boundary, new_boundary=new_boundary
+                    buffer=buffer,
+                    old_boundary=response_boundary,
+                    new_boundary=new_boundary,
                 )
                 to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
                 yield to_yield
@@ -96,6 +100,51 @@ async def stream(
             # Yield any remaining buffer after the last chunk
             if buffer:
                 yield buffer
+
+
+def stream_study(study: str, request: Request) -> StreamingResponse:
+    boundary = get_boundary()
+    return StreamingResponse(
+        stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies/{study}",
+            request_headers=request.headers,
+            new_boundary=boundary,
+        ),
+        headers={
+            "Transfer-Encoding": "chunked",
+            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+        },
+    )
+
+
+def stream_study_metadata(study: str, request: Request) -> StreamingResponse:
+    return StreamingResponse(
+        metadata_replace_stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies/{study}/metadata",
+            request=request,
+            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
+            replace=b"dicom-web-filter",
+        ),
+        media_type="application/dicom+json",
+    )
+
+
+def stream_study_rendered(study: str, request: Request) -> StreamingResponse:
+    boundary = get_boundary()
+    return StreamingResponse(
+        stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies/{study}/rendered",
+            request_headers=request.headers,
+            new_boundary=boundary,
+        ),
+        headers={
+            "Transfer-Encoding": "chunked",
+            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+        },
+    )
 
 
 # WADO-RS routes
@@ -113,6 +162,9 @@ async def retrieve_study(
     Returns:
         StreamingResponse: Response object
     """
+
+    if request.scope.get("admin") is True:
+        return stream_study(study, request)
 
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
@@ -132,19 +184,7 @@ async def retrieve_study(
 
     # check if all series of the study are mapped to the project
     if set(mapped_series_uids) == set(all_series):
-        boundary = get_boundary()
-        return StreamingResponse(
-            stream(
-                method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}",
-                request_headers=request.headers,
-                new_boundary=boundary,
-            ),
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
-            },
-        )
+        return stream_study(study, request)
 
     async def stream_multiple_series(new_boundary: bytes = None):
         """Get the subset if series of the study which are mapped to the project as a stream. The boundary in the multipart message is replaced, because each response has its own boundary.
@@ -174,7 +214,9 @@ async def retrieve_study(
 
                         # Process the buffer
                         buffer = replace_boundary(
-                            buffer=buffer, old_boundary=boundary, new_boundary=new_boundary
+                            buffer=buffer,
+                            old_boundary=boundary,
+                            new_boundary=new_boundary,
                         )
 
                         # Decide how much of the buffer to yield and retain
@@ -222,7 +264,9 @@ async def retrieve_series(
         StreamingResponse: Response object
     """
 
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -270,7 +314,9 @@ async def retrieve_instance(
         StreamingResponse: Response object
     """
 
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -321,7 +367,9 @@ async def retrieve_frames(
     Returns:
         StreamingResponse: Response object
     """
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -363,6 +411,10 @@ async def retrieve_study_metadata(
     Returns:
         StreamingResponse: Response object
     """
+
+    if request.scope.get("admin") is True:
+        return stream_study_metadata(study, request)
+
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
@@ -380,18 +432,7 @@ async def retrieve_study_metadata(
     logging.info(f"all_series: {all_series}")
 
     if set(mapped_series_uids) == set(all_series):
-        return StreamingResponse(
-            metadata_replace_stream(
-                method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}/metadata",
-                request=request,
-                search="/".join(
-                    DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
-                ).encode(),
-                replace=b"dicom-web-filter",
-            ),
-            media_type="application/dicom+json",
-        )
+        return stream_study_metadata(study, request)
 
     async def metadata_generator(search=b"", replace=b""):
         """Used to get the metadata of the series which are mapped to the project. The base URL is replaced in the metadata.
@@ -452,7 +493,9 @@ async def retrieve_series_metadata(
         StreamingResponse: Response object
     """
 
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -497,7 +540,9 @@ async def retrieve_instance_metadata(
         response: Response object
     """
 
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -534,6 +579,9 @@ async def retrieve_study_rendered(
         StreamingResponse: Response object
     """
 
+    if request.scope.get("admin") is True:
+        return stream_study_rendered(study, request)
+
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
@@ -551,20 +599,7 @@ async def retrieve_study_rendered(
     logging.info(f"all_series: {all_series}")
 
     if set(mapped_series_uids) == set(all_series):
-        boundary = get_boundary()
-
-        return StreamingResponse(
-            stream(
-                method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}/rendered",
-                request_headers=request.headers,
-                new_boundary=boundary,
-            ),
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
-            },
-        )
+        return stream_study_rendered(study, request)
 
     async def stream_filtered_series():
         """Stream the series which are mapped to the project. The boundary in the multipart message is replaced, because each response has its own boundary.
@@ -605,7 +640,11 @@ async def retrieve_study_rendered(
                     async for chunk in response.aiter_bytes():
                         # if boundary is not first_boundary: replace the boundary
                         if boundary != first_boundary:
-                            chunk = replace_boundary(buffer=chunk, old_boundary=boundary, new_boundary=first_boundary)
+                            chunk = replace_boundary(
+                                buffer=chunk,
+                                old_boundary=boundary,
+                                new_boundary=first_boundary,
+                            )
                         yield chunk
 
     return StreamingResponse(stream_filtered_series())
@@ -629,7 +668,9 @@ async def retrieve_series_rendered(
     Returns:
         StreamingResponse: Response object
     """
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -678,7 +719,9 @@ async def retrieve_instance_rendered(
         StreamingResponse: Response object
     """
 
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,

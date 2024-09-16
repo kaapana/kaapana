@@ -88,7 +88,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 status_code=403, detail="Authorization token missing or invalid"
             )
 
-        await self.authenticate(token)
+        payload = await self.authenticate(token)
+
+        # Check if the user is an admin
+        if "admin" in payload.get("realm_access", {}).get("roles", []):
+            # Set a parameter to indicate that the request comes from an admin
+            request.scope["admin"] = True
+        else:
+            request.scope["admin"] = False
 
         response = await call_next(request)
         return response

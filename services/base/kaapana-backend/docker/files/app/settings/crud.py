@@ -2,63 +2,13 @@ import json
 import logging
 from typing import Optional
 
-from app.workflows import models
+from app.settings import models, schemas
 
 # from app.config import settings
 from app.workflows.crud import get_kaapana_instance, get_utc_timestamp
 from sqlalchemy.orm import Session
 
-from . import schemas
-
 logging.getLogger().setLevel(logging.INFO)
-
-
-list_idntifier = "::list::"
-list_seperator = "|| ||"
-
-
-def process_incoming_value(value):
-    """
-    Process the incoming value before storing it in the database.
-
-    - If the value is a dictionary, it is converted to a JSON string.
-    - If the value is a list, it is converted to a string by joining elements with a separator and adding a list identifier.
-    - For any other data type, the value is returned as is.
-
-    Args:
-        value (Any): The incoming value to be processed, which can be of any data type.
-
-    Returns:
-        Any: The processed value, either as a string (for dicts and lists) or in its original form.
-    """
-    if isinstance(value, dict):
-        return json.dumps(value)
-    elif isinstance(value, list):
-        return f"{list_seperator.join(value)}{list_idntifier}"
-    return value
-
-
-def process_result_value(value):
-    """
-    Process the stored value after retrieving it from the database.
-
-    - If the value is a JSON string, it is converted back to a dictionary.
-    - If the value is a string ending with a list identifier, it is split into a list using the separator.
-    - If the value is neither a valid JSON nor a list, it is returned as is.
-
-    Args:
-        value (str): The value to be processed, typically retrieved from the database.
-
-    Returns:
-        Any: The processed value, which could be a dictionary, list, or the original value.
-    """
-    try:
-        return json.loads(value)
-    except (ValueError, TypeError):
-        if isinstance(value, str) and value.endswith(list_idntifier):
-            temp = value.replace(list_idntifier, "")
-            value = temp.split(list_seperator)
-        return value
 
 
 def get_instance_settings(
@@ -87,7 +37,7 @@ def get_instance_settings(
 
     # Processes the value of each setting before returning it.
     for item in db_settings:
-        item.value = process_result_value(item.value)
+        item.value = json.loads(item.value)
 
     return db_settings
 
@@ -118,10 +68,13 @@ def get_settings_item(
         .one_or_none()
     )
 
-    # Processes the value of the setting before returning it.
-    db_settings_item.value = process_result_value(db_settings_item.value)
+    if db_settings_item:
+        # Processes the value of the setting before returning it.
+        db_settings_item.value = json.loads(db_settings_item.value)
 
-    return db_settings_item
+        return db_settings_item
+
+    return None
 
 
 def create_or_update_settings(
@@ -141,7 +94,7 @@ def create_or_update_settings(
         models.Settings: The created or updated settings item.
     """
     # Processes the incoming value before storing it.
-    settings_item.value = process_incoming_value(settings_item.value)
+    settings_item.value = json.dumps(settings_item.value)
 
     # Retrieves the existing setting by key for the `kaapana_instance`.
     db_kaapana_instance = get_kaapana_instance(db, instance_name)

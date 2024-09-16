@@ -227,3 +227,10 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 ]
             for future in as_completed(futures):
                 pass
+
+        # Check if target directories are empty
+        for series in download_series_list:
+            if len(os.listdir(series.target_dir)) == 0:
+                raise ValueError(
+                    f"Download of referenced data for series {series.series_instance_uid} failed! Target directory is empty."
+                )

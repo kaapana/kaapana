@@ -213,8 +213,6 @@ class HelperDcmWeb:
         study_uid: str = None,
         series_uid: str = None,
         target_dir: str = None,
-        expected_object_count: int = None,
-        include_series_dir: bool = False,
     ) -> bool:
         """This function downloads a series from the DICOMWeb server. It sends a GET request to the DICOMWeb server to retrieve the series and saves the DICOM files to the target directory.
 
@@ -222,8 +220,6 @@ class HelperDcmWeb:
             study_uid (str, optional): Study Instance UID of the series. Defaults to None.
             series_uid (str, optional): Series Instance UID of the series. Defaults to None.
             target_dir (str, optional): Target directory to save the DICOM files. Defaults to None.
-            expected_object_count (int, optional): The expected number of objects in the series. Defaults to None.
-            include_series_dir (bool, optional): Flag to include the series UID as a subdirectory in the target directory. Defaults to False.
 
         Returns:
             bool: True if the series was downloaded successfully, False otherwise.
@@ -240,8 +236,6 @@ class HelperDcmWeb:
                 return False
 
         # Create target directory
-        if include_series_dir:
-            target_dir = join(target_dir, series_uid)
         Path(target_dir).mkdir(parents=True, exist_ok=True)
 
         # Get list of object UIDs in the series

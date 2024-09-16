@@ -13,6 +13,7 @@ logging.getLogger().setLevel(logging.INFO)
 
 def get_instance_settings(
     db: Session,
+    username: Optional[str] = "",
     instance_name: Optional[str] = None,
 ):
     """
@@ -20,6 +21,7 @@ def get_instance_settings(
 
     Args:
         db (Session): The database session to be used for the query.
+        username: Optional[str]: The preferred name of the keycloak user.
         instance_name (Optional[str]): The name of the instance for which settings should be retrieved.
 
     Returns:
@@ -28,12 +30,20 @@ def get_instance_settings(
     # Retrieves the `kaapana_instance` by its name or the default instance if none is specified.
     db_kaapana_instance = get_kaapana_instance(db, instance_name)
 
-    # Queries all settings related to the `kaapana_instance`.
-    db_settings = (
-        db.query(models.Settings)
-        .filter_by(kaapana_instance_id=db_kaapana_instance.id)
-        .all()
-    )
+    if username == "":
+        # Queries all settings related to the `kaapana_instance`.
+        db_settings = (
+            db.query(models.Settings)
+            .filter_by(kaapana_instance_id=db_kaapana_instance.id)
+            .all()
+        )
+    else:
+        # Queries all settings related to the `kaapana_instance` and keycloak user.
+        db_settings = (
+            db.query(models.Settings)
+            .filter_by(kaapana_instance_id=db_kaapana_instance.id, username=username)
+            .all()
+        )
 
     # Processes the value of each setting before returning it.
     for item in db_settings:
@@ -45,6 +55,7 @@ def get_instance_settings(
 def get_settings_item(
     db: Session,
     settings_key: str,
+    username: Optional[str] = "",
     instance_name: Optional[str] = None,
 ):
     """
@@ -53,6 +64,7 @@ def get_settings_item(
     Args:
         db (Session): The database session to be used for the query.
         settings_key (str): The key of the setting to be retrieved.
+        username: Optional[str]: The preferred name of the keycloak user.
         instance_name (Optional[str]): The name of the instance for which the setting should be retrieved.
 
     Returns:
@@ -61,12 +73,24 @@ def get_settings_item(
     # Retrieves the `kaapana_instance` by its name or the default instance if none is specified.
     db_kaapana_instance = get_kaapana_instance(db, instance_name)
 
-    # Queries the specific setting by key for the `kaapana_instance`.
-    db_settings_item = (
-        db.query(models.Settings)
-        .filter_by(kaapana_instance_id=db_kaapana_instance.id, key=settings_key)
-        .one_or_none()
-    )
+    if username == "":
+        # Queries the specific setting by key for the `kaapana_instance`.
+        db_settings_item = (
+            db.query(models.Settings)
+            .filter_by(kaapana_instance_id=db_kaapana_instance.id, key=settings_key)
+            .one_or_none()
+        )
+    else:
+        # Queries the specific setting by key for the `kaapana_instance` and keycloak user.
+        db_settings_item = (
+            db.query(models.Settings)
+            .filter_by(
+                kaapana_instance_id=db_kaapana_instance.id,
+                key=settings_key,
+                username=username,
+            )
+            .one_or_none()
+        )
 
     if db_settings_item:
         # Processes the value of the setting before returning it.
@@ -80,6 +104,7 @@ def get_settings_item(
 def create_or_update_settings(
     db: Session,
     settings_item: schemas.SettingsBase,
+    username: Optional[str] = "",
     instance_name: Optional[str] = None,
 ):
     """
@@ -88,6 +113,7 @@ def create_or_update_settings(
     Args:
         db (Session): The database session to be used for the operation.
         settings_item (schemas.SettingsBase): The settings item to be created or updated.
+        username: Optional[str]: The preferred name of the keycloak user.
         instance_name (Optional[str]): The name of the instance for which the setting should be created or updated.
 
     Returns:
@@ -118,7 +144,7 @@ def create_or_update_settings(
     else:
         # If the setting does not exist, a new one is created.
         db_settings = models.Settings(
-            username="",
+            username=username,
             instance_name=db_kaapana_instance.instance_name,
             key=settings_item.key,
             value=settings_item.value,

@@ -42,7 +42,8 @@ data:
         {"path": "^/web/meta/.*", "methods": ["GET","POST","PUT","DELETE"]},
         {"path": "^/web/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
         {"path": "^/kube-helm-api/pending-applications", "methods": ["GET"]},
-        {"path": "^/thumbnails/.*", "methods": ["GET"]}
+        {"path": "^/thumbnails/.*", "methods": ["GET"]},
+        {"path": "^/aii/.*", "methods": ["GET"]}
     ]
 
     allowed_admin_endpoints := [

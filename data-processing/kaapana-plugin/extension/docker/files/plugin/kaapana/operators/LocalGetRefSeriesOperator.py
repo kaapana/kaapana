@@ -6,12 +6,16 @@ from dataclasses import dataclass
 from datetime import timedelta
 from os.path import join
 from pathlib import Path
+import logging
 
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 @dataclass
@@ -82,17 +86,39 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         with open(join(series.target_dir, "metadata.json"), "w") as fp:
             json.dump(meta_data, fp, indent=4, sort_keys=True)
 
+        # Check if target directory is empty
+        if len(os.listdir(series.target_dir)) == 0:
+            raise ValueError(
+                f"Download of series {series.series_instance_uid} failed! Target directory is empty."
+            )
+
     def download_series_from_pacs(self, series: DownloadSeries):
         """Download a series from the PACS system.
 
         Args:
             series (DownloadSeries): The series to download.
         """
+        # Check if series is present in PACS. During upload it can happen that the series is not uploaded yet but the segmentation is already there.
+        instances = self.dcmweb_helper.get_instances_of_series(
+            study_uid=series.study_instance_uid, series_uid=series.reference_series_uid
+        )
 
         self.dcmweb_helper.download_series(
             study_uid=series.study_instance_uid,
             series_uid=series.reference_series_uid,
             target_dir=series.target_dir,
+        )
+
+        # Check if number of instances is equal to number of downloaded files
+        if len(instances) != len(os.listdir(series.target_dir)):
+            raise ValueError(
+                f"Download of series {series.series_instance_uid} failed! Number of instances does not match number of downloaded files."
+            )
+
+        logger.info(f"Number of instances in PACS: {len(instances)}")
+        logger.info(f"Number of downloaded files: {len(os.listdir(series.target_dir))}")
+        logger.info(
+            f"Downloaded series {series.reference_series_uid} to {series.target_dir}"
         )
 
     def prepare_download(self, path_to_dicom_slice: str) -> DownloadSeries:
@@ -156,7 +182,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def get_files(self, ds, **kwargs):
         self.dag_run = kwargs["dag_run"].run_id
-        print("# Starting module LocalGetRefSeriesOperator")
+        logger.info("Starting module LocalGetRefSeriesOperator")
         self.dcmweb_helper = get_dcmweb_helper()
 
         series_dirs = glob.glob(
@@ -187,6 +213,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 for future in as_completed(futures):
                     download_series_list.append(future.result())
 
+        logging.info(f"Downloading {len(download_series_list)} series.")
         with ThreadPoolExecutor(max_workers=self.parallel_downloads) as executor:
             if self.data_type == "dicom":
                 futures = [

@@ -215,7 +215,7 @@ class HelperDcmWeb:
         target_dir: str = None,
         expected_object_count: int = None,
         include_series_dir: bool = False,
-    ) -> bool:
+    ):
         """This function downloads a series from the DICOMWeb server. It sends a GET request to the DICOMWeb server to retrieve the series and saves the DICOM files to the target directory.
 
         Args:
@@ -225,15 +225,16 @@ class HelperDcmWeb:
             expected_object_count (int, optional): The expected number of objects in the series. Defaults to None.
             include_series_dir (bool, optional): Flag to include the series UID as a subdirectory in the target directory. Defaults to False.
 
-        Returns:
-            bool: True if the series was downloaded successfully, False otherwise.
         """
 
         # Check if study_uid is provided, if not get it from metadata of given series
         if not study_uid:
+            logging.warning(
+                "No study UID provided. Trying to get study UID from series UID. This might be wrong and super slow. Please provide study UID."
+            )
             study_uid = self.__get_study_uid_by_series_uid(series_uid)
             if not study_uid:
-                return False
+                raise ValueError("Study UID could not be retrieved.")
 
         # Create target directory
         if include_series_dir:
@@ -267,7 +268,7 @@ class HelperDcmWeb:
                     logger.info(
                         f"Successfully downloaded series {series_uid} of study {study_uid} after {i} retries"
                     )
-                return True
+                return
 
             except Exception as e:
                 logger.error(
@@ -299,7 +300,7 @@ class HelperDcmWeb:
         for object_uid in not_downloaded_instances:
             self.download_instance(study_uid, series_uid, object_uid, target_dir)
 
-        return True
+        return
 
     def __get_study_uid_by_series_uid(self, series_uid: str) -> str:
         """This function retrieves the Study Instance UID of a series.

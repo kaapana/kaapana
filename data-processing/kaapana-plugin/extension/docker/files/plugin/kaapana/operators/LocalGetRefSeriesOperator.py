@@ -74,6 +74,14 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         )
 
     def download_metadata_from_opensearch(self, series: DownloadSeries):
+        """Download metadata of a series from opensearch and store it as a json file into target_dir.
+
+        Args:
+            series (DownloadSeries): The series to download encapsulated in a DownloadSeries Dataclass.
+
+        Raises:
+            ValueError: If the download failed.
+        """
         # Create target directory
         Path(series.target_dir).mkdir(parents=True, exist_ok=True)
 
@@ -181,6 +189,14 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
     @cache_operator_output
     def get_files(self, ds, **kwargs):
+        """Download series from PACS or Opensearch.
+
+        Args:
+            ds (dict): The input dictionary.
+
+        Raises:
+            ValueError: If the download failed.
+        """
         self.dag_run = kwargs["dag_run"].run_id
         logger.info("Starting module LocalGetRefSeriesOperator")
         self.dcmweb_helper = get_dcmweb_helper()

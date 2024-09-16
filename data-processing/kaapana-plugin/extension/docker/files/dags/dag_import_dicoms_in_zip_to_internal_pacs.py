@@ -51,7 +51,7 @@ dag = DAG(
     schedule_interval=None,
     concurrency=10,
     max_active_runs=5,
-    tags= ["import"]
+    tags=["import"],
 )
 
 get_object_from_uploads = LocalVolumeMountOperator(

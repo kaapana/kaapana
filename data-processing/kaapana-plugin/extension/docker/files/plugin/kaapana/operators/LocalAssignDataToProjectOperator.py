@@ -1,11 +1,11 @@
 import os
-import glob
-import pydicom
-
-import requests
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+import glob
+import pydicom
+import json
+import requests
 
 
 class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
@@ -23,15 +23,12 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
     def __init__(
         self,
         dag,
-        projects: list = [],
         **kwargs,
     ):
         """
         Constructor for the LocalAssignDataToProjectOperator.
         """
-        self.projects = projects
-        self.projects_api = f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080"
-
+        self.dcmweb_helper = HelperDcmWeb()
         super().__init__(
             dag=dag,
             name="assign-data-to-project",
@@ -48,54 +45,46 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
 
         :param kwargs: Additional keyword arguments passed to the operator.
         """
-        self.run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        data_to_send = self.collect_data_from_dag()
-        for data in data_to_send:
-            for project in self.projects:
-                self.assign_data_to_project(project, data)
 
-    def collect_data_from_dag(self):
-        """
-        Collect data from the DAG.
+        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
+        batch_folder = os.path.join(run_dir, self.batch_name)
+        print(f"{batch_folder=}")
+        batch_elemtent_dirs = glob.glob(os.path.join(batch_folder, "*"))
+        print(f"{batch_elemtent_dirs=}")
 
-        This method collects DICOM series data from the specified directory in the DAG run directory.
+        for batch_element_dir in batch_elemtent_dirs:
+            operator_in_dir = os.path.join(batch_element_dir, self.operator_in_dir)
+            print(f"{operator_in_dir=}")
+            path_to_metadata = glob.glob(os.path.join(operator_in_dir, "*.json"))
+            assert len(path_to_metadata) == 1
+            path_to_metadata = path_to_metadata[0]
+            self.assign_data_to_projects(path_to_metadata)
 
-        :return: A list of data dictionaries to send to the projects.
-        """
-        data_to_send = []
-        batch_folders = [
-            f for f in glob.glob(os.path.join(self.run_dir, self.batch_name, "*"))
-        ]
+    def assign_data_to_projects(self, path_to_metadata: str) -> None:
+        """ """
+        with open(path_to_metadata) as f:
+            metadata = json.load(f)
 
-        for batch_element_dir in batch_folders:
-            element_input_dir = os.path.join(batch_element_dir, self.operator_in_dir)
-            print(element_input_dir)
+        series_instance_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
+        clinical_trial_protocol_id = metadata.get(
+            "00120020 ClinicalTrialProtocolID_keyword"
+        )
+        project = self.get_project_by_name(clinical_trial_protocol_id)
+        project_id = project.get("id")
 
-            dcm_files = sorted(
-                glob.glob(os.path.join(element_input_dir, "**/*.dcm*"), recursive=True)
-            )
-            for series_file in dcm_files:
-                dicom_data = pydicom.dcmread(series_file)
-                series_uid = str(dicom_data[0x0020, 0x000E].value)
+        url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
+        response = self.dcmweb_helper.session.put(url)
+        response.raise_for_status()
 
-                data = {
-                    "description": "DICOM series",
-                    "data_type": "dicom-series",  # TODO: Commit on standard data types
-                    "series_instance_uid": series_uid,
-                }
-                data_to_send.append(data)
-        return data_to_send
-
-    def assign_data_to_project(self, project: str, data: dict):
-        """
-        Assign data to a project.
-
-        This method sends the data dictionary to the specified project using the Access Information Interface (AII) API.
-
-        :param project: The name of the project to assign the data to.
-        :param data: The data dictionary to send to the project.
-        """
-        response = requests.post(
-            f"{self.projects_api}/projects/{project}/data", json=data
+    def get_project_by_name(self, project_name: str):
+        response = requests.get(
+            "http://aii-service.services.svc:8080/projects",
+            params={"name": project_name},
         )
         response.raise_for_status()
+        projects = response.json()
+        try:
+            return projects[0]
+        except IndexError as e:
+            print(f"Project {project_name} not found!")
+            raise e

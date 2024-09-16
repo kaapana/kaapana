@@ -7,6 +7,9 @@ from airflow.models import DAG
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalAssignDataToProjectOperator import (
+    LocalAssignDataToProjectOperator,
+)
 
 log = LoggingMixin().log
 
@@ -30,9 +33,15 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(dag=dag, operator_out_dir="get-input-data")
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=get_input)
 add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
+assign_to_project = LocalAssignDataToProjectOperator(
+    dag=dag, input_operator=extract_metadata
+)
 push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=get_input, json_operator=extract_metadata
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> extract_metadata >> add_to_dataset >> push_json >> clean
+get_input >> extract_metadata
+extract_metadata >> push_json >> clean
+extract_metadata >> add_to_dataset >> clean
+extract_metadata >> assign_to_project >> clean

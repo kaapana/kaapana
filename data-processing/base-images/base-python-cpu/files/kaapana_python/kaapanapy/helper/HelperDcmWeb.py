@@ -504,9 +504,6 @@ class HelperDcmWeb:
         else:
             response.raise_for_status
 
-    def search_for_series(self, search_filters):
-        return self.client.search_for_series(search_filters=search_filters)
-
     def __encode_multipart_message_part(self, boundary: str, payload: bytes) -> bytes:
         """This function encodes the DICOM file as a part of the multipart message.
 

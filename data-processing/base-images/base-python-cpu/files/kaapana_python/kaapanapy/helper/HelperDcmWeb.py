@@ -215,7 +215,7 @@ class HelperDcmWeb:
         target_dir: str = None,
         expected_object_count: int = None,
         include_series_dir: bool = False,
-    ):
+    ) -> bool:
         """This function downloads a series from the DICOMWeb server. It sends a GET request to the DICOMWeb server to retrieve the series and saves the DICOM files to the target directory.
 
         Args:

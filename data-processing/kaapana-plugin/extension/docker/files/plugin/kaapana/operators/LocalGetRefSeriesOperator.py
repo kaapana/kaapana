@@ -1,15 +1,13 @@
 import glob
-import os
 import json
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import timedelta
-from multiprocessing.pool import ThreadPool
 from os.path import join
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pydicom
-import SimpleITK as sitk
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator

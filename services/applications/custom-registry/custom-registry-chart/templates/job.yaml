@@ -2,12 +2,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: "custom-registry-init-{{ trunc 4 (sha256sum .Values.global.registry_url) }}"
+  name: "registry-test-{{ trunc 4 (sha256sum .Values.global.custom_registry_url) }}"
   namespace: "{{ .Values.global.project_namespace }}"
 spec:
   template:
     metadata:
-      name: custom-registry-init
+      name: registry-test
     spec:
       containers:
       - name: registry-connection-test

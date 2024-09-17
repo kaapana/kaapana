@@ -40,7 +40,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         name: str = "get-ref-series",
         search_policy: str = "reference_uid",  # reference_uid, study_uid, patient_uid
         data_type: str = "dicom",
-        dicom_tags: list = [],
+        dicom_tags: list = [],  # list of dicom tags to filter the series
         parallel_downloads: int = 3,
         batch_name: str = None,
         **kwargs,
@@ -50,16 +50,15 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         if search_policy not in ["reference_uid", "study_uid", "patient_uid"]:
             raise ValueError("Unknown search policy!")
 
-        if search_policy == "patient_uid":
+        if search_policy in ["study_uid", "patient_uid"]:
             raise NotImplementedError(
-                "search_policy 'patient_uid' is not implemented yet!"
+                "search_policy 'study_uid' and 'patient_uid' are not implemented yet! Please use search_policy 'reference_uid' instead."
             )
+        if not dicom_tags == []:
+            raise NotImplementedError("dicom_tags is not implemented yet!")
 
         self.search_policy = search_policy
         self.data_type = data_type
-        self.dicom_tags = (
-            dicom_tags  # studyID dicom_tags=[{'id':'StudyID','value':'nnUnet'},{...}]
-        )
 
         self.parallel_downloads = parallel_downloads
         self.batch_name = batch_name

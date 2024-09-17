@@ -1,0 +1,20 @@
+---
+global:
+    pull_policy_images: "IfNotPresent"
+
+extension_params:
+    custom_registry_url:
+        default: ""
+        definition: Custom Registry URL
+        type: string
+        value: ""
+    credentials_custom_registry_username:
+        default: ""
+        definition: Registry Username
+        type: string
+        value: ""
+    credentials_custom_registry_password:
+        default: ""
+        definition: Registry Password or Access Token
+        type: string
+        value: ""

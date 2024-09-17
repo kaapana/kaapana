@@ -1,0 +1,26 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "custom-registry-init-{{ trunc 4 (sha256sum .Values.global.registry_url) }}"
+  namespace: "{{ .Values.global.project_namespace }}"
+spec:
+  template:
+    metadata:
+      name: custom-registry-init
+    spec:
+      containers:
+      - name: registry-connection-test
+        image: "{{ .Values.global.registry_url }}/check-registry-access:{{ .Values.global.kaapana_build_version }}"
+        env:
+        - name: REGISTRY_URL
+          value: "{{ .Values.global.custom_registry_url }}"
+        - name: REGISTRY_USERNAME
+          value: "{{ .Values.global.credentials_custom_registry_username }}"
+        - name: REGISTRY_PASSWORD
+          value: "{{ .Values.global.credentials_custom_registry_password }}"
+        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+      imagePullSecrets:
+        - name: registry-secret
+      restartPolicy: Never
+  backoffLimit: 2

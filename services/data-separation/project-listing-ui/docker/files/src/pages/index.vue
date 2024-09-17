@@ -34,9 +34,9 @@
 import { defineComponent } from 'vue';
 import axios, { AxiosResponse } from 'axios';
 
-const host = window.location.hostname;
+const ACCESS_INFORMATION_BACKEND = import.meta.env.VITE_APP_ACCESS_INFORMATION_BACKEND || '/aii/';
 const client = axios.create({
-  baseURL: `https://${host}/aii`,
+  baseURL: ACCESS_INFORMATION_BACKEND,
 });
 
 

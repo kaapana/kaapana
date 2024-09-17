@@ -3,7 +3,6 @@ import requests
 import time
 import logging
 import os
-import json
 
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
 assert SERVICES_NAMESPACE
@@ -12,7 +11,9 @@ prometheus_url = f"http://prometheus-service.{SERVICES_NAMESPACE}.svc:9090/prome
 
 memory_query = "floor(node_memory_MemTotal_bytes{job='Node-Exporter'}/1048576)"
 mem_util_per_query = "sum(node_memory_MemTotal_bytes{job='Node-Exporter'} - node_memory_MemAvailable_bytes{job='Node-Exporter'}) / sum(node_memory_MemTotal_bytes{job='Node-Exporter'})"
-memory_requeted_services = "round(sum(kube_pod_container_resource_requests{unit='byte',namespace!='jobs'})/1000000)"
+query_memory_requested_from_pods_in_services_namespace = "round(sum(kube_pod_container_resource_requests{unit='byte',namespace='services'})/1000000)"
+query_memory_requested_from_pods_in_admin_namespace = "round(sum(kube_pod_container_resource_requests{unit='byte',namespace='admin'})/1000000)"
+
 
 cpu_core_query = "machine_cpu_cores"
 cpu_util_per_query = 'sum (rate (container_cpu_usage_seconds_total{id="/"}[1m])) / sum (machine_cpu_cores) * 100'
@@ -127,15 +128,27 @@ def get_node_memory(logger=None):
 
 
 def get_node_requested_memory(logger=None):
-    node_requested_memory, success = get_node_info(query=memory_requeted_services)
-    if not success:
+    """
+    Get the sum of all memory requests by pods in the namespaces services and admin.
+    """
+    memory_requested_from_pods_in_services_namespace, success1 = get_node_info(
+        query=query_memory_requested_from_pods_in_services_namespace
+    )
+    memory_requested_from_pods_in_admin_namespace, success2 = get_node_info(
+        query=query_memory_requested_from_pods_in_admin_namespace
+    )
+
+    if not success1 or not success2:
         if logger != None:
             logger.error(
                 f"+++++++++ Could not fetch node-info: get_node_requested_memory"
             )
         return None
 
-    return node_requested_memory
+    return (
+        memory_requested_from_pods_in_services_namespace
+        + memory_requested_from_pods_in_admin_namespace
+    )
 
 
 def get_node_mem_percent(logger=None):

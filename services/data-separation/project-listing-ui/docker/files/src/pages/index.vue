@@ -34,9 +34,11 @@
 import { defineComponent } from 'vue';
 import axios, { AxiosResponse } from 'axios';
 
+const host = window.location.hostname;
 const client = axios.create({
-  baseURL: 'https://e230-pc25.inet.dkfz-heidelberg.de/aii',
+  baseURL: `https://${host}/aii`,
 });
+
 
 type ProjectItem = {
   id: number,

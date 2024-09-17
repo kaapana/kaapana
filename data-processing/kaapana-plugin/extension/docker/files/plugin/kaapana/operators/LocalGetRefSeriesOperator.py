@@ -1,12 +1,12 @@
 import glob
 import json
+import logging
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import timedelta
 from os.path import join
 from pathlib import Path
-import logging
 
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -56,6 +56,11 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             )
         if not dicom_tags == []:
             raise NotImplementedError("dicom_tags is not implemented yet!")
+
+        if data_type == "json":
+            self.download_function = self.download_metadata_from_opensearch
+        elif data_type == "dicom":
+            self.download_function = self.download_series_from_pacs
 
         self.search_policy = search_policy
         self.data_type = data_type
@@ -228,18 +233,15 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 for future in as_completed(futures):
                     download_series_list.append(future.result())
 
+        # Download the requested data
         logging.info(f"Downloading {len(download_series_list)} series.")
         with ThreadPoolExecutor(max_workers=self.parallel_downloads) as executor:
-            if self.data_type == "dicom":
-                futures = [
-                    executor.submit(self.download_series_from_pacs, series)
-                    for series in download_series_list
-                ]
-            elif self.data_type == "json":
-                futures = [
-                    executor.submit(self.download_metadata_from_opensearch, series)
-                    for series in download_series_list
-                ]
+            futures = [
+                executor.submit(
+                    self.download_function, series
+                )  # Download function is being set in the constructor
+                for series in download_series_list
+            ]
             for future in as_completed(futures):
                 pass
 

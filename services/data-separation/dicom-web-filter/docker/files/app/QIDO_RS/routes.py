@@ -11,8 +11,11 @@ from ..streaming_helpers import metadata_replace_stream
 
 router = APIRouter()
 
+
 async def head_request(url: str, request: Request) -> Response:
     """Perform a HEAD request to check the response code without retrieving the body.
+    This is a current workaround to catch 204 responses, which are turned into 200 responses by the StreamingResponse.
+    Will change in the future.
 
     Args:
         url (str): URL to send the request to
@@ -31,9 +34,10 @@ async def head_request(url: str, request: Request) -> Response:
         if response.status_code == 204:
             # Return empty response with status code 204
             return Response(status_code=HTTP_204_NO_CONTENT)
-        
+
     response.raise_for_status()
     return response
+
 
 async def retrieve_studies(request: Request) -> Response:
     """Retrieve studies from the DICOM Web server.
@@ -97,7 +101,9 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
         Response: Response object
     """
     # Perform a HEAD request to check the response code without retrieving the body
-    await head_request(f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances", request)
+    await head_request(
+        f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances", request
+    )
 
     # Send the request to the DICOM Web server
     return StreamingResponse(

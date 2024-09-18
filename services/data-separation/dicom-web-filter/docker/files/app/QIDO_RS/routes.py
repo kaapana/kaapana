@@ -12,6 +12,112 @@ from ..streaming_helpers import metadata_replace_stream
 router = APIRouter()
 
 
+async def head_request(url: str, request: Request) -> Response:
+    """Perform a HEAD request to check the response code without retrieving the body.
+    This is a current workaround to catch 204 responses, which are turned into 200 responses by the StreamingResponse.
+    Will change in the future.
+
+    Args:
+        url (str): URL to send the request to
+        request (Request): Request object
+
+    Returns:
+        Response: Response object
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.head(
+            url,
+            params=dict(request.query_params),
+            headers=dict(request.headers),
+        )
+
+        if response.status_code == 204:
+            # Return empty response with status code 204
+            return Response(status_code=HTTP_204_NO_CONTENT)
+
+    response.raise_for_status()
+    return response
+
+
+async def retrieve_studies(request: Request) -> Response:
+    """Retrieve studies from the DICOM Web server.
+
+    Args:
+        request (Request): Request object
+
+    Returns:
+        response: Response object
+    """
+    # Perform a HEAD request to check the response code without retrieving the body
+    await head_request(f"{DICOMWEB_BASE_URL}/studies", request)
+
+    return StreamingResponse(
+        metadata_replace_stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies",
+            request=request,
+            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
+            replace=b"dicom-web-filter",
+        ),
+        media_type="application/dicom+json",
+    )
+
+
+async def retrieve_series(study: str, request: Request) -> Response:
+    """Retrieve series from the DICOM Web server.
+
+    Args:
+        study (str): Study Instance UID
+        request (Request): Request object
+
+    Returns:
+        Response: Response object
+    """
+    # Perform a HEAD request to check the response code without retrieving the body
+    await head_request(f"{DICOMWEB_BASE_URL}/studies/{study}/series", request)
+
+    # Send the request to the DICOM Web server
+    return StreamingResponse(
+        metadata_replace_stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies/{study}/series",
+            request=request,
+            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
+            replace=b"dicom-web-filter",
+        ),
+        media_type="application/dicom+json",
+    )
+
+
+async def retrieve_instances(study: str, series: str, request: Request) -> Response:
+    """Retrieve instances from the DICOM Web server.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        request (Request): Request object
+
+    Returns:
+        Response: Response object
+    """
+    # Perform a HEAD request to check the response code without retrieving the body
+    await head_request(
+        f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances", request
+    )
+
+    # Send the request to the DICOM Web server
+    return StreamingResponse(
+        metadata_replace_stream(
+            method="GET",
+            url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances",
+            request=request,
+            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
+            replace=b"dicom-web-filter",
+        ),
+        media_type="application/dicom+json",
+    )
+
+
 @router.get("/studies", tags=["QIDO-RS"])
 async def query_studies(request: Request, session: AsyncSession = Depends(get_session)):
     """This endpoint is used to get all studies mapped to the project.
@@ -23,6 +129,9 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
     Returns:
         response: Response object
     """
+
+    if request.scope.get("admin") is True:
+        return await retrieve_studies(request=request)
 
     if "SeriesInstanceUID" in request.query_params:
         # retrieve series mapped to the project
@@ -76,28 +185,7 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
             # return empty response with status code 204
             return Response(status_code=HTTP_204_NO_CONTENT)
 
-    # Perform a HEAD request to check the response code without retrieving the body
-    async with httpx.AsyncClient() as client:
-        response = await client.head(
-            f"{DICOMWEB_BASE_URL}/studies",
-            params=dict(request.query_params),
-            headers=dict(request.headers),
-        )
-
-        if response.status_code == 204:
-            # Return empty response with status code 204
-            return Response(status_code=HTTP_204_NO_CONTENT)
-
-    return StreamingResponse(
-        metadata_replace_stream(
-            method="GET",
-            url=f"{DICOMWEB_BASE_URL}/studies",
-            request=request,
-            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
-            replace=b"dicom-web-filter",
-        ),
-        media_type="application/dicom+json",
-    )
+    return await retrieve_studies(request=request)
 
 
 @router.get("/studies/{study}/series", tags=["QIDO-RS"])
@@ -114,6 +202,8 @@ async def query_series(
     Returns:
         response: Response object
     """
+    if request.scope.get("admin") is True:
+        return await retrieve_series(study=study, request=request)
 
     # If StudyInstanceUID is in the query parameters, remove it
     query_params = dict(request.query_params)
@@ -146,29 +236,7 @@ async def query_series(
     # Update the query parameters
     request._query_params = query_params
 
-    # Perform a HEAD request to check the response code without retrieving the body
-    async with httpx.AsyncClient() as client:
-        response = await client.head(
-            f"{DICOMWEB_BASE_URL}/studies",
-            params=dict(request.query_params),
-            headers=dict(request.headers),
-        )
-
-        if response.status_code == 204:
-            # Return empty response with status code 204
-            return Response(status_code=HTTP_204_NO_CONTENT)
-
-    # Send the request to the DICOM Web server
-    return StreamingResponse(
-        metadata_replace_stream(
-            method="GET",
-            url=f"{DICOMWEB_BASE_URL}/studies/{study}/series",
-            request=request,
-            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
-            replace=b"dicom-web-filter",
-        ),
-        media_type="application/dicom+json",
-    )
+    return await retrieve_series(study=study, request=request)
 
 
 @router.get("/studies/{study}/series/{series}/instances", tags=["QIDO-RS"])
@@ -189,6 +257,9 @@ async def query_instances(
     Returns:
         response: Response object
     """
+
+    if request.scope.get("admin") is True:
+        return await retrieve_instances(study=study, series=series, request=request)
 
     query_params = dict(request.query_params)
 
@@ -211,26 +282,4 @@ async def query_instances(
     ):
         return Response(status_code=HTTP_204_NO_CONTENT)
 
-    # Perform a HEAD request to check the response code without retrieving the body
-    async with httpx.AsyncClient() as client:
-        response = await client.head(
-            f"{DICOMWEB_BASE_URL}/studies",
-            params=dict(request.query_params),
-            headers=dict(request.headers),
-        )
-
-        if response.status_code == 204:
-            # Return empty response with status code 204
-            return Response(status_code=HTTP_204_NO_CONTENT)
-
-    # Send the request to the DICOM Web server
-    return StreamingResponse(
-        metadata_replace_stream(
-            method="GET",
-            url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances",
-            request=request,
-            search="/".join(DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]).encode(),
-            replace=b"dicom-web-filter",
-        ),
-        media_type="application/dicom+json",
-    )
+    return await retrieve_instances(study=study, series=series, request=request)

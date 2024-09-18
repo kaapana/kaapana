@@ -1,10 +1,9 @@
 import logging
 
 import httpx
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.status import HTTP_204_NO_CONTENT
 
 from .. import crud
 from ..config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL_WADO_URI
@@ -19,11 +18,28 @@ logger.setLevel(logging.WARNING)
 # WADO-RS routes
 
 
+async def stream_wado(request: Request):
+    """Stream the instance from the DICOMWeb server.
+
+    Yields:
+        bytes: DICOM instance
+    """
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            "GET",
+            f"{DICOMWEB_BASE_URL_WADO_URI}",
+            params=request.query_params,
+            headers=dict(request.headers),
+        ) as response:
+            async for chunk in response.aiter_bytes():
+                yield chunk
+
+
 @router.get("/wado", tags=["WADO-URI"])
 async def retrieve_instance(
     request: Request, session: AsyncSession = Depends(get_session)
 ):
-    """This endpoint is used to retrieve instances from the DICOMWeb server. It filters the instances based on the studies and series mapped to the project.
+    """This endpoint is the wado uri endpoint.
 
     Args:
         request (Request): Request object
@@ -32,6 +48,10 @@ async def retrieve_instance(
     Returns:
         StreamingResponse: Response object
     """
+
+    if request.scope.get("admin") is True:
+        return StreamingResponse(stream_wado(request=request))
+
     # Retrieve all studies mapped to the project
     studies = set(
         await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
@@ -72,20 +92,4 @@ async def retrieve_instance(
     # Update the query parameters
     request._query_params = query_params
 
-    async def stream_study():
-        """Stream the study instances from the DICOMWeb server.
-
-        Yields:
-            bytes: DICOM instance
-        """
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "GET",
-                f"{DICOMWEB_BASE_URL_WADO_URI}",
-                params=request.query_params,
-                headers=dict(request.headers),
-            ) as response:
-                async for chunk in response.aiter_bytes():
-                    yield chunk
-
-    return StreamingResponse(stream_study())
+    return StreamingResponse(stream_wado(request=request))

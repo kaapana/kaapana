@@ -65,7 +65,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
     def get_data(self, series_dict):
         download_successful = True
-        _, seriesUID, dag_run_id = (
+        studyUID, seriesUID, dag_run_id = (
             series_dict["studyUID"],
             series_dict["seriesUID"],
             series_dict["dag_run_id"],
@@ -83,7 +83,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
 
         if self.data_type == "dicom":
             download_successful = self.dcmweb_helper.download_series(
-                series_uid=seriesUID, target_dir=Path(target_dir)
+                study_uid=studyUID, series_uid=seriesUID, target_dir=Path(target_dir)
             )
             if not download_successful:
                 logger.error(

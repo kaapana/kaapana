@@ -142,7 +142,6 @@ get_ref_ct_from_test = LocalGetRefSeriesOperator(
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="test",
-    modality=None,
     batch_name="test-dataset",
 )
 

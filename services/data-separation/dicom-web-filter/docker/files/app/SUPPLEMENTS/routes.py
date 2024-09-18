@@ -28,7 +28,9 @@ async def retrieve_instance_thumbnail(
     session: AsyncSession = Depends(get_session),
 ):
 
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,
@@ -64,7 +66,9 @@ async def retrieve_series_thumbnail(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    if await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
         session=session,
         project_id=DEFAULT_PROJECT_ID,
         study_instance_uid=study,

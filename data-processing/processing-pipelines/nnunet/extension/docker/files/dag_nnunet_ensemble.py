@@ -174,7 +174,6 @@ get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
-    modality=None,
     batch_name=str(get_test_images.operator_out_dir),
     delete_input_on_success=False,
 )

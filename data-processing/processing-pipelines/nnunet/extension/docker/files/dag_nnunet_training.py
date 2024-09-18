@@ -298,7 +298,6 @@ get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
-    modality=None,
 )
 
 dcm2nifti_seg = Mask2nifitiOperator(

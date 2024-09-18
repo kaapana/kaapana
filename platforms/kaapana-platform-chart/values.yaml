@@ -88,18 +88,8 @@ extension_params:
         definition: ""
         type: string
         value: ""
-    credentials_postgres_aip_username:
-        default: kaapanauser
-        definition: ""
-        type: string
-        value: ""
     credentials_postgres_aip_password:
         default: Kaapana2020
-        definition: ""
-        type: string
-        value: ""
-    credentials_postgres_dicom_web_filter_username:
-        default: kaapanauser
         definition: ""
         type: string
         value: ""

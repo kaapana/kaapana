@@ -232,7 +232,7 @@ import httpClient from './httpClient'
   }
   const kaapanaApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
-      request.get('/kaapana-backend' + subUrl, { params }).then((response: any) => {
+      httpClient.get('/kaapana-backend' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.data)
@@ -243,7 +243,7 @@ import httpClient from './httpClient'
 
   const kaapanaApiPut = (subUrl: any, payload: any=null, params: any=null) => {
     return new Promise((resolve, reject) => {
-      request.put('/kaapana-backend' + subUrl,  payload, { params: params }).then((response: any) => {
+      httpClient.put('/kaapana-backend' + subUrl,  payload, { params: params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)
@@ -254,7 +254,7 @@ import httpClient from './httpClient'
 
   const kaapanaApiDelete = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
-      request.delete('/kaapana-backend' + subUrl, { params: params} ).then((response: any) => {
+      httpClient.delete('/kaapana-backend' + subUrl, { params: params} ).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)

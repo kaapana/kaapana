@@ -153,14 +153,10 @@ import {
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
-import { settings } from "@/static/defaultUIConfig";
 import { checkAuthR } from "@/utils/utils.js";
-<<<<<<< HEAD
 import ProjectSelection from "@/components/ProjectSelection.vue";
 import httpClient from "@/common/httpClient.js";
-=======
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
->>>>>>> 587e4b459 (issue resolved incase settings request to api doesnot work)
 
 export default Vue.extend({
   name: "App",
@@ -168,21 +164,9 @@ export default Vue.extend({
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
-    settings: settings,
+    settings: defaultSettings,
     selectedProject: null,
   }),
-  created() {
-    this.$store.watch(
-      () => this.$store.getters["isIdle"],
-      (newValue, oldValue) => {
-        if (newValue) {
-          this.onIdle();
-        }
-      }
-    );
-    this.getSettingsFromDb();
-  },
-
   computed: {
     ...mapGetters([
       "currentUser",
@@ -230,6 +214,10 @@ export default Vue.extend({
         this.$router.push({ name: "" });
       });
     },
+    updateSettings() {
+      this.settings = JSON.parse(localStorage["settings"]);
+      this.$vuetify.theme.dark = this.settings["darkMode"];
+    },
     settingsResponseToObject(response: any[]) {
       let converted: Object = {}
       
@@ -245,10 +233,12 @@ export default Vue.extend({
           let settingsFromDb = this.settingsResponseToObject(response.data);
           const updatedSettings = Object.assign({}, defaultSettings, settingsFromDb);
           localStorage["settings"] = JSON.stringify(updatedSettings);
+          this.updateSettings();
         })
         .catch(err => {
           console.log(err);
           localStorage["settings"] = JSON.stringify(defaultSettings);
+          this.updateSettings();
         })
     },
     storeSettingsItemInDb(item_name: string) {
@@ -287,6 +277,19 @@ export default Vue.extend({
         })
       );
     }
+  },
+  created() {
+    this.$store.watch(
+      () => this.$store.getters["isIdle"],
+      (newValue, oldValue) => {
+        if (newValue) {
+          this.onIdle();
+        }
+      }
+    );
+
+    this.loadSelectedProject();
+    this.getSettingsFromDb();
   },
   mounted() {
     this.settings = JSON.parse(localStorage["settings"]);

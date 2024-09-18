@@ -73,9 +73,9 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         )
         try:
             project = self.get_project_by_name(clinical_trial_protocol_id)
-        except Exception as e:
+        except IndexError as e:
             logger.warning(
-                f"{series_instance_uid=} is not assigned to a project! This does not fail the task."
+                f"{series_instance_uid=} is not assigned to a project! This does not fail the task. The series will still be assigned to the default admin project, when the data arrives at the Dicom-Web-Filter."
             )
             return None
         project_id = project.get("id")

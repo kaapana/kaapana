@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-management-ui
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: project-management-ui-app
+  strategy:
+    type: Recreate
+  template: 
+    metadata:
+      labels:
+        app-name: project-management-ui-app
+    spec:      
+      containers:
+      - name: project-management-ui-container
+        image: "{{ .Values.global.registry_url }}/project-management-ui:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+        env:
+        - name: POSTGRES_USER
+          value: {{ .Values.global.postgres_user }}
+        ports:
+          - name: proj-list-http
+            containerPort: 80
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "100Mi"
+        volumeMounts:
+          - name: tmp
+            mountPath: /var/run
+          - name: cache
+            mountPath: /var/cache/nginx
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+      volumes:
+      - name: cache
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+      priorityClassName: kaapana-high-priority
+      imagePullSecrets:
+        - name: registry-secret
+---

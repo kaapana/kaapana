@@ -4,6 +4,7 @@ appVersion: 0.1.0
 description: Chart for adding a custom registry
 name: custom-registry-chart
 version: "0.0.0"
+ignore_linting: true
 keywords:
 - kaapanaapplication
 - kaapanaexperimental

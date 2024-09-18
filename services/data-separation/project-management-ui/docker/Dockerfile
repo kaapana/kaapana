@@ -9,7 +9,7 @@ COPY --from=base-landing-resource /kaapana/app/public/favicon.ico ./public/favic
 COPY --from=base-landing-resource /kaapana/app/src/assets/img/kaapana.png ./public/assets/img/logo.png
 RUN yarn install
 
-LABEL IMAGE="project-listing-ui"
+LABEL IMAGE="project-management-ui"
 LABEL VERSION="0.0.1"
 LABEL BUILD_IGNORE="False"
 

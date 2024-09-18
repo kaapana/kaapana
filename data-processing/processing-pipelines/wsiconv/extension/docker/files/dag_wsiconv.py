@@ -51,6 +51,7 @@ dag = DAG(
     schedule_interval=None,
     concurrency=10,
     max_active_runs=5,
+    tags=["import"],
 )
 
 get_object_from_uploads = LocalVolumeMountOperator(
@@ -68,21 +69,24 @@ unzip_files = ZipUnzipOperator(
     dag=dag, input_operator=get_object_from_uploads, batch_level=True, mode="unzip"
 )
 
-wsi_conv = WSIconvOperator(
-    dag=dag, input_operator=unzip_files
-)
+wsi_conv = WSIconvOperator(dag=dag, input_operator=unzip_files)
 
 dicom_send = DcmSendOperator(
     dag=dag, input_operator=wsi_conv, ae_title="uploaded", level="batch"
 )
 
 remove_object_from_uploads = LocalVolumeMountOperator(
-    dag=dag, name="removing-object-from-uploads", mount_path="/kaapana/app/uploads", action="remove", whitelisted_file_endings=(".zip",)
+    dag=dag,
+    name="removing-object-from-uploads",
+    mount_path="/kaapana/app/uploads",
+    action="remove",
+    whitelisted_file_endings=(".zip",),
 )
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag, trigger_rule="none_failed_min_one_success", clean_workflow_dir=True
 )
+
 
 def branching_cleaning_uploads_callable(**kwargs):
     conf = kwargs["dag_run"].conf
@@ -100,6 +104,12 @@ branching_cleaning_uploads = BranchPythonOperator(
     dag=dag,
 )
 
-get_object_from_uploads >> unzip_files >> wsi_conv >> dicom_send >> branching_cleaning_uploads
+(
+    get_object_from_uploads
+    >> unzip_files
+    >> wsi_conv
+    >> dicom_send
+    >> branching_cleaning_uploads
+)
 branching_cleaning_uploads >> remove_object_from_uploads >> clean
 branching_cleaning_uploads >> clean

@@ -701,9 +701,9 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
     print(f"# Resampling: {input_path} -> {target_path}")
     command = [
         str(executable),
-        "-f",
+        "-r",
         str(original_path),
-        "-m",
+        "-i",
         str(input_path),
         "-o",
         str(target_path),

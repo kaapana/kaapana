@@ -43,9 +43,9 @@ def process_input_file(input_path, original_path, original_shape, target_dir):
 
         command = [
             str(executable),
-            "-f",
+            "-r",
             str(original_path),
-            "-m",
+            "-i",
             str(input_path),
             "-o",
             str(target_path),

@@ -15,17 +15,6 @@ spec:
       labels:
         app-name: dicom-web-multiplexer
     spec:
-      initContainers:
-        - name: init-dicom-web-multiplexer
-          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version }}"
-          imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
-          env:
-            - name: WAIT
-              value: "dcm4che,dcm4chee-service.{{ .Values.global.services_namespace }}.svc,11115;"
-            - name: DELAY
-              value: "2"
-            - name: TIMEOUT
-              value: "10"
       containers:
         - name: dicom-web-multiplexer
           image: "{{ .Values.global.registry_url }}/dicom-web-multiplexer:{{ .Values.global.kaapana_build_version }}"
@@ -49,8 +38,8 @@ spec:
               memory: "256Mi"
           volumeMounts:
             {{- if .Values.global.dev_files }}
-            - name: dicom-web-multiplexer-dev-files
-              mountPath: /app
+            - name: dicom-web-multiplexer-dev-pv-volume
+              mountPath: /
             {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
@@ -62,7 +51,7 @@ spec:
 
       volumes:
         {{- if .Values.global.dev_files }}
-        - name: dicom-web-multiplexer-dev-files
+        - name: dicom-web-multiplexer-dev-pv-volume
           persistentVolumeClaim:
             claimName: dicom-web-multiplexer-dev-pv-claim
         {{- end }}

@@ -73,6 +73,9 @@ GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
 KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
 KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
 
+CREDENTIALS_POSTGRES_AIP_PASSWORD="{{ credentials_postgres_aip_password|default('Kaapana2020', true) }}"
+CREDENTIALS_POSTGRES_DICOM_WEB_FILTER_PASSWORD="{{ credentials_postgres_aip_password|default('Kaapana2020', true) }}"
+
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
 
@@ -443,6 +446,8 @@ function deploy_chart {
     --set-string global.credentials_grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
+    --set-string global.credentials_postgres_aip_password="$CREDENTIALS_POSTGRES_AIP_PASSWORD" \
+    --set-string global.credentials_postgres_dicom_web_filter_password="$CREDENTIALS_POSTGRES_DICOM_WEB_FILTER_PASSWORD" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \

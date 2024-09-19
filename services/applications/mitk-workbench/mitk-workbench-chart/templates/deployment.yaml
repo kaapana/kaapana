@@ -87,6 +87,10 @@ spec:
         env:
         - name: INGRESS_PATH
           value: {{ .Release.Name }}
+        - name: USER
+          value: mitk
+        - name: PASSWORD
+          value: mitk 
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:

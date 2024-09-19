@@ -32,14 +32,13 @@ if [ "$MODE" = "preprocess" ]; then
         python3 -u ./create_dataset.py
     fi
 
+    number_processes=$PREP_TL
     if [ ! -z "$MODEL" ]; then
         if [ "$MODEL" == "3d_fullres" ]; then
             number_processes=$PREP_TF
         elif [ "$MODEL" == "3d_lowres" ]; then
             number_processes=$PREP_TL
         fi
-    else
-        number_processes=""
     fi
 
     if [ "$PREP_CHECK_INTEGRITY" = "True" ] || [ "$PREP_CHECK_INTEGRITY" = "true" ]; then
@@ -79,6 +78,7 @@ if [ "$MODE" = "preprocess" ]; then
     echo "# OMP_NUM_THREADS:        $OMP_NUM_THREADS";
     echo "# PREP_TL:                $PREP_TL";
     echo "# PREP_TF:                $PREP_TF";
+    echo "# number_processes:       $number_processes";
     echo "#"
     echo "# NIFTI_DIRS:             $INPUT_MODALITY_DIRS";
     echo "# LABEL_DIR:              $PREP_LABEL_DIRS";

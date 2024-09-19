@@ -30,7 +30,6 @@ allow {
 ### Allow access to kaapana-backend if the Project header matches with a project in the project claim of the access token
 allow {
     regex.match("^/kaapana-backend/.*", input.requested_prefix)
-    input.method in ["GET","POST","PUT","DELETE"]
     some p
     input.access_token.projects[p].id == input.project.id
     input.access_token.projects[p].role_name in ["admin","read"]

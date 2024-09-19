@@ -5,6 +5,7 @@ whitelisted_endpoints := [
     {"path": "^/auth/resources/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/oauth2/metrics", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/remote/.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/kaapana-backend/oidc-logout", "methods": ["GET","POST","PUT","DELETE"]},
 ]
 
 allowed_user_endpoints := [
@@ -36,10 +37,11 @@ allowed_user_endpoints := [
     {"path": "^/kube-helm-api/pending-applications", "methods": ["GET"]},
     {"path": "^/thumbnails/.*", "methods": ["GET"]},
     {"path": "^/aii/.*", "methods": ["GET"]},
+    {"path": "^/kaapana-backend/client/file", "methods": ["POST", "HEAD", "PATCH","DELETE"]},
 ]
 
 allowed_admin_endpoints := [
-    {"path":"^/.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path":"^/.*", "methods": ["GET","POST","PUT","DELETE","HEAD","PATCH"]},
 ]
 
 endpoints_per_role := {

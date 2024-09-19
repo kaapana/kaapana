@@ -96,6 +96,6 @@ spec:
           claimName: mounted-scripts-pv-claim
       restartPolicy: Never
       imagePullSecrets:
-      - name: registry-secret-{{- if .Values.global.custom_registry_url }}{{ trunc 4 (sha256sum .Values.global.custom_registry_url) }}{{- end }}
+      - name: registry-secret{{- if .Values.global.custom_registry_url }}-{{ trunc 4 (sha256sum .Values.global.custom_registry_url) }}{{- end }}
   backoffLimit: 0
 {{- end }}

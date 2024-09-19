@@ -11,11 +11,13 @@ import asyncio
 from distutils.version import LooseVersion
 
 from typing import Dict, List, Set, Union, Tuple
-from fastapi import UploadFile
-from fastapi.logger import logger
+import logging
+from logger import get_logger
 
 from config import settings
 import schemas
+
+logger = get_logger(__name__)
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -427,7 +429,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
 
             if len(states_w_indexes) == 0:
                 # nothing updated recently, return cached
-                logger.info(f"nothing updated recently -> returning cached list")
+                logger.info(f"no recent updates -> returning cached list")
                 if platforms:
                     return global_platforms_list
                 else:

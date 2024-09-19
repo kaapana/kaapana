@@ -3,7 +3,6 @@ import os
 import sys
 import time
 from pathlib import Path
-import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
 
@@ -11,34 +10,10 @@ from app.config import settings
 from app.utils import all_successful, helm_install, helm_status
 from app.helm_helper import get_kube_objects, helm_show_chart, execute_shell_command
 
+import logging
+from app.logger import get_logger
 
-logger = logging.getLogger("fastapi")
-# set log level
-log_level = settings.log_level.upper()
-if log_level == "DEBUG":
-    log_level = logging.DEBUG
-elif log_level == "INFO":
-    log_level = logging.INFO
-elif log_level == "WARNING":
-    log_level = logging.WARNING
-elif log_level == "ERROR":
-    log_level = logging.ERROR
-elif log_level == "CRITICAL":
-    log_level = logging.CRITICAL
-else:
-    logging.error(
-        f"Unknown log-level: {settings.log_level} -> Setting log-level to 'INFO'"
-    )
-    log_level = logging.INFO
-
-logger.setLevel(log_level)
-
-ch = logging.StreamHandler()
-ch.setLevel(log_level)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-logger.debug(f"set fastapi logger level to {log_level}")
+logger = get_logger(__name__)
 
 # init
 errors_during_preinstalling = False

@@ -1,11 +1,17 @@
 ---
 global:
     pull_policy_images: "IfNotPresent"
+    suffix_param_key: "custom_registry_name"
 
 extension_params:
+    custom_registry_name:
+        default: ""
+        definition: Provide a name for new registry (max 20 chars)
+        type: string
+        value: ""
     custom_registry_url:
         default: ""
-        definition: Custom Registry URL
+        definition: Registry URL
         type: string
         value: ""
     credentials_custom_registry_username:

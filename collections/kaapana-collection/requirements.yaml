@@ -86,3 +86,5 @@ dependencies:
     version: 0.0.0
   - name: external-pacs-workflow
     version: 0.0.0
+  - name: custom-registry-chart
+    version: 0.0.0

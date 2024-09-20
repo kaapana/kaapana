@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import Response
-from .. import crud
+from app import crud
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
-from ..database import get_session
+from app.database import get_session
 import logging
 
 

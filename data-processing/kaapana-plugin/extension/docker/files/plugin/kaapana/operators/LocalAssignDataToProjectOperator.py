@@ -3,11 +3,14 @@ import os
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.logger import get_logger
+from kaapanapy.settings import KaapanaSettings
 import glob
 import json
 import requests
 
 logger = get_logger(__name__)
+
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
 class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
@@ -92,7 +95,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
             IndexError: If there is no project with the given name.
         """
         response = requests.get(
-            "http://aii-service.services.svc:8080/projects",
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects",
             params={"name": project_name},
         )
         response.raise_for_status()

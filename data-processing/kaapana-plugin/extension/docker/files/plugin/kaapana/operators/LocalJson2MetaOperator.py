@@ -10,9 +10,13 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
+from kaapanapy.settings import KaapanaSettings
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
+
 logger = get_logger(__name__)
+
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
@@ -98,7 +102,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         global es
-        self.index = "test"
         self.dcmweb_helper = get_dcmweb_helper()
 
         self.ti = kwargs["ti"]
@@ -176,7 +179,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     def get_project_by_name(self, project_name: str):
         response = requests.get(
-            "http://aii-service.services.svc:8080/projects",
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects",
             params={"name": project_name},
         )
         response.raise_for_status()

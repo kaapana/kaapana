@@ -25,7 +25,7 @@ airflow_host = os.getenv("AIRFLOW_TRIGGER", None)
 assert airflow_host
 example_files = os.getenv("EXAMPLE", "/example/Winfried_phantom.zip")
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
-
+DEFAULT_PROJECT = "admin"
 index = OpensearchSettings().default_index
 
 access_token = get_project_user_access_token()
@@ -87,12 +87,11 @@ def send_file():
                         ctp_url,
                         dcm_port,
                         "-aet",
-                        "re-index",
-                        "-aec",
                         dataset,
+                        "-aec",
+                        "admin",
                         dcm_dir,
                     ]
-                    # output = run(command)
                     output = run(
                         command, stdout=PIPE, stderr=PIPE, universal_newlines=True
                     )
@@ -136,7 +135,7 @@ def send_meta_init():
         "-aet",
         "dicom-test",
         "-aec",
-        "dicom-test",
+        "admin",
         "/dicom_test_data/init_data",
     ]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
@@ -263,7 +262,7 @@ def send_example_file_to_ctp():
         "-aet",
         "phantom-example",
         "-aec",
-        "phantom-example",
+        "admin",
         example_dir,
     ]
     output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True)

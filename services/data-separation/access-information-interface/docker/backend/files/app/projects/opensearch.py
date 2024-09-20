@@ -81,10 +81,14 @@ class OpenSearchHelper:
     def create_rolemappings(self, role_name: str):
         """
         Create a role mapping in opensearch
+
+        :role_name: Name of the opensearch role.
         """
         backend_role = role_name
         logger.info(f"Create rolemapping for {role_name}")
-        payload = {"backend_roles": [backend_role]}
+        payload = {
+            "backend_roles": [backend_role]
+        }  ### List of roles in the "opensearch" claim of the oidc access token
         response = requests.put(
             f"{self.security_api_url}/rolesmapping/{role_name}",
             json=payload,
@@ -126,7 +130,10 @@ def get_payload_for_role_and_index(role, index):
     """
     allowed_actions = {
         "read": ["read"],
-        "admin": ["data_access"],
+        "admin": [
+            "data_access",
+            "indices:admin/mappings/get",
+        ],
     }
     cluster_permissions = {
         "read": ["cluster_composite_ops_ro"],

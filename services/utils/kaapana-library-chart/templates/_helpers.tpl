@@ -2,7 +2,7 @@
 {{- define "projectPersistentVolumes" -}}
 ---
 # Variables
-{{- $namespace := .Values.global.project_namespace }}
+{{- $namespace := .Values.global.project_namespace | default "project-admin" }}
 # Iteration
 {{- range $volume := .Values.global.dynamicVolumes }}
 {{- $volumeName := printf "%s-%s-pv" $namespace $volume.name }}

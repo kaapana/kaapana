@@ -3,16 +3,8 @@ import math
 import re
 from typing import Dict, List
 
-import requests
-from app.config import settings
 from app.logger import get_logger
-from app.workflows.utils import (
-    TIMEOUT,
-    raise_kaapana_connection_error,
-    requests_retry_session,
-)
-from fastapi import HTTPException
-from app.logger import get_logger
+
 from kaapanapy.settings import OpensearchSettings
 
 # Opensearch values (defaults)
@@ -36,6 +28,7 @@ def close_pit(os_client, pit_id):
 # Function to execute a search with slicing
 def execute_sliced_search(
     os_client,
+    index,
     query,
     pit_id,
     aggregated_series_num,
@@ -61,15 +54,15 @@ def execute_sliced_search(
         "pit": {"id": pit_id, "keep_alive": "1m"},
         "slice": {"id": slice_id, "max": total_slices},
     }
-    res = os_client.search(body=body)
+    res = os_client.search(index=index, body=body)
     return res["hits"]["hits"]
 
 
 def execute_from_size_search(
     os_client,
+    index,
     query: Dict = dict(),
     source=False,
-    index=None,
     sort=[{"00000000 TimestampArrived_datetime.keyword": "desc"}],
     start_from=1,
     size=1000,
@@ -91,7 +84,6 @@ def execute_from_size_search(
     :param size: the result size
     :return: aggregated search results
     """
-    index = index or OpensearchSettings().default_index
     start_from = (start_from - 1) * size
     res = os_client.search(
         body={
@@ -108,6 +100,7 @@ def execute_from_size_search(
 
 def execute_search_after_search(
     os_client,
+    index,
     pit_id,
     query: Dict = dict(),
     source=False,
@@ -141,7 +134,7 @@ def execute_search_after_search(
         if search_after:
             body["search_after"] = search_after
 
-        res = os_client.search(body=body)
+        res = os_client.search(index=index, body=body)
         return res
 
     search_after = None
@@ -177,6 +170,7 @@ def execute_search_after_search(
 
 def execute_initial_search(
     os_client,
+    index,
     query,
     source,
     sort,
@@ -189,6 +183,7 @@ def execute_initial_search(
     if aggregated_series_num < MAX_RETURN_LIMIT:
         hits = execute_from_size_search(
             os_client=os_client,
+            index=index,
             query=query,
             source=source,
             sort=sort,
@@ -197,7 +192,7 @@ def execute_initial_search(
         )
     else:
         # Create a PIT
-        pit_id = create_pit(index="meta-index")
+        pit_id = create_pit(index=index)
         # initially only the patitenid is needed, for resorting later
         patient_source = {
             "includes": [
@@ -208,6 +203,7 @@ def execute_initial_search(
         if use_execute_sliced_search:
             hits = execute_sliced_search(
                 os_client=os_client,
+                index=index,
                 query=query,
                 source=patient_source,
                 page_index=page_index,
@@ -219,6 +215,7 @@ def execute_initial_search(
         else:
             hits = execute_search_after_search(
                 os_client=os_client,
+                index=index,
                 query=query,
                 source=patient_source,
                 sort=sort,
@@ -231,7 +228,7 @@ def execute_initial_search(
 
 
 def requery_and_fill_missing_series_for_patients(
-    os_client, query, source, sort, page_length, hits
+    os_client, index, query, source, sort, page_length, hits
 ):
     """
     The initial search result list() is sorted depending on the sort value. So the result
@@ -255,6 +252,7 @@ def requery_and_fill_missing_series_for_patients(
         }
         patient_hits = execute_from_size_search(
             os_client=os_client,
+            index=index,
             query=patient_query,
             source=source,
             sort=sort,
@@ -295,10 +293,8 @@ def type_suffix(v):
         return ""
 
 
-async def get_metadata(os_client, series_instance_uid: str) -> Dict[str, str]:
-    data = os_client.get(
-        index=OpensearchSettings().default_index, id=series_instance_uid
-    )["_source"]
+async def get_metadata(os_client, index, series_instance_uid: str) -> Dict[str, str]:
+    data = os_client.get(index=index, id=series_instance_uid)["_source"]
 
     # filter for dicoms tags
     return {
@@ -309,7 +305,7 @@ async def get_metadata(os_client, series_instance_uid: str) -> Dict[str, str]:
     }
 
 
-async def get_field_mapping(os_client, index=None) -> Dict:
+async def get_field_mapping(os_client, index) -> Dict:
     """
     Returns a mapping of field for a given index form open search.
     This looks like:
@@ -319,7 +315,6 @@ async def get_field_mapping(os_client, index=None) -> Dict:
     #   ...
     # }
     """
-    index = index or OpensearchSettings().default_index
     import re
 
     res = os_client.indices.get_mapping(index=index)[index]["mappings"]["properties"]

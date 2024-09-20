@@ -40,12 +40,11 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
 
                     # extract datasets from dicom tags
                     datasets = [
-                        tag
+                        metadata.get(dicom_tags)
                         for dicom_tags in self.tags_to_add_from_file
                         if metadata.get(dicom_tags) is not None
-                        for tag in metadata.get(dicom_tags)
                     ]
-
+                    assert datasets
                     for dataset in datasets:
                         try:
                             res = requests.put(
@@ -68,7 +67,9 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         self,
         dag,
         name: str = "add2dataset",
-        tags_to_add_from_file: List[str] = ["00120020 ClinicalTrialProtocolID_keyword"],
+        tags_to_add_from_file: List[str] = [
+            "00120010 ClinicalTrialSponsorName_keyword"
+        ],
         *args,
         **kwargs,
     ):

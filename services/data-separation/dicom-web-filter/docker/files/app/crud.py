@@ -92,6 +92,29 @@ async def add_dicom_data(
     return new_data
 
 
+async def get_data_of_project(session: AsyncSession, project_id: int):
+    """
+    Return all data that belongs to a project.
+    """
+    stmt = select(DicomData)
+    stmt = stmt.join(DicomData.data_projects)
+    stmt = stmt.where(DataProjects.project_id == project_id)
+    result = await session.execute(stmt)
+    data = result.scalars().all()
+    return data
+
+
+async def get_projects_of_data(session: AsyncSession, series_instance_uid: str):
+    """
+    Return all projects where data belongs to.
+    """
+    stmt = select(DataProjects.project_id)
+    stmt = stmt.where(DataProjects.series_instance_uid == series_instance_uid)
+    result = await session.execute(stmt)
+    project_ids = result.scalars().all()
+    return project_ids
+
+
 async def add_data_project_mapping(
     session: AsyncSession, series_instance_uid: str, project_id: int
 ) -> DataProjects:
@@ -112,3 +135,27 @@ async def get_all_series_of_study(
     result = await session.execute(stmt)
     series = result.scalars().all()
     return series
+
+
+async def get_data_project_mapping(session, series_instance_uid: str, project_id: int):
+    stmt = select(DataProjects)
+    stmt = stmt = stmt.where(
+        DataProjects.series_instance_uid == series_instance_uid,
+        DataProjects.project_id == project_id,
+    )
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def remove_data_project_mapping(
+    session: AsyncSession, series_instance_uid: str, project_id: int
+):
+    """
+    Delete a DataProject mapping.
+    """
+    remove_mapping = await get_data_project_mapping(
+        session, series_instance_uid=series_instance_uid, project_id=project_id
+    )
+    session.delete(remove_mapping[0])
+    await session.commit()
+    return None

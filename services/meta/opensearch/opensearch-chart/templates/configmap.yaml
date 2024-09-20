@@ -41,6 +41,7 @@ data:
       config_version: 2
     config:
       dynamic:
+        do_not_fail_on_forbidden: true
         authc:
           openid_auth_domain:
             http_enabled: true

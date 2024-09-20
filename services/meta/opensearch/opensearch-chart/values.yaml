@@ -10,3 +10,5 @@ global:
     host_path: /os/data
   - name: os-certs
     host_path: /os/certs
+  - name: os-security-backup
+    host_path: /os/security-backup

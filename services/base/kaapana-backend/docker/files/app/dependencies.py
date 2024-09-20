@@ -2,6 +2,7 @@ from fastapi import Header, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from .monitoring.services import MonitoringService
 from .users.services import UserService
+import json
 
 # from .workflows.services import WorkflowService
 from .workflows.models import KaapanaInstance
@@ -63,3 +64,11 @@ async def get_query_token(token: str):
 def get_opensearch(request: Request):
     x_auth_token = request.headers.get("x-forwarded-access-token")
     yield get_opensearch_client(access_token=x_auth_token)
+
+
+def get_project_index(request: Request):
+    project_header = request.headers.get("Project")
+    project = json.loads(project_header)
+    project_id = project.get("id")
+    project_index = f"project_{project_id}"
+    return project_index

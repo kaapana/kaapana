@@ -26,16 +26,15 @@
 
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
-import axios, { AxiosResponse, AxiosRequestConfig, RawAxiosRequestHeaders } from 'axios';
+import { aiiApiPost } from '@/common/aiiApi.service';
 
-const ACCESS_INFORMATION_BACKEND = import.meta.env.VITE_APP_ACCESS_INFORMATION_BACKEND || '/aii/';
-const client = axios.create({
-  baseURL: ACCESS_INFORMATION_BACKEND,
-});
 
 
 const props = defineProps({
-    onsubmit: {
+    oncancel: {
+        type: Function,
+    },
+    onsuccess: {
         type: Function,
     }
 });
@@ -49,15 +48,6 @@ const valid = computed(() => {
 })
 
 const submit = async () => {
-    // console.log(name.value, description.value, external_id.value);
-    // console.log(valid.value);
-
-    const config: AxiosRequestConfig = {
-        headers: {
-        'Accept': 'application/json',
-        } as RawAxiosRequestHeaders,
-    };
-    
     const data = {
         "external_id": external_id.value,
         "name": name.value,
@@ -65,16 +55,16 @@ const submit = async () => {
     }
 
     try {
-      const response: AxiosResponse = await client.post(`projects`, data, config);
-      console.log(response.status)
-      props.onsubmit?.();
+      await aiiApiPost(`projects`, data);
+      props.onsuccess?.();      
     } catch (error: unknown) {
-      console.log(error)
+      console.log(error);
+      props.oncancel?.();
     }
 }
 
 const cancel = () => {
-    props.onsubmit?.();
+    props.oncancel?.();
 }
 
 </script>

@@ -6,7 +6,7 @@
       </v-col>
       <v-col cols="3" class="d-flex justify-end align-center">
         <v-btn block
-          @click="dialog = true" 
+          @click="projectDialog = true" 
           size="large"
           prepend-icon="mdi-plus-box"
         >
@@ -41,21 +41,15 @@
       </tbody>
     </v-table>
   </v-container>
-  <v-dialog v-model="dialog" max-width="1000">
-    <CreateNewProjectForm :onsubmit="() => dialog = false"/>
+  <v-dialog v-model="projectDialog" max-width="1000">
+    <CreateNewProjectForm :onsuccess="handleProjectCreate" :oncancel="() => projectDialog = false"/>
   </v-dialog>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import axios, { AxiosResponse } from 'axios';
-import CreateNewProjectFrom from '../components/CreateNewProjectForm.vue'
-
-const ACCESS_INFORMATION_BACKEND = import.meta.env.VITE_APP_ACCESS_INFORMATION_BACKEND || '/aii/';
-const client = axios.create({
-  baseURL: ACCESS_INFORMATION_BACKEND,
-});
-
+import CreateNewProjectFrom from '@/components/CreateNewProjectForm.vue'
+import { aiiApiGet } from '@/common/aiiApi.service';
 
 type ProjectItem = {
   id: number,
@@ -72,17 +66,26 @@ export default defineComponent({
   data() {
     return {
       projects: [] as ProjectItem[],
-      dialog: false,
+      projectDialog: false,
     }
   },
   mounted() {
-    try {
-      client.get('projects').then((resp: AxiosResponse) => {
-        this.projects = resp.data as ProjectItem[]
-      })
-    } catch (error: unknown) {
-      console.log(error)
-    }
+    this.fetchProjects()
   },
+  methods: {
+    fetchProjects: function() {
+      try {
+        aiiApiGet('projects').then((projects: ProjectItem[]) => {
+          this.projects = projects
+        })
+      } catch (error: unknown) {
+        console.log(error)
+      }
+    },
+    handleProjectCreate: function() {
+      this.fetchProjects();
+      this.projectDialog = false;
+    }
+  }
 })
 </script>

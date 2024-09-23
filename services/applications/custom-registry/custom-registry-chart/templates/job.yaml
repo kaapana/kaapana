@@ -1,3 +1,11 @@
+### This job is only created if:
+###
+### 1. .Values.global.test_pull_image exists.
+### 2. .Values.global.test_pull_image is not equal to "-".
+### 3. .Values.global.test_pull_image contains at least one "/" and one ":" to enforce the format <reg-url>/<image-name>:<image-version>.
+###
+
+{{- if and .Values.global.test_pull_image (ne .Values.global.test_pull_image "-") (contains "/" .Values.global.test_pull_image) (contains ":" .Values.global.test_pull_image) }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -11,16 +19,10 @@ spec:
     spec:
       containers:
       - name: registry-connection-test
-        image: "{{ .Values.global.registry_url }}/check-registry-access:{{ .Values.global.kaapana_build_version }}"
-        env:
-        - name: REGISTRY_URL
-          value: "{{ .Values.global.custom_registry_url }}"
-        - name: REGISTRY_USERNAME
-          value: "{{ .Values.global.credentials_custom_registry_username }}"
-        - name: REGISTRY_PASSWORD
-          value: "{{ .Values.global.credentials_custom_registry_password }}"
-        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
+        image: {{ .Values.global.test_pull_image }}
+        imagePullPolicy: Always
       imagePullSecrets:
-        - name: registry-secret
+        - name: registry-secret-{{ trunc 4 (sha256sum .Values.global.custom_registry_url) }}
       restartPolicy: Never
   backoffLimit: 2
+{{- end }}

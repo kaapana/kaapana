@@ -24,3 +24,8 @@ extension_params:
         definition: Registry Password or Access Token
         type: string
         value: ""
+    test_pull_image:
+        default: "-"
+        definition: "Image to test pull access (<regURL>/<name>:<version>). If '-', test is skipped."
+        type: string
+        value: ""

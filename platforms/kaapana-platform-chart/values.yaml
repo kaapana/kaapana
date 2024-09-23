@@ -164,9 +164,9 @@ extension_params:
         type: string
         value: ""
     gpu_support:
-        default: "false"
+        default: false
         definition: Enables microk8s GPU support
-        type: string
+        type: bool
         value: ""
     pull_policy_jobs:
         default: Always

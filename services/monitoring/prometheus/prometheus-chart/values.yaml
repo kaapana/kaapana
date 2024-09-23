@@ -3,7 +3,6 @@ global:
   pull_policy_images: "IfNotPresent"
   fast_data_dir: "/home/kaapana"
   fast_data_dir: "/home/kaapana"
-  gpu_support: false
   email_config:
     deploy_postfix: true
   dynamicVolumes:

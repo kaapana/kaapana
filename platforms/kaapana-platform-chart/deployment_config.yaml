@@ -1,6 +1,6 @@
-offline_mode: 'false'
-prefetch_extensions: 'false'
-dev_mode: 'true'
+offline_mode: false
+prefetch_extensions: false
+dev_mode: true
 container_registry_url:
 container_registry_username:
 container_registry_password:

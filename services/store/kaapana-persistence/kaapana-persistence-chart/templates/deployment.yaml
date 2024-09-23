@@ -57,8 +57,6 @@ spec:
           value: "https://{{.Values.global.hostname}}/ohif/viewer"
         - name: CAS_ROOT_PATH
           value: "/cas"
-        - name: DEV_MODE
-          value: "{{ .Values.global.dev_mode }}"
         - name: PORT
           value: "8080"
         - name: WORKERS

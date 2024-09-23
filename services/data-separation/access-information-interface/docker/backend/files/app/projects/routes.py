@@ -2,11 +2,12 @@ import logging
 from typing import List
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_session
-from . import crud, kubehelm, minio, opensearch, schemas
+from app.database import get_session
+from app.projects import crud, kubehelm, minio, opensearch, schemas
 
 router = APIRouter()
 
@@ -19,8 +20,10 @@ logger = logging.getLogger(__name__)
 async def projects(
     project: schemas.CreateProject,
     session: AsyncSession = Depends(get_session),
-    opensearch_helper=Depends(opensearch.get_opensearch_helper),
-    minio_helper=Depends(minio.get_minio_helper),
+    opensearch_helper: opensearch.OpenSearchHelper = Depends(
+        opensearch.get_opensearch_helper
+    ),
+    minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
     try:
         created_project = await crud.create_project(session, project)
@@ -61,6 +64,9 @@ async def post_user_project_role_mapping(
     db_project = await crud.get_projects(session, project_name)
     db_role = await crud.get_roles(session, role_name)
 
-    return await crud.create_users_projects_roles_mapping(
-        session, db_project[0].id, db_role[0].id, user_id
-    )
+    try:
+        return await crud.create_users_projects_roles_mapping(
+            session, db_project[0].id, db_role[0].id, user_id
+        )
+    except IntegrityError as e:
+        return Response(f"Mapping already exists", status_code=200)

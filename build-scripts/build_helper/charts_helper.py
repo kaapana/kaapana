@@ -803,7 +803,7 @@ class HelmChart:
                         if "#" in line.split("image:")[0]:
                             BuildUtils.logger.debug(f"Commented: {line} -> skip")
                             continue
-                        elif "-if." in line and "{{else}}" in line:
+                        elif "-if." in line and ("{{else}}" in line or "test_pull_image" in line): # edge case for the job of custom-registry-chart
                             BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 

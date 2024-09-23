@@ -263,4 +263,12 @@ class KeycloakHelper:
         """
         url = self.auth_url + f"kaapana/users?username={username}"
         r = self.make_authorized_request(url, requests.get)
-        return r.json()[0]
+        list_of_users = r.json()
+        ### The request returns all users with username as part of their username
+        ### So we have to filter for the user, where the username matches exactly
+
+        for user in list_of_users:
+            if user.get("username") == username:
+                return user
+
+        raise Exception(f"User with {username=} not found!")

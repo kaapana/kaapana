@@ -22,7 +22,7 @@ spec:
             imagePullPolicy:  {{ .Values.global.pull_policy_images }}
             env:
               - name: WAIT
-                value: "opensearch,opensearch-service.{{  .Values.global.services_namespace  }}.svc,9200;access-information-point,aip-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443"
+                value: "opensearch,opensearch-service.{{  .Values.global.services_namespace  }}.svc,9200;access-information-point,aip-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc,443;minio,minio-service.{{  .Values.global.services_namespace  }}.svc,9000,/minio/health/live"
               - name: DELAY
                 value: "2"
               - name: TIMEOUT

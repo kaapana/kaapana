@@ -18,10 +18,11 @@ CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}
 # Deployment configuration
 ######################################################
 
-DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will always be re-downloaded after pod-restart
-GPU_SUPPORT="{{ gpu_support|default('false') }}"
+ # dev-mode -> containers will always be re-downloaded after pod-restart
+DEV_MODE={{ dev_mode|default(true) }}
+GPU_SUPPORT={{ gpu_support|default(false)}}
 
-PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
+PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')}}
 CHART_PATH=""
 NO_HOOKS=""
 ENABLE_NFS=false
@@ -163,10 +164,10 @@ fi
 if command -v nvidia-smi &> /dev/null && nvidia-smi
 then
     echo "${GREEN}Nvidia GPU detected!${NC}"
-    GPU_SUPPORT="true"
+    GPU_SUPPORT=true
 else
     echo "${YELLOW}No GPU detected...${NC}"
-    GPU_SUPPORT="false"
+    GPU_SUPPORT=false
 fi
 
 function delete_all_images_docker {
@@ -323,7 +324,7 @@ function deploy_chart {
         exit 1
     fi
 
-    if [ "$OFFLINE_MODE" == "true" ] && [ -z "$CHART_PATH" ]; then
+    if [ "${OFFLINE_MODE,,}" == true ] && [ -z "$CHART_PATH" ]; then
         echo "${RED}ERROR: CHART_PATH needs to be set when in OFFLINE_MODE!${NC}"
         exit 1
     fi
@@ -335,15 +336,15 @@ function deploy_chart {
         echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
     fi
 
-    if [ "$GPU_SUPPORT" = "true" ];then
+    if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
         if [ ! "$QUIET" = "true" ];then
             while true; do
                 read -e -p "No Nvidia GPU detected - Enable GPU support anyway?" -i " no" yn
                 case $yn in
-                    [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT="true"; break;;
-                    [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT="false"; break;;
+                    [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT=true; break;;
+                    [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT=false; break;;
                     * ) echo "Please answer yes or no.";;
                 esac
             done
@@ -353,12 +354,12 @@ function deploy_chart {
     fi
 
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
-    if [ "$GPU_SUPPORT" = "true" ];then
+    if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "-> enabling GPU in Microk8s ..."
         if [[ $deployments == *"gpu-operator"* ]];then
             echo -e "-> gpu-operator chart already exists"
         else
-            if [ "$OFFLINE_MODE" = "true" ];then
+            if [ "${OFFLINE_MODE,,}" == true ];then
                 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
                 OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/offline_enable_gpu.py
                 [ -f $OFFLINE_ENABLE_GPU_PATH ] && echo "${GREEN}$OFFLINE_ENABLE_GPU_PATH exists ... ${NC}" || (echo "${RED}$OFFLINE_ENABLE_GPU_PATH does not exist -> exit ${NC}" && exit 1)
@@ -375,13 +376,13 @@ function deploy_chart {
         fi
     fi
 
-    if [ "$DEV_MODE" == "true" ]; then
+    if [ "${DEV_MODE,,}" == true ]; then
         KAAPANA_INIT_PASSWORD="kaapana"
     else
         KAAPANA_INIT_PASSWORD="Kaapana2020!"
     fi
 
-    if [ "$OFFLINE_MODE" == "true" ] || [ "$DEV_MODE" == "false" ]; then
+    if [ "${OFFLINE_MODE,,}" == true ] || [ "${DEV_MODE,,}" == false ]; then
         PULL_POLICY_IMAGES="IfNotPresent"
     else
         PULL_POLICY_IMAGES="Always"
@@ -453,7 +454,7 @@ function deploy_chart {
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
     --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
-    --set-string global.gpu_support="$GPU_SUPPORT" \
+    --set global.gpu_support=$GPU_SUPPORT \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
     --set global.enable_nfs=$ENABLE_NFS \
     --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
@@ -476,7 +477,7 @@ function deploy_chart {
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     --set-string global.instance_name="$INSTANCE_NAME" \
-    --set-string global.dev_mode="$DEV_MODE" \
+    --set global.dev_mode=$DEV_MODE \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
     --set-string global.airflow_memory_limit="$AIRFLOW_MEMORY_LIMIT" \

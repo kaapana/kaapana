@@ -15,11 +15,17 @@ from airflow.utils.dates import days_ago
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import (
-    ADMIN_NAMESPACE, AIRFLOW_WORKFLOW_DIR, BATCH_NAME, DEFAULT_REGISTRY,
-    GPU_SUPPORT, KAAPANA_BUILD_VERSION, PLATFORM_VERSION,
-    PROCESSING_WORKFLOW_DIR, PULL_POLICY_IMAGES)
-from kaapana.blueprints.kaapana_utils import (cure_invalid_name,
-                                              get_release_name)
+    ADMIN_NAMESPACE,
+    AIRFLOW_WORKFLOW_DIR,
+    BATCH_NAME,
+    DEFAULT_REGISTRY,
+    GPU_SUPPORT,
+    KAAPANA_BUILD_VERSION,
+    PLATFORM_VERSION,
+    PROCESSING_WORKFLOW_DIR,
+    PULL_POLICY_IMAGES,
+)
+from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 from kaapana.kubetools import pod_launcher
 from kaapana.kubetools.pod import Pod
 from kaapana.kubetools.pod_stopper import PodStopper
@@ -34,7 +40,6 @@ from kaapana.operators.HelperFederated import federated_sharing_decorator
 default_registry = DEFAULT_REGISTRY
 kaapana_build_version = KAAPANA_BUILD_VERSION
 platform_version = PLATFORM_VERSION
-gpu_support = GPU_SUPPORT
 
 
 class KaapanaBaseOperator(BaseOperator, SkipMixin):
@@ -731,8 +736,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 f"Release {release_name} was uninstalled or never installed. My job is done here!"
             )
         else:
-            from kaapana.operators.KaapanaApplicationOperator import \
-                KaapanaApplicationOperator
+            from kaapana.operators.KaapanaApplicationOperator import (
+                KaapanaApplicationOperator,
+            )
 
             KaapanaApplicationOperator.uninstall_helm_chart(context)
 

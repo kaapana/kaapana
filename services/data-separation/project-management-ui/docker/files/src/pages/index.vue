@@ -1,6 +1,19 @@
 <template>
-  <v-container>
-    <h4 class="text-h4 py-8">User Projects</h4>
+  <v-container max-width="1200">
+    <v-row justify="space-between">
+      <v-col cols="6">
+        <h4 class="text-h4 py-8">Available Projects</h4>
+      </v-col>
+      <v-col cols="3" class="d-flex justify-end align-center">
+        <v-btn block
+          @click="dialog = true" 
+          size="large"
+          prepend-icon="mdi-plus-box"
+        >
+          Create New Projects
+        </v-btn>
+      </v-col>
+    </v-row>
     <v-table>
       <thead>
         <tr>
@@ -28,11 +41,15 @@
       </tbody>
     </v-table>
   </v-container>
+  <v-dialog v-model="dialog" max-width="1000">
+    <CreateNewProjectForm :onsubmit="() => dialog = false"/>
+  </v-dialog>
 </template>
 
 <script lang="ts">
 import { defineComponent } from 'vue';
 import axios, { AxiosResponse } from 'axios';
+import CreateNewProjectFrom from '../components/CreateNewProjectForm.vue'
 
 const ACCESS_INFORMATION_BACKEND = import.meta.env.VITE_APP_ACCESS_INFORMATION_BACKEND || '/aii/';
 const client = axios.create({
@@ -48,10 +65,14 @@ type ProjectItem = {
 }
 
 export default defineComponent({
+  components: {
+    CreateNewProjectFrom
+  },
   props: {},
   data() {
     return {
       projects: [] as ProjectItem[],
+      dialog: false,
     }
   },
   mounted() {

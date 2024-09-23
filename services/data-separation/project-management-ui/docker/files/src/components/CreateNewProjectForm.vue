@@ -1,5 +1,9 @@
 <template>
     <v-card prepend-icon="mdi-plus-box" title="Add New Project">
+        <v-overlay v-model="fetching" class="align-center justify-center" contained>
+            <v-progress-circular color="primary" indeterminate></v-progress-circular>
+        </v-overlay>
+
         <v-card-text>
             <v-container>
                 <v-row><v-text-field v-model="name" label="Project Name" required></v-text-field></v-row>
@@ -12,13 +16,13 @@
                 <v-row>
                     <v-col cols="6">
                         <v-btn color="surface-variant" size="large" variant="elevated" block
-                        @click="cancel">Cancel</v-btn>
+                            @click="cancel">Cancel</v-btn>
                     </v-col>
                     <v-col cols="6">
                         <v-btn :disabled="!valid" color="success" size="large" variant="elevated" block
-                        @click="submit">Submit</v-btn>
+                            @click="submit">Submit</v-btn>
                     </v-col>
-                </v-row>                
+                </v-row>
             </v-container>
         </v-card-action>
     </v-card>
@@ -42,6 +46,7 @@ const props = defineProps({
 const name = ref('');
 const description = ref('');
 const external_id = ref('');
+const fetching = ref(false)
 
 const valid = computed(() => {
     return ((name.value !== '') && (description.value !== ''));
@@ -53,13 +58,16 @@ const submit = async () => {
         "name": name.value,
         "description": description.value
     }
+    fetching.value = true;
 
     try {
-      await aiiApiPost(`projects`, data);
-      props.onsuccess?.();      
+        await aiiApiPost(`projects`, data);
+        fetching.value = false;
+        props.onsuccess?.();
     } catch (error: unknown) {
-      console.log(error);
-      props.oncancel?.();
+        console.log(error);
+        fetching.value = false;
+        props.oncancel?.();        
     }
 }
 

@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 from app.database import Base
 from sqlalchemy import (
     Column,
@@ -13,9 +11,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-if TYPE_CHECKING:
-    from app.workflows.models import KaapanaInstance
-
 
 class Settings(Base):
     __tablename__ = "settings"
@@ -28,9 +23,10 @@ class Settings(Base):
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
 
-    # many-to-one relationships
+    # store foreign key without relationship
+    # relationship requires circular import which creates problem while running
+    # create_kaapana_instance script
     kaapana_instance_id = Column(Integer, ForeignKey("kaapana_instance.id"))
-    kaapana_instance = relationship("KaapanaInstance", back_populates="settings")
 
     # Unique constraint for (username, instance_name, key)
     __table_args__ = (

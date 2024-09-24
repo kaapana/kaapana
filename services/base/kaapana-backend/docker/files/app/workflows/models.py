@@ -1,5 +1,3 @@
-from typing import TYPE_CHECKING
-
 from app.database import Base
 from sqlalchemy import (
     Boolean,
@@ -16,9 +14,6 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.schema import Index, UniqueConstraint
 from sqlalchemy_json import mutable_json_type
-
-if TYPE_CHECKING:
-    from app.settings.models import Settings
 
 # job_kaapana_instance_table = Table('job_kaapana_instance_table', Base.metadata,
 #     Column('job_id', ForeignKey('job.id'), primary_key=True),
@@ -82,9 +77,6 @@ class KaapanaInstance(Base):
     jobs = relationship("Job", back_populates="kaapana_instance", cascade="all, delete")
     datasets = relationship(
         "Dataset", back_populates="kaapana_instance", cascade="all, delete"
-    )
-    settings = relationship(
-        "Settings", back_populates="kaapana_instance", cascade="all, delete"
     )
     # many-to-one relationships
     workflow_in_which_involved = Column(

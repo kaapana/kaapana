@@ -233,12 +233,10 @@ export default Vue.extend({
           let settingsFromDb = this.settingsResponseToObject(response.data);
           const updatedSettings = Object.assign({}, defaultSettings, settingsFromDb);
           localStorage["settings"] = JSON.stringify(updatedSettings);
-          this.updateSettings();
         })
         .catch(err => {
           console.log(err);
           localStorage["settings"] = JSON.stringify(defaultSettings);
-          this.updateSettings();
         })
     },
     storeSettingsItemInDb(item_name: string) {
@@ -290,10 +288,9 @@ export default Vue.extend({
 
     this.loadSelectedProject();
     this.getSettingsFromDb();
+    this.updateSettings();
   },
   mounted() {
-    this.settings = JSON.parse(localStorage["settings"]);
-    this.$vuetify.theme.dark = this.settings["darkMode"];
     httpClient
       .get("/kaapana-backend/get-traefik-routes")
       .then((response: { data: {} }) => {

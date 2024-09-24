@@ -2,12 +2,8 @@
 
 Before you file a ticket, please have a look at our [FAQ](https://kaapana.readthedocs.io/en/stable/faq_root.html). Your problem might be covered already.
 
-## Tag your ticket
-Add the community-tech-meeting label to your ticket, otherwise we can not respond to it.
-
 ## Issue description
 Give a short description of your Issue.
-
 
 
 ### All steps to reproduce the issue
@@ -48,3 +44,6 @@ best of your knowledge:
 - Does your instance have a GPU and is Kaapana utilizing it?
 - Is your instance connected to a registry or are you working with an offline installation?
 - Is your instance running behind a proxy server?
+
+## Tag your ticket
+Add the community-tech-meeting label to your ticket, otherwise we can not respond to it.

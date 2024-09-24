@@ -156,6 +156,7 @@ import IdleTracker from "@/components/IdleTracker.vue";
 import { settings } from "@/static/defaultUIConfig";
 import { checkAuthR } from "@/utils/utils.js";
 import ProjectSelection from "@/components/ProjectSelection.vue";
+import httpClient from "@/common/httpClient.js";
 
 export default Vue.extend({
   name: "App",
@@ -246,7 +247,7 @@ export default Vue.extend({
   mounted() {
     this.settings = JSON.parse(localStorage["settings"]);
     this.$vuetify.theme.dark = this.settings["darkMode"];
-    request
+    httpClient
       .get("/kaapana-backend/get-traefik-routes")
       .then((response: { data: {} }) => {
         this.federatedBackendAvailable = kaapanaApiService.checkUrl(

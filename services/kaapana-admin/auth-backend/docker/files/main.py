@@ -7,6 +7,7 @@ import uvicorn
 import jwt
 import requests
 import os
+import json
 
 app = FastAPI()
 
@@ -18,7 +19,7 @@ def check_endpoint(input: dict):
     """
     ADMIN_NAMESPACE = os.getenv("ADMIN_NAMESPACE")
 
-    url = f"http://open-policy-agent-service.{ADMIN_NAMESPACE}.svc:8181/v1/data/httpapi/authz"
+    url = f"http://open-policy-agent-service.{ADMIN_NAMESPACE}.svc:8181/v1/data/httpapi/authz/allow"
     r = requests.post(
         url,
         json=input,
@@ -28,7 +29,7 @@ def check_endpoint(input: dict):
         result = r.json()["result"]
     except KeyError as e:
         raise KeyError("No result from open policy agent")
-    return result.get("allow", False)
+    return result
 
 
 @app.get("/auth-check")
@@ -49,11 +50,13 @@ async def auth_check(request: Request, response: Response):
         )
 
     method = request.headers.get("x-forwarded-method")
+    project = json.loads(request.headers.get("Project", r"{}"))
     input = {
         "input": {
             "access_token": decoded_access_token,
             "requested_prefix": requested_prefix,
-            "method": request.method,
+            "method": method,
+            "project": project,
         }
     }
     if check_endpoint(input):

@@ -68,6 +68,7 @@ public class AdminMapper extends AbstractOIDCProtocolMapper
     protected void setClaim(IDToken token, ProtocolMapperModel mappingModel, UserSessionModel userSession, KeycloakSession keycloakSession, ClientSessionContext clientSessionCtx) {   
         try {
             RoleModel adminRole = userSession.getRealm().getRole("admin");
+            RoleModel userRole = userSession.getRealm().getRole("user");
             // Set admin system admin rights for MinIO and OpenSearch
             if (userSession.getUser().hasRole(adminRole)) {
                 // if user hasRole admin, add admin to opensearch claim
@@ -107,6 +108,30 @@ public class AdminMapper extends AbstractOIDCProtocolMapper
                     // Add new value as list
                     List<String> newList = new ArrayList<>();
                     newList.add("consoleAdmin");
+                    token.getOtherClaims().put("policy", newList);
+                }
+            }
+
+            // Set kaapanaUser policy for MinIO
+            else if (userSession.getUser().hasRole(userRole)) {              
+                Object existingClaim = token.getOtherClaims().get("policy");  
+                // if user hasRole user, add kaapanaUser to policy claim
+                existingClaim = token.getOtherClaims().get("policy");
+                if (existingClaim != null && existingClaim instanceof List) {
+                    // Append new value to existing list
+                    List<String> existingList = (List<String>) existingClaim;
+                    existingList.add("kaapanaUser");
+                    token.getOtherClaims().put("policy", existingList);
+                } else if (existingClaim != null) {
+                    // Convert existing single value to list and add new value
+                    List<String> newList = new ArrayList<>();
+                    newList.add(existingClaim.toString());
+                    newList.add("kaapanaUser");
+                    token.getOtherClaims().put("policy", newList);
+                } else {
+                    // Add new value as list
+                    List<String> newList = new ArrayList<>();
+                    newList.add("kaapanaUser");
                     token.getOtherClaims().put("policy", newList);
                 }
             }

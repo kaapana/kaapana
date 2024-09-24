@@ -10,18 +10,10 @@
                 "s3:ListBucket",
                 "s3:GetBucketLocation"],
             "Resource": [
+                "arn:aws:s3:::staticwebsiteresults/*",
+                "arn:aws:s3:::thumbnails/*",
                 "arn:aws:s3:::uploads/*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "s3:GetObject",
-                "s3:ListBucket",
-                "s3:GetBucketLocation"],
-            "Resource": [
-                "arn:aws:s3:::*"
-            ]
+                        ]
         }
     ]
 }

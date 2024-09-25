@@ -1,15 +1,14 @@
 from app.database import Base
 from sqlalchemy import (
+    JSON,
     Column,
     DateTime,
     ForeignKey,
     Identity,
     Integer,
     String,
-    Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
 
 
 class Settings(Base):
@@ -19,7 +18,7 @@ class Settings(Base):
     username = Column(String(64))
     instance_name = Column(String(64))
     key = Column(String(64))
-    value = Column(Text)
+    value = Column(JSON)
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
 

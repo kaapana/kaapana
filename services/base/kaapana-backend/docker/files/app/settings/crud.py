@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Optional
 
@@ -47,7 +46,7 @@ def get_instance_settings(
 
     # Processes the value of each setting before returning it.
     for item in db_settings:
-        item.value = json.loads(item.value)
+        item.value = item.value
 
     return db_settings
 
@@ -94,7 +93,7 @@ def get_settings_item(
 
     if db_settings_item:
         # Processes the value of the setting before returning it.
-        db_settings_item.value = json.loads(db_settings_item.value)
+        db_settings_item.value = db_settings_item.value
 
         return db_settings_item
 
@@ -120,7 +119,7 @@ def create_or_update_settings(
         models.Settings: The created or updated settings item.
     """
     # Processes the incoming value before storing it.
-    settings_item.value = json.dumps(settings_item.value)
+    settings_item.value = settings_item.value
 
     # Retrieves the existing setting by key for the `kaapana_instance`.
     db_kaapana_instance = get_kaapana_instance(db, instance_name)

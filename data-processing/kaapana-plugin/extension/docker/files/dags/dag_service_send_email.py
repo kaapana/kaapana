@@ -65,7 +65,7 @@ ui_forms = {
 
 args = {
     "ui_forms": ui_forms,
-    "ui_visible": False,
+    "ui_visible": False,  # default not visible, to only trigger via other dags
     "owner": "kaapana",
     "start_date": days_ago(0),
     "retries": 0,

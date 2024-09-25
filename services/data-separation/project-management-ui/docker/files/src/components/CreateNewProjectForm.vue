@@ -31,6 +31,7 @@
 <script lang="ts" setup>
 import { ref, computed } from 'vue';
 import { aiiApiPost } from '@/common/aiiApi.service';
+// import {AxiosError} from axios;
 
 
 
@@ -49,14 +50,14 @@ const external_id = ref('');
 const fetching = ref(false)
 
 const valid = computed(() => {
-    return ((name.value !== '') && (description.value !== ''));
+    return ((name.value.trim() !== '') && (description.value.trim() !== ''));
 })
 
 const submit = async () => {
     const data = {
-        "external_id": external_id.value,
-        "name": name.value,
-        "description": description.value
+        "external_id": external_id.value.trim(),
+        "name": name.value.trim(),
+        "description": description.value.trim()
     }
     fetching.value = true;
 
@@ -65,9 +66,8 @@ const submit = async () => {
         fetching.value = false;
         props.onsuccess?.();
     } catch (error: unknown) {
-        console.log(error);
         fetching.value = false;
-        props.oncancel?.();        
+        props.onsuccess?.(false);       
     }
 }
 

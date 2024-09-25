@@ -5,15 +5,16 @@
         <h4 class="text-h4 py-8">Available Projects</h4>
       </v-col>
       <v-col cols="3" class="d-flex justify-end align-center">
-        <v-btn block
-          @click="projectDialog = true" 
-          size="large"
-          prepend-icon="mdi-plus-box"
-        >
+        <v-btn block @click="projectDialog = true" size="large" prepend-icon="mdi-plus-box">
           Create New Projects
         </v-btn>
       </v-col>
     </v-row>
+
+    <v-alert density="compact" class="mb-6" v-model="error" icon="mdi-alert-circle"
+      text="Some error happened while creating the project. Please try again with different inputs."
+      title="Project Could not be created" type="error" prominent closable></v-alert>
+
     <v-table>
       <thead>
         <tr>
@@ -42,7 +43,7 @@
     </v-table>
   </v-container>
   <v-dialog v-model="projectDialog" max-width="1000">
-    <CreateNewProjectForm :onsuccess="handleProjectCreate" :oncancel="() => projectDialog = false"/>
+    <CreateNewProjectForm :onsuccess="handleProjectCreate" :oncancel="() => projectDialog = false" />
   </v-dialog>
 </template>
 
@@ -67,13 +68,14 @@ export default defineComponent({
     return {
       projects: [] as ProjectItem[],
       projectDialog: false,
+      error: false,
     }
   },
   mounted() {
     this.fetchProjects()
   },
   methods: {
-    fetchProjects: function() {
+    fetchProjects: function () {
       try {
         aiiApiGet('projects').then((projects: ProjectItem[]) => {
           this.projects = projects
@@ -82,8 +84,12 @@ export default defineComponent({
         console.log(error)
       }
     },
-    handleProjectCreate: function() {
-      this.fetchProjects();
+    handleProjectCreate: function (success: boolean = true) {
+      if (success) {
+        this.fetchProjects();
+      } else {
+        this.error = true;
+      }
       this.projectDialog = false;
     }
   }

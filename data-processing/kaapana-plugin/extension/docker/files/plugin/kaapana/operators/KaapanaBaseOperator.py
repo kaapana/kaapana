@@ -35,6 +35,12 @@ from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
+from kaapana.operators.HelperSendEmailService import HelperSendEmailService
+import uuid
+import json
+import logging
+from airflow.models import Variable
+
 
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
@@ -305,8 +311,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             pool_slots=self.pool_slots,
             retry_delay=self.retry_delay,
             email=None,
-            email_on_retry=True,
-            email_on_failure=True,
+            email_on_retry=False,
+            email_on_failure=False,
             start_date=days_ago(0),
             depends_on_past=False,
             wait_for_downstream=False,
@@ -752,6 +758,12 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
 
             KaapanaApplicationOperator.uninstall_helm_chart(context)
+
+        send_email_on_workflow_failure = context["dag_run"].dag.default_args.get(
+            "send_email_on_workflow_failure", False
+        )
+        if send_email_on_workflow_failure:
+            HelperSendEmailService.task_failure_alert(context)
 
     @staticmethod
     def on_success(context):

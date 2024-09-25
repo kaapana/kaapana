@@ -719,7 +719,6 @@ def get_workflows(
     search: str = None,
     db: Session = Depends(get_db),
 ):
-<<<<<<< HEAD
     workflows, total_items = crud.get_workflows(
         db,
         instance_name,
@@ -728,22 +727,14 @@ def get_workflows(
         limit=limit,
         offset=offset,
         search=search,
-=======
-    workflows = crud.get_workflows(
-        db, instance_name, involved_instance_name, workflow_job_id, limit=limit
->>>>>>> c4fe6be2b (fix and clean endpoints)
     )
     for workflow in workflows:
         if workflow.kaapana_instance:
             workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
                 workflow.kaapana_instance
             )
-<<<<<<< HEAD
 
     return workflows, total_items
-=======
-    return workflows  # , username=request.headers["x-forwarded-preferred-username"]
->>>>>>> c4fe6be2b (fix and clean endpoints)
 
 
 # put/update_workflow

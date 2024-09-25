@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 
 from typing import Tuple
 from fastapi import UploadFile, WebSocket, WebSocketDisconnect, Form, Request
-from fastapi.logger import logger
 import aiofiles
 import shutil
 
@@ -18,6 +17,10 @@ import schemas
 import helm_helper
 from utils import helm_get_values
 
+import logging
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 chunks_fname: str = ""
 chunks_fsize: int = 0

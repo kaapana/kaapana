@@ -1,0 +1,31 @@
+---
+global:
+    pull_policy_images: "IfNotPresent"
+    suffix_param_key: "custom_registry_name"
+
+extension_params:
+    custom_registry_name:
+        default: ""
+        definition: Provide a name for new registry (max 20 chars)
+        type: string
+        value: ""
+    custom_registry_url:
+        default: ""
+        definition: Registry URL
+        type: string
+        value: ""
+    credentials_custom_registry_username:
+        default: ""
+        definition: Registry Username
+        type: string
+        value: ""
+    credentials_custom_registry_password:
+        default: ""
+        definition: Registry Password or Access Token
+        type: string
+        value: ""
+    test_pull_image:
+        default: "-"
+        definition: "Image to test pull access (<regURL>/<name>:<version>). If '-', test is skipped."
+        type: string
+        value: ""

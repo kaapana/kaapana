@@ -2,3 +2,10 @@
 global:
     image: "dag-otsus-method"
     action: "copy"
+
+extension_params:
+    custom_registry_url:
+        default: ""
+        definition: Custom Registry URL (should match the registry URL passed to custom-registry-chart)
+        type: string
+        value: ""

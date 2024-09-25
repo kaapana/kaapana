@@ -1,4 +1,3 @@
-import os
 from os.path import dirname, join
 import secrets
 import subprocess
@@ -6,7 +5,8 @@ import subprocess
 from fastapi import APIRouter, Response, Request, UploadFile, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
-from fastapi.logger import logger
+import logging
+from logger import get_logger
 from typing import Optional
 
 from config import settings
@@ -25,6 +25,7 @@ router = APIRouter()
 # )
 templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 
+logger = get_logger(__name__)
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):

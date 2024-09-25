@@ -803,7 +803,7 @@ class HelmChart:
                         if "#" in line.split("image:")[0]:
                             BuildUtils.logger.debug(f"Commented: {line} -> skip")
                             continue
-                        elif "-if." in line and "{{else}}" in line:
+                        elif ("-if." in line and "{{else}}" in line) or ("test_pull_image" in line): # edge case for the job of custom-registry-chart
                             BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 
@@ -855,6 +855,9 @@ class HelmChart:
                             )
 
     def lint_chart(self, build_version=False):
+        if self.ignore_linting:
+            BuildUtils.logger.info(f"{self.chart_id} has ignore_linting: true - skipping")
+            return
         if self.helmlint_done:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart already done - skip")
             return
@@ -891,6 +894,9 @@ class HelmChart:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart disabled")
 
     def lint_kubeval(self, build_version=False):
+        if self.ignore_linting:
+            BuildUtils.logger.info(f"{self.chart_id} has ignore_linting: true - skipping")
+            return
         if self.kubeval_done:
             BuildUtils.logger.debug(
                 f"{self.chart_id}: lint_kubeval already done -> skip"

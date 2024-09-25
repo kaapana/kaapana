@@ -8,15 +8,18 @@ import hashlib
 
 import yaml
 import secrets
-import json
 
 from typing import Tuple
 from fastapi import Response
-from fastapi.logger import logger
 
 from config import settings
 import schemas
 import helm_helper
+import logging
+from logger import get_logger
+
+logger = get_logger(__name__)
+logger.warning("inside utils")
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -344,7 +347,14 @@ def helm_install(
     if "release_name" in payload:
         release_name = payload["release_name"]
     elif "kaapanamultiinstallable" in keywords:
-        release_name = f"{name}-{secrets.token_hex(10)}"
+        # add suffix to a multiinstallable instance of extension if 'suffix_param_key' exists in values.yaml
+        suffix = secrets.token_hex(10)
+        suffix_param = default_sets.get("global.suffix_param_key")
+        if suffix_param is not None:
+            logger.info(f"suffix_param exists {suffix_param=}")
+            suffix = default_sets[f"global.{suffix_param}"][:20] # get first 20 chars
+        release_name = f"{name}-{suffix}"
+        logger.info(f"suffixed {release_name=}")
     else:
         release_name = name
 

@@ -53,12 +53,13 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             isinstance(receivers, list) and len(receivers) == 1 and receivers[0] == ""
         ):
             username = workflow_form.get("username", None)
-            if username:
-                # On some platforms users are always emails, so check that, if this can be used
-                # Basic regex pattern for email validation, just basic
-                pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$")
-                if bool(re.match(pattern, username)):
-                    receivers = [username]
+            if not username:
+                raise Exception("Cannot send email, no receivers defined!")
+            # On some platforms users are always emails, so check that, if this can be used
+            # Basic regex pattern for email validation, just basic
+            pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$")
+            if bool(re.match(pattern, username)):
+                receivers = [username]
             else:
                 raise Exception("Cannot send email, no receivers defined!")
 
@@ -143,14 +144,14 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         msg.set_content(
             f"{message_before_table}\n\n{styled_table_html }", subtype="html"
         )
-        # logger.info("Server info")
-        # logger.info(f"SMTP_HOST: {smtp_host}")
-        # logger.info(f"SMTP_PORT: {smtp_port}")
-        # logger.info(f"SMTP_USERNAME: {smtp_username}")
-        # logger.info(f"SENDER: {sender}")
-
+        logger.info("Server info")
+        logger.info(f"SMTP_HOST: {smtp_host}")
+        logger.info(f"SMTP_PORT: {smtp_port}")
+        logger.info(f"SMTP_USERNAME: {smtp_username}")
+        logger.info(f"SENDER: {sender}")
+        logger.info(f"RECEIVERS: {receivers}")
         # logger.info("Email content:")
-        # logger.info(f"{msg}")
+        # logger.info(f"{msg}")'
 
         try:
             # Connect to the SMTP server and send the email
@@ -162,7 +163,8 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
                 server.send_message(msg)
                 server.quit()
             logger.info("Successfully sent email")
-        except smtplib.SMTPException:
+        except smtplib.SMTPException as e:
+            logging.info(e)
             logger.info("Error: unable to send email")
             exit(1)
 

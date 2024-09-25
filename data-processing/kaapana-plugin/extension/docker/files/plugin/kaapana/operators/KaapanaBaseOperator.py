@@ -36,11 +36,6 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 from kaapana.operators.HelperSendEmailService import HelperSendEmailService
-import uuid
-import json
-import logging
-from airflow.models import Variable
-
 
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY

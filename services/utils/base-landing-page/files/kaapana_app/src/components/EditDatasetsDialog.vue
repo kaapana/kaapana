@@ -42,20 +42,21 @@
       <v-card-actions class="justify-center">
         <v-btn color="primary" @click="show = false">Close</v-btn>
       </v-card-actions>
-      <ConfirmationDialog
+      <!-- <ConfirmationDialog
         :show="dialogDelete"
         title="Delete dataset"
         @cancel="closeDelete"
         @confirm="deleteItemConfirm"
       >
         Are you sure you want to delete the dataset?
-      </ConfirmationDialog>
+      </ConfirmationDialog> -->
     </v-card>
   </v-dialog>
 </template>
 
 <script>
-import { loadDatasets, deleteDataset } from "../common/api.service";
+// import { loadDatasets, deleteDataset } from "../common/api.service"; // Preliminary solution for data separation
+import { loadDatasets } from "../common/api.service"; // Preliminary solution for data separation
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 
 export default {
@@ -83,7 +84,7 @@ export default {
         { text: "User", value: "username" },
         { text: "Created", value: "time_created" },
         { text: "Updated", value: "time_updated" },
-        { text: "Actions", value: "actions", sortable: false },
+        // { text: "Actions", value: "actions", sortable: false },
       ],
       editedDatasets: false,
     };

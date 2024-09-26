@@ -28,8 +28,12 @@ with SessionLocal() as db:
             logging.info("Client instance created!")
         for db_kaapana_instance in db_kaapana_instances:
             if not db_kaapana_instance.remote:
-                if db_kaapana_instance.instance_name != settings.instance_name:
+                if (
+                    db_kaapana_instance.instance_name != settings.instance_name
+                    or db_kaapana_instance.host != settings.hostname
+                ):
                     db_kaapana_instance.instance_name = settings.instance_name
+                    db_kaapana_instance.host = settings.hostname
                     db.add(db_kaapana_instance)
                     db.commit()
                     db.refresh(db_kaapana_instance)

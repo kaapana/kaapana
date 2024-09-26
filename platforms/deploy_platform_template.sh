@@ -28,6 +28,7 @@ ENABLE_NFS=false
 OFFLINE_MODE=false
 
 INSTANCE_UID=""
+INSTANCE_ROLE="client" # localonly, client, central, client_and_central
 SERVICES_NAMESPACE="{{ services_namespace }}"
 ADMIN_NAMESPACE="{{ admin_namespace }}"
 JOBS_NAMESPACE="{{ jobs_namespace }}"
@@ -455,6 +456,7 @@ function deploy_chart {
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     --set-string global.instance_name="$INSTANCE_NAME" \
+    --set-string global.instance_role="$INSTANCE_ROLE" \
     --set-string global.dev_mode="$DEV_MODE" \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
     --set-string global.smtp_host="$SMTP_HOST" \

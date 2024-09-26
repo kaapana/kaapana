@@ -46,6 +46,7 @@ skip_operators = [
 federated_operators = ["nnunet-preprocess", "nnunet-training"]
 
 ui_forms = {
+    "viewNames": ["federatedExecution"],
     "data_form": {},
     "external_schema_federated_form": {
         "type": "object",
@@ -62,6 +63,7 @@ ui_forms = {
                 "default": remote_dag_id,
                 "readOnly": True,
                 "required": True,
+                "x-display": "hidden",
             },
             "federated_operators": {
                 "type": "array",
@@ -73,6 +75,7 @@ ui_forms = {
                 "default": federated_operators,
                 "required": True,
                 "readOnly": True,
+                "x-display": "hidden",
             },
             "skip_operators": {
                 "type": "array",
@@ -84,6 +87,7 @@ ui_forms = {
                 "default": skip_operators,
                 "required": True,
                 "readOnly": True,
+                "x-display": "hidden",
             },
             "global_fingerprint": {
                 "type": "string",

@@ -134,37 +134,38 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
 
 
 ui_forms = {
-    "publication_form": {
-        "type": "object",
-        "properties": {
-            "title": {
-                "title": "Title",
-                "default": "Automated Design of Deep Learning Methods\n for Biomedical Image Segmentation",
-                "type": "string",
-                "readOnly": True,
-            },
-            "authors": {
-                "title": "Authors",
-                "default": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
-                "type": "string",
-                "readOnly": True,
-            },
-            "link": {
-                "title": "DOI",
-                "default": "https://arxiv.org/abs/1904.08128",
-                "description": "DOI",
-                "type": "string",
-                "readOnly": True,
-            },
-            "confirmation": {
-                "title": "Accept",
-                # "default": False,
-                "type": "boolean",
-                "readOnly": False,
-                "required": True,
-            },
-        },
-    }
+    "viewNames": ["remoteExecution", "training"],
+    # "publication_form": {
+    #     "type": "object",
+    #     "properties": {
+    #         "title": {
+    #             "title": "Title",
+    #             "default": "Automated Design of Deep Learning Methods\n for Biomedical Image Segmentation",
+    #             "type": "string",
+    #             "readOnly": True,
+    #         },
+    #         "authors": {
+    #             "title": "Authors",
+    #             "default": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
+    #             "type": "string",
+    #             "readOnly": True,
+    #         },
+    #         "link": {
+    #             "title": "DOI",
+    #             "default": "https://arxiv.org/abs/1904.08128",
+    #             "description": "DOI",
+    #             "type": "string",
+    #             "readOnly": True,
+    #         },
+    #         "confirmation": {
+    #             "title": "Accept",
+    #             # "default": False,
+    #             "type": "boolean",
+    #             "readOnly": False,
+    #             "required": True,
+    #         },
+    #     },
+    # }
 }
 ui_forms["workflow_form"] = workflow_form
 

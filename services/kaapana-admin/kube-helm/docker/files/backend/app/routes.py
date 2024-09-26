@@ -256,6 +256,8 @@ async def helm_install_chart(request: Request):
         payload = await request.json()
         logger.debug(f"/helm-install-chart called with {payload=}")
         assert "name" in payload, "Required key 'name' not found in payload"
+        if "version" not in payload:
+            payload["version"] = os.getenv("KAAPANA_BUILD_VERSION")
         assert "version" in payload, "Required key 'version' not found in payload"
         platforms = False
         cmd_addons = ""

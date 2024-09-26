@@ -35,7 +35,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 label_filter = ""
-prep_modalities = "CT"
+prep_modalities = "MR"
 default_model = "3d_fullres"
 plan_network_planner = "nnUNetPlannerResEncM"
 train_network_trainer = "nnUNetTrainer"
@@ -55,37 +55,38 @@ max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1
 print(f"### nnunet-training max_active_runs {max_active_runs}")
 
 ui_forms = {
-    "publication_form": {
-        "type": "object",
-        "properties": {
-            "title": {
-                "title": "Title",
-                "default": "Automated Design of Deep Learning Methods\n for Biomedical Image Segmentation",
-                "type": "string",
-                "readOnly": True,
-            },
-            "authors": {
-                "title": "Authors",
-                "default": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
-                "type": "string",
-                "readOnly": True,
-            },
-            "link": {
-                "title": "DOI",
-                "default": "https://arxiv.org/abs/1904.08128",
-                "description": "DOI",
-                "type": "string",
-                "readOnly": True,
-            },
-            "confirmation": {
-                "title": "Accept",
-                "default": False,
-                "type": "boolean",
-                "readOnly": False,
-                "required": True,
-            },
-        },
-    },
+    "viewNames": ["remoteExecution", "training"],
+    # "publication_form": {
+    #     "type": "object",
+    #     "properties": {
+    #         "title": {
+    #             "title": "Title",
+    #             "default": "Automated Design of Deep Learning Methods\n for Biomedical Image Segmentation",
+    #             "type": "string",
+    #             "readOnly": True,
+    #         },
+    #         "authors": {
+    #             "title": "Authors",
+    #             "default": "Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein",
+    #             "type": "string",
+    #             "readOnly": True,
+    #         },
+    #         "link": {
+    #             "title": "DOI",
+    #             "default": "https://arxiv.org/abs/1904.08128",
+    #             "description": "DOI",
+    #             "type": "string",
+    #             "readOnly": True,
+    #         },
+    #         "confirmation": {
+    #             "title": "Accept",
+    #             "default": False,
+    #             "type": "boolean",
+    #             "readOnly": False,
+    #             "required": True,
+    #         },
+    #     },
+    # },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -102,7 +103,7 @@ ui_forms = {
                 "description": "2d, 3d_lowres, 3d_fullres or 3d_cascade_fullres",
                 "enum": ["2d", "3d_lowres", "3d_fullres", "3d_cascade_fullres"],
                 "type": "string",
-                "readOnly": False,
+                "readOnly": True,
                 "required": True,
             },
             "plan_network_planner": {
@@ -144,30 +145,35 @@ ui_forms = {
                 "description": "'Ignore' or 'Keep' labels of multi-label DICOM SEGs for segmentation task: e.g. 'Keep: liver' or 'Ignore: spleen,liver'",
                 "type": "string",
                 "readOnly": False,
+                "x-display": "hidden",
             },
             "fuse_labels": {
                 "title": "Fuse Segmentation Labels",
                 "description": "Segmentation label maps which should be fused (all special characters are removed).",
                 "type": "string",
                 "readOnly": False,
+                "x-display": "hidden",
             },
             "fused_label_name": {
                 "title": "Fuse Segmentation Label: New Label Name",
                 "description": "Segmentation label name of segmentation label maps which should be fused (all special characters are removed).",
                 "type": "string",
                 "readOnly": False,
+                "x-display": "hidden",
             },
             "old_labels": {
                 "title": "Rename Label Names: Old Labels",
                 "description": "Old segmentation label names which should be overwritten (all special characters are removed); SAME ORDER AS NEW LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
+                "x-display": "hidden",
             },
             "new_labels": {
                 "title": "Rename Label Names: New Labels",
                 "description": "New segmentation label names which should overwrite the old segmentation label names (all special characters are removed); SAME ORDER AS OLD LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
+                "x-display": "hidden",
             },
             "instance_name": {
                 "title": "Instance name",
@@ -226,6 +232,7 @@ ui_forms = {
                 "description": "Do only change if you know what you are doing!.",
                 "type": "integer",
                 "readOnly": False,
+                "x-display": "hidden",
             },
             "initial_learning_rate": {
                 "title": "Initial learning rate",
@@ -297,6 +304,9 @@ ui_forms = {
             },
         },
     },
+    "toDoFilters": {
+        "datasetName": "train"
+    }
 }
 args = {
     "ui_visible": True,

@@ -1,11 +1,11 @@
 <template>
   <v-app>
     <v-app-bar :elevation="2" color="primary" density="compact">
-      <template v-slot:prepend>
+      <!-- <template v-slot:prepend>
         <v-app-bar-nav-icon></v-app-bar-nav-icon>
-      </template>
+      </template> -->
 
-      <v-app-bar-title>Projects</v-app-bar-title>
+      <v-app-bar-title>Projects Management</v-app-bar-title>
     </v-app-bar>
     <v-main>
       <router-view />

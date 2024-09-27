@@ -732,7 +732,7 @@ export default {
 }
 
 .side-navigation {
-  height: calc(100vh - 81px);
+  height: calc(100vh - 80px);
   overflow-y: auto;
 }
 

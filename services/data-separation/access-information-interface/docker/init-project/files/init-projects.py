@@ -1,8 +1,9 @@
-import requests
 import json
 import os
+
+import requests
+from kaapanapy.helper import get_project_user_access_token, get_user_keycloak_id
 from kaapanapy.logger import get_logger
-from kaapanapy.helper import get_project_user_access_token
 
 logger = get_logger(__name__)
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
@@ -45,3 +46,19 @@ if __name__ == "__main__":
             f"{aii_service}/projects", data=json.dumps(project), headers=auth_header
         )
         response.raise_for_status()
+
+    # get keycloak id of the kaapana admin user
+    kaapana_user_id = get_user_keycloak_id()
+
+    # map the kaapana admin user to the admin project and the admin role
+
+    role = "admin"
+    project = "admin"
+
+    response = requests.post(
+        f"{aii_service}/projects/{project}/role/{role}/user/{kaapana_user_id}",
+        headers=auth_header,
+    )
+    response.raise_for_status()
+
+    logger.info("Initial projects created successfully")

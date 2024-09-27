@@ -7,22 +7,34 @@ data:
   initial_rights.json: | # This is the initial rights that will be created
     [
       {
-        "name": "read",
-        "description": "Read rights",
-        "claim_key": "aii_test1",
-        "claim_value": "lol"
+        "name": "edit_project",
+        "description": "Add or remove users from project",
+        "claim_key": "kaapana",
+        "claim_value": "edit_project"
       },
       {
-        "name": "write",
-        "description": "Write rights",
-        "claim_key": "aii_test1",
-        "claim_value": "rofl"
+        "name": "edit_user",
+        "description": "Edit user rights within project",
+        "claim_key": "kaapana",
+        "claim_value": "edit_user"
       },
       {
-        "name": "delete",
-        "description": "Delete rights",
-        "claim_key": "aii_test2",
-        "claim_value": "hdgdl"
+        "name": "dev_tools",
+        "description": "Get access to dev tools and APIs",
+        "claim_key": "kaapana",
+        "claim_value": "dev_tools"
+      },
+      {
+        "name": "workflows",
+        "description": "Rights to start a workflow, see workflow status and logs",
+        "claim_key": "kaapana",
+        "claim_value": "workflows"
+      },
+      {
+        "name": "delete_data",
+        "description": "Delete data from platform",
+        "claim_key": "kaapana",
+        "claim_value": "delete_data"
       },
       {
         "name": "opensearch_read",
@@ -58,6 +70,14 @@ data:
       {
         "name": "read-only",
         "description": "Read only role"
+      },
+      {
+        "name": "project-pi",
+        "description": "Project PI role"
+      },
+      {
+        "name": "project-member",
+        "description": "Project member role"
       }
     ]
   initial_projects.json: | # This is the initial admin project that will be created
@@ -71,11 +91,19 @@ data:
     [
       {
         "role": "admin",
-        "rights": ["read", "write", "delete", "opensearch_admin", "minio_admin"]
+        "rights": ["edit_project", "edit_user", "dev_tools", "workflows", "opensearch_admin", "minio_admin", "delete_data"]
       },
       {
         "role": "read-only",
-        "rights": ["read","opensearch_read","minio_read"]
+        "rights": ["opensearch_read","minio_read"]
+      },
+      {
+        "role": "project-pi",
+        "rights": ["edit_user", "workflows", "opensearch_admin", "minio_admin", "delete_data"]
+      },
+      {
+        "role": "project-member",
+        "rights": ["workflows", "opensearch_admin", "minio_admin"]
       }
     ]
 

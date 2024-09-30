@@ -432,7 +432,7 @@ def helm_install(
             )
     timeout = 15
     if platforms:
-        timeout = 45 # plaforms usually take longer due to multiple sub-charts involved
+        timeout = 45  # plaforms usually take longer due to multiple sub-charts involved
     success, stdout = helm_helper.execute_shell_command(
         helm_command, shell=shell, blocking=blocking, timeout=timeout
     )

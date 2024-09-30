@@ -1,8 +1,18 @@
-from typing import Optional, List
-from sqlalchemy_json import NestedMutableDict, NestedMutableList
+from typing import Optional, List, Union
 import datetime
 from pydantic import field_validator, Field, ConfigDict, BaseModel, model_validator
 from typing_extensions import Self
+
+
+class AllowedDataset(BaseModel):
+    """ """
+
+    name: str
+    username: Optional[str] = None
+    identifiers: List[str]
+
+
+AllowedDataset = List[AllowedDataset]
 
 
 class KaapanaInstanceBase(BaseModel):
@@ -45,8 +55,8 @@ class KaapanaInstance(KaapanaInstanceBase):
     port: int
     fernet_key: str
     remote: bool
-    allowed_dags: Optional[NestedMutableDict] = ...
-    allowed_datasets: Optional[NestedMutableList] = ...
+    allowed_dags: Union[dict, list, None] = None
+    allowed_datasets: Optional[AllowedDataset] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
     workflow_in_which_involved: Optional[str]
@@ -93,7 +103,7 @@ class JobBase(BaseModel):
 class Job(JobBase):
     model_config = ConfigDict(arbitrary_types_allowed=True, from_attributes=True)
     id: int
-    conf_data: Optional[NestedMutableDict] = ...
+    conf_data: Optional[dict] = None
     username: Optional[str] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
@@ -189,7 +199,7 @@ class Dataset(DatasetBase):
     time_updated: datetime.datetime
     username: Optional[str] = None
     identifiers: Optional[List[str]]
-    meta_information: Optional[NestedMutableDict] = Field(default_factory=dict)
+    meta_information: Optional[dict] = Field(default_factory=dict)
 
     @field_validator("time_updated", mode="before")
     @classmethod

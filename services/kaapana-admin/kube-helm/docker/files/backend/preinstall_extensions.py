@@ -116,11 +116,18 @@ for _ in range(1800):
             )
             continue
 
-        installed = (
-            True
-            if all_successful(set(kube_status["status"] + [status["STATUS"]])) == "yes"
-            else False
-        )
+        installed = True
+        ks = kube_status["status"]
+        for i in range(0, len(ks)):
+            s = ks[i]
+            if type(s) is not str or s.lower() not in [
+                "completed",
+                "running",
+                "deployed",
+            ]:
+                logger.warning(f"Pod {kube_status['name'][i]} is not successful")
+                installed = False
+                break
 
         if installed:
             logger.info(

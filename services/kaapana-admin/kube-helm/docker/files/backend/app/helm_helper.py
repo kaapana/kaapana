@@ -766,21 +766,29 @@ def get_kube_objects(
             states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[])
 
             stdout = stdout.splitlines()[1:]
-            for row in stdout:
-                name, ready, status, restarts, age = re.split("\s\s+", row)
-                if (
-                    kind == "job"
-                    and single_status_for_jobs
-                    and status.lower() == "completed"
-                ): # if one of the pods in a job is completed, return only that
-                    logger.info(f"job {name=} has a completed pod, ignoring its other pods")
-                    states.name = [name]
-                    states.ready = [ready]
-                    states.status = [status.lower()]
-                    states.restarts = [restarts]
-                    states.age = [age]
 
-                else:
+            # for pods of a Job, check if one of them already has 'completed' status
+            job_completed = False
+            if kind == "job" and single_status_for_jobs:
+                for row in stdout:
+                    name, ready, status, restarts, age = re.split("\s\s+", row)
+                    if status.lower() == "completed":
+                        # ignore other pods and only return the completed pod status
+                        job_completed = True
+                        logger.info(
+                            f"job {name=} has a completed pod, ignoring its other pods"
+                        )
+                        states.name = [name]
+                        states.ready = [ready]
+                        states.status = [status.lower()]
+                        states.restarts = [restarts]
+                        states.age = [age]
+                        break
+
+            if not job_completed:
+                # return all pod states if no pod is completed or if resource kind is not Job
+                for row in stdout:
+                    name, ready, status, restarts, age = re.split("\s\s+", row)
                     states.name.append(name)
                     states.ready.append(ready)
                     states.status.append(status.lower())

@@ -56,14 +56,9 @@ for extension in preinstall_extensions:
         # if chart is stuck in 'uninstalling' state, uninstall with --no-hooks
         chart_name = chart["name"]
         chart_status = helm_status(chart_name)
-        if (
-            len(chart_status) != 0
-            and chart_status["STATUS"] == "uninstalling"
-        ):
+        if len(chart_status) != 0 and chart_status["STATUS"] == "uninstalling":
             # if it is stuck in uninstalling, delete with --no-hooks
-            logger.warning(
-                f"{chart_name} stuck in 'uninstalling' status"
-            )
+            logger.warning(f"{chart_name} stuck in 'uninstalling' status")
             logger.info(f"Deleting {chart_name} with --no-hooks")
             execute_shell_command(
                 f"{settings.helm_path} uninstall {chart_name} --no-hooks"
@@ -112,7 +107,7 @@ for _ in range(1800):
             helm_namespace = "default"
         status = helm_status(release_name, helm_namespace=helm_namespace)
         success, _, _, kube_status = get_kube_objects(
-            release_name, helm_namespace=helm_namespace
+            release_name, helm_namespace=helm_namespace, single_status_for_jobs=True
         )
 
         if not success:
@@ -121,11 +116,18 @@ for _ in range(1800):
             )
             continue
 
-        installed = (
-            True
-            if all_successful(set(kube_status["status"] + [status["STATUS"]])) == "yes"
-            else False
-        )
+        installed = True
+        ks = kube_status["status"]
+        for i in range(0, len(ks)):
+            s = ks[i]
+            if type(s) is not str or s.lower() not in [
+                "completed",
+                "running",
+                "deployed",
+            ]:
+                logger.warning(f"Pod {kube_status['name'][i]} is not successful")
+                installed = False
+                break
 
         if installed:
             logger.info(

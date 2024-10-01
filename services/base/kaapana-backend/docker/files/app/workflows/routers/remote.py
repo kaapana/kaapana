@@ -122,66 +122,16 @@ async def post_minio_presigned_url(
     return Response(resp.content, resp.status_code)
 
 
-# deprecated should be removed, if unused
-@router.get("/job", response_model=schemas.JobWithKaapanaInstance)
-def get_job(job_id: int, db: Session = Depends(get_db)):
-    job = crud.get_job(db, job_id)
-    job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-        job.kaapana_instance
-    )
-    return job
-
-
-# deprecated should be removed, if unused
-@router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])
-def get_jobs(
-    instance_name: str = None,
-    status: str = None,
-    limit: int = None,
-    db: Session = Depends(get_db),
-):
-    jobs = crud.get_jobs(db, instance_name, status, remote=True, limit=limit)
-    for job in jobs:
-        if job.kaapana_instance:
-            job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-                job.kaapana_instance
-            )
-    return jobs
-
-
-# response_model should only return what is nessary (e.g. probably only success)
-@router.put("/job", response_model=schemas.JobWithKaapanaInstance)
-def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
-    jobs = crud.bulk_update_jobs(db, [job], remote=True)
-    job = jobs[0]
-    if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-            job.kaapana_instance
-        )
-    return job
-
-
-# deprecated should be removed, if unused
-@router.delete("/job")
-def delete_job(job_id: int, db: Session = Depends(get_db)):
-    return crud.delete_job(db, job_id, remote=True)
 
 
 @router.put("/sync-client-remote")
 def put_remote_kaapana_instance(
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
-    instance_name: str = None,
-    status: str = None,
+    inncoming_update_jobs: List[schemas.JobUpdate],
     db: Session = Depends(get_db),
 ):
     return crud.sync_client_remote(
         db=db,
         remote_kaapana_instance=remote_kaapana_instance,
-        instance_name=instance_name,
-        status=status,
+        inncoming_update_jobs=inncoming_update_jobs,
     )
-
-
-@router.put("/workflow", response_model=schemas.Workflow)
-def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
-    return crud.update_workflow(db, workflow)

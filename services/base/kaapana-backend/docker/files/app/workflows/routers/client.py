@@ -281,16 +281,23 @@ def get_jobs(
 @router.put("/job", response_model=schemas.JobWithWorkflow)
 # changed JobWithKaapanaInstance to JobWithWorkflow
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
-    if job.status == "abort":
-        db_job = crud.get_job(db, job.job_id)
-        crud.abort_jobs_in_chunks([db_job], update_db_job=False)
-        job.status = "failed"
-    return crud.bulk_update_jobs(db, [job])[0]  # update db_job to failed
+    db_job = crud.get_job(db, job.job_id)
+    if db_job.update_external:
+        raise HTTPException(
+            status_code=202,
+            detail="Job is currently updating, please try again, once the update finished."
+        )
+        
+    job.update_external = db_job.runs_on_remote
+    jobs, _ = crud.bulk_update_jobs(db, [job])
+    if len(jobs) == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return jobs[0]
 
 
 @router.delete("/job")
 def delete_job(job_id: int, db: Session = Depends(get_db)):
-    return crud.delete_job(db, job_id, remote=False)
+    return crud.delete_job(db, job_id)
 
 
 @router.delete("/jobs")
@@ -743,28 +750,16 @@ def get_workflows(
 # put/update_workflow
 @router.put("/workflow", response_model=schemas.Workflow)
 def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
-    if workflow.workflow_status == "abort":
-        db_jobs_to_abort = (
-            db.query(models.Job)
-            .join(
-                models.KaapanaInstance, models.Job.kaapana_instance
-            )  # Join with the KaapanaInstance table
-            .filter(models.Job.workflow_id == workflow.workflow_id)
-            .filter(models.Job.status.in_(["queued", "running"]))
-            .filter(
-                models.KaapanaInstance.remote == False
-            )  # Add the filter for kaapana_instance.remote
-            .all()
-        )
-        Thread(target=crud.abort_jobs_in_chunks, args=(db_jobs_to_abort,)).start()
-        return "Jobs will be aborted"
-
-    elif (
+    if (
         workflow.workflow_status == "scheduled"
         or workflow.workflow_status == "confirmed"
         or workflow.workflow_status == "restart"
+        or workflow.workflow_status == "aborted"
     ):
-        return crud.update_workflow(db, workflow)
+        try:
+            return crud.update_workflow(db, workflow)
+        except AssertionError as e:
+            raise HTTPException(status_code=202, detail="Some of the jobs are currently updating, please try again, once the update finished.")
     else:
         raise HTTPException(
             status_code=405,

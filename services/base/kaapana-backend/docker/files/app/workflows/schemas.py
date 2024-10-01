@@ -95,6 +95,8 @@ class JobBase(BaseModel):
     run_id: Optional[str] = None
     description: Optional[str] = None
     external_job_id: Optional[int] = None  # job_id on another system
+    runs_on_remote: Optional[bool] = False  # Include the custom property
+    update_external: Optional[bool] = False  # Include the custom property
     # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
     owner_kaapana_instance_name: Optional[str] = None
     service_job: Optional[bool] = False
@@ -118,6 +120,7 @@ class Job(JobBase):
             "scheduled",
             "running",
             "finished",
+            "aborted",
             "failed",
             "deleted",
         ]
@@ -279,6 +282,8 @@ class JobWithWorkflow(Job):
     workflow: Optional[Workflow] = None
     # involved_kaapana_instances: Optional[list]  # idk y?
 
+class JobWithWorkflowId(Job):
+    workflow_id: Optional[str] = None
 
 class JobWithWorkflowWithKaapanaInstance(JobWithKaapanaInstance):
     workflow: Optional[Workflow] = None

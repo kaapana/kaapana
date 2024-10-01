@@ -46,10 +46,10 @@ def periodically_get_remote_updates():
     if children[0].pid == os.getpid():
         with SessionLocal() as db:
             try:
-                get_remote_updates(db, periodically=True)
                 logging.info(
                     "Checking for remote updates"
                 ) 
+                get_remote_updates(db, periodically=True)
             except Exception as e:
                 logging.warning(
                     "Something went wrong updating in crud.get_remote_updates()"

@@ -353,22 +353,24 @@ class KaapanaFederatedTrainingBase(ABC):
 
             for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
                 with requests.Session() as s:
-                    r = requests_retry_session(session=s).get(
+                    r = requests_retry_session(session=s, status_forcelist=[ 429, 500, 502, 503, 504],).get(
                         f"{self.client_url}/job",
                         params={"job_id": tmp_site_info["job_id"]},
                         verify=self.client_network["ssl_check"],
                     )
+
                 job = r.json()
-                if job["status"] == "finished":
+                if r.status_code == 404 or job["status"] in ["failed", "aborted"]:
+                    raise ValueError(
+                        "A client job failed or was delete. You can use the recovery_conf to continue your training, if there is an easy fix!"
+                    )
+                elif job["status"] == "finished":
                     updated[instance_name] = True
                     tmp_site_info["before_previous_dag_run"] = job["conf_data"][
                         "federated_form"
                     ]["from_previous_dag_run"]
                     tmp_site_info["from_previous_dag_run"] = job["run_id"]
-                elif job["status"] == "failed":
-                    raise ValueError(
-                        "A client job failed, interrupting, you can use the recovery_conf to continue your training, if there is an easy fix!"
-                    )
+
             if np.sum(list(updated.values())) == len(self.remote_sites):
                 break
         if bool(np.sum(list(updated.values())) == len(self.remote_sites)) is False:

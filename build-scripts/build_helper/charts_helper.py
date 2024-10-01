@@ -598,9 +598,9 @@ class HelmChart:
                 x for x in BuildUtils.charts_available if x == extension_collection_id
             ]
             if len(collection_chart) == 1:
-                self.kaapana_collections[
-                    collection_chart[0].chart_id
-                ] = collection_chart[0]
+                self.kaapana_collections[collection_chart[0].chart_id] = (
+                    collection_chart[0]
+                )
             else:
                 BuildUtils.generate_issue(
                     component=suite_tag,
@@ -627,9 +627,9 @@ class HelmChart:
                 x for x in BuildUtils.charts_available if x == preinstall_extension_id
             ]
             if len(preinstall_extension_chart) == 1:
-                self.preinstall_extensions[
-                    preinstall_extension_chart[0].chart_id
-                ] = preinstall_extension_chart[0]
+                self.preinstall_extensions[preinstall_extension_chart[0].chart_id] = (
+                    preinstall_extension_chart[0]
+                )
             else:
                 BuildUtils.generate_issue(
                     component=suite_tag,
@@ -670,24 +670,64 @@ class HelmChart:
                     if len(oparator_container_found) == 1:
                         oparator_container_found = oparator_container_found[0]
                         if oparator_container_found.tag not in self.chart_containers:
-                            self.chart_containers[
-                                oparator_container_found.tag
-                            ] = oparator_container_found
+                            self.chart_containers[oparator_container_found.tag] = (
+                                oparator_container_found
+                            )
                         else:
                             BuildUtils.logger.debug(
                                 f"{self.chart_id}: operator container already present: {oparator_container_found.tag}"
                             )
                     else:
-                        BuildUtils.logger.error(
-                            f"Chart operator container needed {operator_container}"
+                        BuildUtils.logger.warning(
+                            f"{self.chart_id}: operator container could not be found: {operator_container} -> using latest version-tag..."
                         )
-                        BuildUtils.generate_issue(
-                            component=suite_tag,
-                            name=f"{self.chart_id}",
-                            msg=f"Chart operator container not found in available images: {operator_container}",
-                            level="ERROR",
-                            path=self.chart_dir,
-                        )
+                        container_name = operator_container.split("/")[1].split(":")[0]
+
+                        oparator_container_found = [
+                            x
+                            for x in BuildUtils.container_images_available
+                            if container_name in x.tag
+                        ]
+                        if len(oparator_container_found) == 1:
+                            oparator_container_found = oparator_container_found[0]
+                            if (
+                                oparator_container_found.tag
+                                not in self.chart_containers
+                            ):
+                                self.chart_containers[oparator_container_found.tag] = (
+                                    oparator_container_found
+                                )
+                            else:
+                                BuildUtils.logger.debug(
+                                    f"{self.chart_id}: operator container already present: {oparator_container_found.tag}"
+                                )
+                        elif len(oparator_container_found) > 1:
+                            BuildUtils.logger.error(
+                                f"Chart operator multiple containers found: {operator_container}"
+                            )
+                            for oparator_container_found in oparator_container_found:
+                                BuildUtils.logger.error(
+                                    f"Dockerfile found: {oparator_container_found.path}"
+                                )
+                            BuildUtils.generate_issue(
+                                component=suite_tag,
+                                name=f"{self.chart_id}",
+                                msg=f"Chart operator container multiple found: {operator_container}",
+                                level="ERROR",
+                                path=self.chart_dir,
+                            )
+
+                        else:
+                            BuildUtils.logger.error(
+                                f"Chart operator container needed {operator_container}"
+                            )
+                            BuildUtils.generate_issue(
+                                component=suite_tag,
+                                name=f"{self.chart_id}",
+                                msg=f"Chart operator container not found in available images: {operator_container}",
+                                level="ERROR",
+                                path=self.chart_dir,
+                            )
 
         else:
             BuildUtils.logger.error(f"Chart container needed {container_name}")
@@ -844,7 +884,9 @@ class HelmChart:
                                 )
 
                             default_registry = "/".join(container_tag.split("/")[:-1])
-                            container_version = container_tag.split("/")[-1].split(":")[-1]
+                            container_version = container_tag.split("/")[-1].split(":")[
+                                -1
+                            ]
                             container_name = container_tag.split("/")[-1].split(":")[0]
                             self.add_container_by_tag(
                                 container_registry=default_registry,
@@ -1394,9 +1436,9 @@ class HelmChart:
                                     name=issue["name"],
                                     level=issue["level"],
                                     msg=issue["msg"],
-                                    output=issue["output"]
-                                    if "output" in issue
-                                    else None,
+                                    output=(
+                                        issue["output"] if "output" in issue else None
+                                    ),
                                     path=issue["path"] if "path" in issue else "",
                                 )
                             else:

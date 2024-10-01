@@ -45,7 +45,7 @@ async def get_minio_presigned_url(
 
     async def stream_minio_response():
         timeout = aiohttp.ClientTimeout(
-            total=900,  
+            total=900,
             connect=None,
             sock_read=None,
         )
@@ -55,24 +55,30 @@ async def get_minio_presigned_url(
                 if client_range_header:
                     logging.info(f"Client Range header: {client_range_header}")
                     headers["Range"] = client_range_header  # Forward the Range header
-                
+
                 async with session.get(
                     f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}",
-                    headers=headers  # Pass the Range header to MinIO
+                    headers=headers,  # Pass the Range header to MinIO
                 ) as resp:
                     # Log resp headers
-                    logging.info(f"Content-Length: {resp.headers.get('Content-Length')}")
-                    logging.info("\n".join([f"{k}: {v}" for k, v in resp.headers.items()]))
+                    logging.info(
+                        f"Content-Length: {resp.headers.get('Content-Length')}"
+                    )
+                    logging.info(
+                        "\n".join([f"{k}: {v}" for k, v in resp.headers.items()])
+                    )
 
                     resp.raise_for_status()
 
                     # Stream content in chunks
                     while True:
-                        chunk = await resp.content.read(131072)  # Adjust chunk size as needed
+                        chunk = await resp.content.read(
+                            131072
+                        )  # Adjust chunk size as needed
                         if not chunk:
                             break
                         yield chunk
-                    
+
         except aiohttp.ClientError as e:
             logging.error(f"Error fetching from MinIO: {e}")
             raise HTTPException(status_code=500, detail="Error fetching from MinIO")
@@ -88,26 +94,37 @@ async def get_minio_presigned_url(
 
         async with session.get(
             f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}",
-            headers=headers
+            headers=headers,
         ) as resp:
             # Determine if partial content or full content is being returned
             status_code = resp.status
             if status_code not in [200, 206]:  # Only handle full or partial content
                 logging.error(f"Unexpected status code: {status_code}")
-                raise HTTPException(status_code=status_code, detail="Unexpected status from MinIO")
+                raise HTTPException(
+                    status_code=status_code, detail="Unexpected status from MinIO"
+                )
 
             # Extract relevant headers to forward, including Content-Range if present
             headers_to_forward = {
-                k: v for k, v in resp.headers.items()
-                if k.lower() in ['content-length', 'content-type', 'etag', 'last-modified', 'content-range']
+                k: v
+                for k, v in resp.headers.items()
+                if k.lower()
+                in [
+                    "content-length",
+                    "content-type",
+                    "etag",
+                    "last-modified",
+                    "content-range",
+                ]
             }
 
             # Forward the response with correct headers and status code
             return StreamingResponse(
                 stream_minio_response(),
                 status_code=status_code,
-                headers=headers_to_forward
+                headers=headers_to_forward,
             )
+
 
 @router.post("/minio-presigned-url")
 async def post_minio_presigned_url(
@@ -122,16 +139,14 @@ async def post_minio_presigned_url(
     return Response(resp.content, resp.status_code)
 
 
-
-
 @router.put("/sync-client-remote")
 def put_remote_kaapana_instance(
-    remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
-    inncoming_update_jobs: List[schemas.JobUpdate],
+    client_to_remote_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
+    client_to_remote_jobs: List[schemas.JobUpdate],
     db: Session = Depends(get_db),
 ):
     return crud.sync_client_remote(
         db=db,
-        remote_kaapana_instance=remote_kaapana_instance,
-        inncoming_update_jobs=inncoming_update_jobs,
+        client_to_remote_instance=client_to_remote_instance,
+        client_to_remote_jobs=client_to_remote_jobs,
     )

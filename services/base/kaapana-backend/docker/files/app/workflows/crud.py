@@ -207,7 +207,7 @@ def create_and_update_client_kaapana_instance(
                     username=db_dataset.username,
                     identifiers=identifiers,
                 ).model_dump()
-            
+
                 meta_information = {}
                 # Todo add here unique studies and patients to the db_dataset object!
                 meta_data = get_meta_data(
@@ -458,7 +458,7 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
             f"No job found in db with job_id={job_id}, run_id={run_id} --> will return None"
         )
         raise HTTPException(status_code=404, detail="Job not found")
-    
+
     return db_job
 
 
@@ -469,11 +469,11 @@ def delete_job(db: Session, job_id: int):
             status_code=401,
             detail="You are not allowed to delete this job, since its not in queued, scheduled or running state",
         )
-    
+
     if db_job.update_external:
         raise HTTPException(
             status_code=202,
-            detail="Job is currently updating, please try again, once the update finished."
+            detail="Job is currently updating, please try again, once the update finished.",
         )
 
     job = schemas.JobUpdate(
@@ -589,8 +589,17 @@ def prepare_job_update(db_job, job):
     if job.status == "restart":
         db_job.run_id = generate_run_id(db_job.dag_id)
         db_job.status = "scheduled"
-    elif job.status == "deleted" and db_job.status not in ["created", "pending", "finished", "deleted", "failed", "aborted"]:
-        logging.error(f"Job with job_id {job.job_id} cannot be deleted, since it is in state {db_job.status}")
+    elif job.status == "deleted" and db_job.status not in [
+        "created",
+        "pending",
+        "finished",
+        "deleted",
+        "failed",
+        "aborted",
+    ]:
+        logging.error(
+            f"Job with job_id {job.job_id} cannot be deleted, since it is in state {db_job.status}"
+        )
     else:
         db_job.status = job.status
 
@@ -625,11 +634,13 @@ def prepare_job_update(db_job, job):
     db_job.time_updated = utc_timestamp
     return db_job
 
+
 def bulk_delete_jobs(db: Session, job_ids_to_delete: List[int]):
     delete_query = delete(models.Job).where(models.Job.id.in_(job_ids_to_delete))
     db.execute(delete_query)
     db.commit()
     return {"ok": True}
+
 
 def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate]):
     job_ids = [job.job_id for job in jobs]
@@ -671,7 +682,7 @@ def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate]):
             abort_db_jobs.append(db_job)
         if db_job.status == "deleted" and not db_job.update_external:
             job_ids_to_delete.append(db_job.id)
-    
+
     if abort_db_jobs:
         try:
             abort_jobs_in_chunks(abort_db_jobs)
@@ -739,54 +750,79 @@ def get_job_taskinstances(db: Session, job_id: int = None):
 
 def sync_client_remote(
     db: Session,
-    remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
-    inncoming_update_jobs: List[schemas.JobUpdate] = None,
+    client_to_remote_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
+    client_to_remote_jobs: List[schemas.JobUpdate] = None,
 ):
+    """
+    Function call recevied at remote instance to sync client and remote
+    """
     db_client_kaapana = get_kaapana_instance(db)
 
     # Local update of Kaapana Instance is happening in here...
     create_and_update_remote_kaapana_instance(
-        db=db, remote_kaapana_instance=remote_kaapana_instance, action="external_update"
+        db=db,
+        remote_kaapana_instance=client_to_remote_instance,
+        action="external_update",
     )
 
     # Handling incoming job updates
-    if inncoming_update_jobs is not None:
-        for job in inncoming_update_jobs:
+    if client_to_remote_jobs is not None:
+        for job in client_to_remote_jobs:
             logging.debug(job)
-        outgoing_updated_jobs, outgoing_lost_job_ids = bulk_update_jobs(db, inncoming_update_jobs)
+        updated_client_to_remote_job, lost_client_to_remote_job_ids = bulk_update_jobs(
+            db, client_to_remote_jobs
+        )
     else:
-        outgoing_updated_jobs = []
+        updated_client_to_remote_job = []
     # Also adding jobs that were not found here to the list, so that the remote system will not try to update them again
-    outgoing_updated_job_ids = [job.id for job in outgoing_updated_jobs]
-    logging.debug(f"SYNC_CLIENT_REMOTE outgoing_updated_job_ids: {outgoing_updated_job_ids}")
-    logging.debug(f"SYNC_CLIENT_REMOTE lost_job_ids: {outgoing_lost_job_ids}")
+    updated_client_to_remote_job_ids = [job.id for job in updated_client_to_remote_job]
+    logging.debug(
+        f"SYNC_CLIENT_REMOTE updated_client_to_remote_job_ids: {updated_client_to_remote_job_ids}"
+    )
+    logging.debug(f"SYNC_CLIENT_REMOTE lost_job_ids: {lost_client_to_remote_job_ids}")
 
     # Preparing outgoing jobs and workflows
-    db_outgoing_jobs = db.query(models.Job).join(models.Job.kaapana_instance).filter(
-        models.KaapanaInstance.instance_name == remote_kaapana_instance.instance_name,
-        models.Job.update_external == True,
-        models.Job.kaapana_id != db_client_kaapana.id  # Exclude local jobs
-    ).all()
+    db_remote_to_client_jobs = (
+        db.query(models.Job)
+        .join(models.Job.kaapana_instance)
+        .filter(
+            models.KaapanaInstance.instance_name
+            == client_to_remote_instance.instance_name,
+            models.Job.update_external == True,
+            models.Job.kaapana_id != db_client_kaapana.id,  # Exclude local jobs
+        )
+        .all()
+    )
 
     # Get workflows on client_kaapana_instance which contain outgoing jobs
-    outgoing_workflow_ids = set([job.workflow_id for job in db_outgoing_jobs])
-    
-    # get workflows on client_kaapana_instance which contain outgoing_jobs
-    outgoing_jobs = []
-    for db_outgoing_job in db_outgoing_jobs:
-        logging.debug(f"Job: {schemas.JobWithWorkflowId(**db_outgoing_job.__dict__).dict()}")
-        outgoing_jobs.append(schemas.JobWithWorkflowId(**db_outgoing_job.__dict__).dict())
+    remote_to_client_workflow_ids = set(
+        [job.workflow_id for job in db_remote_to_client_jobs]
+    )
 
-    outgoing_workflows = []
-    for workflow_id in outgoing_workflow_ids:
+    # get workflows on client_kaapana_instance which contain remote_to_client_jobs
+    remote_to_client_jobs = []
+    for db_remote_to_client_job in db_remote_to_client_jobs:
+        logging.debug(
+            f"Job: {schemas.JobWithWorkflowId(**db_remote_to_client_job.__dict__).dict()}"
+        )
+        remote_to_client_jobs.append(
+            schemas.JobWithWorkflowId(**db_remote_to_client_job.__dict__).dict()
+        )
+
+    remote_to_client_workflows = []
+    for workflow_id in remote_to_client_workflow_ids:
         db_workflow = get_workflow(db, workflow_id=workflow_id)
-        outgoing_workflows.append(schemas.Workflow(**db_workflow.__dict__).dict())
+        remote_to_client_workflows.append(
+            schemas.Workflow(**db_workflow.__dict__).dict()
+        )
 
-    logging.debug(f"SYNC_CLIENT_REMOTE outgoing_jobs: {outgoing_jobs}")
-    logging.debug(f"SYNC_CLIENT_REMOTE outgoing_workflows: {outgoing_workflows}")
+    logging.debug(f"SYNC_CLIENT_REMOTE remote_to_client_jobs: {remote_to_client_jobs}")
+    logging.debug(
+        f"SYNC_CLIENT_REMOTE remote_to_client_workflows: {remote_to_client_workflows}"
+    )
 
     # Instance specific update
-    update_remote_instance_payload = {
+    remote_to_client_instance = {
         "instance_name": db_client_kaapana.instance_name,
         "allowed_dags": db_client_kaapana.allowed_dags,
         "allowed_datasets": db_client_kaapana.allowed_datasets,
@@ -795,15 +831,18 @@ def sync_client_remote(
     }
 
     return {
-        "incoming_updated_job_ids": outgoing_updated_job_ids,
-        "incoming_lost_job_ids": outgoing_lost_job_ids,
-        "incoming_jobs": outgoing_jobs,
-        "incoming_workflows": outgoing_workflows,
-        "update_remote_instance_payload": update_remote_instance_payload,
+        "updated_client_to_remote_job_ids": updated_client_to_remote_job_ids,
+        "lost_client_to_remote_job_ids": lost_client_to_remote_job_ids,
+        "remote_to_client_jobs": remote_to_client_jobs,
+        "remote_to_client_workflows": remote_to_client_workflows,
+        "remote_to_client_instance": remote_to_client_instance,
     }
 
 
 def get_remote_updates(db: Session, periodically=False):
+    """
+    Function call recevied at client instance to sync client and remote
+    """
     db_client_kaapana = get_kaapana_instance(db)
     if periodically is True and db_client_kaapana.automatic_update is False:
         return
@@ -814,33 +853,42 @@ def get_remote_updates(db: Session, periodically=False):
             continue
 
         # Preparing outgoing jobs and workflows
-        db_outgoing_jobs = db.query(
-            models.Job.owner_kaapana_instance_name,
-            models.Job.update_external,
-            models.Job.external_job_id,
-            models.Job.run_id,
-            models.Job.status,
-            models.Job.description,      
-        ).filter(
-            models.Job.owner_kaapana_instance_name == db_remote_kaapana_instance.instance_name,
-            models.Job.update_external == True
-        ).all()
+        db_client_to_remote_jobs = (
+            db.query(
+                models.Job.owner_kaapana_instance_name,
+                models.Job.update_external,
+                models.Job.external_job_id,
+                models.Job.run_id,
+                models.Job.status,
+                models.Job.description,
+            )
+            .filter(
+                models.Job.owner_kaapana_instance_name
+                == db_remote_kaapana_instance.instance_name,
+                models.Job.update_external == True,
+            )
+            .all()
+        )
 
-        outgoing_jobs = []
-        for db_outgoing_job in db_outgoing_jobs:
+        client_to_remote_jobs = []
+        for db_client_to_remote_job in db_client_to_remote_jobs:
             job = {
-                    "job_id": db_outgoing_job.external_job_id,
-                    "run_id": db_outgoing_job.run_id,
-                    "status": db_outgoing_job.status,
-                    "description": db_outgoing_job.description,
-                    "update_external": False
-                }
-            outgoing_jobs.append(job)
-        logging.info(f"GET_REMOTE_UPDATES Number of outgoing_jobs: {len(outgoing_jobs)}")
-        logging.debug(f"GET_REMOTE_UPDATES outgoing_jobs: {outgoing_jobs}")
+                "job_id": db_client_to_remote_job.external_job_id,
+                "run_id": db_client_to_remote_job.run_id,
+                "status": db_client_to_remote_job.status,
+                "description": db_client_to_remote_job.description,
+                "update_external": False,
+            }
+            client_to_remote_jobs.append(job)
+        logging.info(
+            f"GET_REMOTE_UPDATES Number of client_to_remote_jobs: {len(client_to_remote_jobs)}"
+        )
+        logging.debug(
+            f"GET_REMOTE_UPDATES client_to_remote_jobs: {client_to_remote_jobs}"
+        )
 
         # Instance specific update
-        update_remote_instance_payload = {
+        client_to_remote_instance = {
             "instance_name": db_client_kaapana.instance_name,
             "allowed_dags": db_client_kaapana.allowed_dags,
             "allowed_datasets": db_client_kaapana.allowed_datasets,
@@ -853,8 +901,8 @@ def get_remote_updates(db: Session, periodically=False):
             r = requests_retry_session(session=s).put(
                 f"{remote_backend_url}/sync-client-remote",
                 json={
-                    "remote_kaapana_instance": update_remote_instance_payload,
-                    "inncoming_update_jobs": outgoing_jobs,
+                    "client_to_remote_instance": client_to_remote_instance,
+                    "client_to_remote_jobs": client_to_remote_jobs,
                 },
                 verify=db_remote_kaapana_instance.ssl_check,
                 headers={
@@ -869,11 +917,17 @@ def get_remote_updates(db: Session, periodically=False):
             )
             continue
         raise_kaapana_connection_error(r)
-        incoming_data = r.json()
+        remote_response = r.json()
 
         # Handling updated_job_ids
-        incoming_updated_job_ids = incoming_data["incoming_updated_job_ids"]
-        db_jobs = db.query(models.Job).filter(models.Job.external_job_id.in_(incoming_updated_job_ids)).all()
+        updated_client_to_remote_job_ids = remote_response[
+            "updated_client_to_remote_job_ids"
+        ]
+        db_jobs = (
+            db.query(models.Job)
+            .filter(models.Job.external_job_id.in_(updated_client_to_remote_job_ids))
+            .all()
+        )
         updated_db_jobs = []
         job_ids_to_delete = []
         for db_job in db_jobs:
@@ -886,13 +940,19 @@ def get_remote_updates(db: Session, periodically=False):
         db.commit()
 
         # Handling jobs that exist on the local instance but not on the remote instance
-        incoming_lost_job_ids = incoming_data["incoming_lost_job_ids"]
-        db_jobs = db.query(models.Job).filter(models.Job.external_job_id.in_(incoming_lost_job_ids)).all()
+        lost_client_to_remote_job_ids = remote_response["lost_client_to_remote_job_ids"]
+        db_jobs = (
+            db.query(models.Job)
+            .filter(models.Job.external_job_id.in_(lost_client_to_remote_job_ids))
+            .all()
+        )
         for db_job in db_jobs:
             if db_job.status == "deleted":
                 job_ids_to_delete.append(db_job.id)
             else:
-                logging.error(f"Job with job_id {db_job.id} does not exist on remote system and will therefore be deleted.")
+                logging.error(
+                    f"Job with job_id {db_job.id} does not exist on remote system and will therefore be deleted."
+                )
                 job_ids_to_delete.append(db_job.id)
 
         if job_ids_to_delete:
@@ -902,10 +962,10 @@ def get_remote_updates(db: Session, periodically=False):
                 logging.error(f"Failed to delete jobs: {str(e)}")
 
         # Handling incoming jobs and workflows
-        incoming_jobs = incoming_data["incoming_jobs"]
-        incoming_workflows = incoming_data["incoming_workflows"]
+        remote_to_client_jobs = remote_response["remote_to_client_jobs"]
+        remote_to_client_workflows = remote_response["remote_to_client_workflows"]
         remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(
-            **incoming_data["update_remote_instance_payload"]
+            **remote_response["remote_to_client_instance"]
         )
 
         create_and_update_remote_kaapana_instance(
@@ -917,72 +977,83 @@ def get_remote_updates(db: Session, periodically=False):
         # create workflow for incoming workflow if does NOT exist yet
         db_workflow_dict = {}
         db_workflow_job_dict = {}
-        for incoming_workflow in incoming_workflows:
-            # check if incoming_workflow already exists
+        for remote_to_client_workflow in remote_to_client_workflows:
+            # check if remote_to_client_workflow already exists
             db_workflow = get_workflow(
-                db, workflow_id=incoming_workflow["workflow_id"]
+                db, workflow_id=remote_to_client_workflow["workflow_id"]
             )
-            # db_incoming_workflow = get_workflow(db, workflow_name=incoming_workflow['workflow_name']) # rather query via workflow_name than via workflow_id
             if db_workflow is None:
-                # if not: create incoming workflows
-                incoming_workflow["kaapana_instance_id"] = db_remote_kaapana_instance.id
-                # incoming_workflow['external_workflow_id'] = incoming_workflow["id"]
-                # convert string "{node81_gpu, node82_gpu}" to list ['node81_gpu', 'node82_gpu']
-                incoming_workflow["involved_kaapana_instances"] = incoming_workflow[
-                    "involved_kaapana_instances"
-                ][1:-1].split(",")
-                # Todo why is incoming_workflow such a strange object?
-                # print('helllo', incoming_workflow[
-                #     "involved_kaapana_instances"
-                # ])
-                # incoming_workflow["involved_kaapana_instances"] = json.dumps(incoming_workflow[
-                #     "involved_kaapana_instances"
-                # ])
-                workflow = schemas.WorkflowCreate(**incoming_workflow)
+                remote_to_client_workflow["kaapana_instance_id"] = (
+                    db_remote_kaapana_instance.id
+                )
+                remote_to_client_workflow["involved_kaapana_instances"] = (
+                    remote_to_client_workflow["involved_kaapana_instances"][1:-1].split(
+                        ","
+                    )
+                )
+                workflow = schemas.WorkflowCreate(**remote_to_client_workflow)
                 db_workflow = create_workflow(db, workflow)
                 logging.debug(f"Created incoming remote workflow: {db_workflow}")
             db_workflow_dict[db_workflow.workflow_id] = db_workflow
             db_workflow_job_dict[db_workflow.workflow_id] = []
 
         # Handling incoming jobs
-        logging.info(f"GET_REMOTE_UPDATES Number of incoming_jobs: {len(incoming_jobs)}")
-        logging.debug(f"GET_REMOTE_UPDATES incoming_jobs: {incoming_jobs}")
-        db_incoming_jobs = db.query(
-            models.Job.id,
-            models.Job.external_job_id,       
-        ).filter(models.Job.external_job_id.in_([job["id"] for job in incoming_jobs])).all()
+        logging.info(
+            f"GET_REMOTE_UPDATES Number of remote_to_client_jobs: {len(remote_to_client_jobs)}"
+        )
+        logging.debug(
+            f"GET_REMOTE_UPDATES remote_to_client_jobs: {remote_to_client_jobs}"
+        )
+        db_remote_to_client_jobs = (
+            db.query(
+                models.Job.id,
+                models.Job.external_job_id,
+            )
+            .filter(
+                models.Job.external_job_id.in_(
+                    [job["id"] for job in remote_to_client_jobs]
+                )
+            )
+            .all()
+        )
         incoming_external_job_ids = {
-            job.external_job_id: job.id for job in db_incoming_jobs
+            job.external_job_id: job.id for job in db_remote_to_client_jobs
         }
         inncoming_update_jobs = []
-        for incoming_job in incoming_jobs:
-            if incoming_job["id"] in incoming_external_job_ids:
-                incoming_job["job_id"] = incoming_external_job_ids[incoming_job["id"]]
-                inncoming_update_jobs.append(
-                    schemas.JobUpdate(**incoming_job)
-                )
+        for remote_to_client_job in remote_to_client_jobs:
+            if remote_to_client_job["id"] in incoming_external_job_ids:
+                remote_to_client_job["job_id"] = incoming_external_job_ids[
+                    remote_to_client_job["id"]
+                ]
+                inncoming_update_jobs.append(schemas.JobUpdate(**remote_to_client_job))
             else:
-                db_job = db.query(models.Job).filter_by(run_id=incoming_job["run_id"]).first()
+                db_job = (
+                    db.query(models.Job)
+                    .filter_by(run_id=remote_to_client_job["run_id"])
+                    .first()
+                )
                 if db_job:
                     logging.warning("Job exsisits already. Not creating a new one...")
                     continue
                 if (
-                    "conf_data" in incoming_job
-                    and "data_form" in incoming_job["conf_data"]
-                    and "identifiers" in incoming_job["conf_data"]["data_form"]
+                    "conf_data" in remote_to_client_job
+                    and "data_form" in remote_to_client_job["conf_data"]
+                    and "identifiers" in remote_to_client_job["conf_data"]["data_form"]
                 ):
                     drop_duplicate_studies = (
-                        incoming_job["conf_data"]
+                        remote_to_client_job["conf_data"]
                         .get("workflow_form", {})
                         .get("series_uids_with_unique_study_uids", False)
                     )
                     drop_duplicated_patients = (
-                        incoming_job["conf_data"]
+                        remote_to_client_job["conf_data"]
                         .get("workflow_form", {})
                         .get("series_ids_with_unique_patient_ids", False)
                     )
 
-                    dataset_name = incoming_job["conf_data"]["data_form"]["dataset_name"]
+                    dataset_name = remote_to_client_job["conf_data"]["data_form"][
+                        "dataset_name"
+                    ]
                     db_dataset = get_dataset(db, dataset_name)
                     if drop_duplicate_studies:
                         identifiers = db_dataset.meta_information[
@@ -1002,29 +1073,39 @@ def get_remote_updates(db: Session, periodically=False):
                         identifiers = db_dataset.meta_information["identifiers"][
                             "identifiers"
                         ]
-                        meta_data = db_dataset.meta_information["identifiers"]["meta_data"]
+                        meta_data = db_dataset.meta_information["identifiers"][
+                            "meta_data"
+                        ]
 
-                    incoming_job["conf_data"]["data_form"]["identifiers"] = [
+                    remote_to_client_job["conf_data"]["data_form"]["identifiers"] = [
                         identifiers[idx]
-                        for idx in incoming_job["conf_data"]["data_form"]["identifiers"]
-                    ]
-                    incoming_job["conf_data"]["data_form"]["meta_data"] = [
-                        meta_data[identifier]
-                        for identifier in incoming_job["conf_data"]["data_form"][
+                        for idx in remote_to_client_job["conf_data"]["data_form"][
                             "identifiers"
                         ]
                     ]
+                    remote_to_client_job["conf_data"]["data_form"]["meta_data"] = [
+                        meta_data[identifier]
+                        for identifier in remote_to_client_job["conf_data"][
+                            "data_form"
+                        ]["identifiers"]
+                    ]
 
-                incoming_job["kaapana_instance_id"] = db_client_kaapana.id
-                incoming_job["owner_kaapana_instance_name"] = (
+                remote_to_client_job["kaapana_instance_id"] = db_client_kaapana.id
+                remote_to_client_job["owner_kaapana_instance_name"] = (
                     db_remote_kaapana_instance.instance_name
                 )
-                incoming_job["external_job_id"] = incoming_job["id"]
-                incoming_job["status"] = "pending" if incoming_job["status"] == "created" else incoming_job["status"]
-                job = schemas.JobCreate(**incoming_job)
-                job.automatic_execution = db_workflow_dict.get(incoming_job["workflow_id"], None ).automatic_execution
+                remote_to_client_job["external_job_id"] = remote_to_client_job["id"]
+                remote_to_client_job["status"] = (
+                    "pending"
+                    if remote_to_client_job["status"] == "created"
+                    else remote_to_client_job["status"]
+                )
+                job = schemas.JobCreate(**remote_to_client_job)
+                job.automatic_execution = db_workflow_dict.get(
+                    remote_to_client_job["workflow_id"], None
+                ).automatic_execution
                 db_job = create_job(db, job)
-                db_workflow_job_dict[incoming_job["workflow_id"]].append(db_job)
+                db_workflow_job_dict[remote_to_client_job["workflow_id"]].append(db_job)
 
         # Handling incoming job updates
         logging.info("inncoming_update_jobs: " + str(inncoming_update_jobs))
@@ -1035,8 +1116,6 @@ def get_remote_updates(db: Session, periodically=False):
             workflow_update = schemas.WorkflowUpdate(
                 **{
                     "workflow_id": workflow_id,
-                    # incoming_workflow["workflow_name"] instead of db_incoming_workflow.workflow_name
-                    # db_jobs instead of incoming_jobs
                     "workflow_jobs": db_jobs,
                 }
             )
@@ -1754,10 +1833,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
     utc_timestamp = get_utc_timestamp()
 
     db_workflow = get_workflow(db, workflow.workflow_id)
-    if (
-        db_workflow.federated
-        and workflow.workflow_status == "restart"
-    ):
+    if db_workflow.federated and workflow.workflow_status == "restart":
         logging.info("Only working with federated workflows!")
         # federated workflow + workflow.workflow_status="scheduled" --> only restart orchestration job and not all jobs of workflow
         job_id = None
@@ -1772,7 +1848,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
                 status_code=404,
                 detail="No orchestration job found in federated workflow!",
             )
-        
+
         db_job = get_job(db, job_id=job_id)
         assert db_job.update_external == False
         job = schemas.JobUpdate(
@@ -1795,11 +1871,10 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
         job = schemas.JobUpdate(
             job_id=db_workflow_current_job.id,
             update_external=db_workflow_current_job.runs_on_remote,
-
         )
         assert db_workflow_current_job.update_external == False
         if workflow.workflow_status == "restart":
-            if db_workflow_current_job.status in  ["failed", "aborted"]:
+            if db_workflow_current_job.status in ["failed", "aborted"]:
                 job.status = "restart"
                 job.description = "The worklow was triggered!"
                 jobs_to_update.append(job)
@@ -1808,8 +1883,11 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
         elif workflow.workflow_status == "aborted":
             job.status = "aborted"
             job.description = "The worklow was aborted!"
-            jobs_to_update.append(job)             
-        elif workflow.workflow_status == "scheduled" or workflow.workflow_status == "confirmed":
+            jobs_to_update.append(job)
+        elif (
+            workflow.workflow_status == "scheduled"
+            or workflow.workflow_status == "confirmed"
+        ):
             job.status = "scheduled"
             job.description = "The worklow was triggered!"
             jobs_to_update.append(job)
@@ -1819,7 +1897,6 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
             jobs_to_update.append(job)
         else:
             logging.warning("Workflow status not found!")
-
 
     Thread(target=thread_bulk_update_jobs, args=(jobs_to_update,)).start()
 
@@ -1870,7 +1947,7 @@ def delete_workflow(db: Session, workflow_id: str):
             "type": "success",
             "title": "Successfully deleted workflow with all its jobs.",
         }
-    
+
     workflow_update = schemas.WorkflowUpdate(**db_workflow.__dict__)
     workflow_update.workflow_status = "deleted"
     try:
@@ -1885,6 +1962,7 @@ def delete_workflow(db: Session, workflow_id: str):
         "type": "warning",
         "title": f"Jobs in state 'created', 'pending', 'finished', 'aborted' or 'failed' will be deleted. The workflow item can only be deleted, if it contains no job items.",
     }
+
 
 def delete_workflows(db: Session):
     # TODO: add remote workflow deletion

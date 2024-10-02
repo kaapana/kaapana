@@ -28,7 +28,7 @@ spec:
               value: "10"
           volumeMounts:
           {{- if .Values.global.dev_files }}
-            - name: dicom-web-multiplexer-dev-pv-volume
+            - name: dicom-web-multiplexer-dev
               mountPath: /app
           {{- end }}
       containers:
@@ -41,9 +41,9 @@ spec:
             - name: WORKERS
               value: "4"
             - name: DICOMWEB_BASE_URL
-              value: "http://dcm4chee-service.{{ .Values.global.services_namespace }}.svc:8080/dcm4chee-arc/aets/KAAPANA/rs"
+              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/"
             - name: DICOMWEB_BASE_URL_WADO_URI
-              value: "http://dcm4chee-service.{{ .Values.global.services_namespace }}.svc:8080/dcm4chee-arc/aets/KAAPANA/wado"
+              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/wado"
           ports:
             - containerPort: 8080
           resources:
@@ -53,7 +53,7 @@ spec:
               memory: "256Mi"
           volumeMounts:
             {{- if .Values.global.dev_files }}
-            - name: dicom-web-multiplexer-dev-pv-volume
+            - name: dicom-web-multiplexer-dev
               mountPath: /app
             {{- end }}
           securityContext:
@@ -64,7 +64,7 @@ spec:
         - name: registry-secret
       volumes:
         {{- if .Values.global.dev_files }}
-        - name: dicom-web-multiplexer-dev-pv-volume
+        - name: dicom-web-multiplexer-dev
           persistentVolumeClaim:
             claimName: dicom-web-multiplexer-dev-pv-claim
         {{- end }}

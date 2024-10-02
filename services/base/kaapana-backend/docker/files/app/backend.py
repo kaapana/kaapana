@@ -16,7 +16,7 @@ from .monitoring import routers as monitoring
 from .storage import routers as storage
 from .users import routers as users
 from .workflows import models
-from .workflows.crud import sync_states_from_airflow
+from .workflows.crud import sync_states_from_airflow, update_allowed_datasets_and_workflows
 from .workflows.routers import client, remote
 
 models.Base.metadata.create_all(bind=engine)
@@ -53,6 +53,14 @@ def periodically_sync_states_from_airflow():
             except Exception as e:
                 logging.warning(
                     "Something went wrong updating in crud.sync_states_from_airflow()"
+                )
+                logging.warning(traceback.format_exc())
+        with SessionLocal() as db:
+            try:
+                update_allowed_datasets_and_workflows(db)
+            except Exception as e:
+                logging.warning(
+                    "Something went wrong updating in crud.update_allowed_datasets_and_workflows()"
                 )
                 logging.warning(traceback.format_exc())
 

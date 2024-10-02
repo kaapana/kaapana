@@ -8,6 +8,7 @@ import datetime
 import string
 import requests
 from threading import Thread
+import traceback
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
@@ -155,6 +156,44 @@ def get_kaapana_instances(
         )
 
 
+def update_allowed_datasets_and_workflows(db: Session):
+    available_dags = get_dag_list(kind_of_dags="viewNames:remoteExecution")
+    available_datasets = [
+        db_dataset.name for db_dataset in db.query(models.Dataset).all()
+    ]
+    db_kaapana_instance = get_kaapana_instance(db)
+    update_needed = False
+    allowed_dags = []
+    for dag in db_kaapana_instance.allowed_dags:
+        if dag in available_dags:
+            allowed_dags.append(dag)
+        else:
+            update_needed = True
+
+    allowed_datasets = []
+    for dataset in db_kaapana_instance.allowed_datasets:
+        if dataset["name"] in available_datasets:
+            allowed_datasets.append(dataset["name"])
+        else:
+            update_needed = True
+
+    if update_needed:
+        logging.debug("Updating allowed datasets and dags")
+        logging.debug("Allowed datasets: " + str(allowed_datasets))
+        logging.debug("Allowed dags: " + str(allowed_dags))
+        instance_update = schemas.ClientKaapanaInstanceCreate(
+            ssl_check=db_kaapana_instance.ssl_check,
+            automatic_update=db_kaapana_instance.automatic_update,
+            automatic_workflow_execution=db_kaapana_instance.automatic_workflow_execution,
+            fernet_encrypted=db_kaapana_instance.fernet_key != "deactivated",
+            allowed_dags=allowed_dags,
+            allowed_datasets=allowed_datasets,
+        )
+        create_and_update_client_kaapana_instance(db, instance_update, action="update")
+    else:
+        logging.debug("No update needed")
+
+
 def create_and_update_client_kaapana_instance(
     db: Session,
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
@@ -187,6 +226,7 @@ def create_and_update_client_kaapana_instance(
             remote=False,
             time_created=utc_timestamp,
             time_updated=utc_timestamp,
+            client_time_update=utc_timestamp,
             automatic_update=client_kaapana_instance.automatic_update or False,
             automatic_workflow_execution=client_kaapana_instance.automatic_workflow_execution
             or False,
@@ -281,6 +321,9 @@ def create_and_update_client_kaapana_instance(
         db_client_kaapana_instance.automatic_workflow_execution = (
             client_kaapana_instance.automatic_workflow_execution or False
         )
+        db_client_kaapana_instance.remote_update_log = (
+            client_kaapana_instance.remote_update_log
+        )
     else:
         raise NameError("action must be one of create, update")
 
@@ -296,6 +339,7 @@ def create_and_update_remote_kaapana_instance(
     db: Session,
     remote_kaapana_instance: schemas.RemoteKaapanaInstanceCreate,
     action="create",
+    client_update=False,
 ):
     utc_timestamp = get_utc_timestamp()
     db_remote_kaapana_instance = get_kaapana_instance(
@@ -325,8 +369,8 @@ def create_and_update_remote_kaapana_instance(
             fernet_key=remote_kaapana_instance.fernet_key or "deactivated",
             remote=True,
             time_created=utc_timestamp,
-            # time_updated=utc_timestamp,
             time_updated=datetime.datetime.min,
+            client_time_update=datetime.datetime.min,
         )
     elif action == "update":
         db_remote_kaapana_instance.token = remote_kaapana_instance.token
@@ -335,7 +379,6 @@ def create_and_update_remote_kaapana_instance(
         db_remote_kaapana_instance.fernet_key = (
             remote_kaapana_instance.fernet_key or "deactivated"
         )
-        db_remote_kaapana_instance.time_updated = utc_timestamp
     elif action == "external_update":
         logging.debug(
             f"Externally updating with db_remote_kaapana_instance: {db_remote_kaapana_instance}"
@@ -353,7 +396,10 @@ def create_and_update_remote_kaapana_instance(
             db_remote_kaapana_instance.automatic_workflow_execution = (
                 remote_kaapana_instance.automatic_workflow_execution or False
             )
-            db_remote_kaapana_instance.time_updated = utc_timestamp
+            if client_update:
+                db_remote_kaapana_instance.client_time_update = utc_timestamp
+            else:
+                db_remote_kaapana_instance.time_updated = utc_timestamp
         else:
             return Response(
                 "Your instance name differs from the remote instance name!", 200
@@ -763,6 +809,7 @@ def sync_client_remote(
         db=db,
         remote_kaapana_instance=client_to_remote_instance,
         action="external_update",
+        client_update=True,
     )
 
     # Handling incoming job updates
@@ -844,282 +891,315 @@ def get_remote_updates(db: Session, periodically=False):
     Function call recevied at client instance to sync client and remote
     """
     db_client_kaapana = get_kaapana_instance(db)
-    if periodically is True and db_client_kaapana.automatic_update is False:
-        return
-    db_kaapana_instances = get_kaapana_instances(db)
-    for db_remote_kaapana_instance in db_kaapana_instances:
-        if not db_remote_kaapana_instance.remote:
-            # Skipping locally running jobs
-            continue
+    try:
+        if periodically is True and db_client_kaapana.automatic_update is False:
+            logging.info("No automatic checking of remote instances enabled")
+            return
+        else:
+            logging.info("Checking for remote updates")
+        db_kaapana_instances = get_kaapana_instances(db)
+        for db_remote_kaapana_instance in db_kaapana_instances:
+            if not db_remote_kaapana_instance.remote:
+                # Skipping locally running jobs
+                continue
 
-        # Preparing outgoing jobs and workflows
-        db_client_to_remote_jobs = (
-            db.query(
-                models.Job.owner_kaapana_instance_name,
-                models.Job.update_external,
-                models.Job.external_job_id,
-                models.Job.run_id,
-                models.Job.status,
-                models.Job.description,
-            )
-            .filter(
-                models.Job.owner_kaapana_instance_name
-                == db_remote_kaapana_instance.instance_name,
-                models.Job.update_external == True,
-            )
-            .all()
-        )
-
-        client_to_remote_jobs = []
-        for db_client_to_remote_job in db_client_to_remote_jobs:
-            job = {
-                "job_id": db_client_to_remote_job.external_job_id,
-                "run_id": db_client_to_remote_job.run_id,
-                "status": db_client_to_remote_job.status,
-                "description": db_client_to_remote_job.description,
-                "update_external": False,
-            }
-            client_to_remote_jobs.append(job)
-        logging.info(
-            f"GET_REMOTE_UPDATES Number of client_to_remote_jobs: {len(client_to_remote_jobs)}"
-        )
-        logging.debug(
-            f"GET_REMOTE_UPDATES client_to_remote_jobs: {client_to_remote_jobs}"
-        )
-
-        # Instance specific update
-        client_to_remote_instance = {
-            "instance_name": db_client_kaapana.instance_name,
-            "allowed_dags": db_client_kaapana.allowed_dags,
-            "allowed_datasets": db_client_kaapana.allowed_datasets,
-            "automatic_update": db_client_kaapana.automatic_update,
-            "automatic_workflow_execution": db_client_kaapana.automatic_workflow_execution,
-        }
-
-        remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-remote/remote"
-        with requests.Session() as s:
-            r = requests_retry_session(session=s).put(
-                f"{remote_backend_url}/sync-client-remote",
-                json={
-                    "client_to_remote_instance": client_to_remote_instance,
-                    "client_to_remote_jobs": client_to_remote_jobs,
-                },
-                verify=db_remote_kaapana_instance.ssl_check,
-                headers={
-                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                    "User-Agent": f"kaapana",
-                },
-                timeout=TIMEOUT,
-            )
-        if r.status_code != 200:
-            logging.warning(
-                f"Warning!!! We could not reach the following backend {db_remote_kaapana_instance.host}"
-            )
-            continue
-        raise_kaapana_connection_error(r)
-        remote_response = r.json()
-
-        # Handling updated_job_ids
-        updated_client_to_remote_job_ids = remote_response[
-            "updated_client_to_remote_job_ids"
-        ]
-        db_jobs = (
-            db.query(models.Job)
-            .filter(models.Job.external_job_id.in_(updated_client_to_remote_job_ids))
-            .all()
-        )
-        updated_db_jobs = []
-        job_ids_to_delete = []
-        for db_job in db_jobs:
-            if db_job.status == "deleted":
-                job_ids_to_delete.append(db_job.id)
-            db_job.update_external = False
-            updated_db_jobs.append(db_job)
-        # Bulk save objects
-        db.bulk_save_objects(updated_db_jobs)
-        db.commit()
-
-        # Handling jobs that exist on the local instance but not on the remote instance
-        lost_client_to_remote_job_ids = remote_response["lost_client_to_remote_job_ids"]
-        db_jobs = (
-            db.query(models.Job)
-            .filter(models.Job.external_job_id.in_(lost_client_to_remote_job_ids))
-            .all()
-        )
-        for db_job in db_jobs:
-            if db_job.status == "deleted":
-                job_ids_to_delete.append(db_job.id)
-            else:
-                logging.error(
-                    f"Job with job_id {db_job.id} does not exist on remote system and will therefore be deleted."
+            # Preparing outgoing jobs and workflows
+            db_client_to_remote_jobs = (
+                db.query(
+                    models.Job.owner_kaapana_instance_name,
+                    models.Job.update_external,
+                    models.Job.external_job_id,
+                    models.Job.run_id,
+                    models.Job.status,
+                    models.Job.description,
                 )
-                job_ids_to_delete.append(db_job.id)
-
-        if job_ids_to_delete:
-            try:
-                bulk_delete_jobs(db, job_ids_to_delete)
-            except Exception as e:
-                logging.error(f"Failed to delete jobs: {str(e)}")
-
-        # Handling incoming jobs and workflows
-        remote_to_client_jobs = remote_response["remote_to_client_jobs"]
-        remote_to_client_workflows = remote_response["remote_to_client_workflows"]
-        remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(
-            **remote_response["remote_to_client_instance"]
-        )
-
-        create_and_update_remote_kaapana_instance(
-            db=db,
-            remote_kaapana_instance=remote_kaapana_instance,
-            action="external_update",
-        )
-
-        # create workflow for incoming workflow if does NOT exist yet
-        db_workflow_dict = {}
-        db_workflow_job_dict = {}
-        for remote_to_client_workflow in remote_to_client_workflows:
-            # check if remote_to_client_workflow already exists
-            db_workflow = get_workflow(
-                db, workflow_id=remote_to_client_workflow["workflow_id"]
+                .filter(
+                    models.Job.owner_kaapana_instance_name
+                    == db_remote_kaapana_instance.instance_name,
+                    models.Job.update_external == True,
+                )
+                .all()
             )
-            if db_workflow is None:
-                remote_to_client_workflow["kaapana_instance_id"] = (
-                    db_remote_kaapana_instance.id
-                )
-                remote_to_client_workflow["involved_kaapana_instances"] = (
-                    remote_to_client_workflow["involved_kaapana_instances"][1:-1].split(
-                        ","
-                    )
-                )
-                workflow = schemas.WorkflowCreate(**remote_to_client_workflow)
-                db_workflow = create_workflow(db, workflow)
-                logging.debug(f"Created incoming remote workflow: {db_workflow}")
-            db_workflow_dict[db_workflow.workflow_id] = db_workflow
-            db_workflow_job_dict[db_workflow.workflow_id] = []
 
-        # Handling incoming jobs
-        logging.info(
-            f"GET_REMOTE_UPDATES Number of remote_to_client_jobs: {len(remote_to_client_jobs)}"
-        )
-        logging.debug(
-            f"GET_REMOTE_UPDATES remote_to_client_jobs: {remote_to_client_jobs}"
-        )
-        db_remote_to_client_jobs = (
-            db.query(
-                models.Job.id,
-                models.Job.external_job_id,
-            )
-            .filter(
-                models.Job.external_job_id.in_(
-                    [job["id"] for job in remote_to_client_jobs]
-                )
-            )
-            .all()
-        )
-        incoming_external_job_ids = {
-            job.external_job_id: job.id for job in db_remote_to_client_jobs
-        }
-        inncoming_update_jobs = []
-        for remote_to_client_job in remote_to_client_jobs:
-            if remote_to_client_job["id"] in incoming_external_job_ids:
-                remote_to_client_job["job_id"] = incoming_external_job_ids[
-                    remote_to_client_job["id"]
-                ]
-                inncoming_update_jobs.append(schemas.JobUpdate(**remote_to_client_job))
-            else:
-                db_job = (
-                    db.query(models.Job)
-                    .filter_by(run_id=remote_to_client_job["run_id"])
-                    .first()
-                )
-                if db_job:
-                    logging.warning("Job exsisits already. Not creating a new one...")
-                    continue
-                if (
-                    "conf_data" in remote_to_client_job
-                    and "data_form" in remote_to_client_job["conf_data"]
-                    and "identifiers" in remote_to_client_job["conf_data"]["data_form"]
-                ):
-                    drop_duplicate_studies = (
-                        remote_to_client_job["conf_data"]
-                        .get("workflow_form", {})
-                        .get("series_uids_with_unique_study_uids", False)
-                    )
-                    drop_duplicated_patients = (
-                        remote_to_client_job["conf_data"]
-                        .get("workflow_form", {})
-                        .get("series_ids_with_unique_patient_ids", False)
-                    )
-
-                    dataset_name = remote_to_client_job["conf_data"]["data_form"][
-                        "dataset_name"
-                    ]
-                    db_dataset = get_dataset(db, dataset_name)
-                    if drop_duplicate_studies:
-                        identifiers = db_dataset.meta_information[
-                            "series_uids_with_unique_study_uids_count"
-                        ]["identifiers"]
-                        meta_data = db_dataset.meta_information[
-                            "series_uids_with_unique_study_uids_count"
-                        ]["meta_data"]
-                    elif drop_duplicated_patients:
-                        identifiers = db_dataset.meta_information[
-                            "series_ids_with_unique_patient_ids_count"
-                        ]["identifiers"]
-                        meta_data = db_dataset.meta_information[
-                            "series_ids_with_unique_patient_ids_count"
-                        ]["meta_data"]
-                    else:
-                        identifiers = db_dataset.meta_information["identifiers"][
-                            "identifiers"
-                        ]
-                        meta_data = db_dataset.meta_information["identifiers"][
-                            "meta_data"
-                        ]
-
-                    remote_to_client_job["conf_data"]["data_form"]["identifiers"] = [
-                        identifiers[idx]
-                        for idx in remote_to_client_job["conf_data"]["data_form"][
-                            "identifiers"
-                        ]
-                    ]
-                    remote_to_client_job["conf_data"]["data_form"]["meta_data"] = [
-                        meta_data[identifier]
-                        for identifier in remote_to_client_job["conf_data"][
-                            "data_form"
-                        ]["identifiers"]
-                    ]
-
-                remote_to_client_job["kaapana_instance_id"] = db_client_kaapana.id
-                remote_to_client_job["owner_kaapana_instance_name"] = (
-                    db_remote_kaapana_instance.instance_name
-                )
-                remote_to_client_job["external_job_id"] = remote_to_client_job["id"]
-                remote_to_client_job["status"] = (
-                    "pending"
-                    if remote_to_client_job["status"] == "created"
-                    else remote_to_client_job["status"]
-                )
-                job = schemas.JobCreate(**remote_to_client_job)
-                job.automatic_execution = db_workflow_dict.get(
-                    remote_to_client_job["workflow_id"], None
-                ).automatic_execution
-                db_job = create_job(db, job)
-                db_workflow_job_dict[remote_to_client_job["workflow_id"]].append(db_job)
-
-        # Handling incoming job updates
-        logging.info("inncoming_update_jobs: " + str(inncoming_update_jobs))
-        bulk_update_jobs(db, inncoming_update_jobs)
-
-        # update incoming workflows
-        for workflow_id, db_jobs in db_workflow_job_dict.items():
-            workflow_update = schemas.WorkflowUpdate(
-                **{
-                    "workflow_id": workflow_id,
-                    "workflow_jobs": db_jobs,
+            client_to_remote_jobs = []
+            for db_client_to_remote_job in db_client_to_remote_jobs:
+                job = {
+                    "job_id": db_client_to_remote_job.external_job_id,
+                    "run_id": db_client_to_remote_job.run_id,
+                    "status": db_client_to_remote_job.status,
+                    "description": db_client_to_remote_job.description,
+                    "update_external": False,
                 }
+                client_to_remote_jobs.append(job)
+            logging.info(
+                f"GET_REMOTE_UPDATES Number of client_to_remote_jobs: {len(client_to_remote_jobs)}"
             )
-            put_workflow_jobs(db, workflow_update)
+            logging.debug(
+                f"GET_REMOTE_UPDATES client_to_remote_jobs: {client_to_remote_jobs}"
+            )
+
+            # Instance specific update
+            client_to_remote_instance = {
+                "instance_name": db_client_kaapana.instance_name,
+                "allowed_dags": db_client_kaapana.allowed_dags,
+                "allowed_datasets": db_client_kaapana.allowed_datasets,
+                "automatic_update": db_client_kaapana.automatic_update,
+                "automatic_workflow_execution": db_client_kaapana.automatic_workflow_execution,
+            }
+
+            remote_backend_url = f"{db_remote_kaapana_instance.protocol}://{db_remote_kaapana_instance.host}:{db_remote_kaapana_instance.port}/kaapana-remote/remote"
+            with requests.Session() as s:
+                r = requests_retry_session(session=s, retries=1).put(
+                    f"{remote_backend_url}/sync-client-remote",
+                    json={
+                        "client_to_remote_instance": client_to_remote_instance,
+                        "client_to_remote_jobs": client_to_remote_jobs,
+                    },
+                    verify=db_remote_kaapana_instance.ssl_check,
+                    headers={
+                        "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                        "User-Agent": f"kaapana",
+                    },
+                    timeout=TIMEOUT,
+                )
+            if r.status_code != 200:
+                raise Exception(
+                    f"We could not reach the following backend {db_remote_kaapana_instance.host} with status code {r.status_code} and error message {r.text}"
+                )
+            raise_kaapana_connection_error(r)
+            remote_response = r.json()
+
+            # Handling updated_job_ids
+            updated_client_to_remote_job_ids = remote_response[
+                "updated_client_to_remote_job_ids"
+            ]
+            db_jobs = (
+                db.query(models.Job)
+                .filter(
+                    models.Job.external_job_id.in_(updated_client_to_remote_job_ids)
+                )
+                .all()
+            )
+            updated_db_jobs = []
+            job_ids_to_delete = []
+            for db_job in db_jobs:
+                if db_job.status == "deleted":
+                    job_ids_to_delete.append(db_job.id)
+                db_job.update_external = False
+                updated_db_jobs.append(db_job)
+            # Bulk save objects
+            db.bulk_save_objects(updated_db_jobs)
+            db.commit()
+
+            # Handling jobs that exist on the local instance but not on the remote instance
+            lost_client_to_remote_job_ids = remote_response[
+                "lost_client_to_remote_job_ids"
+            ]
+            db_jobs = (
+                db.query(models.Job)
+                .filter(models.Job.external_job_id.in_(lost_client_to_remote_job_ids))
+                .all()
+            )
+            for db_job in db_jobs:
+                if db_job.status == "deleted":
+                    job_ids_to_delete.append(db_job.id)
+                else:
+                    logging.error(
+                        f"Job with job_id {db_job.id} does not exist on remote system and will therefore be deleted."
+                    )
+                    job_ids_to_delete.append(db_job.id)
+
+            if job_ids_to_delete:
+                try:
+                    bulk_delete_jobs(db, job_ids_to_delete)
+                except Exception as e:
+                    logging.error(f"Failed to delete jobs: {str(e)}")
+
+            # Handling incoming jobs and workflows
+            remote_to_client_jobs = remote_response["remote_to_client_jobs"]
+            remote_to_client_workflows = remote_response["remote_to_client_workflows"]
+            remote_kaapana_instance = schemas.RemoteKaapanaInstanceUpdateExternal(
+                **remote_response["remote_to_client_instance"]
+            )
+
+            create_and_update_remote_kaapana_instance(
+                db=db,
+                remote_kaapana_instance=remote_kaapana_instance,
+                action="external_update",
+                client_update=False,
+            )
+
+            # create workflow for incoming workflow if does NOT exist yet
+            db_workflow_dict = {}
+            db_workflow_job_dict = {}
+            for remote_to_client_workflow in remote_to_client_workflows:
+                # check if remote_to_client_workflow already exists
+                db_workflow = get_workflow(
+                    db, workflow_id=remote_to_client_workflow["workflow_id"]
+                )
+                if db_workflow is None:
+                    remote_to_client_workflow["kaapana_instance_id"] = (
+                        db_remote_kaapana_instance.id
+                    )
+                    remote_to_client_workflow["involved_kaapana_instances"] = (
+                        remote_to_client_workflow["involved_kaapana_instances"][
+                            1:-1
+                        ].split(",")
+                    )
+                    workflow = schemas.WorkflowCreate(**remote_to_client_workflow)
+                    db_workflow = create_workflow(db, workflow)
+                    logging.debug(f"Created incoming remote workflow: {db_workflow}")
+                db_workflow_dict[db_workflow.workflow_id] = db_workflow
+                db_workflow_job_dict[db_workflow.workflow_id] = []
+
+            # Handling incoming jobs
+            logging.info(
+                f"GET_REMOTE_UPDATES Number of remote_to_client_jobs: {len(remote_to_client_jobs)}"
+            )
+            logging.debug(
+                f"GET_REMOTE_UPDATES remote_to_client_jobs: {remote_to_client_jobs}"
+            )
+            db_remote_to_client_jobs = (
+                db.query(
+                    models.Job.id,
+                    models.Job.external_job_id,
+                )
+                .filter(
+                    models.Job.external_job_id.in_(
+                        [job["id"] for job in remote_to_client_jobs]
+                    )
+                )
+                .all()
+            )
+            incoming_external_job_ids = {
+                job.external_job_id: job.id for job in db_remote_to_client_jobs
+            }
+            inncoming_update_jobs = []
+            for remote_to_client_job in remote_to_client_jobs:
+                if remote_to_client_job["id"] in incoming_external_job_ids:
+                    remote_to_client_job["job_id"] = incoming_external_job_ids[
+                        remote_to_client_job["id"]
+                    ]
+                    inncoming_update_jobs.append(
+                        schemas.JobUpdate(**remote_to_client_job)
+                    )
+                else:
+                    db_job = (
+                        db.query(models.Job)
+                        .filter_by(run_id=remote_to_client_job["run_id"])
+                        .first()
+                    )
+                    if db_job:
+                        logging.warning(
+                            "Job exsisits already. Not creating a new one..."
+                        )
+                        continue
+                    if (
+                        "conf_data" in remote_to_client_job
+                        and "data_form" in remote_to_client_job["conf_data"]
+                        and "identifiers"
+                        in remote_to_client_job["conf_data"]["data_form"]
+                    ):
+                        drop_duplicate_studies = (
+                            remote_to_client_job["conf_data"]
+                            .get("workflow_form", {})
+                            .get("series_uids_with_unique_study_uids", False)
+                        )
+                        drop_duplicated_patients = (
+                            remote_to_client_job["conf_data"]
+                            .get("workflow_form", {})
+                            .get("series_ids_with_unique_patient_ids", False)
+                        )
+
+                        dataset_name = remote_to_client_job["conf_data"]["data_form"][
+                            "dataset_name"
+                        ]
+                        db_dataset = get_dataset(db, dataset_name)
+                        if drop_duplicate_studies:
+                            identifiers = db_dataset.meta_information[
+                                "series_uids_with_unique_study_uids_count"
+                            ]["identifiers"]
+                            meta_data = db_dataset.meta_information[
+                                "series_uids_with_unique_study_uids_count"
+                            ]["meta_data"]
+                        elif drop_duplicated_patients:
+                            identifiers = db_dataset.meta_information[
+                                "series_ids_with_unique_patient_ids_count"
+                            ]["identifiers"]
+                            meta_data = db_dataset.meta_information[
+                                "series_ids_with_unique_patient_ids_count"
+                            ]["meta_data"]
+                        else:
+                            identifiers = db_dataset.meta_information["identifiers"][
+                                "identifiers"
+                            ]
+                            meta_data = db_dataset.meta_information["identifiers"][
+                                "meta_data"
+                            ]
+
+                        remote_to_client_job["conf_data"]["data_form"][
+                            "identifiers"
+                        ] = [
+                            identifiers[idx]
+                            for idx in remote_to_client_job["conf_data"]["data_form"][
+                                "identifiers"
+                            ]
+                        ]
+                        remote_to_client_job["conf_data"]["data_form"]["meta_data"] = [
+                            meta_data[identifier]
+                            for identifier in remote_to_client_job["conf_data"][
+                                "data_form"
+                            ]["identifiers"]
+                        ]
+
+                    remote_to_client_job["kaapana_instance_id"] = db_client_kaapana.id
+                    remote_to_client_job["owner_kaapana_instance_name"] = (
+                        db_remote_kaapana_instance.instance_name
+                    )
+                    remote_to_client_job["external_job_id"] = remote_to_client_job["id"]
+                    remote_to_client_job["status"] = (
+                        "pending"
+                        if remote_to_client_job["status"] == "created"
+                        else remote_to_client_job["status"]
+                    )
+                    job = schemas.JobCreate(**remote_to_client_job)
+                    job.automatic_execution = db_workflow_dict.get(
+                        remote_to_client_job["workflow_id"], None
+                    ).automatic_execution
+                    db_job = create_job(db, job)
+                    db_workflow_job_dict[remote_to_client_job["workflow_id"]].append(
+                        db_job
+                    )
+
+            # Handling incoming job updates
+            logging.info("inncoming_update_jobs: " + str(inncoming_update_jobs))
+            bulk_update_jobs(db, inncoming_update_jobs)
+
+            # update incoming workflows
+            for workflow_id, db_jobs in db_workflow_job_dict.items():
+                workflow_update = schemas.WorkflowUpdate(
+                    **{
+                        "workflow_id": workflow_id,
+                        "workflow_jobs": db_jobs,
+                    }
+                )
+                put_workflow_jobs(db, workflow_update)
+    except Exception as e:
+        client_kaapana_instance = schemas.ClientKaapanaInstanceCreate(
+            ssl_check=db_client_kaapana.ssl_check,
+            automatic_update=db_client_kaapana.automatic_update,
+            automatic_workflow_execution=db_client_kaapana.automatic_workflow_execution,
+            fernet_encrypted=db_client_kaapana.fernet_key != "deactivated",
+            allowed_dags=[dag for dag in db_client_kaapana.allowed_dags],
+            allowed_datasets=[
+                dataset["name"] for dataset in db_client_kaapana.allowed_datasets
+            ],
+            remote_update_log=traceback.format_exc(),
+        )
+        create_and_update_client_kaapana_instance(
+            db=db, client_kaapana_instance=client_kaapana_instance, action="update"
+        )
+        raise HTTPException(status_code=501, detail=str(e))
 
     return {f"Executed get remote updates!"}
 

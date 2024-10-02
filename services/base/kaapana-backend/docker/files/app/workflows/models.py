@@ -62,8 +62,10 @@ class KaapanaInstance(Base):
     allowed_datasets = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+    client_time_update = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_workflow_execution = Column(Boolean(), default=False, index=True)
+    remote_update_log = Column(String(51200), default="", index=True)
 
     # one-to-many relationships
     workflows = relationship(
@@ -131,7 +133,9 @@ class Job(Base):
     time_updated = Column(DateTime(timezone=True))
     automatic_execution = Column(Boolean(), default=False, index=True)
     service_job = Column(Boolean(), default=False, index=True)
-    update_external = Column(Boolean(), default=False, index=True) # Wheather the job should be updated on the external system
+    update_external = Column(
+        Boolean(), default=False, index=True
+    )  # Wheather the job should be updated on the external system
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
@@ -154,5 +158,7 @@ class Job(Base):
     # Identifies a job that runs on a client
     @hybrid_property
     def runs_on_remote(self):
-        return (self.kaapana_instance.instance_name != self.owner_kaapana_instance_name 
-                and not self.external_job_id)
+        return (
+            self.kaapana_instance.instance_name != self.owner_kaapana_instance_name
+            and not self.external_job_id
+        )

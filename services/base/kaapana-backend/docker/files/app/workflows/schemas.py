@@ -1,6 +1,13 @@
 from typing import Optional, List, Union
 import datetime
-from pydantic import field_validator, Field, ConfigDict, BaseModel, model_validator
+from pydantic import (
+    field_validator,
+    Field,
+    ConfigDict,
+    BaseModel,
+    model_validator,
+    computed_field,
+)
 from typing_extensions import Self
 
 
@@ -19,6 +26,7 @@ class KaapanaInstanceBase(BaseModel):
     ssl_check: bool
     automatic_update: bool = False
     automatic_workflow_execution: bool = False
+    remote_update_log: Optional[str] = ""
 
 
 class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
@@ -59,6 +67,7 @@ class KaapanaInstance(KaapanaInstanceBase):
     allowed_datasets: Optional[AllowedDataset] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
+    client_time_update: Optional[datetime.datetime] = None
     workflow_in_which_involved: Optional[str]
 
     @field_validator("allowed_dags", mode="after")
@@ -81,6 +90,42 @@ class KaapanaInstance(KaapanaInstanceBase):
             return v
         else:
             return datetime.datetime.timestamp(v)
+
+    @field_validator("client_time_update", mode="before")
+    @classmethod
+    def convert_client_time_updated(cls, v):
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
+
+    @computed_field
+    @property
+    def last_remote_heartbeat(self) -> Optional[int]:
+        """Calculate the time in seconds since the last update fetched from the remote instance."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return int((now - self.time_updated).total_seconds())
+
+    @computed_field
+    @property
+    def last_client_heartbeat(self) -> Optional[int]:
+        """Calculate the time in seconds since the last update recieved by the remote instance."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return int((now - self.client_time_update).total_seconds())
+
+    @computed_field
+    @property
+    def client_online(self) -> bool:
+        """Determine if the instance is online (last heartbeat < 15 seconds)."""
+        last_recieved_heartbeat = self.last_client_heartbeat
+        return last_recieved_heartbeat is not None and last_recieved_heartbeat < 15
+
+    @computed_field
+    @property
+    def remote_online(self) -> bool:
+        """Determine if the remote instance is online (last heartbeat < 15 seconds)."""
+        last_fetched_heartbeat = self.last_remote_heartbeat
+        return last_fetched_heartbeat is not None and last_fetched_heartbeat < 15
 
     @classmethod
     def clean_full_return(cls, instance):
@@ -282,8 +327,10 @@ class JobWithWorkflow(Job):
     workflow: Optional[Workflow] = None
     # involved_kaapana_instances: Optional[list]  # idk y?
 
+
 class JobWithWorkflowId(Job):
     workflow_id: Optional[str] = None
+
 
 class JobWithWorkflowWithKaapanaInstance(JobWithKaapanaInstance):
     workflow: Optional[Workflow] = None

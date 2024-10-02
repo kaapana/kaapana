@@ -24,6 +24,7 @@ def create_dataset(search_dir):
             [f for f in glob(join("/", workflow_dir, "nnunet-dataset", "*"))]
         )
         for batch_element_dir in batch_folders:
+            case_id = basename(batch_element_dir)
             input_count = 0
             for input_modality in input_modality_dirs:
                 nifti_dir = join(batch_element_dir, input_modality, "*.nii.gz")
@@ -33,9 +34,7 @@ def create_dataset(search_dir):
                 for nifti in niftis_found:
                     target_filename = join(
                         input_data_dir,
-                        basename(nifti).replace(
-                            ".nii.gz", f"_{input_count:04d}.nii.gz"
-                        ),
+                        f"{case_id}_{input_count:04d}.nii.gz",
                     )
                     if exists(target_filename):
                         print(f"# target_filename: {target_filename}")
@@ -52,6 +51,8 @@ def create_dataset(search_dir):
     else:
         input_count = 0
         input_data_dir = join(search_dir, "nnunet-input-data")
+        case_id = basename(search_dir)
+        print(f"# case_id: {case_id}")
         for input_modality in input_modality_dirs:
             nifti_dir = join(search_dir, input_modality, "*.nii.gz")
             print(f"# Searching NIFTIs at {nifti_dir}.")
@@ -60,7 +61,7 @@ def create_dataset(search_dir):
             for nifti in niftis_found:
                 target_filename = join(
                     input_data_dir,
-                    basename(nifti).replace(".nii.gz", f"_{input_count:04d}.nii.gz"),
+                    f"{case_id}_{input_count:04d}.nii.gz",
                 )
                 if exists(target_filename):
                     print(f"# Target input-data already exists -> skipping")

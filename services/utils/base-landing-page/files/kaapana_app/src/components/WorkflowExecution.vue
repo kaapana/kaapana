@@ -335,11 +335,11 @@ export default {
     * Here is a sample workflow settings example:
     * validateDicoms: {
     *    properties: {
-    *            validatorAlgorithm: 'dciodvfy',
-    *            exitOnError: false,
-    *            tagsWhitelist: [], 
+    *            validator_algorithm: 'dciodvfy',
+    *            exit_on_error: false,
+    *            tags_whitelist: [], 
     *        },
-    *        hideOnUI: ['tagsWhitelist'],    // tags-whitelist param won't be visible on the ui while selecting
+    *        hideOnUI: ['tags_whitelist'],    // tags-whitelist param won't be visible on the ui while selecting
     *                                        // workflow, but default parameter will be passed to airflow.
     *    },
     * }
@@ -361,12 +361,11 @@ export default {
         const defaults = wfOptions['properties']
 
         for (const [key, value] of Object.entries(props)) {
-          const propsKey = this.toCamelCase(key);
-          if (defaults.hasOwnProperty(propsKey)) {
-            props[key]['default'] = defaults[propsKey];
+          if (defaults.hasOwnProperty(key)) {
+            props[key]['default'] = defaults[key];
             // check if the option for the settings should be visible
             // on the UI.
-            if (wfOptions.hideOnUI.includes(propsKey)) {
+            if (wfOptions.hideOnUI.includes(key)) {
               props[key]['x-style'] = "display: none;";
             }
           }

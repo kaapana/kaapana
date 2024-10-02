@@ -103,19 +103,19 @@ const settings = {
         /*
         [dagName]: {
             properties: {
-                    [param1Name]: 'param1 value',
-                    [param2Name]: 'param2 Value',
+                    [param1_name]: 'param1 value',
+                    [param2_name]: 'param2 Value',
             },
-            hideOnUI: ['param2Name'],  // param2Name will be hidden on the workflow form in UI       
+            hideOnUI: ['param2_name'],  // param2Name will be hidden on the workflow form in UI       
         }
         */
         validateDicoms: {
             properties: {
-                validatorAlgorithm: 'dciodvfy',
-                exitOnError: false,
-                tagsWhitelist: [], 
+                validator_algorithm: 'dciodvfy',
+                exit_on_error: false,
+                tags_whitelist: [],  
             },
-            hideOnUI: ['tagsWhitelist'],         
+            hideOnUI: ['tags_whitelist'],
         },
     },
 }

@@ -80,14 +80,14 @@
                 <v-row>
                   <v-col cols="4" class="centered-col"></v-col>
                   <v-col cols="8">
-                    <v-checkbox v-model="validateDicoms.exitOnError" label="Stop workflow execution on Error"
+                    <v-checkbox v-model="validateDicoms['exit_on_error']" label="Stop workflow execution on Error"
                       hide-details></v-checkbox>
                   </v-col>
                   <v-col cols="4" class="centered-col">
                     <v-subheader>Default Dicom validation Algorithm</v-subheader>
                   </v-col>
                   <v-col cols="8">
-                    <v-select v-model="validateDicoms.validatorAlgorithm" :items="['dciodvfy', 'dicom-validator']"
+                    <v-select v-model="validateDicoms['validator_algorithm']" :items="['dciodvfy', 'dicom-validator']"
                       class="pa-0"></v-select>
                   </v-col>
                   <v-col cols="4" class="centered-col">
@@ -100,7 +100,7 @@
                   </v-col>
                   <v-col cols="4"></v-col>
                   <v-col cols="8">
-                    <v-chip v-for="item in validateDicoms.tagsWhitelist" close outlined color="red" class="mr-2 mb-2"
+                    <v-chip v-for="item in validateDicoms['tags_whitelist']" close outlined color="red" class="mr-2 mb-2"
                       @click:close="() => removeFromValidationWhitelist(item)">
                       {{ item }}
                     </v-chip>
@@ -268,7 +268,7 @@ export default {
       return [isValid, tagval]
     },
     onValidationTagAdd(event) {
-      if (this.validateDicoms.tagsWhitelist.includes(this.newTag)) {
+      if (this.validateDicoms["tags_whitelist"].includes(this.newTag)) {
         this.tagError = "Tag already exists in tags whitelist";
         return
       }
@@ -279,13 +279,13 @@ export default {
       }
 
       this.tagError = "";
-      this.validateDicoms.tagsWhitelist.push(trimmedTag);
+      this.validateDicoms["tags_whitelist"].push(trimmedTag);
       this.newTag = '';
     },
     removeFromValidationWhitelist(item) {
-      var index = this.validateDicoms.tagsWhitelist.indexOf(item);
+      var index = this.validateDicoms["tags_whitelist"].indexOf(item);
       if (index !== -1) {
-        this.validateDicoms.tagsWhitelist.splice(index, 1);
+        this.validateDicoms["tags_whitelist"].splice(index, 1);
       }
     },
     loadSortItems() {

@@ -23,31 +23,14 @@ logging.basicConfig(level=logging.DEBUG)
 
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        logger.info("ProxyMiddleware")
+        logger.info("Entering ProxyMiddleware")
         
-        new_url = DICOMWEB_BASE_URL + str(request.url).split("dicom-web-filter")[-1]
-        new_url = (
-            str(new_url) + "?"
-            if request.query_params is None
-            else str(new_url) + "&"
-        ) + "AccessDicomWebFilter=true"
+        new_url = DICOMWEB_BASE_URL + str(request.url).split('dicom-web-filter')[-1]
 
-        # import debugpy
-
-        # debugpy.listen(("localhost", 17777))
-        # debugpy.wait_for_client()
-        # debugpy.breakpoint()
-
-        new_query_params = dict(request.query_params)
-        new_query_params["AccessDicomWebFilter"] = "true"
-        
-        
-        
         return await proxy_request(
             request=request,
             url=new_url,
             method=request.method,
-            query_params=new_query_params,
         )
 
 
@@ -56,7 +39,7 @@ app.add_middleware(ProxyMiddleware)
 
 
 async def proxy_request(
-    request: Request, url: str, method: str, query_params: dict | None, timeout=10
+    request: Request, url: str, method: str, query_params: dict | None = None, timeout=10
 ):
     headers = dict(request.headers)
     logger.info(f"Request URL: {url}")

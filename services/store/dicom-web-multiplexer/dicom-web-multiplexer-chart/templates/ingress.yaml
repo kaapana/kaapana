@@ -7,7 +7,6 @@ metadata:
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.priority: "1000"
-    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-dicom-web-filter@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
 spec:
   rules:

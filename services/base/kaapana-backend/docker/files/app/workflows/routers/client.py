@@ -246,6 +246,8 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
 # also okay: JobWithWorkflow
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     job = crud.get_job(db, job_id, run_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 

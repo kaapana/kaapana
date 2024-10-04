@@ -156,7 +156,7 @@ def get_kaapana_instances(
         )
 
 
-def update_allowed_datasets_and_workflows(db: Session):
+def update_allowed_datasets_and_workflows(db: Session, force_update=False):
     available_dags = get_dag_list(kind_of_dags="viewNames:remoteExecution")
     available_datasets = [
         db_dataset.name for db_dataset in db.query(models.Dataset).all()
@@ -177,7 +177,7 @@ def update_allowed_datasets_and_workflows(db: Session):
         else:
             update_needed = True
 
-    if update_needed:
+    if update_needed or force_update:
         logging.debug("Updating allowed datasets and dags")
         logging.debug("Allowed datasets: " + str(allowed_datasets))
         logging.debug("Allowed dags: " + str(allowed_dags))
@@ -401,8 +401,8 @@ def create_and_update_remote_kaapana_instance(
             else:
                 db_remote_kaapana_instance.time_updated = utc_timestamp
         else:
-            return Response(
-                "Your instance name differs from the remote instance name!", 200
+            raise HTTPException(
+                status_code=400, detail="Kaapana instance is not registered on central instance!"
             )
     else:
         raise NameError("action must be one of create, update, external_update")
@@ -503,8 +503,7 @@ def get_job(db: Session, job_id: int = None, run_id: str = None):
         logging.error(
             f"No job found in db with job_id={job_id}, run_id={run_id} --> will return None"
         )
-        raise HTTPException(status_code=404, detail="Job not found")
-
+        return None
     return db_job
 
 
@@ -624,7 +623,8 @@ def prepare_job_update(db_job, job):
     # update remote jobs in local db (def update_job() called from remote.py's def put_job() with remote=True)
     # if db_job.kaapana_instance.remote and remote:
     #     db_job.status = job.status
-
+    if db_job.status == job.status:
+        db_job.update_external = False
     if db_job.external_job_id is not None:
         db_job.update_external = True
     elif job.status == "deleted" and db_job.status == "created":
@@ -635,6 +635,9 @@ def prepare_job_update(db_job, job):
     if job.status == "restart":
         db_job.run_id = generate_run_id(db_job.dag_id)
         db_job.status = "scheduled"
+    elif job.status == "aborted" and db_job.status in ["finished", "failed", "deleted"]:
+        db_job.update_external = False
+        logging.warning("Not aborting job, since it is already finished, failed or deleted")
     elif job.status == "deleted" and db_job.status not in [
         "created",
         "pending",
@@ -643,6 +646,7 @@ def prepare_job_update(db_job, job):
         "failed",
         "aborted",
     ]:
+        db_job.update_external = False
         logging.error(
             f"Job with job_id {job.job_id} cannot be deleted, since it is in state {db_job.status}"
         )
@@ -1184,6 +1188,21 @@ def get_remote_updates(db: Session, periodically=False):
                     }
                 )
                 put_workflow_jobs(db, workflow_update)
+        if db_client_kaapana.remote_update_log != "Success":
+            client_kaapana_instance = schemas.ClientKaapanaInstanceCreate(
+                ssl_check=db_client_kaapana.ssl_check,
+                automatic_update=db_client_kaapana.automatic_update,
+                automatic_workflow_execution=db_client_kaapana.automatic_workflow_execution,
+                fernet_encrypted=db_client_kaapana.fernet_key != "deactivated",
+                allowed_dags=[dag for dag in db_client_kaapana.allowed_dags],
+                allowed_datasets=[
+                    dataset["name"] for dataset in db_client_kaapana.allowed_datasets
+                ],
+                remote_update_log="Success",
+            )
+            create_and_update_client_kaapana_instance(
+                db=db, client_kaapana_instance=client_kaapana_instance, action="update"
+            )
     except Exception as e:
         client_kaapana_instance = schemas.ClientKaapanaInstanceCreate(
             ssl_check=db_client_kaapana.ssl_check,
@@ -1194,7 +1213,7 @@ def get_remote_updates(db: Session, periodically=False):
             allowed_datasets=[
                 dataset["name"] for dataset in db_client_kaapana.allowed_datasets
             ],
-            remote_update_log=traceback.format_exc(),
+            remote_update_log=str(e)
         )
         create_and_update_client_kaapana_instance(
             db=db, client_kaapana_instance=client_kaapana_instance, action="update"
@@ -1547,6 +1566,7 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
     # db_dataset.username = username
     db.commit()
     db.refresh(db_dataset)
+    update_allowed_datasets_and_workflows(db, force_update=True)
     return db_dataset
 
 

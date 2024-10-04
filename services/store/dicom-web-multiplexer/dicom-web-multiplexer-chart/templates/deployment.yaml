@@ -15,35 +15,25 @@ spec:
       labels:
         app-name: dicom-web-multiplexer
     spec:
-      initContainers:
-        - name: init
-          image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
-          imagePullPolicy:  {{ .Values.global.pull_policy_images }}
-          env:
-            - name: WAIT
-              value: "ldap,ldap-service.{{  .Values.global.services_namespace  }}.svc,389;postgres-dcm4che,postgres-dcm4che-service.{{  .Values.global.services_namespace  }}.svc,5432"
-            - name: DELAY
-              value: "2"
-            - name: TIMEOUT
-              value: "10"
-          volumeMounts:
-          {{- if .Values.global.dev_files }}
-            - name: dicom-web-multiplexer-dev
-              mountPath: /app
-          {{- end }}
       containers:
         - name: dicom-web-multiplexer
           image: "{{ .Values.global.registry_url }}/dicom-web-multiplexer:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
+            - name: PROXY
+              value: "{{ .Values.global.http_proxy }}"
+            - name: http_proxy
+              value: {{ .Values.global.http_proxy }}
+            - name: https_proxy
+              value: {{ .Values.global.http_proxy }}
             - name: PORT
               value: "8080"
             - name: WORKERS
               value: "4"
             - name: DICOMWEB_BASE_URL
-              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/"
+              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc.cluster.local:8080/"
             - name: DICOMWEB_BASE_URL_WADO_URI
-              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/wado"
+              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc.cluster.local:8080/wado-uri"
           ports:
             - containerPort: 8080
           resources:
@@ -59,7 +49,6 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: {{ if .Values.global.dev_files }}false{{ else }}true{{ end }}
-      priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret
       volumes:

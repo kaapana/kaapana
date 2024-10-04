@@ -1,19 +1,19 @@
-# apiVersion: networking.k8s.io/v1
-# kind: NetworkPolicy
-# metadata:
-#   name: allow-multiplexer-to-filter
-#   namespace: "{{ .Values.global.services_namespace }}"
-# spec:
-#   podSelector:
-#     matchLabels:
-#       app-name: dicom-web-filter  # This targets the dicom-web-filter pods
-#   policyTypes:
-#     - Ingress
-#   ingress:
-#     - from:
-#         - podSelector:
-#             matchLabels:
-#               app-name: dicom-web-multiplexer  # This allows ingress from the multiplexer pods
-#       ports:
-#         - protocol: TCP
-#           port: 8080  # This is the port of the dicom-web-filter service
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dicom-web-multiplexer-network-policy
+  namespace: "{{ .Values.global.services_namespace }}" 
+spec:
+  podSelector:
+    matchLabels:
+      app-name: dicom-web-filter
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app-name: dicom-web-multiplexer
+    ports:
+    - protocol: TCP
+      port: 8080

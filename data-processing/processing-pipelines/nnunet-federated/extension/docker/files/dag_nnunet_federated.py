@@ -32,15 +32,7 @@ ae_title = "nnUnet-results"
 remote_dag_id = "nnunet-training"
 skip_operators = [
     "nnunet-training",
-    "nnunet-get-notebook-from-minio",
-    "zip-unzip-training",
-    "model2dicom",
-    "dcmsend",
-    "generate-nnunet-report-training",
-    "upload-nnunet-data",
-    "upload-staticwebsiteresults",
-    "pdf2dcm-training",
-    "dcmsend-pdf",
+    "install-model-training",
     "workflow-cleaner",
 ]
 federated_operators = ["nnunet-preprocess", "nnunet-training"]

@@ -895,14 +895,16 @@ def get_remote_updates(db: Session, periodically=False):
     Function call recevied at client instance to sync client and remote
     """
     db_client_kaapana = get_kaapana_instance(db)
-    try:
-        if periodically is True and db_client_kaapana.automatic_update is False:
-            logging.info("No automatic checking of remote instances enabled")
-            return
-        else:
-            logging.info("Checking for remote updates")
-        db_kaapana_instances = get_kaapana_instances(db)
-        for db_remote_kaapana_instance in db_kaapana_instances:
+
+    if periodically is True and db_client_kaapana.automatic_update is False:
+        logging.info("No automatic checking of remote instances enabled")
+        return
+    else:
+        logging.info("Checking for remote updates")
+    db_kaapana_instances = get_kaapana_instances(db)
+    remote_update_logs = []
+    for db_remote_kaapana_instance in db_kaapana_instances:
+        try:
             if not db_remote_kaapana_instance.remote:
                 # Skipping locally running jobs
                 continue
@@ -1188,22 +1190,19 @@ def get_remote_updates(db: Session, periodically=False):
                     }
                 )
                 put_workflow_jobs(db, workflow_update)
-        if db_client_kaapana.remote_update_log != "Success":
-            client_kaapana_instance = schemas.ClientKaapanaInstanceCreate(
-                ssl_check=db_client_kaapana.ssl_check,
-                automatic_update=db_client_kaapana.automatic_update,
-                automatic_workflow_execution=db_client_kaapana.automatic_workflow_execution,
-                fernet_encrypted=db_client_kaapana.fernet_key != "deactivated",
-                allowed_dags=[dag for dag in db_client_kaapana.allowed_dags],
-                allowed_datasets=[
-                    dataset["name"] for dataset in db_client_kaapana.allowed_datasets
-                ],
-                remote_update_log="Success",
+        except Exception as e:
+            remote_update_logs.append(
+                {
+                    "instance_name": db_remote_kaapana_instance.instance_name,
+                    "error": str(e),
+                }
             )
-            create_and_update_client_kaapana_instance(
-                db=db, client_kaapana_instance=client_kaapana_instance, action="update"
-            )
-    except Exception as e:
+            continue
+
+    if db_client_kaapana.remote_update_log != "Success" or remote_update_logs:
+        remote_update_log = "Sucess"
+        if remote_update_logs:
+            remote_update_log = str(remote_update_logs)
         client_kaapana_instance = schemas.ClientKaapanaInstanceCreate(
             ssl_check=db_client_kaapana.ssl_check,
             automatic_update=db_client_kaapana.automatic_update,
@@ -1213,12 +1212,13 @@ def get_remote_updates(db: Session, periodically=False):
             allowed_datasets=[
                 dataset["name"] for dataset in db_client_kaapana.allowed_datasets
             ],
-            remote_update_log=str(e)
+            remote_update_log=remote_update_log,
         )
         create_and_update_client_kaapana_instance(
             db=db, client_kaapana_instance=client_kaapana_instance, action="update"
         )
-        raise HTTPException(status_code=501, detail=str(e))
+        if remote_update_logs:
+            raise HTTPException(status_code=501, detail=str(remote_update_logs))
 
     return {f"Executed get remote updates!"}
 

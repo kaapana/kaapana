@@ -415,6 +415,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     not in self.remote_conf_data["federated_form"][
                         "federated_operators"
                     ]
+                    or "from_server" in obj.object_name
                 ):
                     continue
                 else:
@@ -424,8 +425,8 @@ class KaapanaFederatedTrainingBase(ABC):
                             obj.object_name,
                             self.remote_conf_data["federated_form"]["federated_dir"],
                         ),
-                    )
-                    file_dir = os.path.dirname(file_path)
+                    ).replace("/from_client", "")
+                    file_dir = os.path.dirname(file_path)  # file_path.rsplit('/', 2)[0]
                     os.makedirs(file_dir, exist_ok=True)
                     self.minioClient.fget_object(
                         federated_bucket, obj.object_name, file_path
@@ -591,10 +592,15 @@ class KaapanaFederatedTrainingBase(ABC):
             for file_path, next_object_name in zip(
                 tmp_site_info["file_paths"], tmp_site_info["next_object_names"]
             ):
+                file_path = file_path.replace("/from_client", "")
+                file_path = file_path.replace("/from_server", "")
                 file_dir = file_path.replace(".tar", "")
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
                 KaapanaFederatedTrainingBase.fernet_encryptfile(
                     file_path, self.client_network["fernet_key"]
+                )
+                next_object_name = next_object_name.replace(
+                    "from_client", "from_server"
                 )
                 print(f"Uploading {file_path } to {next_object_name}")
                 self.minioClient.fput_object(

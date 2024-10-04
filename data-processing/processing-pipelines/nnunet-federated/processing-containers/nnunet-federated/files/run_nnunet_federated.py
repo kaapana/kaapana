@@ -530,7 +530,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data["workflow_form"]["prep_increment_step"] = ""
         else:
             self.remote_conf_data["workflow_form"]["train_continue"] = True
-            self.run_in_parallel = True
+            # set run_in_parallel to False if model communication is too slow or models are too large
+            self.run_in_parallel = False
         print(
             f"Current fl_round={federated_round} out of {self.remote_conf_data['federated_form']['federated_total_rounds']} total fl_rounds."
         )

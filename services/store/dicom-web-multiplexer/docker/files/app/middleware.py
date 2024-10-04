@@ -24,12 +24,13 @@ logging.basicConfig(level=logging.DEBUG)
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info("ProxyMiddleware")
+        
+        new_url = DICOMWEB_BASE_URL + str(request.url).split("dicom-web-filter")[-1]
         new_url = (
-            str(request.url) + "?"
+            str(new_url) + "?"
             if request.query_params is None
-            else str(request.url) + "&"
+            else str(new_url) + "&"
         ) + "AccessDicomWebFilter=true"
-        new_url = new_url.replace("https://miki-dev//dicom-web-filter", "http://dicom-web-filter-service.services.svc:8080/")
 
         # import debugpy
 
@@ -39,7 +40,9 @@ class ProxyMiddleware(BaseHTTPMiddleware):
 
         new_query_params = dict(request.query_params)
         new_query_params["AccessDicomWebFilter"] = "true"
-
+        
+        
+        
         return await proxy_request(
             request=request,
             url=new_url,

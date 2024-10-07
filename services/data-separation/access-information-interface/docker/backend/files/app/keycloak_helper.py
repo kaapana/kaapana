@@ -1,4 +1,5 @@
 import os
+import re
 
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -9,6 +10,19 @@ import logging
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__, logging.DEBUG)
+
+
+# Utility function to convert a dictionary from camelCase key to snake_case key
+def dict_keys_camel_to_snake(data: dict):
+    def camel_to_snake_str(name):
+        return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+    return {camel_to_snake_str(key): value for key, value in data.items()}
+
+
+# Utility function to convert a list of dictionaries, with keys from camelCase key to snake_case key
+def list_of_dict_camel_to_snake(data: list):
+    return [dict_keys_camel_to_snake(item) for item in data]
 
 
 class KeycloakHelper:
@@ -82,6 +96,7 @@ class KeycloakHelper:
         """
         for key, val in kwargs.items():
             payload[key] = val
+
         logger.debug(f"Requesting endpoint: {url} with method {request}")
         r = request(
             url,
@@ -128,20 +143,28 @@ class KeycloakHelper:
         """
         url = self.auth_url + f"kaapana/users"
         r = self.make_authorized_request(url, requests.get)
-        return r.json()
+        users_dict = list_of_dict_camel_to_snake(r.json())
+        return users_dict
 
     def get_user_by_name(self, username: str):
         """
         Get the user representation by the username
         """
-        url = self.auth_url + f"kaapana/users?username={username}"
+        url = self.auth_url + f"kaapana/users?username={username}&exact=true"
         r = self.make_authorized_request(url, requests.get)
-        return r.json()[0]
+        response = r.json()
+        if len(response) > 0:
+            return dict_keys_camel_to_snake(r.json()[0])
+        return None
 
     def get_user_by_id(self, userid: str):
         """
         Get the user representation by the keycloak id
         """
-        url = self.auth_url + f"kaapana/users?id={userid}"
-        r = self.make_authorized_request(url, requests.get)
-        return r.json()[0]
+        url = self.auth_url + f"kaapana/users/{userid}"
+        try:
+            r = self.make_authorized_request(url, requests.get)
+        except Exception as e:
+            return None
+
+        return dict_keys_camel_to_snake(r.json())

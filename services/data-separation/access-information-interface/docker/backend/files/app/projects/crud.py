@@ -74,3 +74,13 @@ async def create_users_projects_roles_mapping(
     session.add(new_user_project_role)
     await session.commit()
     return True
+
+
+async def get_project_users_roles(
+    session: AsyncSession,
+    project_id: int,
+):
+    stmt = select(UsersProjectsRoles)
+    stmt = stmt.filter(UsersProjectsRoles.project_id == project_id)
+    result = await session.execute(stmt)
+    return result.scalars().all()

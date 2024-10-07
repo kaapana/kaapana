@@ -1,13 +1,14 @@
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends
+from app.database import get_session
+from app.keycloak_helper import KeycloakHelper
+from app.projects import crud, kubehelm, minio, opensearch, schemas
+from app.schemas import KeycloakUser
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.database import get_session
-from app.projects import crud, kubehelm, minio, opensearch, schemas
 
 router = APIRouter()
 
@@ -39,8 +40,38 @@ async def projects(
 
 
 @router.get("", response_model=List[schemas.Project], tags=["Projects"])
-async def get_projects(session: AsyncSession = Depends(get_session), name: str = None):
-    return await crud.get_projects(session, name=name)
+async def get_projects(session: AsyncSession = Depends(get_session)):
+    return await crud.get_projects(session, name=None)
+
+
+@router.get("/{project_name}", response_model=schemas.Project, tags=["Projects"])
+async def get_project_by_name(
+    project_name: str, session: AsyncSession = Depends(get_session)
+):
+    projects = await crud.get_projects(session, name=project_name)
+    if len(projects) == 0:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return projects[0]
+
+
+@router.get(
+    "/{project_name}/users", response_model=List[KeycloakUser], tags=["Projects"]
+)
+async def get_project_users(
+    project_name: str, session: AsyncSession = Depends(get_session)
+):
+    project: schemas.Project = await get_project_by_name(project_name, session)
+
+    project_users = await crud.get_project_users_roles(session, project.id)
+
+    kc_client = KeycloakHelper()
+    keycloak_users: List[KeycloakUser] = []
+    for user in project_users:
+        keycloak_user_json = kc_client.get_user_by_id(user.keycloak_id)
+        user = KeycloakUser(**keycloak_user_json)
+        keycloak_users.append(user)
+
+    return keycloak_users
 
 
 @router.get("/rights", response_model=List[schemas.Right], tags=["Projects"])

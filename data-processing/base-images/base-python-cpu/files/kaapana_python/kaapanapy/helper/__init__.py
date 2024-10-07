@@ -2,7 +2,6 @@ import json
 import os
 import xml.etree.ElementTree as ET
 
-import jwt
 import requests
 from kaapanapy.settings import KaapanaSettings, OpensearchSettings, OperatorSettings
 from minio import Minio
@@ -84,33 +83,6 @@ def get_project_user_access_token():
     r = requests.post(url, verify=False, data=payload)
     access_token = r.json()["access_token"]
     return access_token
-
-
-def get_user_keycloak_id(username="kaapana", password="kaapana"):
-    """
-    Return the Keycloak ID of the user with the provided username and password in the 'kaapana' realm.
-    """
-    from kaapanapy.settings import KeycloakSettings
-
-    keycloak_settings = KeycloakSettings()
-
-    # First, get an access token using the username and password
-    payload = {
-        "username": username,
-        "password": password,
-        "client_id": keycloak_settings.client_id,
-        "client_secret": keycloak_settings.client_secret,
-        "grant_type": "password",
-    }
-    url = f"{keycloak_settings.keycloak_url}/auth/realms/{keycloak_settings.client_id}/protocol/openid-connect/token"
-    r = requests.post(url, verify=False, data=payload)
-
-    if r.status_code != 200:
-        raise Exception(f"Failed to get access token: {r.text}")
-
-    access_token = r.json().get("access_token")
-
-    return jwt.decode(access_token, options={"verify_signature": False})["sub"]
 
 
 def load_workflow_config():

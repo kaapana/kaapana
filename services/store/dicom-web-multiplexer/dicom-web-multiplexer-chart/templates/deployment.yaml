@@ -20,6 +20,19 @@ spec:
           image: "{{ .Values.global.registry_url }}/dicom-web-multiplexer:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
+            - name: OPENSEARCH_HOST
+              value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
+            - name: OPENSEARCH_PORT
+              value: "9200"
+            - name: KAAPANA_CLIENT_SECRET
+              value: "{{ .Values.global.oidc_client_secret }}"
+            - name: KAAPANA_PROJECT_USER_NAME
+              value: "system"
+            - name: KAAPANA_PROJECT_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: system-user-password
+                  key: system-user-password
             - name: PORT
               value: "8080"
             - name: WORKERS

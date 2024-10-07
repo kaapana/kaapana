@@ -141,7 +141,7 @@ class JobBase(BaseModel):
     description: Optional[str] = None
     external_job_id: Optional[int] = None  # job_id on another system
     runs_on_remote: Optional[bool] = False  # Include the custom property
-    update_external: Optional[bool] = False  # Include the custom property
+    update_external: Optional[int] = 0  # Include the custom property
     # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
     owner_kaapana_instance_name: Optional[str] = None
     service_job: Optional[bool] = False
@@ -168,6 +168,7 @@ class Job(JobBase):
             "aborted",
             "failed",
             "deleted",
+            "lost",
         ]
         if v not in allowed_states:
             raise ValueError(

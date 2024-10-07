@@ -284,14 +284,14 @@ def get_jobs(
 # changed JobWithKaapanaInstance to JobWithWorkflow
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
     db_job = crud.get_job(db, job.job_id)
-    if db_job.update_external:
+    if db_job.update_external == 1:
         raise HTTPException(
             status_code=202,
             detail="Job is currently updating, please try again, once the update finished."
         )
         
-    job.update_external = db_job.runs_on_remote
-    jobs, _ = crud.bulk_update_jobs(db, [job])
+    job.update_external = 1 if db_job.runs_on_remote else 0
+    jobs = crud.bulk_update_jobs(db, [job])
     if len(jobs) == 0:
         raise HTTPException(status_code=404, detail="Job not found")
     return jobs[0]

@@ -134,7 +134,7 @@ class Job(Base):
     automatic_execution = Column(Boolean(), default=False, index=True)
     service_job = Column(Boolean(), default=False, index=True)
     update_external = Column(
-        Boolean(), default=False, index=True
+        Integer, default=0, index=True
     )  # Wheather the job should be updated on the external system
 
     # many-to-one relationships

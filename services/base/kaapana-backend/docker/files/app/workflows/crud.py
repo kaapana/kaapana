@@ -454,7 +454,7 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         kaapana_id=job.kaapana_instance_id,
         owner_kaapana_instance_name=job.owner_kaapana_instance_name,
         # replaced addressed_kaapana_instance_name w/ owner_kaapana_instance_name or None
-        update_external=True if job.external_job_id else job.update_external,
+        update_external=1 if job.external_job_id else job.update_external,
         status=job.status,
         automatic_execution=job.automatic_execution,
         service_job=job.service_job,
@@ -515,7 +515,7 @@ def delete_job(db: Session, job_id: int):
             detail="You are not allowed to delete this job, since its not in queued, scheduled or running state",
         )
 
-    if db_job.update_external:
+    if db_job.update_external == 1:
         raise HTTPException(
             status_code=202,
             detail="Job is currently updating, please try again, once the update finished.",
@@ -525,7 +525,7 @@ def delete_job(db: Session, job_id: int):
         **{
             "job_id": db_job.id,
             "status": "deleted",
-            "update_external": db_job.runs_on_remote,
+            "update_external": 1 if db_job.runs_on_remote else 0,
         }
     )
     bulk_update_jobs(db, [job])
@@ -623,12 +623,15 @@ def prepare_job_update(db_job, job):
     # update remote jobs in local db (def update_job() called from remote.py's def put_job() with remote=True)
     # if db_job.kaapana_instance.remote and remote:
     #     db_job.status = job.status
-    if db_job.status == job.status:
-        db_job.update_external = False
-    if db_job.external_job_id is not None:
-        db_job.update_external = True
+    
+    logging.debug("Job status: " + job.status)
+    logging.debug("DB Job status: " + db_job.status)
+    if db_job.status == "lost":
+        db_job.update_external = 0
+    elif db_job.external_job_id is not None:
+        db_job.update_external = 1
     elif job.status == "deleted" and db_job.status == "created":
-        db_job.update_external = False
+        db_job.update_external = 0
     else:
         db_job.update_external = job.update_external
 
@@ -636,7 +639,7 @@ def prepare_job_update(db_job, job):
         db_job.run_id = generate_run_id(db_job.dag_id)
         db_job.status = "scheduled"
     elif job.status == "aborted" and db_job.status in ["finished", "failed", "deleted"]:
-        db_job.update_external = False
+        db_job.update_external = 0
         logging.warning("Not aborting job, since it is already finished, failed or deleted")
     elif job.status == "deleted" and db_job.status not in [
         "created",
@@ -645,8 +648,9 @@ def prepare_job_update(db_job, job):
         "deleted",
         "failed",
         "aborted",
+        "lost"
     ]:
-        db_job.update_external = False
+        db_job.update_external = 0
         logging.error(
             f"Job with job_id {job.job_id} cannot be deleted, since it is in state {db_job.status}"
         )
@@ -682,6 +686,8 @@ def prepare_job_update(db_job, job):
     if job.description is not None:
         db_job.description = job.description
     db_job.time_updated = utc_timestamp
+    logging.debug("update external")
+    logging.debug(db_job.update_external)
     return db_job
 
 
@@ -697,7 +703,7 @@ def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate]):
 
     db_jobs = db.query(models.Job).filter(models.Job.id.in_(job_ids)).all()
     job_map = {job.id: job for job in db_jobs}
-    lost_job_ids = []
+
     updated_db_jobs = []
     for job in jobs:
         db_job = job_map.get(job.job_id)
@@ -706,7 +712,7 @@ def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate]):
             updated_db_jobs.append(db_job)
         else:
             logging.error(f"Job with job_id {job.job_id} not found in db")
-            lost_job_ids.append(job.job_id)
+
     # Bulk save objects
     if updated_db_jobs:
         db.bulk_save_objects(updated_db_jobs)
@@ -730,7 +736,7 @@ def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate]):
                 bulk_update_jobs(db, [job])
         if db_job.status == "aborted":
             abort_db_jobs.append(db_job)
-        if db_job.status == "deleted" and not db_job.update_external:
+        if db_job.status == "deleted" and db_job.update_external == 0:
             job_ids_to_delete.append(db_job.id)
 
     if abort_db_jobs:
@@ -745,7 +751,7 @@ def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate]):
         except Exception as e:
             logging.error(f"Failed to delete jobs: {str(e)}")
 
-    return updated_db_jobs, lost_job_ids
+    return updated_db_jobs
 
 
 def abort_jobs_in_chunks(db_jobs_to_abort):
@@ -798,6 +804,53 @@ def get_job_taskinstances(db: Session, job_id: int = None):
     return tis_n_state
 
 
+def detect_no_remote_updates(db: Session):
+    db_client_kaapana = get_kaapana_instance(db)
+    db_remote_kaapana_instances = get_kaapana_instances(db)
+    for db_remote_kaapana_instance in db_remote_kaapana_instances:
+        if not db_remote_kaapana_instance.remote:
+            continue
+        remote_kaapana_instance = schemas.KaapanaInstance.from_orm(db_remote_kaapana_instance)
+        logging.debug(f"Checking for updates from {remote_kaapana_instance.instance_name}")
+        if not remote_kaapana_instance.client_online:
+            db_remote_to_client_jobs = (
+                db.query(models.Job)
+                .join(models.Job.kaapana_instance)
+                .filter(
+                    models.KaapanaInstance.instance_name
+                    == db_remote_kaapana_instance.instance_name,
+                    models.Job.update_external.in_([1, 2]),
+                    models.Job.kaapana_id != db_client_kaapana.id,  # Exclude local jobs
+                )
+                .all()
+            )
+            # Marking that we did not receive any updates from the client instance
+            for db_job in db_remote_to_client_jobs:
+                db_job.update_external = -1
+            logging.debug("Number of jobs updated: " + str(len(db_remote_to_client_jobs)))
+            # Bulk save all objects in one go
+            db.bulk_save_objects(db_remote_to_client_jobs)
+            db.commit()
+        if not remote_kaapana_instance.remote_online:
+            db_client_to_remote_jobs = (
+                db.query(
+                    models.Job
+                )
+                .join(models.Job.kaapana_instance)
+                .filter(
+                    models.Job.owner_kaapana_instance_name == db_remote_kaapana_instance.instance_name,
+                    models.Job.update_external.in_([1, 2]),  # Filter for update_external being either 1 or -1
+                )
+                .all()
+            )
+            # Marking that we did not receive any updates from the remote instance
+            for db_job in db_client_to_remote_jobs:
+                db_job.update_external = -1
+            logging.debug("Number of jobs updated: " + str(len(db_client_to_remote_jobs)))
+            # Bulk save all objects in one go
+            db.bulk_save_objects(db_client_to_remote_jobs)
+            db.commit()
+
 def sync_client_remote(
     db: Session,
     client_to_remote_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
@@ -815,12 +868,13 @@ def sync_client_remote(
         action="external_update",
         client_update=True,
     )
+    logging.debug("Jobs from client")
 
     # Handling incoming job updates
     if client_to_remote_jobs is not None:
         for job in client_to_remote_jobs:
             logging.debug(job)
-        updated_client_to_remote_job, lost_client_to_remote_job_ids = bulk_update_jobs(
+        updated_client_to_remote_job = bulk_update_jobs(
             db, client_to_remote_jobs
         )
     else:
@@ -830,16 +884,37 @@ def sync_client_remote(
     logging.debug(
         f"SYNC_CLIENT_REMOTE updated_client_to_remote_job_ids: {updated_client_to_remote_job_ids}"
     )
-    logging.debug(f"SYNC_CLIENT_REMOTE lost_job_ids: {lost_client_to_remote_job_ids}")
 
-    # Preparing outgoing jobs and workflows
+    # Taking care of jobs that could not be update because they don't seem to exist on the remote instance
+    try:
+        db_client_not_found_jobs = (
+            db.query(models.Job)
+            .join(models.Job.kaapana_instance)
+            .filter(
+                models.KaapanaInstance.instance_name
+                == client_to_remote_instance.instance_name,
+                models.Job.update_external.in_([3]),
+                models.Job.kaapana_id != db_client_kaapana.id,  # Exclude local jobs
+            )
+            .all()
+        )
+
+        for db_job in db_client_not_found_jobs:
+            db_job.update_external = 0
+            db_job.status = "lost"
+        db.bulk_save_objects(db_client_not_found_jobs)
+        db.commit()
+    except Exception as e:
+        logging.error(f"Failed to delete jobs: {str(e)}")
+
+    # Preparing outgoing jobs and workflows: # Filtering for runner jobs
     db_remote_to_client_jobs = (
         db.query(models.Job)
         .join(models.Job.kaapana_instance)
         .filter(
             models.KaapanaInstance.instance_name
             == client_to_remote_instance.instance_name,
-            models.Job.update_external == True,
+            models.Job.update_external.in_([1, 2, -1]),
             models.Job.kaapana_id != db_client_kaapana.id,  # Exclude local jobs
         )
         .all()
@@ -872,6 +947,12 @@ def sync_client_remote(
         f"SYNC_CLIENT_REMOTE remote_to_client_workflows: {remote_to_client_workflows}"
     )
 
+    # Increasing by one for all jobs that are going to the client instance
+    for db_job in db_remote_to_client_jobs:
+        db_job.update_external = db_job.update_external + 1
+    db.bulk_save_objects(db_remote_to_client_jobs)
+    db.commit()
+
     # Instance specific update
     remote_to_client_instance = {
         "instance_name": db_client_kaapana.instance_name,
@@ -883,7 +964,6 @@ def sync_client_remote(
 
     return {
         "updated_client_to_remote_job_ids": updated_client_to_remote_job_ids,
-        "lost_client_to_remote_job_ids": lost_client_to_remote_job_ids,
         "remote_to_client_jobs": remote_to_client_jobs,
         "remote_to_client_workflows": remote_to_client_workflows,
         "remote_to_client_instance": remote_to_client_instance,
@@ -909,20 +989,35 @@ def get_remote_updates(db: Session, periodically=False):
                 # Skipping locally running jobs
                 continue
 
-            # Preparing outgoing jobs and workflows
+            # Taking care of jobs that could not be update because they don't seem to exist on the remote instance
+            try:
+                db_remote_not_found_jobs = (
+                    db.query(
+                        models.Job,
+                    )
+                    .filter(
+                        models.Job.owner_kaapana_instance_name == db_remote_kaapana_instance.instance_name,
+                        models.Job.update_external.in_([3]),  # Filter for update_external being either 1 or -1
+                    )
+                    .all()
+                )
+
+                for db_job in db_remote_not_found_jobs:
+                    db_job.update_external = 0
+                    db_job.status = "lost"
+                db.bulk_save_objects(db_remote_not_found_jobs)
+                db.commit()
+            except Exception as e:
+                logging.error(f"Failed to delete jobs: {str(e)}")
+
+            # Preparing outgoing jobs and workflows: Filtering for owner jobs
             db_client_to_remote_jobs = (
                 db.query(
-                    models.Job.owner_kaapana_instance_name,
-                    models.Job.update_external,
-                    models.Job.external_job_id,
-                    models.Job.run_id,
-                    models.Job.status,
-                    models.Job.description,
+                    models.Job
                 )
                 .filter(
-                    models.Job.owner_kaapana_instance_name
-                    == db_remote_kaapana_instance.instance_name,
-                    models.Job.update_external == True,
+                    models.Job.owner_kaapana_instance_name == db_remote_kaapana_instance.instance_name,
+                    models.Job.update_external.in_([1, 2, -1]),  # Filter for update_external being either 1 or -1
                 )
                 .all()
             )
@@ -934,7 +1029,7 @@ def get_remote_updates(db: Session, periodically=False):
                     "run_id": db_client_to_remote_job.run_id,
                     "status": db_client_to_remote_job.status,
                     "description": db_client_to_remote_job.description,
-                    "update_external": False,
+                    "update_external": 0,
                 }
                 client_to_remote_jobs.append(job)
             logging.info(
@@ -972,9 +1067,18 @@ def get_remote_updates(db: Session, periodically=False):
                 raise Exception(
                     f"We could not reach the following backend {db_remote_kaapana_instance.host} with status code {r.status_code} and error message {r.text}"
                 )
+            else:
+                # Increasing by one for all jobs that were sent to the remote instance
+                for db_job in db_client_to_remote_jobs:
+                    db_job.update_external = db_job.update_external + 1
+                db.bulk_save_objects(db_client_to_remote_jobs)
+                db.commit()
+
+
             raise_kaapana_connection_error(r)
             remote_response = r.json()
 
+            logging.debug(f"GET_REMOTE_UPDATES remote_response: {remote_response}")
             # Handling updated_job_ids
             updated_client_to_remote_job_ids = remote_response[
                 "updated_client_to_remote_job_ids"
@@ -986,34 +1090,14 @@ def get_remote_updates(db: Session, periodically=False):
                 )
                 .all()
             )
-            updated_db_jobs = []
             job_ids_to_delete = []
             for db_job in db_jobs:
                 if db_job.status == "deleted":
                     job_ids_to_delete.append(db_job.id)
-                db_job.update_external = False
-                updated_db_jobs.append(db_job)
-            # Bulk save objects
-            db.bulk_save_objects(updated_db_jobs)
+                db_job.update_external = 0
+            db.bulk_save_objects(db_jobs)
             db.commit()
 
-            # Handling jobs that exist on the local instance but not on the remote instance
-            lost_client_to_remote_job_ids = remote_response[
-                "lost_client_to_remote_job_ids"
-            ]
-            db_jobs = (
-                db.query(models.Job)
-                .filter(models.Job.external_job_id.in_(lost_client_to_remote_job_ids))
-                .all()
-            )
-            for db_job in db_jobs:
-                if db_job.status == "deleted":
-                    job_ids_to_delete.append(db_job.id)
-                else:
-                    logging.error(
-                        f"Job with job_id {db_job.id} does not exist on remote system and will therefore be deleted."
-                    )
-                    job_ids_to_delete.append(db_job.id)
 
             if job_ids_to_delete:
                 try:
@@ -1169,6 +1253,7 @@ def get_remote_updates(db: Session, periodically=False):
                         else remote_to_client_job["status"]
                     )
                     job = schemas.JobCreate(**remote_to_client_job)
+                    logging.debug(f"Creating incoming remote job: {job}")
                     job.automatic_execution = db_workflow_dict.get(
                         remote_to_client_job["workflow_id"], None
                     ).automatic_execution
@@ -1191,6 +1276,7 @@ def get_remote_updates(db: Session, periodically=False):
                 )
                 put_workflow_jobs(db, workflow_update)
         except Exception as e:
+            logging.debug(traceback.format_exc())
             remote_update_logs.append(
                 {
                     "instance_name": db_remote_kaapana_instance.instance_name,
@@ -1200,7 +1286,7 @@ def get_remote_updates(db: Session, periodically=False):
             continue
 
     if db_client_kaapana.remote_update_log != "Success" or remote_update_logs:
-        remote_update_log = "Sucess"
+        remote_update_log = "Success"
         if remote_update_logs:
             remote_update_log = str(remote_update_logs)
         client_kaapana_instance = schemas.ClientKaapanaInstanceCreate(
@@ -1842,7 +1928,7 @@ def queue_generate_jobs_and_add_to_workflow(
                     "kaapana_instance_id": db_kaapana_instance.id,
                     "owner_kaapana_instance_name": settings.instance_name,
                     "automatic_execution": False,
-                    "update_external": db_kaapana_instance.remote,
+                    "update_external": 1 if db_kaapana_instance.remote else 0,
                     **jobs_to_create,
                 }
             )
@@ -1950,7 +2036,7 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
             )
 
         db_job = get_job(db, job_id=job_id)
-        assert db_job.update_external == False
+        assert db_job.update_external == 0
         job = schemas.JobUpdate(
             **{
                 "job_id": job_id,
@@ -1970,9 +2056,9 @@ def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
     for db_workflow_current_job in db_workflow.workflow_jobs:
         job = schemas.JobUpdate(
             job_id=db_workflow_current_job.id,
-            update_external=db_workflow_current_job.runs_on_remote,
+            update_external=1 if db_workflow_current_job.runs_on_remote else 0,
         )
-        assert db_workflow_current_job.update_external == False
+        assert db_workflow_current_job.update_external == 0
         if workflow.workflow_status == "restart":
             if db_workflow_current_job.status in ["failed", "aborted"]:
                 job.status = "restart"
@@ -2060,7 +2146,7 @@ def delete_workflow(db: Session, workflow_id: str):
     # iterate over jobs of to-be-deleted workflow
     return {
         "type": "warning",
-        "title": f"Jobs in state 'created', 'pending', 'finished', 'aborted' or 'failed' will be deleted. The workflow item can only be deleted, if it contains no job items.",
+        "title": f"Jobs in state 'created', 'pending', 'finished', 'aborted', 'lost' or 'failed' will be deleted. The workflow item can only be deleted, if it contains no job items.",
     }
 
 

@@ -90,7 +90,7 @@ put_radiomics_to_minio = LocalMinioOperator(
     dag=dag,
     action="put",
     action_operators=[radiomics],
-    file_white_tuples=(".xml"),
+    file_white_tuples=(".xml", ".csv", ".json"),
 )
 
 clean = LocalWorkflowCleanerOperator(

@@ -628,6 +628,9 @@ def prepare_job_update(db_job, job):
     logging.debug("DB Job status: " + db_job.status)
     if db_job.status == "lost":
         db_job.update_external = 0
+    elif db_job.status == "deleted" and job.status == "deleted" and db_job.update_external == -1:
+        # Edge case, to clean up jobs that are deisconnted and in state deleted
+        db_job.update_external = 0
     elif db_job.external_job_id is not None:
         db_job.update_external = 1
     elif job.status == "deleted" and db_job.status == "created":

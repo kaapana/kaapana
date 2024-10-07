@@ -6,5 +6,6 @@ LABEL BUILD_IGNORE="False"
 
 
 COPY files/init-projects.py .
+COPY files/KeycloakHelper.py .
 
 CMD ["python3", "-u", "init-projects.py"]

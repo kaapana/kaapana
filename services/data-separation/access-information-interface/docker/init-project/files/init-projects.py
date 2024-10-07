@@ -2,8 +2,9 @@ import json
 import os
 
 import requests
-from kaapanapy.helper import get_project_user_access_token, get_user_keycloak_id
+from kaapanapy.helper import get_project_user_access_token
 from kaapanapy.logger import get_logger
+from KeycloakHelper import KeycloakHelper
 
 logger = get_logger(__name__)
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
@@ -48,7 +49,9 @@ if __name__ == "__main__":
         response.raise_for_status()
 
     # get keycloak id of the kaapana admin user
-    kaapana_user_id = get_user_keycloak_id()
+    kc_client = KeycloakHelper()
+    keycloak_user = kc_client.get_user_by_name("kaapana")
+    keycloak_user_id = keycloak_user.get("id")
 
     # map the kaapana admin user to the admin project and the admin role
 
@@ -56,7 +59,7 @@ if __name__ == "__main__":
     project = "admin"
 
     response = requests.post(
-        f"{aii_service}/projects/{project}/role/{role}/user/{kaapana_user_id}",
+        f"{aii_service}/projects/{project}/role/{role}/user/{keycloak_user_id}",
         headers=auth_header,
     )
     response.raise_for_status()

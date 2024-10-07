@@ -720,6 +720,8 @@ def bulk_update_jobs(db: Session, jobs: List[schemas.JobUpdate]):
     if updated_db_jobs:
         db.bulk_save_objects(updated_db_jobs)
         db.commit()
+        for job in updated_db_jobs:
+            db.refresh(job)
 
     abort_db_jobs = []
     job_ids_to_delete = []

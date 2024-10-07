@@ -120,10 +120,10 @@ elif [ "$MODE" = "training" ]; then
         elif [ "$PLAN_NETWORK_PLANNER" == "nnUNetPlannerResEncXL" ]; then
             plans="nnUNetResEncUNetXLPlans"
         else
-            plans="nnUNetResEncUNetMPlans"
+            plans="nnUNetPlans"
         fi
     else
-        plans="nnUNetResEncUNetMPlans"
+        plans="nnUNetPlans"
     fi
     
     if ! [ -z "$PRETRAINED_WEIGHTS" ]; then

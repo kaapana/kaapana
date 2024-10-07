@@ -23,6 +23,7 @@ class nnUNetFederatedOperator(KaapanaBaseOperator):
             name=name,
             image=f"{DEFAULT_REGISTRY}/nnunet-federated:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
+            mount_tensorboard_dir=True,
             execution_timeout=execution_timeout,
             ram_mem_mb=1000,
             ram_mem_mb_lmt=60000,

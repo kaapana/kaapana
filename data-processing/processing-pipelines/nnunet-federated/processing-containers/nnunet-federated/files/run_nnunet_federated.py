@@ -206,8 +206,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 workflow_data = json.load(json_file)
             tensorboard_log_dir = Path(
                 os.path.join(
-                    "/minio",
-                    "tensorboard",
+                    "/tensorboard",
                     self.remote_conf_data["federated_form"]["federated_dir"],
                     os.getenv("OPERATOR_OUT_DIR", "federated-operator"),
                     site_info["instance_name"],

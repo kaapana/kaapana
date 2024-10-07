@@ -37,26 +37,14 @@ data:
         "claim_value": "delete_data"
       },
       {
-        "name": "opensearch_read",
-        "description": "Read opensearch index data per project",
-        "claim_key": "opensearch",
-        "claim_value": "read_project"
-      },
-      {
-        "name": "opensearch_admin",
-        "description": "Opensearch admin role for the project index",
+        "name": "opensearch_access",
+        "description": "User gets full access to OpenSearch",
         "claim_key": "opensearch",
         "claim_value": "admin_project"
       },
       {
-        "name": "minio_read",
-        "description": "Read policy for the project bucket in minio",
-        "claim_key": "policy",
-        "claim_value": "read_project"
-      },
-      {
-        "name": "minio_admin",
-        "description": "Admin policy for the project bucket in minio",
+        "name": "minio_access",
+        "description": "User gets full access to Minio",
         "claim_key": "policy",
         "claim_value": "admin_project"
       }
@@ -66,10 +54,6 @@ data:
       {
         "name": "admin",
         "description": "Admin role"
-      },
-      {
-        "name": "read-only",
-        "description": "Read only role"
       },
       {
         "name": "project-pi",
@@ -91,19 +75,15 @@ data:
     [
       {
         "role": "admin",
-        "rights": ["edit_project", "edit_user", "dev_tools", "workflows", "opensearch_admin", "minio_admin", "delete_data"]
-      },
-      {
-        "role": "read-only",
-        "rights": ["opensearch_read","minio_read"]
+        "rights": ["edit_project", "edit_user", "dev_tools", "workflows", "opensearch_access", "minio_access", "delete_data"]
       },
       {
         "role": "project-pi",
-        "rights": ["edit_user", "workflows", "opensearch_admin", "minio_admin", "delete_data"]
+        "rights": ["edit_user", "workflows", "opensearch_access", "minio_access", "delete_data"]
       },
       {
         "role": "project-member",
-        "rights": ["workflows", "opensearch_admin", "minio_admin"]
+        "rights": ["workflows", "opensearch_access", "minio_access"]
       }
     ]
 

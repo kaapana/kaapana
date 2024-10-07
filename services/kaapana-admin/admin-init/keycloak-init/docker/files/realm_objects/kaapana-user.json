@@ -5,6 +5,7 @@
   "firstName" : "Default",
   "lastName" : "User",
   "email" : "not@available.com",
+  "requiredActions" : [ "UPDATE_PASSWORD" ],
   "realmRoles" : [ "default-roles-kaapana" ],
   "groups": ["kaapana_admin"]
 }

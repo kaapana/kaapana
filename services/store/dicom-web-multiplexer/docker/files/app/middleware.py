@@ -7,31 +7,34 @@ from fastapi.datastructures import URL
 from starlette.middleware.base import BaseHTTPMiddleware
 import httpx
 from app.config import DICOMWEB_BASE_URL
-
+from app.utils import get_endpoint
 from app.main import app
+from app.logger import get_logger
+import traceback
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-stream_handler = logging.StreamHandler(sys.stdout)
-log_formatter = logging.Formatter(
-    "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
-)
-stream_handler.setFormatter(log_formatter)
-logger.addHandler(stream_handler)
-logging.basicConfig(level=logging.DEBUG)
+logger = get_logger(__name__)
 
 
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info("Entering ProxyMiddleware")
-        
-        new_url = DICOMWEB_BASE_URL + str(request.url).split('dicom-web-filter')[-1]
+        try:
+            endpoint = get_endpoint(request)
+        except Exception as ex:
+            logger.error(f"Error occurred: {ex}")
+            logger.error(traceback.format_exc())
+            logger.error("Couldn't retrieve endpoint. Defaulting to local PACS")
 
-        return await proxy_request(
-            request=request,
-            url=new_url,
-            method=request.method,
-        )
+        if endpoint == "local":
+            new_url = DICOMWEB_BASE_URL + str(request.url).split("dicom-web-filter")[-1]
+
+            return await proxy_request(
+                request=request,
+                url=new_url,
+                method=request.method,
+            )
+        else:
+            return call_next()
 
 
 # Add the middleware to the FastAPI app
@@ -39,12 +42,16 @@ app.add_middleware(ProxyMiddleware)
 
 
 async def proxy_request(
-    request: Request, url: str, method: str, query_params: dict | None = None, timeout=10
+    request: Request,
+    url: str,
+    method: str,
+    query_params: dict | None = None,
+    timeout=10,
 ):
     headers = dict(request.headers)
     logger.info(f"Request URL: {url}")
-    logger.info(f"Request headers: {headers}")
-    logger.info(f"Request method: {method}")
+    logger.debug(f"Request headers: {headers}")
+    logger.debug(f"Request method: {method}")
 
     async with httpx.AsyncClient() as client:
         client.timeout = timeout  # Set timeout for the client
@@ -67,11 +74,11 @@ async def proxy_request(
         else:
             return Response(status_code=405)
 
-    logger.info(f"Response status code: {response.status_code}")
-    logger.info(f"Response headers: {response.headers}")
-    logger.info(f"Response content: {response.content[:100]}")
-    logger.info(f"Response encoding: {response.encoding}")
-    logger.info(f"Response text: {response.text[:100]}")
+    logger.debug(f"Response status code: {response.status_code}")
+    logger.debug(f"Response headers: {response.headers}")
+    logger.debug(f"Response content: {response.content[:100]}")
+    logger.debug(f"Response encoding: {response.encoding}")
+    logger.debug(f"Response text: {response.text[:100]}")
 
     # Store raw values
     status_code = response.status_code

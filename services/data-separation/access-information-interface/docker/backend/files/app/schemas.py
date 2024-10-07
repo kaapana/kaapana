@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrmBaseModel(BaseModel):
@@ -22,3 +22,11 @@ class AiiProjectResponse(OrmBaseModel):
     description: str
     role_id: int
     role_name: str
+
+
+class KeycloakUser(BaseModel):
+    id: str
+    username: str
+    first_name: str
+    last_name: str
+    email_verified: bool

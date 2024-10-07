@@ -28,15 +28,16 @@ class HelperOpensearch:
         self.os_client = get_opensearch_client()
 
     def get_query_dataset(
-        self,
         query,
-        index,
+        index=None,
         only_uids=False,
         include_custom_tag="",
         exclude_custom_tag="",
+        access_token=None,
     ):
-        print("Getting dataset for query: {}".format(query))
-        print("index: {}".format(index))
+        index = index if index is not None else HelperOpensearch.index
+        logger.info("Getting dataset for query: {}".format(query))
+        logger.info("index: {}".format(index))
         includes = [
             DicomTags.study_uid_tag,
             DicomTags.series_uid_tag,
@@ -57,10 +58,16 @@ class HelperOpensearch:
         }
 
         try:
-            hits = self.execute_opensearch_query(os_client=self.os_client, **query_dict)
+            hits = HelperOpensearch.execute_opensearch_query(
+                **query_dict, access_token=access_token
+            )
         except Exception as e:
-            print("ERROR in search!")
-            raise e
+            logger.error(
+                f"Couldn't get query: {query} in index: {index}"
+            )
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            return None
 
         if only_uids:
             return [hit["_id"] for hit in hits]
@@ -74,6 +81,7 @@ class HelperOpensearch:
         source=dict(),
         sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
         scroll=False,
+        access_token=None,
     ) -> List:
         """
         TODO: This is currently a duplicate to kaapana-backend/docker/files/app/datasets/utils.py
@@ -93,9 +101,13 @@ class HelperOpensearch:
         :param scroll: use scrolling or pagination -> scrolling currently not impelmented
         :return: aggregated search results
         """
+        index = index or HelperOpensearch.index
+        os_client = HelperOpensearch._get_client_with_token(access_token)
 
         def _execute_opensearch_query(search_after=None, size=10000) -> List:
-            res = self.os_client.search(
+            if not os_client:
+                raise Exception("os_client is not initialized.")
+            res = os_client.search(
                 body={
                     "query": query,
                     "size": size,
@@ -116,11 +128,10 @@ class HelperOpensearch:
         return _execute_opensearch_query()
 
     def get_dcm_uid_objects(
-        self,
-        index,
         series_instance_uids,
         include_custom_tag="",
         exclude_custom_tag="",
+        access_token=None,
     ):
         # default query for fetching via identifiers
         query = {"bool": {"must": [{"ids": {"values": series_instance_uids}}]}}
@@ -155,6 +166,7 @@ class HelperOpensearch:
                     DicomTags.dcmweb_endpoint_tag,
                 ]
             },
+            access_token=access_token,
         )
 
         return [
@@ -171,3 +183,32 @@ class HelperOpensearch:
             }
             for hit in res
         ]
+
+    @staticmethod
+    def get_series_metadata(series_instance_uid, index=None, access_token=None):
+        index = index if index is not None else HelperOpensearch.index
+        os_client = HelperOpensearch._get_client_with_token(access_token)
+        try:
+            res = os_client.get(index=index, id=series_instance_uid)
+        except Exception as e:
+            logger.error(
+                f"Couldn't search series_instance_uid: {series_instance_uid} in index: {index}"
+            )
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            return None
+
+        return res["_source"]
+
+    @staticmethod
+    def delete_by_query(query, index=None, access_token=None):
+        index = index if index is not None else HelperOpensearch.index
+        os_client = HelperOpensearch._get_client_with_token(access_token)
+        try:
+            res = os_client.delete_by_query(index=index, body=query)
+            logger.info(res)
+        except Exception as e:
+            logger.error(f"Couldn't delete query: {query} in index: {index}")
+            logger.error(e)
+            logger.error(traceback.format_exc())
+            exit(1)

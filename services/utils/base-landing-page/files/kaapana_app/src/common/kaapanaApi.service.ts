@@ -232,10 +232,32 @@ import httpClient from './httpClient'
   }
   const kaapanaApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
-      httpClient.get('/kaapana-backend/' + subUrl, { params }).then((response: any) => {
+      httpClient.get('/kaapana-backend' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.data)
+        reject(error)
+      })
+    })
+  }
+
+  const kaapanaApiPut = (subUrl: any, payload: any=null, params: any=null) => {
+    return new Promise((resolve, reject) => {
+      httpClient.put('/kaapana-backend' + subUrl,  payload, { params: params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  }
+
+  const kaapanaApiDelete = (subUrl: any, params: any = null) => {
+    return new Promise((resolve, reject) => {
+      httpClient.delete('/kaapana-backend' + subUrl, { params: params} ).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
         reject(error)
       })
     })
@@ -271,6 +293,8 @@ import httpClient from './httpClient'
     federatedRemoteApiGet,
     federatedRemoteApiDelete,
     kaapanaApiGet,
+    kaapanaApiPut,
+    kaapanaApiDelete,
     syncRemoteInstances
   }
 

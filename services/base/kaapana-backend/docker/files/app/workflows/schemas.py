@@ -1,11 +1,7 @@
-from typing import Optional, List, Union
 import datetime
-from pydantic import (
-    field_validator,
-    ConfigDict,
-    BaseModel,
-    model_validator,
-)
+from typing import List, Optional, Union
+
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from typing_extensions import Self
 
 

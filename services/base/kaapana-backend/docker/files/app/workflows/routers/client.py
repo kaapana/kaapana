@@ -501,7 +501,7 @@ def check_for_remote_updates(db: Session = Depends(get_db)):
 def create_dataset(
     request: Request,
     dataset: Union[schemas.DatasetCreate, None] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     dataset.username = request.headers["x-forwarded-preferred-username"]
     db_obj = crud.create_dataset(db=db, dataset=dataset)

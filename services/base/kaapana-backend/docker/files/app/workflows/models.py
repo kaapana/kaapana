@@ -1,13 +1,19 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Table
-from sqlalchemy.orm import relationship, Mapped
-from sqlalchemy.schema import UniqueConstraint, Index
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy_json import mutable_json_type
-
-from typing import List
-
 from app.database import Base
-
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Identity,
+    Integer,
+    String,
+    Table,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, relationship
+from sqlalchemy.schema import Index, UniqueConstraint
+from sqlalchemy_json import mutable_json_type
 
 # job_kaapana_instance_table = Table('job_kaapana_instance_table', Base.metadata,
 #     Column('job_id', ForeignKey('job.id'), primary_key=True),

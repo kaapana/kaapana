@@ -13,6 +13,7 @@ from .decorators import repeat_every
 from .dependencies import get_token_header
 from .middlewares import SecurityMiddleware
 from .monitoring import routers as monitoring
+from .settings import routers as settings
 from .workflows import models
 from .workflows.crud import get_remote_updates, sync_states_from_airflow
 from .workflows.routers import client, remote
@@ -90,6 +91,11 @@ app.include_router(
     client.router,
     prefix="/client",
     responses={418: {"description": "I'm the clients backend..."}},
+)
+app.include_router(
+    settings.router,
+    prefix="/settings",
+    responses={418: {"description": "I'm the settings backend..."}},
 )
 
 app.include_router(routers.router, prefix="/dataset")

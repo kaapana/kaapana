@@ -153,10 +153,10 @@ import {
 } from "@/store/actions.type";
 import Settings from "@/components/Settings.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
-import { settings } from "@/static/defaultUIConfig";
 import { checkAuthR } from "@/utils/utils.js";
 import ProjectSelection from "@/components/ProjectSelection.vue";
 import httpClient from "@/common/httpClient.js";
+import { settings as defaultSettings } from "@/static/defaultUIConfig";
 
 export default Vue.extend({
   name: "App",
@@ -164,21 +164,9 @@ export default Vue.extend({
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
-    settings: settings,
+    settings: defaultSettings,
     selectedProject: null,
   }),
-  created() {
-    this.$store.watch(
-      () => this.$store.getters["isIdle"],
-      (newValue, oldValue) => {
-        if (newValue) {
-          this.onIdle();
-        }
-      }
-    );
-    this.loadSelectedProject();
-  },
-
   computed: {
     ...mapGetters([
       "currentUser",
@@ -213,6 +201,7 @@ export default Vue.extend({
       this.settings["darkMode"] = v;
       localStorage["settings"] = JSON.stringify(this.settings);
       this.$vuetify.theme.dark = v;
+      this.storeSettingsItemInDb("darkMode");
     },
     login() {
       this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "home" }));
@@ -225,13 +214,56 @@ export default Vue.extend({
         this.$router.push({ name: "" });
       });
     },
+    updateSettings() {
+      this.settings = JSON.parse(localStorage["settings"]);
+      this.$vuetify.theme.dark = this.settings["darkMode"];
+    },
+    settingsResponseToObject(response: any[]) {
+      let converted: Object = {}
+      
+      response.forEach((item) => {
+        converted[item.key as keyof Object] = item.value;
+      })
+
+      return converted;
+    },
+    getSettingsFromDb() {
+      kaapanaApiService.kaapanaApiGet('/settings')
+        .then((response: any) => {
+          let settingsFromDb = this.settingsResponseToObject(response.data);
+          const updatedSettings = Object.assign({}, defaultSettings, settingsFromDb);
+          localStorage["settings"] = JSON.stringify(updatedSettings);
+        })
+        .catch(err => {
+          console.log(err);
+          localStorage["settings"] = JSON.stringify(defaultSettings);
+        })
+    },
+    storeSettingsItemInDb(item_name: string) {
+      if (item_name in this.settings) {
+          let item = {
+            'key': item_name,
+            'value': this.settings[item_name as keyof Object],
+          }
+
+          kaapanaApiService
+            .kaapanaApiPut("/settings/item", item)
+            .then((response) => {
+              // console.log(response);
+            })
+            .catch((err) => {
+              console.log(err);
+            });
+
+      }
+    },
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
     this.$store.dispatch(LOAD_COMMON_DATA);
     this.$store.dispatch(GET_POLICY_DATA);
     if (!localStorage["settings"]) {
-      localStorage["settings"] = JSON.stringify(settings);
+      localStorage["settings"] = JSON.stringify(defaultSettings);
     }
     if (!localStorage["selectedProject"]) {
       localStorage.setItem(
@@ -244,9 +276,21 @@ export default Vue.extend({
       );
     }
   },
+  created() {
+    this.$store.watch(
+      () => this.$store.getters["isIdle"],
+      (newValue, oldValue) => {
+        if (newValue) {
+          this.onIdle();
+        }
+      }
+    );
+
+    this.loadSelectedProject();
+    this.getSettingsFromDb();
+    this.updateSettings();
+  },
   mounted() {
-    this.settings = JSON.parse(localStorage["settings"]);
-    this.$vuetify.theme.dark = this.settings["darkMode"];
     httpClient
       .get("/kaapana-backend/get-traefik-routes")
       .then((response: { data: {} }) => {

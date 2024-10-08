@@ -16,10 +16,10 @@ with SessionLocal() as db:
         if not db_kaapana_instances:
             client_kaapana_instance = ClientKaapanaInstanceCreate(
                 **{
-                    "ssl_check": False,
+                    "ssl_check": True,
                     "automatic_update": False,
-                    "automatic_workflow_execution": True,
-                    "fernet_encrypted": False,
+                    "automatic_workflow_execution": False,
+                    "fernet_encrypted": True,
                 }
             )
             db_client_kaapana_instance = create_and_update_client_kaapana_instance(

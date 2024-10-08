@@ -10,7 +10,6 @@ from typing import List
 
 import pydicom
 import requests
-from dicomweb_client.api import DICOMwebClient
 from kaapanapy.helper import get_project_user_access_token
 from kaapanapy.settings import ProjectSettings
 from requests_toolbelt.multipart import decoder
@@ -27,10 +26,6 @@ DEFAULT_DICOM_WEB_RS_ENDPOINT = (
 DEFAULT_DICOM_WEB_URI_ENDPOINT = (
     f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado"
 )
-
-
-class DcmWebException(Exception):
-    pass
 
 
 class HelperDcmWeb:
@@ -60,10 +55,6 @@ class HelperDcmWeb:
             "Authorization": f"Bearer {self.access_token}",
             "x-forwarded-access-token": self.access_token,
         }
-        self.client = DICOMwebClient(
-            url=self.dcmweb_rs_endpoint,
-            headers=self.auth_headers,
-        )
         self.session = requests.Session()
         self.session.headers.update(self.auth_headers)
 

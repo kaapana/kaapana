@@ -782,7 +782,7 @@ function preflight_checks {
     echo " "
 
     if [ "$TERMINATE" = "true" ]; then
-        if [ ! "$QUIET" = "false" ] ; then
+        if [ "$QUIET" = "false" ] ; then
             while true; do
                 read -e -p "Do you want to fix the problems before continuing? (Recommended)" -i " no" yn
                 case $yn in

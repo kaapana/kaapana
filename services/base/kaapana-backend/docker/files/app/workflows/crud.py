@@ -374,6 +374,7 @@ def create_and_update_remote_kaapana_instance(
         )
     elif action == "update":
         db_remote_kaapana_instance.token = remote_kaapana_instance.token
+        db_remote_kaapana_instance.host = remote_kaapana_instance.host
         db_remote_kaapana_instance.port = remote_kaapana_instance.port
         db_remote_kaapana_instance.ssl_check = remote_kaapana_instance.ssl_check
         db_remote_kaapana_instance.fernet_key = (

@@ -12,6 +12,14 @@ from kaapanapy.logger import get_logger
 logger = get_logger(__name__, logging.DEBUG)
 
 
+def get_keycloak_helper():
+    """
+    Get an instance of the KeycloakHelper class
+    """
+    kc_client = KeycloakHelper()
+    return kc_client
+
+
 # Utility function to convert a dictionary from camelCase key to snake_case key
 def dict_keys_camel_to_snake(data: dict):
     def camel_to_snake_str(name):

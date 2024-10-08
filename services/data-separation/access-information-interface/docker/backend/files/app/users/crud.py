@@ -12,10 +12,6 @@ async def get_user_projects(session: AsyncSession, user_id: str):
         .filter(UsersProjectsRoles.keycloak_id == user_id)
     )
 
-    print("-----------------------------")
-    print(str(stmt))
-    print("-----------------------------")
-
     # Execute the query asynchronously
     result = await session.execute(stmt)
     # Fetch all the projects

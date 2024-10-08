@@ -105,9 +105,12 @@ async def get_project_user_role(
     project: schemas.Project = await get_project_by_name(project_name, session)
     user: KeycloakUser = await get_keycloak_user(user_id)
 
-    return await crud.get_user_role_in_project(
-        session, keycloak_id=user.id, project_id=project.id
-    )
+    try:
+        return await crud.get_user_role_in_project(
+            session, keycloak_id=user.id, project_id=project.id
+        )
+    except Exception as e:
+        raise HTTPException(status_code=204, detail="No Role found for the User")
 
 
 @router.get(
@@ -121,9 +124,13 @@ async def get_project_user_rights(
     project: schemas.Project = await get_project_by_name(project_name, session)
     user: KeycloakUser = await get_keycloak_user(user_id)
 
-    result = await crud.get_user_rights_in_project(
-        session, keycloak_id=user.id, project_id=project.id
-    )
+    try:
+        result = await crud.get_user_rights_in_project(
+            session, keycloak_id=user.id, project_id=project.id
+        )
+    except Exception as e:
+        raise HTTPException(status_code=204, detail="No Rights found for the User")
+
     if len(result) == 0:
         raise HTTPException(status_code=204, detail="No Rights Found for the User")
 

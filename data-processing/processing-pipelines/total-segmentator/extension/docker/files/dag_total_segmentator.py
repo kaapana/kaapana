@@ -169,6 +169,13 @@ ui_forms = {
                 "readOnly": False,
                 "required": True,
             },
+            "input": {
+                "title": "Input",
+                "default": "CT",
+                "description": "Input-data modality",
+                "type": "string",
+                "readOnly": True,
+            },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",

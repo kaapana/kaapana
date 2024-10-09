@@ -32,7 +32,14 @@ def check_modality_of_workflow(modality: str):
     """
     workflow_config = load_workflow_config()
     workflow_modality = workflow_config.get("workflow_form").get("input")
-    assert workflow_modality.lower() == modality.lower()
+    if not type(workflow_modality) == str:
+        raise TypeError(
+            f"{workflow_modality=} has not the expected type of str. {workflow_config=}"
+        )
+    elif not workflow_modality.lower() == modality.lower():
+        raise ValueError(
+            f"Missmatch of {workflow_modality.lower()=} {modality.lower()}"
+        )
 
 
 def get_data_from_pacs(target_dir: str, studyUID: str, seriesUID: str):

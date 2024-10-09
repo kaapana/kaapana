@@ -1,21 +1,20 @@
-import os
-import glob
-from os.path import basename
-import yaml
-import re
-import json
-import subprocess
-import hashlib
-import time
 import asyncio
-from distutils.version import LooseVersion
-
-from typing import Dict, List, Set, Union, Tuple
+import glob
+import hashlib
+import json
 import logging
-from logger import get_logger
+import os
+import re
+import subprocess
+import time
+from distutils.version import LooseVersion
+from os.path import basename
+from typing import Dict, List, Set, Tuple, Union
 
-from config import settings
 import schemas
+import yaml
+from config import settings
+from logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -836,11 +835,13 @@ def get_kube_objects(
                 if kind == "Deployment":
                     # TODO: only traefik lacks app-name in matchLabels
                     match_labels = config["spec"]["selector"]["matchLabels"]
-                    app_name = (
-                        match_labels["app-name"]
-                        if ("app-name" in match_labels)
-                        else match_labels["app"]
+                    # There are different conventions for app name
+                    app_name = match_labels.get(
+                        "app.kubernetes.io/name",
+                        match_labels.get("app", match_labels.get("app-name")),
                     )
+                    if not app_name:
+                        app_name = "-- UNKNOWN APP --"
                     obj_kube_status = get_pod_status(
                         "app", app_name, config["metadata"]["namespace"]
                     )

@@ -681,7 +681,7 @@ class HelmChart:
                         BuildUtils.logger.warning(
                             f"{self.chart_id}: operator container could not be found: {operator_container} -> using latest version-tag..."
                         )
-                        container_name = operator_container.split("/")[1].split(":")[0]
+                        container_name = operator_container.split("/")[-1].split(":")[0]
 
                         oparator_container_found = [
                             x
@@ -705,9 +705,9 @@ class HelmChart:
                             BuildUtils.logger.error(
                                 f"Chart operator multiple containers found: {operator_container}"
                             )
-                            for oparator_container_found in oparator_container_found:
+                            for container_found in oparator_container_found:
                                 BuildUtils.logger.error(
-                                    f"Dockerfile found: {oparator_container_found.path}"
+                                    f"Dockerfile found: {container_found.path}"
                                 )
                             BuildUtils.generate_issue(
                                 component=suite_tag,

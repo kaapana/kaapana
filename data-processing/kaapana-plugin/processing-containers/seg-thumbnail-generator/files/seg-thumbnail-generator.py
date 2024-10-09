@@ -1,20 +1,21 @@
-from os import getenv
-from os.path import join, exists
-from glob import glob
-from pathlib import Path
-import numpy as np
-import os
-from logger_helper import get_logger
 import logging
-from PIL import Image, ImageFilter, ImageDraw
-from colormath.color_objects import LabColor, sRGBColor
-from colormath.color_conversions import convert_color
-from multiprocessing.pool import ThreadPool
-from random import randint
-import SimpleITK as sitk
-import pydicom
+import os
 from dataclasses import dataclass
+from glob import glob
+from multiprocessing.pool import ThreadPool
+from os import getenv
+from os.path import exists, join
+from pathlib import Path
+from random import randint
+
 import cv2
+import numpy as np
+import pydicom
+import SimpleITK as sitk
+from colormath.color_conversions import convert_color
+from colormath.color_objects import LabColor, sRGBColor
+from logger_helper import get_logger
+from PIL import Image, ImageDraw, ImageFilter
 
 log_level = getenv("LOG_LEVEL", "warning").lower()
 
@@ -58,6 +59,54 @@ def dicomlab2LAB(dicomlab: list) -> list:
     return lab
 
 
+def crop_image_and_segmentation_to_overlapping_region(image, segmentation):
+    """Crops the image and segmentation to the overlapping region.
+
+    Args:
+        image (sitk.Image): Reference image
+        segmentation (sitk.Image): DICOM Segmentation object
+
+    Returns:
+        tuple: Tuple containing the cropped image and segmentation
+    """
+
+    # Handle 3D segmentation (ignore singleton fourth dimension)
+    if len(segmentation.GetSize()) == 4 and segmentation.GetSize()[3] == 1:
+        size = list(segmentation.GetSize())
+        size[3] = 0  # Set the size of the fourth dimension to 0 (removes it)
+        index = [0, 0, 0, 0]  # Start index at [0, 0, 0, 0]
+        # Extract the 3D volume from the 4D image
+        segmentation = sitk.Extract(segmentation, size=size, index=index)
+
+    # Resample segmentation to match the reference image
+    resample = sitk.ResampleImageFilter()
+    resample.SetReferenceImage(image)
+    resample.SetInterpolator(sitk.sitkNearestNeighbor)
+    resample.SetDefaultPixelValue(0)
+    resample.SetOutputPixelType(segmentation.GetPixelID())
+    segmentation_resampled = resample.Execute(segmentation)
+
+    # Compute the overlapping region size
+    size = [
+        min(image.GetSize()[i], segmentation_resampled.GetSize()[i]) for i in range(3)
+    ]
+    index = [0, 0, 0]  # Starting index (assuming images are aligned)
+
+    # Crop both images to the overlapping region
+    roi_filter = sitk.RegionOfInterestImageFilter()
+    roi_filter.SetSize(size)
+    roi_filter.SetIndex(index)
+    image_cropped = roi_filter.Execute(image)
+    segmentation_cropped = roi_filter.Execute(segmentation_resampled)
+
+    # Check if the cropped images have the same size
+    assert (
+        image_cropped.GetSize() == segmentation_cropped.GetSize()
+    ), f"Image and segmentation have different sizes: Image: {image_cropped.GetSize()}, Segmentation: {segmentation_cropped.GetSize()}"
+
+    return image_cropped, segmentation_cropped
+
+
 def create_thumbnail(parameters: tuple) -> tuple:
     """Creates a thumbnail image from a DICOM segmentation object or RTSTRUCT file
 
@@ -94,7 +143,7 @@ def create_thumbnail(parameters: tuple) -> tuple:
         )
     else:
         logger.error(f"Modality {modality} not supported")
-        return False
+        return False, ""
 
     # Convert the segmentation to a binary mask
     seg_array_binary = np.where(seg_array > 0, 1, 0)
@@ -218,13 +267,32 @@ def load_image_and_segmenation_from_dicom_segmentation(
     dicom_image = image_reader.Execute()
     image_array = sitk.GetArrayFromImage(dicom_image)
 
-    del dicom_image
-
     # Load the segmentation
     file_name = os.path.join(seg_dir, os.listdir(seg_dir)[0])
     dicom_seg = pydicom.dcmread(file_name)
 
     seg_array = dicom_seg.pixel_array
+
+    # Check segmentation and image dimensions
+    if image_array.shape != seg_array.shape:
+
+        # We will crop the image by the slices, which have a segmentation
+        reader = sitk.ImageSeriesReader()
+        dicom_names = reader.GetGDCMSeriesFileNames(seg_dir)
+        reader.SetFileNames(dicom_names)
+
+        # crop the image to the segmented region
+        cropped_image, cropped_seg = crop_image_and_segmentation_to_overlapping_region(
+            image=dicom_image, segmentation=reader.Execute()
+        )
+
+        image_array = sitk.GetArrayFromImage(cropped_image)
+        seg_array = sitk.GetArrayFromImage(cropped_seg)
+
+        del cropped_image
+        del cropped_seg
+
+    del dicom_image
 
     # Iterate through the segments and extract the colors
     segment_colors = {}
@@ -257,6 +325,10 @@ def load_image_and_segmenation_from_dicom_segmentation(
                 "color_type": color_type,
                 "color": color,
             }
+
+    # Check if the segmentation is binary but encoded as 0 and 255
+    if np.array_equal(np.unique(seg_array), np.array([0, 255])):
+        seg_array = np.where(seg_array == 255, 1, 0)
 
     return image_array, seg_array, segment_colors
 
@@ -410,8 +482,8 @@ if __name__ == "__main__":
         results = threadpool.imap_unordered(create_thumbnail, queue)
         for result, input_file in results:
             logger.info(f"Done: {input_file}")
-        if not result:
-            exit(1)
+            if not result:
+                exit(1)
 
     logger.info("BATCH-ELEMENT-level processing done.")
 

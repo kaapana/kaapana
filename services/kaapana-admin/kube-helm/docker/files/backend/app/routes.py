@@ -1,19 +1,18 @@
-from os.path import dirname, join
+import logging
 import secrets
 import subprocess
-
-from fastapi import APIRouter, Response, Request, UploadFile, HTTPException
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-import logging
-from logger import get_logger
+from os.path import dirname, join
 from typing import Optional
 
-from config import settings
-import helm_helper
-import utils
 import file_handler
+import helm_helper
+from config import settings
+from fastapi import APIRouter, HTTPException, Request, Response, UploadFile
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from logger import get_logger
 
+import utils
 
 # TODO: add endpoint for /helm-delete-file
 # TODO: add dependency injection
@@ -26,6 +25,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory=join(dirname(str(__file__)), "templates"))
 
 logger = get_logger(__name__)
+
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -40,7 +40,7 @@ async def post_filepond_upload(request: Request):
         patch = file_handler.filepond_init_upload(form)
 
     except Exception as e:
-        logger.error(f"/file upload failed {e}")
+        logger.error(f"/file upload failed {e}", exc_info=True)
         return Response("Filepond Upload Initialization failed", status_code=500)
 
     return Response(content=patch, status_code=200)
@@ -72,6 +72,7 @@ def head_filepond_upload(request: Request, patch: str):
         offset = file_handler.filepond_get_offset(patch, ulength)
         return Response(str(offset), 200)
     except Exception as e:
+        logger.error(e, exc_info=True)
         return Response(f"HEAD /filepond-upload failed {e}", 500)
 
 
@@ -128,8 +129,8 @@ async def file_chunks_init(request: Request):
             return Response(f"file upload init failed {msg}", 500)
         return Response(msg, 200)
     except Exception as e:
-        logger.error(f"/file_chunks_init failed {str(e)}")
-        return Response(f"File upload init failed {str(e)}", 500)
+        logger.error(f"/file_chunks_init failed {e}", exc_info=True)
+        return Response(f"File upload init failed {e}", 500)
 
 
 @router.post("/file_chunks")
@@ -140,8 +141,7 @@ async def upload_file_chunks(file: UploadFile):
         next_index = file_handler.add_file_chunks(content)
         return Response(str(next_index), 200)
     except Exception as e:
-        msg = str(e)
-        logger.error(f"/file_chunks failed: {msg}")
+        logger.error(f"/file_chunks failed: {e}", exc_info=True)
         return Response(f"File upload failed", 500)
 
 
@@ -183,10 +183,10 @@ async def import_container(filename: str, platforms: Optional[bool] = False):
         logger.info(f"Successfully imported {filename}")
         return Response(msg, 200)
     except AssertionError as e:
-        logger.error(f"/import-container failed: {str(e)}")
+        logger.error(f"/import-container failed: {e}", exc_info=True)
         raise HTTPException(400, f"Container import failed, bad request {str(e)}")
     except Exception as e:
-        logger.error(f"/import-container failed: {str(e)}")
+        logger.error(f"/import-container failed: {e}", exc_info=True)
         raise HTTPException(500, f"Container import failed, bad request {str(e)}")
 
 
@@ -244,10 +244,10 @@ async def helm_delete_chart(request: Request):
         else:
             return Response(f"Chart uninstall command failed{stdout}", 400)
     except AssertionError as e:
-        logger.error(f"/helm-delete-chart failed: {str(e)}")
+        logger.error(f"/helm-delete-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart uninstall failed, bad request {str(e)}", 400)
     except Exception as e:
-        logger.error(f"/helm-delete-chart failed: {e}")
+        logger.error(f"/helm-delete-chart failed: {e}", exc_info=True)
         return Response(f"Chart uninstall failed {str(e)}", 500)
 
 
@@ -285,10 +285,10 @@ async def helm_install_chart(request: Request):
         else:
             return Response(f"Chart install command failed for {release_name}", 500)
     except AssertionError as e:
-        logger.error(f"/helm-install-chart failed: {str(e)}")
+        logger.error(f"/helm-install-chart failed: {str(e)}", exc_info=True)
         return Response(f"Chart install failed, bad request {str(e)}", 400)
     except Exception as e:
-        logger.error(f"/helm-install-chart failed: {e}")
+        logger.error(f"/helm-install-chart failed: {e}", exc_info=True)
         return Response(f"Chart install failed {str(e)}", 500)
 
 
@@ -308,13 +308,13 @@ async def pull_docker_image(request: Request):
         )
     except subprocess.CalledProcessError as e:
         utils.helm_delete(release_name)
-        logger.error(e)
+        logger.error(e, exc_info=True)
         return Response(
             f"Unable to download container {payload['docker_registry_url']}/{payload['docker_image']}:{payload['docker_version']}",
             500,
         )
     except Exception as e:
-        logger.error(f"/pull-docker-image failed: {e}")
+        logger.error(f"/pull-docker-image failed: {e}", exc_info=True)
         return Response(f"Pulling docker image failed {e}", 400)
 
 
@@ -341,10 +341,10 @@ async def pending_applications():
         return extensions_list
 
     except subprocess.CalledProcessError as e:
-        logger.error(f"/pending-applications failed {e}")
+        logger.error(f"/pending-applications failed {e}", exc_info=True)
         return Response("Internal server error!", 500)
     except Exception as e:
-        logger.error(f"/pending-applications failed: {e}")
+        logger.error(f"/pending-applications failed: {e}", exc_info=True)
         return Response(f"Pending applications failed {e}", 400)
 
 
@@ -357,7 +357,7 @@ async def extensions():
         return cached_extensions
 
     except Exception as e:
-        logger.error(f"/extensions FAILED {e}")
+        logger.error(f"/extensions FAILED", exc_info=True)
         return Response(f"Failed to get extensions", 500)
 
 
@@ -369,7 +369,7 @@ async def get_platforms():
         return platforms
 
     except Exception as e:
-        logger.error(f"/platforms FAILED {e}")
+        logger.error(f"/platforms FAILED {e}", exc_info=True)
         return Response(f"Failed to get platforms", 500)
 
 

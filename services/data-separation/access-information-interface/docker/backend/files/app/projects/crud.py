@@ -85,12 +85,12 @@ async def create_roles_rights_mapping(
 async def get_users_projects_roles_mapping(
     session: AsyncSession, project_id: int, keycloak_id: str
 ):
-    # Create the delete statement
+    # Create the select UserProjectRoles statement
     stmt = select(UsersProjectsRoles).where(
         UsersProjectsRoles.project_id == project_id,
         UsersProjectsRoles.keycloak_id == keycloak_id,
     )
-    # Execute the delete statement asynchronously
+    # Execute the select statement asynchronously
     result = await session.execute(stmt)
 
     return result.scalars().first()
@@ -113,7 +113,13 @@ async def update_users_projects_roles_mapping(
     keycloak_id: str,
     role_id: int,
 ):
-    # Create the delete statement
+    """
+    Updates the role of a user in a specific project by mapping a new role.
+
+    This function updates the `role_id` for the user with the given `keycloak_id`
+    in the `UsersProjectsRoles` table for the specified `project_id`.
+    """
+    # Create the Update statement
     stmt = (
         update(UsersProjectsRoles)
         .where(
@@ -122,7 +128,7 @@ async def update_users_projects_roles_mapping(
         )
         .values(role_id=role_id)
     )
-    # Execute the delete statement asynchronously
+    # Execute the update statement asynchronously
     await session.execute(stmt)
     # Commit the transaction to apply the deletion
     await session.commit()
@@ -130,12 +136,11 @@ async def update_users_projects_roles_mapping(
 
 
 async def delete_users_projects_roles_mapping(
-    session: AsyncSession, project_id: int, role_id: int, keycloak_id
+    session: AsyncSession, project_id: int, keycloak_id: str
 ):
     # Create the delete statement
     stmt = delete(UsersProjectsRoles).where(
         UsersProjectsRoles.project_id == project_id,
-        UsersProjectsRoles.role_id == role_id,
         UsersProjectsRoles.keycloak_id == keycloak_id,
     )
     # Execute the delete statement asynchronously

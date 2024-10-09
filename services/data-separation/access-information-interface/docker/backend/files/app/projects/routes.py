@@ -166,11 +166,11 @@ async def post_user_project_role_mapping(
         )
 
 
-@router.put("/{project_name}/role/{role_name}/user/{user_id}", tags=["Projects"])
+@router.put("/{project_name}/user/{user_id}/rolemapping", tags=["Projects"])
 async def update_user_project_role_mapping(
     project_name: str,
-    role_name: str,
     user_id: str,
+    role_name: str,
     session: AsyncSession = Depends(get_session),
 ):
     """Update a UserProjectRole mapping"""
@@ -195,19 +195,17 @@ async def update_user_project_role_mapping(
         raise HTTPException(status_code=404, detail="Mapping not found")
 
 
-@router.delete("/{project_name}/role/{role_name}/user/{user_id}", tags=["Projects"])
+@router.delete("/{project_name}/user/{user_id}/rolemapping", tags=["Projects"])
 async def delete_user_project_role_mapping(
     project_name: str,
-    role_name: str,
     user_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """Delete a UserProjectRole mapping"""
     db_project = await crud.get_projects(session, project_name)
-    db_role = await crud.get_roles(session, role_name)
 
-    if len(db_project) == 0 or len(db_role) == 0:
-        raise HTTPException(status_code=404, detail="Project or User Role not found")
+    if len(db_project) == 0:
+        raise HTTPException(status_code=404, detail="Project not found")
 
     current_user_mapping = await crud.get_users_projects_roles_mapping(
         session, db_project[0].id, user_id
@@ -215,7 +213,7 @@ async def delete_user_project_role_mapping(
 
     if current_user_mapping:
         return await crud.delete_users_projects_roles_mapping(
-            session, db_project[0].id, db_role[0].id, user_id
+            session, db_project[0].id, user_id
         )
     else:
         raise HTTPException(status_code=404, detail="Mapping not found")

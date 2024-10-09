@@ -18,12 +18,7 @@ logger = get_logger(__name__)
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info("Entering ProxyMiddleware")
-        try:
-            endpoint = get_endpoint(request)
-        except Exception as ex:
-            logger.error(f"Error occurred: {ex}")
-            logger.error(traceback.format_exc())
-            logger.error("Couldn't retrieve endpoint. Defaulting to local PACS")
+        endpoint = get_endpoint(request)
 
         if endpoint == "local":
             new_url = DICOMWEB_BASE_URL + str(request.url).split("dicom-web-filter")[-1]

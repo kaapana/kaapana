@@ -4,7 +4,6 @@ import os
 import pydicom
 import time
 import requests
-import pydicom
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -38,7 +37,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     """
 
     def push_to_project_index(self, json_dict):
-        logger.info(f"Pushing JSON to project index")
+        logger.info(f"Pushing JSON to project index : {json_dict}")
         id = json_dict["0020000E SeriesInstanceUID_keyword"]
         clinical_trial_protocol_id = json_dict.get(
             "00120020 ClinicalTrialProtocolID_keyword"

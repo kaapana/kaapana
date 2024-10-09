@@ -43,7 +43,7 @@ class GetRefSeriesOperator(KaapanaBaseOperator):
         envs = {
             "DATA_TYPE": data_type,
             "SEARCH_POLICY": search_policy,
-            "PARALLEL_DOWNLOADS": parallel_downloads,
+            "PARALLEL_DOWNLOADS": str(parallel_downloads),
             "DICOM_TAGS": json.dumps(dicom_tags),
         }
 

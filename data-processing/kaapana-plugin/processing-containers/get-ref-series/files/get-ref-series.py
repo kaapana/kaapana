@@ -205,16 +205,14 @@ class GetRefSeriesOperator:
                 futures = [
                     executor.submit(
                         self.prepare_download,
-                        (
-                            join(
-                                series_dir,
-                                operator_in_dir,
-                                os.listdir(join(series_dir, operator_in_dir))[0],
-                            ),
-                            workflow_dir,
-                            batch_name,
-                            operator_out_dir,
+                        join(
+                            series_dir,
+                            operator_in_dir,
+                            os.listdir(join(series_dir, operator_in_dir))[0],
                         ),
+                        workflow_dir,
+                        batch_name,
+                        operator_out_dir,
                     )
                     for series_dir in series_dirs
                 ]
@@ -243,15 +241,18 @@ class GetRefSeriesOperator:
 
 if __name__ == "__main__":
     workflow_dir = getenv("WORKFLOW_DIR", None)
-    assert os.path.exists(workflow_dir)
+    assert os.path.exists(
+        workflow_dir
+    ), f"Workflow directory {workflow_dir} does not exist!"
 
-    batch_name = getenv("BATCH_NAME", "batch")
+    batch_name = getenv("BATCH_NAME", None)
+    assert batch_name is not None, "Batch name is not set!"
 
     operator_in_dir = getenv("OPERATOR_IN_DIR", None)
-    assert os.path.exists(operator_in_dir)
+    assert operator_in_dir is not None, "Operator in directory is not set!"
 
     operator_out_dir = getenv("OPERATOR_OUT_DIR", None)
-    assert os.path.exists(operator_out_dir)
+    assert operator_out_dir is not None, "Operator out directory is not set!"
 
     search_policy = getenv("SEARCH_POLICY", "reference_uid")
     data_type = getenv("DATA_TYPE", "dicom")

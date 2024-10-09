@@ -8,6 +8,9 @@ from external_pacs.LocalExternalThumbnailOperator import LocalExternalThumbnailO
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
+from kaapana.operators.LocalAssignDataToProjectOperator import (
+    LocalAssignDataToProjectOperator,
+)
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -18,7 +21,7 @@ project_id = "/projects/idc-external-031"
 location = "/locations/europe-west2"
 dataset_id = "/datasets/kaapana-integration-test"
 dicom_store_id = "/dicomStores/kaapana-integration-test-store"
-ae_title = "external-data"
+dataset_name = "external-data"
 
 default_host = gcloud + project_id + location + dataset_id + dicom_store_id
 ui_forms = {
@@ -33,11 +36,11 @@ ui_forms = {
                 "default": default_host,
                 "required": True,
             },
-            "ae_title": {
+            "dataset_name": {
                 "title": "Dataset Name",
                 "description": "Name of the dataset appearing in the Kaapana",
                 "type": "string",
-                "default": ae_title,
+                "default": dataset_name,
                 "required": True,
             },
             "service_account_info": {
@@ -76,7 +79,9 @@ extract_metadata = LocalDcm2JsonOperator(
     dag=dag, input_operator=init_operator, data_type="json"
 )
 add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
-
+assign_to_project = LocalAssignDataToProjectOperator(
+    dag=dag, input_operator=extract_metadata
+)
 push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=init_operator, json_operator=extract_metadata
 )

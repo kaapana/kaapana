@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
+from app.users.routes import router as users_router
 from fastapi import FastAPI
 
 from . import init_scripts
@@ -33,6 +34,10 @@ tags_metadata = [
         "name": "Aii",
         "description": "Retrive authorization related information",
     },
+    {
+        "name": "Users",
+        "description": "Retrive users information from keycloak",
+    },
 ]
 
 app = FastAPI(
@@ -47,3 +52,4 @@ app = FastAPI(
 
 app.include_router(aii_router, prefix="/aii")
 app.include_router(projects_router, prefix="/projects")
+app.include_router(users_router, prefix="/users")

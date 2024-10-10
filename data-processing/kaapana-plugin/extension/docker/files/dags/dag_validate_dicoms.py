@@ -14,7 +14,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )
@@ -23,6 +22,7 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 
 ui_forms = {
     "workflow_form": {
@@ -140,7 +140,7 @@ def fetch_input_json_callable(**kwargs):
         return [get_input_json_from_input_files.task_id]
 
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 
 validate = DcmValidatorOperator(
     dag=dag,
@@ -148,7 +148,7 @@ validate = DcmValidatorOperator(
     exit_on_error=False,
 )
 
-get_input_json = LocalGetInputDataOperator(
+get_input_json = GetInputOperator(
     dag=dag,
     name="get-json-input-data",
     data_type="json",

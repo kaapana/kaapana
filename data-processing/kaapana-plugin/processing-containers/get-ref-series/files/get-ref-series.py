@@ -40,11 +40,18 @@ def build_opensearch_query(modalities: list = [], custom_tags: list = []) -> dic
 
     # If 'modalities' is filled, we add a condition to check "00080060 Modality_keyword"
     if modalities:
-        query["bool"]["should"] = []
-        for modality in modalities:
-            query["bool"]["should"].append(
-                {"match": {"00080060 Modality_keyword": modality}}
+        # If only one modality is given, we add a 'match' query
+        if len(modalities) == 1:
+            query["bool"]["must"].append(
+                {"match": {"00080060 Modality_keyword": modalities[0]}}
             )
+        else:
+            # If multiple modalities are given, we add a 'should' query
+            query["bool"]["should"] = []
+            for modality in modalities:
+                query["bool"]["should"].append(
+                    {"match": {"00080060 Modality_keyword": modality}}
+                )
 
     # If 'custom_tags' is filled, we add a 'terms_set' query to check "00000000 Tags_keyword" contains all tags
     if custom_tags:

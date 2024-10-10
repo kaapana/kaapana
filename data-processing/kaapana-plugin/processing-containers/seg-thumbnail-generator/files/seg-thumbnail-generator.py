@@ -424,27 +424,33 @@ if __name__ == "__main__":
     thumbnail_size = int(getenv("SIZE", "300"))
     thread_count = int(getenv("THREADS", "3"))
 
-    workflow_dir = getenv("WORKFLOW_DIR", "None")
-    workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
-    assert workflow_dir is not None
+    workflow_dir = getenv("WORKFLOW_DIR", None)
+    if not exists(workflow_dir):
+        # Workaround if this is being run in dev-server
+        workflow_dir_dev = workflow_dir.split("/")
+        workflow_dir_dev.insert(3, "workflows")
+        workflow_dir_dev = "/".join(workflow_dir_dev)
 
-    batch_name = getenv("BATCH_NAME", "None")
-    batch_name = batch_name if batch_name.lower() != "none" else None
-    assert batch_name is not None
+        if not exists(workflow_dir_dev):
+            raise Exception(f"Workflow directory {workflow_dir} does not exist!")
 
-    operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
-    operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
-    assert operator_in_dir is not None
+        workflow_dir = workflow_dir_dev
 
-    org_image_input_dir = getenv("ORIG_IMAGE_OPERATOR_DIR", "None")
-    org_image_input_dir = (
-        org_image_input_dir if org_image_input_dir.lower() != "none" else None
-    )
-    assert org_image_input_dir is not None
+    batch_name = getenv("BATCH_NAME", "batch")
+    assert exists(
+        join(workflow_dir, batch_name)
+    ), f"Batch directory {join(workflow_dir, batch_name)} does not exist!"
 
-    operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
-    operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
-    assert operator_out_dir is not None
+    operator_in_dir = getenv("OPERATOR_IN_DIR", None)
+    assert operator_in_dir is not None, "Operator input directory not specified!"
+
+    org_image_input_dir = getenv("ORIG_IMAGE_OPERATOR_DIR", None)
+    assert (
+        org_image_input_dir is not None
+    ), "Original image input directory not specified!"
+
+    operator_out_dir = getenv("OPERATOR_OUT_DIR", None)
+    assert operator_out_dir is not None, "Operator output directory not specified!"
 
     logger.info("Starting thumbnail generation")
 

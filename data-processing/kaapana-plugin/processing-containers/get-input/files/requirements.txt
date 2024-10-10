@@ -1,2 +1,0 @@
-dicomweb-client == 0.56.2
-requests-toolbelt==1.0.0

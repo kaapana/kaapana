@@ -94,6 +94,8 @@ class KaapanaInstance(KaapanaInstanceBase):
     @field_validator("client_time_update", mode="before")
     @classmethod
     def convert_client_time_updated(cls, v):
+        if v is None:
+            return datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         if isinstance(v, datetime.datetime):
             return v
         else:

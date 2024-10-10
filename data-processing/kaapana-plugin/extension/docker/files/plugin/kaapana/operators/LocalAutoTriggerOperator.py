@@ -119,13 +119,14 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
 
     def get_workflow_settings_from_api(self, workflow_name: str):
         client_endpoint = (
-            f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client"
+            f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000"
         )
         workflow_settings_url = f"{client_endpoint}/settings/workflows/{workflow_name}"
         try:
             res = requests.get(
                 workflow_settings_url,
                 params={"snakecase": True},
+                headers={"X-Forwarded-Preferred-Username": "system"},
             )
             if res.status_code != 200:
                 raise Exception(f"ERROR: [{res.status_code}] {res.text}")
@@ -282,19 +283,19 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
 
         triggering_list = self.order_trigger_items(triggering_list)
         for triggering in triggering_list:
-            conf = triggering["conf"]
-            if "delay" in conf:
-                print(f"Delaying {triggering['dag_id']} by {conf['delay']} seconds.")
-                time.sleep(conf["delay"])
-                del conf["delay"]
-            if "get_settings_from_api" in conf and conf["get_settings_from_api"]:
-                workflow_form_data = self.get_workflow_settings_from_api(
-                    triggering["dag_id"]
-                )
-                if "service" not in triggering["dag_id"]:
-                    workflow_form_data["username"] = "system"
-                conf["form_data"] = workflow_form_data
-                del conf["get_settings_from_api"]
+            # conf = triggering["conf"]
+            # if "delay" in conf:
+            #     print(f"Delaying {triggering['dag_id']} by {conf['delay']} seconds.")
+            #     time.sleep(conf["delay"])
+            #     del conf["delay"]
+            # if "get_settings_from_api" in conf and conf["get_settings_from_api"]:
+            #     workflow_form_data = self.get_workflow_settings_from_api(
+            #         triggering["dag_id"]
+            #     )
+            #     if "service" not in triggering["dag_id"]:
+            #         workflow_form_data["username"] = "system"
+            #     conf["form_data"] = workflow_form_data
+            #     del conf["get_settings_from_api"]
 
             self.trigger_it(triggering)
 

@@ -11,6 +11,7 @@ from random import randint
 import cv2
 import numpy as np
 import pydicom
+import pydicom_seg
 import SimpleITK as sitk
 from colormath.color_conversions import convert_color
 from colormath.color_objects import LabColor, sRGBColor
@@ -59,8 +60,10 @@ def dicomlab2LAB(dicomlab: list) -> list:
     return lab
 
 
-def crop_image_and_segmentation_to_overlapping_region(image, segmentation):
-    """Crops the image and segmentation to the overlapping region.
+def resample_segmentation_to_reference_image(
+    image: sitk.Image, segmentation: sitk.Image
+) -> sitk.Image:
+    """Resamples a segmentation to match the size and spacing of a reference image
 
     Args:
         image (sitk.Image): Reference image
@@ -70,14 +73,6 @@ def crop_image_and_segmentation_to_overlapping_region(image, segmentation):
         tuple: Tuple containing the cropped image and segmentation
     """
 
-    # Handle 3D segmentation (ignore singleton fourth dimension)
-    if len(segmentation.GetSize()) == 4 and segmentation.GetSize()[3] == 1:
-        size = list(segmentation.GetSize())
-        size[3] = 0  # Set the size of the fourth dimension to 0 (removes it)
-        index = [0, 0, 0, 0]  # Start index at [0, 0, 0, 0]
-        # Extract the 3D volume from the 4D image
-        segmentation = sitk.Extract(segmentation, size=size, index=index)
-
     # Resample segmentation to match the reference image
     resample = sitk.ResampleImageFilter()
     resample.SetReferenceImage(image)
@@ -86,25 +81,12 @@ def crop_image_and_segmentation_to_overlapping_region(image, segmentation):
     resample.SetOutputPixelType(segmentation.GetPixelID())
     segmentation_resampled = resample.Execute(segmentation)
 
-    # Compute the overlapping region size
-    size = [
-        min(image.GetSize()[i], segmentation_resampled.GetSize()[i]) for i in range(3)
-    ]
-    index = [0, 0, 0]  # Starting index (assuming images are aligned)
-
-    # Crop both images to the overlapping region
-    roi_filter = sitk.RegionOfInterestImageFilter()
-    roi_filter.SetSize(size)
-    roi_filter.SetIndex(index)
-    image_cropped = roi_filter.Execute(image)
-    segmentation_cropped = roi_filter.Execute(segmentation_resampled)
-
-    # Check if the cropped images have the same size
+    # Check if the resampled segmentation has the same size as the reference image
     assert (
-        image_cropped.GetSize() == segmentation_cropped.GetSize()
-    ), f"Image and segmentation have different sizes: Image: {image_cropped.GetSize()}, Segmentation: {segmentation_cropped.GetSize()}"
+        image.GetSize() == segmentation_resampled.GetSize()
+    ), f"Image and segmentation have different sizes: Image: {image.GetSize()}, Segmentation: {segmentation_resampled.GetSize()}"
 
-    return image_cropped, segmentation_cropped
+    return image, segmentation_resampled
 
 
 def create_thumbnail(parameters: tuple) -> tuple:
@@ -194,9 +176,14 @@ def create_thumbnail(parameters: tuple) -> tuple:
     # Use the binary mask to get the relevant intensities (To see the regions within the mask better)
     masked_array = base_image_array * base_seg_array_binary
 
-    # Calculate the min and max intensity values within the masked region
-    min_intensity = np.min(masked_array[masked_array > 0])
-    max_intensity = np.max(masked_array[masked_array > 0])
+    # Areas with intensity values over 0
+    areas_over_zero = masked_array[masked_array > 0]
+
+    # Calculate the min intensity for the windowing
+    min_intensity = np.min(areas_over_zero)
+
+    # Calculate the max intensity for the windowing. Use the mean intensity plus 2 standard deviations
+    max_intensity = np.mean(areas_over_zero) + 2 * np.std(areas_over_zero)
 
     # Add a 10% margin to the min and max intensities
     margin = 0.1 * (max_intensity - min_intensity)
@@ -271,19 +258,18 @@ def load_image_and_segmenation_from_dicom_segmentation(
     file_name = os.path.join(seg_dir, os.listdir(seg_dir)[0])
     dicom_seg = pydicom.dcmread(file_name)
 
-    seg_array = dicom_seg.pixel_array
+    # Read the segmentation
+    reader = pydicom_seg.MultiClassReader()
+    result = reader.read(dicom_seg)
+
+    seg_array = result.data
 
     # Check segmentation and image dimensions
     if image_array.shape != seg_array.shape:
 
-        # We will crop the image by the slices, which have a segmentation
-        reader = sitk.ImageSeriesReader()
-        dicom_names = reader.GetGDCMSeriesFileNames(seg_dir)
-        reader.SetFileNames(dicom_names)
-
         # crop the image to the segmented region
-        cropped_image, cropped_seg = crop_image_and_segmentation_to_overlapping_region(
-            image=dicom_image, segmentation=reader.Execute()
+        cropped_image, cropped_seg = resample_segmentation_to_reference_image(
+            image=dicom_image, segmentation=result.image
         )
 
         image_array = sitk.GetArrayFromImage(cropped_image)
@@ -325,10 +311,6 @@ def load_image_and_segmenation_from_dicom_segmentation(
                 "color_type": color_type,
                 "color": color,
             }
-
-    # Check if the segmentation is binary but encoded as 0 and 255
-    if np.array_equal(np.unique(seg_array), np.array([0, 255])):
-        seg_array = np.where(seg_array == 255, 1, 0)
 
     return image_array, seg_array, segment_colors
 
@@ -424,27 +406,33 @@ if __name__ == "__main__":
     thumbnail_size = int(getenv("SIZE", "300"))
     thread_count = int(getenv("THREADS", "3"))
 
-    workflow_dir = getenv("WORKFLOW_DIR", "None")
-    workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
-    assert workflow_dir is not None
+    workflow_dir = getenv("WORKFLOW_DIR", None)
+    if not exists(workflow_dir):
+        # Workaround if this is being run in dev-server
+        workflow_dir_dev = workflow_dir.split("/")
+        workflow_dir_dev.insert(3, "workflows")
+        workflow_dir_dev = "/".join(workflow_dir_dev)
 
-    batch_name = getenv("BATCH_NAME", "None")
-    batch_name = batch_name if batch_name.lower() != "none" else None
-    assert batch_name is not None
+        if not exists(workflow_dir_dev):
+            raise Exception(f"Workflow directory {workflow_dir} does not exist!")
 
-    operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
-    operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
-    assert operator_in_dir is not None
+        workflow_dir = workflow_dir_dev
 
-    org_image_input_dir = getenv("ORIG_IMAGE_OPERATOR_DIR", "None")
-    org_image_input_dir = (
-        org_image_input_dir if org_image_input_dir.lower() != "none" else None
-    )
-    assert org_image_input_dir is not None
+    batch_name = getenv("BATCH_NAME", "batch")
+    assert exists(
+        join(workflow_dir, batch_name)
+    ), f"Batch directory {join(workflow_dir, batch_name)} does not exist!"
 
-    operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
-    operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
-    assert operator_out_dir is not None
+    operator_in_dir = getenv("OPERATOR_IN_DIR", None)
+    assert operator_in_dir is not None, "Operator input directory not specified!"
+
+    org_image_input_dir = getenv("ORIG_IMAGE_OPERATOR_DIR", None)
+    assert (
+        org_image_input_dir is not None
+    ), "Original image input directory not specified!"
+
+    operator_out_dir = getenv("OPERATOR_OUT_DIR", None)
+    assert operator_out_dir is not None, "Operator output directory not specified!"
 
     logger.info("Starting thumbnail generation")
 

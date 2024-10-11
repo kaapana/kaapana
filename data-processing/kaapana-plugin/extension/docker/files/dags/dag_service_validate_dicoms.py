@@ -13,10 +13,10 @@ from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
-from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )
+from kaapana.operators.LocalGetInputOperator import LocalGetInputOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
@@ -65,7 +65,7 @@ args = {
     "depends_on_past": False,
 }
 
-dag = DAG(dag_id="validate-dicoms", default_args=args, schedule_interval=None)
+dag = DAG(dag_id="service-validate-dicoms", default_args=args, schedule_interval=None)
 
 
 def get_series_metadata(dcmfile: pydicom.Dataset):
@@ -140,7 +140,7 @@ def fetch_input_json_callable(**kwargs):
         return [get_input_json_from_input_files.task_id]
 
 
-get_input = GetInputOperator(dag=dag)
+get_input = LocalGetInputOperator(dag=dag)
 
 validate = DcmValidatorOperator(
     dag=dag,
@@ -148,7 +148,7 @@ validate = DcmValidatorOperator(
     exit_on_error=False,
 )
 
-get_input_json = GetInputOperator(
+get_input_json = LocalGetInputOperator(
     dag=dag,
     name="get-json-input-data",
     data_type="json",

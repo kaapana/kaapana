@@ -6,9 +6,18 @@ const client = axios.create({
     baseURL: ACCESS_INFORMATION_BACKEND,
 });
 
+const token = '';
+
 const aiiApiGet = async function (suburl: string) {
     try {
-        const response: AxiosResponse = await client.get(suburl);
+        const response: AxiosResponse = await client.get(
+            suburl,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            }
+        );
         if (response.status === 200) {
             return response.data;
         } else {
@@ -24,6 +33,7 @@ const aiiApiPost = async function (suburl: string, data: Object) {
     const config: AxiosRequestConfig = {
         headers: {
         'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
         } as RawAxiosRequestHeaders,
     };
 

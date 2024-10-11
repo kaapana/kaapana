@@ -1,10 +1,11 @@
-import requests
-import os, json
-
-from kaapanapy.settings import OpensearchSettings, KaapanaSettings, OperatorSettings
-from opensearchpy import OpenSearch
-from minio import Minio
+import json
+import os
 import xml.etree.ElementTree as ET
+
+import requests
+from kaapanapy.settings import KaapanaSettings, OpensearchSettings, OperatorSettings
+from minio import Minio
+from opensearchpy import OpenSearch
 
 
 def get_opensearch_client(access_token=None):
@@ -67,7 +68,7 @@ def get_project_user_access_token():
     """
     Return an access token of the project user.
     """
-    from kaapanapy.settings import ProjectSettings, KeycloakSettings
+    from kaapanapy.settings import KeycloakSettings, ProjectSettings
 
     project_settings = ProjectSettings()
     keycloak_settings = KeycloakSettings()

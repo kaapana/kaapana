@@ -30,7 +30,13 @@ spec:
             limits:
               memory: 200Mi
           env:
-            - name: KAAPANA_CLIENT_SECRET
+            - name: KEYCLOAK_USER
+              value: "{{ .Values.global.credentials_keycloak_admin_username }}"
+            - name: KEYCLOAK_PASSWORD
+              value: "{{ .Values.global.credentials_keycloak_admin_password }}"
+            - name: KEYCLOAK_HOST
+              value: "keycloak-internal-service.{{  .Values.global.admin_namespace  }}.svc"
+            - name: OIDC_CLIENT_SECRET
               value: "{{ .Values.global.oidc_client_secret }}"
             - name: SERVICES_NAMESPACE
               value: "{{ .Values.global.services_namespace }}"

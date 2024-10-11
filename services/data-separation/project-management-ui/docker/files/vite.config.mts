@@ -51,5 +51,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    proxy: {
+      '/aii': {
+        target: 'https://e230-pc25.inet.dkfz-heidelberg.de', // Your target API server
+        changeOrigin: true,
+        secure: false, // Allow self-signed certificates
+        cookieDomainRewrite: '', // This rewrites cookies' domain to match the frontend
+      },
+    }
   },
 })

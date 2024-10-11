@@ -2,15 +2,29 @@
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: registry-claim
+  name: local-registry-claim
   namespace: "{{ tpl .Values.global.namespace . }}"
 spec:
   accessModes:
     - ReadWriteMany
-  volumeMode: Filesystem
   resources:
     requests:
       storage: {{ .Values.global.local_registry_disk_space }}
+  storageClassName: nfs
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-registry-pv
+spec:
+  capacity:
+    storage: {{ .Values.global.local_registry_disk_space }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: host-dir
+  hostPath:
+    path: {{ .Values.global.slow_data_dir }}/registry
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -45,11 +59,11 @@ spec:
               protocol: TCP
           volumeMounts:
             - mountPath: /var/lib/registry
-              name: registry-data
+              name: local-registry-data
       volumes:
-        - name: registry-data
+        - name: local-registry-data
           persistentVolumeClaim:
-            claimName: registry-claim
+            claimName: local-registry-claim
       imagePullSecrets:
       - name: registry-secret
 ---

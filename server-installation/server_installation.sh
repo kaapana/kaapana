@@ -437,6 +437,9 @@ function install_microk8s {
             sudo chown -f -R $REAL_USER $USER_HOME/.kube
         fi
 
+        echo "${YELLOW}Removing configmap kube-public/local-registry-hosting ...${NC}"
+        microk8s.kubectl delete configmap -n kube-public local-registry-hosting
+
         echo ""
         echo ""
         echo ""

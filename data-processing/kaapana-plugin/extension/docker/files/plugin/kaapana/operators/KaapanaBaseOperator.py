@@ -473,6 +473,16 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 }
             )
 
+        env_vars_from_secret_key_refs = {}
+        for idx, secret in enumerate(self.secrets):
+            env_vars_from_secret_key_refs.update(
+                {
+                    f"global.envVarsFromSecretRef[{idx}].name": secret.deploy_target,
+                    f"global.envVarsFromSecretRef[{idx}].secretName": secret.secret,
+                    f"global.envVarsFromSecretRef[{idx}].secretKey": secret.key,
+                }
+            )
+
         volume_mounts_lookup = {}
         for volume_mount in self.volume_mounts:
             if (
@@ -514,16 +524,17 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             )
         helm_sets = {
             "global.complete_image": self.image,
-            "global.namespace": self.services_namespace,
+            "global.namespace": self.namespace,
             "global.ingress_path": "{{ .Release.Name }}",
             **env_vars_sets,
             **dynamic_volumes,
+            **env_vars_from_secret_key_refs,
         }
         logging.info(helm_sets)
         # kaapanaint is there, so that it is recognized as a pending application!
         release_name = get_release_name(context)
         payload = {
-            "name": "code-server-chart",
+            "name": "dev-server-chart",
             "version": KAAPANA_BUILD_VERSION,
             "release_name": release_name,
             "sets": helm_sets,
@@ -607,11 +618,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         logging.info("CONTAINER ENVS:")
         logging.info(json.dumps(self.env_vars, indent=4, sort_keys=True))
 
-        if self.dev_server == "code-server":
-            return self.launch_dev_server(context)
-        elif self.dev_server is not None:
-            raise NameError("dev_server must be either None or code-server!")
-
         try:
             project_form = context.get("params").get("project_form")
             self.namespace = "project-" + project_form.get("name")
@@ -619,6 +625,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             self.namespace = "project-admin"
         self.set_volumes_and_volume_mounts()
         self.set_env_secrets()
+
+        if self.dev_server == "code-server":
+            return self.launch_dev_server(context)
+        elif self.dev_server is not None:
+            raise NameError("dev_server must be either None or code-server!")
 
         if self.delete_output_on_start is True:
             self.delete_operator_out_dir(context["run_id"], self.operator_out_dir)

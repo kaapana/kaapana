@@ -63,6 +63,17 @@ spec:
 {{- end }}
 {{- end }}
 
+{{/* Used to set environmal variables with valueFrom secretKeyRef given to global.envVars as name, value map */}}
+{{- define "dynamicEnvsFromSecretRef" }}
+{{- range $envVar := .Values.global.envVarsFromSecretRef }}
+- name: {{ $envVar.name }}
+  valueFrom:
+    secretKeyRef:
+      name: "{{ $envVar.secretName }}"
+      key: "{{ $envVar.secretKey }}"
+{{- end }}
+{{- end }}
+
 {{/* The folloiwng three templates faciliate the use of volumes. To use them provide needed volume information as explained in the methods below as a map to global.dynamicVolumes as name. Possible values are: name, host_path, mount_path, storage. "name" is needed for "dynamicVolumes", "name" and "mount_path" is neeeded for "dynamicVolumeMounts", and "name", "host_path" and "storage" is needed for "dynamicPersistentVolumes" */}}
 
 {{/* Used to set volumes dynamically given to global.dynamicVolumes as name, the pv-claim is automatically added */}}

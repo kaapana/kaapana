@@ -217,12 +217,6 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             )
             series_uid = str(incoming_dcm[0x0020, 0x000E].value)
 
-            # # Get the SOP instance UIDs of all dicoms
-            # identifiers = []
-            # for dcm in input_files:
-            #     current_dcm = pydicom.dcmread(dcm)
-            #     identifiers.append(str(current_dcm[0x0008, 0x0018].value))
-
             print("#")
             print(f"# dcm_dataset:     {dcm_dataset}")
             print(f"# series_uid:      {series_uid}")

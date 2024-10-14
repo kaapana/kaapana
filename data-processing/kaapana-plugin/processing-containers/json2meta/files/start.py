@@ -80,6 +80,7 @@ class Json2MetaOperator:
         self.series_instance_uid = None
         self.study_instance_uid = None
         self.patient_id = None
+        self.clinical_trial_protocol_id = None
 
     def push_to_project_index(self, json_dict: dict):
         """Pushes JSON data to the project index
@@ -88,16 +89,17 @@ class Json2MetaOperator:
             json_dict (dict): JSON data to push
         """
         logger.info(f"Pushing JSON to project index")
-        id = json_dict["0020000E SeriesInstanceUID_keyword"]
-        clinical_trial_protocol_id = json_dict.get(
-            "00120020 ClinicalTrialProtocolID_keyword"
-        )
-        project = self.get_project_by_name(clinical_trial_protocol_id)
+
+        project = self.get_project_by_name(self.clinical_trial_protocol_id)
         project_id = project.get("id")
+
+        json_dict = self.produce_inserts(json_dict)
         try:
-            json_dict = self.produce_inserts(json_dict)
-            response = HelperOpensearch.os_client.index(
-                index=f"project_{project_id}", body=json_dict, id=id, refresh=True
+            _ = HelperOpensearch.os_client.index(
+                index=f"project_{project_id}",
+                body=json_dict,
+                id=self.series_instance_uid,
+                refresh=True,
             )
         except Exception as e:
             logger.error("Error while pushing JSON ...")
@@ -180,6 +182,7 @@ class Json2MetaOperator:
         self.series_instance_uid = ds[0x0020, 0x000E].value
         self.study_instance_uid = ds[0x0020, 0x000D].value
         self.patient_id = ds[0x0010, 0x0020].value
+        self.clinical_trial_protocol_id = ds[0x0012, 0x0020].value
 
     def start(self):
         """Starts the Json2MetaOperator"""

@@ -263,7 +263,9 @@ if __name__ == "__main__":
     no_update = no_update.lower() == "true"
 
     operator_in_dir = getenv("OPERATOR_IN_DIR", None)
-    assert operator_in_dir, "Operator in directory not set!"
+    assert (
+        operator_in_dir is not None or dicom_operator_out_dir is not None
+    ), "No input directory specified for dicom files!, please set OPERATOR_IN_DIR or DICOM_OPERATOR_OUT_DIR"
 
     workflow_dir = getenv("WORKFLOW_DIR", None)
     if not exists(workflow_dir):

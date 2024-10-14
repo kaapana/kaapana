@@ -1,11 +1,9 @@
-import os
-
-from kaapana.operators.LocalEmailSendOperator import LocalEmailSendOperator
-
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
-from datetime import timedelta
 from airflow.models import DAG
+from airflow.utils.dates import days_ago
+import os
+from kaapana.operators.LocalEmailSendOperator import LocalEmailSendOperator
+from datetime import timedelta
+
 
 smtp_host = os.getenv("SMTP_HOST", None)
 smtp_port = os.getenv("SMTP_PORT", 0)

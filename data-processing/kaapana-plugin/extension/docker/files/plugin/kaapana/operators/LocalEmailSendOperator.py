@@ -4,21 +4,20 @@ import smtplib
 from email.message import EmailMessage
 from airflow.utils.state import State
 from tabulate import tabulate
+from typing import Optional, List
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperSendEmailService import HelperSendEmailService
+from kaapana.operators import HelperSendEmailService
 import re
 import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 class LocalEmailSendOperator(KaapanaPythonBaseOperator):
     """
+    (1)
     Operator designed for use in DAGs to facilitate email notifications.
-
-    This operator, when added to a DAG, is responsible for triggering a single email notification encompassing all DAG runs within a workflow trigger.
-    Optionally, it can be configured with the "on_failure_callback" parameter to leverage the HelperSendEmailService task_failure_alert function. In such cases, the operator does not need to be explicitly added to the DAG; the email will be sent only on failure.
+    This operator, when added to a DAG, is responsible for triggering a single email notification encompassing all DAG runs within a workflow trigger (Jobs).
 
     Example usage in dag, add operator and ui forms paramenter:
     "send_email": {
@@ -36,73 +35,49 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
         "required": False,
     }
     # if no receivers are set and send_email is selcted the email will be send to the "username" email, if it is an email-address.
-    AND add this to the dag (with send_email=True to always send an email, False, only if paramet send_email=True):
-
+    AND
+    add LocalEmailSendOperator to the dag (with send_email=True to always send an email,
+    False, only if ui parameter added and ui form parameter is send_email=True):
+    e.g.:
+    from kaapana.operators.LocalEmailSendOperator import LocalEmailSendOperator
     local_email_send = LocalEmailSendOperator(dag=dag, send_email=False)
+
+
+
+
+    (2)
+    Optionally an operator falure can be configured with the "send_email_on_workflow_failure" parameter to leverage the HelperSendEmailService task_failure_alert function.
+    In such cases, the operator does not need to be explicitly added to the DAG; the email will be sent only on failure.
+
+    (3)
+    The dag (dag_id="service-email-send") can be directly triggered with valid "workflow_name" to notify a user when all Jobs of the workflow execution are done.
     """
 
-    def sending_email(self, task_list, workflow_name):
-        receivers = None
-        if self.receivers:
-            receivers = self.receivers
-        workflow_form = HelperSendEmailService.get_workflow_form(self.conf)
-        _receivers = workflow_form.get("receivers", None)
-        if _receivers:
-            receivers = _receivers
-        if not receivers or (
-            isinstance(receivers, list) and len(receivers) == 1 and receivers[0] == ""
-        ):
-            username = workflow_form.get("username", None)
-            if not username:
-                raise Exception("Cannot send email, no receivers defined!")
-            # On some platforms users are always emails, so check that, if this can be used
-            # Basic regex pattern for email validation, just basic
-            pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$")
-            if bool(re.match(pattern, username)):
-                receivers = [username]
-            else:
-                raise Exception("Cannot send email, no receivers defined!")
+    def get_input_value(self, workflow_form: dict, key: str):
+        """Gets the input value from workflow_form or operator attributes."""
+        return workflow_form.get(key, getattr(self, key, None))
 
-        smtp_port = 0
-        if self.smtp_port:
-            smtp_port = int(self.smtp_port)
-        port = workflow_form.get("smtp_port", None)
-        if port:
-            smtp_port = int(port)
+    def filter_task_list(self, task_list: list):
+        """Filter tasks to include specific keys in the email."""
+        # Logic to filter the task list
+        # Selected keys for the email:
+        task_list_filtered = [
+            {
+                key: value
+                for key, value in entry.items()
+                if key in self.keys_to_select and value
+            }
+            for entry in task_list
+        ]
+        logger.info(task_list_filtered)
+        # Check if there's any data to include in the table
+        if not task_list_filtered:
+            logger.info("No data available to include in the email.")
+            return []
+        return task_list_filtered
 
-        smtp_username = None
-        if self.smtp_username:
-            smtp_username = self.smtp_username
-        username = workflow_form.get("smtp_username", None)
-        if username:
-            smtp_username = username
-
-        smtp_password = None
-        if self.smtp_password:
-            smtp_password = self.smtp_password
-        password = workflow_form.get("smtp_password", None)
-        if password:
-            smtp_password = password
-
-        smtp_host = None
-        if self.smtp_host:
-            smtp_host = self.smtp_host
-        server = workflow_form.get("smtp_host", None)
-        if server:
-            smtp_host = server
-        if not smtp_host:
-            raise Exception("Cannot send email, no smtp server defined!")
-
-        sender = None
-        if self.sender:
-            sender = self.sender
-        _sender = workflow_form.get("sender", None)
-        if _sender:
-            sender = _sender
-        if not sender:
-            logging.warning(
-                "No sender set. Some SMTP servers will not send data without a sender. If the send fails, this could be the reason."
-            )
+    def append_workflow_details(self, task_list: list):
+        """Append additional workflow details to the task list for email content."""
         if "workflow_details" in self.keys_to_select:
             for entry in task_list:
                 entry["workflow_details"] = ""
@@ -117,20 +92,57 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
                         if "dag_id" in entry and "run_id" in entry:
                             url += f"{entry['dag_id']}/grid?root=&dag_run_id={entry['run_id']}"
                             entry["workflow_details"] = url
-        # Selected keys for the email:
-        task_list_filtered = [
-            {
-                key: value
-                for key, value in entry.items()
-                if key in self.keys_to_select and value
-            }
-            for entry in task_list
-        ]
-        logger.info(task_list_filtered)
-        # Check if there's any data to include in the table
-        if not task_list_filtered:
-            logger.info("No data available to include in the email.")
-            return
+
+    def send_email_notification(self, task_list: list, workflow_name: str):
+        """
+        Sends an email notification with workflow results.
+
+        Args:
+            task_list (list): List of tasks with their details to be included in the email.
+            workflow_name (str): The name of the workflow for which the email is being sent.
+
+        Raises:
+            Exception: If no valid receivers or SMTP configuration is provided.
+        """
+        workflow_form = HelperSendEmailService.extract_workflow_form(self.conf)
+        receivers = self.get_input_value(workflow_form, "receivers")
+
+        if not receivers or (
+            isinstance(receivers, list) and len(receivers) == 1 and receivers[0] == ""
+        ):
+            username = workflow_form.get("username", None)
+            if not username:
+                raise Exception("Cannot send email, no receivers defined!")
+            # On some platforms users are always emails, so check that, if this can be used
+            # Basic regex pattern for email validation, just basic
+            pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$")
+            if bool(re.match(pattern, username)):
+                receivers = [username]
+            else:
+                raise Exception("Cannot send email, no receivers defined!")
+
+        smtp_port = self.get_input_value(workflow_form, "smtp_port")
+        if smtp_port:
+            smtp_port = int(smtp_port)
+        else:
+            smtp_port = 0
+
+        smtp_username = self.get_input_value(workflow_form, "smtp_username")
+        smtp_password = self.get_input_value(workflow_form, "smtp_password")
+        smtp_host = self.get_input_value(workflow_form, "smtp_host")
+        sender = self.get_input_value(workflow_form, "sender")
+
+        if not smtp_host:
+            raise Exception("Cannot send email, no smtp server defined!")
+
+        if not sender:
+            logging.warning(
+                "No sender set. Some SMTP servers will not send data without a sender. If the send fails, this could be the reason."
+            )
+
+        # Add workflow details for the email
+        self.append_workflow_details(task_list)
+        task_list_filtered = self.filter_task_list(task_list)
 
         message_before_table = f"The following table contains the workflow result for workflow {workflow_name}:"
         table_html = tabulate(task_list_filtered, headers="keys", tablefmt="html")
@@ -168,58 +180,44 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             logger.info("Error: unable to send email")
             exit(1)
 
-    def start(self, ds, **kwargs):
-        self.conf = kwargs["dag_run"].conf
-        run_id = kwargs["run_id"]
-        task_instance = kwargs["ti"]
-        logger.info(kwargs["run_id"])
-        logger.info(self.conf)
+    def monitor_workflow_and_send_email(
+        self, workflow_form: dict, workflow_name_monitor: str
+    ):
+        """Monitor the specified workflow and send an email when it's complete."""
+        # Logic to monitor workflow and send email
+        while True:
+            task_list = HelperSendEmailService.fetch_task_list(workflow_name_monitor)
+            keys_to_select = ["status"]
+            task_list_filtered = [
+                {key: value for key, value in entry.items() if key in keys_to_select}
+                for entry in task_list
+            ]
+            logger.info(task_list_filtered)
 
-        workflow_form = HelperSendEmailService.get_workflow_form(self.conf)
-        send_email = workflow_form.get("send_email", None)
-        if not (self.send_email or send_email):
-            task_instance.set_state(State.SKIPPED)
-            return f"Send email is not enabled. Task {task_instance.task_id} with run_id {run_id} is set to SKIPPED state."
+            # Check if all statuses are either 'success' or 'failed'
+            if all(
+                entry["status"] in ["success", "failed", "skipped", "finished"]
+                for entry in task_list_filtered
+            ):
+                trigger_run_id = workflow_form.get("trigger_run_id", None)
+                if trigger_run_id:
+                    # trigger_run_id only set on failure, in rare cases a smaller run_id can fail after this send_required is triggered.
+                    if not HelperSendEmailService.check_email_required(
+                        calling_workflow=workflow_name_monitor,
+                        calling_run_id=trigger_run_id,
+                    ):
+                        return  # exit without sending a mail
+                self.send_email_notification(task_list, workflow_name_monitor)
+                return  # All statuses meet the condition, exit the loop
+            logger.info("Wating for all tasks to finish!")
+            time.sleep(30)
 
-        # Operator triggerd to monitor, in this case an email will be send
-        workflow_name_monitor = workflow_form.get("workflow_name_monitor", None)
-        if workflow_name_monitor:
-            while True:
-                task_list = HelperSendEmailService.get_task_list(workflow_name_monitor)
-                keys_to_select = ["status"]
-                task_list_filtered = [
-                    {
-                        key: value
-                        for key, value in entry.items()
-                        if key in keys_to_select
-                    }
-                    for entry in task_list
-                ]
-                logger.info(task_list_filtered)
-
-                # Check if all statuses are either 'success' or 'failed'
-                if all(
-                    entry["status"] in ["success", "failed", "skipped", "finished"]
-                    for entry in task_list_filtered
-                ):
-                    trigger_run_id = workflow_form.get("trigger_run_id", None)
-                    if trigger_run_id:
-                        # trigger_run_id only set on failure, in rare cases a smaller run_id can fail after this send_required is triggered.
-                        if not HelperSendEmailService.send_requiered(
-                            calling_workflow=workflow_name_monitor,
-                            calling_run_id=trigger_run_id,
-                        ):
-                            return  # exit without sending a mail
-                    self.sending_email(task_list, workflow_name_monitor)
-                    return  # All statuses meet the condition, exit the loop
-                logger.info("Wating for all tasks to finish!")
-                time.sleep(30)
-
-        # Operator executed during other dag, check if this dag run triggers the send email dag, or not.
-        workflow_name = workflow_form.get("workflow_name", None)
-        if workflow_name is None:
-            raise Exception(f"ERROR: workflow_name is not defined")
-        task_list = HelperSendEmailService.get_task_list(workflow_name)
+    def handle_normal_dag_execution(
+        self, workflow_form, workflow_name, run_id, task_instance
+    ):
+        """Handle non-monitoring DAG execution and send email if required."""
+        # Logic to handle non-monitoring DAG execution
+        task_list = HelperSendEmailService.fetch_task_list(workflow_name)
 
         min_id_task = min(task_list, key=lambda x: x["id"])
         # only send email for one task-> only if this has the smallest id
@@ -227,7 +225,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             task_instance.set_state(State.SKIPPED)
             return f"Task {task_instance.task_id} with run_id {run_id} is set to SKIPPED state."
 
-        receivers = workflow_form.get("receivers", None)
+        receivers = self.get_input_value(workflow_form, "receivers")
         if not receivers:
             username = workflow_form.get("username", None)
             if username:
@@ -235,14 +233,14 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
                 pattern = re.compile(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$")
                 if bool(re.match(pattern, username)):
                     receivers = [username]
-        smtp_host = workflow_form.get("smtp_host", None)
-        smtp_port = workflow_form.get("smtp_port", None)
+        smtp_host = self.get_input_value(workflow_form, "smtp_host")
+        smtp_port = self.get_input_value(workflow_form, "smtp_port")
+        smtp_username = self.get_input_value(workflow_form, "smtp_username")
+        smtp_password = self.get_input_value(workflow_form, "smtp_password")
         sender = workflow_form.get("workflow_name_monitor", None)
-        smtp_username = workflow_form.get("smtp_username", None)
-        smtp_password = workflow_form.get("smtp_password", None)
 
         logger.info(f"Triggering workflow result email for workflow {workflow_name}")
-        HelperSendEmailService.trigger(
+        HelperSendEmailService.trigger_email_workflow(
             workflow_name_monitor=workflow_name,
             receivers=receivers,
             smtp_host=smtp_host,
@@ -250,6 +248,47 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             sender=sender,
             smtp_username=smtp_username,
             smtp_password=smtp_password,
+        )
+
+    def start_operator(self, ds, **kwargs):
+        """
+        Starts the email sending process for a DAG.
+
+        Args:
+            ds: Date string (templated).
+            **kwargs: Other context arguments provided by Airflow.
+
+        Returns:
+            str: Message indicating the email task status.
+        """
+        self.conf = kwargs["dag_run"].conf
+        run_id = kwargs["run_id"]
+        task_instance = kwargs["ti"]
+        logger.info(kwargs["run_id"])
+        logger.info(self.conf)
+
+        workflow_form = HelperSendEmailService.extract_workflow_form(self.conf)
+        send_email = workflow_form.get("send_email", None)
+        if not (self.send_email or send_email):
+            task_instance.set_state(State.SKIPPED)
+            return f"Send email is not enabled. Task {task_instance.task_id} with run_id {run_id} is set to SKIPPED state."
+
+        # Operator triggerd to monitor, in this case an email will be send
+        # this operation is only called if the operator is called in send-email dag
+        workflow_name_monitor = workflow_form.get("workflow_name_monitor", None)
+        if workflow_name_monitor:
+            self.monitor_workflow_and_send_email(workflow_form, workflow_name_monitor)
+            return
+
+        # Operator executed during other dag
+        # check if this dag run triggers the send-email dag, or not.
+
+        workflow_name = workflow_form.get("workflow_name", None)
+        if workflow_name is None:
+            raise Exception(f"ERROR: workflow_name is not defined")
+        # This function is called, if operator is added to other dags, to trigger send-email dag
+        self.handle_normal_dag_execution(
+            workflow_form, workflow_name, run_id, task_instance
         )
 
     def __init__(
@@ -264,12 +303,12 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             "external_job_id",
             "owner_kaapana_instance_name",
         ],
-        sender: str = "",
-        receivers: list = [""],
-        smtp_host: str = "",
-        smtp_port: int = 0,
-        smtp_username: str = None,
-        smtp_password: str = None,
+        sender: Optional[str] = None,
+        receivers: Optional[List[str]] = None,
+        smtp_host: Optional[str] = None,
+        smtp_port: Optional[int] = None,
+        smtp_username: Optional[str] = None,
+        smtp_password: Optional[str] = None,
         trigger_rule="all_done",
         execution_timeout=timedelta(hours=24),
         **kwargs,
@@ -287,7 +326,7 @@ class LocalEmailSendOperator(KaapanaPythonBaseOperator):
             dag=dag,
             name=name,
             trigger_rule=trigger_rule,
-            python_callable=self.start,
+            python_callable=self.start_operator,
             execution_timeout=execution_timeout,
             **kwargs,
         )

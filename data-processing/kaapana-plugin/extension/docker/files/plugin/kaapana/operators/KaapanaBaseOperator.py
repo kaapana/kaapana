@@ -33,9 +33,10 @@ from kaapana.kubetools.resources import Resources as PodResources
 from kaapana.kubetools.secret import Secret
 from kaapana.kubetools.volume import Volume
 from kaapana.kubetools.volume_mount import VolumeMount
+from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
-from kaapana.operators.HelperSendEmailService import HelperSendEmailService
+
 
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
@@ -758,7 +759,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             "send_email_on_workflow_failure", False
         )
         if send_email_on_workflow_failure:
-            HelperSendEmailService.task_failure_alert(context)
+            HelperSendEmailService.handle_task_failure_alert(context)
 
     @staticmethod
     def on_success(context):

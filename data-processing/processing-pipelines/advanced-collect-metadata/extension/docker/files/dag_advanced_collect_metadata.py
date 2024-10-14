@@ -1,5 +1,5 @@
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
 from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
@@ -123,11 +123,11 @@ merge_branches = LocalMergeBranchesOperator(
     allow_federated_learning=True,
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
     action_operators=[merge_branches],
-    bucket_name="advanced-collect-metadata",
+    minio_prefix="advanced-collect-metadata",
     zip_files=True,
 )
 

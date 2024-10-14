@@ -1,5 +1,5 @@
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
 from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
@@ -52,11 +52,11 @@ extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer)
 concat_metadata = LocalConcatJsonOperator(
     dag=dag, name="concatenated-metadata", input_operator=extract_metadata
 )
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
     action_operators=[concat_metadata],
-    bucket_name="downloads",
+    minio_prefix="downloads",
     zip_files=True,
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

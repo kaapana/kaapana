@@ -10,9 +10,10 @@ class JupyterlabReportingOperator(KaapanaBaseOperator):
     """
     This operator executes the jupyter notebook at $/WORKFLOW_DIR/<notebook_filename> and converts the result into a report file in the <output_format>.
 
-    This Operator is commonly used in between two LocalMinioOperators.
-    The first LocalMinioOperator would download the jupyter notebook from a MinIO bucket into the WORKFLOW_DIR.
-    The second LocalMinioOperator uploads the report into the staticwebsiteresults bucket.
+    This Operator is commonly used in between two operators that exchange data with MinIO e.g. LocalMinioOperator or MinioOperator.
+    The first operator would download the jupyter notebook from a MinIO bucket into the WORKFLOW_DIR.
+    Then the JupyterlabReportingOperator is executed on this notebook.
+    Afterwards another operator uploads the report into a MinIO bucket.
     """
 
     def __init__(

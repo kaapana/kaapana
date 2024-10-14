@@ -10,11 +10,9 @@ from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
 from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
-
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3
@@ -503,10 +501,10 @@ pyradiomics_6 = PyRadiomicsOperator(
     parallel_id=ta,
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    bucket_name="totalsegmentator",
+    minio_prefix="radiomics-totalsegmentator",
     action_operators=[
         pyradiomics_0,
         pyradiomics_1,

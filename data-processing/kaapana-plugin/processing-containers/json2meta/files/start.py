@@ -82,6 +82,13 @@ class Json2MetaOperator:
         self.patient_id = None
         self.clinical_trial_protocol_id = None
 
+        config_path = os.path.join(self.workflow_dir, "conf", "conf.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
+                self.workflow_config = json.load(f)
+
+        self.project_id = self.workflow_config.get("project_form", {}).get("id", None)
+
     def push_to_project_index(self, json_dict: dict):
         """Pushes JSON data to the project index
 
@@ -90,8 +97,13 @@ class Json2MetaOperator:
         """
         logger.info(f"Pushing JSON to project index")
 
-        project = self.get_project_by_name(self.clinical_trial_protocol_id)
-        project_id = project.get("id")
+        if self.project_id:
+            project_id = self.project_id
+            logger.info(f"Project ID taken from workflow config: {project_id}")
+        else:
+            project = self.get_project_by_name(self.clinical_trial_protocol_id)
+            project_id = project.get("id")
+            logger.info(f"Project ID taken from ClinicalTrialProtocolID: {project_id}")
 
         json_dict = self.produce_inserts(json_dict)
         try:

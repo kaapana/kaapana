@@ -2,7 +2,7 @@
     {
         "search_tags": {},
         "dag_ids": {
-            "validate-dicoms": {
+            "service-validate-dicoms": {
                 "fetch_method": "copy",
                 "depends_on": "service-extract-metadata",
                 "get_settings_from_api": true,

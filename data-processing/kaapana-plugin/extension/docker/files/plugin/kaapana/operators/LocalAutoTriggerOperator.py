@@ -4,6 +4,7 @@ import shutil
 import time
 from glob import glob
 from os.path import exists, join
+from re import sub
 
 import pydicom
 import requests
@@ -12,6 +13,22 @@ from airflow.models import DagBag
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
+
+# Define a function to convert a string to camel case
+def camel_case(s: str):
+    # Use regular expression substitution to replace underscores and hyphens with spaces,
+    # then title case the string (capitalize the first letter of each word), and remove spaces
+    s = sub(r"(_|-)+", " ", s).title().replace(" ", "")
+
+    # Join the string, ensuring the first letter is lowercase
+    return "".join([s[0].lower(), s[1:]])
+
+
+# ignore the service prefix while retriving dag settings
+# from the backend
+def ignore_service_prefix(dagname: str):
+    return dagname.replace("service-", "")
 
 
 class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
@@ -121,11 +138,14 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         client_endpoint = (
             f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000"
         )
-        workflow_settings_url = f"{client_endpoint}/settings/workflows/{workflow_name}"
+        # convert the workflow name / DAG name to camel_case, since dag names are stored in
+        # camel case in the backend
+        workflow_settings_url = (
+            f"{client_endpoint}/settings/workflows/{camel_case(workflow_name)}"
+        )
         try:
             res = requests.get(
                 workflow_settings_url,
-                params={"snakecase": True},
                 headers={"X-Forwarded-Preferred-Username": "system"},
             )
             if res.status_code != 200:
@@ -283,19 +303,19 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
 
         triggering_list = self.order_trigger_items(triggering_list)
         for triggering in triggering_list:
-            # conf = triggering["conf"]
-            # if "delay" in conf:
-            #     print(f"Delaying {triggering['dag_id']} by {conf['delay']} seconds.")
-            #     time.sleep(conf["delay"])
-            #     del conf["delay"]
-            # if "get_settings_from_api" in conf and conf["get_settings_from_api"]:
-            #     workflow_form_data = self.get_workflow_settings_from_api(
-            #         triggering["dag_id"]
-            #     )
-            #     if "service" not in triggering["dag_id"]:
-            #         workflow_form_data["username"] = "system"
-            #     conf["form_data"] = workflow_form_data
-            #     del conf["get_settings_from_api"]
+            conf = triggering["conf"]
+            if "delay" in conf:
+                print(f"Delaying {triggering['dag_id']} by {conf['delay']} seconds.")
+                time.sleep(conf["delay"])
+                del conf["delay"]
+            if "get_settings_from_api" in conf and conf["get_settings_from_api"]:
+                workflow_form_data = self.get_workflow_settings_from_api(
+                    ignore_service_prefix(triggering["dag_id"])
+                )
+                if "service" not in triggering["dag_id"]:
+                    workflow_form_data["username"] = "system"
+                conf["form_data"] = workflow_form_data
+                del conf["get_settings_from_api"]
 
             self.trigger_it(triggering)
 

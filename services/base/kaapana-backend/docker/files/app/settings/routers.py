@@ -34,7 +34,11 @@ def get_workflow_settings(
     db: Session = Depends(get_db),
     preferred_username=Header(..., alias="X-Forwarded-Preferred-Username"),
 ):
-    db_response = crud.get_settings_item(db, "workflows", username=preferred_username)
+    db_response = crud.get_settings_item(db, "workflows")
+    if preferred_username != "system":
+        db_response = crud.get_settings_item(
+            db, "workflows", username=preferred_username
+        )
 
     settings_item: schemas.SettingsBase = schemas.SettingsBase(key=dag_id, value={})
     if db_response:

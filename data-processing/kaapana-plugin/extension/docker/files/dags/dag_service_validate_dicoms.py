@@ -16,7 +16,7 @@ from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )
-from kaapana.operators.LocalGetInputOperator import LocalGetInputOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
@@ -140,7 +140,7 @@ def fetch_input_json_callable(**kwargs):
         return [get_input_json_from_input_files.task_id]
 
 
-get_input = LocalGetInputOperator(dag=dag)
+get_input = LocalGetInputDataOperator(dag=dag)
 
 validate = DcmValidatorOperator(
     dag=dag,
@@ -148,7 +148,7 @@ validate = DcmValidatorOperator(
     exit_on_error=False,
 )
 
-get_input_json = LocalGetInputOperator(
+get_input_json = LocalGetInputDataOperator(
     dag=dag,
     name="get-json-input-data",
     data_type="json",

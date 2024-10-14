@@ -105,7 +105,7 @@ class Json2MetaOperator:
             project_id = project.get("id")
             logger.info(f"Project ID taken from ClinicalTrialProtocolID: {project_id}")
 
-        json_dict = self.produce_inserts(json_dict)
+        json_dict = self.produce_inserts(json_dict, f"project_{project_id}")
         try:
             _ = HelperOpensearch.os_client.index(
                 index=f"project_{project_id}",
@@ -132,7 +132,7 @@ class Json2MetaOperator:
             logger.error("No ID found! - exit")
             exit(1)
 
-        json_dict = self.produce_inserts(json_dict)
+        json_dict = self.produce_inserts(json_dict, HelperOpensearch.index)
         try:
             _ = HelperOpensearch.os_client.index(
                 index=HelperOpensearch.index, body=json_dict, id=id, refresh=True
@@ -141,11 +141,12 @@ class Json2MetaOperator:
             logger.error("Error while pushing JSON ...")
             raise (e)
 
-    def produce_inserts(self, new_json: dict):
+    def produce_inserts(self, new_json: dict, index: str = None):
         """Produces inserts for OpenSearch
 
         Args:
             new_json (dict): JSON data to insert
+            index (str, optional): Index to insert to. Defaults to None.
 
         Raises:
             ValueError: If the series is not found
@@ -158,7 +159,7 @@ class Json2MetaOperator:
         # Try to get the series from OpenSearch
         old_json = HelperOpensearch.get_series_metadata(
             series_instance_uid=self.series_instance_uid,
-            index=HelperOpensearch.index,
+            index=index,
         )
 
         if old_json is None:

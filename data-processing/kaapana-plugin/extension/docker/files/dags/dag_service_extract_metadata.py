@@ -1,5 +1,5 @@
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
+from kaapana.operators.Json2MetaOperator import Json2MetaOperator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
@@ -36,7 +36,7 @@ add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metad
 assign_to_project = LocalAssignDataToProjectOperator(
     dag=dag, input_operator=extract_metadata
 )
-push_json = LocalJson2MetaOperator(
+push_json = Json2MetaOperator(
     dag=dag, input_operator=get_input, json_operator=extract_metadata
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

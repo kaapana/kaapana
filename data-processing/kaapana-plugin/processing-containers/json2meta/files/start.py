@@ -119,9 +119,10 @@ class Json2MetaOperator:
         else:
             logger.error("No ID found! - exit")
             exit(1)
+
+        json_dict = self.produce_inserts(json_dict)
         try:
-            json_dict = self.produce_inserts(json_dict)
-            response = HelperOpensearch.os_client.index(
+            _ = HelperOpensearch.os_client.index(
                 index=HelperOpensearch.index, body=json_dict, id=id, refresh=True
             )
         except Exception as e:

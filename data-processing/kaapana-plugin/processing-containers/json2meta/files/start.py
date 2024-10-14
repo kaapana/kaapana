@@ -139,7 +139,7 @@ class Json2MetaOperator:
             ValueError: If the series is not found
 
         Returns:
-            dict: Don't ask me. Im just containerizing this.
+            dict: Updated JSON data which will be pushed to OpenSearch
         """
         logger.info("get old json from index.")
 
@@ -163,12 +163,11 @@ class Json2MetaOperator:
         bpr_algorithm_name = "predicted_bodypart_string"
         bpr_key = "00000000 PredictedBodypart_keyword"
         if bpr_algorithm_name in new_json:
+            logger.info("Special treatment for BPR")
             new_json[bpr_key] = new_json[bpr_algorithm_name]
-            del new_json[bpr_algorithm_name]
+            new_json.pop(bpr_algorithm_name)
 
-        for new_key in new_json:
-            new_value = new_json[new_key]
-            old_json[new_key] = new_value
+        old_json.update(new_json)
 
         return old_json
 

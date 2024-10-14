@@ -50,7 +50,10 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             "dag_ids": {
                     <dag id to trigger>: {
                     "fetch_method": "copy",
-                    "single_execution" : false
+                    "single_execution" : false,
+                    "depends_on": "service-extract-metadata", # another dag from autotrigger, if current dag depends on the execution of another dag,
+                    "get_settings_from_api": true, # make a request to settings backend to get dag settings using the dag name
+                    "delay": 10 # integer in seconds, if one dag requires a depends on dag to finished executions.
                     }
             }
         }]
@@ -109,6 +112,28 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         return conf
 
     def order_trigger_items(self, triggering_list: list):
+        """
+        Reorders a list of triggering DAGs based on their dependencies and returns the reordered list.
+
+        This function takes a list of trigger items, each containing configuration details. If an item
+        has a "depends_on" field in its configuration, it is placed after the item it depends on in the
+        reordered list. Items without dependencies are added directly to the reordered list. If an item
+        depends on something that hasn't been added yet, it is temporarily cached and added at the end.
+        A message is printed indicating how many items have been deferred to the end due to unmet
+        dependencies.
+
+        Args:
+            triggering_list (list): A list of dictionaries where each dictionary represents a triggering
+                                    item with at least "dag_id" and "conf" fields. The "conf" field can
+                                    include a "depends_on" key indicating dependency on another DAG.
+
+        Returns:
+            list: A reordered list of triggering items with dependencies considered.
+
+        Raises:
+            AssertionError: If the length of the reordered list doesn't match the input list, indicating
+                            a possible logic error.
+        """
         reordered_list = []
         already_added_dag = []
         cached = []
@@ -135,6 +160,22 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
         return reordered_list
 
     def get_workflow_settings_from_api(self, workflow_name: str):
+        """
+        Retrieves workflow settings from the backend API for a given workflow name.
+
+        Converts the workflow name to camel case, constructs the API URL, and sends a GET request
+        to fetch settings. If the request succeeds, returns the 'properties' field from the response.
+        If the request fails or 'properties' is not present, returns an empty dictionary.
+
+        Args:
+            workflow_name (str): The name of the workflow whose settings are to be retrieved.
+
+        Returns:
+            dict: The properties of the workflow settings if available, otherwise an empty dictionary.
+
+        Raises:
+            Exception: If the API request fails with a non-200 status code.
+        """
         client_endpoint = (
             f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000"
         )
@@ -152,7 +193,6 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                 raise Exception(f"ERROR: [{res.status_code}] {res.text}")
         except Exception as e:
             print(f"Request to get settings {workflow_name} threw an error.", e)
-            exit(1)
 
         result = res.json()
         if "properties" in result["value"]:
@@ -295,20 +335,30 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                                 }
                             )
 
+        # try reordering the DAGS if any DAG has `depends_on` properties
+        # set on its trigger rule and depends another DAG to be executed
+        # first.
         triggering_list = self.order_trigger_items(triggering_list)
         for triggering in triggering_list:
             conf = triggering["conf"]
+            # 'delay' autotrigger rule,
+            # integer in seconds, if one dag requires an earlier excuted autotriggered dag
+            # to finished executions.
             if "delay" in conf:
                 print(f"Delaying {triggering['dag_id']} by {conf['delay']} seconds.")
                 time.sleep(conf["delay"])
+                # delete `delay` from the config
                 del conf["delay"]
             if "get_settings_from_api" in conf and conf["get_settings_from_api"]:
+                # make a request to settings backend to get dag settings using the dag name
+                # remove the service prefix from the service dag name
                 workflow_form_data = self.get_workflow_settings_from_api(
                     ignore_service_prefix(triggering["dag_id"])
                 )
                 if "service" not in triggering["dag_id"]:
                     workflow_form_data["username"] = "system"
                 conf["form_data"] = workflow_form_data
+                # delete `get_settings_from_api` from the config
                 del conf["get_settings_from_api"]
 
             self.trigger_it(triggering)

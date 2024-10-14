@@ -7,12 +7,14 @@ from pprint import pprint
 
 import pydicom
 from airflow.models import DAG
-from airflow.operators.python import BranchPythonOperator
-from airflow.operators.python_operator import PythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
+from kaapana.operators.KaapanaBranchPythonBaseOperator import (
+    KaapanaBranchPythonBaseOperator,
+)
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )
@@ -101,6 +103,20 @@ def get_series_metadata(dcmfile: pydicom.Dataset):
 
 
 def create_input_json_from_input(ds, **kwargs):
+    """
+    Creates a metadata JSON file for each batch of DICOM files in the specified batch directory.
+
+    For each batch element, the function looks for DICOM files in the input directory. If found,
+    it extracts the series metadata from the first DICOM file and saves it as a `metadata.json`
+    file in the output directory. If no DICOM files are found, the process is skipped for that batch.
+
+    Args:
+        ds: Unused argument (can be ignored).
+        **kwargs: Additional keyword arguments, including the `dag_run` containing the run ID.
+
+    Returns:
+        None
+    """
     batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
 
     batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
@@ -154,18 +170,16 @@ get_input_json = LocalGetInputDataOperator(
     data_type="json",
 )
 
-get_input_json_from_input_files = PythonOperator(
-    task_id="get-json-input-data-from-input",
-    provide_context=True,
+get_input_json_from_input_files = KaapanaPythonBaseOperator(
+    name="get-json-input-data-from-input",
     pool="default_pool",
-    executor_config={"cpu_millicores": 100, "ram_mem_mb": 50},
+    pool_slots=1,
     python_callable=create_input_json_from_input,
     dag=dag,
 )
 
-branching_get_input_json = BranchPythonOperator(
-    task_id="branching-get-input-json",
-    provide_context=True,
+branching_get_input_json = KaapanaBranchPythonBaseOperator(
+    name="branching-get-input-json",
     python_callable=fetch_input_json_callable,
     trigger_rule="none_failed_min_one_success",
     dag=dag,

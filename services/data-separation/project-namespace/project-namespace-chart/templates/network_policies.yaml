@@ -202,3 +202,5 @@ spec:
     ports:
     - protocol: TCP
       port: 9090
+    - protocol: TCP
+      port: 9000

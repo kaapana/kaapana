@@ -36,27 +36,12 @@ class HelperOpensearch:
         )
 
     @staticmethod
-    def _get_client_with_token(access_token=None):
-        """
-        If access_token is provided, return a new client using that token.
-        Otherwise, return the default os_client.
-        """
-        if access_token:
-            return get_opensearch_client(access_token=access_token)
-        return HelperOpensearch.os_client
-
-    @staticmethod
     def get_query_dataset(
-        query,
-        index=None,
-        only_uids=False,
-        include_custom_tag="",
-        exclude_custom_tag="",
-        access_token=None,
+        query, index=None, only_uids=False, include_custom_tag="", exclude_custom_tag=""
     ):
         index = index if index is not None else HelperOpensearch.index
-        logger.info("Getting dataset for query: {}".format(query))
-        logger.info("index: {}".format(index))
+        print("Getting dataset for query: {}".format(query))
+        print("index: {}".format(index))
         includes = [
             HelperOpensearch.study_uid_tag,
             HelperOpensearch.series_uid_tag,
@@ -77,15 +62,10 @@ class HelperOpensearch:
         }
 
         try:
-            hits = HelperOpensearch.execute_opensearch_query(
-                **query_dict, access_token=access_token
-            )
+            hits = HelperOpensearch.execute_opensearch_query(**query_dict)
         except Exception as e:
-            logger.error(
-                f"Couldn't get query: {query} in index: {index}"
-            )
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            print("ERROR in search!")
+            print(e)
             return None
 
         if only_uids:
@@ -100,7 +80,6 @@ class HelperOpensearch:
         index=None,
         sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
         scroll=False,
-        access_token=None,
     ) -> List:
         """
         TODO: This is currently a duplicate to kaapana-backend/docker/files/app/datasets/utils.py
@@ -121,12 +100,9 @@ class HelperOpensearch:
         :return: aggregated search results
         """
         index = index or HelperOpensearch.index
-        os_client = HelperOpensearch._get_client_with_token(access_token)
 
         def _execute_opensearch_query(search_after=None, size=10000) -> List:
-            if not os_client:
-                raise Exception("os_client is not initialized.")
-            res = os_client.search(
+            res = HelperOpensearch.os_client.search(
                 body={
                     "query": query,
                     "size": size,
@@ -148,10 +124,7 @@ class HelperOpensearch:
 
     @staticmethod
     def get_dcm_uid_objects(
-        series_instance_uids,
-        include_custom_tag="",
-        exclude_custom_tag="",
-        access_token=None,
+        series_instance_uids, include_custom_tag="", exclude_custom_tag=""
     ):
         # defauly query for fetching via identifiers
         query = {"bool": {"must": [{"ids": {"values": series_instance_uids}}]}}
@@ -184,7 +157,6 @@ class HelperOpensearch:
                     HelperOpensearch.dcmweb_endpoint_tag,
                 ]
             },
-            access_token=access_token,
         )
 
         return [
@@ -205,30 +177,27 @@ class HelperOpensearch:
         ]
 
     @staticmethod
-    def get_series_metadata(series_instance_uid, index=None, access_token=None):
+    def get_series_metadata(series_instance_uid, index=None):
         index = index if index is not None else HelperOpensearch.index
-        os_client = HelperOpensearch._get_client_with_token(access_token)
+
         try:
-            res = os_client.get(index=index, id=series_instance_uid)
+            res = HelperOpensearch.os_client.get(index=index, id=series_instance_uid)
         except Exception as e:
-            logger.error(
-                f"Couldn't search series_instance_uid: {series_instance_uid} in index: {index}"
-            )
-            logger.error(e)
-            logger.error(traceback.format_exc())
+            print("ERROR in search!")
+            print(e)
             return None
 
         return res["_source"]
 
     @staticmethod
-    def delete_by_query(query, index=None, access_token=None):
+    def delete_by_query(query, index=None):
         index = index if index is not None else HelperOpensearch.index
-        os_client = HelperOpensearch._get_client_with_token(access_token)
         try:
-            res = os_client.delete_by_query(index=index, body=query)
-            logger.info(res)
+            res = HelperOpensearch.os_client.delete_by_query(index=index, body=query)
+            print(res)
         except Exception as e:
-            logger.error(f"Couldn't delete query: {query} in index: {index}")
-            logger.error(e)
-            logger.error(traceback.format_exc())
+
+            print(f"# ERROR deleting from Opensearch: {str(e)}")
+            print(f"# query: {query}")
+            traceback.print_exc()
             exit(1)

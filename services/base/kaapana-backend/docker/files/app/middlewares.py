@@ -1,29 +1,6 @@
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
-
-
-class SecurityMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-
-        # X-Frame-Options
-        response.headers["X-Frame-Options"] = "DENY"
-
-        # Referrer-Policy
-        response.headers["Referrer-Policy"] = "no-referrer"
-
-        # Strict-Transport-Security
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
-        # X-Content-Type-Options
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        return response
-
-
 import html
 import json
-from fastapi import FastAPI, Request, Response
+from fastapi import Request
 from starlette.types import Message, Receive, Scope, Send
 from starlette.datastructures import QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -150,7 +127,24 @@ class SanitizeBodyInputs:
 
 
 class SanitizeQueryParams(BaseHTTPMiddleware):
+    """
+    Middleware to sanitize query parameters in incoming requests.
+
+    This middleware intercepts incoming HTTP requests, checks for query parameters,
+    and sanitizes the values to prevent potential security risks like XSS (Cross-Site Scripting).
+    """
+
     async def dispatch(self, request: Request, call_next):
+        """
+        Intercepts the request, sanitizes the query parameters, and forwards the request.
+
+        Args:
+            request (Request): The incoming HTTP request object.
+            call_next (Callable): A function to call the next middleware or handler.
+
+        Returns:
+            Response: The HTTP response from the next middleware or handler.
+        """
         # Access query parameters
         query_params = request.query_params
 
@@ -170,4 +164,18 @@ class SanitizeQueryParams(BaseHTTPMiddleware):
 
         # Call the next middleware or the handler
         response = await call_next(request)
+
+        # X-Frame-Options
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # Referrer-Policy
+        response.headers["Referrer-Policy"] = "no-referrer"
+
+        # Strict-Transport-Security
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
+        # X-Content-Type-Options
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
         return response

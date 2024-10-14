@@ -127,7 +127,24 @@ class SanitizeBodyInputs:
 
 
 class SanitizeQueryParams(BaseHTTPMiddleware):
+    """
+    Middleware to sanitize query parameters in incoming requests.
+
+    This middleware intercepts incoming HTTP requests, checks for query parameters,
+    and sanitizes the values to prevent potential security risks like XSS (Cross-Site Scripting).
+    """
+
     async def dispatch(self, request: Request, call_next):
+        """
+        Intercepts the request, sanitizes the query parameters, and forwards the request.
+
+        Args:
+            request (Request): The incoming HTTP request object.
+            call_next (Callable): A function to call the next middleware or handler.
+
+        Returns:
+            Response: The HTTP response from the next middleware or handler.
+        """
         # Access query parameters
         query_params = request.query_params
 

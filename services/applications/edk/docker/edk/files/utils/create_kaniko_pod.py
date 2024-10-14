@@ -3,8 +3,9 @@ import yaml
 import shutil
 import os
 from datetime import datetime
-from typing import List, Dict, Any, Union
+from typing import Dict, Any, Union
 from kubernetes import client, config, watch
+from urllib3.exceptions import ProtocolError
 
 # kube config
 config.load_incluster_config()
@@ -73,6 +74,8 @@ def make_pod_yaml(
         f_image_name, f_image_version = get_image_info(dockerfile)
         image_name = f_image_name if image_name == "" else image_name
         image_version = f_image_version if image_version == "" else image_version
+
+    # update pod name with image info and timestamp
     pod_yaml["metadata"][
         "name"
     ] += f"-{image_name}-{image_version}-" + datetime.now().strftime("%Y%m%d%H%M%S")
@@ -92,6 +95,22 @@ def make_pod_yaml(
             pod_yaml["spec"]["containers"][0]["args"][
                 i
             ] = f"--destination={LOCAL_REGISTRY_URL}/{image_name}:{image_version}"
+
+    # check proxy env vars and add to env and args
+    proxy_vars = ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy"]
+    for proxy_key in proxy_vars:
+        if proxy_key in os.environ:
+            proxy_val = os.environ[proxy_key]
+
+            # add to env section
+            pod_yaml["spec"]["containers"][0]["env"].append(
+                {"name": proxy_key, "value": proxy_val}
+            )
+
+            # add to args section as --build-arg
+            pod_yaml["spec"]["containers"][0]["args"].append(
+                f"--build-arg={proxy_key}={proxy_val}"
+            )
 
     return pod_yaml, image_name, dest_dir
 
@@ -133,27 +152,31 @@ def delete_files(dest_dir: str) -> None:
 def monitor_pod(pod_name: str, dest_dir: str) -> None:
     w = watch.Watch()
     print(f"watching pod {pod_name}")
-    for event in w.stream(v1.list_namespaced_pod, namespace=NAMESPACE):
-        if isinstance(event, dict):
-            event_type: Union[str, None] = event.get("type")
-            pod: Union[client.V1Pod, None] = event.get("object")
-            if isinstance(pod, client.V1Pod):
-                pod_metadata = pod.metadata
-                pod_status = pod.status
-                if pod_metadata and pod_metadata.name == pod_name:
-                    if event_type == "ADDED":
-                        print(f"Pod {pod_name} added")
-                    if event_type == "DELETED":
-                        print(f"Pod {pod_name} deleted unexpectedly")
-                    if pod_status:
-                        if pod_status.phase in ["Failed", "Succeeded"]:
-                            print(
-                                f"Pod {pod_name} finished with status: {pod_status.phase}, deleting files at {dest_dir}"
-                            )
-                            delete_files(dest_dir)
-                            return
-                        else:
-                            print(f"Pod {pod_name} status: {pod_status.phase}")
+    try:
+        for event in w.stream(v1.list_namespaced_pod, namespace=NAMESPACE):
+            if isinstance(event, dict):
+                event_type: Union[str, None] = event.get("type")
+                pod: Union[client.V1Pod, None] = event.get("object")
+                if isinstance(pod, client.V1Pod):
+                    pod_metadata = pod.metadata
+                    pod_status = pod.status
+                    if pod_metadata and pod_metadata.name == pod_name:
+                        if event_type == "ADDED":
+                            print(f"Pod {pod_name} added")
+                        if event_type == "DELETED":
+                            print(f"Pod {pod_name} deleted unexpectedly")
+                        if pod_status:
+                            if pod_status.phase in ["Failed", "Succeeded"]:
+                                print(
+                                    f"Pod {pod_name} finished with status: {pod_status.phase}, deleting files at {dest_dir}"
+                                )
+                                delete_files(dest_dir)
+                                return
+                            else:
+                                print(f"Pod {pod_name} status: {pod_status.phase}")
+    except ProtocolError as e:
+        # watch client does not handle retry: https://github.com/kubernetes-client/python/issues/1693
+        print(f"urllib3 raised ProtocolError: {e} due to long watch, continuing...")
 
 
 if __name__ == "__main__":

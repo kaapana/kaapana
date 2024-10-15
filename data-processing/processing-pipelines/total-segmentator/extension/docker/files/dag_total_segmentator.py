@@ -505,7 +505,7 @@ put_to_minio = MinioOperator(
     dag=dag,
     action="put",
     minio_prefix="radiomics-totalsegmentator",
-    action_operators=[
+    batch_input_operators=[
         pyradiomics_0,
         pyradiomics_1,
         pyradiomics_2,
@@ -514,8 +514,8 @@ put_to_minio = MinioOperator(
         pyradiomics_5,
         pyradiomics_6,
     ],
-    file_white_tuples=(".json"),
-    trigger_rule="none_failed",
+    whitelisted_file_extensions=(".json",),
+    trigger_rule="none_failed_min_one_success",
 )
 
 clean = LocalWorkflowCleanerOperator(

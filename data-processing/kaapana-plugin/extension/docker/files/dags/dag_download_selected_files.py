@@ -88,17 +88,17 @@ put_to_minio_nifti = MinioOperator(
     dag=dag,
     name="minio-actions-put-nifti",
     action="put",
-    action_operator_dirs=[dcm2nifti.operator_out_dir],
+    batch_input_operators=[dcm2nifti],
     minio_prefix="downloads",
-    file_white_tuples=(".zip", ".nii.gz"),
+    whitelisted_file_extensions=(".zip", ".nii.gz"),
 )
 put_to_minio_dicom = MinioOperator(
     dag=dag,
     name="minio-actions-put-dicom",
     action="put",
-    action_operator_dirs=[get_input.operator_out_dir],
+    batch_input_operators=[get_input],
     minio_prefix="downloads",
-    file_white_tuples=(".zip", ".dcm"),
+    whitelisted_file_extensions=(".zip", ".dcm"),
 )
 clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped"

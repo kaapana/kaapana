@@ -89,9 +89,9 @@ radiomics = RadiomicsOperator(
 put_radiomics_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[radiomics],
+    batch_input_operators=[radiomics],
     minio_prefix="radiomics",
-    file_white_tuples=(".xml", ".json", ".html"),
+    whitelisted_file_extensions=(".xml", ".json", ".html", ".csv"),
 )
 
 clean = LocalWorkflowCleanerOperator(

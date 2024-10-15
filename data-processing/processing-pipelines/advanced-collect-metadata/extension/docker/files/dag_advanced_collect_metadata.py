@@ -126,8 +126,8 @@ merge_branches = LocalMergeBranchesOperator(
 put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[merge_branches],
-    minio_prefix="advanced-collect-metadata",
+    none_batch_input_operators=[merge_branches],
+    minio_prefix="downloads",
     zip_files=True,
 )
 

@@ -55,7 +55,7 @@ concat_metadata = LocalConcatJsonOperator(
 put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[concat_metadata],
+    none_batch_input_operators=[concat_metadata],
     minio_prefix="downloads",
     zip_files=True,
 )

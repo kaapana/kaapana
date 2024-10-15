@@ -4,6 +4,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     KAAPANA_BUILD_VERSION,
 )
 from datetime import timedelta
+from typing import Union
 
 
 class MinioOperator(KaapanaBaseOperator):
@@ -15,40 +16,54 @@ class MinioOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
-        name="get-data-from-minio",
-        action: str = "get",  # 'get', 'remove' or 'put'
+        name="transfer-files-with-minio",
+        action: str = "put",  # 'get', 'remove' or 'put'
         bucket_name: str = None,
         minio_prefix: str = "",
-        action_operators: list = [],
-        action_operator_dirs: list = [],
+        batch_input_operators: list = [],
+        none_batch_input_operators: list = [],
         action_files: list = [],
-        file_white_tuples: tuple = (),
+        whitelisted_file_extensions: Union[tuple, list] = (
+            ".json",
+            ".mat",
+            ".py",
+            ".zip",
+            ".txt",
+            ".gz",
+            ".csv",
+            ".pdf",
+            ".png",
+            ".jpg",
+        ),
         zip_files: bool = False,
         **kwargs,
     ):
         """
-        :param action: Action to execute ('get', 'remove' or 'put')
-        :param bucket_name: Name of the Bucket to interact with, if empty or None defaults to the project bucket of the workflow.
-        :param action_operators: Operator to use the output data from
-        :param action_operator_dirs: (Additional) directory to apply MinIO
-            action on.
-        :param action_files: (Additional) files to apply MinIO action on.
-        :param file_white_tuples: Optional whitelisting for files
-        :param zip_files: If files should be zipped
+        :param action: Action to execute. One of ('get', 'put'). Uppercase is ignored.
+        :param bucket_name: Name of the Bucket to interact with, if empty or None defaults to the bucket of the project, in which dag-run was triggered.
+        :param minio_prefix:
+        :param batch_input_operators: List of operators, that store data in WORKFLOW_DIR/BATCH_NAME/<series-uid>/<operator.operator_out_dir>.
+        :param none_batch_input_operators: List of operators, that store data in WORKFLOW_DIR/<operator.operator_out_dir>.
+        :param action_files: Path to files where action should be applied on. If action=put, path is relative to WORKFLOW_DIR. If action=get path is relative to bucket_name/minio_prefix.
+        :param whitelisted_file_extensions: Apply action only to files with specified file extensions.
+        :param zip_files: If files should be zipped before the upload
         """
-
+        assert action.lower() in ("get", "put")
         env_vars = {}
 
-        input_direcoties = [operator.operator_out_dir for operator in action_operators]
-        input_direcoties.extend(action_operator_dirs)
         envs = {
-            "ACTION": action,
+            "ACTION": action.lower(),
             "BUCKET_NAME": str(bucket_name),
             "MINIO_PREFIX": minio_prefix,
             "TARGET_FILES": ",".join(action_files),
-            "WHITELISTED_FILE_EXTENSIONS": ",".join(file_white_tuples),
+            "WHITELISTED_FILE_EXTENSIONS": ",".join(whitelisted_file_extensions),
             "ZIP_FILES": str(zip_files),
-            "INPUT_DIRECTORIES": ",".join(input_direcoties),
+            "BATCH_INPUT_OPERATORS": ",".join(
+                [op.operator_out_dir for op in batch_input_operators]
+            ),
+            "NONE_BATCH_INPUT_OPERATORS": ",".join(
+                [op.operator_out_dir for op in none_batch_input_operators]
+            ),
         }
 
         env_vars.update(envs)

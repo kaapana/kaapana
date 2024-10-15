@@ -8,12 +8,16 @@ from typing import Any
 
 from kaapanapy.helper import get_minio_client, load_workflow_config
 from kaapanapy.settings import OperatorSettings
+from kaapanapy.logger import get_logger
 from minio import Minio
+
+logger = get_logger(__name__)
 
 
 def get_project_bucket_name():
     """
     Return the name of the project bucket.
+    The project is received form the workflow config.
     """
     project = load_workflow_config().get("project_form")
     project_name = project.get("name")
@@ -21,6 +25,14 @@ def get_project_bucket_name():
 
 
 class MinioOperatorArguments(BaseSettings):
+    """
+    This class parses the arguments given to the MinioOperator from environment variables.
+
+    Comma separeted strings are parsed to list of strings.
+    If the bucket_name is "None" or "" the project bucket is determined.
+    The string zip_files is converted to a boolean.
+    """
+
     action: str
     bucket_name: str = Field("", validation_alias="BUCKET_NAME")
     minio_prefix: str = Field("", validation_alias="MINIO_PREFIX")
@@ -32,8 +44,11 @@ class MinioOperatorArguments(BaseSettings):
         validation_alias=AliasChoices("ACTION_FILES", "TARGET_FILES"),
     )
 
-    input_directories: str = Field(
-        "", validation_alias=AliasChoices("INPUT_DIRECTORIES")
+    batch_input_operators: str = Field(
+        "", validation_alias=AliasChoices("BATCH_INPUT_OPERATORS")
+    )
+    none_batch_input_operators: str = Field(
+        "", validation_alias=AliasChoices("NONE_BATCH_INPUT_OPERATORS")
     )
 
     @field_validator("bucket_name", mode="before")
@@ -46,7 +61,12 @@ class MinioOperatorArguments(BaseSettings):
         else:
             return v
 
-    @field_validator("whitelisted_file_extensions", "target_files", "input_directories")
+    @field_validator(
+        "whitelisted_file_extensions",
+        "target_files",
+        "batch_input_operators",
+        "none_batch_input_operators",
+    )
     @classmethod
     def list_from_commaseparated_string(cls, v: Any):
         if type(v) == str and v == "":
@@ -78,7 +98,6 @@ def download_objects(
     settings = OperatorSettings()
     target_dir = os.path.join(
         settings.workflow_dir,
-        settings.batch_name,
         settings.operator_out_dir,
     )
     os.makedirs(target_dir, exist_ok=True)
@@ -110,84 +129,126 @@ def download_objects(
         )
 
 
-def upload_objects(
-    input_directories,
-    bucket_name,
-    minio_prefix,
-    zip_files,
-    whitelisted_file_extensions,
-    target_files,
+def get_absolute_batch_operator_input_directories(
+    batch_operator_input_directories: list,
 ):
     """
-    - determine all directories, where files should be uploaded from
-    - collect all files that should be uploaded
-    - if zip_files is true, create a zip file of each source file
-    - upload files to minio_prefix relative to bucket_name
+    Return a list of all absolute paths that match WORKFLOW_DIR/BATCH_NAME/<series-uid>/operator_out_dir
+    for each operator_out_dir in <batch_operator_input_directories>.
+
+    :param batch_operator_input_directories: List of directories that are operator_out_dir of an upstream operator.
+    """
+    workflow_batch_directory = Path(
+        os.path.join(OperatorSettings().workflow_dir, OperatorSettings().batch_name)
+    )
+    if not workflow_batch_directory.is_dir():
+        logger.warning(f"{workflow_batch_directory=} does not exist!")
+    absolute_batch_operator_input_directories = []
+    for series_directory in workflow_batch_directory.iterdir():
+        for operator_in_dir in batch_operator_input_directories:
+            batch_operator_directory = series_directory.joinpath(operator_in_dir)
+            if not batch_operator_directory.is_dir():
+                logger.warning(f"{batch_operator_directory=} does not exist!")
+            absolute_batch_operator_input_directories.append(batch_operator_directory)
+    return absolute_batch_operator_input_directories
+
+
+def get_absolute_none_batch_operator_input_directories(
+    none_batch_operator_input_directories: list,
+):
+    """
+    Return a list of all absolute paths that match WORKFLOW_DIR/operator_out_dir
+    for each operator_out_dir in <none_batch_operator_input_directories>.
+
+    :param none_batch_operator_input_directories: List of directories that are operator_out_dir of an upstream operator.
+    """
+    workflow_directory = Path(OperatorSettings().workflow_dir)
+    if not workflow_directory.is_dir():
+        logger.warning(f"{workflow_directory=} does not exist!")
+
+    absolute_operator_input_directories = []
+    for operator_directory in none_batch_operator_input_directories:
+        operator_in_dir = workflow_directory.joinpath(operator_directory)
+        if not operator_in_dir.is_dir():
+            logger.warning(f"{operator_in_dir=} does not exist!")
+        absolute_operator_input_directories.append(operator_in_dir)
+    return absolute_operator_input_directories
+
+
+def upload_objects(
+    bucket_name: str,
+    minio_prefix: str,
+    whitelisted_file_extensions: list,
+    zip_files: bool = True,
+    target_files: list = [],
+    input_directories: list = [],
+):
+    """
+    Upload files to Minio.
+
+    :param input_directories: List of directories, from which files should be uploaded.
+    :param bucket_name: The minio bucket, where the data will be uploaded.
+    :param minio_prefix: A minio prefix relative to the bucket name, under which the data will be uploaded.
+    :param zip_files: Whether the files should be zipped in a single archive before uploading them. Archive paths will be the paths relative to WORKFLOW_DIR.
+    :param whitelisted_file_extensions: Exclusive list of file extensions, of files that will be uploaded.
+    :param target_files: List of file paths relative to WORKFLOW_DIR, that should be uploaded
+
+    - Collect all files that should be uploaded and match any extenstion in white_listed_file_extensions
+    - If zip_files is true, create a archive of all collected files.
+    - Upload either this archive or all collected files to minio_prefix relative to bucket_name
+
+    Raises:
+        * ValueError if no files were found to upload
     """
     settings = OperatorSettings()
-    source_directories = []
-    print("Start upload to MinIO!")
-    print(f"Search for files in {input_directories=}")
-    for directory in input_directories:
-        source_directories.append(os.path.join(settings.workflow_dir, directory))
-
-    print(f"{source_directories=}")
+    logger.info("Start upload to MinIO!")
+    logger.info(f"Search for files in {input_directories=}")
     minio_client: Minio = get_minio_client()
 
-    print("Minio client ready!")
     zip_archive_file_path = Path("/tmp/zipped_files.zip")
     files_to_upload = []
-    for source_directory in source_directories:
-        print(f"glob {source_directory=}")
-        files = [f for f in Path(source_directory).glob("**/*") if not f.is_dir()]
-        print(f"{files=}")
-        files_to_upload.extend(files)
 
+    for source_directory in input_directories:
+        files = [f for f in Path(source_directory).glob("**/*") if not f.is_dir()]
         for file_path in files:
             if Path(file_path).suffix not in whitelisted_file_extensions:
                 continue
-            print(f"Collect {file_path=} for upload!")
-            relative_file_path = Path(file_path).relative_to(
-                Path(
-                    settings.workflow_dir,
-                )
-            )
-            if zip_files:
-                with ZipFile(zip_archive_file_path, "w") as zip_file:
-                    zip_file.write(filename=file_path, arcname=relative_file_path)
-            else:
-                minio_file_path = os.path.join(minio_prefix, relative_file_path)
-                minio_client.fput_object(
-                    bucket_name=bucket_name,
-                    file_path=file_path,
-                    object_name=minio_file_path,
-                )
+            files_to_upload.append(file_path)
+            logger.info(f"Collect {file_path=} for upload!")
 
-    if target_files:
-        print(f"{target_files=}")
-        for file_path in target_files:
-            if Path(file_path).suffix not in whitelisted_file_extensions:
-                continue
-            relative_file_path = Path(file_path).relative_to(
-                Path(
-                    settings.workflow_dir,
-                )
-            )
-            if zip_files:
-                with ZipFile(zip_archive_file_path, "w") as zip_file:
-                    zip_file.write(file_name=file_path, arcname=relative_file_path)
-            else:
-                minio_file_path = os.path.join(minio_prefix, relative_file_path)
-                minio_client.fput_object(
-                    bucket_name=bucket_name,
-                    file_path=file_path,
-                    object_name=minio_file_path,
-                )
+    for file_path in target_files:
+        if Path(file_path).suffix not in whitelisted_file_extensions:
+            continue
+        logger.info(f"Collect {file_path=} for upload!")
 
-    if zip_files:
+    if len(files_to_upload) == 0:
+        logger.error("No files were collected for upload.")
+        logger.error("Upstream tasks may file.")
+        raise ValueError(f"No files were found for upload")
+
+    for file_path in files_to_upload:
+        relative_file_path = Path(file_path).relative_to(
+            Path(
+                settings.workflow_dir,
+            )
+        )
+        if zip_files:
+            with ZipFile(zip_archive_file_path, "w") as zip_file:
+                zip_file.write(filename=file_path, arcname=relative_file_path)
+        else:
+            minio_file_path = os.path.join(minio_prefix, relative_file_path)
+            minio_client.fput_object(
+                bucket_name=bucket_name,
+                file_path=file_path,
+                object_name=minio_file_path,
+            )
+
+    if zip_files and len(files_to_upload) > 0:
+        logger.info("Compress files into zip archive before uploading")
         timestamp = (datetime.datetime.now()).strftime("%y-%m-%d-%H:%M:%S%f")
         run_id = OperatorSettings().run_id
-        minio_path = f"{minio_prefix}/{run_id}_{timestamp}.zip"
+        minio_path = f"{bucket_name}/{minio_prefix}/{run_id}_{timestamp}.zip"
+        logger.info(f"Upload archive to {minio_path=}.")
         minio_client.fput_object(
             bucket_name=bucket_name,
             file_path=zip_archive_file_path,
@@ -213,7 +274,16 @@ if __name__ == "__main__":
     target_files = (
         workflow_config.get("target_files") or operator_arguments.target_files
     )
-    input_directories = operator_arguments.input_directories
+    batch_input_operator_directories = operator_arguments.batch_input_operators
+    none_batch_input_operator_directories = (
+        operator_arguments.none_batch_input_operators
+    )
+
+    input_directories = get_absolute_batch_operator_input_directories(
+        batch_operator_input_directories=batch_input_operator_directories
+    ) + get_absolute_none_batch_operator_input_directories(
+        none_batch_operator_input_directories=none_batch_input_operator_directories
+    )
 
     if action == "put":
         upload_objects(

@@ -1,5 +1,4 @@
 dag_id: "total-segmentator"
-ci_ignore: true
 conf_data:
   workflow_form:
     task: "total"
@@ -27,7 +26,6 @@ remote: false
 username: "kaapana"
 ---
 dag_id: "total-segmentator"
-ci_ignore: true
 conf_data:
   workflow_form:
     task: "total"

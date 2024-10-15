@@ -140,6 +140,16 @@ spec:
           value: postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
         - name: SQLALCHEMY_SILENCE_UBER_WARNING
           value: "1"
+        - name: SMTP_HOST
+          value: "{{ .Values.global.smtp_host }}"
+        - name: SMTP_PORT
+          value: "{{ .Values.global.smtp_port }}"
+        - name: EMAIL_ADDRESS_SENDER
+          value: "{{ .Values.global.email_address_sender }}"
+        - name: SMTP_USERNAME
+          value: "{{ .Values.global.smtp_username }}"
+        - name: SMTP_PASSWORD
+          value: "{{ .Values.global.smtp_password }}"
         - name: OIDC_CLIENT_SECRET
           value: "{{ .Values.global.oidc_client_secret }}"
         - name: SYSTEM_USER_PASSWORD

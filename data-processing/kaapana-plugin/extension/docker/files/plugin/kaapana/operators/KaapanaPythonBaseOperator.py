@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from airflow.operators.python import PythonOperator
 from airflow.models.skipmixin import SkipMixin
+from kaapana.operators import HelperSendEmailService
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
@@ -80,6 +81,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             execution_timeout=execution_timeout,
             executor_config=self.executor_config,
             on_success_callback=KaapanaBaseOperator.on_success,
+            on_failure_callback=KaapanaPythonBaseOperator.on_failure,
             pool=self.pool,
             pool_slots=self.pool_slots,
             **kwargs
@@ -87,3 +89,11 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
 
     def post_execute(self, context, result=None):
         pass
+
+    @staticmethod
+    def on_failure(context):
+        send_email_on_workflow_failure = context["dag_run"].dag.default_args.get(
+            "send_email_on_workflow_failure", False
+        )
+        if send_email_on_workflow_failure:
+            HelperSendEmailService.handle_task_failure_alert(context)

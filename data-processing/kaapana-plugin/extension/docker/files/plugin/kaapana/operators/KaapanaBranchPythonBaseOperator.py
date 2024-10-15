@@ -6,6 +6,7 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.operators.python import BranchPythonOperator
 from airflow.utils.decorators import apply_defaults
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class KaapanaBranchPythonBaseOperator(BranchPythonOperator, SkipMixin):
@@ -90,6 +91,7 @@ class KaapanaBranchPythonBaseOperator(BranchPythonOperator, SkipMixin):
             execution_timeout=execution_timeout,
             executor_config=self.executor_config,
             on_success_callback=KaapanaBaseOperator.on_success,
+            on_failure_callback=KaapanaPythonBaseOperator.on_failure,
             pool=self.pool,
             pool_slots=self.pool_slots,
             **kwargs

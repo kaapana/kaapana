@@ -428,13 +428,20 @@ export default {
           }
           // find req_prop_name in form_name and check if valid
           if (this.formData[form_name].hasOwnProperty(req_prop_name)) {
-            if (this.formData[form_name][req_prop_name]) {
-              // valid value --> set indicator to true
-              valid_check.push(true);
-            } else {
+            const fieldValue = this.formData[form_name][req_prop_name];
+            
+            // Validate arrays - check if array has at least one non-empty element
+            // Validate all others, excluding null and "", but allowing 0 or false
+            const isValid = Array.isArray(fieldValue)
+              ? fieldValue.length > 0 && fieldValue.some(val => val && val.trim() !== "")
+              : fieldValue !== null && fieldValue !== undefined && fieldValue !== "";
+
+              if (isValid) {
+                valid_check.push(true);
+              } else {
               // inalid value --> set indicator to false
-              valid_check.push(false);
-              invalid_fields.push(req_prop_name);
+                valid_check.push(false);
+                invalid_fields.push(req_prop_name);
             }
           } else {
             valid_check.push(false);

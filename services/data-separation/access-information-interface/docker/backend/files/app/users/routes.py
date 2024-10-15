@@ -5,7 +5,7 @@ from app.database import get_session
 from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.schemas import AiiProjectResponse, KeycloakUser
 from app.users import crud
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
@@ -27,6 +27,21 @@ async def get_users(kc_client: KeycloakHelper = Depends(get_keycloak_helper)):
         users.append(user)
 
     return users
+
+
+@router.get("/current", response_model=KeycloakUser, tags=["Users"])
+async def get_current_user(
+    request: Request,
+    kc_client: KeycloakHelper = Depends(get_keycloak_helper),
+):
+    """Get the Current User using the 'x-forwarded-user' parameter in Header"""
+
+    headers = request.headers
+    user_id = headers["x-forwarded-user"]
+    if not user_id:
+        raise HTTPException(status_code=400, detail="User ID not provided")
+
+    return await get_keycloak_user_by_id(user_id, kc_client)
 
 
 @router.get("/username/{username}", response_model=KeycloakUser, tags=["Users"])

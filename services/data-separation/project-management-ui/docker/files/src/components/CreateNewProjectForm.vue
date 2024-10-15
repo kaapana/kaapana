@@ -11,7 +11,7 @@
                 <v-row><v-text-field v-model="external_id" label="External ID"></v-text-field></v-row>
             </v-container>
         </v-card-text>
-        <v-card-action>
+        <v-card-actions>
             <v-container>
                 <v-row>
                     <v-col cols="6">
@@ -24,7 +24,7 @@
                     </v-col>
                 </v-row>
             </v-container>
-        </v-card-action>
+        </v-card-actions>
     </v-card>
 </template>
 

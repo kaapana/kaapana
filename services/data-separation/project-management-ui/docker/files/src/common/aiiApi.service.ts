@@ -6,16 +6,22 @@ const client = axios.create({
     baseURL: ACCESS_INFORMATION_BACKEND,
 });
 
-const token = '';
+const token = "";
+
+function header_with_auth_token(header_dict: any) {
+    if (token) {
+        header_dict['Authorization'] = `Bearer ${token}`;
+    }
+    return header_dict
+}
+
 
 const aiiApiGet = async function (suburl: string) {
     try {
         const response: AxiosResponse = await client.get(
             suburl,
             {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                }
+                headers: header_with_auth_token({})
             }
         );
         if (response.status === 200) {
@@ -31,10 +37,9 @@ const aiiApiGet = async function (suburl: string) {
 
 const aiiApiPost = async function (suburl: string, data: Object) {
     const config: AxiosRequestConfig = {
-        headers: {
+        headers: header_with_auth_token({
         'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        } as RawAxiosRequestHeaders,
+        }) as RawAxiosRequestHeaders,
     };
 
     try {

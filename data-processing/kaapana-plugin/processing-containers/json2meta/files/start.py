@@ -9,6 +9,7 @@ import requests
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings
+from kaapanapy.settings import OpensearchSettings
 
 logger = get_logger(__name__, level="INFO")
 
@@ -89,6 +90,7 @@ class Json2MetaOperator:
                 self.workflow_config = json.load(f)
 
         self.project_id = self.workflow_config.get("project_form", {}).get("id", None)
+        self.opensearch_settings = OpensearchSettings()
 
     def push_to_project_index(self, json_dict: dict):
         """Pushes JSON data to the project index
@@ -133,10 +135,12 @@ class Json2MetaOperator:
             logger.error("No ID found! - exit")
             exit(1)
 
-        json_dict = self.produce_inserts(json_dict, HelperOpensearch.default_index)
+        json_dict = self.produce_inserts(
+            json_dict, self.opensearch_settings.default_index
+        )
         try:
             _ = HelperOpensearch.os_client.index(
-                index=HelperOpensearch.default_index,
+                index=self.opensearch_settings.default_index,
                 body=json_dict,
                 id=id,
                 refresh=True,

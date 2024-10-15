@@ -136,7 +136,10 @@ class Json2MetaOperator:
         json_dict = self.produce_inserts(json_dict, HelperOpensearch.index)
         try:
             _ = HelperOpensearch.os_client.index(
-                index=HelperOpensearch.index, body=json_dict, id=id, refresh=True
+                index=HelperOpensearch.default_index,
+                body=json_dict,
+                id=id,
+                refresh=True,
             )
         except Exception as e:
             logger.error("Error while pushing JSON ...")

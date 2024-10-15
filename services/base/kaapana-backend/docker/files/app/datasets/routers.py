@@ -1,3 +1,5 @@
+import base64
+
 from app.datasets import utils
 from app.dependencies import get_opensearch, get_project_index
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -184,8 +186,20 @@ async def get_data(
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
 
-        path = f"batch/{series_instance_uid}/generate-segmentation-thumbnail/{series_instance_uid}.png"
-        thumbnail_src = f"/thumbnails/{path}"
+        # bucket name
+        bucket = "thumbnails"
+
+        # prefix. Basically the path to the file in the bucket
+        prefix = f"batch/{series_instance_uid}/generate-segmentation-thumbnail/{series_instance_uid}.png"
+
+        # base64 encode path
+        prefix_base64 = base64.b64encode(prefix.encode()).decode()
+
+        thumbnail_src = (
+            f"/minio-console/api/v1/buckets/{bucket}/objects/download?preview=true"
+            f"&prefix={prefix_base64}"
+            f"&version_id=null"
+        )
     else:
         thumbnail_src = (
             f"/dicom-web-filter/studies/{metadata['Study Instance UID']}/"

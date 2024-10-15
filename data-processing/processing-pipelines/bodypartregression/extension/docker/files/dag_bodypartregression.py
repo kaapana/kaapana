@@ -4,7 +4,7 @@ from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
+from kaapana.operators.Json2MetaOperator import Json2MetaOperator
 
 from bodypartregression.BprOperator import BprOperator
 
@@ -49,7 +49,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=True)
+get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=False)
 
 dcm2nifti = DcmConverterOperator(
     dag=dag, input_operator=get_input, output_format="nii.gz"
@@ -57,7 +57,7 @@ dcm2nifti = DcmConverterOperator(
 
 bodypartregression = BprOperator(dag=dag, stringify_json=True, input_operator=dcm2nifti)
 
-push_json = LocalJson2MetaOperator(
+push_json = Json2MetaOperator(
     dag=dag, dicom_operator=get_input, json_operator=bodypartregression
 )
 

@@ -7,7 +7,7 @@ from external_pacs.LocalExternalPacsOperator import LocalExternalPacsOperator
 from external_pacs.LocalExternalThumbnailOperator import LocalExternalThumbnailOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
+from kaapana.operators.Json2MetaOperator import Json2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -77,7 +77,7 @@ extract_metadata = LocalDcm2JsonOperator(
 )
 add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
 
-push_json = LocalJson2MetaOperator(
+push_json = Json2MetaOperator(
     dag=dag, input_operator=init_operator, json_operator=extract_metadata
 )
 external_thumbnail = LocalExternalThumbnailOperator(

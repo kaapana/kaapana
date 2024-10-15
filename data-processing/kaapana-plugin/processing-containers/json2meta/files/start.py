@@ -27,6 +27,7 @@ class Json2MetaOperator:
     **Inputs:**
 
     * JSON data that should be pushed to OpenSearch
+    * DICOM data that is used to get the OpenSearch document ID
 
     **Outputs:**
 

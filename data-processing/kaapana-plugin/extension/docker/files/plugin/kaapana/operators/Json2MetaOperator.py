@@ -14,6 +14,24 @@ SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
 class Json2MetaOperator(KaapanaBaseOperator):
+    """
+    This operater pushes JSON data to OpenSearch.
+
+    Pushes JSON data to the specified OpenSearch instance.
+    If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
+    If the operator fails, some or no data is pushed to OpenSearch.
+    Further information about OpenSearch can be found here: https://opensearch.org/docs/latest/
+
+    **Inputs:**
+
+    * JSON data that should be pushed to OpenSearch
+    * DICOM data that is used to get the OpenSearch document ID
+
+    **Outputs:**
+
+    * If successful, the given JSON data is included in OpenSearch
+
+    """
 
     def __init__(
         self,

@@ -133,7 +133,7 @@ class Json2MetaOperator:
             logger.error("No ID found! - exit")
             exit(1)
 
-        json_dict = self.produce_inserts(json_dict, HelperOpensearch.index)
+        json_dict = self.produce_inserts(json_dict, HelperOpensearch.default_index)
         try:
             _ = HelperOpensearch.os_client.index(
                 index=HelperOpensearch.default_index,

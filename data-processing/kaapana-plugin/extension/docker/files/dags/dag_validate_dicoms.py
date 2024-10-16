@@ -4,10 +4,10 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )
-from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,

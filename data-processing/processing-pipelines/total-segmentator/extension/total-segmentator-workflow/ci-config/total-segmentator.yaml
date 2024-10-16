@@ -1,6 +1,7 @@
 dag_id: "total-segmentator"
 conf_data:
   workflow_form:
+    input: "CT"
     task: "total"
     single_execution: true
     nr_thr_saving: 6
@@ -28,6 +29,7 @@ username: "kaapana"
 dag_id: "total-segmentator"
 conf_data:
   workflow_form:
+    input: "CT"
     task: "total"
     single_execution: true
     nr_thr_saving: 6

@@ -1,4 +1,4 @@
-dag_id: "total-segmentator"
+dag_id: "advanced-collect-metadata"
 conf_data:
   workflow_form:
     single_execution: true

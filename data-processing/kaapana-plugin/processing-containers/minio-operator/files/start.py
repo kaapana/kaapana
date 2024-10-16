@@ -38,10 +38,10 @@ class MinioOperatorArguments(BaseSettings):
     minio_prefix: str = Field("", validation_alias="MINIO_PREFIX")
     zip_files: bool = Field(True)
     whitelisted_file_extensions: str = Field("")
-    target_files: str = Field(
+    source_files: str = Field(
         "",
         description="Explicit path to files on that action should be applied. The path is relative to minio_prefix and bucket_name",
-        validation_alias=AliasChoices("ACTION_FILES", "TARGET_FILES"),
+        validation_alias=AliasChoices("SOURCE_FILES"),
     )
 
     batch_input_operators: str = Field(
@@ -63,7 +63,7 @@ class MinioOperatorArguments(BaseSettings):
 
     @field_validator(
         "whitelisted_file_extensions",
-        "target_files",
+        "source_files",
         "batch_input_operators",
         "none_batch_input_operators",
     )
@@ -87,45 +87,54 @@ class MinioOperatorArguments(BaseSettings):
             raise ValueError(f"zip_files must be one of ['True','False'] not v")
 
 
+def file_is_whitelisted(path: Path, whitelisted_file_extensions: list[str]):
+    """
+    Check if the file extension of the file at path are part of whitelisted_file_extensions.
+    The file extension are all point separated parts of the filename but the first separated by points.
+    i.e.
+    path = Path("/test/hello.world/klar.ii.gz.kl")
+    file_extension = "ii.gz.kl"
+    """
+    file_extension = "".join(path.suffixes)
+    return file_extension in whitelisted_file_extensions
+
+
 def download_objects(
-    bucket_name, minio_prefix, whitelisted_file_extensions, target_files=None
+    bucket_name: str,
+    minio_prefix: str,
+    source_files: list,
 ):
     """
-    - determine target directory
-    - List all objects in bucket relative to subpath
-    - Download files from minio_path for target directory
+    Download all files in source_files from bucket_name.
+    Paths in source_files must be relative to bucket_name/minio_prefix.
+    Files are downloaded into WORKFLOW_DIR/<operator_out_dir>/file_path for each file_path in source_files.
+
+    - Initialize minio client
+    - Create target_directory WORKFLOW_DIR/<operator_out_dir>/
+    - Download all objects from minio into WORKFLOW_DIR/<operator_out_dir>/
+
+    :params bucket_name:
+    :params minio_prefix:
+    :params source_files:
+
+    **Raises:**
+    * AssertionError: If source_files is empty
     """
+    assert len(source_files) > 0, f"source_files must be non-empty list, if action=get"
+
     settings = OperatorSettings()
     target_dir = os.path.join(
         settings.workflow_dir,
         settings.operator_out_dir,
     )
     os.makedirs(target_dir, exist_ok=True)
-
     minio_client: Minio = get_minio_client()
 
-    objects_available_in_minio = minio_client.list_objects(
-        bucket_name=bucket_name, prefix=minio_prefix, recursive=True
-    )
-
-    objects_to_download = []
-    if target_files:
-        available_object_paths = [
-            object.object_name for object in objects_available_in_minio
-        ]
-        for file_path in target_files:
-            assert (
-                file_path in available_object_paths
-            ), f"{file_path=} from {target_files=} not found in {objects_available_in_minio=}"
-
-    for object in objects_to_download:
-        if object.is_dir:
-            continue
-        if Path(object.object_name).suffix not in whitelisted_file_extensions:
-            continue
-        target_path = os.path.join(target_dir, object.object_name)
+    for file_path in source_files:
+        target_path = os.path.join(target_dir, file_path)
+        object_path = os.path.join(minio_prefix, file_path)
         minio_client.fget_object(
-            object.bucket_name, object_name=object.object_name, file_path=target_path
+            bucket_name, object_name=object_path, file_path=target_path
         )
 
 
@@ -180,18 +189,23 @@ def upload_objects(
     minio_prefix: str,
     whitelisted_file_extensions: list,
     zip_files: bool = True,
-    target_files: list = [],
+    source_files: list = [],
     input_directories: list = [],
 ):
     """
     Upload files to Minio.
+    - Initialize minio client
+    - Collect files from input_directories that match with whitelisted_file_extensions
+    - Collect files from source_files that match whitelisted_file_extensions
+    - If not zip_files: Upload all files to MinIO
+    - If zip_files: Create archive from all collected files and upload archive to MinIo.
 
     :param input_directories: List of directories, from which files should be uploaded.
     :param bucket_name: The minio bucket, where the data will be uploaded.
     :param minio_prefix: A minio prefix relative to the bucket name, under which the data will be uploaded.
     :param zip_files: Whether the files should be zipped in a single archive before uploading them. Archive paths will be the paths relative to WORKFLOW_DIR.
     :param whitelisted_file_extensions: Exclusive list of file extensions, of files that will be uploaded.
-    :param target_files: List of file paths relative to WORKFLOW_DIR, that should be uploaded
+    :param source_files: List of file paths relative to WORKFLOW_DIR, that should be uploaded
 
     - Collect all files that should be uploaded and match any extenstion in white_listed_file_extensions
     - If zip_files is true, create a archive of all collected files.
@@ -211,19 +225,20 @@ def upload_objects(
     for source_directory in input_directories:
         files = [f for f in Path(source_directory).glob("**/*") if not f.is_dir()]
         for file_path in files:
-            if Path(file_path).suffix not in whitelisted_file_extensions:
+            if not file_is_whitelisted(
+                Path(file_path).suffix, whitelisted_file_extensions
+            ):
                 continue
             files_to_upload.append(file_path)
             logger.info(f"Collect {file_path=} for upload!")
 
-    for file_path in target_files:
-        if Path(file_path).suffix not in whitelisted_file_extensions:
+    for file_path in source_files:
+        if not file_is_whitelisted(Path(file_path).suffix, whitelisted_file_extensions):
             continue
         logger.info(f"Collect {file_path=} for upload!")
 
     if len(files_to_upload) == 0:
         logger.error("No files were collected for upload.")
-        logger.error("Upstream tasks may file.")
         raise ValueError(f"No files were found for upload")
 
     for file_path in files_to_upload:
@@ -260,7 +275,7 @@ if __name__ == "__main__":
     operator_arguments = MinioOperatorArguments()
     workflow_config = load_workflow_config()
 
-    # Arguments provides via workflow config are prioritized
+    # Arguments provided via workflow config are prioritized
     action = operator_arguments.action
     zip_files = workflow_config.get("zip_files") or operator_arguments.zip_files
     bucket_name = workflow_config.get("bucket_name") or operator_arguments.bucket_name
@@ -271,8 +286,8 @@ if __name__ == "__main__":
         workflow_config.get("whitelisted_file_extensions")
         or operator_arguments.whitelisted_file_extensions
     )
-    target_files = (
-        workflow_config.get("target_files") or operator_arguments.target_files
+    source_files = (
+        workflow_config.get("action_files") or operator_arguments.source_files
     )
     batch_input_operator_directories = operator_arguments.batch_input_operators
     none_batch_input_operator_directories = (
@@ -292,12 +307,11 @@ if __name__ == "__main__":
             minio_prefix=minio_prefix,
             zip_files=zip_files,
             whitelisted_file_extensions=whitelisted_file_extensions,
-            target_files=target_files,
+            source_files=source_files,
         )
     elif action == "get":
         download_objects(
             bucket_name=bucket_name,
             minio_prefix=minio_prefix,
-            whitelisted_file_extensions=whitelisted_file_extensions,
-            target_files=target_files,
+            source_files=source_files,
         )

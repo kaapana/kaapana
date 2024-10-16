@@ -1,0 +1,13 @@
+[
+    {
+        "search_tags": {},
+        "dag_ids": {
+            "service-validate-dicoms": {
+                "fetch_method": "copy",
+                "depends_on": "service-extract-metadata",
+                "get_settings_from_api": true,
+                "delay": 10
+            }
+        }
+    }
+]

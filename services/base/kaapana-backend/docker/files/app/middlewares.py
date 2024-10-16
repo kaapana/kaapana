@@ -166,7 +166,7 @@ class SanitizeQueryParams(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # X-Frame-Options
-        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
 
         # Referrer-Policy
         response.headers["Referrer-Policy"] = "no-referrer"

@@ -10,7 +10,7 @@
                         required></v-text-field></v-row>
                 <!-- <v-row><v-text-field v-model="userId" label="User ID"></v-text-field></v-row> -->
                 <v-row>
-                    <v-select v-model="userId" label="User" :items="users" item-title="username" item-value="id"/>
+                    <v-select v-model="userId" label="User" :disabled="actionType == 'update'" :items="users" item-title="username" item-value="id"/>
                 </v-row>
                 <v-row>
                     <v-select v-model="roleName" label="User Role" :items="roles" item-title="name" placeholder="Select a Role"/>
@@ -26,7 +26,7 @@
                     </v-col>
                     <v-col cols="6">
                         <v-btn :disabled="!valid" color="success" size="large" variant="elevated" block
-                            @click="submit">Submit</v-btn>
+                            @click="submit">{{ actionType == 'update' ? 'Update' : 'Create' }}</v-btn>
                     </v-col>
                 </v-row>
             </v-container>
@@ -36,9 +36,10 @@
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue';
-import { aiiApiPost, aiiApiGet } from '@/common/aiiApi.service';
+import { aiiApiPost, aiiApiGet, aiiApiPut } from '@/common/aiiApi.service';
 import { UserRole, UserItem } from '@/common/types';
 import store from '@/common/store';
+import { PropType } from 'vue';
 // import {AxiosError} from axios;
 
 
@@ -47,6 +48,13 @@ const props = defineProps({
     projectName: {
         type: String,
         required: true,
+    },
+    actionType: {
+        type: String,
+        default: 'add',
+    },
+    selectedUser: {
+        type: Object as PropType<UserItem>,
     },
     currentUserIds: {
         type: Array<string>,
@@ -71,8 +79,16 @@ const valid = computed(() => {
 })
 
 onMounted(async () => {
+    if (props.selectedUser) {
+        userId.value = props.selectedUser.id;
+    }
     fetchAllRoles();
-    fetchAllUsers();
+
+    if (props.actionType !== 'update') {
+        fetchAllUsers();
+    } else if(props.selectedUser){
+        users.value = [props.selectedUser]
+    }
 })
 
 const fetchAllRoles = async () => {
@@ -98,8 +114,6 @@ const fetchAllUsers = async () => {
         filterUsers = [...filterUsers, ...props.currentUserIds]
     }
 
-    console.log(filterUsers);
-
     try {
         const fetchedUsers: UserItem[] = await aiiApiGet(`users`);
         fetching.value = false;
@@ -119,6 +133,18 @@ const submit = async () => {
     }
     fetching.value = true;
 
+    if (props.actionType == 'update') {
+        updateNewUserProjectMap(data);
+    } else {
+        addNewUserProjectMap(data);
+    }
+}
+
+const cancel = () => {
+    props.oncancel?.();
+}
+
+const addNewUserProjectMap = async(data: any) => {
     try {
         await aiiApiPost(`projects/${data['project_name']}/role/${data['role_name']}/user/${data['user_id']}`, {});
         fetching.value = false;
@@ -129,8 +155,19 @@ const submit = async () => {
     }
 }
 
-const cancel = () => {
-    props.oncancel?.();
+const updateNewUserProjectMap = async(data: any) => {
+    const params = {
+        "role_name": data['role_name'],
+    }
+
+    try {
+        await aiiApiPut(`projects/${data['project_name']}/user/${data['user_id']}/rolemapping`, params);
+        fetching.value = false;
+        props.onsuccess?.();
+    } catch (error: unknown) {
+        fetching.value = false;
+        props.onsuccess?.(false);       
+    }
 }
 
 </script>

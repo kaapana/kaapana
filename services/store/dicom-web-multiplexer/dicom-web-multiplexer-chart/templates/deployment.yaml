@@ -20,10 +20,20 @@ spec:
           image: "{{ .Values.global.registry_url }}/dicom-web-multiplexer:{{ .Values.global.kaapana_build_version }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
+            - name: PROXY
+              value: "{{ .Values.global.http_proxy }}"
+            - name: http_proxy
+              value: {{ .Values.global.http_proxy }}
+            - name: https_proxy
+              value: {{ .Values.global.http_proxy }}
+            - name: no_proxy
+              value: ".svc,.svc.cluster,.svc.cluster.local"
             - name: OPENSEARCH_HOST
               value: "opensearch-service.{{ .Values.global.services_namespace }}.svc"
             - name: OPENSEARCH_PORT
               value: "9200"
+            - name: DATABASE_URL
+              value: postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432              
             - name: KAAPANA_CLIENT_SECRET
               value: "{{ .Values.global.oidc_client_secret }}"
             - name: KAAPANA_PROJECT_USER_NAME
@@ -64,3 +74,4 @@ spec:
           persistentVolumeClaim:
             claimName: dicom-web-multiplexer-dev-pv-claim
         {{- end }}
+      serviceAccountName: kaapana-kube-admin

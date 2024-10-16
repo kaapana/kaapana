@@ -1,9 +1,12 @@
 import os
 import glob
 import json
-import datetime
+import datetime, pytz
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.settings import KaapanaSettings
+
+timezone = KaapanaSettings().timezone
 
 
 class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
@@ -26,7 +29,9 @@ class LocalConcatJsonOperator(KaapanaPythonBaseOperator):
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_dirs = [f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))]
-        timestamp = datetime.datetime.utcnow()
+        timestamp = datetime.datetime.now(pytz.timezone(timezone)).strftime(
+            "%y-%m-%d-%H:%M:%S%f"
+        )
         json_output_path = os.path.join(
             run_dir, self.operator_out_dir, "{}-{}.json".format(timestamp, self.name)
         )

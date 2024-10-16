@@ -1,4 +1,4 @@
-import datetime
+import datetime, pytz
 import os
 from pydantic_settings import BaseSettings
 from pydantic import Field, AliasChoices, field_validator
@@ -7,11 +7,15 @@ from pathlib import Path
 from typing import Any
 
 from kaapanapy.helper import get_minio_client, load_workflow_config
-from kaapanapy.settings import OperatorSettings
+from kaapanapy.settings import OperatorSettings, KaapanaSettings
 from kaapanapy.logger import get_logger
 from minio import Minio
 
 logger = get_logger(__name__)
+
+TIMEZONE = KaapanaSettings().timezone
+WORKFLOW_CONFIG = load_workflow_config()
+OPERATOR_SETTINGS = OperatorSettings()
 
 
 def get_project_bucket_name():
@@ -19,7 +23,7 @@ def get_project_bucket_name():
     Return the name of the project bucket.
     The project is received form the workflow config.
     """
-    project = load_workflow_config().get("project_form")
+    project = WORKFLOW_CONFIG.get("project_form")
     project_name = project.get("name")
     return f"project-{project_name}"
 
@@ -90,13 +94,18 @@ class MinioOperatorArguments(BaseSettings):
 def file_is_whitelisted(path: Path, whitelisted_file_extensions: list[str]):
     """
     Check if the file extension of the file at path are part of whitelisted_file_extensions.
-    The file extension are all point separated parts of the filename but the first separated by points.
-    i.e.
-    path = Path("/test/hello.world/klar.ii.gz.kl")
-    file_extension = "ii.gz.kl"
     """
-    file_extension = "".join(path.suffixes)
-    return file_extension in whitelisted_file_extensions
+    if type(path) is str:
+        path = Path(path)
+
+    for extension in whitelisted_file_extensions:
+        num_extensions = extension.count(".")
+
+        ### Take whitelisted_file_extensions like .nii.gz into account
+        if "".join(path.suffixes[-num_extensions:]):
+            return True
+
+    return False
 
 
 def download_objects(
@@ -122,10 +131,9 @@ def download_objects(
     """
     assert len(source_files) > 0, f"source_files must be non-empty list, if action=get"
 
-    settings = OperatorSettings()
     target_dir = os.path.join(
-        settings.workflow_dir,
-        settings.operator_out_dir,
+        OPERATOR_SETTINGS.workflow_dir,
+        OPERATOR_SETTINGS.operator_out_dir,
     )
     os.makedirs(target_dir, exist_ok=True)
     minio_client: Minio = get_minio_client()
@@ -148,7 +156,7 @@ def get_absolute_batch_operator_input_directories(
     :param batch_operator_input_directories: List of directories that are operator_out_dir of an upstream operator.
     """
     workflow_batch_directory = Path(
-        os.path.join(OperatorSettings().workflow_dir, OperatorSettings().batch_name)
+        os.path.join(OPERATOR_SETTINGS.workflow_dir, OPERATOR_SETTINGS.batch_name)
     )
     if not workflow_batch_directory.is_dir():
         logger.warning(f"{workflow_batch_directory=} does not exist!")
@@ -171,7 +179,7 @@ def get_absolute_none_batch_operator_input_directories(
 
     :param none_batch_operator_input_directories: List of directories that are operator_out_dir of an upstream operator.
     """
-    workflow_directory = Path(OperatorSettings().workflow_dir)
+    workflow_directory = Path(OPERATOR_SETTINGS.workflow_dir)
     if not workflow_directory.is_dir():
         logger.warning(f"{workflow_directory=} does not exist!")
 
@@ -214,7 +222,6 @@ def upload_objects(
     Raises:
         * ValueError if no files were found to upload
     """
-    settings = OperatorSettings()
     logger.info("Start upload to MinIO!")
     logger.info(f"Search for files in {input_directories=}")
     minio_client: Minio = get_minio_client()
@@ -225,15 +232,13 @@ def upload_objects(
     for source_directory in input_directories:
         files = [f for f in Path(source_directory).glob("**/*") if not f.is_dir()]
         for file_path in files:
-            if not file_is_whitelisted(
-                Path(file_path).suffix, whitelisted_file_extensions
-            ):
+            if not file_is_whitelisted(Path(file_path), whitelisted_file_extensions):
                 continue
             files_to_upload.append(file_path)
             logger.info(f"Collect {file_path=} for upload!")
 
     for file_path in source_files:
-        if not file_is_whitelisted(Path(file_path).suffix, whitelisted_file_extensions):
+        if not file_is_whitelisted(Path(file_path), whitelisted_file_extensions):
             continue
         logger.info(f"Collect {file_path=} for upload!")
 
@@ -244,7 +249,7 @@ def upload_objects(
     for file_path in files_to_upload:
         relative_file_path = Path(file_path).relative_to(
             Path(
-                settings.workflow_dir,
+                OPERATOR_SETTINGS.workflow_dir,
             )
         )
         if zip_files:
@@ -260,9 +265,12 @@ def upload_objects(
 
     if zip_files and len(files_to_upload) > 0:
         logger.info("Compress files into zip archive before uploading")
-        timestamp = (datetime.datetime.now()).strftime("%y-%m-%d-%H:%M:%S%f")
-        run_id = OperatorSettings().run_id
-        minio_path = f"{bucket_name}/{minio_prefix}/{run_id}_{timestamp}.zip"
+        timestamp = datetime.datetime.now(pytz.timezone(TIMEZONE)).strftime(
+            "%y-%m-%d-%H:%M:%S%f"
+        )
+        run_id = OPERATOR_SETTINGS.run_id
+        archive_name = f"{run_id}_{timestamp}.zip"
+        minio_path = os.path.join(minio_prefix, archive_name)
         logger.info(f"Upload archive to {minio_path=}.")
         minio_client.fput_object(
             bucket_name=bucket_name,
@@ -273,21 +281,20 @@ def upload_objects(
 
 if __name__ == "__main__":
     operator_arguments = MinioOperatorArguments()
-    workflow_config = load_workflow_config()
 
     # Arguments provided via workflow config are prioritized
     action = operator_arguments.action
-    zip_files = workflow_config.get("zip_files") or operator_arguments.zip_files
-    bucket_name = workflow_config.get("bucket_name") or operator_arguments.bucket_name
+    zip_files = WORKFLOW_CONFIG.get("zip_files") or operator_arguments.zip_files
+    bucket_name = WORKFLOW_CONFIG.get("bucket_name") or operator_arguments.bucket_name
     minio_prefix = (
-        workflow_config.get("minio_prefix") or operator_arguments.minio_prefix
+        WORKFLOW_CONFIG.get("minio_prefix") or operator_arguments.minio_prefix
     )
     whitelisted_file_extensions = (
-        workflow_config.get("whitelisted_file_extensions")
+        WORKFLOW_CONFIG.get("whitelisted_file_extensions")
         or operator_arguments.whitelisted_file_extensions
     )
     source_files = (
-        workflow_config.get("action_files") or operator_arguments.source_files
+        WORKFLOW_CONFIG.get("action_files") or operator_arguments.source_files
     )
     batch_input_operator_directories = operator_arguments.batch_input_operators
     none_batch_input_operator_directories = (

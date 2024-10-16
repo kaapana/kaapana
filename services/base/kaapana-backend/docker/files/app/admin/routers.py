@@ -31,7 +31,20 @@ def health_check():
 def get_static_website_results_html(
     request: Request,
     minioClient=Depends(get_minio),
-):
+) -> StreamingResponse:
+    """Get the html file from the static website results bucket.
+
+    Args:
+        request (Request): Request object.
+        minioClient (minio.Minio): Minio client.
+
+    Raises:
+        HTTPException: If object_name query parameter is not provided.
+        HTTPException: If object is not found in the bucket.
+
+    Returns:
+        StreamingResponse: Streaming response of the html file.
+    """
     # Retrieve the object name from query parameters
     object_name = request.query_params.get("object_name")
     if not object_name:

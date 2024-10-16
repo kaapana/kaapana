@@ -54,4 +54,47 @@ const aiiApiPost = async function (suburl: string, data: Object) {
       }
 }
 
-export {aiiApiGet, aiiApiPost};
+const aiiApiPut = async function (suburl: string, params: Object) {
+    // const config: AxiosRequestConfig = {
+    //     headers: header_with_auth_token({}),
+    //     params: params
+    // };
+
+    try {
+        const response: AxiosResponse = await client.put(
+            suburl, 
+            params,
+            {
+                headers: header_with_auth_token({})
+            }            
+        );
+        if (response.status === 200) {
+            return response.data;
+        } else {
+            throw new Error(response.status + " Error, Error Message: " + response.statusText);
+        } 
+      } catch (error: unknown) {
+        throw error;
+      }
+}
+
+const aiiApiDelete = async function (suburl: string) {
+    try {
+        const response: AxiosResponse = await client.delete(
+            suburl,
+            {
+                headers: header_with_auth_token({})
+            }
+        );
+        if (response.status === 200) {
+            return response.data;
+        } else {
+            throw new Error(response.status + " Error, Error Message: " + response.statusText);
+        }
+        
+    } catch (error: unknown) {
+        throw error;
+    }
+}
+
+export {aiiApiGet, aiiApiPost, aiiApiPut, aiiApiDelete};

@@ -30,7 +30,7 @@
           <th class="text-left">
             External ID
           </th>
-          <th class="text-left">
+          <th class="text-center">
             Action
           </th>
         </tr>
@@ -41,7 +41,7 @@
           <td>{{ item.name }}</td>
           <td>{{ item.description }}</td>
           <td>{{ item.external_id }}</td>
-          <td>
+          <td class="text-center">
             <v-btn 
               class="text-none" color="medium-emphasis" 
               min-width="92" variant="outlined" size="small" rounded

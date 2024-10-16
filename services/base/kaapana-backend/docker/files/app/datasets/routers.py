@@ -174,11 +174,11 @@ async def get_data(
     metadata = await utils.get_metadata(os_client, project_index, series_instance_uid)
 
     modality = metadata["Modality"]
-    dcmweb_endpoint = metadata.get("Source Presentation Address")
-    if dcmweb_endpoint:
-        thumbnail_src = f"/thumbnails/batch/{series_instance_uid}/external_thumbnail_operator/{series_instance_uid}.png"
+    # dcmweb_endpoint = metadata.get("Source Presentation Address")
+    # if dcmweb_endpoint:
+    #     thumbnail_src = f"/thumbnails/batch/{series_instance_uid}/external_thumbnail_operator/{series_instance_uid}.png"
 
-    elif modality in ["SEG", "RTSTRUCT"]:
+    if modality in ["SEG", "RTSTRUCT"]:
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
 

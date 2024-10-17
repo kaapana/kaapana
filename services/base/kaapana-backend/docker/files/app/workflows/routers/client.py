@@ -260,6 +260,7 @@ def get_jobs(
     limit: int = None,
     dag_id: str = None,
     username: str = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
     jobs = crud.get_jobs(
@@ -271,6 +272,7 @@ def get_jobs(
         limit=limit,
         dag_id=dag_id,
         username=username,
+        offset=offset,
     )
     for job in jobs:
         if job.kaapana_instance:

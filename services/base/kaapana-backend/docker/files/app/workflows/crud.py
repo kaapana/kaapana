@@ -557,6 +557,7 @@ def get_jobs(
     limit=None,
     dag_id: str = None,
     username: str = None,
+    offset: int = 0,
 ):
     query = db.query(models.Job)
     if dag_id is not None:
@@ -571,6 +572,7 @@ def get_jobs(
             .join(models.Job.kaapana_instance, aliased=True)
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
+            .offset(offset)  # Add offset
             .limit(limit)
             .all()
         )  # same as org but w/o filtering by remote
@@ -580,6 +582,7 @@ def get_jobs(
             .join(models.Job.workflow, aliased=True)
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
+            .offset(offset)  # Add offset
             .limit(limit)
             .all()
         )
@@ -588,6 +591,7 @@ def get_jobs(
             query.join(models.Job.kaapana_instance, aliased=True)
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
+            .offset(offset)  # Add offset
             .limit(limit)
             .all()
         )  # same as org but w/o filtering by remote
@@ -596,6 +600,7 @@ def get_jobs(
             query.join(models.Job.workflow, aliased=True)
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
+            .offset(offset)  # Add offset
             .limit(limit)
             .all()
         )
@@ -604,6 +609,7 @@ def get_jobs(
             query.filter_by(status=status)
             .join(models.Job.kaapana_instance, aliased=True)
             .order_by(desc(models.Job.time_updated))
+            .offset(offset)  # Add offset
             .limit(limit)
             .all()
         )  # same as org but w/o filtering by remote
@@ -613,6 +619,7 @@ def get_jobs(
             .join(models.Workflow.kaapana_instance, aliased=True)
             .filter_by(remote=remote)
             .order_by(desc(models.Job.time_updated))
+            .offset(offset)  # Add offset
             .limit(limit)
             .all()
         )

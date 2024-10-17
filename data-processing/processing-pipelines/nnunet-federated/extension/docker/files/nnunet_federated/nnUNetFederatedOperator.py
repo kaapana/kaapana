@@ -14,7 +14,7 @@ class nnUNetFederatedOperator(KaapanaBaseOperator):
         self,
         dag,
         name="nnunet-federated",
-        execution_timeout=timedelta(days=5),
+        execution_timeout=timedelta(days=100),
         *args,
         **kwargs,
     ):

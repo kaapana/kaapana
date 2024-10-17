@@ -54,19 +54,17 @@ const aiiApiPost = async function (suburl: string, data: Object) {
       }
 }
 
-const aiiApiPut = async function (suburl: string, params: Object) {
-    // const config: AxiosRequestConfig = {
-    //     headers: header_with_auth_token({}),
-    //     params: params
-    // };
+const aiiApiPut = async function (suburl: string, params: Object, data: Object = {}) {
+    const config: AxiosRequestConfig = {
+        headers: header_with_auth_token({}),
+        params: params
+    };
 
     try {
         const response: AxiosResponse = await client.put(
             suburl, 
-            params,
-            {
-                headers: header_with_auth_token({})
-            }            
+            data,
+            config,          
         );
         if (response.status === 200) {
             return response.data;

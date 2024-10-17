@@ -92,6 +92,7 @@ export default defineComponent({
     props: {},
     data() {
         return {
+            // @ts-ignore
             projectId: this.$route.params.id as string, // Access the route param
             details: null as ProjectItem | null,
             users: [] as User[],
@@ -127,6 +128,7 @@ export default defineComponent({
             this.resetUserFormValues();
         },
         async deleteUserProjectMapping(userId: string) {
+            // @ts-ignore
             if (await this.$refs.confirm.open('Delete User from Project', 'Are you sure?', { color: 'red' })) {
                 this.deleteProjectUsers(userId);
             }

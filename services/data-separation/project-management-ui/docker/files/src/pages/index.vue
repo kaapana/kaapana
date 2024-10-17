@@ -18,6 +18,7 @@
     <v-table>
       <thead>
         <tr>
+          <th class="text-left"></th>
           <th class="text-left">
             Project ID
           </th>
@@ -37,6 +38,7 @@
       </thead>
       <tbody>
         <tr v-for="item in projects" :key="item.name">
+          <td><v-icon>mdi-application-cog</v-icon></td>
           <td>{{ item.id }}</td>
           <td>{{ item.name }}</td>
           <td>{{ item.description }}</td>

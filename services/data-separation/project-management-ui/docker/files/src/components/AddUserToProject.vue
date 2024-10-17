@@ -56,6 +56,9 @@ const props = defineProps({
     selectedUser: {
         type: Object as PropType<UserItem>,
     },
+    currentRole: {
+        type: Object as PropType<UserRole>,
+    },
     currentUserIds: {
         type: Array<string>,
     },
@@ -82,12 +85,16 @@ onMounted(async () => {
     if (props.selectedUser) {
         userId.value = props.selectedUser.id;
     }
-    fetchAllRoles();
 
     if (props.actionType !== 'update') {
         fetchAllUsers();
     } else if(props.selectedUser){
         users.value = [props.selectedUser]
+    }
+
+    fetchAllRoles();
+    if (props.currentRole) {
+        roleName.value = props.currentRole.name
     }
 })
 

@@ -63,12 +63,12 @@
         </v-row>
     </v-container>
     <v-dialog v-model="userDialog" max-width="1000">
-        <AddUserToProject :project-name="projectId" :current-user-ids="userIds" :onsuccess="handleUserAdd"
-            :oncancel="() => userDialog = false" />
+        <AddUserToProject :project-name="projectId" :current-user-ids="userIds" :onsuccess="handleUserSubmit"
+            :oncancel="resetUserFormValues" />
     </v-dialog>
     <v-dialog v-model="userEditDialog" max-width="1000">
-        <AddUserToProject :project-name="projectId" action-type="update" :selected-user="selectedUser" :onsuccess="handleUserAdd"
-            :oncancel="() => userEditDialog = false" />
+        <AddUserToProject :project-name="projectId" action-type="update" :selected-user="selectedUser" :current-role="selectedUser?.role" :onsuccess="handleUserSubmit"
+            :oncancel="resetUserFormValues" />
     </v-dialog>
     <confirm ref="confirm"></confirm>
 </template>
@@ -98,7 +98,7 @@ export default defineComponent({
             userDialog: false,
             userIds: [] as string[],
             userEditDialog: false,
-            selectedUser: undefined as UserItem | undefined,
+            selectedUser: undefined as User | undefined,
         };
     },
     mounted() {
@@ -120,21 +120,26 @@ export default defineComponent({
         }
     },
     methods: {
-        handleUserAdd(success: boolean = true) {
+        handleUserSubmit(success: boolean = true) {
             if (success) {
                 this.fetchProjectUsers();
             }
-            this.userDialog = false;
-            this.userEditDialog = false;
+            this.resetUserFormValues();
         },
         async deleteUserProjectMapping(userId: string) {
             if (await this.$refs.confirm.open('Delete User from Project', 'Are you sure?', { color: 'red' })) {
                 this.deleteProjectUsers(userId);
             }
         },
-        openUserEditDialog(selectedUser: UserItem) {
+        openUserEditDialog(selectedUser: User) {
             this.selectedUser = selectedUser;
             this.userEditDialog = true;
+        },
+        resetUserFormValues() {
+            this.userDialog = false;
+            this.userEditDialog = false;
+
+            this.selectedUser = undefined;
         },
         fetchProjectDetails() {
             if (this.projectId) {

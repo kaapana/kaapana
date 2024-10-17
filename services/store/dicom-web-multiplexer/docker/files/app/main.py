@@ -3,6 +3,7 @@ from fastapi import FastAPI
 
 from .QIDO_RS.routes import router as qido_router
 from .SUPPLEMENTS.routes import router as supplement_router
+from .WADO_RS.routes import router as wado_router
 
 app = FastAPI(
     root_path="/dicom-web-filter",
@@ -14,4 +15,5 @@ app = FastAPI(
 
 app.include_router(qido_router)
 app.include_router(supplement_router)
+app.include_router(wado_router)
 app.add_middleware(ProxyMiddleware)

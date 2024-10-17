@@ -4,7 +4,11 @@ dependencies:
     version: 0.0.0
   - name: kaapana-plugin-chart
     version: 0.0.0
+  - name: project-namespace
+    version: 0.0.0
   - name: code-server-chart
+    version: 0.0.0
+  - name: dev-server-chart
     version: 0.0.0
   # - name: edk
   #   version: 0.0.0
@@ -82,12 +86,9 @@ dependencies:
     version: 0.0.0
   - name: minio-sync-chart
     version: 0.0.0
-  - name: project-namespace
-    version: 0.0.0
   - name: external-pacs-workflow
     version: 0.0.0
   - name: custom-registry-chart
     version: 0.0.0
-  - name: dev-server-chart
-    version: 0.0.0
+
 

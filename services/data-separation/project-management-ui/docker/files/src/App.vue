@@ -3,19 +3,28 @@
     <v-app-bar :elevation="2" color="primary" density="compact">
       <v-app-bar-title @click="$router.push('/')" style="cursor:pointer">Projects Management</v-app-bar-title>
       <v-spacer></v-spacer>
-      <v-menu v-if="user">
+      <v-menu v-if="user" location="bottom">
         <template v-slot:activator="{ props }">
           <v-btn icon="mdi-account-circle" variant="text" v-bind="props"></v-btn>
         </template>
 
-        <v-list>
-          <v-list-item>
-            <v-list-item-title>@{{ user.username }}</v-list-item-title>
-          </v-list-item>
-          <v-list-item>
-            <v-list-item-title>{{ user.first_name }} {{ user.last_name }}</v-list-item-title>
-          </v-list-item>
-        </v-list>
+        <v-card class="mx-auto" min-width="344" elevated>
+          <v-list>
+            <v-list-item :title="store.state.user?.username"
+              :subtitle="`${store.state.user?.first_name} ${store.state.user?.last_name}`">
+              <template v-slot:prepend>
+                <v-icon icon="mdi-account-circle" size="x-large"></v-icon>
+              </template>
+              <template v-slot:subtitle="{ subtitle }">
+                <div v-html="subtitle"></div>
+              </template>
+              <!-- <template v-slot:append>
+                <v-btn color="grey-lighten-1" icon="mdi-information" variant="text"></v-btn>
+              </template> -->
+            </v-list-item>
+          </v-list>
+          <v-divider></v-divider>
+        </v-card>
       </v-menu>
     </v-app-bar>
     <v-main>

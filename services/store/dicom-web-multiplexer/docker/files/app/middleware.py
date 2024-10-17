@@ -98,7 +98,16 @@ async def merge_responses(response1: Response, response2: Response) -> Response:
         response1_data = await get_json_response_body(response1)
         response2_data = await get_json_response_body(response2)
 
-        merged_content = response1_data + response2_data  # Concatenate lists
+        # TODO: Dicom Web Filter return 200 and {'errorMessage': 'No matches found.'} with studies/{study}/metadata
+        if isinstance(response1_data, list) and isinstance(response2_data, list):
+            merged_content = response1_data + response2_data  # Concatenate lists
+
+        if isinstance(response1_data, list):
+            merged_content = response1_data
+
+        if isinstance(response2_data, list):
+            merged_content = response2_data
+
         return Response(
             content=json.dumps(merged_content),
             media_type=response1_media_type,

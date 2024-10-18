@@ -146,50 +146,50 @@ def download_objects(
         )
 
 
-def get_absolute_batch_operator_input_directories(
-    batch_operator_input_directories: list,
+def get_absolute_batch_operator_source_directories(
+    batch_operator_source_directories: list,
 ):
     """
     Return a list of all absolute paths that match WORKFLOW_DIR/BATCH_NAME/<series-uid>/operator_out_dir
-    for each operator_out_dir in <batch_operator_input_directories>.
+    for each operator_out_dir in <batch_operator_source_directories>.
 
-    :param batch_operator_input_directories: List of directories that are operator_out_dir of an upstream operator.
+    :param batch_operator_source_directories: List of directories that are operator_out_dir of an upstream operator.
     """
     workflow_batch_directory = Path(
         os.path.join(OPERATOR_SETTINGS.workflow_dir, OPERATOR_SETTINGS.batch_name)
     )
     if not workflow_batch_directory.is_dir():
         logger.warning(f"{workflow_batch_directory=} does not exist!")
-    absolute_batch_operator_input_directories = []
+    absolute_batch_operator_source_directories = []
     for series_directory in workflow_batch_directory.iterdir():
-        for operator_in_dir in batch_operator_input_directories:
+        for operator_in_dir in batch_operator_source_directories:
             batch_operator_directory = series_directory.joinpath(operator_in_dir)
             if not batch_operator_directory.is_dir():
                 logger.warning(f"{batch_operator_directory=} does not exist!")
-            absolute_batch_operator_input_directories.append(batch_operator_directory)
-    return absolute_batch_operator_input_directories
+            absolute_batch_operator_source_directories.append(batch_operator_directory)
+    return absolute_batch_operator_source_directories
 
 
-def get_absolute_none_batch_operator_input_directories(
-    none_batch_operator_input_directories: list,
+def get_absolute_none_batch_operator_source_directories(
+    none_batch_operator_source_directories: list,
 ):
     """
     Return a list of all absolute paths that match WORKFLOW_DIR/operator_out_dir
-    for each operator_out_dir in <none_batch_operator_input_directories>.
+    for each operator_out_dir in <none_batch_operator_source_directories>.
 
-    :param none_batch_operator_input_directories: List of directories that are operator_out_dir of an upstream operator.
+    :param none_batch_operator_source_directories: List of directories that are operator_out_dir of an upstream operator.
     """
     workflow_directory = Path(OPERATOR_SETTINGS.workflow_dir)
     if not workflow_directory.is_dir():
         logger.warning(f"{workflow_directory=} does not exist!")
 
-    absolute_operator_input_directories = []
-    for operator_directory in none_batch_operator_input_directories:
+    absolute_operator_source_directories = []
+    for operator_directory in none_batch_operator_source_directories:
         operator_in_dir = workflow_directory.joinpath(operator_directory)
         if not operator_in_dir.is_dir():
             logger.warning(f"{operator_in_dir=} does not exist!")
-        absolute_operator_input_directories.append(operator_in_dir)
-    return absolute_operator_input_directories
+        absolute_operator_source_directories.append(operator_in_dir)
+    return absolute_operator_source_directories
 
 
 def upload_objects(
@@ -198,17 +198,17 @@ def upload_objects(
     whitelisted_file_extensions: list,
     zip_files: bool = True,
     source_files: list = [],
-    input_directories: list = [],
+    source_directories: list = [],
 ):
     """
     Upload files to Minio.
     - Initialize minio client
-    - Collect files from input_directories that match with whitelisted_file_extensions
+    - Collect files from source_directories that match with whitelisted_file_extensions
     - Collect files from source_files that match whitelisted_file_extensions
     - If not zip_files: Upload all files to MinIO
     - If zip_files: Create archive from all collected files and upload archive to MinIo.
 
-    :param input_directories: List of directories, from which files should be uploaded.
+    :param source_directories: List of directories, from which files should be uploaded.
     :param bucket_name: The minio bucket, where the data will be uploaded.
     :param minio_prefix: A minio prefix relative to the bucket name, under which the data will be uploaded.
     :param zip_files: Whether the files should be zipped in a single archive before uploading them. Archive paths will be the paths relative to WORKFLOW_DIR.
@@ -223,13 +223,13 @@ def upload_objects(
         * ValueError if no files were found to upload
     """
     logger.info("Start upload to MinIO!")
-    logger.info(f"Search for files in {input_directories=}")
+    logger.info(f"Search for files in {source_directories=}")
     minio_client: Minio = get_minio_client()
 
     zip_archive_file_path = Path("/tmp/zipped_files.zip")
     files_to_upload = []
 
-    for source_directory in input_directories:
+    for source_directory in source_directories:
         files = [f for f in Path(source_directory).glob("**/*") if not f.is_dir()]
         for file_path in files:
             if not file_is_whitelisted(Path(file_path), whitelisted_file_extensions):
@@ -243,8 +243,12 @@ def upload_objects(
         logger.info(f"Collect {file_path=} for upload!")
 
     if len(files_to_upload) == 0:
-        logger.error("No files were collected for upload.")
-        raise ValueError(f"No files were found for upload")
+        logger.error(
+            f"No files were collected for upload. Maybe you have to adapt {whitelisted_file_extensions=}."
+        )
+        raise ValueError(
+            f"No files were found for upload. Maybe you have to adapt {whitelisted_file_extensions=}."
+        )
 
     for file_path in files_to_upload:
         relative_file_path = Path(file_path).relative_to(
@@ -301,15 +305,15 @@ if __name__ == "__main__":
         operator_arguments.none_batch_input_operators
     )
 
-    input_directories = get_absolute_batch_operator_input_directories(
-        batch_operator_input_directories=batch_input_operator_directories
-    ) + get_absolute_none_batch_operator_input_directories(
-        none_batch_operator_input_directories=none_batch_input_operator_directories
+    source_directories = get_absolute_batch_operator_source_directories(
+        batch_operator_source_directories=batch_input_operator_directories
+    ) + get_absolute_none_batch_operator_source_directories(
+        none_batch_operator_source_directories=none_batch_input_operator_directories
     )
 
     if action == "put":
         upload_objects(
-            input_directories=input_directories,
+            source_directories=source_directories,
             bucket_name=bucket_name,
             minio_prefix=minio_prefix,
             zip_files=zip_files,

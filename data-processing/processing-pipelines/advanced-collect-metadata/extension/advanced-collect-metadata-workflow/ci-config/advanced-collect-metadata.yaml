@@ -1,0 +1,9 @@
+dag_id: "advanced-collect-metadata"
+conf_data:
+  workflow_form:
+    single_execution: true
+  data_form:
+    dataset_name: test-SEG
+    dataset_limit: 1
+remote: false
+username: "kaapana"

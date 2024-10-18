@@ -5,6 +5,9 @@ set -e
 export OMP_THREAD_LIMIT=1
 export OMP_NUM_THREADS=1
 
+# disable stdout/stderr buffer  
+export PYTHONUNBUFFERED=1
+
 TASK_NUM=$(echo "$TASK" | cut -f1 -d"_" | tr -dc '0-9')
 
 echo "#######################################################################"

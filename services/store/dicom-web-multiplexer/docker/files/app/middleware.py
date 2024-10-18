@@ -2,6 +2,8 @@ import json
 import re
 import traceback
 
+from app.crud import add_endpoint, get_endpoints, remove_endpoint
+from app.database import get_session
 from app.logger import get_logger
 from app.proxy_request import proxy_request
 from app.utils import dicom_web_filter_url
@@ -18,6 +20,7 @@ logger = get_logger(__name__)
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         logger.info("Entering ProxyMiddleware")
+
         try:
             logger.info("Endpoint discovery")
             series_uid = get_series_uid_from_request(request)
@@ -38,7 +41,6 @@ class ProxyMiddleware(BaseHTTPMiddleware):
                 request, call_next
             )
 
-            # Determine which response to return
             return await decide_response(
                 dicom_web_filter_result, dicom_web_multiplexer_result
             )
@@ -74,7 +76,9 @@ def get_endpoint_from_opensearch(series_uid: str) -> str:
         "bool": {"must": [{"term": {HelperOpensearch.series_uid_tag: series_uid}}]}
     }
     result = HelperOpensearch.get_query_dataset(
-        query=query, include_custom_tag=HelperOpensearch.dcmweb_endpoint_tag
+        index="project_1",
+        query=query,
+        include_custom_tag=HelperOpensearch.dcmweb_endpoint_tag,
     )
     endpoint = result[0]["_source"].get(HelperOpensearch.dcmweb_endpoint_tag)
     return endpoint
@@ -149,9 +153,13 @@ async def decide_response(
 async def merge_external_responses(request: Request, call_next) -> Response | None:
     dicom_web_multiplexer_result = None
 
-    for endpoint in [
-        "https://healthcare.googleapis.com/v1/projects/idc-external-031/locations/europe-west2/datasets/kaapana-integration-test/dicomStores/kaapana-integration-test-store"
-    ]:
+    async with get_session() as session:
+        # List all endpoints (exactly one endpoint)
+        endpoints = await get_endpoints(session)
+        endpoint_strings = [ep.endpoint for ep in endpoints]
+        logger.info(f"Endpoints {endpoint_strings}")
+
+    for endpoint in endpoint_strings:
         request.state.endpoint = endpoint
         new_result = await call_next(request)
 

@@ -37,7 +37,7 @@ spec:
             - name: OPENSEARCH_PORT
               value: "9200"
             - name: DATABASE_URL
-              value: postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432              
+              value: postgresql+asyncpg://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.{{  .Values.global.services_namespace  }}.svc:5432
             - name: KAAPANA_CLIENT_SECRET
               value: "{{ .Values.global.oidc_client_secret }}"
             - name: KAAPANA_PROJECT_USER_NAME

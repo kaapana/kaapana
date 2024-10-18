@@ -1,4 +1,3 @@
-import traceback
 
 import httpx
 from app.auth import get_external_token
@@ -6,7 +5,6 @@ from app.logger import get_logger
 from app.utils import rs_endpoint_url
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
-from starlette.status import HTTP_204_NO_CONTENT
 
 router = APIRouter()
 logger = get_logger(__file__)

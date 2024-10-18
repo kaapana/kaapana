@@ -2,10 +2,10 @@ import logging
 
 from app.middleware import ProxyMiddleware
 from fastapi import FastAPI
-from fastapi.middleware import Middleware
+from fastapi.concurrency import asynccontextmanager
 
-from .auth_middleware import AuthMiddleware
-from .config import DWF_IDENTITY_OPENID_CLIENT_ID, DWF_IDENTITY_OPENID_CONFIG_URL
+from .database import async_engine
+from .models import Base
 from .QIDO_RS.routes import router as qido_router
 from .SUPPLEMENTS.routes import router as supplement_router
 from .WADO_RS.routes import router as wado_router
@@ -45,12 +45,12 @@ tags_metadata = [
 logger = logging.getLogger(__name__)
 
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     async with async_engine.begin() as conn:
-#         await conn.run_sync(Base.metadata.create_all)
-#     yield  # This yield separates startup from shutdown code
-#     # Code here would run after the application stops
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield  # This yield separates startup from shutdown code
+    # Code here would run after the application stops
 
 
 app = FastAPI(
@@ -60,17 +60,16 @@ app = FastAPI(
     openapi_url="/openapi.json",
     version="0.1.0",
     openapi_tags=tags_metadata,
-    # lifespan=lifespan,
+    lifespan=lifespan,
     middleware=[
-        Middleware(
-            AuthMiddleware,
-            config_url=DWF_IDENTITY_OPENID_CONFIG_URL,
-            client_id=DWF_IDENTITY_OPENID_CLIENT_ID,
-        ),
-        ProxyMiddleware(),
+        # Middleware(
+        #     AuthMiddleware,
+        #     config_url=DWF_IDENTITY_OPENID_CONFIG_URL,
+        #     client_id=DWF_IDENTITY_OPENID_CLIENT_ID,
+        # ),
     ],
 )
-
+app.add_middleware(ProxyMiddleware)
 app.include_router(qido_router)
 app.include_router(supplement_router)
 app.include_router(wado_router)

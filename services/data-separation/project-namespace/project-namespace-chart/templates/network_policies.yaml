@@ -201,6 +201,4 @@ spec:
           app-name: minio
     ports:
     - protocol: TCP
-      port: 9090
-    - protocol: TCP
       port: 9000

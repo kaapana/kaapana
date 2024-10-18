@@ -11,6 +11,7 @@ class KaapanaSettings(BaseSettings):
     services_namespace: str = "services"
     admin_namespace: str = "admin"
     kaapana_log_level: str = "DEBUG"
+    timezone: str = Field("Europe/Berlin", validation_alias=AliasChoices("TZ"))
 
 
 class KeycloakSettings(KaapanaSettings):

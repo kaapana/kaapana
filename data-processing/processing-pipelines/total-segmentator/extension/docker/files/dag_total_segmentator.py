@@ -11,7 +11,6 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
 from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
 
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
@@ -222,15 +221,11 @@ ta = "total"
 total_segmentator_0 = TotalSegmentatorOperator(
     dag=dag, task=ta, input_operator=dcm2nifti
 )
-combine_masks_0 = MergeMasksOperator(
-    dag=dag,
-    input_operator=total_segmentator_0,
-    parallel_id=ta,
-)
+
 nrrd2dcmSeg_multi_0 = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
-    segmentation_operator=combine_masks_0,
+    segmentation_operator=total_segmentator_0,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
@@ -265,15 +260,11 @@ total_segmentator_1 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_1 = MergeMasksOperator(
-    dag=dag,
-    input_operator=total_segmentator_1,
-    parallel_id=ta,
-)
+
 nrrd2dcmSeg_multi_1 = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
-    segmentation_operator=combine_masks_1,
+    segmentation_operator=total_segmentator_1,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
@@ -307,15 +298,11 @@ total_segmentator_2 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_2 = MergeMasksOperator(
-    dag=dag,
-    input_operator=total_segmentator_2,
-    parallel_id=ta,
-)
+
 nrrd2dcmSeg_multi_2 = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
-    segmentation_operator=combine_masks_2,
+    segmentation_operator=total_segmentator_2,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
@@ -349,15 +336,11 @@ total_segmentator_3 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_3 = MergeMasksOperator(
-    dag=dag,
-    input_operator=total_segmentator_3,
-    parallel_id=ta,
-)
+
 nrrd2dcmSeg_multi_3 = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
-    segmentation_operator=combine_masks_3,
+    segmentation_operator=total_segmentator_3,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
@@ -391,15 +374,11 @@ total_segmentator_4 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_4 = MergeMasksOperator(
-    dag=dag,
-    input_operator=total_segmentator_4,
-    parallel_id=ta,
-)
+
 nrrd2dcmSeg_multi_4 = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
-    segmentation_operator=combine_masks_4,
+    segmentation_operator=total_segmentator_4,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
@@ -433,15 +412,11 @@ total_segmentator_5 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_5 = MergeMasksOperator(
-    dag=dag,
-    input_operator=total_segmentator_5,
-    parallel_id=ta,
-)
+
 nrrd2dcmSeg_multi_5 = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
-    segmentation_operator=combine_masks_5,
+    segmentation_operator=total_segmentator_5,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
@@ -475,15 +450,11 @@ total_segmentator_6 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_6 = MergeMasksOperator(
-    dag=dag,
-    input_operator=total_segmentator_6,
-    parallel_id=ta,
-)
+
 nrrd2dcmSeg_multi_6 = Itk2DcmSegOperator(
     dag=dag,
     input_operator=get_input,
-    segmentation_operator=combine_masks_6,
+    segmentation_operator=total_segmentator_6,
     input_type="multi_label_seg",
     multi_label_seg_name=alg_name,
     multi_label_seg_info_json="seg_info.json",
@@ -531,7 +502,6 @@ get_total_segmentator_model_0 >> total_segmentator_0
     get_input
     >> dcm2nifti
     >> total_segmentator_0
-    >> combine_masks_0
     >> nrrd2dcmSeg_multi_0
     >> dcmseg_send_0
     >> clean
@@ -542,7 +512,6 @@ total_segmentator_0 >> pyradiomics_0 >> put_to_minio
     total_segmentator_0
     >> get_total_segmentator_model_1
     >> total_segmentator_1
-    >> combine_masks_1
     >> nrrd2dcmSeg_multi_1
     >> dcmseg_send_1
     >> clean
@@ -553,7 +522,6 @@ total_segmentator_1 >> pyradiomics_1 >> put_to_minio
     total_segmentator_0
     >> get_total_segmentator_model_2
     >> total_segmentator_2
-    >> combine_masks_2
     >> nrrd2dcmSeg_multi_2
     >> dcmseg_send_2
     >> clean
@@ -564,7 +532,6 @@ total_segmentator_2 >> pyradiomics_2 >> put_to_minio
     total_segmentator_0
     >> get_total_segmentator_model_3
     >> total_segmentator_3
-    >> combine_masks_3
     >> nrrd2dcmSeg_multi_3
     >> dcmseg_send_3
     >> clean
@@ -575,7 +542,6 @@ total_segmentator_3 >> pyradiomics_3 >> put_to_minio
     total_segmentator_0
     >> get_total_segmentator_model_4
     >> total_segmentator_4
-    >> combine_masks_4
     >> nrrd2dcmSeg_multi_4
     >> dcmseg_send_4
     >> clean
@@ -586,7 +552,6 @@ total_segmentator_4 >> pyradiomics_4 >> put_to_minio
     total_segmentator_0
     >> get_total_segmentator_model_5
     >> total_segmentator_5
-    >> combine_masks_5
     >> nrrd2dcmSeg_multi_5
     >> dcmseg_send_5
     >> clean
@@ -597,7 +562,6 @@ total_segmentator_5 >> pyradiomics_5 >> put_to_minio
     total_segmentator_0
     >> get_total_segmentator_model_6
     >> total_segmentator_6
-    >> combine_masks_6
     >> nrrd2dcmSeg_multi_6
     >> dcmseg_send_6
     >> clean

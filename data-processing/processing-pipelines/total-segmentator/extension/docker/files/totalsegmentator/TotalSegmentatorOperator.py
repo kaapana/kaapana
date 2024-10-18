@@ -31,7 +31,6 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
         task,
         name="total-segmentator",
         output_type="nifti",
-        multilabel=False,
         fast=False,
         preview=False,
         statistics=True,
@@ -72,7 +71,6 @@ class TotalSegmentatorOperator(KaapanaBaseOperator):
         envs = {
             "TASK": str(task),
             "OUTPUT_TYPE": str(output_type),
-            "MULTILABEL": str(multilabel),
             "FAST": str(fast),
             "PREVIEW": str(preview),
             "STATISTICS": str(statistics),

@@ -1,14 +1,158 @@
-import os
-from os import getenv
-from os.path import join, exists, dirname, basename
-from glob import glob
-from pathlib import Path
-from totalsegmentator.python_api import totalsegmentator
-from logger_helper import get_logger
-import logging
-import torch
 import json
+import logging
+import os
 import shutil
+from glob import glob
+from os import getenv
+from os.path import basename, dirname, exists, join
+from pathlib import Path
+
+import nibabel as nib
+import numpy as np
+import torch
+from logger_helper import get_logger
+from totalsegmentator.python_api import totalsegmentator
+
+
+def delete_all_masks_in_dir(input_folder: str) -> None:
+    """Delete all binary masks in a directory.
+
+    Args:
+        input_folder (str): Path to the folder containing binary masks.
+    """
+    files_to_keep = {
+        "seg_info.json",
+        "multilabel_segmentation.nii.gz",
+        "totalsegmentator.json",
+    }
+
+    for file in os.listdir(input_folder):
+        if file not in files_to_keep:
+            os.remove(os.path.join(input_folder, file))
+            logger.info(f"Removed binary mask: {os.path.join(input_folder, file)}")
+
+
+def create_folder_of_binary_masks_from_multilabel_nifti(
+    input_nifti_path: str, output_folder: str, seg_info_dict_path: str
+) -> str:
+    """Create binary masks from a multilabel NIfTI file.
+
+    Args:
+        input_nifti_path (str): Path to the multilabel NIfTI file.
+        output_folder (str): Path to the output folder.
+        seg_info_dict_path (str): Path to the segmentation info JSON file.
+
+    Returns:
+        str: Path to the output folder.
+    """
+    assert exists(input_nifti_path)
+    Path(output_folder).mkdir(parents=True, exist_ok=True)
+
+    with open(seg_info_dict_path, encoding="utf-8") as seg_info:
+        seg_info_dict = json.load(seg_info)
+
+    # Read NIFTI
+    nifti = nib.load(input_nifti_path)
+    nifti_data = nifti.get_fdata()
+    nifti_affine = nifti.affine
+    nifti_header = nifti.header
+
+    # Create binary masks
+    for label in seg_info_dict["seg_info"]:
+        label_name = label["label_name"]
+        label_value = label["label_int"]
+        binary_mask = nifti_data == label_value
+        binary_mask_nifti = nib.Nifti1Image(binary_mask, nifti_affine, nifti_header)
+        binary_mask_nifti_path = join(output_folder, f"{label_name}.nii.gz")
+        nib.save(binary_mask_nifti, binary_mask_nifti_path)
+        assert exists(binary_mask_nifti_path)
+        logger.info(f"Saved binary mask: {binary_mask_nifti_path}")
+
+    return output_folder
+
+
+def remove_created_binary_files(output_folder: str, seg_info_dict_path: str) -> str:
+    """Remove binary masks created from multilabel NIfTI.
+
+    Args:
+        output_folder (str): Folder containing binary masks.
+        seg_info_dict_path (str): Path to the segmentation info JSON file.
+
+    Returns:
+        str: Path to the output folder.
+    """
+    with open(seg_info_dict_path, encoding="utf-8") as seg_info:
+        seg_info_dict = json.load(seg_info)
+
+    for label in seg_info_dict["seg_info"]:
+        label_name = label["label_name"]
+        binary_mask_nifti_path = join(output_folder, f"{label_name}.nii.gz")
+        if exists(binary_mask_nifti_path):
+            os.remove(binary_mask_nifti_path)
+            logger.info(f"Removed binary mask: {binary_mask_nifti_path}")
+
+    return output_folder
+
+
+def merge_binary_masks_to_multilabel_nifti(input_folder: str):
+    """Replace binary masks with multilabel NIfTI.
+
+    Args:
+        input_folder (str): Contains binary masks and seg_info.json
+    """
+    # Load segmentation info from JSON
+    seg_info_path = join(input_folder, "seg_info.json")
+    with open(seg_info_path, encoding="utf-8") as seg_info:
+        seg_info_dict = json.load(seg_info)
+
+    # Initialize variables for multilabel mask
+    first_label = seg_info_dict["seg_info"][0]["label_name"]
+    first_mask_path = join(input_folder, f"{first_label}.nii.gz")
+
+    # Load the first mask to get shape and affine information
+    first_mask_nifti = nib.load(first_mask_path)
+    mask_shape = first_mask_nifti.get_fdata().shape
+    affine = first_mask_nifti.affine
+
+    # Initialize an empty multilabel volume (3D numpy array)
+    multilabel_mask = np.zeros(mask_shape, dtype=np.uint8)
+
+    # Iterate through each label and load the corresponding binary mask
+    for label in seg_info_dict["seg_info"]:
+        label_name = label["label_name"]
+        label_value = label["label_int"]
+
+        # Load the binary mask for this label
+        binary_mask_path = join(input_folder, f"{label_name}.nii.gz")
+        binary_mask_nifti = nib.load(binary_mask_path)
+        binary_mask_data = binary_mask_nifti.get_fdata()
+
+        # Update the multilabel mask by assigning the label value where the binary mask is 1
+        multilabel_mask[binary_mask_data == 1] = label_value
+
+        # Delete the binary mask after processing
+        os.remove(binary_mask_path)
+
+    # Save the multilabel NIfTI file
+    multilabel_nifti = nib.Nifti1Image(multilabel_mask, affine)
+    multilabel_output_path = join(input_folder, "multilabel_segmentation.nii.gz")
+    nib.save(multilabel_nifti, multilabel_output_path)
+
+    print(f"Multilabel NIfTI file saved as {multilabel_output_path}")
+
+
+def check_if_multilabel_nifti_is_empty(input_nifti_path: str) -> bool:
+    """Check if a multilabel NIfTI file is empty.
+
+    Args:
+        input_nifti_path (str): Path to the multilabel NIfTI file.
+
+    Returns:
+        bool: True if the multilabel NIfTI file is empty.
+    """
+    nifti = nib.load(input_nifti_path)
+    nifti_data = nifti.get_fdata()
+    return np.all(nifti_data == 0)
 
 
 # Process each file
@@ -20,13 +164,20 @@ def process_input_file(input_path, output_path):
         total_output_path = join(dirname(output_path), "total-segmentator")
         before_file_list = glob(join(total_output_path, "*"))
         logger.info(f"len(before_file_list): {len(before_file_list)} ...")
+
+        create_folder_of_binary_masks_from_multilabel_nifti(
+            input_nifti_path=join(total_output_path, "total-segmentator.nii.gz"),
+            output_folder=output_path,
+            seg_info_dict_path=join(total_output_path, "seg_info.json"),
+        )
     else:
-        total_output_path = output_path
+        output_path = join(output_path, "total-segmentator.nii.gz")
+
     try:
         totalsegmentator(
             input=input_path,
-            output=total_output_path,
-            ml=multilabel,
+            output=output_path,
+            ml=True if task == "total" else False,
             nr_thr_resamp=nr_thr_resamp,
             nr_thr_saving=nr_thr_saving,
             fast=fast,
@@ -44,9 +195,26 @@ def process_input_file(input_path, output_path):
             verbose=verbose,
             test=0,
         )
+
         processed_count += 1
 
         if task != "total":
+            remove_created_binary_files(
+                output_folder=output_path,
+                seg_info_dict_path=join(total_output_path, "seg_info.json"),
+            )
+
+            merge_binary_masks_to_multilabel_nifti(output_path)
+
+            delete_all_masks_in_dir(output_path)
+
+            if check_if_multilabel_nifti_is_empty(
+                join(output_path, "multilabel_segmentation.nii.gz")
+            ):
+                logger.error(
+                    f"{basename(input_file)}: multilabel_segmentation.nii.gz is empty!, Please check if the ROI is present in the input file"
+                )
+
             logger.info(f"")
             logger.info(f"")
             after_file_list = glob(join(total_output_path, "*"))
@@ -147,9 +315,6 @@ if __name__ == "__main__":
     # output_type: choices=["nifti", "dicom"] "Select if segmentations shall be saved as Nifti or as Dicom RT Struct image."
     output_type = getenv("OUTPUT_TYPE", "None")
     output_type = output_type if output_type.lower() != "none" else None
-
-    # "Save one multilabel image for all classes"
-    multilabel = getenv("MULTILABEL", "False").lower() in ("true", "1", "t")
 
     # Run faster lower resolution model
     fast = getenv("FAST", "False").lower() in ("true", "1", "t")
@@ -278,7 +443,6 @@ if __name__ == "__main__":
     logger.info("#")
     logger.info(f"# {task=}")
     logger.info(f"# {output_type=}")
-    logger.info(f"# {multilabel=}")
     logger.info(f"# {fast=}")
     logger.info(f"# {preview=}")
     logger.info(f"# {statistics=}")
@@ -327,7 +491,8 @@ if __name__ == "__main__":
 
         for input_file in input_files:
             success, input_file = process_input_file(
-                input_path=input_file, output_path=element_output_dir
+                input_path=input_file,
+                output_path=element_output_dir,
             )
             if not success:
                 issue_occurred = True
@@ -376,7 +541,8 @@ if __name__ == "__main__":
             # Loop for every input-file found with extension 'input_file_extension'
             for input_file in input_files:
                 success, input_file = process_input_file(
-                    input_path=input_file, output_path=batch_output_dir
+                    input_path=input_file,
+                    output_path=batch_output_dir,
                 )
                 if not success:
                     issue_occurred = True

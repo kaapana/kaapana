@@ -122,6 +122,8 @@ elif [ "$MODE" = "training" ]; then
             plans="nnUNetResEncUNetLPlans"
         elif [ "$PLAN_NETWORK_PLANNER" == "nnUNetPlannerResEncXL" ]; then
             plans="nnUNetResEncUNetXLPlans"
+        elif [ "$PLAN_NETWORK_PLANNER" == "ExperimentPlanner" ]; then
+            plans="nnUNetPlans"
         else
             plans="nnUNetResEncUNetMPlans"
         fi

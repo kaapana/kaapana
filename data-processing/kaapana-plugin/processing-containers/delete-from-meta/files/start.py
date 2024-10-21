@@ -15,6 +15,7 @@ SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
 class DeleteFromMetaOperator:
+    """This operator removes either selected series or whole studies from OpenSearch's project index."""
 
     def __init__(
         self,
@@ -25,6 +26,16 @@ class DeleteFromMetaOperator:
         batch_name: str = None,
         run_id: str = None,
     ):
+        """Initializes the operator with the given parameters.
+
+        Args:
+            delete_complete_study (bool, optional): Boolean to delete the complete study. Defaults to False.
+            delete_all_documents (bool, optional): Boolean to delete all documents. Defaults to False.
+            operator_in_dir (str, optional): Input directory for the operator. Defaults to None.
+            workflow_dir (str, optional): Workflow directory. Defaults to None.
+            batch_name (str, optional): Batch name. Defaults to None.
+            run_id (str, optional): DAG run ID. Defaults to None.
+        """
         self.delete_complete_study = delete_complete_study
         self.delete_all_documents = delete_all_documents
         self.operator_in_dir = operator_in_dir
@@ -60,6 +71,7 @@ class DeleteFromMetaOperator:
         logger.info(f"Delete all documents set to {self.delete_all_documents}")
 
     def start(self):
+        """Starts the operator."""
 
         if self.delete_all_documents:
             logger.info("Deleting all documents from META ...")

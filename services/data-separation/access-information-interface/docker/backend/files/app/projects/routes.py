@@ -27,6 +27,10 @@ async def projects(
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
     try:
+        await opensearch_helper.check_project_template_exists()
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    try:
         created_project = await crud.create_project(session, project)
     except IntegrityError as e:
         logger.warning(f"{project=} already exists!")

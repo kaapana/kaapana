@@ -1,3 +1,4 @@
+import asyncio
 import requests
 from fastapi import Request
 from kaapanapy.helper import get_opensearch_client
@@ -53,6 +54,41 @@ class OpenSearchHelper:
                         f"Openseach not available after {max_retries} retries!"
                     )
                     raise e
+
+    async def check_project_template_exists(
+        self, template_name: str = "project_", max_retries=60, delay=5
+    ):
+        """
+        Checks if the OpenSearch project template exists.
+        """
+        for tries in range(max_retries):
+            # Check if the template exists
+            template_url = f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}/_index_template/{template_name}"
+            r = requests.get(
+                template_url,
+                headers={
+                    "Authorization": f"Bearer {self.access_token}",
+                },
+                verify=False,
+            )
+            if r.status_code == 200:
+                logger.info(f"Template '{template_name}' exists.")
+                return
+            elif r.status_code == 404:
+                logger.info(
+                    f"Template '{template_name}' does not exist yet, retrying..."
+                )
+            else:
+                logger.warning(
+                    f"Template '{template_name}' returned status {r.status_code}"
+                )
+
+            await asyncio.sleep(delay)
+
+        logger.error(
+            f"Opensearch template '{template_name}' not available after {max_retries} retries!"
+        )
+        raise Exception(f"Template '{template_name}' not found after retries")
 
     def create_index(self, index: str):
         """

@@ -89,7 +89,7 @@ spec:
           containerPort: 8888
         env:
         - name: INGRESS_PATH
-          value: {{ printf "/%s" (tpl .Values.global.ingress_path .) }}
+          value: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}" # {{ printf "/project-%s/%s" .Values.global.project_name .Release.Name }}
 {{ include "dynamicEnvs" $ | indent 8 }}
         volumeMounts:
           - name: dshm

@@ -1,15 +1,15 @@
-import requests
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse
 import uuid
-import jwt
 from datetime import datetime, timezone
-from app.workflows.utils import (
-    raise_kaapana_connection_error,
-    requests_retry_session,
-)
-from app.dependencies import get_minio, get_opensearch
+
+import jwt
+import requests
 from app.config import settings
+from app.dependencies import get_minio, get_opensearch
+from app.workflows.utils import raise_kaapana_connection_error, requests_retry_session
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from minio.error import S3Error
+from starlette.responses import StreamingResponse
 
 router = APIRouter()
 
@@ -27,6 +27,42 @@ def health_check():
     return {f"Kaapana backend is up and running!"}
 
 
+@router.get("/get-static-website-results-html")
+def get_static_website_results_html(
+    request: Request,
+    minioClient=Depends(get_minio),
+) -> StreamingResponse:
+    """Get the html file from the static website results bucket.
+
+    Args:
+        request (Request): Request object.
+        minioClient (minio.Minio): Minio client.
+
+    Raises:
+        HTTPException: If object_name query parameter is not provided.
+        HTTPException: If object is not found in the bucket.
+
+    Returns:
+        StreamingResponse: Streaming response of the html file.
+    """
+    # Retrieve the object name from query parameters
+    object_name = request.query_params.get("object_name")
+    if not object_name:
+        raise HTTPException(
+            status_code=400, detail="object_name query parameter is required."
+        )
+
+    # Bucket name
+    bucket = "staticwebsiteresults"
+
+    try:
+        html_file = minioClient.get_object(bucket, object_name)
+    except S3Error:
+        raise HTTPException(status_code=404, detail="Object not found in the bucket.")
+
+    return StreamingResponse(html_file, media_type="text/html")
+
+
 @router.get("/get-static-website-results")
 def get_static_website_results(
     request: Request,
@@ -40,7 +76,7 @@ def get_static_website_results(
                 {
                     "name": splits[0],
                     "file": "html",
-                    "path": f"/static-website-browser/{org_filepath}",
+                    "path": f"/kaapana-backend/get-static-website-results-html?object_name={org_filepath}",
                 }
             )
         else:

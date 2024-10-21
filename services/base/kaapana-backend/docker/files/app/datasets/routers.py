@@ -1,8 +1,12 @@
+import base64
+
 from app.datasets import utils
-from app.dependencies import get_opensearch, get_project_index
-from fastapi import APIRouter, Body, Depends, HTTPException
-from fastapi.responses import JSONResponse
+from app.dependencies import get_minio, get_opensearch, get_project_index
 from app.middlewares import sanitize_inputs
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
+from minio.error import S3Error
+from starlette.responses import StreamingResponse
 
 router = APIRouter(tags=["datasets"])
 
@@ -166,6 +170,35 @@ async def get_aggregatedSeriesNum(
     return JSONResponse(res)
 
 
+@router.get("/get-thumbnail/{series_instance_uid}")
+def get_thumbnail_png(
+    series_instance_uid: str,
+    minioClient=Depends(get_minio),
+) -> StreamingResponse:
+    """Get the PNG file from the thumbnails bucket.
+
+    Args:
+        series_instance_uid (str): Series instance UID.
+        minioClient (Minio): Minio client.
+
+    Raises:
+        HTTPException: If object is not found in the bucket.
+
+    Returns:
+        StreamingResponse: Streaming response of the PNG file.
+    """
+
+    bucket = "thumbnails"
+    object_name = f"batch/{series_instance_uid}/generate-segmentation-thumbnail/{series_instance_uid}.png"
+
+    try:
+        png_file = minioClient.get_object(bucket, object_name)
+    except S3Error:
+        raise HTTPException(status_code=404, detail="Object not found in the bucket.")
+
+    return StreamingResponse(png_file, media_type="image/png")
+
+
 @router.get("/series/{series_instance_uid}")
 async def get_data(
     series_instance_uid,
@@ -184,8 +217,7 @@ async def get_data(
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
 
-        path = f"batch/{series_instance_uid}/generate-segmentation-thumbnail/{series_instance_uid}.png"
-        thumbnail_src = f"/thumbnails/{path}"
+        thumbnail_src = f"/kaapana-backend/dataset/get-thumbnail/{series_instance_uid}"
     else:
         thumbnail_src = (
             f"/dicom-web-filter/studies/{metadata['Study Instance UID']}/"

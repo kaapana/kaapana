@@ -44,7 +44,7 @@ spec:
   - host:
     http:
       paths:
-      - path: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}" # {{ printf "/project/%s/%s" .Values.global.project_name .Release.Name }}
+      - path: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
         pathType: ImplementationSpecific
         backend:
           service:

@@ -60,3 +60,24 @@ test_deny_kaapana_backend_if_project_role_too_low {
         "access_token": {"projects" : [{"id" : 1, "role_name":"guest"}] } 
     }
 }
+
+test_allow_project_application {
+    allow with input as {
+        "requested_prefix": "/applications/project/admin/release/jupyterlab-chart",
+        "access_token": {"projects" : [{"id" : 1, "name": "admin", "role_name": "read"}] } 
+    }
+}
+
+test_deny_project_application_because_project_does_not_match {
+    not allow with input as {
+        "requested_prefix": "/applications/project/combine/release/jupyterlab-chart",
+        "access_token": {"projects" : [{"id" : 1, "name": "admin", "role_name": "read"}] } 
+    }
+}
+
+test_deny_project_application_because_project_role_does_not_match {
+    not allow with input as {
+        "requested_prefix": "/applications/project/admin/release/jupyterlab-chart",
+        "access_token": {"projects" : [{"id" : 1, "name": "admin", "role_name": "guest"}] } 
+    }
+}

@@ -113,7 +113,7 @@ ui_forms = {
                     "nnUNetPlannerResEncM",
                     "nnUNetPlannerResEncL",
                     "nnUNetPlannerResEncXL",
-                    "nnUNetPlanner",
+                    "ExperimentPlanner",
                 ],
                 "type": "string",
                 "readOnly": False,

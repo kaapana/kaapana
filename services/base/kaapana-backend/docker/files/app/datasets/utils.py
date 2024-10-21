@@ -34,7 +34,7 @@ def execute_sliced_search(
     aggregated_series_num,
     page_index,
     source=False,
-    sort=[{"00000000 TimestampArrived_datetime.keyword": "desc"}],
+    sort=[{"00000000 TimestampArrived_datetime": "desc"}],
     size=1000,
 ):
     total_slices = math.ceil(aggregated_series_num / size)
@@ -63,7 +63,7 @@ def execute_from_size_search(
     index,
     query: Dict = dict(),
     source=False,
-    sort=[{"00000000 TimestampArrived_datetime.keyword": "desc"}],
+    sort=[{"00000000 TimestampArrived_datetime": "desc"}],
     start_from=1,
     size=1000,
 ) -> List:
@@ -84,6 +84,9 @@ def execute_from_size_search(
     :param size: the result size
     :return: aggregated search results
     """
+
+    sort = check_sort_field(sort, os_client, index)
+    # in case the sort field does not exist
     start_from = (start_from - 1) * size
     res = os_client.search(
         body={
@@ -104,7 +107,7 @@ def execute_search_after_search(
     pit_id,
     query: Dict = dict(),
     source=False,
-    sort=[{"00000000 TimestampArrived_datetime.keyword": "desc"}],
+    sort=[{"00000000 TimestampArrived_datetime": "desc"}],
     start_from=1,
     size=1000,
 ) -> List:
@@ -305,7 +308,27 @@ async def get_metadata(os_client, index, series_instance_uid: str) -> Dict[str, 
     }
 
 
-async def get_field_mapping(os_client, index) -> Dict:
+def check_sort_field(
+    sort: List[Dict[str, str]], os_client, index
+) -> List[Dict[str, str]]:
+    """
+    Check if the sort field is part of the mapping,
+    if not sort=[] is returned
+    """
+
+    mapping_fields = get_field_mapping(os_client, index)
+    checked_sort_fields = []
+    for sort_field in sort:
+        # Each sort_field is a dictionary like {"field_name": "desc"}
+        field_name = next(iter(sort_field))
+        # Check if the field exists in the mapping fields values
+        if field_name in mapping_fields.values():
+            checked_sort_fields.append(sort_field)  # Add the sort field if it exists
+
+    return checked_sort_fields
+
+
+def get_field_mapping(os_client, index) -> Dict:
     """
     Returns a mapping of field for a given index form open search.
     This looks like:
@@ -317,7 +340,14 @@ async def get_field_mapping(os_client, index) -> Dict:
     """
     import re
 
-    res = os_client.indices.get_mapping(index=index)[index]["mappings"]["properties"]
+    try:
+        res = os_client.indices.get_mapping(index=index)[index]["mappings"][
+            "properties"
+        ]
+    except KeyError:
+        logging.info("Index key error, no properties in mappings")
+        # Newly created projects have no "properties" (since no data in opensearch yet)
+        return {}
 
     name_field_map = {
         camel_case_to_space(k): k + type_suffix(v) for k, v in res.items()

@@ -6,7 +6,7 @@ from shutil import copyfile
 from airflow.utils.dates import days_ago
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
-from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
+from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 
@@ -76,7 +76,7 @@ def start_reindexing(ds, **kwargs):
         trigger(dag_id=dag_id, run_id=dag_run_id, replace_microseconds=False)
 
 
-clean_meta = LocalDeleteFromMetaOperator(
+clean_meta = DeleteFromMetaOperator(
     dag=dag, operator_in_dir="get-input-data", delete_all_documents=True
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

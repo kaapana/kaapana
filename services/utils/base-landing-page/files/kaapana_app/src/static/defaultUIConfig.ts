@@ -13,7 +13,7 @@ const settings = {
 
         },
         itemsPerPagePagination: 1000,
-        sort: "00000000 TimestampArrived_datetime.keyword",
+        sort: "00000000 TimestampArrived_datetime",
         sortDirection: "desc",
         executeSlicedSearch: false,
         props: [

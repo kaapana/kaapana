@@ -78,7 +78,7 @@ async def get_series(
     page_index: int = data.get("pageIndex", 1)
     page_length: int = data.get("pageLength", 1000)
     aggregated_series_num: int = data.get("aggregatedSeriesNum", 1)
-    sort_param: str = data.get("sort", "00000000 TimestampArrived_datetime.keyword")
+    sort_param: str = data.get("sort", "00000000 TimestampArrived_datetime")
     sort_direction: str = data.get("sortDirection", "desc").lower()
     use_execute_sliced_search: bool = data.get("executeSlicedSearch", False)
 
@@ -238,7 +238,7 @@ async def get_dashboard(
     series_instance_uids = config.get("series_instance_uids")
     names = config.get("names", [])
 
-    name_field_map = await utils.get_field_mapping(os_client, project_index)
+    name_field_map = utils.get_field_mapping(os_client, project_index)
     filtered_name_field_map = {
         name: name_field_map[name] for name in names if name in name_field_map
     }
@@ -314,7 +314,7 @@ async def get_dashboard(
 
 
 async def get_all_values(os_client, index, item_name, query):
-    name_field_map = await utils.get_field_mapping(os_client, index)
+    name_field_map = utils.get_field_mapping(os_client, index)
 
     item_key = name_field_map.get(item_name)
     if not item_key:
@@ -371,7 +371,7 @@ async def get_field_names(
     project_index=Depends(get_project_index),
 ):
     return JSONResponse(
-        list((await utils.get_field_mapping(os_client, project_index)).keys())
+        list((utils.get_field_mapping(os_client, project_index)).keys())
     )
 
 
@@ -381,7 +381,7 @@ async def get_fields(
     os_client=Depends(get_opensearch),
     project_index=Depends(get_project_index),
 ):
-    mapping = await utils.get_field_mapping(os_client, project_index)
+    mapping = utils.get_field_mapping(os_client, project_index)
     if field:
         return JSONResponse(mapping[field])
     else:

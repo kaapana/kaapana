@@ -1,3 +1,4 @@
+import json
 import logging
 import secrets
 import subprocess
@@ -266,6 +267,14 @@ async def helm_install_chart(request: Request):
             cmd_addons = "--create-namespace"
         if ("blocking" in payload) and (str(payload["blocking"]).lower() == "true"):
             blocking = True
+        if (
+            keywords := payload.get("keywords")
+        ) and "kaapanamultiinstallable" in keywords:
+            project_form = json.loads(request.headers.get("Project"))
+            payload["extension_params"] = payload.get("extension_params", {})
+            payload["extension_params"]["project_id"] = project_form.get("id")
+            payload["extension_params"]["project_name"] = project_form.get("name")
+
         not_installed, _, keywords, release_name, cmd = utils.helm_install(
             payload,
             shell=True,

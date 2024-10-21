@@ -15,8 +15,8 @@ from kaapana.operators.KaapanaBranchPythonBaseOperator import (
     KaapanaBranchPythonBaseOperator,
 )
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.LocalClearValidationResultOperator import (
-    LocalClearValidationResultOperator,
+from kaapana.operators.ClearValidationResultOperator import (
+    ClearValidationResultOperator,
 )
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
@@ -185,7 +185,7 @@ branching_get_input_json = KaapanaBranchPythonBaseOperator(
     dag=dag,
 )
 
-clear_validation_results = LocalClearValidationResultOperator(
+clear_validation_results = ClearValidationResultOperator(
     dag=dag,
     name="clear-validation-results",
     input_operator=get_input_json,

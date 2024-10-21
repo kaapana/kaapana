@@ -5,8 +5,8 @@ from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.LocalClearValidationResultOperator import (
-    LocalClearValidationResultOperator,
+from kaapana.operators.ClearValidationResultOperator import (
+    ClearValidationResultOperator,
 )
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.ValidationResult2MetaOperator import (
@@ -67,7 +67,7 @@ validate = DcmValidatorOperator(
 
 get_input_json = GetInputOperator(dag=dag, name="get-json-input-data", data_type="json")
 
-clear_validation_results = LocalClearValidationResultOperator(
+clear_validation_results = ClearValidationResultOperator(
     dag=dag,
     name="clear-validation-results",
     input_operator=get_input_json,

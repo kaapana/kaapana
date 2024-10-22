@@ -1,8 +1,8 @@
 import json
 import os
 from glob import glob
-from os.path import join, basename, normpath, exists
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from os.path import join, basename, dirname, normpath, exists
+from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 
 def _get_dataset_json(model_path, installed_task):
@@ -106,11 +106,9 @@ def _get_installed_tasks(af_home_path):
                     "supported": True,
                     "info": dataset_json["info"] if "info" in dataset_json else "N/A",
                     "url": dataset_json["url"] if "url" in dataset_json else "N/A",
-                    "task_url": (
-                        dataset_json["task_url"]
-                        if "task_url" in dataset_json
-                        else "N/A"
-                    ),
+                    "task_url": dataset_json["task_url"]
+                    if "task_url" in dataset_json
+                    else "N/A",
                 }
             # if installed_model not in installed_tasks[installed_task]["model"]:
             #     installed_tasks[installed_task]["model"].append(installed_model)
@@ -166,7 +164,7 @@ def get_available_protocol_names():
                     ],
                 }
             },
-            index=HelperOpensearch.index,
+            index="meta-index",
         )
         print(f"HITS: {hits=}")
 

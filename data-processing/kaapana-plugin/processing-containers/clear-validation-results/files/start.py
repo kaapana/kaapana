@@ -3,12 +3,11 @@ import json
 import os
 import re
 from os import getenv
-from os.path import exists
 
 from kaapanapy.helper import get_minio_client
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import OpensearchSettings
+from kaapanapy.settings import OpensearchSettings, OperatorSettings
 from minio import Minio
 
 logger = get_logger(__name__, level="INFO")
@@ -22,10 +21,6 @@ class ClearValidationResultOperator:
         result_bucket: str = "staticwebsiteresults",
         validation_tag: str = "00111001",
         opensearch_index: str = None,
-        operator_in_dir: str = None,
-        workflow_dir: str = None,
-        batch_name: str = None,
-        run_id: str = None,
     ):
         # Operator attributes
         self.result_bucket = result_bucket
@@ -38,10 +33,12 @@ class ClearValidationResultOperator:
         )
 
         # Airflow variables
-        self.operator_in_dir = operator_in_dir
-        self.workflow_dir = workflow_dir
-        self.batch_name = batch_name
-        self.run_id = run_id
+        operator_settings = OperatorSettings()
+
+        self.operator_in_dir = operator_settings.operator_in_dir
+        self.workflow_dir = operator_settings.workflow_dir
+        self.batch_name = operator_settings.batch_name
+        self.run_id = operator_settings.run_id
 
         self.minio_client: Minio = get_minio_client()
         self.os_client = HelperOpensearch.os_client
@@ -173,35 +170,10 @@ if __name__ == "__main__":
     validation_tag = getenv("VALIDATION_TAG", None)
     opensearch_index = getenv("OPENSEARCH_INDEX", None)
 
-    operator_in_dir = getenv("OPERATOR_IN_DIR", None)
-    assert operator_in_dir, "Operator in directory is not set!"
-
-    workflow_dir = getenv("WORKFLOW_DIR", None)
-    if not exists(workflow_dir):
-        # Workaround if this is being run in dev-server
-        workflow_dir_dev = workflow_dir.split("/")
-        workflow_dir_dev.insert(3, "workflows")
-        workflow_dir_dev = "/".join(workflow_dir_dev)
-
-        if not exists(workflow_dir_dev):
-            raise Exception(f"Workflow directory {workflow_dir} does not exist!")
-
-        workflow_dir = workflow_dir_dev
-
-    batch_name = getenv("BATCH_NAME", None)
-    assert batch_name, "Batch name is not set!"
-
-    run_id = getenv("RUN_ID", None)
-    assert run_id, "Run ID is not set!"
-
     operator = ClearValidationResultOperator(
         result_bucket=result_bucket,
         validation_tag=validation_tag,
         opensearch_index=opensearch_index,
-        operator_in_dir=operator_in_dir,
-        workflow_dir=workflow_dir,
-        batch_name=batch_name,
-        run_id=run_id,
     )
 
     operator.start()

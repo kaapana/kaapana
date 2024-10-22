@@ -2,9 +2,9 @@ import glob
 import json
 import os
 from os import getenv
-from os.path import exists
 
 import pydicom
+from kaapanapy.helper import load_workflow_config
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings, OperatorSettings
@@ -39,10 +39,7 @@ class DeleteFromMetaOperator:
         self.batch_name = operator_settings.batch_name
         self.run_id = operator_settings.run_id
 
-        config_path = os.path.join(self.workflow_dir, "conf", "conf.json")
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                self.workflow_config = json.load(f)
+        self.workflow_config = load_workflow_config()
 
         if not self.delete_complete_study:
             if (

@@ -97,7 +97,7 @@ def _get_installed_tasks(af_home_path):
                 dataset_json = _get_dataset_json(
                     model_path=model_path, installed_task=installed_task
                 )
-                installed_tasks[f"{installed_model} --- {installed_task}"] = {
+                installed_tasks[f"{installed_model}---{installed_task}"] = {
                     "description": dataset_json["description"]
                     if "description" in dataset_json
                     else "N/A",
@@ -105,11 +105,15 @@ def _get_installed_tasks(af_home_path):
                     "input-mode": dataset_json["input-mode"]
                     if "input-mode" in dataset_json
                     else "all",
-                    "input": list(dataset_json["channel_names"].values()),
+                    "input": list(dataset_json["channel_names"].values())
+                    if "channel_names" in dataset_json
+                    else "N/A",
                     "body_part": dataset_json["body_part"]
                     if "body_part" in dataset_json
                     else "N/A",
-                    "targets": dataset_json["targets"],
+                    "targets": dataset_json["targets"]
+                    if "targets" in dataset_json
+                    else "N/A",
                     "supported": True,
                     "info": dataset_json["info"] if "info" in dataset_json else "N/A",
                     "url": dataset_json["url"] if "url" in dataset_json else "N/A",

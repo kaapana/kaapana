@@ -114,23 +114,40 @@ for batch_element_dir in batch_folders:
     element_mask_dicom_dir = join(batch_element_dir, operator_in_dir)
     element_output_dir = join(batch_element_dir, operator_out_dir)
 
+    element_mask_dicom_dir_exist = True
     if not exists(element_mask_dicom_dir):
-        logger.error("#")
-        logger.error(
-            f"# element_mask_dicom_dir: {element_mask_dicom_dir} does not exists!"
-        )
-        logger.error("#")
-        exit(1)
+        element_mask_dicom_dir_exist = False
 
     if base_dicom_in_dir is not None:
+        element_base_dicom_in_dir = True
         element_base_dicom_in_dir = join(batch_element_dir, base_dicom_in_dir)
         if not exists(element_base_dicom_in_dir):
-            logger.error("#")
-            logger.error(
-                f"# element_base_dicom_in_dir: {element_base_dicom_in_dir} does not exists!"
-            )
-            logger.error("#")
-            exit(1)
+            element_base_dicom_in_dir = False
+
+        # per batch element either gt or base_dcm subfolders should exist
+        if element_mask_dicom_dir_exist == element_base_dicom_in_dir:
+            if not element_mask_dicom_dir_exist:
+                logger.error("#")
+                logger.error(
+                    f"# element_mask_dicom_dir: {element_mask_dicom_dir} does not exists!"
+                )
+                logger.error("#")
+                exit(1)
+            elif not element_base_dicom_in_dir:
+                logger.error("#")
+                logger.error(
+                    f"# element_base_dicom_in_dir: {element_base_dicom_in_dir} does not exists!"
+                )
+                logger.error("#")
+                exit(1)
+            else:
+                logger.error("#")
+                logger.error(
+                    f"# element_mask_dicom_dir: {element_mask_dicom_dir} and element_base_dicom_in_dir: {element_base_dicom_in_dir} exist, but they should not!"
+                )
+                logger.error("#")
+                exit(1)
+
     else:
         element_base_dicom_in_dir = None
 

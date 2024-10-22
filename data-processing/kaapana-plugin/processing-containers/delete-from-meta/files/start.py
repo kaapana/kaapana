@@ -7,7 +7,7 @@ from os.path import exists
 import pydicom
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import KaapanaSettings
+from kaapanapy.settings import KaapanaSettings, OperatorSettings
 
 logger = get_logger(__name__, level="INFO")
 
@@ -21,10 +21,6 @@ class DeleteFromMetaOperator:
         self,
         delete_complete_study: bool = False,
         delete_all_documents: bool = False,
-        operator_in_dir: str = None,
-        workflow_dir: str = None,
-        batch_name: str = None,
-        run_id: str = None,
     ):
         """Initializes the operator with the given parameters.
 
@@ -38,10 +34,14 @@ class DeleteFromMetaOperator:
         """
         self.delete_complete_study = delete_complete_study
         self.delete_all_documents = delete_all_documents
-        self.operator_in_dir = operator_in_dir
-        self.workflow_dir = workflow_dir
-        self.batch_name = batch_name
-        self.run_id = run_id
+
+        # Airflow variables
+        operator_settings = OperatorSettings()
+
+        self.operator_in_dir = operator_settings.operator_in_dir
+        self.workflow_dir = operator_settings.workflow_dir
+        self.batch_name = operator_settings.batch_name
+        self.run_id = operator_settings.run_id
 
         config_path = os.path.join(self.workflow_dir, "conf", "conf.json")
         if os.path.exists(config_path):
@@ -147,34 +147,9 @@ if __name__ == "__main__":
     delete_all_documents = getenv("DELETE_ALL_DOCUMENTS", False)
     delete_all_documents = delete_all_documents.lower() == "true"
 
-    operator_in_dir = getenv("OPERATOR_IN_DIR", None)
-    assert operator_in_dir, "Operator in directory is not set!"
-
-    workflow_dir = getenv("WORKFLOW_DIR", None)
-    if not exists(workflow_dir):
-        # Workaround if this is being run in dev-server
-        workflow_dir_dev = workflow_dir.split("/")
-        workflow_dir_dev.insert(3, "workflows")
-        workflow_dir_dev = "/".join(workflow_dir_dev)
-
-        if not exists(workflow_dir_dev):
-            raise Exception(f"Workflow directory {workflow_dir} does not exist!")
-
-        workflow_dir = workflow_dir_dev
-
-    batch_name = getenv("BATCH_NAME", None)
-    assert batch_name, "Batch name is not set!"
-
-    run_id = getenv("RUN_ID", None)
-    assert run_id, "Run ID is not set!"
-
     operator = DeleteFromMetaOperator(
         delete_complete_study=delete_complete_study,
         delete_all_documents=delete_all_documents,
-        operator_in_dir=operator_in_dir,
-        workflow_dir=workflow_dir,
-        batch_name=batch_name,
-        run_id=run_id,
     )
 
     operator.start()

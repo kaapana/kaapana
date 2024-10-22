@@ -53,7 +53,9 @@ class ClearValidationResultOperator(KaapanaBaseOperator):
 
         env_vars["RESULT_BUCKET"] = result_bucket
         env_vars["VALIDATION_TAG"] = validation_tag
-        env_vars["OPENSEARCH_INDEX"] = opensearch_index
+
+        if opensearch_index is not None:
+            env_vars["OPENSEARCH_INDEX"] = opensearch_index
 
         super().__init__(
             dag=dag,

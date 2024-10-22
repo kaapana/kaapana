@@ -15,22 +15,13 @@ logger = get_logger(__name__, level="INFO")
 
 
 class ClearValidationResultOperator:
-    """
-    This Operator delete validation results from minio.
-
-    Attributes:
-        minio_client (HelperMinio): MinIO client for interacting with the MinIO service.
-        os_client (OpenSearch): OpenSearch client for interacting with the OpenSearch service.
-        validation_field (str): Field in the OpenSearch index used for validation results.
-        result_bucket (str): minio bucket which stores the validation results html files.
-        opensearch_index (str): Index in OpenSearch where metadata is stored.
-    """
+    """ClearValidationResultOperator deletes validation results from MinIO and OpenSearch."""
 
     def __init__(
         self,
         result_bucket: str = "staticwebsiteresults",
         validation_tag: str = "00111001",
-        opensearch_index: str = OpensearchSettings().default_index,
+        opensearch_index: str = None,
         operator_in_dir: str = None,
         workflow_dir: str = None,
         batch_name: str = None,
@@ -39,7 +30,12 @@ class ClearValidationResultOperator:
         # Operator attributes
         self.result_bucket = result_bucket
         self.validation_tag = validation_tag
-        self.opensearch_index = opensearch_index
+        self.validation_field = f"{validation_tag} ValidationResults_object"
+        self.opensearch_index = (
+            opensearch_index
+            if opensearch_index is not None
+            else OpensearchSettings().default_index
+        )
 
         # Airflow variables
         self.operator_in_dir = operator_in_dir

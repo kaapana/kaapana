@@ -27,10 +27,6 @@ class DeleteFromMetaOperator:
         Args:
             delete_complete_study (bool, optional): Boolean to delete the complete study. Defaults to False.
             delete_all_documents (bool, optional): Boolean to delete all documents. Defaults to False.
-            operator_in_dir (str, optional): Input directory for the operator. Defaults to None.
-            workflow_dir (str, optional): Workflow directory. Defaults to None.
-            batch_name (str, optional): Batch name. Defaults to None.
-            run_id (str, optional): DAG run ID. Defaults to None.
         """
         self.delete_complete_study = delete_complete_study
         self.delete_all_documents = delete_all_documents

@@ -121,7 +121,7 @@ class ClearValidationResultOperator:
             return
 
         for result in seriesresults:
-            self.minio_client.remove_file(self.result_bucket, result)
+            self.minio_client.remove_object(self.result_bucket, result)
             logger.info(f"{result} is removed from minio")
 
         return

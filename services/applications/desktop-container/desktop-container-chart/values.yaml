@@ -7,11 +7,11 @@ global:
   slow_data_dir: ""
   namespace: "{{ .Values.global.services_namespace }}"
   dynamicVolumes:
-  - name: mitk
+  - name: desktop
     mount_path: /kaapana/minio
-    host_path: /applications/mitk
+    host_path: /applications/desktop
     minio_mirror : true
-  nodePortMITKWorkbench: 22223
+  nodePortDesktopWorkbench: 22224
 
 extension_params:
     service_type: 

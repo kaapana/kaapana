@@ -19,7 +19,7 @@ spec:
         runAsGroup: 1000
         fsGroup: 1000
       initContainers:
-      - name: mitk-workbench-init
+      - name: desktop-container-init
         securityContext:
           runAsUser: 0
         image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
@@ -74,10 +74,10 @@ spec:
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
         # ToDo add init-container to wait for db-host
-      - name: mitk
+      - name: desktop-container
         securityContext:
           runAsUser: 0
-        image: "{{ .Values.global.registry_url }}/mitk-workbench:{{ .Values.global.kaapana_build_version  }}"
+        image: "{{ .Values.global.registry_url }}/desktop-container:{{ .Values.global.kaapana_build_version  }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}
         resources:
           requests:
@@ -90,6 +90,10 @@ spec:
         env:
         - name: INGRESS_PATH
           value: {{ .Release.Name }}
+        - name: USER
+          value: desktop
+        - name: PASSWORD
+          value: desktop
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:

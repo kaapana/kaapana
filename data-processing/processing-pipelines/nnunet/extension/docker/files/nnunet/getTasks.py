@@ -2,7 +2,14 @@ import json
 import os
 from glob import glob
 from os.path import join, basename, dirname, normpath, exists
-from kaapana.operators.HelperOpensearch import HelperOpensearch
+
+from kaapanapy.helper import get_project_user_access_token, get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
+
+# instatiate opensearch access
+access_token = get_project_user_access_token()
+os_client = get_opensearch_client(access_token=access_token)
+index = OpensearchSettings().default_index
 
 
 def _get_dataset_json(model_path, installed_task):
@@ -150,22 +157,24 @@ def get_all_checkpoints():
 
 
 def get_available_protocol_names():
+    # compose query
+    queryDict = {}
+    queryDict["query"] = {
+        "bool": {
+            "must": [
+                {"match_all": {}},
+                {
+                    "match_phrase": {
+                        "00080060 Modality_keyword.keyword": {"query": "OT"}
+                    }
+                },
+            ],
+        }
+    }
+    queryDict["_source"] = {}
     try:
-        hits = HelperOpensearch.get_query_dataset(
-            query={
-                "bool": {
-                    "must": [
-                        {"match_all": {}},
-                        {
-                            "match_phrase": {
-                                "00080060 Modality_keyword.keyword": {"query": "OT"}
-                            }
-                        },
-                    ],
-                }
-            },
-            index="meta-index",
-        )
+        res = os_client.search(index=[index], body=queryDict)
+        hits = res["hits"]["hits"]
         print(f"HITS: {hits=}")
 
         available_protocol_names = []

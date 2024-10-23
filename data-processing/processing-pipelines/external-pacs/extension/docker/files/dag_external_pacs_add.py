@@ -6,25 +6,25 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from external_pacs.LocalExternalPacsOperator import LocalExternalPacsOperator
 from external_pacs.LocalExternalThumbnailOperator import LocalExternalThumbnailOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
-from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
+from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.Json2MetaOperator import Json2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
 
-gcloud = "https://healthcare.googleapis.com/v1"
-project_id = "/projects/idc-external-031"
-location = "/locations/europe-west2"
-dataset_id = "/datasets/kaapana-integration-test"
-dicom_store_id = "/dicomStores/kaapana-integration-test-store"
 dataset_name = "external-data"
-
-default_host = gcloud + project_id + location + dataset_id + dicom_store_id
+default_host = (
+    "https://healthcare.googleapis.com/v1"
+    + "/projects/idc-external-031"
+    + "/locations/europe-west2"
+    + "/datasets/kaapana-integration-test"
+    + "/dicomStores/kaapana-integration-test-store"
+)
 ui_forms = {
     "data_form": {},
     "workflow_form": {
@@ -88,20 +88,6 @@ push_json = LocalJson2MetaOperator(
 push_json = Json2MetaOperator(
     dag=dag, input_operator=init_operator, json_operator=extract_metadata
 )
-external_thumbnail = LocalExternalThumbnailOperator(
-    dag=dag,
-    input_operator=extract_metadata,
-)
-
-put_to_minio = LocalMinioOperator(
-    dag=dag,
-    name="upload-thumbnail",
-    zip_files=False,
-    action="put",
-    bucket_name="thumbnails",
-    action_operators=[external_thumbnail],
-    file_white_tuples=(".png"),
-)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (
@@ -109,7 +95,5 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
     >> extract_metadata
     >> add_to_dataset
     >> push_json
-    >> external_thumbnail
-    >> put_to_minio
     >> clean
 )  # type: ignore

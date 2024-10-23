@@ -409,9 +409,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 for mod_id, _ in concat_dataset_fingerprints[
                     "foreground_intensity_properties_per_channel"
                 ].items():
-                    print(idx, mod_id)
-                    concat_dataset_properties["intensityproperties"][mod_id].update(
-                        global_intensityproperties[mod_id]
+                    print(
+                        f"Number of aggregated data fingerprints {idx} of modality {mod_id}."
                     )
                     concat_dataset_fingerprints[
                         "foreground_intensity_properties_per_channel"

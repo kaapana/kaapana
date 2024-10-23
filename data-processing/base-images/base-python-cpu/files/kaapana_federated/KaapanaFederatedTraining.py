@@ -604,9 +604,11 @@ class KaapanaFederatedTrainingBase(ABC):
                 )
                 print(f"Uploading {file_path } to {next_object_name}")
                 self.minioClient.fput_object(
-                    self.remote_conf_data["federated_form"]["federated_bucket"],
-                    next_object_name,
-                    file_path,
+                    self.remote_conf_data["federated_form"][
+                        "federated_bucket"
+                    ],  # minio bucket
+                    next_object_name,  # path in minio bucket
+                    file_path,  # file in current workflow dir
                 )
         print("Finished round", federated_round)
 
@@ -685,6 +687,18 @@ class KaapanaFederatedTrainingBase(ABC):
             json.dump(
                 recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True
             )
+
+        minio_recovery_path = os.path.join(
+            self.federated_dir, str(federated_round), "recovery_conf.json"
+        )
+        print(
+            f"Uploading recovery_conf to MinIO: {self.remote_conf_data['federated_form']['federated_bucket']}/{minio_recovery_path}"
+        )
+        self.minioClient.fput_object(
+            self.remote_conf_data["federated_form"]["federated_bucket"],  # minio bucket
+            minio_recovery_path,  # path in minio bucket
+            recovery_path,  # path of file in current workflow dir
+        )
 
     @timeit
     def train(self):

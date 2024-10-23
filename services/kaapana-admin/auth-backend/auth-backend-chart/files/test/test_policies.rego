@@ -52,6 +52,14 @@ test_deny_kaapana_backend_if_no_project_given {
     }
 }
 
+test_deny_kaapana_backend_if_no_project_in_input {
+    not allow with input as {
+        "requested_prefix": "/kaapana-backend/", 
+        "method": "POST",
+        "access_token": {"projects" : [{"id" : 1}] } 
+    }
+}
+
 test_deny_kaapana_backend_if_project_role_too_low {
     not allow with input as {
         "project": {"id": 1}, 

@@ -65,6 +65,7 @@ export default Vue.extend({
     launchedAppLinks: [] as any,
     projectApplications: [] as any,
     search: "",
+    selectedProject: null,
     headers: [
       {
         text: "Name",
@@ -100,6 +101,17 @@ export default Vue.extend({
     ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications"])
   },
   methods: {
+    loadSelectedProject() {
+      // get selected project name from localStorage
+      const storedProject = localStorage.getItem("selectedProject");
+      let selectedProject = null
+      if (storedProject) {
+        selectedProject = JSON.parse(storedProject);
+        return selectedProject.name;
+      } 
+      return null
+    },
+
     getHelmCharts() {
       kaapanaApiService
         .helmApiGet("/pending-applications", {})
@@ -117,6 +129,8 @@ export default Vue.extend({
       kaapanaApiService
         .kaapanaApiGet("/get-traefik-routes")
         .then((response: any) => {
+          this.selectedProject = this.loadSelectedProject()
+          console.log(" this.selectedProject", this.selectedProject)
           // filter and format traefik routes
           this.projectApplications = response.data
             .filter((item: any) => {
@@ -133,8 +147,7 @@ export default Vue.extend({
 
               // check if the rule contains the required pattern for project namespace
               const rulePath = item.rule.slice(12, -2);
-              // TODO: get the project name for pattern
-              const rulePattern = /^\/applications\/project\/[^/]+\/release\/[^/]+$/;
+              const rulePattern = new RegExp(`^\/applications\/project\/${this.selectedProject}\/release\/[^/]+$`);
               return rulePattern.test(rulePath);
             })
             .map((item: any) => {

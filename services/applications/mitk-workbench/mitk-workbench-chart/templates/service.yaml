@@ -27,8 +27,8 @@ metadata:
   namespace: "{{ tpl .Values.global.namespace .  }}"
 spec:
   redirectRegex:
-    regex: ^.*/{{ .Release.Name }}([^\/]*)$
-    replacement: {{ printf "/%s/" .Release.Name }}
+    regex: ^.*/project/{{ .Values.global.project_name}}/release/{{ .Release.Name }}([^\/]*)$
+    replacement: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}/"
 ---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress
@@ -44,7 +44,7 @@ spec:
   - host:
     http:
       paths:
-      - path: {{ printf "/%s" .Release.Name }}
+      - path: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
         pathType: ImplementationSpecific
         backend:
           service:

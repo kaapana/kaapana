@@ -13,6 +13,7 @@
 <script>
 import axios from "axios";
 import httpClient from "../common/httpClient";
+import { UPDATE_SELECTED_PROJECT } from "@/store/actions.type";
 
 export default {
   data() {
@@ -26,14 +27,12 @@ export default {
   },
   watch: {
     selectedProject(newProject) {
-      localStorage.setItem("selectedProject", JSON.stringify(newProject));
+      console.log("Change selected project: " + JSON.stringify(newProject));
+      this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
       window.location.reload();
     },
   },
   methods: {
-    setSelectedProject() {
-      localStorage["selectedProject"] = this.selectedProject.text;
-    },
     async fetchProjects() {
       try {
         const response = await httpClient.get("/aii/projects");

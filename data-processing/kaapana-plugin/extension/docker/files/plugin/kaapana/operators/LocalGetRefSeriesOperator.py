@@ -10,8 +10,8 @@ from pathlib import Path
 
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 
 logger = logging.getLogger(__name__)
@@ -203,7 +203,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         """
         self.dag_run = kwargs["dag_run"].run_id
         logger.info("Starting module LocalGetRefSeriesOperator")
-        self.dcmweb_helper = get_dcmweb_helper()
+        self.dcmweb_helper = HelperDcmWeb()
 
         series_dirs = glob.glob(
             join(

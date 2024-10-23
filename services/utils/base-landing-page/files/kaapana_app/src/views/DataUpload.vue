@@ -129,7 +129,6 @@ export default Vue.extend({
     supported: true,
     componentKey: 0,
     hostname: "",
-    selectedProject: "",
   }),
   mounted() {
     const { userAgent } = navigator;
@@ -139,10 +138,9 @@ export default Vue.extend({
       this.supported = true;
     }
     this.hostname = window.location.origin;
-    this.selectedProject = JSON.parse(localStorage["selectedProject"]);
   },
   computed: {
-    ...mapGetters(["currentUser", "isAuthenticated"]),
+    ...mapGetters(["currentUser", "isAuthenticated", "selectedProject"]),
   },
   methods: {
     fileComplete(error: any, file: any) {

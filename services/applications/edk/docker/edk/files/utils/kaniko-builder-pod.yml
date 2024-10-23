@@ -5,13 +5,14 @@ metadata:
 spec:
   containers:
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:v1.23.2
     imagePullPolicy: IfNotPresent
+    hostNetwork: true
     resources:
       limits:
-        memory: 30Gi
+        memory: 20Gi
       requests:
-        memory: 4Gi
+        memory: 2Gi
     args:
     - "--dockerfile=DOCKERFILE_PATH"
     - "--context=dir://CONTEXT_DIR"

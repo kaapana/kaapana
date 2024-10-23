@@ -1,9 +1,6 @@
-import logging
-
 import httpx
 from app.logger import get_logger
 from fastapi import Request, Response
-from fastapi.responses import StreamingResponse
 
 logger = get_logger(__name__)
 
@@ -47,13 +44,13 @@ async def proxy_request(
     status_code = response.status_code
     response_headers = dict(response.headers)
     content = response.content
-
     # Prepare response headers
     if "content-encoding" in response_headers:
         del response_headers["content-encoding"]
     if "content-length" in response_headers:
         del response_headers["content-length"]  # Let the server set the content length
 
+    # logger.info(f"PROXY CONTENT: {content}")
     # Construct a new Response object from stored values
     return Response(
         content=content,

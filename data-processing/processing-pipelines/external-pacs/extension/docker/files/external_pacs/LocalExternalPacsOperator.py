@@ -2,19 +2,14 @@ import base64
 import json
 import logging
 import os
+import traceback
 from typing import Any, Dict
 
-from external_pacs.HelperDcmWebEndpointsManager import HelperDcmWebEndpointsManager
-from external_pacs.utils import (
-    create_k8s_secret,
-    delete_k8s_secret,
-    get_k8s_secret,
-    hash_secret_name,
-)
+import requests
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -25,6 +20,10 @@ logger = logging.getLogger(__file__)
 
 
 class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
+    # TODO temporary
+    DICOM_WEB_MULTIPLEXER_SERVICE = (
+        "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer"
+    )
 
     def __init__(
         self,
@@ -37,11 +36,6 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             dag=dag, name=name, batch_name=None, python_callable=self.start, **kwargs
         )
         self.action = action
-
-    def _decode_service_account_info(self, encoded_info: str) -> Dict[str, Any]:
-        decoded_bytes = base64.b64decode(encoded_info)
-        decoded_string = decoded_bytes.decode("utf-8")
-        return json.loads(decoded_string)
 
     def _filter_series_to_import(self, metadata):
         def extract_series_uid(instance):
@@ -68,12 +62,14 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         return filtered_series
 
     def download_external_metadata(
-        self, dcmweb_endpoint: str, dataset_name: str, service_account_info: Dict[str, Any]
+        self,
+        dcmweb_endpoint: str,
+        dataset_name: str,
+        service_account_info: Dict[str, Any],
     ):
         logger.info(f"Adding external metadata: {dcmweb_endpoint}")
-        dcmweb_helper = get_dcmweb_helper(
-            dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
-        )
+        dcmweb_helper = HelperDcmWeb()
+
         metadata = dcmweb_helper.search_for_instances()
 
         if not metadata or len(metadata) == 0:
@@ -107,56 +103,14 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             # 00120010 ClinicalTrialSponsorName_keyword
             instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
             instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
-            
+
             project_name = self.project_form["name"]
             instance["00120020"] = {"vr": "LO", "Value": [project_name]}
-            
 
             with open(json_path, "w", encoding="utf8") as fp:
                 json.dump(instance, fp, indent=4, sort_keys=True)
 
-    def add_secret(self, dcmweb_endpoint: str, service_account_info: Dict[str, str]):
-        helper = get_dcmweb_helper(
-            dcmweb_endpoint=dcmweb_endpoint, service_account_info=service_account_info
-        )
-        if not helper:
-            logger.error(
-                f"Cannot create HelperDcmWeb {dcmweb_endpoint} with provided credentials."
-            )
-            logger.error("Not saving credentials and exiting!")
-            exit(1)
-
-        if not helper.check_reachability():
-            logger.error(f"Cannot reach {dcmweb_endpoint} with provided credentials.")
-            logger.error("Not saving credentials and exiting!")
-            exit(1)
-
-        secret_name = hash_secret_name(name=dcmweb_endpoint)
-        create_k8s_secret(secret_name=secret_name, secret_data=service_account_info)
-
-        secret = get_k8s_secret(secret_name=secret_name)
-        if not secret:
-            logger.error("Secret not created successfully")
-            exit(1)
-        else:
-            logger.info("Secret successfully saved.")
-
-    def delete_secret(self, dcmweb_endpoint: str):
-        secret_name = hash_secret_name(name=dcmweb_endpoint)
-        secret = get_k8s_secret(secret_name=secret_name)
-        if not secret:
-            logger.error("No secret to remove, can't remove.")
-            exit(1)
-
-        delete_k8s_secret(secret_name)
-        secret = get_k8s_secret(secret_name=secret_name)
-        if not secret:
-            logger.info("Secret successfully removed.")
-        else:
-            logger.error("Secret not created successfully")
-            exit(1)
-
-    def delete_from_os(self, dcmweb_endpoint: str):
+    def delete_external_metadata(self, dcmweb_endpoint: str):
         query = {
             "query": {
                 "bool": {
@@ -171,7 +125,41 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         logger.info(f"Deleting metadata from opensearch using query: {query}")
         HelperOpensearch.delete_by_query(query)
 
-    
+    def _decode_service_account_info(self, encoded_info: str) -> Dict[str, Any]:
+        decoded_bytes = base64.b64decode(encoded_info)
+        decoded_string = decoded_bytes.decode("utf-8")
+        return json.loads(decoded_string)
+
+    def add_to_multiplexer(self, endpoint: str, secret_data: Dict[str, str]):
+        try:
+            payload = {"endpoint": endpoint, "secret_data": secret_data}
+
+            response = requests.post(
+                url=f"{self.DICOM_WEB_MULTIPLEXER_SERVICE}/endpoints", json=payload
+            )
+            response.raise_for_status()
+            logger.info(f"Secret create successfully")
+            return True
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error creating secret: {e}")
+            logger.error(traceback.format_exc())
+            return False
+
+    def remove_from_multiplexer(self, endpoint: str):
+        try:
+            payload = {"endpoint": endpoint}
+            response = requests.delete(
+                f"{self.DICOM_WEB_MULTIPLEXER_SERVICE}/endpoints",
+                json=payload,
+            )
+            response.raise_for_status()
+            logger.info(f"Successfully removed endpoint: {response.content}")
+            return True
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error creating secret: {e}")
+            logger.error(traceback.format_exc())
+            return False
+
     @cache_operator_output
     def start(self, ds, **kwargs):
         logger.info("# Starting module LocalExternalPacsOperator...")
@@ -182,28 +170,30 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         dcmweb_endpoint = self.workflow_form.get("dcmweb_endpoint")
         service_account_info = self.workflow_form.get("service_account_info")
 
-        endpoint_manager = HelperDcmWebEndpointsManager(dag_run=kwargs["dag_run"])
-
         if self.action == "add" and dcmweb_endpoint and service_account_info:
-            logger.info(f"Add to dcmweb minio list: {dcmweb_endpoint}")
-            endpoint_manager.add_endpoint(dcmweb_endpoint=dcmweb_endpoint)
-            logger.info(f"Add secret: {dcmweb_endpoint}")
             service_account_info = self._decode_service_account_info(
                 service_account_info
             )
-            self.add_secret(dcmweb_endpoint, service_account_info)
-            logger.info(f"Downloading metadata from {dcmweb_endpoint}")
+            if not self.add_to_multiplexer(
+                endpoint=dcmweb_endpoint, secret_data=service_account_info
+            ):
+                exit(1)
+
             self.download_external_metadata(
-                dcmweb_endpoint, self.workflow_form.get("dataset_name", ""), service_account_info
+                dcmweb_endpoint,
+                self.workflow_form.get("dataset_name", ""),
+                service_account_info,
             )
 
         elif self.action == "delete":
             logger.info(f"Remove metadata: {dcmweb_endpoint}")
-            self.delete_from_os(dcmweb_endpoint)
-            logger.info(f"Remove secret: {dcmweb_endpoint}")
-            self.delete_secret(dcmweb_endpoint)
-            logger.info(f"Remove from dcmweb minio list: {dcmweb_endpoint}")
-            endpoint_manager.remove_endpoint(dcmweb_endpoint=dcmweb_endpoint)
+            self.delete_external_metadata(dcmweb_endpoint)
+            if not self.remove_from_multiplexer(endpoint=dcmweb_endpoint):
+                exit(1)
+
+            logger.info("Remove")
+            if not self.remove_from_multiplexer(endpoint=dcmweb_endpoint):
+                exit(1)
 
         else:
             logger.error(f"Unknown action: {self.action}")

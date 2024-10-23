@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 
 from .database import async_engine
+from .MANAGEMENT.routes import router as management_router
 from .models import Base
 from .QIDO_RS.routes import router as qido_router
 from .SUPPLEMENTS.routes import router as supplement_router
@@ -25,20 +26,12 @@ tags_metadata = [
         "description": "Store DICOM objects",
     },
     {
-        "name": "Capabilities",
-        "description": "Discover services",
-    },
-    {
         "name": "WADO-URI",
         "description": "Retrieve single DICOM instances",
     },
     {
-        "name": "Custom",
-        "description": "Custom routes, currently for dcm4chee delete endpoint",
-    },
-    {
-        "name": "DataProjects",
-        "description": "Filter specific routes, create and delete DataProject mappings",
+        "name": "MANAGEMENT",
+        "description": "Management routes, add, retrieve or delete external endpoints",
     },
 ]
 
@@ -54,23 +47,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    root_path="/dicom-web-filter",
     title="DICOM Web Multiplexer",
     docs_url="/docs",
     openapi_url="/openapi.json",
     version="0.1.0",
     openapi_tags=tags_metadata,
     lifespan=lifespan,
-    middleware=[
-        # Middleware(
-        #     AuthMiddleware,
-        #     config_url=DWF_IDENTITY_OPENID_CONFIG_URL,
-        #     client_id=DWF_IDENTITY_OPENID_CLIENT_ID,
-        # ),
-    ],
 )
 app.add_middleware(ProxyMiddleware)
-app.include_router(qido_router)
-app.include_router(supplement_router)
-app.include_router(wado_router)
-app.include_router(wado_uri_router, prefix="/wado-uri")
+app.include_router(qido_router, prefix="/dicom-web-filter")
+app.include_router(supplement_router, prefix="/dicom-web-filter")
+app.include_router(wado_router, prefix="/dicom-web-filter")
+app.include_router(wado_uri_router, prefix="/dicom-web-filter/wado-uri")
+app.include_router(management_router, prefix="/dicom-web-multiplexer")

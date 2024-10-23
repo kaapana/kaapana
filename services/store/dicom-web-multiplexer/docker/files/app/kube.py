@@ -16,6 +16,7 @@
 # under the License.
 import base64
 import hashlib
+import traceback
 from typing import Dict, List
 
 from app.logger import get_logger
@@ -50,7 +51,7 @@ def create_k8s_secret(
     secret_name: str,
     secret_data: Dict[str, str],
     namespace: str = "services",
-):
+) -> bool:
     api_instance, _, _ = get_kube_client()
 
     encoded_credentials = {}
@@ -69,15 +70,18 @@ def create_k8s_secret(
     try:
         api_instance.create_namespaced_secret(namespace, secret)
         logger.info("Secret created successfully")
+        return True
     except client.ApiException as e:
-        logger.error(f"Secret '{secret_name}' creation FAILED: {e}.")
         if e.status == 409:  # already exists
-            return
+            return True
+
         else:
-            raise e
+            logger.error(f"Secret '{secret_name}' creation FAILED: {e}.")
+            logger.error(traceback.format_exc())
+            return False
 
 
-def delete_k8s_secret(secret_name: str, namespace: str = "services"):
+def delete_k8s_secret(secret_name: str, namespace: str = "services") -> bool:
     api_instance, _, _ = get_kube_client()
 
     try:
@@ -85,34 +89,14 @@ def delete_k8s_secret(secret_name: str, namespace: str = "services"):
         logger.info(
             f"Secret '{secret_name}' deleted successfully from namespace '{namespace}'."
         )
+        return True
     except client.ApiException as e:
-        if e.status == 404:
-            logger.warning(
-                f"Secret '{secret_name}' not found in namespace '{namespace}'."
-            )
+        if e.status == 404:  # Not found in the namespace
+            return True
         else:
             logger.error(f"Failed to delete secret '{secret_name}': {e}.")
-
-
-def get_all_k8s_secrets(namespace: str = "services") -> List[Dict[str, str]]:
-    api_instance, _, _ = get_kube_client()
-
-    try:
-        secrets = api_instance.list_namespaced_secret(namespace=namespace)
-        all_secrets = []
-        
-        for secret in secrets.items:
-            decoded_data = {
-                key: base64.b64decode(value).decode("utf-8")
-                for key, value in secret.data.items()
-            }
-            all_secrets.append(decoded_data)
-            
-        logger.info(f"All secrets retrieved successfully from namespace '{namespace}'.")
-        return all_secrets
-    except client.ApiException as e:
-        logger.error(f"Failed to retrieve secrets from namespace '{namespace}': {e}.")
-        return []
+            logger.error(traceback.format_exc())
+            return False
 
 
 def get_k8s_secret(secret_name: str, namespace: str = "services"):

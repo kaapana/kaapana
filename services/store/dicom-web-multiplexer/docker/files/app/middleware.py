@@ -19,31 +19,37 @@ logger = get_logger(__name__)
 
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        logger.info("Entering ProxyMiddleware")
-
+        # Check if the request path starts with an excluded prefix
+        if request.url.path.startswith("/dicom-web-multiplexer"):
+            return await call_next(request)
         try:
-            logger.info("Endpoint discovery")
             series_uid = get_series_uid_from_request(request)
             if series_uid:
                 endpoint = get_endpoint_from_opensearch(series_uid)
+                logger.info(f"Endpoint: {endpoint}")
                 if endpoint:
                     request.state.endpoint = endpoint
                     return await call_next(request)
 
-            logger.info("Merge request")
-            dicom_web_filter_result = await proxy_request(
-                request=request,
-                url=dicom_web_filter_url(request),
-                method=request.method,
-            )
+                return await proxy_request(
+                    request=request,
+                    url=dicom_web_filter_url(request),
+                    method=request.method,
+                )
+            else:
+                dicom_web_filter_result = await proxy_request(
+                    request=request,
+                    url=dicom_web_filter_url(request),
+                    method=request.method,
+                )
 
-            dicom_web_multiplexer_result = await merge_external_responses(
-                request, call_next
-            )
+                dicom_web_multiplexer_result = await merge_external_responses(
+                    request, call_next
+                )
 
-            return await decide_response(
-                dicom_web_filter_result, dicom_web_multiplexer_result
-            )
+                return await decide_response(
+                    dicom_web_filter_result, dicom_web_multiplexer_result
+                )
 
         except Exception as e:
             logger.error(f"Error in proxy middleware: {e}")
@@ -80,13 +86,20 @@ def get_endpoint_from_opensearch(series_uid: str) -> str:
         query=query,
         include_custom_tag=HelperOpensearch.dcmweb_endpoint_tag,
     )
-    endpoint = result[0]["_source"].get(HelperOpensearch.dcmweb_endpoint_tag)
-    return endpoint
+    try:
+        endpoint = result[0]["_source"].get(HelperOpensearch.dcmweb_endpoint_tag)
+        return endpoint
+    except Exception:
+        return None
 
 
 async def merge_responses(response1: Response, response2: Response) -> Response:
     response1_media_type = response1.headers.get("content-type", "")
     response2_media_type = response2.headers.get("content-type", "")
+
+    if response1.status_code != 200 or response2.status_code != 200:
+        logger.info("One response is bad")
+        return response1 if response1.status_code == 200 else response2
 
     if response1_media_type != response2_media_type:
         logger.error(
@@ -99,6 +112,7 @@ async def merge_responses(response1: Response, response2: Response) -> Response:
         )
 
     if response1_media_type in ["application/json", "application/dicom+json"]:
+        logger.info("Merging json")
         response1_data = await get_json_response_body(response1)
         response2_data = await get_json_response_body(response2)
 
@@ -106,11 +120,17 @@ async def merge_responses(response1: Response, response2: Response) -> Response:
         if isinstance(response1_data, list) and isinstance(response2_data, list):
             merged_content = response1_data + response2_data  # Concatenate lists
 
-        if isinstance(response1_data, list):
+        elif isinstance(response1_data, list):
             merged_content = response1_data
 
-        if isinstance(response2_data, list):
+        elif isinstance(response2_data, list):
             merged_content = response2_data
+
+        else:
+            return Response(
+                content="Unable to merge request from external and local pacs",
+                status_code=500,
+            )
 
         return Response(
             content=json.dumps(merged_content),
@@ -139,15 +159,41 @@ async def get_json_response_body(response: Response) -> dict:
 async def decide_response(
     dicom_web_filter_result: Response, dicom_web_multiplexer_result: Response | None
 ) -> Response:
-    if dicom_web_multiplexer_result and dicom_web_multiplexer_result.status_code == 200:
-        if dicom_web_filter_result.status_code == 200:
-            logger.info("Merging external endpoint and dicom-web-filter response")
-            return await merge_responses(
-                dicom_web_filter_result, dicom_web_multiplexer_result
-            )
-        return dicom_web_multiplexer_result
+    dicom_web_filter_result_type = dicom_web_filter_result.headers.get(
+        "content-type", ""
+    )
+    dicom_web_multiplexer_result_type = dicom_web_multiplexer_result.headers.get(
+        "content-type", ""
+    )
 
-    return dicom_web_filter_result
+    # Cannot merge binary responses as they have custom multipart/related boundary: hash, from dicom-web-filter
+    # We always choose one that has returned successfully, favouring dicom_web_filter.
+    if (
+        dicom_web_filter_result.status_code == 200
+        and "multipart/related" in dicom_web_filter_result_type
+    ):
+        logger.info("Binary dicom_web_filter_result")
+        return dicom_web_filter_result
+    # Same as above
+    elif (
+        dicom_web_multiplexer_result.status_code == 200
+        and "multipart/related" in dicom_web_multiplexer_result_type
+    ):
+        logger.info("Binary dicom_web_multiplexer_result")
+        return dicom_web_filter_result
+
+    # If the responses are not multipart/related we can merge (json, text)
+    elif (
+        dicom_web_multiplexer_result.status_code == 200
+        and dicom_web_filter_result.status_code == 200
+    ):
+        logger.info("Merging multiplexer and dicom-web-filter response")
+        return await merge_responses(
+            dicom_web_filter_result, dicom_web_multiplexer_result
+        )
+
+    else:
+        return dicom_web_filter_result
 
 
 async def merge_external_responses(request: Request, call_next) -> Response | None:

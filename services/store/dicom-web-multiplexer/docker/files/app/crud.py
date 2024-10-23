@@ -2,11 +2,11 @@ from typing import List
 
 from app.models import Endpoint
 from sqlalchemy import select
-from sqlalchemy.ext import IntegrityError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-async def add_endpoint(session: AsyncSession, endpoint: str) -> Endpoint:
+async def add_endpoint(endpoint: str, session: AsyncSession) -> Endpoint:
     try:
         new_data = Endpoint(endpoint=endpoint)
         session.add(new_data)
@@ -19,7 +19,7 @@ async def add_endpoint(session: AsyncSession, endpoint: str) -> Endpoint:
         raise ValueError(f"Endpoint '{endpoint}' already exists.")
 
 
-async def remove_endpoint(session: AsyncSession, endpoint: str) -> bool:
+async def remove_endpoint(endpoint: str, session: AsyncSession) -> bool:
     stmt = select(Endpoint).where(Endpoint.endpoint == endpoint)
     result = await session.execute(stmt)
     endpoint_to_delete = result.scalar()

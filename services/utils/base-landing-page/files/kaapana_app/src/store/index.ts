@@ -5,6 +5,7 @@ import auth from './modules/auth.module'
 import availableWebpages from './modules/commonData.module'
 import datasets from './modules/datasets.module'
 import idle from './modules/idle.module'
+import project from './modules/project.module'
 
 Vue.use(Vuex);
 
@@ -13,7 +14,8 @@ const store =  new Vuex.Store({
     auth,
     availableWebpages,
     datasets,
-    idle
+    idle,
+    project,
   },
 });
 

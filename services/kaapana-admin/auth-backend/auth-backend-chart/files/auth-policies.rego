@@ -34,3 +34,12 @@ allow {
     input.access_token.projects[p].id == input.project.id
     input.access_token.projects[p].role_name in ["admin","read"]
 }
+
+### Allow access to multiinstallable applications only in projects, where the user is part of.
+allow {
+    some p
+    project := input.access_token.projects[p]
+    project.role_name in ["admin","read"]
+    project_application_regex := concat("/", ["^","applications","project",project.name,".*"])
+    regex.match(project_application_regex, input.requested_prefix)
+}

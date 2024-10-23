@@ -202,3 +202,13 @@ spec:
     ports:
     - protocol: TCP
       port: 9000
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+    - podSelector:
+        matchLabels:
+          app-name: kaapana-backend
+    ports:
+    - protocol: TCP
+      port: 5000

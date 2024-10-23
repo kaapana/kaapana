@@ -584,8 +584,14 @@ def create_workflow(
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
 ):
-    project = request.headers.get("Project")
-    json_schema_data.conf_data["project_form"] = json.loads(project)
+    # exception handling for admin requests via fastapi's kaapana-backend/docs
+    # necessary for maually restarting federated workflows via recovery_conf
+    try:
+        project = request.headers.get("Project")
+        json_schema_data.conf_data["project_form"] = json.loads(project)
+    except:
+        pass
+
     # validate incoming json_schema_data
     try:
         jsonschema.validate(

@@ -18,6 +18,7 @@ from app.datasets.utils import execute_opensearch_query
 from app.dependencies import get_db
 from app.workflows import crud, models, schemas
 from app.workflows.utils import get_dag_list
+from app.config import settings
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import func
@@ -796,3 +797,47 @@ def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
 @router.delete("/workflows")
 def delete_workflows(db: Session = Depends(get_db)):
     return crud.delete_workflows(db)
+
+
+@router.get("/tensorboard/folders/")
+def get_tensorboard_folders():
+    """
+    This endpoint returns a list of all directories that contain event files.
+    """
+    if not settings.tensorboard_dir.exists():
+        raise HTTPException(status_code=404, detail="Tensorboard directory not found")
+
+    # Find directories containing event files
+    event_directories = []
+    for folder in settings.tensorboard_dir.rglob("events.out.tfevents.*"):
+        event_directories.append(str(folder.parent.relative_to(settings.tensorboard_dir)))
+
+    # Remove duplicates and return unique directories
+    unique_directories = sorted(set(event_directories))
+    
+    if not unique_directories:
+        return {"message": "No event directories found."}
+
+    return {"event_directories": unique_directories}
+
+
+@router.delete("/tensorboard/folders/")
+def delete_tensorboard_folder(folder_directory: str):
+    """
+    This endpoint deletes the specified tensorboard folder.
+    """
+    folder_path = settings.tensorboard_dir / Path(folder_directory)
+
+    # Check if the directory exists and is inside the settings.tensorboard_dir
+    if not folder_path.exists() or not folder_path.is_dir():
+        raise HTTPException(status_code=404, detail="Directory not found")
+    
+    # Safety check to ensure we're only deleting from within settings.tensorboard_dir
+    if not settings.tensorboard_dir in folder_path.parents:
+        raise HTTPException(status_code=400, detail="Can only delete directories within the tensorboard folder")
+
+    try:
+        shutil.rmtree(folder_path)  # Recursively delete the folder and its contents
+        return {"message": f"Deleted folder: {folder_directory}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting folder: {str(e)}")

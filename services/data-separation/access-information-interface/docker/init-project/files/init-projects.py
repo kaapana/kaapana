@@ -19,7 +19,7 @@ if __name__ == "__main__":
     existing_projects = response.json()
 
     ### Request creation of projects existing in the access-information-point
-    ### This will recreate the project-specific kubernetes namespaces, in case they got deleted during a undeployment
+    ### This will recreate the project-specific kubernetes namespaces, in case they got deleted during an undeployment
     for project in existing_projects:
         logger.info(f"Request creation of {project=}")
         create_project = {}
@@ -49,19 +49,27 @@ if __name__ == "__main__":
         response.raise_for_status()
 
     # get keycloak id of the kaapana admin user
+    initial_user = "kaapana"
     kc_client = KeycloakHelper()
-    keycloak_user = kc_client.get_user_by_name("kaapana")
+    keycloak_user = kc_client.get_user_by_name(initial_user)
     keycloak_user_id = keycloak_user.get("id")
 
-    # map the kaapana admin user to the admin project and the admin role
-
+    # map the inital kaapana user to the admin project and the admin role
     role = "admin"
     project = "admin"
-
     response = requests.post(
         f"{aii_service}/projects/{project}/role/{role}/user/{keycloak_user_id}",
         headers=auth_header,
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 409:
+            pass
+        else:
+            logger.error(
+                f"Failed to create project mapping in {project=} for {initial_user=} and {role=}"
+            )
+            raise e
 
     logger.info("Initial projects created successfully")

@@ -1,7 +1,9 @@
 from KeycloakHelper import KeycloakHelper
 import requests
 import os
+from kaapanapy.logger import get_logger
 
+logger = get_logger(__name__)
 
 if __name__ == "__main__":
     kc_client = KeycloakHelper()
@@ -30,4 +32,13 @@ if __name__ == "__main__":
     response = requests.post(
         f"http://aii-service.{SERVICE_NAMESPACE}.svc:8080/projects/{project_name}/role/{project_user_role}/user/{keycloak_user_id}"
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 409:
+            pass
+        else:
+            logger.error(
+                f"Failed to create project mapping in {project_name=} for {project_user=} and {project_user_role=}"
+            )
+            raise e

@@ -1,8 +1,9 @@
 import glob
-import os
 import json
-from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+import os
+
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 
 
 class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):

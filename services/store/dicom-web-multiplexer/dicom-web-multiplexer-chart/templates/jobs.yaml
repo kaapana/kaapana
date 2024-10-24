@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: patch-deployment-job
+  namespace: { { .Values.global.services_namespace } }
+spec:
+  template:
+    spec:
+      containers:
+        - name: patch-deployment
+          image: "bitnami/kubectl:latest"
+          command:
+            - /bin/sh
+            - -c
+            - |
+              kubectl patch deployment $(kubectl get deployments -n {{ .Values.global.services_namespace }} | grep airflow-scheduler | awk '{print $1}') \
+              -n {{ .Values.global.services_namespace }} \
+              --type='json' \
+              -p='[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "DICOM_WEB_SERVICE", "value": "http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080"}}]'
+      restartPolicy: Never
+  backoffLimit: 4

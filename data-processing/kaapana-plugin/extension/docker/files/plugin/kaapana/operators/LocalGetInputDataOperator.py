@@ -194,8 +194,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.dag_run = kwargs["dag_run"]
 
         if not self.conf:
-            logger.error("When is this the case?")
-            exit(1)
+            raise Exception("No conf object found!")
 
         # Triggered via ctp
         if self.conf and ("seriesInstanceUID" in self.conf):

@@ -66,7 +66,6 @@ class OperatorSettings(BaseSettings):
     dag_id: str
     workflow_dir: str
     batch_name: str = "batch"
-    workflow_name: str
     operator_out_dir: str
     batches_input_dir: str
 

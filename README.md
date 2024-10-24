@@ -39,6 +39,7 @@ Core technologies used in Kaapana:
 * [Prometheus](https://github.com/prometheus/prometheus): Collecting metrics for system monitoring
 * [Grafana](https://github.com/grafana/grafana): Visualization for monitoring metrics
 * [Keycloak](https://www.keycloak.org/): User authentication
+* [OHIF Viewers](https://ohif.org/): Visualization of medical images
 
 
 Currently, Kaapana is used in multiple projects in which a Kaapana-based platform is deployed at multiple clinical sites with the objective of distributed radiological image analysis and quantification. The projects include [RACOON](https://racoon.network/) initiated by [NUM](https://www.netzwerk-universitaetsmedizin.de) with all 38 German university clinics participating, the Joint Imaging Platform ([JIP](https://jip.dktk.dkfz.de/jiphomepage/)) initiated by the German Cancer Consortium ([DKTK](https://dktk.dkfz.de/)) with 11 university clinics participating as well as [DART](https://cce-dart.com) initiated by the [Cancer Core Europe](https://cancercoreeurope.eu/) with 7 cancer research centers participating.

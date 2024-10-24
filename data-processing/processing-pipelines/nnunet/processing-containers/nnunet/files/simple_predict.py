@@ -88,7 +88,7 @@ def get_model_paths(batch_element_dir):
         task_n_modelname = task.split("---")
         task = task_n_modelname[0]
         modelname = task_n_modelname[1]
-    elif task is None:
+    else:
         # retrieve infromation if called from nnunet-ensemble
         checkpoint_file = glob(
             f"{batch_element_dir}/**/checkpoint_final.pth", recursive=True

@@ -27,7 +27,6 @@ export default {
   },
   watch: {
     selectedProject(newProject) {
-      console.log("Change selected project: " + JSON.stringify(newProject));
       this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
       window.location.reload();
     },

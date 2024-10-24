@@ -41,6 +41,11 @@ class RequestData(BaseModel):
     secret_data: SecretData
 
 
+@router.head("/endpoints")
+async def read_endpoints():
+    return {"message": "dicom-web-multiplexer is alive."}
+
+
 @router.get("/endpoints")
 async def retrieve_all_endpoints(session: AsyncSession = Depends(get_session)):
     """Retrieve all endpoints containing credentials."""

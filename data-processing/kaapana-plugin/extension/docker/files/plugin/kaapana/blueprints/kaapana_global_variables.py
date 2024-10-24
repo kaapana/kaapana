@@ -1,4 +1,5 @@
 import os
+
 from airflow.api.common.experimental.pool import get_pool
 
 BATCH_NAME = "batch"
@@ -17,6 +18,7 @@ GPU_SUPPORT = True if os.getenv("GPU_SUPPORT", "False").lower() == "true" else F
 ENABLE_NFS = os.getenv("ENABLE_NFS", None)
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", None)
 SYSTEM_USER_PASSWORD = os.getenv("SYSTEM_USER_PASSWORD")
+DICOM_WEB_SERVICE = os.getenv("DICOM_WEB_SERVICE", "dicom-web-filter")
 
 # Deprecated kept for backwards compatibility
 WORKFLOW_DIR = AIRFLOW_WORKFLOW_DIR

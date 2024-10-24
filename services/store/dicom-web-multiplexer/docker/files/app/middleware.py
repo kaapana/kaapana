@@ -2,7 +2,7 @@ import json
 import re
 import traceback
 
-from app.crud import add_endpoint, get_endpoints, remove_endpoint
+from app.crud import get_endpoints
 from app.database import get_session
 from app.logger import get_logger
 from app.proxy_request import proxy_request
@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        logger.info(request.headers)
         # Check if the request path starts with an excluded prefix
         if request.url.path.startswith("/dicom-web-multiplexer"):
             return await call_next(request)
@@ -26,17 +27,19 @@ class ProxyMiddleware(BaseHTTPMiddleware):
             series_uid = get_series_uid_from_request(request)
             if series_uid:
                 endpoint = get_endpoint_from_opensearch(series_uid)
-                logger.info(f"Endpoint: {endpoint}")
                 if endpoint:
+                    logger.info(f"Opensearch endpoint: {endpoint}")
                     request.state.endpoint = endpoint
                     return await call_next(request)
 
+                logger.info("No endpoint found: requesting from dicom-web-filter")
                 return await proxy_request(
                     request=request,
                     url=dicom_web_filter_url(request),
                     method=request.method,
                 )
             else:
+                logger.info("No series UID. Requesting all PACS...")
                 dicom_web_filter_result = await proxy_request(
                     request=request,
                     url=dicom_web_filter_url(request),
@@ -54,7 +57,6 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"Error in proxy middleware: {e}")
             logger.error(traceback.format_exc())
-            logger.error("Bad response from external PACS")
             logger.error(request.url)
             return Response(
                 content="Error in proxy middleware",
@@ -159,25 +161,23 @@ async def get_json_response_body(response: Response) -> dict:
 async def decide_response(
     dicom_web_filter_result: Response, dicom_web_multiplexer_result: Response | None
 ) -> Response:
-    dicom_web_filter_result_type = dicom_web_filter_result.headers.get(
-        "content-type", ""
-    )
-    dicom_web_multiplexer_result_type = dicom_web_multiplexer_result.headers.get(
-        "content-type", ""
-    )
-
     # Cannot merge binary responses as they have custom multipart/related boundary: hash, from dicom-web-filter
     # We always choose one that has returned successfully, favouring dicom_web_filter.
+    if not dicom_web_multiplexer_result:
+        return dicom_web_filter_result
+
     if (
         dicom_web_filter_result.status_code == 200
-        and "multipart/related" in dicom_web_filter_result_type
+        and "multipart/related"
+        in dicom_web_filter_result.headers.get("content-type", "")
     ):
-        logger.info("Binary dicom_web_filter_result")
+        logger.info("Return first binary dicom_web_filter result")
         return dicom_web_filter_result
     # Same as above
     elif (
         dicom_web_multiplexer_result.status_code == 200
-        and "multipart/related" in dicom_web_multiplexer_result_type
+        and "multipart/related"
+        in dicom_web_multiplexer_result.headers.get("content-type", "")
     ):
         logger.info("Binary dicom_web_multiplexer_result")
         return dicom_web_filter_result
@@ -200,7 +200,6 @@ async def merge_external_responses(request: Request, call_next) -> Response | No
     dicom_web_multiplexer_result = None
 
     async with get_session() as session:
-        # List all endpoints (exactly one endpoint)
         endpoints = await get_endpoints(session)
         endpoint_strings = [ep.endpoint for ep in endpoints]
         logger.info(f"Endpoints {endpoint_strings}")

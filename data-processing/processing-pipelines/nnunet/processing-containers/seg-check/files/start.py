@@ -887,14 +887,6 @@ for batch_element_dir in batch_folders:
     base_input_dir = join(batch_element_dir, org_input_dir)
     seg_input_dir = join(batch_element_dir, operator_in_dir)
     base_files = sorted(glob(join(base_input_dir, "*.nii*"), recursive=False))
-    if not os.path.exists(base_input_dir) or not os.path.exists(seg_input_dir):
-        print("#")
-        print(
-            f"# WARNING: Both base_input_dir and seg_input_dir are empty for batch element {batch_element_dir=}!"
-        )
-        print(f"# WARNING: Skipping batch element {batch_element_dir=}!")
-        print("#")
-        continue
     if len(base_files) != 1:
         print("#")
         print("#")

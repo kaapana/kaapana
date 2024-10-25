@@ -141,22 +141,22 @@
 
 <script lang="ts">
 import Vue from "vue";
-import request from "@/request";
-import kaapanaApiService from "@/common/kaapanaApi.service";
-
 import { mapGetters } from "vuex";
-import { LOGIN, LOGOUT, CHECK_AUTH } from "@/store/actions.type";
-import {
-  CHECK_AVAILABLE_WEBSITES,
-  LOAD_COMMON_DATA,
-  GET_POLICY_DATA,
-} from "@/store/actions.type";
+import httpClient from "@/common/httpClient.js";
+import kaapanaApiService from "@/common/kaapanaApi.service";
 import Settings from "@/components/Settings.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
-import { checkAuthR } from "@/utils/utils.js";
 import ProjectSelection from "@/components/ProjectSelection.vue";
-import httpClient from "@/common/httpClient.js";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import {
+  CHECK_AVAILABLE_WEBSITES,
+  LOGIN,
+  LOGOUT,
+  LOAD_COMMON_DATA,
+  GET_POLICY_DATA,
+  GET_SELECTED_PROJECT,
+} from "@/store/actions.type";
+import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   name: "App",
@@ -165,7 +165,6 @@ export default Vue.extend({
     drawer: true,
     federatedBackendAvailable: false,
     settings: defaultSettings,
-    selectedProject: null,
   }),
   computed: {
     ...mapGetters([
@@ -175,15 +174,10 @@ export default Vue.extend({
       "workflowsList",
       "commonData",
       "policyData",
+      "selectedProject",
     ]),
   },
   methods: {
-    loadSelectedProject() {
-      const storedProject = localStorage.getItem("selectedProject");
-      if (storedProject) {
-        this.selectedProject = JSON.parse(storedProject);
-      }
-    },
     _checkAuthR(policyData: any, endpoint: string, currentUser: any): boolean {
       "Check if the user has a role that authorizes him to access the requested endpoint";
       return checkAuthR(policyData, endpoint, currentUser);
@@ -219,42 +213,39 @@ export default Vue.extend({
       this.$vuetify.theme.dark = this.settings["darkMode"];
     },
     settingsResponseToObject(response: any[]) {
-      let converted: Object = {}
-      
+      let converted: Object = {};
       response.forEach((item) => {
         converted[item.key as keyof Object] = item.value;
-      })
-
+      });
       return converted;
     },
     getSettingsFromDb() {
-      kaapanaApiService.kaapanaApiGet('/settings')
+      kaapanaApiService
+        .kaapanaApiGet("/settings")
         .then((response: any) => {
           let settingsFromDb = this.settingsResponseToObject(response.data);
           const updatedSettings = Object.assign({}, defaultSettings, settingsFromDb);
           localStorage["settings"] = JSON.stringify(updatedSettings);
         })
-        .catch(err => {
+        .catch((err) => {
           console.log(err);
           localStorage["settings"] = JSON.stringify(defaultSettings);
-        })
+        });
     },
     storeSettingsItemInDb(item_name: string) {
       if (item_name in this.settings) {
-          let item = {
-            'key': item_name,
-            'value': this.settings[item_name as keyof Object],
-          }
-
-          kaapanaApiService
-            .kaapanaApiPut("/settings/item", item)
-            .then((response) => {
-              // console.log(response);
-            })
-            .catch((err) => {
-              console.log(err);
-            });
-
+        let item = {
+          key: item_name,
+          value: this.settings[item_name as keyof Object],
+        };
+        kaapanaApiService
+          .kaapanaApiPut("/settings/item", item)
+          .then((response) => {
+            // console.log(response);
+          })
+          .catch((err) => {
+            console.log(err);
+          });
       }
     },
   },
@@ -262,18 +253,9 @@ export default Vue.extend({
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
     this.$store.dispatch(LOAD_COMMON_DATA);
     this.$store.dispatch(GET_POLICY_DATA);
+    this.$store.dispatch(GET_SELECTED_PROJECT);
     if (!localStorage["settings"]) {
       localStorage["settings"] = JSON.stringify(defaultSettings);
-    }
-    if (!localStorage["selectedProject"]) {
-      localStorage.setItem(
-        "selectedProject",
-        JSON.stringify({
-          name: "",
-          id: null,
-          description: "No project selected!",
-        })
-      );
     }
   },
   created() {
@@ -285,8 +267,16 @@ export default Vue.extend({
         }
       }
     );
+    // Watch for changes in selectedProject and reload the page when it changes
+    this.$store.watch(
+      () => this.$store.getters.selectedProject,
+      (newValue, oldValue) => {
+        if (newValue !== oldValue) {
+          location.reload(); // Reload the page
+        }
+      }
+    );
 
-    this.loadSelectedProject();
     this.getSettingsFromDb();
     this.updateSettings();
   },

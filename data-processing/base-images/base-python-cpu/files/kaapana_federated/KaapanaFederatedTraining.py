@@ -482,28 +482,66 @@ class KaapanaFederatedTrainingBase(ABC):
         Sum model_weights up.
         Divide summed model_weights by num_sites.
         Return a site_model_weights_dict with always the same model_weights per site.
+
+        Note:
+        * perform averaging based on pointers on the dict keys obtained with .data_ptr()
+        * solution from https://github.com/MIC-DKFZ/nnUNet/issues/2553
+        * btw site_model_weights_dict looks like that: site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
         """
-        # sum model_weights up
-        # site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
-        sum_model_weights = collections.OrderedDict()
-        for site_key, site_value in site_model_weights_dict.items():
-            for key, value in site_value.items():
-                if key not in sum_model_weights:
-                    sum_model_weights[key] = value
+
+        # for sample-weighted aggregation, get number of samples per client and list of client_instance_names
+        num_samples_per_client = dict()
+        client_instance_names = []
+        for site_idx, _ in enumerate(self.remote_sites):
+            client_instance_names.append(self.remote_sites[site_idx]["instance_name"])
+            num_samples_per_client[self.remote_sites[site_idx]["instance_name"]] = (
+                len(
+                    self.remote_sites[site_idx]["allowed_datasets"][
+                        self.remote_conf_data["data_form"]["dataset_name"]
+                    ]["identifiers"]
+                )
+                if self.remote_conf_data["data_form"]["dataset_limit"] is None
+                else self.remote_conf_data["data_form"]["dataset_limit"]
+            )
+        num_all_samples = sum(num_samples_per_client.values())
+        print(
+            f"Averaging model weights with client's dataset sizes: {num_samples_per_client} \
+            and total number of samples of {num_all_samples}!"
+        )
+
+        # initialize network_weights with those of first client_instance
+        list_of_network_parameters = list(site_model_weights_dict.values())
+        network_weights = site_model_weights_dict[client_instance_names[0]]
+        # get addresses of keys
+        keys = list(network_weights.keys())
+        address_key_dict = {}
+        for k in keys:
+            address = network_weights[k].data_ptr()
+            if address not in address_key_dict.keys():
+                address_key_dict[address] = [k]
+            else:
+                address_key_dict[address].append(k)
+
+        # perform the fedavg
+        for a in address_key_dict.keys():
+            for client_instance_name, net in site_model_weights_dict.items():
+                if client_instance_name == client_instance_names[0]:
+                    # network weights of client_instance_names [0] are already in network_weights
+                    pass
                 else:
-                    sum_model_weights[key] = sum_model_weights[key] + value
+                    # weighted sum
+                    network_weights[address_key_dict[a][0]] += (
+                        net[address_key_dict[a][0]]
+                        * num_samples_per_client[client_instance_name]
+                    )
+            # divided by num_all_samples
+            network_weights[address_key_dict[a][0]] /= num_all_samples
+            # modifying the 0th keys is sufficient as the other keys point to the same data
 
-        num_sites = len(site_model_weights_dict)
-        # average model_weights
-        averaged_model_weights = collections.OrderedDict()
-        for key, value in sum_model_weights.items():
-            averaged_model_weights[key] = sum_model_weights[key] / num_sites
-
-        # return site_model_weights_dict with same averaged model per site
+        # reformat to return
         return_model_weights_dict = collections.OrderedDict()
         for site in site_model_weights_dict.keys():
-            return_model_weights_dict[site] = averaged_model_weights
-
+            return_model_weights_dict[site] = network_weights
         return return_model_weights_dict
 
     # @timeit

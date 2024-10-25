@@ -28,7 +28,6 @@ export default {
   watch: {
     selectedProject(newProject) {
       this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
-      window.location.reload();
     },
   },
   methods: {

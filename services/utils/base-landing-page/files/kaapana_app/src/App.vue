@@ -267,6 +267,15 @@ export default Vue.extend({
         }
       }
     );
+    // Watch for changes in selectedProject and reload the page when it changes
+    this.$store.watch(
+      () => this.$store.getters.selectedProject,
+      (newValue, oldValue) => {
+        if (newValue !== oldValue) {
+          location.reload(); // Reload the page
+        }
+      }
+    );
 
     this.getSettingsFromDb();
     this.updateSettings();

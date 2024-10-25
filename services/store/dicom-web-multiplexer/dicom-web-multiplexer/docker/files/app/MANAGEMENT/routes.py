@@ -42,13 +42,27 @@ class RequestData(BaseModel):
 
 
 @router.head("/endpoints")
-async def read_endpoints():
-    return {"message": "dicom-web-multiplexer is alive."}
+async def read_endpoints() -> dict:
+    """
+    Health check endpoint to verify if the DICOM web multiplexer service is responsive.
+
+    Returns:
+        dict: Success Response.
+    """
+    return Response(status_code=200)
 
 
 @router.get("/endpoints")
 async def retrieve_all_endpoints(session: AsyncSession = Depends(get_session)):
-    """Retrieve all endpoints containing credentials."""
+    """
+    Retrieve all endpoints.
+
+    Args:
+        session (AsyncSession): Database session dependency.
+
+    Returns:
+        list: List of endpoints.
+    """
     endpoints = await crud.get_endpoints(session)
     return endpoints
 
@@ -56,9 +70,17 @@ async def retrieve_all_endpoints(session: AsyncSession = Depends(get_session)):
 @router.post("/endpoints")
 async def create_endpoint(
     data: RequestData, session: AsyncSession = Depends(get_session)
-):
-    """Create a new endpoint secret."""
+) -> Response:
+    """
+    Create a specific endpoint in Kubernetes secret and database.
 
+    Args:
+        data (RequestData): Request data containing endpoint and credentials.
+        session (AsyncSession): Database session dependency.
+
+    Returns:
+        Response: Success or error response.
+    """
     endpoint = data.endpoint
     secret_data = data.secret_data.model_dump()
 
@@ -68,60 +90,69 @@ async def create_endpoint(
             return Response(
                 status_code=500, content="Unable to create secret for the endpoint"
             )
-        try:
-            await crud.add_endpoint(endpoint, session)
-            logger.info(f"Created new secret for endpoint.")
-            return Response(status_code=200)
-        except Exception:
-            # TODO
-            return Response(status_code=200)
+
+        await crud.add_endpoint(endpoint, session)
+        logger.info(f"Created new secret for endpoint: {endpoint}")
+        return Response(status_code=200)
 
     except Exception as e:
-        logger.error(e)
-        logger.error(traceback.format_exc())
-        return Response(status_code=500, content="Unable to save endpoint")
+        logger.error(f"Error creating endpoint: {e}")
+        logger.debug(traceback.format_exc())
+        return Response(status_code=500, content="Unable to create endpoint")
 
 
 @router.delete("/endpoints")
 async def delete_endpoint(
     endpoint: Endpoint, session: AsyncSession = Depends(get_session)
 ):
-    """Delete a specific endpoint secret."""
+    """
+    Delete a specific endpoint from Kubernetes secret and from database.
+
+    Args:
+        endpoint (Endpoint): Endpoint data containing endpoint name.
+        session (AsyncSession): Database session dependency.
+
+    Returns:
+        Response: Success or error response.
+    """
     try:
         endpoint = endpoint.endpoint
         secret_name = hash_secret_name(endpoint)
 
         # Delete the secret
         if not delete_k8s_secret(secret_name):
-            logger.warning(f"Couldn't delete secret for endpoint {endpoint}.")
-            return Response(status_code=500)
+            return Response(status_code=500, content=f"Couldn't delete secret for endpoint {endpoint}.")
 
         logger.info(f"Deleted secret for endpoint {endpoint}.")
-
         await crud.remove_endpoint(endpoint, session)
         return Response(status_code=200)
 
     except Exception as e:
         logger.error(e)
         logger.error(traceback.format_exc())
-        return Response(status_code=500)
+        return Response(status_code=500, content="Unable to delete endpoint")
 
 
-@router.get("/endpoints")
-async def retrieve_endpoint(endpoint: Endpoint):
-    """Retrieve a specific endpoint secret by name."""
+@router.get("/endpoints/{endpoint}")
+async def retrieve_endpoint(endpoint: str) -> dict:
+    """
+    Retrieve a specific endpoint secret by name.
+
+    Args:
+        endpoint (str): The endpoint name.
+
+    Returns:
+        dict: Endpoint details with associated secret data.
+    """
     try:
-        endpoint = endpoint.endpoint
         secret_name = hash_secret_name(endpoint)
         secret_data = get_k8s_secret(secret_name)
 
         if not secret_data:
-            logger.warning(f"Secret for endpoint {endpoint} not found.")
-            raise HTTPException(status_code=404, detail="Endpoint not found.")
-
+            return Response(status_code=404, detail="Endpoint secret not found.")
         return {"endpoint": endpoint, "secret_data": secret_data}
 
     except Exception as e:
-        logger.error(e)
-        logger.error(traceback.format_exc())
-        Response(status_code=500)
+        logger.error(f"Error retrieving endpoint: {e}")
+        logger.debug(traceback.format_exc())
+        raise Response(status_code=500, detail="Error retrieving endpoint")

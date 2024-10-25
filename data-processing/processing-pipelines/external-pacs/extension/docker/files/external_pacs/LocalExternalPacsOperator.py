@@ -40,24 +40,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         def extract_series_uid(instance):
             return instance.get("0020000E", {"Value": [None]})["Value"][0]
 
-        logger.info(metadata)
-        {
-            "00080005": {"vr": "CS", "Value": ["ISO_IR 100"]},
-            "00080016": {"vr": "UI", "Value": ["1.2.840.10008.5.1.4.1.1.2"]},
-            "00080018": {
-                "vr": "UI",
-                "Value": [
-                    "1.3.6.1.4.1.14519.5.2.1.31759015172429176414362661844660499154"
-                ],
-            },
-            "00200013": {"vr": "IS", "Value": [87]},
-            "00280010": {"vr": "US", "Value": [512]},
-            "00280011": {"vr": "US", "Value": [512]},
-            "00280100": {"vr": "US", "Value": [16]},
-        }
-
         external_series_uids = list(set(map(extract_series_uid, metadata)))
-        logger.info(external_series_uids)
         local_series_uids = set(
             map(
                 lambda result: result["dcm-uid"]["series-uid"],
@@ -84,6 +67,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         dcmweb_endpoint: str,
         dataset_name: str,
     ):
+        # TODO get the DICOM_WEB_SERVICE from environment 
         dcmweb_helper = HelperDcmWeb(
             dcmweb_rs_endpoint="http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter",
             dcmweb_uri_endpoint="http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter/wado-uri/",
@@ -201,6 +185,8 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
     @cache_operator_output
     def start(self, ds, **kwargs):
         logger.info("# Starting module LocalExternalPacsOperator...")
+        # TODO Use kaapanapy.settings
+        
         self.dag_run_id = kwargs["dag_run"].run_id
         self.workflow_config = kwargs["dag_run"].conf
         self.workflow_form = self.workflow_config["workflow_form"]
@@ -229,5 +215,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
                 exit(1)
 
         else:
+            logger.error(f"Unknown action: {self.action}")
+            exit(1)
             logger.error(f"Unknown action: {self.action}")
             exit(1)

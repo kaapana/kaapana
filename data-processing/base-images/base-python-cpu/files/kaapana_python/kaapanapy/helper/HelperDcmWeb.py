@@ -378,28 +378,6 @@ class HelperDcmWeb:
             r.raise_for_status()
             return r.json()
 
-    def get_series_of_study(
-        self, study_uid: str, dcmweb_endpoint: str = None
-    ) -> List[dict]:
-        """This function retrieves all series of a study from the PACS.
-
-        Args:
-            study_uid (str): Study Instance UID of the study to retrieve the series from.
-
-        Returns:
-            List[dict]: List of series of the study. Each series is represented as a dictionary containing the series metadata
-        """
-        headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
-        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
-        r = self.session.get(url, headers=headers)
-        if r.status_code == 204:
-            return []
-        elif r.status_code == 404:
-            return None
-        else:
-            r.raise_for_status()
-            return r.json()
-
     def get_instances_of_series(
         self, study_uid: str, series_uid: str, params: Dict[str, Any] = None
     ) -> List[dict]:
@@ -424,6 +402,76 @@ class HelperDcmWeb:
         else:
             response.raise_for_status()
             return response.json()
+
+    def get_series_of_study(
+        self, study_uid: str, dcmweb_endpoint: str = None
+    ) -> List[dict]:
+        """This function retrieves all series of a study from the PACS.
+
+        Args:
+            study_uid (str): Study Instance UID of the study to retrieve the series from.
+
+        Returns:
+            List[dict]: List of series of the study. Each series is represented as a dictionary containing the series metadata
+        """
+        headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
+        r = self.session.get(url, headers=headers)
+        if r.status_code == 204:
+            return []
+        elif r.status_code == 404:
+            return None
+        else:
+            r.raise_for_status()
+            return r.json()
+
+    def delete_series(self, study_uid: str, series_uids: List[str]):
+        """This function deletes a series from the PACS. It first rejects the series and then deletes it.
+
+        Args:
+            study_uid (str): Study Instance UID of the series to delete
+            series_uids (List[str]): List of Series Instance UIDs to delete
+        """
+        for series_uid in series_uids:
+            if not self.check_if_series_in_archive(series_uid, study_uid):
+                logger.info(
+                    f"Series {series_uid} with study {study_uid} does not exist in PACS"
+                )
+                continue
+
+            if self.check_if_series_is_rejected(series_uid, study_uid):
+                logger.info(
+                    f"Series {series_uid} with study {study_uid} is already rejected"
+                )
+                continue
+
+            # Reject series
+            logger.info(f"Rejecting series {series_uids} in study {study_uid}")
+
+            url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/reject/113001^DCM"
+            response = self.session.post(url, verify=False)
+            if response.status_code == 404:
+                if "errorMessage" in response.json():
+                    logger.error(
+                        f"Some error occurred: {response.json()['errorMessage']}"
+                    )
+                else:
+                    response.raise_for_status()
+            else:
+                response.raise_for_status
+
+        # Delete all rejected instances
+        logger.info(f"Deleting series {series_uids} in study {study_uid}")
+
+        url = f"{self.dcmweb_rs_endpoint}/reject/113001^DCM"
+        response = self.session.delete(url, verify=False)
+        if response.status_code == 404:
+            if "errorMessage" in response.json():
+                logger.error(f"Some error occurred: {response.json()['errorMessage']}")
+            else:
+                response.raise_for_status()
+        else:
+            response.raise_for_status
 
     def __encode_multipart_message_part(self, boundary: str, payload: bytes) -> bytes:
         """This function encodes the DICOM file as a part of the multipart message.

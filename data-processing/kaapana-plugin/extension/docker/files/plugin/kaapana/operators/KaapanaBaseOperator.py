@@ -986,4 +986,4 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 "No timestamp found in run_id, the last 10 characters of the run_id will be taken as an identifier. When triggering a DAG externally please try to use the generate_run_id method!"
             )
             run_id_identifier = s[-10:]
-        return run_id_identifier#
+        return run_id_identifier

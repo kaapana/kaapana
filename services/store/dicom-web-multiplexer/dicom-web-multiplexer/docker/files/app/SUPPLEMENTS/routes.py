@@ -12,36 +12,44 @@ logger = get_logger(__file__)
 
 
 async def fetch_thumbnail_async(url: str, token: str) -> StreamingResponse:
+    """
+    Fetches a thumbnail image from a DICOM server.
+
+    Args:
+        url (str): The URL to fetch the thumbnail image from.
+        token (str): Bearer token for authorization.
+
+    Returns:
+        StreamingResponse: A streaming response containing the image, or an error response if the fetch fails.
+    """
+    headers = {"Authorization": f"Bearer {token}", "Accept": "image/png"}
+
+    async def stream_thumbnail():
+        async with httpx.AsyncClient() as client:
+            async with client.stream(
+                method="GET", url=url, headers=headers, timeout=10
+            ) as response:
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+
+    return StreamingResponse(stream_thumbnail())
+
+
+async def fetch_the_middle_instance_async(url: str, token: str) -> str:
+    """
+    Fetches the middle instance UID from a series of DICOM instances.
+
+    Args:
+        url (str): The URL to fetch DICOM instances from.
+        token (str): Bearer token for authorization.
+
+    Returns:
+        Optional[str]: The SOP Instance UID of the middle instance, or None if an error occurs.
+    """
     try:
         headers = {
             "Authorization": f"Bearer {token}",
-            "Accept": "image/png"
-        }
-        async def stream_thumbnail():    
-            async with httpx.AsyncClient() as client:
-                async with client.stream(method="GET", url=url, headers=headers, timeout=10) as response:
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
-
-        return StreamingResponse(stream_thumbnail())
-    
-    except httpx.HTTPStatusError as http_err:
-        logger.error(f"HTTP error occurred: {http_err}")
-        logger.error(f"Status code: {http_err.response.status_code}")
-        return Response(content="Could not retrieve thumbnail", status_code=http_err.response.status_code)
-    except Exception as e:
-        logger.error("Download of thumbnail was not successful")
-        logger.error(f"URL: {url}")
-        logger.error(e)
-        logger.error(traceback.format_exc())
-        return Response(content="Could not retrieve thumbnail", status_code=404)
-
-
-async def fetch_instances_async(url: str, token: str) -> str:
-    try:
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/dicom+json"
+            "Accept": "application/dicom+json",
         }
 
         # Using async httpx client to fetch the instances
@@ -71,7 +79,18 @@ async def retrieve_instance_thumbnail(
     instance: str,
     request: Request,
 ):
-    """Retrieve a specific instance thumbnail"""
+    """
+    Endpoint to retrieve a specific instance thumbnail.
+
+    Args:
+        study (str): Study UID.
+        series (str): Series UID.
+        instance (str): Instance UID.
+        request (Request): FastAPI request object containing context information.
+
+    Returns:
+        StreamingResponse: A response streaming the thumbnail image, or an error response if retrieval fails.
+    """
     try:
         # Get Google OAuth token
         token = await get_external_token(request)
@@ -82,12 +101,15 @@ async def retrieve_instance_thumbnail(
 
         # Fetch and return the thumbnail
         return await fetch_thumbnail_async(url, token)
-    
+
     except Exception as e:
         logger.error("Error while retrieving instance thumbnail")
         logger.error(e)
         logger.error(traceback.format_exc())
-        return Response(content="Internal server error", status_code=500)
+        return Response(
+            status_code=500,
+            content="Internal server error",
+        )
 
 
 @router.get("/studies/{study}/series/{series}/thumbnail")
@@ -96,7 +118,17 @@ async def retrieve_series_thumbnail(
     series: str,
     request: Request,
 ):
-    """Retrieve the thumbnail of the middle instance in a series"""
+    """
+    Endpoint to retrieve a thumbnail of a specific series.
+
+    Args:
+        study (str): Study UID.
+        series (str): Series UID.
+        request (Request): FastAPI request object containing context information.
+
+    Returns:
+        StreamingResponse: A response streaming the thumbnail image, or an error response if retrieval fails.
+    """
     try:
         # Get Google OAuth token
         token = await get_external_token(request)
@@ -106,17 +138,17 @@ async def retrieve_series_thumbnail(
         url = f"{rs_endpoint}/studies/{study}/series/{series}/instances"
 
         # Fetch the middle instance UID
-        instance = await fetch_instances_async(url, token)
+        instance = await fetch_the_middle_instance_async(url, token)
         if not instance:
             return Response(
+                status_code=500,
                 content="Couldn't find middle slice. Aborting downloading thumbnail ... ",
-                status_code=404,
             )
 
         # Fetch and return the thumbnail for the middle instance
         thumbnail_url = f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/rendered"
         return await fetch_thumbnail_async(thumbnail_url, token)
-    
+
     except Exception as e:
         logger.error("Error while retrieving series thumbnail")
         logger.error(e)

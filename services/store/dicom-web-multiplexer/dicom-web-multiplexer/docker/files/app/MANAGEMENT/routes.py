@@ -63,7 +63,6 @@ async def create_endpoint(
     secret_data = data.secret_data.model_dump()
 
     try:
-        logger.info("Create endpoint")
         secret_name = hash_secret_name(endpoint)
         if not create_k8s_secret(secret_name, secret_data):
             return Response(

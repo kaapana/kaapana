@@ -41,8 +41,6 @@ async def retrieve_studies(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-
-    logger.info(request.headers)
     headers = {"Authorization": f"Bearer {token}", "Accept": "multipart/related"}
 
     return StreamingResponse(
@@ -75,8 +73,6 @@ async def retrieve_series(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-
-    logger.info(request.headers)
     headers = {"Authorization": f"Bearer {token}", "Accept": "multipart/related"}
 
     return StreamingResponse(
@@ -111,8 +107,6 @@ async def retrieve_instances(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-
-    logger.info(request.headers)
     headers = {"Authorization": f"Bearer {token}", "Accept": "multipart/related"}
 
     return StreamingResponse(
@@ -153,8 +147,6 @@ async def retrieve_frames(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-
-    logger.info(request.headers)
     headers = {"Authorization": f"Bearer {token}", "Accept": "multipart/related"}
 
     return StreamingResponse(
@@ -190,8 +182,6 @@ async def retrieve_studies_metadata(
 
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-
-    logger.info(request.headers)
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/dicom+json"}
 
     return StreamingResponse(
@@ -223,8 +213,6 @@ async def retrieve_series_metadata(
 
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-
-    logger.info(request.headers)
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/dicom+json"}
 
     return StreamingResponse(
@@ -260,8 +248,6 @@ async def retrieve_instances_metadata(
 
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-
-    logger.info(request.headers)
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/dicom+json"}
 
     return StreamingResponse(
@@ -388,8 +374,6 @@ async def retrieve_instance_rendered(
         logger.error(e)
         logger.error(traceback.format_exc())
         return Response(content="Internal server error", status_code=500)
-        # Fetch the thumbnail asynchronously
-        return await fetch_thumbnail_async(url, token)
 
     except Exception as e:
         logger.error("Error while retrieving instance rendered image")

@@ -17,7 +17,6 @@ def get_external_session(request: Request) -> str:
     )
     return GoogleAuthorizedSession(credentials=credentials)
 
-# TODO this is only for google
 async def get_external_token(request: Request) -> str:
     secret_name = hash_secret_name(request.state.endpoint)
     service_account_info = get_k8s_secret(secret_name)

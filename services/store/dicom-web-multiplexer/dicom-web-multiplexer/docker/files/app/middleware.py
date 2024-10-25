@@ -16,13 +16,18 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = get_logger(__name__)
 
-
 class ProxyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        logger.info(request.headers)
-        # Check if the request path starts with an excluded prefix
+        
+        # Triggered by LocalExternalPACSOperator on first import of external dags (So it does not include any local dicom-web-filter results.)
+        if "X-Endpoint-URL" in request.headers:
+            request.state.endpoint = request.headers["X-Endpoint-URL"]
+            return await call_next(request)
+        
+        # Specific routes meant for multiplexer management should skip dicom-web-filter
         if request.url.path.startswith("/dicom-web-multiplexer"):
             return await call_next(request)
+        
         try:
             series_uid = get_series_uid_from_request(request)
             if series_uid:
@@ -39,17 +44,19 @@ class ProxyMiddleware(BaseHTTPMiddleware):
                     method=request.method,
                 )
             else:
-                logger.info("No series UID. Requesting all PACS...")
+                logger.info("No Series UID. Requesting all PACS ...")
                 dicom_web_filter_result = await proxy_request(
                     request=request,
                     url=dicom_web_filter_url(request),
                     method=request.method,
                 )
 
+                logger.info("Merge External PACS responses with each other")
                 dicom_web_multiplexer_result = await merge_external_responses(
                     request, call_next
                 )
 
+                logger.info("Merge External PACS responses with Local Dicom Web Filter")
                 return await decide_response(
                     dicom_web_filter_result, dicom_web_multiplexer_result
                 )
@@ -95,14 +102,20 @@ def get_endpoint_from_opensearch(series_uid: str) -> str:
         return None
 
 
-async def merge_responses(response1: Response, response2: Response) -> Response:
+async def merge_responses(
+    response1: Response | None, response2: Response | None
+) -> Response:
+
+    if not response1 or response1.status_code != 200:
+        logger.warning(f"Response from: {response1} failed")
+        return response2
+
+    if not response2 or response2.status_code != 200:
+        logger.warning(f"Response from: {response2} failed")
+        return response1
+
     response1_media_type = response1.headers.get("content-type", "")
     response2_media_type = response2.headers.get("content-type", "")
-
-    if response1.status_code != 200 or response2.status_code != 200:
-        logger.info("One response is bad")
-        return response1 if response1.status_code == 200 else response2
-
     if response1_media_type != response2_media_type:
         logger.error(
             f"Cannot merge responses with different media types: {response1_media_type} vs {response2_media_type}"
@@ -114,7 +127,8 @@ async def merge_responses(response1: Response, response2: Response) -> Response:
         )
 
     if response1_media_type in ["application/json", "application/dicom+json"]:
-        logger.info("Merging json")
+        logger.info("Merging 2 JSON responses.")
+
         response1_data = await get_json_response_body(response1)
         response2_data = await get_json_response_body(response2)
 
@@ -133,11 +147,11 @@ async def merge_responses(response1: Response, response2: Response) -> Response:
                 content="Unable to merge request from external and local pacs",
                 status_code=500,
             )
-
+        
         return Response(
             content=json.dumps(merged_content),
-            media_type=response1_media_type,
             status_code=200,
+            media_type=response1_media_type,
         )
 
     return Response(
@@ -164,6 +178,7 @@ async def decide_response(
     # Cannot merge binary responses as they have custom multipart/related boundary: hash, from dicom-web-filter
     # We always choose one that has returned successfully, favouring dicom_web_filter.
     if not dicom_web_multiplexer_result:
+        logger.info("No external result, returning dicom-web-filter results")
         return dicom_web_filter_result
 
     if (
@@ -171,9 +186,9 @@ async def decide_response(
         and "multipart/related"
         in dicom_web_filter_result.headers.get("content-type", "")
     ):
-        logger.info("Return first binary dicom_web_filter result")
+        logger.info("Binary dicom_web_filter result")
         return dicom_web_filter_result
-    # Same as above
+
     elif (
         dicom_web_multiplexer_result.status_code == 200
         and "multipart/related"

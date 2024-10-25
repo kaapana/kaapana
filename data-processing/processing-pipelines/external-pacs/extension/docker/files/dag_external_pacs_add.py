@@ -4,7 +4,6 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from external_pacs.LocalExternalPacsOperator import LocalExternalPacsOperator
-from external_pacs.LocalExternalThumbnailOperator import LocalExternalThumbnailOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,

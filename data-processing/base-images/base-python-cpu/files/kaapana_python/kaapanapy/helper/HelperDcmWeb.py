@@ -347,26 +347,48 @@ class HelperDcmWeb:
 
         return response
 
-    def get_instances_of_study(self, study_uid: str) -> List[dict]:
-        """This function retrieves all instances of a study from the PACS.
-
-        Args:
-            study_uid (str): Study Instance UID of the study to retrieve the instances from.
+    def get_studies(self, dcmweb_endpoint: str = None) -> List[dict]:
+        """This function retrieves all studies from the PACS.
 
         Returns:
-            List[dict]: List of instances of the study. Each instance is represented as a dictionary containing the instance metadata
+            List[dict]: List of studies. Each study is represented as a dictionary containing the study metadata
         """
-        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/instances"
-        response = requests.get(url, headers=self.auth_headers)
-        if response.status_code == 404:
-            return None
-        elif response.status_code == 204:
+        headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
+        url = f"{self.dcmweb_rs_endpoint}/studies"
+        r = self.session.get(url, headers=headers)
+        if r.status_code == 204:
             return []
+        elif r.status_code == 404:
+            return None
         else:
-            response.raise_for_status()
-            return response.json()
+            r.raise_for_status()
+            return r.json()
 
-    def get_instances_of_series(self, study_uid: str, series_uid: str) -> List[dict]:
+    def get_series_of_study(
+        self, study_uid: str, dcmweb_endpoint: str = None
+    ) -> List[dict]:
+        """This function retrieves all series of a study from the PACS.
+
+        Args:
+            study_uid (str): Study Instance UID of the study to retrieve the series from.
+
+        Returns:
+            List[dict]: List of series of the study. Each series is represented as a dictionary containing the series metadata
+        """
+        headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
+        r = self.session.get(url, headers=headers)
+        if r.status_code == 204:
+            return []
+        elif r.status_code == 404:
+            return None
+        else:
+            r.raise_for_status()
+            return r.json()
+
+    def get_instances_of_series(
+        self, study_uid: str, series_uid: str, dcmweb_endpoint: str = None
+    ) -> List[dict]:
         """This function retrieves all instances of a series from the PACS.
 
         Args:
@@ -376,8 +398,9 @@ class HelperDcmWeb:
         Returns:
             List[dict]: List of instances of the series. Each instance is represented as a dictionary containing the instance metadata
         """
+        headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
-        response = self.session.get(url)
+        response = self.session.get(url, headers=headers)
         if response.status_code == 204:
             return []
         elif response.status_code == 404:
@@ -385,25 +408,6 @@ class HelperDcmWeb:
         else:
             response.raise_for_status()
             return response.json()
-
-    def get_series_of_study(self, study_uid: str) -> List[dict]:
-        """This function retrieves all series of a study from the PACS.
-
-        Args:
-            study_uid (str): Study Instance UID of the study to retrieve the series from.
-
-        Returns:
-            List[dict]: List of series of the study. Each series is represented as a dictionary containing the series metadata
-        """
-        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
-        r = self.session.get(url)
-        if r.status_code == 204:
-            return []
-        elif r.status_code == 404:
-            return None
-        else:
-            r.raise_for_status()
-            return r.json()
 
     def delete_series(self, study_uid: str, series_uids: List[str]):
         """This function deletes a series from the PACS. It first rejects the series and then deletes it.

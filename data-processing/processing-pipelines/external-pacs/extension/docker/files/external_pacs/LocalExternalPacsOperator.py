@@ -20,7 +20,6 @@ logger = logging.getLogger(__file__)
 
 
 class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
-    # TODO temporary
     DICOM_WEB_MULTIPLEXER_SERVICE = (
         "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer"
     )
@@ -37,11 +36,28 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         )
         self.action = action
 
-    def _filter_series_to_import(self, metadata):
+    def _filter_instances_to_import_by_series_uid(self, metadata):
         def extract_series_uid(instance):
             return instance.get("0020000E", {"Value": [None]})["Value"][0]
 
+        logger.info(metadata)
+        {
+            "00080005": {"vr": "CS", "Value": ["ISO_IR 100"]},
+            "00080016": {"vr": "UI", "Value": ["1.2.840.10008.5.1.4.1.1.2"]},
+            "00080018": {
+                "vr": "UI",
+                "Value": [
+                    "1.3.6.1.4.1.14519.5.2.1.31759015172429176414362661844660499154"
+                ],
+            },
+            "00200013": {"vr": "IS", "Value": [87]},
+            "00280010": {"vr": "US", "Value": [512]},
+            "00280011": {"vr": "US", "Value": [512]},
+            "00280100": {"vr": "US", "Value": [16]},
+        }
+
         external_series_uids = list(set(map(extract_series_uid, metadata)))
+        logger.info(external_series_uids)
         local_series_uids = set(
             map(
                 lambda result: result["dcm-uid"]["series-uid"],
@@ -50,34 +66,55 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
                 ),
             )
         )
-        filtered_series = list(
+        filtered_instances = list(
             filter(
                 lambda instance: extract_series_uid(instance) not in local_series_uids,
                 metadata,
             )
         )
+        added_external_series_uid = list(set(map(extract_series_uid, metadata)))
+        logger.info(f"{len(added_external_series_uid)} new series imported from {len(external_series_uids)}")
         logger.info(
-            f"{len(filtered_series)} new series imported from {len(external_series_uids)}"
+            f"{len(filtered_instances)} new instances imported from {len(metadata)}"
         )
-        return filtered_series
+        return filtered_instances
 
     def download_external_metadata(
         self,
         dcmweb_endpoint: str,
         dataset_name: str,
-        service_account_info: Dict[str, Any],
     ):
-        logger.info(f"Adding external metadata: {dcmweb_endpoint}")
-        dcmweb_helper = HelperDcmWeb()
+        dcmweb_helper = HelperDcmWeb(
+            dcmweb_rs_endpoint="http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter",
+            dcmweb_uri_endpoint="http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter/wado-uri/",
+        )
+        metadata = []
 
-        metadata = dcmweb_helper.search_for_instances()
+        studies = dcmweb_helper.get_studies(dcmweb_endpoint=dcmweb_endpoint)
+        for study in studies:
+            study_uid = study["0020000D"]["Value"][0]
+            series = dcmweb_helper.get_series_of_study(
+                study_uid, dcmweb_endpoint=dcmweb_endpoint
+            )
+            for single_series in series:
+                series_uid = single_series["0020000E"]["Value"][0]
+                instances = dcmweb_helper.get_instances_of_series(
+                    study_uid=study_uid,
+                    series_uid=series_uid,
+                    dcmweb_endpoint=dcmweb_endpoint,
+                )
+
+                metadata.extend(instances)
+
+        logger.info(len(metadata))
 
         if not metadata or len(metadata) == 0:
             logger.error("No metadata found.")
             exit(1)
-        logger.info(f"Found {len(metadata)} series")
 
-        metadata = self._filter_series_to_import(metadata)
+        logger.info(f"Found {len(metadata)} instances metadata")
+
+        metadata = self._filter_instances_to_import_by_series_uid(metadata)
         for instance in metadata:
             series_uid = instance.get("0020000E", {"Value": [None]})["Value"][0]
 
@@ -111,19 +148,20 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
                 json.dump(instance, fp, indent=4, sort_keys=True)
 
     def delete_external_metadata(self, dcmweb_endpoint: str):
-        query = {
-            "query": {
-                "bool": {
-                    "must": {
-                        "term": {
-                            f"{HelperOpensearch.dcmweb_endpoint_tag}.keyword": dcmweb_endpoint
+        if dcmweb_endpoint:
+            query = {
+                "query": {
+                    "bool": {
+                        "must": {
+                            "term": {
+                                f"{HelperOpensearch.dcmweb_endpoint_tag}.keyword": dcmweb_endpoint
+                            }
                         }
                     }
                 }
             }
-        }
-        logger.info(f"Deleting metadata from opensearch using query: {query}")
-        HelperOpensearch.delete_by_query(query)
+            logger.info(f"Deleting metadata from opensearch using query: {query}")
+            HelperOpensearch.delete_by_query(query)
 
     def _decode_service_account_info(self, encoded_info: str) -> Dict[str, Any]:
         decoded_bytes = base64.b64decode(encoded_info)
@@ -181,17 +219,12 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
             self.download_external_metadata(
                 dcmweb_endpoint,
-                self.workflow_form.get("dataset_name", ""),
-                service_account_info,
+                self.workflow_form.get("dataset_name", "external-data"),
             )
 
         elif self.action == "delete":
             logger.info(f"Remove metadata: {dcmweb_endpoint}")
             self.delete_external_metadata(dcmweb_endpoint)
-            if not self.remove_from_multiplexer(endpoint=dcmweb_endpoint):
-                exit(1)
-
-            logger.info("Remove")
             if not self.remove_from_multiplexer(endpoint=dcmweb_endpoint):
                 exit(1)
 

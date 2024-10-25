@@ -5,6 +5,7 @@ import traceback
 import psutil
 import urllib3
 from fastapi import Depends, FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from .admin import routers as admin
 from .database import SessionLocal, engine
@@ -112,3 +113,4 @@ app.include_router(monitoring.router, prefix="/monitoring")
 
 # # Not used yet
 # app.include_router(storage.router, prefix="/storage")
+Instrumentator().instrument(app).expose(app)

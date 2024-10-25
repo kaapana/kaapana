@@ -1,13 +1,12 @@
 from os.path import dirname, join
-import uvicorn
 
+import uvicorn
+from config import settings
 from fastapi import APIRouter, FastAPI
 from fastapi.staticfiles import StaticFiles
-# from fastapi.middleware.cors import CORSMiddleware
-
-from routes import router
-from config import settings
 from helm_helper import get_extensions_list
+from prometheus_fastapi_instrumentator import Instrumentator
+from routes import router
 
 from middlewares import SanitizeBodyInputs, SanitizeQueryParams
 
@@ -25,7 +24,7 @@ app.mount(
     StaticFiles(directory=join(dirname(str(__file__)), "static")),
     name="static",
 )
-
+Instrumentator().instrument(app).expose(app)
 
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@
             ) Complete interaction
 
       v-card
-        v-card-title Installed Applications in Project
+        v-card-title Applications installed in project: {{ selectedProject.name }}
         v-data-table.elevation-1(
           :headers="activeHeaders",
           :items="projectApplications",
@@ -65,7 +65,6 @@ export default Vue.extend({
     launchedAppLinks: [] as any,
     projectApplications: [] as any,
     search: "",
-    selectedProject: null,
     headers: [
       {
         text: "Name",
@@ -98,20 +97,9 @@ export default Vue.extend({
     this.getTraefikRoutes();
   },
   computed: {
-    ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications"])
+    ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications", "selectedProject"])
   },
   methods: {
-    loadSelectedProject() {
-      // get selected project name from localStorage
-      const storedProject = localStorage.getItem("selectedProject");
-      let selectedProject = null
-      if (storedProject) {
-        selectedProject = JSON.parse(storedProject);
-        return selectedProject.name;
-      } 
-      return null
-    },
-
     getHelmCharts() {
       kaapanaApiService
         .helmApiGet("/pending-applications", {})
@@ -129,8 +117,6 @@ export default Vue.extend({
       kaapanaApiService
         .kaapanaApiGet("/get-traefik-routes")
         .then((response: any) => {
-          this.selectedProject = this.loadSelectedProject()
-          console.log(" this.selectedProject", this.selectedProject)
           // filter and format traefik routes
           this.projectApplications = response.data
             .filter((item: any) => {
@@ -147,7 +133,7 @@ export default Vue.extend({
 
               // check if the rule contains the required pattern for project namespace
               const rulePath = item.rule.slice(12, -2);
-              const rulePattern = new RegExp(`^\/applications\/project\/${this.selectedProject}\/release\/[^/]+$`);
+              const rulePattern = new RegExp(`^\/applications\/project\/${this.selectedProject.name}\/release\/[^/]+$`);
               return rulePattern.test(rulePath);
             })
             .map((item: any) => {

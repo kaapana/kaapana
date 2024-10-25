@@ -7,7 +7,6 @@ from fastapi import Request
 async def metadata_replace_stream(
     method: str = "GET",
     url: str = None,
-    request: Request = None,
     search: bytes = None,
     replace: bytes = None,
     headers: Dict[str, str] = None,
@@ -18,9 +17,10 @@ async def metadata_replace_stream(
     Args:
         method (str, optional): Method to use for the request. Defaults to "GET".
         url (str, optional): URL to send the request to. Defaults to None.
-        request (Request, optional): Request object. Defaults to None.
         search (bytes, optional): Part of the response to search for (which will be replaced). Defaults to None.
         replace (bytes, optional): Bytes to replace the search with. Defaults to None.
+        headers (Dict[str, str], optional): Additional HTTP headers to include in the request. Defaults to None.
+        query_params (Dict[str, str], optional): Query parameters to include in the request. Defaults to None.
 
     Yields:
         bytes: Part of the response stream

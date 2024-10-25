@@ -14,11 +14,12 @@ def wado_endpoint_url(request: URL) -> str:
     if "google" in dcmweb_endpoint:
         return f"{dcmweb_endpoint}/dicomWeb"
     else:
-        raise NotImplementedError("Not supported endpoint")
+        raise NotImplementedError(f"Not supported endpoint: {dcmweb_endpoint}")
+
 
 def rs_endpoint_url(request: URL) -> str:
     dcmweb_endpoint = request.state.endpoint
     if "google" in dcmweb_endpoint:
         return f"{dcmweb_endpoint}/dicomWeb"
     else:
-        raise NotImplementedError("Not supported endpoint")
+        raise NotImplementedError(f"Not supported endpoint: {dcmweb_endpoint}")

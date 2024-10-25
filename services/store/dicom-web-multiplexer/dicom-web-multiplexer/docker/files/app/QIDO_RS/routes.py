@@ -16,13 +16,13 @@ async def retrieve_studies(request: Request) -> Response:
         request (Request): Request object
 
     Returns:
-        response: Response object
+        response: StreamingResponse object
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
     auth_headers = {"Authorization": f"Bearer {token}"}
-    includefield=""
-    
+    includefield = ""
+
     query_params = dict(request.query_params)
     if "includefield" in query_params:
         query_params["includefield"] += "," + includefield
@@ -33,11 +33,10 @@ async def retrieve_studies(request: Request) -> Response:
         metadata_replace_stream(
             method="GET",
             url=f"{rs_endpoint}/studies",
-            request=request,
-            headers=auth_headers,
-            query_params=query_params,
             search="/".join(rs_endpoint.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
+            headers=auth_headers,
+            query_params=query_params,
         ),
         media_type="application/dicom+json",
     )
@@ -51,13 +50,13 @@ async def retrieve_series(study: str, request: Request) -> Response:
         request (Request): Request object
 
     Returns:
-        Response: Response object
+        Response: StreamingResponse object
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
     auth_headers = {"Authorization": f"Bearer {token}"}
-    includefield="StudyInstanceUID"
-    
+    includefield = "StudyInstanceUID"
+
     query_params = dict(request.query_params)
     if "includefield" in query_params:
         query_params["includefield"] += "," + includefield
@@ -67,11 +66,10 @@ async def retrieve_series(study: str, request: Request) -> Response:
         metadata_replace_stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series",
-            request=request,
-            headers=auth_headers,
-            query_params=query_params,
             search="/".join(rs_endpoint.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
+            headers=auth_headers,
+            query_params=query_params,
         ),
         media_type="application/dicom+json",
     )
@@ -86,29 +84,26 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
         request (Request): Request object
 
     Returns:
-        Response: Response object
+        Response: StreamingResponse object
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
     auth_headers = {"Authorization": f"Bearer {token}"}
-    includefield="StudyInstanceUID,SeriesInstanceUID,Modality"
+    includefield = "StudyInstanceUID,SeriesInstanceUID,Modality"
     query_params = dict(request.query_params)
     if "includefield" in query_params:
         query_params["includefield"] += "," + includefield
     else:
         query_params["includefield"] = includefield
-    
-    
-            
+
     return StreamingResponse(
         metadata_replace_stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}/instances",
-            request=request,
-            headers=auth_headers,
-            query_params=query_params,
             search="/".join(rs_endpoint.split(":")[-1].split("/")[1:]).encode(),
             replace=b"dicom-web-filter",
+            headers=auth_headers,
+            query_params=query_params,
         ),
         media_type="application/dicom+json",
     )
@@ -116,27 +111,27 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
 
 @router.get("/studies", tags=["QIDO-RS"])
 async def query_studies(request: Request):
-    """This endpoint is used to get all studies mapped to the project.
+    """This endpoint is used to get all studies of the DICOMWeb server.
 
     Args:
         request (Request): Request object
 
     Returns:
-        response: Response object
+        response: StreamingResponse object
     """
     return await retrieve_studies(request=request)
 
 
 @router.get("/studies/{study}/series", tags=["QIDO-RS"])
 async def query_series(study: str, request: Request):
-    """This endpoint is used to get all series of a study mapped to the project.
+    """This endpoint is used to get all series of a study.
 
     Args:
         study (str): Study Instance UID
         request (Request): Request object
 
     Returns:
-        response: Response object
+        response: StreamingResponse object
     """
     return await retrieve_series(study=study, request=request)
 
@@ -147,7 +142,7 @@ async def query_instances(
     series: str,
     request: Request,
 ):
-    """This endpoint is used to get all instances of a series mapped to the project.
+    """This endpoint is used to get all instances of a series.
 
     Args:
         study (str): Study Instance UID
@@ -155,6 +150,6 @@ async def query_instances(
         request (Request): Request object
 
     Returns:
-        response: Response object
+        response: StreamingResponse object
     """
     return await retrieve_instances(study=study, series=series, request=request)

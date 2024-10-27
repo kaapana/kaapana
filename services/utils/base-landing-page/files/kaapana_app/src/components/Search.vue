@@ -114,28 +114,51 @@ export default {
   },
   components: { SaveDatasetDialog },
   methods: {
-    addFilterItem(key, value) {
+    async addFilterItem(key, value) {
+      // check if mapping yet empty, if so, initialize it
+      if (Object.keys(this.mapping).length === 0) {
+        await this.initializeMapping();
+      }
+
+      // check if key actually exists in mapping, if not, raise an error
+      if (!this.mapping[key]) {
+        this.$notify({
+          title: "Error",
+          text: `Key ${key} does not exist.`,
+          type: "error",
+        });
+        return;
+      }
+      // check if the filter already exists
       const filters = this.filters.filter(
         (filter) => filter.key_select === key
       );
       if (
         filters.length > 0 &&
-        filters[0].item_select.filter((item) => item === value).length === 0
+        filters[0].item_select.filter((item) => String(item) === String(value))
+          .length === 0
       ) {
-        filters[0].item_select.push(value);
-        this.display_filters = true;
+        filters[0].item_select.push(
+          this.mapping[key]["key"].endsWith("_integer") ||
+            this.mapping[key]["key"].endsWith("_float")
+            ? parseFloat(value)
+            : value
+        );
       } else if (filters.length === 0) {
-        loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
-          this.mapping[key] = res.data;
-          this.filters.push({
-            id: this.counter++,
-            key_select: key,
-            item_select: [value],
-          });
+        const res = await loadValues(key, this.constructDatasetQuery() || {});
+        this.mapping[key] = res.data;
+        // if key ends with '_integer' or '_float' parse the values as numbers
+        this.filters.push({
+          id: this.counter++,
+          key_select: key,
+          item_select:
+            this.mapping[key]["key"].endsWith("_integer") ||
+            this.mapping[key]["key"].endsWith("_float")
+              ? [parseFloat(value)]
+              : [value],
         });
-
-        this.display_filters = true;
       }
+      this.display_filters = true;
     },
     addEmptyFilter() {
       this.display_filters = true;
@@ -209,31 +232,34 @@ export default {
     async updateMapping(filter) {
       filter.item_select = [];
       const key = filter.key_select;
-      loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
-        this.mapping[key] = res.data;
-      });
+      const res = await loadValues(key, this.constructDatasetQuery() || {});
+      this.mapping[key] = res.data;
     },
-    async reloadDataset(){
+    async reloadDataset() {
       this.dataset =
         this.datasetName && (await loadDatasetByName(this.datasetName));
     },
+
+    async initializeMapping() {
+      const res = await loadFieldNames();
+      this.fieldNames = res.data;
+      this.mapping = Object.assign(
+        {},
+        ...this.fieldNames.map((_name) => ({
+          [_name]: { items: [], key: "" },
+        }))
+      );
+    },
+
     async initSearch(onMount = false) {
       this.filters = [];
       this.dataset =
         this.datasetName && (await loadDatasetByName(this.datasetName));
       this.search(onMount);
-      loadFieldNames().then((res) => {
-        this.fieldNames = res.data;
-        this.mapping = Object.assign(
-          {},
-          ...this.fieldNames.map((_name) => ({
-            [_name]: { items: [], key: "" },
-          }))
-        );
-      });
+      this.initializeMapping();
     },
   },
-  async mounted() {
+  async created() {
     await this.initSearch(true);
 
     // this.filters = JSON.parse(localStorage['Dataset.search.filters'] || "[]")

@@ -321,7 +321,6 @@ export default {
       editDatasetsDialog: false,
       datasetToAddTo: null,
       debouncedIdentifiers: [],
-      navigationMode: false,
       staticUrls: [],
       resultPaths: {},
       filteredDags: [],
@@ -359,9 +358,6 @@ export default {
       this.keyDownEventListener(event)
     );
     window.addEventListener("keyup", (event) => this.keyUpEventListener(event));
-
-    this.navigationMode =
-      !document.getElementsByClassName("v-bottom-navigation").length > 0;
 
     this.getStaticWebsiteResults();
   },

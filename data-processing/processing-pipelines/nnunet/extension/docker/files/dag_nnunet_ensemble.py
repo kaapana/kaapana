@@ -12,7 +12,7 @@ from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
-from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
+from nnunet.GetModelFromPacsOperator import GetModelFromPacsOperator
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
 from nnunet.getTasks import get_available_protocol_names
 
@@ -225,9 +225,7 @@ dcm2nifti_ct = DcmConverterOperator(
     output_format="nii.gz",
 )
 
-get_input = LocalModelGetInputDataOperator(
-    dag=dag, name="get-models", check_modality=True, parallel_downloads=5
-)
+get_input = GetModelFromPacsOperator(dag=dag, name="get-models")
 
 dcm2bin = Bin2DcmOperator(
     dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm"

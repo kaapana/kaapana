@@ -10,7 +10,7 @@ LABEL BUILD_IGNORE="False"
 ################################
 # USER 0
 # RUN chown -R 1000:1000 /kaapana/app && \
-#     ln -s /kaapana/app/jsons /kaapana/app/public && \
+#     ln -s /kaapana/app/jsons /kaapana/app/public
 
 # USER 1000
 # WORKDIR /kaapana/app

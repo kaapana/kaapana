@@ -12,6 +12,6 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-COPY files/* /kaapana/app/
+COPY files/start.py /kaapana/app/start.py
 
 CMD ["python3", "-u", "/kaapana/app/start.py"]

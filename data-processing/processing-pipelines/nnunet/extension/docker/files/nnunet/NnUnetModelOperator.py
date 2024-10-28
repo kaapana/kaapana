@@ -14,12 +14,11 @@ class NnUnetModelOperator(KaapanaBaseOperator):
         dag,
         name="model-management",
         target_level="default",
+        action: str = "uninstall",
         execution_timeout=execution_timeout,
         **kwargs,
     ):
-        envs = {
-            "TARGET_LEVEL": str(target_level),
-        }
+        envs = {"TARGET_LEVEL": str(target_level), "ACTION": action}
 
         super().__init__(
             dag=dag,

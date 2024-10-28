@@ -15,19 +15,20 @@ spec:
       port: 8080
       targetPort: 8080
       protocol: TCP
-    - name: dcm4che-https
-      port: 6443
-      targetPort: 6443
-      protocol: TCP
     - name: dcm4che-admin
       port: 9990
       targetPort: 9990
-      protocol: TCP
-    - name: dcm4che-dcm-port
-      port: 11115
-      targetPort: 11112
       protocol: TCP
     - name: dcm4che-hl7-port
       port: 2575
       targetPort: 2575
       protocol: TCP
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: rewrite-pacs
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replacePath:
+    path: /dcm4chee-arc/ui2

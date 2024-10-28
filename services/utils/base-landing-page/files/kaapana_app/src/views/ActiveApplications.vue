@@ -9,7 +9,7 @@
             template(v-slot:activator='{ on, attrs }')
               v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
                 | mdi-information-outline
-            span If a DAG has started an application, the corresponding url will be listed here. Use 'Complete Interaction' button to continue the workflow.
+            span If a workflow has started an application, you will find a link to it here. Use 'Complete Interaction' button to continue workflow.
           v-spacer
           v-text-field(v-model='search' append-icon='mdi-magnify' label='Search' single-line='' hide-details='')
         v-data-table.elevation-1(
@@ -102,7 +102,7 @@ export default Vue.extend({
   methods: {
     getHelmCharts() {
       kaapanaApiService
-        .helmApiGet("/pending-applications", {})
+        .helmApiGet("/active-applications", {})
         .then((response: any) => {
           this.launchedAppLinks = response.data;
           this.loading = false;

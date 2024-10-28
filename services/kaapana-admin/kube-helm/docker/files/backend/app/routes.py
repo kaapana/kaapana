@@ -327,8 +327,8 @@ async def pull_docker_image(request: Request):
         return Response(f"Pulling docker image failed {e}", 400)
 
 
-@router.get("/pending-applications")
-async def pending_applications():
+@router.get("/active-applications")
+async def active_applications():
     try:
         extensions_list = []
         for chart in utils.helm_ls(release_filter="kaapanaint"):
@@ -350,10 +350,10 @@ async def pending_applications():
         return extensions_list
 
     except subprocess.CalledProcessError as e:
-        logger.error(f"/pending-applications failed {e}", exc_info=True)
+        logger.error(f"/active-applications failed {e}", exc_info=True)
         return Response("Internal server error!", 500)
     except Exception as e:
-        logger.error(f"/pending-applications failed: {e}", exc_info=True)
+        logger.error(f"/active-applications failed: {e}", exc_info=True)
         return Response(f"Pending applications failed {e}", 400)
 
 

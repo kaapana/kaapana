@@ -242,7 +242,8 @@ export default {
     },
     async reloadDataset() {
       this.dataset =
-        this.datasetNameLocal && (await loadDatasetByName(this.datasetNameLocal));
+        this.datasetNameLocal &&
+        (await loadDatasetByName(this.datasetNameLocal));
     },
 
     async processQueryParams() {
@@ -258,9 +259,7 @@ export default {
       }
       if (this.queryParams.query_string) {
         // set query_string in search component
-        this.query_string = decodeURIComponent(
-          this.queryParams.query_string
-        );
+        this.query_string = decodeURIComponent(this.queryParams.query_string);
       }
 
       if (this.queryParams) {
@@ -290,6 +289,12 @@ export default {
       // if queryparams are present, run search manually
       if (Object.keys(this.queryParams).length > 0) {
         this.search();
+        // Remove query parameters from the URL without reloading the page
+        window.history.replaceState(
+          null,
+          "",
+          window.location.origin + window.location.pathname
+        );
       }
     },
 
@@ -307,7 +312,8 @@ export default {
     async initSearch() {
       this.filters = [];
       this.dataset =
-        this.datasetNameLocal && (await loadDatasetByName(this.datasetNameLocal));
+        this.datasetNameLocal &&
+        (await loadDatasetByName(this.datasetNameLocal));
       // not sure if the awaits are necessary
       await this.search();
       await this.initializeMapping();

@@ -4,12 +4,12 @@
     v-container(grid-list-lg text-left fluid)
       v-card
         v-card-title
-          | List of applications started in a workflow &nbsp;
+          | Applications triggered from a workflow &nbsp;
           v-tooltip(bottom='')
             template(v-slot:activator='{ on, attrs }')
               v-icon(color='primary' dark='' v-bind='attrs' v-on='on')
                 | mdi-information-outline
-            span If a workflow has started an application, you will find here the corresponding url to the application. Once you are done you can here finish the manual interaction which will continue the workflow.
+            span If a workflow has started an application, you will find a link to it here. Use 'Complete Interaction' button to continue workflow.
           v-spacer
           v-text-field(v-model='search' append-icon='mdi-magnify' label='Search' single-line='' hide-details='')
         v-data-table.elevation-1(
@@ -18,7 +18,7 @@
           :items-per-page="20",
           :loading="loading",
           sort-by='releaseName',
-          loading-text="Waiting a few seconds..."
+          loading-text="Loading applications..."
         )
           template(v-slot:item.links="{ item }")
             span {{ item.releaseName }} &nbsp;
@@ -31,7 +31,22 @@
             v-btn(
               @click="deleteChart(item.releaseName)",
               color="primary",
-            ) Finished manual interaction
+            ) Complete interaction
+
+      v-card
+        v-card-title Applications installed in project: {{ selectedProject.name }}
+        v-data-table.elevation-1(
+          :headers="activeHeaders",
+          :items="projectApplications",
+          :items-per-page="20",
+          :loading="loadingProject",
+          sort-by='name',
+          loading-text="Loading applications..."
+        )
+          template(v-slot:item.name="{ item }")
+            span {{ item.name }} &nbsp;
+            a(:href="item.url" target="_blank")
+              v-icon(color='primary') mdi-open-in-new
 </template>
 
 <script lang="ts">
@@ -46,7 +61,9 @@ export default Vue.extend({
   },
   data: () => ({
     loading: true,
+    loadingProject: true,
     launchedAppLinks: [] as any,
+    projectApplications: [] as any,
     search: "",
     headers: [
       {
@@ -71,19 +88,21 @@ export default Vue.extend({
       },
       { text: "Action", value: "releaseName" },
     ],
+    activeHeaders: [
+      { text: "Name", value: "name" },
+    ],
   }),
   mounted() {
-    this.getHelmCharts()
+    this.getHelmCharts();
+    this.getTraefikRoutes();
   },
   computed: {
-    ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications"])
-
+    ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications", "selectedProject"])
   },
   methods: {
-
     getHelmCharts() {
       kaapanaApiService
-        .helmApiGet("/pending-applications", {})
+        .helmApiGet("/active-applications", {})
         .then((response: any) => {
           this.launchedAppLinks = response.data;
           this.loading = false;
@@ -93,6 +112,46 @@ export default Vue.extend({
           console.log(err);
         });
     },
+
+    getTraefikRoutes() {
+      kaapanaApiService
+        .kaapanaApiGet("/get-traefik-routes")
+        .then((response: any) => {
+          // filter and format traefik routes
+          this.projectApplications = response.data
+            .filter((item: any) => {
+              // sanity checks: items should be enabled, have a rule and a service
+              if (item.status != "enabled") {
+                return false;
+              }
+              if (!item.rule) {
+                return false;
+              }
+              if (!item.service) {
+                return false;
+              }
+
+              // check if the rule contains the required pattern for project namespace
+              const rulePath = item.rule.slice(12, -2);
+              const rulePattern = new RegExp(`^\/applications\/project\/${this.selectedProject.name}\/release\/[^/]+$`);
+              return rulePattern.test(rulePath);
+            })
+            .map((item: any) => {
+              const url = item.rule.slice(12, -2) // extract path from PathPrefix("<path>")
+              return {
+                name: url.substring(url.lastIndexOf('/') + 1),
+                url: url
+              };
+            });
+          this.loadingProject = false;
+        })
+        .catch((err: any) => {
+          console.log(err);
+          this.loadingProject = false;
+
+        });
+    },
+
 
     deleteChart(releaseName: any) {
       let params = {

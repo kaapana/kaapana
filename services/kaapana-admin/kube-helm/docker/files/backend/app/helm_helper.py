@@ -370,7 +370,6 @@ def add_info_from_deployments(
                 extension_info.successful = ""
             else:
                 for deployment in version_content.deployments:
-                    # TODO: /pending-applications does not use this function so it's fine to exclude "kaapanaint", but definitely a workaround for now
                     extension_info.links.extend(
                         [link for link in deployment.links if "kaapanaint" not in link]
                     )

@@ -7,6 +7,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AddUserToProject: typeof import('./src/components/AddUserToProject.vue')['default']
+    Confirm: typeof import('./src/components/Confirm.vue')['default']
+    copy: typeof import('./src/components/CreateNewProjectForm copy.vue')['default']
+    CreateNewProjectForm: typeof import('./src/components/CreateNewProjectForm.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

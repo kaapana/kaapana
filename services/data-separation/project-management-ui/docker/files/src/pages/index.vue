@@ -18,6 +18,7 @@
     <v-table>
       <thead>
         <tr>
+          <th class="text-left"></th>
           <th class="text-left">
             Project ID
           </th>
@@ -30,14 +31,26 @@
           <th class="text-left">
             External ID
           </th>
+          <th class="text-center">
+            Action
+          </th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="item in projects" :key="item.name">
+          <td><v-icon>mdi-application-cog</v-icon></td>
           <td>{{ item.id }}</td>
           <td>{{ item.name }}</td>
           <td>{{ item.description }}</td>
           <td>{{ item.external_id }}</td>
+          <td class="text-center">
+            <v-btn 
+              class="text-none" color="medium-emphasis" 
+              min-width="92" variant="outlined" size="small" rounded
+              @click="goToProjects(item.name)">
+              View
+            </v-btn>
+          </td>
         </tr>
       </tbody>
     </v-table>
@@ -51,13 +64,8 @@
 import { defineComponent } from 'vue';
 import CreateNewProjectFrom from '@/components/CreateNewProjectForm.vue'
 import { aiiApiGet } from '@/common/aiiApi.service';
-
-type ProjectItem = {
-  id: number,
-  external_id?: number,
-  name: string,
-  description?: string,
-}
+import { ProjectItem, UserItem } from '@/common/types';
+import store from '@/common/store';
 
 export default defineComponent({
   components: {
@@ -69,16 +77,53 @@ export default defineComponent({
       projects: [] as ProjectItem[],
       projectDialog: false,
       error: false,
+      projectFetched: false,
     }
   },
   mounted() {
-    this.fetchProjects()
+    // Store watch not triggering for some reasom
+    // Temporary solution to check for user via
+    // custom interval loop
+    const fetchProjectsRef = this.fetchProjects
+    let checkForUser = setInterval(function() {
+      const user = store.state.user;
+      if (user) {
+        fetchProjectsRef(user);
+        clearInterval(checkForUser);
+      }
+    }, 100)
+  },
+  watch: {
+    // TODO
+    // Watching the user object deeply
+    // not triggering
+    'store.state.user': {
+      handler(newValue, oldValue) {
+        console.log('User object changed:', { newValue, oldValue });
+
+        // Perform your logic here, e.g., fetching projects
+        if (newValue !== oldValue) {
+          this.fetchProjects(newValue);
+        }
+      },
+      deep: true // Enables deep watching of user object
+    }
   },
   methods: {
-    fetchProjects: function () {
+    fetchProjects: function (user: UserItem) {
+      // console.log(user)
+      // project url to fetch the projects under the user
+      let projects_url = `users/${user.id}/projects`;
+
+      // if default-user / super-admin, fetch all the projects
+      if (user.username == 'kaapana') {
+        projects_url = `projects`;
+      }
+
       try {
-        aiiApiGet('projects').then((projects: ProjectItem[]) => {
-          this.projects = projects
+        aiiApiGet(projects_url).then((projects: ProjectItem[]) => {
+          this.projects = projects;
+          this.projectFetched = true;
         })
       } catch (error: unknown) {
         console.log(error)
@@ -86,12 +131,18 @@ export default defineComponent({
     },
     handleProjectCreate: function (success: boolean = true) {
       if (success) {
-        this.fetchProjects();
+        const user = store.state.user;
+        if (user) {
+          this.fetchProjects(user);
+        }
       } else {
         this.error = true;
       }
       this.projectDialog = false;
+    },
+    goToProjects(projectName: string) {
+      this.$router.push(`/project/${projectName}`);
     }
-  }
+  },
 })
 </script>

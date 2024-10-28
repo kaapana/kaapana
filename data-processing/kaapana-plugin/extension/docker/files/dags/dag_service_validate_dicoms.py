@@ -20,8 +20,8 @@ from kaapana.operators.LocalClearValidationResultOperator import (
 )
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.LocalValidationResult2MetaOperator import (
-    LocalValidationResult2MetaOperator,
+from kaapana.operators.ValidationResult2MetaOperator import (
+    ValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
@@ -193,7 +193,7 @@ clear_validation_results = LocalClearValidationResultOperator(
     trigger_rule="none_failed_min_one_success",
 )
 
-save_to_meta = LocalValidationResult2MetaOperator(
+save_to_meta = ValidationResult2MetaOperator(
     dag=dag,
     input_operator=get_input_json,
     validator_output_dir=validate.operator_out_dir,

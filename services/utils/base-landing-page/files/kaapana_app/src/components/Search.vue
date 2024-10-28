@@ -101,6 +101,7 @@
 
 <script>
 import {
+  loadDatasets,
   loadDatasetByName,
   loadFieldNames,
   loadValues,
@@ -115,6 +116,7 @@ export default {
   },
   data() {
     return {
+      datasetNameLocal: this.datasetName,
       query_string: "",
       display_filters: true,
       filters: [],
@@ -122,6 +124,7 @@ export default {
       fieldNames: [],
       mapping: {},
       dialog: false,
+      queryParams: this.$route.query,
     };
   },
   components: { SaveDatasetDialog },
@@ -202,8 +205,7 @@ export default {
       };
       return query;
     },
-    async search(onMount = false) {
-      this.display_filters = onMount;
+    async search() {
       this.$emit("search", await this.composeQuery());
     },
     queryFromFilter(filter) {
@@ -240,7 +242,55 @@ export default {
     },
     async reloadDataset() {
       this.dataset =
-        this.datasetName && (await loadDatasetByName(this.datasetName));
+        this.datasetNameLocal && (await loadDatasetByName(this.datasetNameLocal));
+    },
+
+    async processQueryParams() {
+      if (this.queryParams.dataset_name) {
+        const datasetNames = await loadDatasets();
+        if (datasetNames.includes(this.queryParams.dataset_name)) {
+          this.datasetNameLocal = this.queryParams.dataset_name;
+          await this.initSearch();
+        }
+        // invalid dataset name will be handled in Datasets.vue
+      } else {
+        await this.initSearch();
+      }
+      if (this.queryParams.query_string) {
+        // set query_string in search component
+        this.query_string = decodeURIComponent(
+          this.queryParams.query_string
+        );
+      }
+
+      if (this.queryParams) {
+        // all other queryparams are filters and should be added as filters
+        const params = Object.entries(this.queryParams).filter(
+          ([key, value]) =>
+            key !== "query_string" &&
+            key !== "dataset_name" &&
+            key !== "project_name"
+        );
+
+        // setting the filters in the search component
+        for (let [_key, _value] of params) {
+          // encode key and value
+          _key = decodeURIComponent(_key);
+          _value = decodeURIComponent(_value);
+          // if value contains a comma: split it and add multiple filters
+          if (_value.includes(",")) {
+            for (let val of _value.split(",")) {
+              await this.addFilterItem(_key, val);
+            }
+          } else {
+            await this.addFilterItem(_key, _value);
+          }
+        }
+      }
+      // if queryparams are present, run search manually
+      if (Object.keys(this.queryParams).length > 0) {
+        this.search();
+      }
     },
 
     async initializeMapping() {
@@ -254,12 +304,12 @@ export default {
       );
     },
 
-    async initSearch(onMount = false) {
+    async initSearch() {
       this.filters = [];
       this.dataset =
-        this.datasetName && (await loadDatasetByName(this.datasetName));
+        this.datasetNameLocal && (await loadDatasetByName(this.datasetNameLocal));
       // not sure if the awaits are necessary
-      await this.search(onMount);
+      await this.search();
       await this.initializeMapping();
     },
 
@@ -275,8 +325,8 @@ export default {
         params.append("project_name", this.selectedProject.name);
       }
       // datasetname
-      if (this.datasetName) {
-        params.append("dataset_name", this.datasetName);
+      if (this.datasetNameLocal) {
+        params.append("dataset_name", this.datasetNameLocal);
       }
       this.filters.forEach((filter, index) => {
         if (filter.key_select && filter.item_select.length > 0) {
@@ -297,11 +347,13 @@ export default {
     },
   },
   async created() {
-    await this.initSearch(true);
+    // here we should parse the query string and set the filters accordingly
+    await this.processQueryParams();
   },
   watch: {
-    async datasetName() {
-      await this.initSearch(false);
+    async datasetName(newVal) {
+      this.datasetNameLocal = newVal;
+      await this.initSearch();
     },
   },
 };

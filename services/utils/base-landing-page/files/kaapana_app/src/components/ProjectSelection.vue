@@ -12,7 +12,7 @@
 
 <script>
 import axios from "axios";
-import httpClient from "../common/httpClient";
+import { fetchProjects } from "../common/api.service";
 import { UPDATE_SELECTED_PROJECT } from "@/store/actions.type";
 
 export default {
@@ -22,22 +22,12 @@ export default {
       selectedProject: null,
     };
   },
-  mounted() {
-    this.fetchProjects();
+  async mounted() {
+    this.projects = await fetchProjects();
   },
   watch: {
     selectedProject(newProject) {
       this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
-    },
-  },
-  methods: {
-    async fetchProjects() {
-      try {
-        const response = await httpClient.get("/aii/projects");
-        this.projects = response.data;
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-      }
     },
   },
 };

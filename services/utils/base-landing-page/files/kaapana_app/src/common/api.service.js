@@ -199,7 +199,20 @@ const loadDicomTagMapping = async () => {
     .data;
 };
 
-
+const fetchProjects = async () => {
+  try {
+    return (await httpClient.get("/aii/projects")).data;
+  } catch (error) {
+    Vue.notify({
+      title: "Error",
+      text:
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : error,
+      type: "error",
+    });
+  }
+};
 
 export {
   updateTags,
@@ -215,4 +228,5 @@ export {
   loadFieldNames,
   loadValues,
   getAggregatedSeriesNum,
+  fetchProjects,
 };

@@ -283,6 +283,7 @@ import {
   loadDatasets,
   loadPatients,
   getAggregatedSeriesNum,
+  fetchProjects,
 } from "../common/api.service";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 import Dashboard from "@/components/Dashboard.vue";
@@ -298,7 +299,8 @@ import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
 import IdleTracker from '@/components/IdleTracker.vue';
 import ElementsFromHTML from "@/components/ElementsFromHTML.vue";
-import Paginate from '@/components/Paginate.vue';
+import Paginate from "@/components/Paginate.vue";
+import { UPDATE_SELECTED_PROJECT } from "@/store/actions.type";
 
 const keycon = new KeyController();
 
@@ -321,14 +323,14 @@ export default {
       editDatasetsDialog: false,
       datasetToAddTo: null,
       debouncedIdentifiers: [],
-      navigationMode: false,
       staticUrls: [],
       resultPaths: {},
       filteredDags: [],
       aggregatedSeriesNum: 100,
       pageIndex: 1,
       searchQuery: {},
-      allPatients: true
+      allPatients: true,
+      queryParams: this.$route.query,
     };
   },
   components: {
@@ -349,21 +351,92 @@ export default {
     ElementsFromHTML,
     Paginate
   },
-  async created() {
+  created() {
     this.settings = JSON.parse(localStorage["settings"]);
-    // this.datasetName = JSON.parse(localStorage['Dataset.search.datasetName'] || '')
-    this.updateDatasetNames();
   },
-  mounted() {
+  async mounted() {
     window.addEventListener("keydown", (event) =>
       this.keyDownEventListener(event)
     );
     window.addEventListener("keyup", (event) => this.keyUpEventListener(event));
 
-    this.navigationMode =
-      !document.getElementsByClassName("v-bottom-navigation").length > 0;
-
     this.getStaticWebsiteResults();
+
+    // if 'project' is present in queryparams, set it as selected project
+    if (this.queryParams.project_name) {
+      // load all projects
+      const projects = await fetchProjects();
+      // find the project with the name from queryparams
+      const project = projects.find(
+        (p) => p.name === this.queryParams.project_name
+      );
+
+      if (!project) {
+        this.$notify({
+          title: "Error",
+          text: `Project with name ${this.queryParams.project_name} doesn't exist or you don't have access.`,
+          type: "error",
+        });
+      }
+
+      // if project != current project, update selected project
+      if (project && project.id !== this.$store.getters.selectedProject.id) {
+        this.$store.dispatch(UPDATE_SELECTED_PROJECT, project);
+      }
+    }
+
+    // load all datasets
+    // this is dependent on the selected project, so we need to wait for the selected project to be set
+    await this.updateDatasetNames();
+    if (this.queryParams.dataset_name) {
+      // check if dataset_name is in datasetNames
+      if (!this.datasetNames.includes(this.queryParams.dataset_name)) {
+        this.$notify({
+          title: "Error",
+          text: `Dataset with name ${this.queryParams.dataset_name} not found.`,
+          type: "error",
+        });
+      } else {
+        // TODO: We somehow have to ensure that the dataset update is finished before we add the other queryParameters
+        this.datasetName = this.queryParams.dataset_name;
+      }
+    }
+
+    if (this.queryParams.query_string) {
+      // set query_string in search component
+      this.$refs.search.query_string = decodeURIComponent(
+        this.queryParams.query_string
+      );
+    }
+
+    if (this.queryParams) {
+      // all other queryparams are filters and should be added as filters
+      const params = Object.entries(this.queryParams).filter(
+        ([key, value]) =>
+          key !== "query_string" &&
+          key !== "dataset_name" &&
+          key !== "project_name"
+      );
+
+      // setting the filters in the search component
+      for (let [_key, _value] of params) {
+        // encode key and value
+        _key = decodeURIComponent(_key);
+        _value = decodeURIComponent(_value);
+        // if value contains a comma: split it and add multiple filters
+        if (_value.includes(",")) {
+          for (let val of _value.split(",")) {
+            await this.$refs.search.addFilterItem(_key, val);
+          }
+        } else {
+          await this.$refs.search.addFilterItem(_key, _value);
+        }
+      }
+    }
+    // if queryparams are present, run search manually
+    if (Object.keys(this.queryParams).length > 0) {
+      this.$refs.search.search(true);
+    }
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) =>
@@ -473,10 +546,8 @@ export default {
             });
         });
     },
-    updateDatasetNames() {
-      loadDatasets().then(
-        (_datasetNames) => (this.datasetNames = _datasetNames)
-      );
+    async updateDatasetNames() {
+      this.datasetNames = await loadDatasets();
     },
     getStaticWebsiteResults() {
       kaapanaApiService
@@ -628,7 +699,7 @@ export default {
           text: `Successfully new dataset ${name}.`,
           type: "success",
         });
-        this.updateDatasetNames();
+        await this.updateDatasetNames();
         return true;
       } catch (error) {
         this.$notify({

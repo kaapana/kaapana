@@ -22,7 +22,18 @@ logger.setLevel(logging.INFO)
 SERVICES_NAMESPACE = ProjectSettings().services_namespace
 
 
-def get_default_dicom_web_rs_endpoint():
+DEFAULT_DICOM_WEB_RS_ENDPOINT = (
+    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080"
+)
+DEFAULT_DICOM_WEB_URI_ENDPOINT = (
+    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado",
+)
+
+
+def get_default_dicom_web_endpoints():
+    """
+    Check if multiplexer is reachable and give multiplexer endpoints if so.
+    """
     try:
         import requests
 
@@ -38,15 +49,7 @@ def get_default_dicom_web_rs_endpoint():
         logger.info(e)
         logger.info(traceback.format_exc())
 
-    return (
-        f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080",
-        f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado",
-    )
-
-
-DEFAULT_DICOM_WEB_RS_ENDPOINT, DEFAULT_DICOM_WEB_URI_ENDPOINT = (
-    get_default_dicom_web_rs_endpoint()
-)
+    return None
 
 
 class HelperDcmWeb:
@@ -68,8 +71,13 @@ class HelperDcmWeb:
             username (str, optional): The username of the user who started the dag. Defaults to None.
             access_token (str, optional): The access token of the user. Defaults to None.
         """
-        self.dcmweb_rs_endpoint = dcmweb_rs_endpoint
-        self.dcmweb_uri_endpoint = dcmweb_uri_endpoint
+
+        endpoints = get_default_dicom_web_endpoints()
+        if endpoints is None:
+            self.dcmweb_rs_endpoint = dcmweb_rs_endpoint
+            self.dcmweb_uri_endpoint = dcmweb_uri_endpoint
+        else:
+            self.dcmweb_rs_endpoint, self.dcmweb_uri_endpoint = endpoints
 
         self.access_token = access_token or get_project_user_access_token()
         self.auth_headers = {

@@ -12,6 +12,11 @@ logger = get_logger(__file__)
 
 
 def update_query_params(request: Request, includefield: str = "") -> Dict:
+    """
+    Update query params with includefield, as DICOMWeb API.
+    Neccessary for Gcloud Dicom Store, as it does not return 
+    StudyUID and SeriesUID for instances by default.
+    """
     query_params = dict(request.query_params)
 
     if not includefield:

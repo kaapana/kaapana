@@ -5,3 +5,4 @@ name: dicom-web-multiplexer-chart
 version: "0.0.0"
 keywords:
   - kaapanaapplication
+  - kaapanaexperimental

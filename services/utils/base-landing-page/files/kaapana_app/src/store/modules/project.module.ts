@@ -26,12 +26,12 @@ const actions = {
       return new Promise((resolve: any) => {
         httpClient.get("/aii/projects").then((response: any) => {
           const defaultProject = response.data[0]
-          context.dispatch(UPDATE_SELECTED_PROJECT, defaultProject)
+          context.commit(SET_SELECTED_PROJECT, defaultProject)
         }).catch((error: any) => {
-          console.error("Error fetching projects:", error);
-          resolve(false)
-        })
+        console.error("Error fetching projects:", error);
+        resolve(false)
       })
+    })
     }
   },
   [UPDATE_SELECTED_PROJECT](context: any, selectedProject: any) {

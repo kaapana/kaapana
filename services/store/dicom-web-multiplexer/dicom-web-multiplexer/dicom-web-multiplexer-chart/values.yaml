@@ -1,3 +1,2 @@
 global:
-  dev_files: /home/ubuntu/kaapana/services/store/dicom-web-multiplexer/dicom-web-multiplexer/docker/files
-  pull_policy_images: "IfNotPresent"
+  dev_files: false

@@ -18,8 +18,8 @@ RUN mkdir -p /kaapana/app/dag
 RUN mkdir -p /kaapana/app/utils
 
 COPY files/utils /kaapana/app/utils
-COPY files/*.sh /kaapana/app
-COPY files/README.md /kaapana/app
+COPY files/*.sh /kaapana/app/
+COPY files/README.md /kaapana/app/
 
 RUN pip install -r /kaapana/app/utils/requirements.txt
 

@@ -374,9 +374,3 @@ async def retrieve_instance_rendered(
         logger.error(e)
         logger.error(traceback.format_exc())
         return Response(content="Internal server error", status_code=500)
-
-    except Exception as e:
-        logger.error("Error while retrieving instance rendered image")
-        logger.error(e)
-        logger.error(traceback.format_exc())
-        return Response(content="Internal server error", status_code=500)

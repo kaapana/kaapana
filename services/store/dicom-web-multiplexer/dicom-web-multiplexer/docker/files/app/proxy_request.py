@@ -12,6 +12,20 @@ async def proxy_request(
     method: str,
     timeout=10,
 ):
+    """
+    Forwards an HTTP request to the specified URL, replicating the request method and headers.
+    Returns a standard `Response` with the content and headers from the proxied request.
+    Used to redirect multiplexer request for local pacs to dicom-web-filter and collect response.
+    
+    Args:
+        request (Request): The incoming request to be proxied.
+        url (str): The target URL for the proxied request.
+        method (str): HTTP method (e.g., 'GET', 'POST', 'PUT') for the request.
+        timeout (int, optional): Timeout for the client in seconds. Default is 10 seconds.
+
+    Returns:
+        Response: A response object with the proxied request's content, status code, and headers.
+    """
     headers = dict(request.headers)
     logger.info(f"Request URL: {url}")
     logger.debug(f"Request headers: {headers}")
@@ -66,6 +80,22 @@ async def stream_proxy_request(
     method: str,
     timeout=10,
 ):
+    """
+    Streams an HTTP request to the specified URL, maintaining the request method and headers.
+    Returns a `StreamingResponse` with the streamed content from the proxied request.
+    Used to redirect multiplexer request for local pacs to dicom-web-filter and collect response.
+    Currently unused.
+
+    Args:
+        request (Request): The incoming request to be proxied.
+        url (str): The target URL for the proxied request.
+        method (str): HTTP method (e.g., 'GET', 'POST', 'PUT') for the request.
+        timeout (int, optional): Timeout for the client in seconds. Default is 10 seconds.
+
+    Returns:
+        StreamingResponse: A response object that streams the content from the proxied request.
+    """
+    
     headers = dict(request.headers)
     logger.info(f"Request URL: {url}")
     logger.debug(f"Request headers: {headers}")

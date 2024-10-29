@@ -12,6 +12,7 @@ from fastapi.concurrency import iterate_in_threadpool
 from fastapi.datastructures import URL
 from fastapi.responses import StreamingResponse
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.settings import OpensearchSettings
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = get_logger(__name__)
@@ -88,11 +89,12 @@ def get_series_uid_from_request(request: URL) -> str | None:
 
 
 def get_endpoint_from_opensearch(series_uid: str) -> str:
+    index = OpensearchSettings().default_index
     query = {
         "bool": {"must": [{"term": {HelperOpensearch.series_uid_tag: series_uid}}]}
     }
     result = HelperOpensearch.get_query_dataset(
-        index="project_1",
+        index=index,
         query=query,
         include_custom_tag=HelperOpensearch.dcmweb_endpoint_tag,
     )

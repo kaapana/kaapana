@@ -20,6 +20,13 @@ logger = logging.getLogger(__file__)
 
 
 class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
+    """
+    This operator is used to ADD or DELETE external PACs using multiplexer service (extension)
+    It creates a kubernetes secret with credentials, adds the endpoint to the database, and download metadata of all instances.
+    """
+    DICOM_WEB_MULTIPLEXER_SERVICE = (
+        "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer"
+    )
 
     def __init__(
         self,
@@ -54,6 +61,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         Returns:
             List[Dict[str, Any]]: Filtered list of DICOM metadata.
         """
+
         def extract_series_uid(instance: Dict[str, Any]) -> str | None:
             return instance.get("0020000E", {"Value": [None]})["Value"][0]
 
@@ -112,7 +120,6 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
                 metadata.extend(instances)
 
-
         if not metadata:
             logger.error("No metadata found.")
             exit(1)
@@ -122,8 +129,10 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         metadata = self._filter_instances_to_import_by_series_uid(metadata)
         for instance in metadata:
             self._save_instance_metadata(instance, dcmweb_endpoint, dataset_name)
-            
-    def _save_instance_metadata(self, instance: Dict[str, Any], dcmweb_endpoint: str, dataset_name: str) -> None:
+
+    def _save_instance_metadata(
+        self, instance: Dict[str, Any], dcmweb_endpoint: str, dataset_name: str
+    ) -> None:
         """
         Saves metadata for a single DICOM instance to a JSON file.
 
@@ -152,7 +161,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
         with open(json_path, "w", encoding="utf8") as fp:
             json.dump(instance, fp, indent=4, sort_keys=True)
-    
+
     def delete_external_metadata(self, dcmweb_endpoint: str):
         """
         Deletes metadata from OpenSearch using a specified DICOMweb endpoint.
@@ -191,7 +200,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
     def add_to_multiplexer(self, endpoint: str, secret_data: Dict[str, str]):
         """
-        Adds an external PACS endpoint to the multiplexer with its secret data. 
+        Adds an external PACS endpoint to the multiplexer with its secret data.
         Calls multiplexer service.
 
         Parameters:
@@ -217,7 +226,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
     def remove_from_multiplexer(self, endpoint: str):
         """
-        Removes an external PACS endpoint from the multiplexer.  
+        Removes an external PACS endpoint from the multiplexer.
         Calls multiplexer service.
 
         Parameters:
@@ -242,7 +251,6 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             return False
 
     @cache_operator_output
-    
     def start(self, ds, **kwargs):
         """
         Starts the LocalExternalPacsOperator based on the action parameter (add or delete).

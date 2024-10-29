@@ -15,13 +15,6 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 log = LoggingMixin().log
 
 dataset_name = "external-data"
-default_host = (
-    "https://healthcare.googleapis.com/v1"
-    + "/projects/idc-external-031"
-    + "/locations/europe-west2"
-    + "/datasets/kaapana-integration-test"
-    + "/dicomStores/kaapana-integration-test-store"
-)
 ui_forms = {
     "data_form": {},
     "workflow_form": {
@@ -31,7 +24,7 @@ ui_forms = {
                 "title": "DcmWeb URL",
                 "description": "Specify the URL of the DICOM store. (e.g.: https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/dicomStores?dicomStoreId=DICOM_STORE_ID)",
                 "type": "string",
-                "default": default_host,
+                "default": "URL",
                 "required": True,
             },
             "dataset_name": {

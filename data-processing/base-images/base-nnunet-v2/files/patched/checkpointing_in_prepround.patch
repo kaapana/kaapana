@@ -1,0 +1,21 @@
+diff --git a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+index 7346209..d50599e 100644
+--- a/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
++++ b/nnunetv2/training/nnUNetTrainer/nnUNetTrainer.py
+@@ -1429,10 +1429,11 @@ class nnUNetTrainer(object):
+ 
+         ### ADAPTED FOR KAAPANAFED ###
+         if os.getenv("PREP_INCREMENT_STEP", None) == "from_dataset_properties":
+-            nnunet_trainer.save_checkpoint(
+-                join(nnunet_trainer.output_folder, "model_final_checkpoint.model")
+-            )
+-            print("Preparation round: Aggregation of model initialization!")
++            self.save_checkpoint(join(self.output_folder, "model_final_checkpoint.model"))
++            # nnunet_trainer.save_checkpoint(
++            #     join(nnunet_trainer.output_folder, "model_final_checkpoint.model")
++            # )
++            print("Preparation round done: Aggregation of model initialization!")
+             return
+         ##############################
+ 
+-- 

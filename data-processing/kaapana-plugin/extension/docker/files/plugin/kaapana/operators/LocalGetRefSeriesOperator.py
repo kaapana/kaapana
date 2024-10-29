@@ -133,7 +133,9 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
             f"Downloaded series {series.reference_series_uid} to {series.target_dir}"
         )
 
-    def prepare_download(self, path_to_dicom_slice: str) -> DownloadSeries:
+    def prepare_download(
+        self, path_to_dicom_slice: str, series_dir: str
+    ) -> DownloadSeries:
         """Prepare the download of a series. Means:
         - Load the dicom file and get the series instance uid.
         - Get the reference series uid.
@@ -144,6 +146,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
 
         Args:
             path_to_dicom_slice (str): The path to the dicom slice.
+            series_dir (str): The batch element directory of processed dicom slice.
 
         Raises:
             ValueError: If the modality is unknown.
@@ -174,13 +177,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         else:
             raise ValueError("Unknown modality!")
 
-        target_dir = join(
-            self.airflow_workflow_dir,
-            self.dag_run,
-            self.batch_name,
-            series_instance_uid,
-            self.operator_out_dir,
-        )
+        target_dir = join(series_dir, self.operator_out_dir)
+        print(f"Target dir: {target_dir}")
 
         os.makedirs(target_dir, exist_ok=True)
 
@@ -213,6 +211,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                 "*",
             )
         )  # e.g. /kaapana/mounted/workflows/data/service-segmentation-thumbnail-240916111826725386/batch
+        print(f"Series dirs: {series_dirs}")
 
         download_series_list = []
 
@@ -227,6 +226,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
                             self.operator_in_dir,
                             os.listdir(join(series_dir, self.operator_in_dir))[0],
                         ),
+                        series_dir,
                     )
                     for series_dir in series_dirs
                 ]

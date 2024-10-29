@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: deny-all-traffic
-  namespace: {{ .Values.global.project_namespace }}
+  namespace: {{ .Values.global.jobs_namespace }}
 spec:
   podSelector: {}
   policyTypes:
@@ -15,7 +15,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-kube-dns
-  namespace: {{ .Values.global.project_namespace }}
+  namespace: {{ .Values.global.jobs_namespace }}
 spec:
   podSelector: {}
   policyTypes:
@@ -34,7 +34,7 @@ kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
   name: allow-external-ips
-  namespace: {{ .Values.global.project_namespace }}
+  namespace: {{ .Values.global.jobs_namespace }}
 spec:
   podSelector:
     matchLabels:
@@ -54,7 +54,7 @@ kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
   name: allow-access-to-ctp
-  namespace: {{ .Values.global.project_namespace }}
+  namespace: {{ .Values.global.jobs_namespace }}
 spec:
   podSelector:
     matchLabels:
@@ -75,7 +75,7 @@ kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
   name: allow-ingress-from-traefik
-  namespace: {{ .Values.global.project_namespace }}
+  namespace: {{ .Values.global.jobs_namespace }}
 spec:
   podSelector: {}
   policyTypes:
@@ -94,7 +94,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-opensearch-egress
-  namespace: {{ .Values.global.project_namespace }}
+  namespace: jobs
 spec:
   podSelector:
     matchLabels:
@@ -105,7 +105,7 @@ spec:
   - to:
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+          kubernetes.io/metadata.name: services
     - podSelector:
         matchLabels:
           app-name: opensearch
@@ -113,102 +113,46 @@ spec:
     - protocol: TCP
       port: 9200
 ---
-### Allow access to keycloak and access-information-interface for create-project-user job
+### Allow access to kaapana-backend from namespace "jobs"
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: allow-keycloak-and-aii-egress
-  namespace: {{ .Values.global.project_namespace }}
+  name: allow-access-to-kaapana-backend-service
+  namespace: jobs
 spec:
-  podSelector:
-    matchLabels:
-      app-name: "create-project-user"
+  podSelector: {} # Apply to all pods in the jobs namespace
   policyTypes:
   - Egress
   egress:
   - to:
     - namespaceSelector:
         matchLabels:
-          kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
-        matchLabels:
-          app-name: keycloak
-    ports:
-    - protocol: TCP
-      port: 8443
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
-        matchLabels:
-          app-name: access-information-interface
-    ports:
-    - protocol: TCP
-      port: 8080
---- 
-### Policy for proccessing-containers to keycloak, opensearch, dicom-web-filter, minio
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: egress-for-processing-containers
-  namespace: {{ .Values.global.project_namespace }}
-spec:
-  podSelector:
-    matchLabels:
-      pod-type: "processing-container"
-  policyTypes:
-  - Egress
-  egress:
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
-    - podSelector:
-        matchLabels:
-          app-name: keycloak
-    ports:
-    - protocol: TCP
-      port: 8443
-    - protocol: TCP
-      port: 8080
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
-        matchLabels:
-          app-name: opensearch
-    ports:
-    - protocol: TCP
-      port: 9200
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
-        matchLabels:
-          app-name: dicom-web-filter
-    ports:
-    - protocol: TCP
-      port: 8080
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
-    - podSelector:
-        matchLabels:
-          app-name: minio
-    ports:
-    - protocol: TCP
-      port: 9000
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          kubernetes.io/metadata.name: {{ .Values.global.services_namespace }}
+          kubernetes.io/metadata.name: services
     - podSelector:
         matchLabels:
           app-name: kaapana-backend
     ports:
     - protocol: TCP
       port: 5000
+---
+### Allow access to minio from namespace "jobs"
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-access-to-minio-service
+  namespace: jobs
+spec:
+  podSelector: {} # Apply to all pods in the jobs namespace
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: services
+    - podSelector:
+        matchLabels:
+          app-name: minio
+    ports:
+    - protocol: TCP
+      port: 9000

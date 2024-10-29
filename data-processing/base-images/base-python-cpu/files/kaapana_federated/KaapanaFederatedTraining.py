@@ -284,7 +284,9 @@ class KaapanaFederatedTrainingBase(ABC):
     def distribute_jobs(self, federated_round):
         # Starting round!
         self.remote_conf_data["federated_form"]["federated_round"] = federated_round
+
         for site_info in self.remote_sites:
+            # update previous_dag_run attributes necessary for caching and restarting processes
             if site_info["instance_name"] not in self.tmp_federated_site_info:
                 self.tmp_federated_site_info[site_info["instance_name"]] = {}
                 self.remote_conf_data["federated_form"]["from_previous_dag_run"] = None
@@ -303,6 +305,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     "from_previous_dag_run"
                 ]
 
+            # create at local instance jobs for remote sites
             with requests.Session() as s:
                 r = requests_retry_session(session=s).put(
                     f"{self.client_url}/workflow_jobs",
@@ -412,6 +415,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     not in self.remote_conf_data["federated_form"][
                         "federated_operators"
                     ]
+                    or "from_server" in obj.object_name
                 ):
                     continue
                 else:
@@ -421,8 +425,8 @@ class KaapanaFederatedTrainingBase(ABC):
                             obj.object_name,
                             self.remote_conf_data["federated_form"]["federated_dir"],
                         ),
-                    )
-                    file_dir = os.path.dirname(file_path)
+                    ).replace("/from_client", "")
+                    file_dir = os.path.dirname(file_path)  # file_path.rsplit('/', 2)[0]
                     os.makedirs(file_dir, exist_ok=True)
                     self.minioClient.fget_object(
                         federated_bucket, obj.object_name, file_path
@@ -452,60 +456,98 @@ class KaapanaFederatedTrainingBase(ABC):
         pass
 
     # @timeit
-    def load_state_dicts(self, current_federated_round_dir=None):
+    def load_model_weights(self, current_federated_round_dir=None):
         """
         Load checkpoints and return as dict.
         """
         print("Load checkpoints and return as dict.")
-        site_statedict_dict = collections.OrderedDict()
+        site_model_weights_dict = collections.OrderedDict()
         for idx, fname in enumerate(
-            current_federated_round_dir.rglob("model_final_checkpoint.model")
+            current_federated_round_dir.rglob("checkpoint_final.pth")
         ):
-            print(f"Loading state_dict from: {fname}")
+            print(f"Loading model_weights from: {fname}")
             checkpoint = torch.load(fname, map_location=torch.device("cpu"))
 
             # retrieve site_name from current_federated_round_dir
             modified_fname = str(fname).replace(str(current_federated_round_dir), "")
             site_name = modified_fname.split("/")[1]
 
-            site_statedict_dict[site_name] = checkpoint["state_dict"]
-        return site_statedict_dict
+            site_model_weights_dict[site_name] = checkpoint["network_weights"]
+        return site_model_weights_dict
 
     # @timeit
-    def fed_avg(self, site_statedict_dict=None):
+    def fed_avg(self, site_model_weights_dict=None):
         """
         FedAvg: Communication-efficient Learning of Deep networks from Decentralized Data (https://arxiv.org/abs/1602.05629)
-        Sum state_dicts up.
-        Divide summed state_dict by num_sites.
-        Return a site_statedict_dict with always the same statedict per site.
+        Sum model_weights up.
+        Divide summed model_weights by num_sites.
+        Return a site_model_weights_dict with always the same model_weights per site.
+
+        Note:
+        * perform averaging based on pointers on the dict keys obtained with .data_ptr()
+        * solution from https://github.com/MIC-DKFZ/nnUNet/issues/2553
+        * btw site_model_weights_dict looks like that: site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
         """
-        # sum state_dicts up
-        # site_statedict_dict = {"<siteA>": <state_dict_0> , "<siteA>": <state_dict_1>, ...}
-        sum_state_dict = collections.OrderedDict()
-        for site_key, site_value in site_statedict_dict.items():
-            for key, value in site_value.items():
-                if key not in sum_state_dict:
-                    sum_state_dict[key] = value
+
+        # for sample-weighted aggregation, get number of samples per client and list of client_instance_names
+        num_samples_per_client = dict()
+        client_instance_names = []
+        for site_idx, _ in enumerate(self.remote_sites):
+            client_instance_names.append(self.remote_sites[site_idx]["instance_name"])
+            num_samples_per_client[self.remote_sites[site_idx]["instance_name"]] = (
+                len(
+                    self.remote_sites[site_idx]["allowed_datasets"][
+                        self.remote_conf_data["data_form"]["dataset_name"]
+                    ]["identifiers"]
+                )
+                if self.remote_conf_data["data_form"]["dataset_limit"] is None
+                else self.remote_conf_data["data_form"]["dataset_limit"]
+            )
+        num_all_samples = sum(num_samples_per_client.values())
+        print(
+            f"Averaging model weights with client's dataset sizes: {num_samples_per_client} \
+            and total number of samples of {num_all_samples}!"
+        )
+
+        # initialize network_weights with those of first client_instance
+        list_of_network_parameters = list(site_model_weights_dict.values())
+        network_weights = site_model_weights_dict[client_instance_names[0]]
+        # get addresses of keys
+        keys = list(network_weights.keys())
+        address_key_dict = {}
+        for k in keys:
+            address = network_weights[k].data_ptr()
+            if address not in address_key_dict.keys():
+                address_key_dict[address] = [k]
+            else:
+                address_key_dict[address].append(k)
+
+        # perform the fedavg
+        for a in address_key_dict.keys():
+            for client_instance_name, net in site_model_weights_dict.items():
+                if client_instance_name == client_instance_names[0]:
+                    # network weights of client_instance_names [0] are already in network_weights
+                    pass
                 else:
-                    sum_state_dict[key] = sum_state_dict[key] + value
+                    # weighted sum
+                    network_weights[address_key_dict[a][0]] += (
+                        net[address_key_dict[a][0]]
+                        * num_samples_per_client[client_instance_name]
+                    )
+            # divided by num_all_samples
+            network_weights[address_key_dict[a][0]] /= num_all_samples
+            # modifying the 0th keys is sufficient as the other keys point to the same data
 
-        num_sites = len(site_statedict_dict)
-        # average state_dicts
-        averaged_state_dict = collections.OrderedDict()
-        for key, value in sum_state_dict.items():
-            averaged_state_dict[key] = sum_state_dict[key] / num_sites
-
-        # return site_statedict_dict with same averaged model per site
-        return_statedict_dict = collections.OrderedDict()
-        for site in site_statedict_dict.keys():
-            return_statedict_dict[site] = averaged_state_dict
-
-        return return_statedict_dict
+        # reformat to return
+        return_model_weights_dict = collections.OrderedDict()
+        for site in site_model_weights_dict.keys():
+            return_model_weights_dict[site] = network_weights
+        return return_model_weights_dict
 
     # @timeit
     def fed_dc(
         self,
-        site_statedict_dict=None,
+        site_model_weights_dict=None,
         federated_round=None,
     ):
         """
@@ -514,56 +556,58 @@ class KaapanaFederatedTrainingBase(ABC):
         Aggregate local models if (federated_round % agg_rate) == (agg_rate - 1).
 
         Input:
-        * site_statedict_dict: site_statedict_dict = {"<siteA>": <state_dict_0> , "<siteA>": <state_dict_1>, ...}
+        * site_model_weights_dict: site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
         * federated_round: current federated communication round
         * agg_rate: aggregation rate; defines how often local model weights are aggregated (avereaged)
         * dc_rate: daisy chaining rate; defines how often local models are randomly sent to other site
 
         Output:
-        * return_statedict_dict: with eiter just randomly permuted site keys or aggregated state_dicts.
+        * return_model_weights_dict: with eiter just randomly permuted site keys or aggregated model_weights.
         """
 
         # do either daisy-chaining or aggregation
         if (federated_round % self.dc_rate) == (self.dc_rate - 1):
             # daisy chaining
-            site_keys = list(site_statedict_dict.keys())
+            site_keys = list(site_model_weights_dict.keys())
             shuffled_site_keys = random.sample(site_keys, len(site_keys))
-            return_statedict_dict = dict(
+            return_model_weights_dict = dict(
                 zip(
                     shuffled_site_keys,
-                    [site_statedict_dict[key] for key in shuffled_site_keys],
+                    [site_model_weights_dict[key] for key in shuffled_site_keys],
                 )
             )
         if (federated_round % self.agg_rate) == (self.agg_rate - 1):
             # aggregation via FedAvg
-            return_statedict_dict = self.fed_avg(site_statedict_dict)
+            return_model_weights_dict = self.fed_avg(site_model_weights_dict)
         if ((federated_round % self.agg_rate) != (self.agg_rate - 1)) and (
             (federated_round % self.dc_rate) != (self.dc_rate - 1)
         ):
             raise ValueError(
                 "Error while FedDC: Neither Daisy Chaining nor Aggregation was computed!"
             )
-        return return_statedict_dict
+        return return_model_weights_dict
 
     # @timeit
-    def _save_state_dict(self, fname=None, state_dict=None):
+    def _save_model_weights(self, fname=None, model_weights=None):
         """
-        Saves state_dict to checkpoint in fname.
+        Saves model_weights to checkpoint in fname.
         """
         checkpoint = torch.load(str(fname), map_location=torch.device("cpu"))
-        checkpoint["state_dict"] = state_dict
+        # delete here fname first and save it then again from scratch
+        os.remove(fname)
+        checkpoint["network_weights"] = model_weights
         torch.save(checkpoint, str(fname))
 
     # @timeit
-    def save_state_dicts(
-        self, current_federated_round_dir=None, processed_site_statedict_dict=None
+    def save_model_weights(
+        self, current_federated_round_dir=None, processed_site_model_weights_dict=None
     ):
         """
         Save processed model to site-corresponding minio folders.
         """
         print("Saving processed model checkpoints")
         for idx, fname in enumerate(
-            current_federated_round_dir.rglob("model_final_checkpoint.model")
+            current_federated_round_dir.rglob("checkpoint_final.pth")
         ):
             # retrieve site_name from current_federated_round_dir
             modified_fname = str(fname).replace(str(current_federated_round_dir), "")
@@ -571,7 +615,9 @@ class KaapanaFederatedTrainingBase(ABC):
 
             print(f"Save centrally processed model to {site_name}")
 
-            self._save_state_dict(str(fname), processed_site_statedict_dict[site_name])
+            self._save_model_weights(
+                str(fname), processed_site_model_weights_dict[site_name]
+            )
 
         return str(fname)
 
@@ -584,16 +630,23 @@ class KaapanaFederatedTrainingBase(ABC):
             for file_path, next_object_name in zip(
                 tmp_site_info["file_paths"], tmp_site_info["next_object_names"]
             ):
+                file_path = file_path.replace("/from_client", "")
+                file_path = file_path.replace("/from_server", "")
                 file_dir = file_path.replace(".tar", "")
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
                 KaapanaFederatedTrainingBase.fernet_encryptfile(
                     file_path, self.client_network["fernet_key"]
                 )
+                next_object_name = next_object_name.replace(
+                    "from_client", "from_server"
+                )
                 print(f"Uploading {file_path } to {next_object_name}")
                 self.minioClient.fput_object(
-                    self.remote_conf_data["federated_form"]["federated_bucket"],
-                    next_object_name,
-                    file_path,
+                    self.remote_conf_data["federated_form"][
+                        "federated_bucket"
+                    ],  # minio bucket
+                    next_object_name,  # path in minio bucket
+                    file_path,  # file in current workflow dir
                 )
         print("Finished round", federated_round)
 
@@ -672,6 +725,18 @@ class KaapanaFederatedTrainingBase(ABC):
             json.dump(
                 recovery_conf, jsonData, indent=2, sort_keys=True, ensure_ascii=True
             )
+
+        minio_recovery_path = os.path.join(
+            self.federated_dir, str(federated_round), "recovery_conf.json"
+        )
+        print(
+            f"Uploading recovery_conf to MinIO: {self.remote_conf_data['federated_form']['federated_bucket']}/{minio_recovery_path}"
+        )
+        self.minioClient.fput_object(
+            self.remote_conf_data["federated_form"]["federated_bucket"],  # minio bucket
+            minio_recovery_path,  # path in minio bucket
+            recovery_path,  # path of file in current workflow dir
+        )
 
     @timeit
     def train(self):

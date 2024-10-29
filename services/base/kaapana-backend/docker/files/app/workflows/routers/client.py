@@ -260,7 +260,7 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     job = crud.get_job(db, job_id, run_id)
     if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+        job.kaapana_instance = schemas.KaapanaInstance.clean_return(
             job.kaapana_instance
         )
     return job
@@ -584,8 +584,14 @@ def create_workflow(
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
 ):
-    project = request.headers.get("Project")
-    json_schema_data.conf_data["project_form"] = json.loads(project)
+    # exception handling for admin requests via fastapi's kaapana-backend/docs
+    # necessary for maually restarting federated workflows via recovery_conf
+    try:
+        project = request.headers.get("Project")
+        json_schema_data.conf_data["project_form"] = json.loads(project)
+    except:
+        pass
+
     # validate incoming json_schema_data
     try:
         jsonschema.validate(

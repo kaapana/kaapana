@@ -68,14 +68,11 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         dataset_name: str,
     ):
         # TODO get the DICOM_WEB_SERVICE from environment 
-        dcmweb_helper = HelperDcmWeb(
-            dcmweb_rs_endpoint="http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter",
-            dcmweb_uri_endpoint="http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter/wado-uri/",
-        )
+        dcmweb_helper = HelperDcmWeb()
         metadata = []
 
         studies = dcmweb_helper.get_studies(dcmweb_endpoint=dcmweb_endpoint)
-        for study in studies:
+        for study in studies:            
             study_uid = study["0020000D"]["Value"][0]
             series = dcmweb_helper.get_series_of_study(
                 study_uid, dcmweb_endpoint=dcmweb_endpoint
@@ -160,10 +157,10 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
                 url=f"{self.DICOM_WEB_MULTIPLEXER_SERVICE}/endpoints", json=payload
             )
             response.raise_for_status()
-            logger.info(f"Secret create successfully")
+            logger.info(f"External PACs added to multiplexer successfully")
             return True
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error creating secret: {e}")
+            logger.error(f"ERROR: External PACs couldn't be added to multiplexer: {e}")
             logger.error(traceback.format_exc())
             return False
 
@@ -175,8 +172,9 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
                 json=payload,
             )
             response.raise_for_status()
-            logger.info(f"Successfully removed endpoint: {response.content}")
+            logger.info(f"External PACs {endpoint} successfully removed")
             return True
+        
         except requests.exceptions.RequestException as e:
             logger.error(f"Error creating secret: {e}")
             logger.error(traceback.format_exc())

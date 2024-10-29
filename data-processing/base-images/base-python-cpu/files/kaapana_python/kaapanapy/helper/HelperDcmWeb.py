@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from os.path import join
@@ -20,11 +21,31 @@ logger.setLevel(logging.INFO)
 
 SERVICES_NAMESPACE = ProjectSettings().services_namespace
 
-DEFAULT_DICOM_WEB_RS_ENDPOINT = (
-    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080"
-)
-DEFAULT_DICOM_WEB_URI_ENDPOINT = (
-    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado"
+
+def get_default_dicom_web_rs_endpoint():
+    try:
+        import requests
+
+        response = requests.head(
+            "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer/endpoints"
+        )
+        response.raise_for_status()
+        return (
+            "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter",
+            "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter/wado-uri/wado",
+        )
+    except Exception as e:
+        logger.info(e)
+        logger.info(traceback.format_exc())
+
+    return (
+        f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080",
+        f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado",
+    )
+
+
+DEFAULT_DICOM_WEB_RS_ENDPOINT, DEFAULT_DICOM_WEB_URI_ENDPOINT = (
+    get_default_dicom_web_rs_endpoint()
 )
 
 

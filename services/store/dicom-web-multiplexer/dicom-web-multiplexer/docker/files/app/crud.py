@@ -1,9 +1,13 @@
+import traceback
 from typing import List
 
+from app.logger import get_logger
 from app.models import Endpoint
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = get_logger(__file__)
 
 
 async def add_endpoint(endpoint: str, session: AsyncSession) -> Endpoint:
@@ -12,11 +16,18 @@ async def add_endpoint(endpoint: str, session: AsyncSession) -> Endpoint:
         session.add(new_data)
         await session.commit()
         await session.refresh(new_data)
-        return new_data
+        return True
 
     except IntegrityError:
         await session.rollback()  # Roll back the session if there was an error
-        raise ValueError(f"Endpoint '{endpoint}' already exists.")
+        logger.warning(f"Endpoint already exists in db: {endpoint}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Couldn't create endpoint. {endpoint}")
+        logger.error(e)
+        logger.error(traceback.format_exc())
+        return False
 
 
 async def remove_endpoint(endpoint: str, session: AsyncSession) -> bool:
@@ -27,9 +38,6 @@ async def remove_endpoint(endpoint: str, session: AsyncSession) -> bool:
     if endpoint_to_delete:
         await session.delete(endpoint_to_delete)
         await session.commit()
-        return True
-
-    return False  # Return False if the endpoint was not found
 
 
 async def get_endpoints(session: AsyncSession) -> List[Endpoint]:

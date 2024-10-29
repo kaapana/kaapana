@@ -1,3 +1,5 @@
+from typing import Dict
+
 from app.auth import get_external_token
 from app.logger import get_logger
 from app.streaming_helpers import metadata_replace_stream
@@ -7,6 +9,20 @@ from fastapi.responses import StreamingResponse
 
 router = APIRouter()
 logger = get_logger(__file__)
+
+
+def update_query_params(request: Request, includefield: str = "") -> Dict:
+    query_params = dict(request.query_params)
+
+    if not includefield:
+        return query_params
+
+    if "includefield" in query_params:
+        query_params["includefield"] += "," + includefield
+    else:
+        query_params["includefield"] = includefield
+
+    return query_params
 
 
 async def retrieve_studies(request: Request) -> Response:
@@ -21,13 +37,7 @@ async def retrieve_studies(request: Request) -> Response:
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
     auth_headers = {"Authorization": f"Bearer {token}"}
-    includefield = ""
-
     query_params = dict(request.query_params)
-    if "includefield" in query_params:
-        query_params["includefield"] += "," + includefield
-    else:
-        query_params["includefield"] = includefield
 
     return StreamingResponse(
         metadata_replace_stream(
@@ -57,11 +67,8 @@ async def retrieve_series(study: str, request: Request) -> Response:
     auth_headers = {"Authorization": f"Bearer {token}"}
     includefield = "StudyInstanceUID"
 
-    query_params = dict(request.query_params)
-    if "includefield" in query_params:
-        query_params["includefield"] += "," + includefield
-    else:
-        query_params["includefield"] = includefield
+    query_params = update_query_params(request, includefield=includefield)
+
     return StreamingResponse(
         metadata_replace_stream(
             method="GET",
@@ -90,11 +97,7 @@ async def retrieve_instances(study: str, series: str, request: Request) -> Respo
     rs_endpoint = rs_endpoint_url(request)
     auth_headers = {"Authorization": f"Bearer {token}"}
     includefield = "StudyInstanceUID,SeriesInstanceUID,Modality"
-    query_params = dict(request.query_params)
-    if "includefield" in query_params:
-        query_params["includefield"] += "," + includefield
-    else:
-        query_params["includefield"] = includefield
+    query_params = update_query_params(request, includefield=includefield)
 
     return StreamingResponse(
         metadata_replace_stream(

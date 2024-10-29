@@ -69,14 +69,14 @@ def create_k8s_secret(
     )
     try:
         api_instance.create_namespaced_secret(namespace, secret)
-        logger.info("Secret created successfully")
         return True
     except client.ApiException as e:
         if e.status == 409:  # already exists
             return True
 
         else:
-            logger.error(f"Secret '{secret_name}' creation FAILED: {e}.")
+            logger.error(f"Failed to create secret: {secret_name}")
+            logger.error(e)
             logger.error(traceback.format_exc())
             return False
 
@@ -94,7 +94,8 @@ def delete_k8s_secret(secret_name: str, namespace: str = "services") -> bool:
         if e.status == 404:  # Not found in the namespace
             return True
         else:
-            logger.error(f"Failed to delete secret '{secret_name}': {e}.")
+            logger.error(f"Failed to delete secret: {secret_name}")
+            logger.error(e)
             logger.error(traceback.format_exc())
             return False
 
@@ -110,17 +111,12 @@ def get_k8s_secret(secret_name: str, namespace: str = "services"):
             key: base64.b64decode(value).decode("utf-8")
             for key, value in secret.data.items()
         }
-        logger.info(
-            f"Secret '{secret_name}' retrieved successfully from namespace '{namespace}'."
-        )
         return decoded_data
     except client.ApiException as e:
         if e.status == 404:
-            logger.warning(
-                f"Secret '{secret_name}' not found in namespace '{namespace}'."
-            )
+            logger.warning(f"Secret not found in namespace")
         else:
-            logger.error(f"Failed to retrieve secret '{secret_name}': {e}.")
+            logger.error(f"Secret cannot be retrieved from the namespace")            
         return None
 
 

@@ -4,11 +4,12 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from external_pacs.LocalExternalPacsOperator import LocalExternalPacsOperator
-from kaapana.operators.Json2MetaOperator import Json2MetaOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
+from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
@@ -79,7 +80,7 @@ add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metad
 assign_to_project = LocalAssignDataToProjectOperator(
     dag=dag, input_operator=extract_metadata
 )
-push_json = Json2MetaOperator(
+push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=init_operator, json_operator=extract_metadata
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

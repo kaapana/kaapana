@@ -9,7 +9,7 @@ from app.kube import (
     hash_secret_name,
 )
 from app.logger import get_logger
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -91,8 +91,11 @@ async def create_endpoint(
                 status_code=500, content="Unable to create secret for the endpoint"
             )
 
-        await crud.add_endpoint(endpoint, session)
-        logger.info(f"Created new secret for endpoint: {endpoint}")
+        if not await crud.add_endpoint(endpoint, session):
+            return Response(
+                status_code=500, content="Unable to create database entry for the endpoint"
+            )
+        
         return Response(status_code=200)
 
     except Exception as e:
@@ -119,12 +122,12 @@ async def delete_endpoint(
         endpoint = endpoint.endpoint
         secret_name = hash_secret_name(endpoint)
 
-        # Delete the secret
         if not delete_k8s_secret(secret_name):
             return Response(status_code=500, content=f"Couldn't delete secret for endpoint {endpoint}.")
 
         logger.info(f"Deleted secret for endpoint {endpoint}.")
-        await crud.remove_endpoint(endpoint, session)
+        if not await crud.remove_endpoint(endpoint, session):
+            return Response(status_code=500, content=f"Couldn't remove database entry for endpoint {endpoint}.")
         return Response(status_code=200)
 
     except Exception as e:

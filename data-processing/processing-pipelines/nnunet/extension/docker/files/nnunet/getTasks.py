@@ -40,14 +40,6 @@ def _get_dataset_json(model_path, installed_task):
         print(f"{keys=}")
         keys.remove("background")
         targets = keys
-        # keys = list(dataset_json["labels"].keys())
-        # print(f"{keys=}")
-        # keys.sort(key=int)
-        # for key in keys:
-        #     label = dataset_json["labels"][key]
-        #     if key == "0" and label == "Clear Label":
-        #         continue
-        #     targets.append(label)
     else:
         targets.append("N/A")
     dataset_json["targets"] = targets
@@ -94,9 +86,11 @@ def _get_installed_tasks(af_home_path):
         ]
         for installed_task in installed_tasks_dirs:
             if installed_task not in installed_tasks:
+                # get details installed tasks from dataset.json of installed tasks
                 dataset_json = _get_dataset_json(
                     model_path=model_path, installed_task=installed_task
                 )
+                # and extract task's details to installed_tasks dict
                 installed_tasks[f"{installed_model}---{installed_task}"] = {
                     "description": dataset_json["description"]
                     if "description" in dataset_json
@@ -121,9 +115,6 @@ def _get_installed_tasks(af_home_path):
                     if "task_url" in dataset_json
                     else "N/A",
                 }
-            # if installed_model not in installed_tasks[installed_task]["model"]:
-            #     installed_tasks[installed_task]["model"].append(installed_model)
-            #     installed_tasks[installed_task]["model"].sort()
 
     print(f"INSTALLED TASKS: {installed_tasks}")
     return installed_tasks

@@ -9,6 +9,31 @@ export OMP_NUM_THREADS=1
 export PYTHONUNBUFFERED=1
 
 TASK_NUM=$(echo "$TASK" | cut -f1 -d"_" | tr -dc '0-9')
+#######################################################################################
+#
+# BASH SCRIPT TO RUN NNUNET CLI COMMANDS
+# 
+# Script can be run in various modes: 
+# preprocess, training, predict, ensemble, identify-best, zip-model, export-model,
+# install-model.
+#
+# The called nnUNet CLÍ commands can be found in the nnUNet documentation:
+# https://github.com/MIC-DKFZ/nnUNet
+# 
+# Detailed documentation about the nnUNet CLÍ command's individual arguments are also
+# provided in the nnUNet documentation (https://github.com/MIC-DKFZ/nnUNet) or by 
+# executing in an python environment, that has the nnUNet package installed, the 
+# respective command in the "help" mode. E.g.:
+# - open in the activate code-server, in which your are viewing this 
+#   start_nnunet.sh script, an integrated terminal
+# - type the nnUNet CLI command for which you want to see the argument docs:
+#   $ nnUNetv2_train -h
+# 
+# More specifically, the following file specifies which nnUNet CLI command refers to 
+# which entry_point of nnUNet's python code base: 
+# ~/[...]/nnUNet/nnunetv2.egg-info/entry_points.txt
+# 
+########################################################################################
 
 echo "#######################################################################"
 echo "#"

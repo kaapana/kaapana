@@ -11,6 +11,12 @@ import numpy as np
 from multiprocessing.pool import ThreadPool
 from os.path import join, exists, dirname, basename, isdir
 
+"""
+Documentation create_dataset.py:
+
+Script takes default Kaapana dataset and transforms it into nnUNet compatible dataset format.
+"""
+
 
 def timing(f):
     def wrap(*args, **kwargs):

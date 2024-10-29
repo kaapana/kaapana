@@ -197,13 +197,6 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
-            # "body_part": {
-            #     "title": "Body Part",
-            #     "description": "Body part, which needs to be present in the image.",
-            #     "default": "N/A",
-            #     "type": "string",
-            #     "readOnly": False,
-            # },
             "train_max_epochs": {
                 "title": "Epochs",
                 "default": max_epochs,
@@ -255,12 +248,6 @@ ui_forms = {
                 "default": True,
                 "readOnly": False,
             },
-            # "fp32": {
-            #     "type": "boolean",
-            #     "title": "FP32",
-            #     "default": False,
-            #     "description": "Disable mixed precision training and run old school fp32",
-            # },
             "prep_preprocess": {
                 "type": "boolean",
                 "title": "Execute preprocessing",

@@ -50,14 +50,6 @@ properties_template = {
         "type": "string",
         "readOnly": True,
     },
-    # "model": {
-    #     "title": "Pre-trained models",
-    #     "description": "Select one of the available models.",
-    #     "type": "string",
-    #     "required": True,
-    #     "enum": [],
-    #     "default": "3d_lowres",
-    # },
     "inf_softmax": {
         "title": "enable softmax",
         "description": "Enable softmax export?",

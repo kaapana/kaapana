@@ -14,6 +14,46 @@ import shutil
 
 
 def create_dataset(search_dir):
+    """
+    Prepares a dataset of medical imaging files in NIfTI (.nii.gz) format for inference by organizing and copying/moving
+    files from various input modality directories to a target directory. The function either processes batch datasets from a
+    predefined workflow directory or processes individual input modalities directly from the provided search directory.
+
+    Parameters:
+    -----------
+    search_dir : str
+        Path to the directory where input modality directories are located when not using a batch dataset.
+
+    Returns:
+    --------
+    tuple : (str, int)
+        - str : Path to the target directory where processed NIfTI files are stored.
+        - int : Count of .nii.gz files in the target directory after processing.
+
+    Global Variables:
+    -----------------
+    batch_dataset : bool
+        Flag indicating whether to process data as a batch dataset or from individual modality directories in search_dir.
+    operator_in_dir : str
+        Directory path for the operator, used within the processing workflow.
+    input_modality_dirs : list
+        List of directory names corresponding to input modalities to be searched for NIfTI files.
+    workflow_dir : str
+        Directory path for the overall workflow, used to determine paths for input and output data.
+    copy_target_data : bool
+        Flag indicating whether files should be copied (True) or moved (False) to the target directory.
+
+    Notes:
+    ------
+    - The function checks if files in the target directory already exist to avoid duplicate processing.
+    - The target filenames are suffixed with a zero-padded index (e.g., "_0000.nii.gz") to ensure uniqueness.
+    - Prints status messages for each file search, copy, or move operation.
+
+    Example Usage:
+    --------------
+    >>> input_data_dir, input_count = create_dataset('/path/to/search_dir')
+    """
+
     global batch_dataset, operator_in_dir, input_modality_dirs, workflow_dir
 
     input_data_dir = join("/", workflow_dir, "nnunet-input-data")
@@ -81,6 +121,50 @@ def create_dataset(search_dir):
 
 
 def get_model_paths(batch_element_dir):
+    """
+    Identifies and verifies model paths and checkpoint files for nnUNet models, depending on the Kaapana workflow in which the function
+    is called (either `nnunet-predict` or `nnunet-ensemble`). It retrieves task and model information from the directory structure,
+    ensuring a valid model path with a final or latest checkpoint is found.
+
+    Parameters:
+    -----------
+    batch_element_dir : str
+        Path to the directory containing batch elements for model inference or training.
+
+    Returns:
+    --------
+    list of tuples : [(str, str)]
+        A list of tuples, each containing:
+        - str : Valid model path identified for the specified task and model.
+        - str : Checkpoint name (e.g., 'checkpoint_final' or 'checkpoint_latest') found within the model path.
+
+    Global Variables:
+    -----------------
+    workflow_dir : str
+        Path to the main workflow directory, used to build paths for models and tasks.
+    task : str
+        Name of the nnUNet task, used to identify the model path.
+    models_dir : str
+        Directory where models are stored, either in a standard location or within the batch directory.
+    model_arch : str
+        Name of the model architecture (e.g., nnUNetTrainerV2), used to locate the correct model.
+    batch_name : str
+        Name of the current batch, used within directory paths as needed.
+    copy_target_data : bool
+        Flag indicating whether to copy or move data to the target directory.
+
+    Notes:
+    ------
+    - If `task` includes a double dash ("---"), it is split into task and model name components.
+    - In the absence of `task` and `modelname` details, they are inferred from `checkpoint_final.pth` file paths.
+    - If no valid model or checkpoint path is identified, the function exits with an error message.
+    - Prints status messages detailing the paths and checkpoint statuses for debugging purposes.
+
+    Example Usage:
+    --------------
+    >>> model_paths = get_model_paths('/path/to/batch_element_dir')
+    """
+
     global workflow_dir, task, models_dir, model_arch, batch_name
 
     if task and "---" in task:
@@ -113,12 +197,12 @@ def get_model_paths(batch_element_dir):
 
     model_paths = []
     if models_dir == "/models":
-        # that's the case if called from nnunet-predict
+        # that's the case if called from nnunet-predict workflow
         model_path = join(models_dir, "nnUNet", task, modelname)
         print(f"# Default models dir: {model_path} -> continue")
         model_paths.append(model_path)
     else:
-        # that's the case if called from nnunet-ensemble
+        # that's the case if called from nnunet-ensemble workflow
         model_path = join(batch_element_dir, models_dir, task, modelname)
         batch_models_dir = join("/", workflow_dir, models_dir, task, modelname)
         print(f"# Batch-element models dir: {model_path}")
@@ -220,6 +304,35 @@ def get_model_paths(batch_element_dir):
 
 
 def write_seg_info(task, target_dir, dataset_info_dir):
+    """
+    Generates and writes a `seg_info.json` file containing segmentation label information and model metadata based on
+    details from a dataset configuration file.
+
+    Parameters:
+    -----------
+    task : str
+        Identifier for the nnUNet task, typically includes the dataset and model name.
+    target_dir : str
+        Path to the directory where `seg_info.json` should be saved.
+    dataset_info_dir : str
+        Path to the directory containing `dataset.json` with segmentation labels and other dataset information.
+
+    Returns:
+    --------
+    None
+        Outputs `seg_info.json` to the specified `target_dir`.
+
+    Notes:
+    ------
+    - Reads label information from `dataset.json`, which should have a `labels` dictionary with label names and values.
+    - Extracts the `task_id` and `algorithm` fields from the `task` path, including dataset and model identifiers.
+    - Prints the generated `seg_info` content to the console for verification.
+
+    Example Usage:
+    --------------
+    >>> write_seg_info("Dataset001_nnUNetTrainerV2", "/output/path", "/input/dataset_info_dir")
+    """
+
     print("# Writing seg_info.json ...")
 
     # get seg_info content form dataset.json
@@ -260,6 +373,42 @@ def predict(
     checkpoint_name="model_final_checkpoint",
     enable_softmax="False",
 ):
+    """
+    Runs segmentation predictions using nnUNet's predictor for medical images, initializing the network from a trained
+    model and saving predictions to the specified output directory.
+
+    Parameters:
+    -----------
+    input_data_dir : str
+        Directory containing input data files to be processed by the model.
+    element_output_dir : str
+        Directory where the model's predictions will be saved.
+    model : str
+        Path to the trained model directory.
+    folds : str or list, default "all"
+        Folds to use during prediction; "all" uses all available folds, or specify a list of fold indices.
+    checkpoint_name : str, default "model_final_checkpoint"
+        Name of the checkpoint file to load for the model (without the `.pth` extension).
+    enable_softmax : str, default "False"
+        Whether to save probability maps by applying softmax on predictions (set to "True" to enable).
+
+    Returns:
+    --------
+    None
+        Predictions are saved to `element_output_dir`.
+
+    Notes:
+    ------
+    - Initializes the nnUNetPredictor with settings for tiling, mirroring, and device usage.
+    - Prepares the model by loading the specified checkpoint and folds.
+    - `predict_from_files` is called with configurations for saving probabilities, managing parallel processing,
+      and specifying parts if applicable.
+
+    Example Usage:
+    --------------
+    >>> predict("/path/to/input_data", "/path/to/output_dir", "/path/to/model", folds="all", enable_softmax="True")
+    """
+
     ### from nnU-Net V2 docs
     # source: https://github.com/MIC-DKFZ/nnUNet/tree/master/nnunetv2/inference#recommended-nnu-net-default-predict-from-source-files
     # instantiate the nnUNetPredictor
@@ -279,7 +428,7 @@ def predict(
         use_folds=folds,
         checkpoint_name=checkpoint_name + ".pth",
     )
-    # variant 1: give input and output folders
+    # give input and output folders
     predictor.predict_from_files(
         input_data_dir,
         element_output_dir,

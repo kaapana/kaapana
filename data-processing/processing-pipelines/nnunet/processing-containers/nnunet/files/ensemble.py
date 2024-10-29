@@ -37,6 +37,41 @@ global_seg_info = []
 
 
 def check_seg_info(inference_dir):
+    """
+    Checks and updates global segmentation information (`global_seg_info`) for a given inference directory by validating
+    and comparing the `seg_info.json` file against existing configurations.
+
+    Parameters:
+    -----------
+    inference_dir : str
+        Path to the inference directory containing the `seg_info.json` file.
+
+    Returns:
+    --------
+    None
+        Updates `global_seg_info` by appending new configurations or associating directories with matching configurations.
+
+    Global Variables:
+    -----------------
+    global_seg_info : list
+        List of dictionaries containing segmentation information for each unique configuration. Each entry includes:
+        - "seg_file_path" : Path to the `seg_info.json` file.
+        - "inference_dirs" : List of inference directories associated with this segmentation configuration.
+        - "seg_info" : Dictionary mapping label names to their encoded values.
+
+    Notes:
+    ------
+    - Checks if the `seg_info.json` file exists in `inference_dir`; raises an assertion error if not.
+    - Loads segmentation label data from `seg_info.json` and organizes it in a dictionary format.
+    - If `global_seg_info` is empty, it initializes it with the segmentation information from `inference_dir`.
+    - If an entry in `global_seg_info` matches the new segmentation dictionary, `inference_dir` is added to its list.
+      Otherwise, a new configuration entry is appended to `global_seg_info`.
+
+    Example Usage:
+    --------------
+    >>> check_seg_info("/path/to/inference_dir")
+    """
+
     global global_seg_info
     print("#")
     print(f"# Checking seg info for {inference_dir} ...")
@@ -83,6 +118,67 @@ def check_seg_info(inference_dir):
 
 
 def main():
+    """
+    Main function for executing a simplified nnUNet prediction and ensemble process. This function orchestrates
+    the segmentation model ensemble by checking for segmentation configurations, creating model combinations,
+    and merging segmentation predictions across models.
+
+    Workflow:
+    ---------
+    1. Initializes key configurations and logs environment information (e.g., override, thread count).
+    2. Iterates through batch folders within the workflow, validating the segmentation information (`seg_info.json`)
+       for each input directory, and updating the global segmentation configuration (`global_seg_info`).
+    3. Selects and verifies the most common segmentation configuration across directories for ensemble compatibility.
+    4. Constructs model combinations based on the minimum number of required predictions (`pred_min_combination`).
+    5. Evaluates each model combination, merging their predictions into a unified output format.
+    6. After completing all combinations, moves ensemble output files to the final target directory, ensuring
+       organized storage with unique filenames.
+
+    Parameters:
+    -----------
+    None
+
+    Global Variables:
+    -----------------
+    - batch_name : str
+        Name of the batch folder within the workflow directory.
+    - workflow_dir : str
+        Root directory for the workflow.
+    - operator_in_dir : str
+        Directory containing model input data for prediction.
+    - operator_out_dir : str
+        Directory for storing ensemble output.
+    - threads_nifiti : int
+        Number of threads for handling NIFTI files.
+    - pred_min_combination : int
+        Minimum number of predictions required for a valid ensemble combination.
+    - override : bool
+        Flag indicating whether to override existing configurations.
+    - store_npz : bool
+        Flag indicating whether to store merged probability outputs as `.npz` files.
+    - postprocessing_file : str
+        Path to the post-processing configuration file.
+    - global_seg_info : list
+        List of dictionaries storing segmentation information for each unique configuration found.
+
+    Returns:
+    --------
+    None
+
+    Notes:
+    ------
+    - If `global_seg_info` contains multiple configurations, the configuration with the most directories is used;
+      others are logged as skipped.
+    - Each model combination is evaluated and stored in a uniquely named directory within `operator_out_dir`.
+    - After all combinations are processed, files are moved to the final target directory and renamed
+      to indicate the combination they belong to.
+    - The final ensemble includes metadata files, such as `model_combinations.json` and `ensemble_seg_info.json`.
+
+    Example Usage:
+    --------------
+    >>> main()
+    """
+
     global batch_name, workflow_dir, operator_in_dir, operator_out_dir, threads_nifiti, pred_min_combination, override, store_npz, postprocessing_file, global_seg_info
 
     print("##################################################")

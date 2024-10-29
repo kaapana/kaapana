@@ -401,42 +401,6 @@ export default {
         this.datasetName = this.queryParams.dataset_name;
       }
     }
-
-    if (this.queryParams.query_string) {
-      // set query_string in search component
-      this.$refs.search.query_string = decodeURIComponent(
-        this.queryParams.query_string
-      );
-    }
-
-    if (this.queryParams) {
-      // all other queryparams are filters and should be added as filters
-      const params = Object.entries(this.queryParams).filter(
-        ([key, value]) =>
-          key !== "query_string" &&
-          key !== "dataset_name" &&
-          key !== "project_name"
-      );
-
-      // setting the filters in the search component
-      for (let [_key, _value] of params) {
-        // encode key and value
-        _key = decodeURIComponent(_key);
-        _value = decodeURIComponent(_value);
-        // if value contains a comma: split it and add multiple filters
-        if (_value.includes(",")) {
-          for (let val of _value.split(",")) {
-            await this.$refs.search.addFilterItem(_key, val);
-          }
-        } else {
-          await this.$refs.search.addFilterItem(_key, _value);
-        }
-      }
-    }
-    // if queryparams are present, run search manually
-    if (Object.keys(this.queryParams).length > 0) {
-      this.$refs.search.search(true);
-    }
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) =>

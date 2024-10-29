@@ -15,7 +15,7 @@ SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
 # TODO This is called way too many times by airflow_webserver. Solved by changing external pacs extension into multiinstallable application instead of workflow.
-def get_endpoints():
+def get_available_external_pacs():
 
     response = requests.get(
         f"http://dicom-web-multiplexer-service.{SERVICES_NAMESPACE}.svc:8080/dicom-web-multiplexer/endpoints"
@@ -23,7 +23,7 @@ def get_endpoints():
     return [e["endpoint"] for e in json.loads(response.content.decode("utf-8"))]
 
 
-external_endpoints = get_endpoints()
+external_endpoints = get_available_external_pacs()
 
 ui_form = {
     "data_form": {},

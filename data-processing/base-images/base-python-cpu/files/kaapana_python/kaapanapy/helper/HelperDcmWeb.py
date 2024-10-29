@@ -30,15 +30,17 @@ DEFAULT_DICOM_WEB_URI_ENDPOINT = (
 )
 
 
-def get_default_dicom_web_endpoints():
+def get_default_dicom_web_endpoints() -> str | None:
     """
-    Check if multiplexer is reachable and give multiplexer endpoints if so.
+    Check if multiplexer is reachable and give multiplexer endpoints if so, if not return None.
+    This is neccessary when multiplexer extension is used, so processing containers can reach it.
     """
     try:
         import requests
 
         response = requests.head(
-            "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer/endpoints"
+            "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer/endpoints",
+            timeout=1,
         )
         response.raise_for_status()
         return (
@@ -391,7 +393,17 @@ class HelperDcmWeb:
         return response
 
     def get_studies(self, dcmweb_endpoint: str = None) -> List[dict]:
-        """This function retrieves all studies from the PACS.
+        """
+        Retrieve all studies from the PACS, either from the default PACS or an external source
+        specified by dcmweb_endpoint. When the multiplexer extension is installed, adding the
+        dcmweb_endpoint header bypasses the series_uid check in OpenSearch, enabling direct
+        download and import within the multiplexer.
+
+        Args:
+            dcmweb_endpoint (Optional[str]): Optional DICOMweb endpoint URL. If provided, this
+                                            value is used as a header to direct the request to
+                                            the specified endpoint.
+                                            Only used during ExternalPACS import.
 
         Returns:
             List[dict]: List of studies. Each study is represented as a dictionary containing the study metadata
@@ -410,11 +422,19 @@ class HelperDcmWeb:
     def get_instances_of_series(
         self, study_uid: str, series_uid: str, params: Dict[str, Any] = None
     ) -> List[dict]:
-        """This function retrieves all instances of a series from the PACS.
+        """
+        Retrieve all instances of a series, either from the default PACS or an external source
+        specified by dcmweb_endpoint. When the multiplexer extension is installed, adding the
+        X-Endpoint-URL header bypasses the series_uid check in OpenSearch, enabling direct
+        download and import within the multiplexer.
 
         Args:
             study_uid (str): Study Instance UID of the series to retrieve the instances from.
             series_uid (str): Series Instance UID of the series to retrieve the instances from.
+            dcmweb_endpoint (Optional[str]): Optional DICOMweb endpoint URL. If provided, this
+                                            value is used as a header to direct the request to
+                                            the specified endpoint.
+                                            Only used during ExternalPACS import.
 
         Returns:
             List[dict]: List of instances of the series. Each instance is represented as a dictionary containing the instance metadata
@@ -435,10 +455,18 @@ class HelperDcmWeb:
     def get_series_of_study(
         self, study_uid: str, dcmweb_endpoint: str = None
     ) -> List[dict]:
-        """This function retrieves all series of a study from the PACS.
+        """
+        Retrieve all series of a study, either from the default PACS or an external source
+        specified by dcmweb_endpoint. When the multiplexer extension is installed, adding the
+        dcmweb_endpoint header bypasses the series_uid check in OpenSearch, enabling direct
+        download and import within the multiplexer.
 
         Args:
-            study_uid (str): Study Instance UID of the study to retrieve the series from.
+            study_uid (str): Study Instance UID of the series to retrieve the instances from.
+            dcmweb_endpoint (Optional[str]): Optional DICOMweb endpoint URL. If provided, this
+                                            value is used as a header to direct the request to
+                                            the specified endpoint.
+                                            Only used during ExternalPACS import.
 
         Returns:
             List[dict]: List of series of the study. Each series is represented as a dictionary containing the series metadata

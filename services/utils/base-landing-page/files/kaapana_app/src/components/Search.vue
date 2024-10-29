@@ -246,6 +246,11 @@ export default {
         (await loadDatasetByName(this.datasetNameLocal));
     },
 
+    /**
+     * Processes the query parameters provided via the URL. 
+     * Extracts the dataset name and other DICOM query filters from the URL and sets them as filter for the search. 
+     * Afterwards the search is executed and the URL parameters removed.
+     */
     async processQueryParams() {
       if (this.queryParams.dataset_name) {
         const datasetNames = await loadDatasets();

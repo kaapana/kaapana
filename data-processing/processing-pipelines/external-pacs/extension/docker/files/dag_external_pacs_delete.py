@@ -7,13 +7,18 @@ from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from external_pacs.LocalExternalPacsOperator import LocalExternalPacsOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapanapy.settings import KaapanaSettings
 
 log = LoggingMixin().log
 
-# TODO This is called way too many times by airflow_webserver.
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
+
+
+# TODO This is called way too many times by airflow_webserver. Solved by changing external pacs extension into multiinstallable application instead of workflow.
 def get_endpoints():
+
     response = requests.get(
-        LocalExternalPacsOperator.DICOM_WEB_MULTIPLEXER_SERVICE + "/endpoints/"
+        f"http://dicom-web-multiplexer-service.{SERVICES_NAMESPACE}.svc:8080/dicom-web-multiplexer/endpoints"
     )
     return [e["endpoint"] for e in json.loads(response.content.decode("utf-8"))]
 

@@ -54,7 +54,7 @@ class ProxyMiddleware(BaseHTTPMiddleware):
                 return await proxy_dicom_web_filter(request=request)
             else:
                  # No Series UID: process requests for all PACS, merging external and local PACS responses
-                dicom_web_filter_result = proxy_dicom_web_filter(request=request)
+                dicom_web_filter_result = await proxy_dicom_web_filter(request=request)
                 dicom_web_multiplexer_result = await get_external_responses(request, call_next)
 
                 logger.info("Merge External PACS responses with Local Dicom Web Filter")

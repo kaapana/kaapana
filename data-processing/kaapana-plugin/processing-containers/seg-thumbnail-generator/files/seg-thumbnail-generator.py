@@ -124,7 +124,7 @@ def create_thumbnail(parameters: tuple) -> tuple:
             load_image_and_segmenation_from_dicom_segmentation(dcm_dir, dcm_seg_dir)
         )
     else:
-        logger.error(f"Modality {modality} not supported")
+        logger.warning(f"Modality {modality} not supported. Skipping.")
         return False, ""
 
     # Convert the segmentation to a binary mask
@@ -469,9 +469,8 @@ if __name__ == "__main__":
     with ThreadPool(thread_count) as threadpool:
         results = threadpool.imap_unordered(create_thumbnail, queue)
         for result, input_file in results:
-            logger.info(f"Done: {input_file}")
-            if not result:
-                exit(1)
+            if result:
+                logger.info(f"Done: {input_file}")
 
     logger.info("BATCH-ELEMENT-level processing done.")
 
@@ -498,7 +497,8 @@ if __name__ == "__main__":
         with ThreadPool(thread_count) as threadpool:
             results = threadpool.imap_unordered(create_thumbnail, queue)
             for result, input_file in results:
-                logger.info(f"Done: {input_file}")
+                if result:
+                    logger.info(f"Done: {input_file}")
 
         logger.info("BATCH-LEVEL-level processing done.")
 

@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import traceback
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import requests
 from kaapana.operators.HelperCaching import cache_operator_output
@@ -20,9 +20,6 @@ logger = logging.getLogger(__file__)
 
 
 class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
-    DICOM_WEB_MULTIPLEXER_SERVICE = (
-        "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer"
-    )
 
     def __init__(
         self,
@@ -31,13 +28,33 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         action: str = "add",
         **kwargs,
     ):
+        """
+        Initializes the LocalExternalPacsOperator.
+
+        Parameters:
+            dag: The Airflow DAG this operator is part of.
+            name (str): The name of the operator. Defaults to "external_pacs_operator".
+            action (str): Action to be performed ("add" or "delete"). Defaults to "add".
+            **kwargs: Additional keyword arguments.
+        """
         super().__init__(
             dag=dag, name=name, batch_name=None, python_callable=self.start, **kwargs
         )
         self.action = action
 
-    def _filter_instances_to_import_by_series_uid(self, metadata):
-        def extract_series_uid(instance):
+    def _filter_instances_to_import_by_series_uid(
+        self, metadata: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Filters DICOM instances by series UID to exclude those already imported locally.
+
+        Parameters:
+            metadata (List[Dict[str, Any]]): List of DICOM metadata dictionaries.
+
+        Returns:
+            List[Dict[str, Any]]: Filtered list of DICOM metadata.
+        """
+        def extract_series_uid(instance: Dict[str, Any]) -> str | None:
             return instance.get("0020000E", {"Value": [None]})["Value"][0]
 
         external_series_uids = list(set(map(extract_series_uid, metadata)))
@@ -56,7 +73,9 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             )
         )
         added_external_series_uid = list(set(map(extract_series_uid, metadata)))
-        logger.info(f"{len(added_external_series_uid)} new series imported from {len(external_series_uids)}")
+        logger.info(
+            f"{len(added_external_series_uid)} new series imported from {len(external_series_uids)}"
+        )
         logger.info(
             f"{len(filtered_instances)} new instances imported from {len(metadata)}"
         )
@@ -67,12 +86,18 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         dcmweb_endpoint: str,
         dataset_name: str,
     ):
-        # TODO get the DICOM_WEB_SERVICE from environment 
+        """
+        Downloads metadata from the specified DICOMweb endpoint, filtering and saving it locally.
+
+        Parameters:
+            dcmweb_endpoint (str): The DICOMweb endpoint from which to download metadata.
+            dataset_name (str): Name of the dataset for identification.
+        """
         dcmweb_helper = HelperDcmWeb()
         metadata = []
 
         studies = dcmweb_helper.get_studies(dcmweb_endpoint=dcmweb_endpoint)
-        for study in studies:            
+        for study in studies:
             study_uid = study["0020000D"]["Value"][0]
             series = dcmweb_helper.get_series_of_study(
                 study_uid, dcmweb_endpoint=dcmweb_endpoint
@@ -87,9 +112,8 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
                 metadata.extend(instances)
 
-        logger.info(len(metadata))
 
-        if not metadata or len(metadata) == 0:
+        if not metadata:
             logger.error("No metadata found.")
             exit(1)
 
@@ -97,38 +121,45 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
         metadata = self._filter_instances_to_import_by_series_uid(metadata)
         for instance in metadata:
-            series_uid = instance.get("0020000E", {"Value": [None]})["Value"][0]
+            self._save_instance_metadata(instance, dcmweb_endpoint, dataset_name)
+            
+    def _save_instance_metadata(self, instance: Dict[str, Any], dcmweb_endpoint: str, dataset_name: str) -> None:
+        """
+        Saves metadata for a single DICOM instance to a JSON file.
 
-            if not series_uid:
-                raise KeyError(
-                    f"Required field missing: Series UID (0020000E) in the series {instance}"
-                )
+        Parameters:
+            instance (Dict[str, Any]): DICOM metadata dictionary for a single instance.
+            dcmweb_endpoint (str): The DICOMweb endpoint from which metadata was downloaded.
+            dataset_name (str): Name of the dataset for identification.
+        """
+        series_uid = instance.get("0020000E", {"Value": [None]})["Value"][0]
+        if not series_uid:
+            raise KeyError("Required field missing: Series UID (0020000E)")
 
-            target_dir = os.path.join(
-                self.airflow_workflow_dir,
-                self.dag_run_id,
-                "batch",
-                series_uid,
-                self.operator_out_dir,
-            )
+        target_dir = os.path.join(
+            self.airflow_workflow_dir,
+            self.dag_run_id,
+            "batch",
+            series_uid,
+            self.operator_out_dir,
+        )
+        os.makedirs(target_dir, exist_ok=True)
+        json_path = os.path.join(target_dir, "metadata.json")
 
-            if not os.path.exists(target_dir):
-                os.makedirs(target_dir)
-            json_path = os.path.join(
-                target_dir,
-                "metadata.json",
-            )
-            # 00120010 ClinicalTrialSponsorName_keyword
-            instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
-            instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
+        instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
+        instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
+        instance["00120020"] = {"vr": "LO", "Value": [self.project_form["name"]]}
 
-            project_name = self.project_form["name"]
-            instance["00120020"] = {"vr": "LO", "Value": [project_name]}
-
-            with open(json_path, "w", encoding="utf8") as fp:
-                json.dump(instance, fp, indent=4, sort_keys=True)
-
+        with open(json_path, "w", encoding="utf8") as fp:
+            json.dump(instance, fp, indent=4, sort_keys=True)
+    
     def delete_external_metadata(self, dcmweb_endpoint: str):
+        """
+        Deletes metadata from OpenSearch using a specified DICOMweb endpoint.
+
+        Parameters:
+            dcmweb_endpoint (str): The DICOMweb endpoint to query for deletion.
+        """
         if dcmweb_endpoint:
             query = {
                 "query": {
@@ -145,11 +176,31 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             HelperOpensearch.delete_by_query(query)
 
     def _decode_service_account_info(self, encoded_info: str) -> Dict[str, Any]:
+        """
+        Decodes a base64-encoded service account JSON string.
+
+        Parameters:
+            encoded_info (str): Base64-encoded service account JSON string.
+
+        Returns:
+            Dict[str, Any]: Decoded JSON dictionary.
+        """
         decoded_bytes = base64.b64decode(encoded_info)
         decoded_string = decoded_bytes.decode("utf-8")
         return json.loads(decoded_string)
 
     def add_to_multiplexer(self, endpoint: str, secret_data: Dict[str, str]):
+        """
+        Adds an external PACS endpoint to the multiplexer with its secret data. 
+        Calls multiplexer service.
+
+        Parameters:
+            endpoint (str): The PACS endpoint to add.
+            secret_data (Dict[str, str]): Dictionary containing secret data for the endpoint.
+
+        Returns:
+            bool: True if successfully added, False otherwise.
+        """
         try:
             payload = {"endpoint": endpoint, "secret_data": secret_data}
 
@@ -165,6 +216,16 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             return False
 
     def remove_from_multiplexer(self, endpoint: str):
+        """
+        Removes an external PACS endpoint from the multiplexer.  
+        Calls multiplexer service.
+
+        Parameters:
+            endpoint (str): The PACS endpoint to remove.
+
+        Returns:
+            bool: True if successfully removed, False otherwise.
+        """
         try:
             payload = {"endpoint": endpoint}
             response = requests.delete(
@@ -174,17 +235,20 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             response.raise_for_status()
             logger.info(f"External PACs {endpoint} successfully removed")
             return True
-        
+
         except requests.exceptions.RequestException as e:
             logger.error(f"Error creating secret: {e}")
             logger.error(traceback.format_exc())
             return False
 
     @cache_operator_output
+    
     def start(self, ds, **kwargs):
+        """
+        Starts the LocalExternalPacsOperator based on the action parameter (add or delete).
+        """
         logger.info("# Starting module LocalExternalPacsOperator...")
-        # TODO Use kaapanapy.settings
-        
+
         self.dag_run_id = kwargs["dag_run"].run_id
         self.workflow_config = kwargs["dag_run"].conf
         self.workflow_form = self.workflow_config["workflow_form"]
@@ -213,7 +277,5 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
                 exit(1)
 
         else:
-            logger.error(f"Unknown action: {self.action}")
-            exit(1)
             logger.error(f"Unknown action: {self.action}")
             exit(1)

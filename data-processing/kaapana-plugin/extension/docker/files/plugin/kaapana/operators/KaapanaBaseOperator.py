@@ -19,7 +19,6 @@ from kaapana.blueprints.kaapana_global_variables import (
     AIRFLOW_WORKFLOW_DIR,
     BATCH_NAME,
     DEFAULT_REGISTRY,
-    DICOM_WEB_SERVICE,
     GPU_SUPPORT,
     KAAPANA_BUILD_VERSION,
     PLATFORM_VERSION,
@@ -655,7 +654,6 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 "BATCH_NAME": str(self.batch_name),
                 "OPERATOR_OUT_DIR": str(self.operator_out_dir),
                 "BATCHES_INPUT_DIR": f"{PROCESSING_WORKFLOW_DIR}/{context['run_id']}/{self.batch_name}",
-                "DICOM_WEB_SERVICE": DICOM_WEB_SERVICE  
             }
         )
 

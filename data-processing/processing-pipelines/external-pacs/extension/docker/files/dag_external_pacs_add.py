@@ -24,7 +24,7 @@ ui_forms = {
                 "title": "DcmWeb URL",
                 "description": "Specify the URL of the DICOM store. (e.g.: https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/dicomStores?dicomStoreId=DICOM_STORE_ID)",
                 "type": "string",
-                "default": "URL",
+                "default": None,
                 "required": True,
             },
             "dataset_name": {

@@ -38,6 +38,15 @@ spec:
               value: "8080"
             - name: WORKERS
               value: "4"
+            - name: KAAPANA_CLIENT_SECRET
+              value: "{{ .Values.global.oidc_client_secret }}"
+            - name: KAAPANA_PROJECT_USER_NAME
+              value: "system"
+            - name: KAAPANA_PROJECT_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: system-user-password
+                  key: system-user-password
             - name: DICOMWEB_BASE_URL
               value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter"
             - name: DICOMWEB_BASE_URL_WADO_URI

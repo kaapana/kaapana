@@ -42,7 +42,8 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         try:
             # Determine endpoint based on Series UID or proxy request to DICOM Web Filter
             series_uid = get_series_uid_from_request(request)
-            if series_uid:
+            logger.info("Request has series_uid")
+            if series_uid:                
                 endpoint = get_endpoint_from_opensearch(series_uid)
                 if endpoint:
                     logger.info(f"Opensearch endpoint: {endpoint}")
@@ -50,7 +51,7 @@ class ProxyMiddleware(BaseHTTPMiddleware):
                     return await call_next(request)
 
                 # No endpoint found in OpenSearch, fall back to dicom-web-filter request
-                return proxy_dicom_web_filter(request=request)
+                return await proxy_dicom_web_filter(request=request)
             else:
                  # No Series UID: process requests for all PACS, merging external and local PACS responses
                 dicom_web_filter_result = proxy_dicom_web_filter(request=request)

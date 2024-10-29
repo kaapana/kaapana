@@ -51,7 +51,6 @@ async def proxy_request(
     if "content-length" in response_headers:
         del response_headers["content-length"]  # Let the server set the content length
 
-    # logger.info(f"PROXY CONTENT: {content}")
     # Construct a new Response object from stored values
     return Response(
         content=content,

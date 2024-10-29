@@ -23,3 +23,5 @@ def rs_endpoint_url(request: URL) -> str:
         return f"{dcmweb_endpoint}/dicomWeb"
     else:
         raise NotImplementedError(f"Not supported endpoint: {dcmweb_endpoint}")
+    
+    

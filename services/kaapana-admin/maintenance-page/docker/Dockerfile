@@ -2,7 +2,11 @@
 # # # ############# Build ###########
 # # # ###############################
 
-FROM docker.io/node:lts-alpine3.19 as build-stage
+FROM docker.io/node:lts-alpine3.19 AS build-stage
+
+LABEL IMAGE="maintenance-page-kaapana"
+LABEL VERSION="0.2.1"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /maintenance/app
 COPY files/kaapana_app/package*.json ./
@@ -10,10 +14,6 @@ RUN npm install -g npm@10.3.0 && npm install
 
 COPY files/kaapana_app .
 
-
-LABEL IMAGE="maintenance-page-kaapana"
-LABEL VERSION="0.2.1"
-LABEL BUILD_IGNORE="False"
 
 RUN npm run build
 

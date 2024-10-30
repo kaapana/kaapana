@@ -1,15 +1,16 @@
-from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.Json2MetaOperator import Json2MetaOperator
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
+from kaapana.operators.Json2MetaOperator import Json2MetaOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
 

@@ -13,6 +13,7 @@ COPY files/dags/dag_import_dicoms_in_zip_to_internal_pacs.py /kaapana/tmp/dags/
 COPY files/dags/dag_segmentation_evaluation.py /kaapana/tmp/dags/
 COPY files/dags/dag_send_dicom.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_daily_cleanup_jobs.py /kaapana/tmp/dags/
+COPY files/dags/dag_service_extract_metadata.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_process_incoming_dcm.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_reindex_dicom_data.py /kaapana/tmp/dags/
 COPY files/dags/dag_service_segmentation_thumbnail.py /kaapana/tmp/dags/

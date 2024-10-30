@@ -73,7 +73,11 @@ def start_reindexing(ds, **kwargs):
             dcm_file, os.path.join(target_dir, os.path.basename(dcm_file) + ".dcm")
         )
 
-        trigger(dag_id=dag_id, run_id=dag_run_id, replace_microseconds=False)
+        conf = {
+            "dataInputDirs": [target_dir],
+        }
+
+        trigger(dag_id=dag_id, run_id=dag_run_id, conf=conf, replace_microseconds=False)
 
 
 clean_meta = LocalDeleteFromMetaOperator(

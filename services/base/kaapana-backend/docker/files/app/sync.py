@@ -47,11 +47,8 @@ def periodically_get_remote_updates():
         with SessionLocal() as db:
             try:
                 get_remote_updates(db, periodically=True)
-                logging.info(
-                    "Checking for remote updates"
-                ) 
             except Exception as e:
-                logging.warning(
+                logging.info(
                     "Something went wrong updating in crud.get_remote_updates()"
                 )
                 logging.warning(traceback.format_exc())

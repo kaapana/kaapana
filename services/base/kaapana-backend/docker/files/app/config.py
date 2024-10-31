@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 import os
+from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -28,6 +29,7 @@ class Settings(BaseSettings):
     kaapana_deployment_timestamp: str = os.getenv("DEPLOYMENT_TIMESTAMP")
     mount_points: list[str] = str(os.getenv("MOUNT_POINTS_TO_MONITOR")).split(",")
 
+    tensorboard_dir: Path = Path(os.getenv("TENSORBOARD_DIR", "/kaapana/mounted/tensorboard"))
     minio_url: str
     minio_username: str
     minio_password: str

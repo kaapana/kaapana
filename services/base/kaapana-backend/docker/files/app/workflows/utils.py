@@ -117,6 +117,7 @@ class HelperMinio(Minio):
                         federated_dir,
                         federated_round,
                         instance_name,
+                        "from_server",
                         f"{federated_operator}.tar",
                     ),
                 ),
@@ -127,6 +128,7 @@ class HelperMinio(Minio):
                         federated_dir,
                         federated_round,
                         instance_name,
+                        "from_client",
                         f"{federated_operator}.tar",
                     ),
                 ),
@@ -150,6 +152,7 @@ def requests_retry_session(
         connect=retries,
         backoff_factor=backoff_factor,
         status_forcelist=status_forcelist,
+        raise_on_status=False,
     )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)

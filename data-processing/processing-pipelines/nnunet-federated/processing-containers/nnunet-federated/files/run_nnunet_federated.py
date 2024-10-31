@@ -206,8 +206,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 workflow_data = json.load(json_file)
             tensorboard_log_dir = Path(
                 os.path.join(
-                    "/minio",
-                    "tensorboard",
+                    "/tensorboard",
                     self.remote_conf_data["federated_form"]["federated_dir"],
                     os.getenv("OPERATOR_OUT_DIR", "federated-operator"),
                     site_info["instance_name"],
@@ -509,13 +508,12 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 "skip_operators"
             ] = self.remote_conf_data["federated_form"]["skip_operators"] + [
                 "get-input-data",
-                "get-ref-series-ct",
+                "get-ref-flair-series",
+                "get-ref-t1w-series",
                 "mask2nifti",
-                "filter-masks",
-                "fuse-masks",
-                "rename-seg-label-names",
-                "dcm-converter-ct",
-                "seg-check",
+                "is2-seg-check",
+                "dcm2nifti-flair",
+                "dcm2nifti-t1w",
             ]
             self.remote_conf_data["workflow_form"][
                 "prep_increment_step"
@@ -529,7 +527,7 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data["workflow_form"]["prep_increment_step"] = ""
         else:
             self.remote_conf_data["workflow_form"]["train_continue"] = True
-            self.run_in_parallel = True
+            # self.run_in_parallel = True # TODO needs to be fixed, since it is not working
         print(
             f"Current fl_round={federated_round} out of {self.remote_conf_data['federated_form']['federated_total_rounds']} total fl_rounds."
         )

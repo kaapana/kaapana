@@ -6,6 +6,9 @@ import json
 import os
 import uuid
 import shutil
+import collections
+import torch
+import random
 import tarfile
 import functools
 from minio import Minio
@@ -114,7 +117,9 @@ class KaapanaFederatedTrainingBase(ABC):
     @staticmethod
     def fernet_encryptfile(filepath, key):
         if key == "deactivated":
+            print("Key deactivated")
             return
+        print(f"Encrypting {filepath} with key {key}")
         fernet = Fernet(key.encode())
         with open(filepath, "rb") as file:
             original = file.read()
@@ -126,7 +131,9 @@ class KaapanaFederatedTrainingBase(ABC):
     @staticmethod
     def fernet_decryptfile(filepath, key):
         if key == "deactivated":
+            print("Key deactivated")
             return
+        print(f"Decrypting {filepath} with key {key}")
         fernet = Fernet(key.encode())
         with open(filepath, "rb") as enc_file:
             encrypted = enc_file.read()
@@ -186,7 +193,6 @@ class KaapanaFederatedTrainingBase(ABC):
         secret_key="Kaapana2020",
         minio_host=f"minio-service.{SERVICES_NAMESPACE}.svc",
         minio_port="9000",
-        **kwargs,
     ):
         self.run_in_parallel = False
         self.federated_dir = os.getenv("RUN_ID", str(uuid.uuid4()))
@@ -255,12 +261,28 @@ class KaapanaFederatedTrainingBase(ABC):
         KaapanaFederatedTrainingBase.raise_kaapana_connection_error(r)
         self.remote_sites = r.json()
 
+        # instantiate Minio client
         self.minioClient = Minio(
             minio_host + ":" + minio_port,
             access_key=access_key,
             secret_key=secret_key,
             secure=False,
         )
+
+        # FL aggregation strategy
+        if "aggregation_strategy" in self.remote_conf_data["federated_form"]:
+            # get defined FL aggregation strategy
+            self.aggregation_strategy = self.remote_conf_data["federated_form"][
+                "aggregation_strategy"
+            ]["agg_strategy_method"]
+            # special params for FedDC
+            if self.aggregation_strategy == "feddc":
+                self.agg_rate = self.remote_conf_data["federated_form"][
+                    "aggregation_strategy"
+                ]["feddc_aggregation_rate"]
+                self.dc_rate = self.remote_conf_data["federated_form"][
+                    "aggregation_strategy"
+                ]["feddc_daisychaining_rate"]
 
     @timeit
     def distribute_jobs(self, federated_round):
@@ -289,7 +311,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
             # create at local instance jobs for remote sites
             with requests.Session() as s:
-                r = requests_retry_session(session=s).put(
+                r = requests_retry_session(session=s, retries=3).put(
                     f"{self.client_url}/workflow_jobs",
                     json={
                         "federated": True,
@@ -331,22 +353,24 @@ class KaapanaFederatedTrainingBase(ABC):
 
             for instance_name, tmp_site_info in self.tmp_federated_site_info.items():
                 with requests.Session() as s:
-                    r = requests_retry_session(session=s).get(
+                    r = requests_retry_session(session=s, status_forcelist=[ 429, 500, 502, 503, 504],).get(
                         f"{self.client_url}/job",
                         params={"job_id": tmp_site_info["job_id"]},
                         verify=self.client_network["ssl_check"],
                     )
+
                 job = r.json()
-                if job["status"] == "finished":
+                if r.status_code == 404 or job["status"] in ["failed", "aborted"]:
+                    raise ValueError(
+                        "A client job failed or was delete. You can use the recovery_conf to continue your training, if there is an easy fix!"
+                    )
+                elif job["status"] == "finished":
                     updated[instance_name] = True
                     tmp_site_info["before_previous_dag_run"] = job["conf_data"][
                         "federated_form"
                     ]["from_previous_dag_run"]
                     tmp_site_info["from_previous_dag_run"] = job["run_id"]
-                elif job["status"] == "failed":
-                    raise ValueError(
-                        "A client job failed, interrupting, you can use the recovery_conf to continue your training, if there is an easy fix!"
-                    )
+
             if np.sum(list(updated.values())) == len(self.remote_sites):
                 break
         if bool(np.sum(list(updated.values())) == len(self.remote_sites)) is False:
@@ -397,6 +421,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     not in self.remote_conf_data["federated_form"][
                         "federated_operators"
                     ]
+                    or "from_server" in obj.object_name
                 ):
                     continue
                 else:
@@ -406,8 +431,8 @@ class KaapanaFederatedTrainingBase(ABC):
                             obj.object_name,
                             self.remote_conf_data["federated_form"]["federated_dir"],
                         ),
-                    )
-                    file_dir = os.path.dirname(file_path)
+                    ).replace("/from_client", "")
+                    file_dir = os.path.dirname(file_path)  # file_path.rsplit('/', 2)[0]
                     os.makedirs(file_dir, exist_ok=True)
                     self.minioClient.fget_object(
                         federated_bucket, obj.object_name, file_path
@@ -463,28 +488,99 @@ class KaapanaFederatedTrainingBase(ABC):
         Sum model_weights up.
         Divide summed model_weights by num_sites.
         Return a site_model_weights_dict with always the same model_weights per site.
+
+        Note:
+        * perform averaging based on pointers on the dict keys obtained with .data_ptr()
+        * solution from https://github.com/MIC-DKFZ/nnUNet/issues/2553
+        * btw site_model_weights_dict looks like that: site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
         """
-        # sum model_weights up
-        # site_model_weights_dict = {"<siteA>": <model_weights_0> , "<siteB>": <model_weights_1>, ...}
-        sum_model_weights = collections.OrderedDict()
-        for site_key, site_value in site_model_weights_dict.items():
-            for key, value in site_value.items():
-                if key not in sum_model_weights:
-                    sum_model_weights[key] = value
+
+        # for sample-weighted aggregation, get number of samples per client and list of client_instance_names
+        num_samples_per_client = dict()
+        client_instance_names = []
+        for site_idx, _ in enumerate(self.remote_sites):
+            client_instance_names.append(self.remote_sites[site_idx]["instance_name"])
+
+            num_samples_of_client = self.remote_conf_data.get("data_form", {}).get(
+                "dataset_limit", None
+            )
+            if num_samples_of_client is None:
+                drop_duplicate_studies = self.remote_conf_data.get(
+                    "workflow_form", {}
+                ).get("series_uids_with_unique_study_uids", False)
+
+                drop_duplicated_patients = self.remote_conf_data.get(
+                    "workflow_form", {}
+                ).get("series_ids_with_unique_patient_ids", False)
+
+                selected_dataset = next(
+                    (
+                        dataset
+                        for dataset in self.remote_sites[site_idx]["allowed_datasets"]
+                        if dataset["name"]
+                        == self.remote_conf_data["data_form"]["dataset_name"]
+                    ),
+                    None,
+                )
+
+                if selected_dataset:
+                    if drop_duplicate_studies:
+                        num_samples_of_client = selected_dataset[
+                            "series_uids_with_unique_study_uids_count"
+                        ]
+                    elif drop_duplicated_patients:
+                        num_samples_of_client = selected_dataset[
+                            "series_ids_with_unique_patient_ids_count"
+                        ]
+                    else:
+                        print("Taking identifier count")
+                        num_samples_of_client = selected_dataset["identifiers_count"]
                 else:
-                    sum_model_weights[key] = sum_model_weights[key] + value
+                    raise ValueError("No dataset found!")
 
-        num_sites = len(site_model_weights_dict)
-        # average model_weights
-        averaged_model_weights = collections.OrderedDict()
-        for key, value in sum_model_weights.items():
-            averaged_model_weights[key] = sum_model_weights[key] / num_sites
+            num_samples_per_client[self.remote_sites[site_idx]["instance_name"]] = (
+                num_samples_of_client
+            )
 
-        # return site_model_weights_dict with same averaged model per site
+        num_all_samples = sum(num_samples_per_client.values())
+        print(
+            f"Averaging model weights with client's dataset sizes: {num_samples_per_client} \
+            and total number of samples of {num_all_samples}!"
+        )
+
+        # initialize network_weights with those of first client_instance
+        list_of_network_parameters = list(site_model_weights_dict.values())
+        network_weights = site_model_weights_dict[client_instance_names[0]]
+        # get addresses of keys
+        keys = list(network_weights.keys())
+        address_key_dict = {}
+        for k in keys:
+            address = network_weights[k].data_ptr()
+            if address not in address_key_dict.keys():
+                address_key_dict[address] = [k]
+            else:
+                address_key_dict[address].append(k)
+
+        # perform the fedavg
+        for a in address_key_dict.keys():
+            for client_instance_name, net in site_model_weights_dict.items():
+                if client_instance_name == client_instance_names[0]:
+                    # network weights of client_instance_names [0] are already in network_weights
+                    pass
+                else:
+                    # weighted sum
+                    network_weights[address_key_dict[a][0]] += (
+                        net[address_key_dict[a][0]]
+                        * num_samples_per_client[client_instance_name]
+                    )
+            # divided by num_all_samples
+            network_weights[address_key_dict[a][0]] /= num_all_samples
+            # modifying the 0th keys is sufficient as the other keys point to the same data
+
+        # reformat to return
         return_model_weights_dict = collections.OrderedDict()
         for site in site_model_weights_dict.keys():
-            return_model_weights_dict[site] = averaged_model_weights
-
+            return_model_weights_dict[site] = network_weights
         return return_model_weights_dict
 
     # @timeit
@@ -573,10 +669,15 @@ class KaapanaFederatedTrainingBase(ABC):
             for file_path, next_object_name in zip(
                 tmp_site_info["file_paths"], tmp_site_info["next_object_names"]
             ):
+                file_path = file_path.replace("/from_client", "")
+                file_path = file_path.replace("/from_server", "")
                 file_dir = file_path.replace(".tar", "")
                 KaapanaFederatedTrainingBase.apply_tar_action(file_path, file_dir)
                 KaapanaFederatedTrainingBase.fernet_encryptfile(
                     file_path, self.client_network["fernet_key"]
+                )
+                next_object_name = next_object_name.replace(
+                    "from_client", "from_server"
                 )
                 print(f"Uploading {file_path } to {next_object_name}")
                 self.minioClient.fput_object(

@@ -114,6 +114,8 @@ spec:
           value: '[{{- range $extension := $.Values.global.preinstall_extensions }}{"name": "{{ $extension.name }}", "version": "{{ $extension.version }}"},{{- end }}]'
         - name: PREFETCH_EXTENSIONS
           value: "{{ $.Values.global.prefetch_extensions }}"
+        - name: INSTANCE_ROLE
+          value: "{{ $.Values.global.instance_role }}"
         volumeMounts:
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"

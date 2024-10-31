@@ -5,3 +5,6 @@ global:
   dynamicVolumes:
   - name: alembic
     host_path: /alembic
+  - name: tb-kaapana-backend
+    mount_path: /kaapana/mounted/tensorboard
+    host_path: /tensorboard

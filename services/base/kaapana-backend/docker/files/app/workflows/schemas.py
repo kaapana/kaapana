@@ -1,14 +1,34 @@
-from typing import Optional, List
-from sqlalchemy_json import NestedMutableDict, NestedMutableList
+from typing import Optional, List, Union
 import datetime
-from pydantic import field_validator, Field, ConfigDict, BaseModel, model_validator
+from pydantic import (
+    field_validator,
+    Field,
+    ConfigDict,
+    BaseModel,
+    model_validator,
+    computed_field,
+)
 from typing_extensions import Self
+
+
+class AllowedDataset(BaseModel):
+    """ """
+
+    name: str
+    username: Optional[str] = None
+    identifiers_count: Optional[int] = None
+    series_uids_with_unique_study_uids_count: Optional[int] = None
+    series_ids_with_unique_patient_ids_count: Optional[int] = None
+
+
+AllowedDataset = List[AllowedDataset]
 
 
 class KaapanaInstanceBase(BaseModel):
     ssl_check: bool
     automatic_update: bool = False
     automatic_workflow_execution: bool = False
+    remote_update_log: Optional[str] = ""
 
 
 class ClientKaapanaInstanceCreate(KaapanaInstanceBase):
@@ -45,10 +65,11 @@ class KaapanaInstance(KaapanaInstanceBase):
     port: int
     fernet_key: str
     remote: bool
-    allowed_dags: Optional[NestedMutableDict] = ...
-    allowed_datasets: Optional[NestedMutableList] = ...
+    allowed_dags: Union[dict, list, None] = None
+    allowed_datasets: Optional[AllowedDataset] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
+    client_time_update: Optional[datetime.datetime] = None
     workflow_in_which_involved: Optional[str]
 
     @field_validator("allowed_dags", mode="after")
@@ -72,6 +93,44 @@ class KaapanaInstance(KaapanaInstanceBase):
         else:
             return datetime.datetime.timestamp(v)
 
+    @field_validator("client_time_update", mode="before")
+    @classmethod
+    def convert_client_time_updated(cls, v):
+        if v is None:
+            return datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+        if isinstance(v, datetime.datetime):
+            return v
+        else:
+            return datetime.datetime.timestamp(v)
+
+    @computed_field
+    @property
+    def last_remote_heartbeat(self) -> Optional[int]:
+        """Calculate the time in seconds since the last update fetched from the remote instance."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return int((now - self.time_updated).total_seconds())
+
+    @computed_field
+    @property
+    def last_client_heartbeat(self) -> Optional[int]:
+        """Calculate the time in seconds since the last update recieved by the remote instance."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return int((now - self.client_time_update).total_seconds())
+
+    @computed_field
+    @property
+    def client_online(self) -> bool:
+        """Determine if the instance is online (last heartbeat < 15 seconds)."""
+        last_recieved_heartbeat = self.last_client_heartbeat
+        return last_recieved_heartbeat is not None and last_recieved_heartbeat < 15
+
+    @computed_field
+    @property
+    def remote_online(self) -> bool:
+        """Determine if the remote instance is online (last heartbeat < 15 seconds)."""
+        last_fetched_heartbeat = self.last_remote_heartbeat
+        return last_fetched_heartbeat is not None and last_fetched_heartbeat < 15
+
     @classmethod
     def clean_full_return(cls, instance):
         instance.fernet_key = ""
@@ -80,11 +139,13 @@ class KaapanaInstance(KaapanaInstanceBase):
 
 
 class JobBase(BaseModel):
-    status: str = "pending"
+    status: str = "created"
     dag_id: Optional[str] = None
     run_id: Optional[str] = None
     description: Optional[str] = None
     external_job_id: Optional[int] = None  # job_id on another system
+    runs_on_remote: Optional[bool] = False  # Include the custom property
+    update_external: Optional[int] = 0  # Include the custom property
     # Remote Kaapana instance that is addressed, not external kaapana_instance_id!
     owner_kaapana_instance_name: Optional[str] = None
     service_job: Optional[bool] = False
@@ -93,7 +154,7 @@ class JobBase(BaseModel):
 class Job(JobBase):
     model_config = ConfigDict(arbitrary_types_allowed=True, from_attributes=True)
     id: int
-    conf_data: Optional[NestedMutableDict] = ...
+    conf_data: Optional[dict] = None
     username: Optional[str] = None
     time_created: datetime.datetime
     time_updated: datetime.datetime
@@ -102,13 +163,16 @@ class Job(JobBase):
     @classmethod
     def check_status(cls, v):
         allowed_states = [
-            "queued",
+            "created",
             "pending",
+            "queued",
             "scheduled",
             "running",
             "finished",
+            "aborted",
             "failed",
             "deleted",
+            "lost",
         ]
         if v not in allowed_states:
             raise ValueError(
@@ -188,7 +252,7 @@ class Dataset(DatasetBase):
     time_updated: datetime.datetime
     username: Optional[str] = None
     identifiers: Optional[List[str]]
-    meta_information: Optional[NestedMutableDict] = Field(default_factory=dict)
+    meta_information: Optional[dict] = Field(default_factory=dict)
 
     @field_validator("time_updated", mode="before")
     @classmethod
@@ -203,7 +267,6 @@ class Dataset(DatasetBase):
 
 class AllowedDatasetCreate(DatasetBase):
     username: Optional[str] = None
-    identifiers: Optional[List[str]]
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -267,6 +330,10 @@ class KaapanaInstanceWithWorkflows(KaapanaInstance):
 class JobWithWorkflow(Job):
     workflow: Optional[Workflow] = None
     # involved_kaapana_instances: Optional[list]  # idk y?
+
+
+class JobWithWorkflowId(Job):
+    workflow_id: Optional[str] = None
 
 
 class JobWithWorkflowWithKaapanaInstance(JobWithKaapanaInstance):

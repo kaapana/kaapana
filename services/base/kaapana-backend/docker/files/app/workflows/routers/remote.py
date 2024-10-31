@@ -21,6 +21,7 @@ from app.config import settings
 from urllib3.util import Timeout
 import aiohttp
 from starlette.responses import StreamingResponse
+from fastapi import Request
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -31,31 +32,98 @@ router = APIRouter(tags=["remote"])
 
 
 @router.get("/minio-presigned-url")
-async def get_minio_presigned_url(presigned_url: str = Header(...)):
-    logging.debug(
+async def get_minio_presigned_url(
+    request: Request,  # Include the request object to capture headers like Range
+    presigned_url: str = Header(...),
+):
+    logging.info(
         f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}"
     )
 
-    # file streaming to get large files from minio
+    # Forward client's Range header if present
+    client_range_header = request.headers.get("Range")
+
     async def stream_minio_response():
+        timeout = aiohttp.ClientTimeout(
+            total=900,
+            connect=None,
+            sock_read=None,
+        )
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                headers = {}
+                if client_range_header:
+                    logging.info(f"Client Range header: {client_range_header}")
+                    headers["Range"] = client_range_header  # Forward the Range header
+
                 async with session.get(
-                    f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}"
+                    f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}",
+                    headers=headers,  # Pass the Range header to MinIO
                 ) as resp:
+                    # Log resp headers
+                    logging.info(
+                        f"Content-Length: {resp.headers.get('Content-Length')}"
+                    )
+                    logging.info(
+                        "\n".join([f"{k}: {v}" for k, v in resp.headers.items()])
+                    )
+
                     resp.raise_for_status()
+
+                    # Stream content in chunks
                     while True:
                         chunk = await resp.content.read(
-                            8192
+                            131072
                         )  # Adjust chunk size as needed
                         if not chunk:
                             break
                         yield chunk
+
         except aiohttp.ClientError as e:
             logging.error(f"Error fetching from MinIO: {e}")
             raise HTTPException(status_code=500, detail="Error fetching from MinIO")
+        except Exception as e:
+            logging.error(f"Error fetching from MinIO: {e}")
+            raise HTTPException(status_code=500, detail="Error fetching from MinIO")
 
-    return StreamingResponse(stream_minio_response(), status_code=200)
+    # Fetch headers from MinIO response
+    async with aiohttp.ClientSession() as session:
+        headers = {}
+        if client_range_header:
+            headers["Range"] = client_range_header  # Forward the Range header to MinIO
+
+        async with session.get(
+            f"http://minio-service.{settings.services_namespace}.svc:9000{presigned_url}",
+            headers=headers,
+        ) as resp:
+            # Determine if partial content or full content is being returned
+            status_code = resp.status
+            if status_code not in [200, 206]:  # Only handle full or partial content
+                logging.error(f"Unexpected status code: {status_code}")
+                raise HTTPException(
+                    status_code=status_code, detail="Unexpected status from MinIO"
+                )
+
+            # Extract relevant headers to forward, including Content-Range if present
+            headers_to_forward = {
+                k: v
+                for k, v in resp.headers.items()
+                if k.lower()
+                in [
+                    "content-length",
+                    "content-type",
+                    "etag",
+                    "last-modified",
+                    "content-range",
+                ]
+            }
+
+            # Forward the response with correct headers and status code
+            return StreamingResponse(
+                stream_minio_response(),
+                status_code=status_code,
+                headers=headers_to_forward,
+            )
 
 
 @router.post("/minio-presigned-url")
@@ -71,65 +139,14 @@ async def post_minio_presigned_url(
     return Response(resp.content, resp.status_code)
 
 
-# deprecated should be removed, if unused
-@router.get("/job", response_model=schemas.JobWithKaapanaInstance)
-def get_job(job_id: int, db: Session = Depends(get_db)):
-    job = crud.get_job(db, job_id)
-    job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-        job.kaapana_instance
-    )
-    return job
-
-
-# deprecated should be removed, if unused
-@router.get("/jobs", response_model=List[schemas.JobWithKaapanaInstance])
-def get_jobs(
-    instance_name: str = None,
-    status: str = None,
-    limit: int = None,
-    db: Session = Depends(get_db),
-):
-    jobs = crud.get_jobs(db, instance_name, status, remote=True, limit=limit)
-    for job in jobs:
-        if job.kaapana_instance:
-            job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-                job.kaapana_instance
-            )
-    return jobs
-
-
-# response_model should only return what is nessary (e.g. probably only success)
-@router.put("/job", response_model=schemas.JobWithKaapanaInstance)
-def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
-    job = crud.bulk_update_jobs(db, [job], remote=True)
-    if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
-            job.kaapana_instance
-        )
-    return job
-
-
-# deprecated should be removed, if unused
-@router.delete("/job")
-def delete_job(job_id: int, db: Session = Depends(get_db)):
-    return crud.delete_job(db, job_id, remote=True)
-
-
 @router.put("/sync-client-remote")
 def put_remote_kaapana_instance(
-    remote_kaapana_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
-    instance_name: str = None,
-    status: str = None,
+    client_to_remote_instance: schemas.RemoteKaapanaInstanceUpdateExternal,
+    client_to_remote_jobs: List[schemas.JobUpdate],
     db: Session = Depends(get_db),
 ):
     return crud.sync_client_remote(
         db=db,
-        remote_kaapana_instance=remote_kaapana_instance,
-        instance_name=instance_name,
-        status=status,
+        client_to_remote_instance=client_to_remote_instance,
+        client_to_remote_jobs=client_to_remote_jobs,
     )
-
-
-@router.put("/workflow", response_model=schemas.Workflow)
-def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
-    return crud.update_workflow(db, workflow)

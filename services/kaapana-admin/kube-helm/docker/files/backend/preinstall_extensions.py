@@ -46,6 +46,18 @@ logger.info("Preinstalling extensions")
 preinstall_extensions = json.loads(
     os.environ.get("PREINSTALL_EXTENSIONS", "[]").replace(",]", "]")
 )
+
+if settings.instance_role == "client_and_central":
+    pass
+if settings.instance_role == "client" or settings.instance_role == "localonly":
+    preinstall_extensions = [
+        extension for extension in preinstall_extensions if extension["name"] != "kaapana-central-chart"
+    ]
+if settings.instance_role == "central" or settings.instance_role == "localonly":
+    preinstall_extensions = [
+        extension for extension in preinstall_extensions if extension["name"] != "kaapana-client-chart"
+    ]
+
 releases_installed = {}
 
 # check if tgz file exists in the folder

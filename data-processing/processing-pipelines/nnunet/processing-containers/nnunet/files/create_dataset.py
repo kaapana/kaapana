@@ -473,6 +473,13 @@ template_dataset_json["labels"] = sorted_labels
 print("#")
 print("#")
 
+# if federated: remove training and test identifiers form dataset.json
+fed_num_clients = os.getenv("FED_NUM_CLIENTS", None)
+fed_global_fingerprint = os.getenv("FED_GLOBAL_FINGERPRINT", None)
+if fed_num_clients and fed_global_fingerprint:
+    template_dataset_json["training"] = []
+    template_dataset_json["test"] = []
+
 with open(join(task_dir, "dataset.json"), "w") as fp:
     json.dump(template_dataset_json, fp, indent=4, sort_keys=False)
 

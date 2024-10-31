@@ -39,7 +39,7 @@ spec:
         - name: INSTANCE_NAME
           value: {{ .Values.global.instance_name | default "central" }}
         - name: BACKEND_TYPE
-          value: {{ .Values.global.backend_type | default "client"}}
+          value: {{ .Values.global.backend_type | default "backend"}}
         - name: HOSTNAME
           value: {{ .Values.global.hostname | default "" }}
         - name: HTTPS_PORT
@@ -94,6 +94,8 @@ spec:
           value: {{ .Values.global.credentials_keycloak_backend_user }}
         - name: KEYCLOAK_BACKEND_PASSWORD
           value: {{ .Values.global.credentials_keycloak_backend_password }}
+        - name: TENSORBOARD_DIR
+          value: /kaapana/mounted/tensorboard
         ports:
           - containerPort: 5000
         resources:
@@ -114,6 +116,8 @@ spec:
           mountPath: /tmp
         - name: uploads
           mountPath: /kaapana/app/uploads
+        - name: tensorboard-data
+          mountPath: /kaapana/mounted/tensorboard
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -132,6 +136,9 @@ spec:
       - name: uploads
         persistentVolumeClaim:
           claimName: uploads-pv-claim
+      - name: tensorboard-data
+        persistentVolumeClaim:
+          claimName: tb-kaapana-backend-pv-claim
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:

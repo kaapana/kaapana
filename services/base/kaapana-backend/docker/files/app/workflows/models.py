@@ -2,6 +2,7 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, T
 from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.schema import UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy_json import mutable_json_type
 
 from typing import List
@@ -61,8 +62,10 @@ class KaapanaInstance(Base):
     allowed_datasets = Column(mutable_json_type(dbtype=JSONB, nested=True), default=[])
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
+    client_time_update = Column(DateTime(timezone=True))
     automatic_update = Column(Boolean(), default=False, index=True)
     automatic_workflow_execution = Column(Boolean(), default=False, index=True)
+    remote_update_log = Column(String(51200), default="", index=True)
 
     # one-to-many relationships
     workflows = relationship(
@@ -118,6 +121,7 @@ class Job(Base):
     __tablename__ = "job"
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(64))
+    # If defined the job was triggered from an external system (central)
     external_job_id = Column(Integer)
     owner_kaapana_instance_name = Column(String(64))
     conf_data = Column(mutable_json_type(dbtype=JSONB, nested=True))
@@ -129,6 +133,9 @@ class Job(Base):
     time_updated = Column(DateTime(timezone=True))
     automatic_execution = Column(Boolean(), default=False, index=True)
     service_job = Column(Boolean(), default=False, index=True)
+    update_external = Column(
+        Integer, default=0, index=True
+    )  # Wheather the job should be updated on the external system
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
@@ -147,3 +154,11 @@ class Job(Base):
             postgresql_where=(external_job_id.isnot(None)),
         ),  # The condition
     )
+
+    # Identifies a job that runs on a client
+    @hybrid_property
+    def runs_on_remote(self):
+        return (
+            self.kaapana_instance.instance_name != self.owner_kaapana_instance_name
+            and not self.external_job_id
+        )

@@ -18,6 +18,7 @@ from app.datasets.utils import execute_opensearch_query
 from app.dependencies import get_db
 from app.workflows import crud, models, schemas
 from app.workflows.utils import get_dag_list
+from app.config import settings
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy import func
@@ -246,6 +247,8 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
 # also okay: JobWithWorkflow
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     job = crud.get_job(db, job_id, run_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
     return job
 
 
@@ -258,6 +261,7 @@ def get_jobs(
     limit: int = None,
     dag_id: str = None,
     username: str = None,
+    offset: int = 0,
     db: Session = Depends(get_db),
 ):
     jobs = crud.get_jobs(
@@ -269,6 +273,7 @@ def get_jobs(
         limit=limit,
         dag_id=dag_id,
         username=username,
+        offset=offset,
     )
     for job in jobs:
         if job.kaapana_instance:
@@ -281,16 +286,23 @@ def get_jobs(
 @router.put("/job", response_model=schemas.JobWithWorkflow)
 # changed JobWithKaapanaInstance to JobWithWorkflow
 def put_job(job: schemas.JobUpdate, db: Session = Depends(get_db)):
-    if job.status == "abort":
-        db_job = crud.get_job(db, job.job_id)
-        crud.abort_jobs_in_chunks([db_job], update_db_job=False)
-        job.status = "failed"
-    return crud.bulk_update_jobs(db, [job])[0]  # update db_job to failed
+    db_job = crud.get_job(db, job.job_id)
+    if db_job.update_external == 1:
+        raise HTTPException(
+            status_code=202,
+            detail="Job is currently updating, please try again, once the update finished."
+        )
+        
+    job.update_external = 1 if db_job.runs_on_remote else 0
+    jobs = crud.bulk_update_jobs(db, [job])
+    if len(jobs) == 0:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return jobs[0]
 
 
 @router.delete("/job")
 def delete_job(job_id: int, db: Session = Depends(get_db)):
-    return crud.delete_job(db, job_id, remote=False)
+    return crud.delete_job(db, job_id)
 
 
 @router.delete("/jobs")
@@ -453,7 +465,9 @@ def ui_form_schemas(
             and "dataset_name" in schemas["data_form"]["properties"]
         ):
             if len(dataset_names) < 1:
+                logging.info("No datasets available for this workflow!")
                 schemas["data_form"]["__emtpy__"] = "true"
+                schemas["data_form"]["properties"]["dataset_name"]["default"] = None
             else:
                 schemas["data_form"]["properties"]["dataset_name"][
                     "oneOf"
@@ -743,28 +757,16 @@ def get_workflows(
 # put/update_workflow
 @router.put("/workflow", response_model=schemas.Workflow)
 def put_workflow(workflow: schemas.WorkflowUpdate, db: Session = Depends(get_db)):
-    if workflow.workflow_status == "abort":
-        db_jobs_to_abort = (
-            db.query(models.Job)
-            .join(
-                models.KaapanaInstance, models.Job.kaapana_instance
-            )  # Join with the KaapanaInstance table
-            .filter(models.Job.workflow_id == workflow.workflow_id)
-            .filter(models.Job.status.in_(["queued", "running"]))
-            .filter(
-                models.KaapanaInstance.remote == False
-            )  # Add the filter for kaapana_instance.remote
-            .all()
-        )
-        Thread(target=crud.abort_jobs_in_chunks, args=(db_jobs_to_abort,)).start()
-        return "Jobs will be aborted"
-
-    elif (
+    if (
         workflow.workflow_status == "scheduled"
         or workflow.workflow_status == "confirmed"
         or workflow.workflow_status == "restart"
+        or workflow.workflow_status == "aborted"
     ):
-        return crud.update_workflow(db, workflow)
+        try:
+            return crud.update_workflow(db, workflow)
+        except AssertionError as e:
+            raise HTTPException(status_code=202, detail="Some of the jobs are currently updating, please try again, once the update finished.")
     else:
         raise HTTPException(
             status_code=405,
@@ -797,3 +799,47 @@ def delete_workflow(workflow_id: str, db: Session = Depends(get_db)):
 @router.delete("/workflows")
 def delete_workflows(db: Session = Depends(get_db)):
     return crud.delete_workflows(db)
+
+
+@router.get("/tensorboard/folders/")
+def get_tensorboard_folders():
+    """
+    This endpoint returns a list of all directories that contain event files.
+    """
+    if not settings.tensorboard_dir.exists():
+        raise HTTPException(status_code=404, detail="Tensorboard directory not found")
+
+    # Find directories containing event files
+    event_directories = []
+    for folder in settings.tensorboard_dir.rglob("events.out.tfevents.*"):
+        event_directories.append(str(folder.parent.relative_to(settings.tensorboard_dir)))
+
+    # Remove duplicates and return unique directories
+    unique_directories = sorted(set(event_directories))
+    
+    if not unique_directories:
+        return {"message": "No event directories found."}
+
+    return {"event_directories": unique_directories}
+
+
+@router.delete("/tensorboard/folders/")
+def delete_tensorboard_folder(folder_directory: str):
+    """
+    This endpoint deletes the specified tensorboard folder.
+    """
+    folder_path = settings.tensorboard_dir / Path(folder_directory)
+
+    # Check if the directory exists and is inside the settings.tensorboard_dir
+    if not folder_path.exists() or not folder_path.is_dir():
+        raise HTTPException(status_code=404, detail="Directory not found")
+    
+    # Safety check to ensure we're only deleting from within settings.tensorboard_dir
+    if not settings.tensorboard_dir in folder_path.parents:
+        raise HTTPException(status_code=400, detail="Can only delete directories within the tensorboard folder")
+
+    try:
+        shutil.rmtree(folder_path)  # Recursively delete the folder and its contents
+        return {"message": f"Deleted folder: {folder_directory}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting folder: {str(e)}")

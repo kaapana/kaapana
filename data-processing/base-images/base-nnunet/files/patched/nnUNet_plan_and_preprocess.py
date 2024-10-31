@@ -13,15 +13,16 @@
 #    limitations under the License.
 
 
+import shutil
+
 import nnunet
 from batchgenerators.utilities.file_and_folder_operations import *
 from nnunet.experiment_planning.DatasetAnalyzer import DatasetAnalyzer
 from nnunet.experiment_planning.utils import crop
 from nnunet.paths import *
-import shutil
-from nnunet.utilities.task_name_id_conversion import convert_id_to_task_name
 from nnunet.preprocessing.sanity_checks import verify_dataset_integrity
 from nnunet.training.model_restore import recursive_find_python_class
+from nnunet.utilities.task_name_id_conversion import convert_id_to_task_name
 
 
 def main():
@@ -55,7 +56,7 @@ def main():
         "Can be 'None', in which case this U-Net will not be configured",
     )
     parser.add_argument(
-        "-no_pp",
+        "--no_pp",
         action="store_true",
         help="Set this flag if you dont want to run the preprocessing. If this is set then this script "
         "will only run the experiment planning and create the plans file",

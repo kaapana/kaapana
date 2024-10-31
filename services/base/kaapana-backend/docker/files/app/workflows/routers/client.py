@@ -465,7 +465,9 @@ def ui_form_schemas(
             and "dataset_name" in schemas["data_form"]["properties"]
         ):
             if len(dataset_names) < 1:
+                logging.info("No datasets available for this workflow!")
                 schemas["data_form"]["__emtpy__"] = "true"
+                schemas["data_form"]["properties"]["dataset_name"]["default"] = None
             else:
                 schemas["data_form"]["properties"]["dataset_name"][
                     "oneOf"

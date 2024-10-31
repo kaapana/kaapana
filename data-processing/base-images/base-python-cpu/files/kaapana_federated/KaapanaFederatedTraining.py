@@ -311,7 +311,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
             # create at local instance jobs for remote sites
             with requests.Session() as s:
-                r = requests_retry_session(session=s).put(
+                r = requests_retry_session(session=s, retries=3).put(
                     f"{self.client_url}/workflow_jobs",
                     json={
                         "federated": True,
@@ -500,15 +500,48 @@ class KaapanaFederatedTrainingBase(ABC):
         client_instance_names = []
         for site_idx, _ in enumerate(self.remote_sites):
             client_instance_names.append(self.remote_sites[site_idx]["instance_name"])
-            num_samples_per_client[self.remote_sites[site_idx]["instance_name"]] = (
-                len(
-                    self.remote_sites[site_idx]["allowed_datasets"][
-                        self.remote_conf_data["data_form"]["dataset_name"]
-                    ]["identifiers"]
-                )
-                if self.remote_conf_data["data_form"]["dataset_limit"] is None
-                else self.remote_conf_data["data_form"]["dataset_limit"]
+
+            num_samples_of_client = self.remote_conf_data.get("data_form", {}).get(
+                "dataset_limit", None
             )
+            if num_samples_of_client is None:
+                drop_duplicate_studies = self.remote_conf_data.get(
+                    "workflow_form", {}
+                ).get("series_uids_with_unique_study_uids", False)
+
+                drop_duplicated_patients = self.remote_conf_data.get(
+                    "workflow_form", {}
+                ).get("series_ids_with_unique_patient_ids", False)
+
+                selected_dataset = next(
+                    (
+                        dataset
+                        for dataset in self.remote_sites[site_idx]["allowed_datasets"]
+                        if dataset["name"]
+                        == self.remote_conf_data["data_form"]["dataset_name"]
+                    ),
+                    None,
+                )
+
+                if selected_dataset:
+                    if drop_duplicate_studies:
+                        num_samples_of_client = selected_dataset[
+                            "series_uids_with_unique_study_uids_count"
+                        ]
+                    elif drop_duplicated_patients:
+                        num_samples_of_client = selected_dataset[
+                            "series_ids_with_unique_patient_ids_count"
+                        ]
+                    else:
+                        print("Taking identifier count")
+                        num_samples_of_client = selected_dataset["identifiers_count"]
+                else:
+                    raise ValueError("No dataset found!")
+
+            num_samples_per_client[self.remote_sites[site_idx]["instance_name"]] = (
+                num_samples_of_client
+            )
+
         num_all_samples = sum(num_samples_per_client.values())
         print(
             f"Averaging model weights with client's dataset sizes: {num_samples_per_client} \

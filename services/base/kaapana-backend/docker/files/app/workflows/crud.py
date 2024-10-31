@@ -245,7 +245,6 @@ def create_and_update_client_kaapana_instance(
                 dataset = schemas.AllowedDatasetCreate(
                     name=db_dataset.name,
                     username=db_dataset.username,
-                    identifiers=identifiers,
                 ).model_dump()
 
                 meta_information = {}
@@ -1824,7 +1823,6 @@ def queue_generate_jobs_and_add_to_workflow(
     )
     jobs_to_create_list = []
     for db_kaapana_instance in db_kaapana_instances:
-        identifiers = []
         if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
             dataset_name = conf_data["data_form"]["dataset_name"]
             if not db_kaapana_instance.remote:
@@ -1832,6 +1830,7 @@ def queue_generate_jobs_and_add_to_workflow(
                 identifiers = [idx.id for idx in db_dataset.identifiers]
                 conf_data["data_form"].update({"identifiers": identifiers})
             else:
+                dataset_name_in_allowed_datasets = False
                 for dataset_info in db_kaapana_instance.allowed_datasets:
                     if dataset_info["name"] == dataset_name:
                         conf_data["data_form"].update(
@@ -1845,7 +1844,10 @@ def queue_generate_jobs_and_add_to_workflow(
                                 ],
                             }
                         )
+                        dataset_name_in_allowed_datasets = True
                         break
+                if not dataset_name_in_allowed_datasets:
+                    raise HTTPException(status_code=404, detail=f"Dataset {dataset_name} not in allowed datasets of instance {db_kaapana_instance.instance_name}",)
 
         drop_duplicate_studies = conf_data.get("workflow_form", {}).get(
             "series_uids_with_unique_study_uids", False

@@ -16,7 +16,9 @@ class AllowedDataset(BaseModel):
 
     name: str
     username: Optional[str] = None
-    identifiers: List[str]
+    identifiers_count: Optional[int] = None
+    series_uids_with_unique_study_uids_count: Optional[int] = None
+    series_ids_with_unique_patient_ids_count: Optional[int] = None
 
 
 AllowedDataset = List[AllowedDataset]
@@ -265,7 +267,6 @@ class Dataset(DatasetBase):
 
 class AllowedDatasetCreate(DatasetBase):
     username: Optional[str] = None
-    identifiers: Optional[List[str]]
     model_config = ConfigDict(from_attributes=True)
 
 

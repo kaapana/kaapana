@@ -1,4 +1,5 @@
 import json
+import re
 
 import requests
 from fastapi import Request
@@ -147,3 +148,51 @@ def get_policy_for_role_and_bucket(role, bucket_name):
             },
         ],
     }
+
+
+def is_valid_minio_bucket_name(bucket_name: str) -> bool:
+    """
+    https://abp.io/docs/latest/framework/infrastructure/blob-storing/minio
+    MinIO is the defacto standard for S3 compatibility, So MinIO has some rules for naming bucket. The following rules apply for naming MinIO buckets:
+    * Bucket names must be between 3 and 63 characters long.
+    * Bucket names can consist only of lowercase letters, numbers, dots (.), and hyphens (-).
+    * Bucket names must begin and end with a letter or number.
+    * Bucket names must not be formatted as an IP address (for example, 192.168.5.4).
+    * Bucket names can't begin with 'xn--'.
+    * Bucket names must be unique within a partition.
+    * Buckets used with Amazon S3 Transfer Acceleration can't have dots (.) in their names. For more information about transfer acceleration, see Amazon S3 Transfer Acceleration.
+    """
+    # Check length
+    if not (3 <= len(bucket_name) <= 63):
+        return False
+    # Check allowed characters and no IP address formatting
+    if not re.fullmatch(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$", bucket_name):
+        return False
+    # Ensure it does not resemble an IP address
+    if re.match(r"(\d+\.){3}\d+", bucket_name):
+        return False
+    # Ensure it doesn not begin with 'xn--'
+    if bucket_name.startswith("xn--"):
+        return False
+    return True
+
+
+def test_is_valid_minio_bucket_name() -> bool:
+    # Test the function
+
+    success = True
+    test_bucket_names = [
+        ("valid-bucket-name", True),
+        ("InvalidBucket", False),
+        ("bucket-with-dots.", False),
+        ("123", True),
+        ("192.168.1.1", False),
+        ("a" * 64, False),
+    ]
+
+    for name_tuple in test_bucket_names:
+        valid_response = is_valid_minio_bucket_name(name_tuple[0])
+        assert name_tuple[1] == valid_response
+        success = name_tuple[1] == valid_response
+
+    return success

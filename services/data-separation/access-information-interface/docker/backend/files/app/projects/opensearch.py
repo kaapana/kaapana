@@ -1,4 +1,6 @@
 import asyncio
+import re
+
 import requests
 from fastapi import Request
 from kaapanapy.helper import get_opensearch_client
@@ -197,3 +199,49 @@ def conventional_role_name(role, index):
     Role names in opensearch should match claim values in the opensearch claim of the access token.
     """
     return f"{role}_{index}"
+
+
+def is_valid_opensearch_index_name(index_name: str) -> bool:
+    """
+    https://opensearch.org/docs/1.1/opensearch/rest-api/index-apis/create-index/
+    Index naming restrictions
+    OpenSearch indices have the following naming restrictions:
+
+    All letters must be lowercase.
+    Index names can’t begin with underscores (_) or hyphens (-).
+    Index names can’t contain spaces, commas, or the following characters:
+        :, ", *, +, /, \, |, ?, #, >, or <
+    """
+    # Check for lowercase, length, and valid characters based on OpenSearch restrictions
+    if not (1 <= len(index_name) <= 255):
+        return False
+    # Validate characters and starting rules
+    if not re.fullmatch(r"^[a-z0-9][a-z0-9\-\_]*$", index_name):
+        return False
+    # Ensure it does not contain any prohibited characters
+    if any(c in index_name for c in ' :,"*+/\\|?#><'):
+        return False
+    return True
+
+
+def test_is_valid_opensearch_index_name() -> bool:
+    success = True
+    # Test the function
+    test_index_names = [
+        ("valid-index", True),  # Valid
+        ("invalid_index", True),  # Valid (underscore is allowed per updated pattern)
+        ("InvalidUpperCase", False),  # Invalid (uppercase letters)
+        ("-invalid-start", False),  # Invalid (starts with a hyphen)
+        ("_invalid_start", False),  # Invalid (starts with an underscore)
+        ("invalid:character", False),  # Invalid (contains `:`)
+        ("invalid,name", False),  # Invalid (contains `,`)
+        ("validindex123", True),  # Valid
+        ("a" * 256, False),  # Invalid (too long)
+    ]
+
+    for name_tuple in test_index_names:
+        valid_response = is_valid_opensearch_index_name(name_tuple[0])
+        assert name_tuple[1] == valid_response
+        success = name_tuple[1] == valid_response
+
+    return success

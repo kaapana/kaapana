@@ -40,8 +40,8 @@
         <tr v-for="item in projects" :key="item.name">
           <td><v-icon>mdi-application-cog</v-icon></td>
           <td>{{ item.id }}</td>
-          <td>{{ item.name }}</td>
-          <td>{{ item.description }}</td>
+          <td class="project-name-col">{{ item.name }}</td>
+          <td class="desc-col">{{ item.description }}</td>
           <td>{{ item.external_id }}</td>
           <td class="text-center">
             <v-btn 
@@ -146,3 +146,19 @@ export default defineComponent({
   },
 })
 </script>
+
+
+<style scoped>
+.project-name-col{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+}
+.desc-col{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 350px;
+}
+</style>

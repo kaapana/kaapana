@@ -61,11 +61,8 @@
                       for volumes and segmentations. Depending on the use case the data
                       has to be formated in one of the directory structures described in
                       the
-                      <a
-                        href="https://kaapana.readthedocs.io/en/stable/user_guide/workflows.html#import-uploaded-nifti-files"
-                        target="_blank"
-                        >Kaapana documentation</a
-                      >.
+                      <a href="https://kaapana.readthedocs.io/en/stable/user_guide/workflows.html#import-uploaded-nifti-files"
+                        target="_blank">Kaapana documentation</a>.
                     </p>
                   </v-card-text>
 
@@ -81,10 +78,7 @@
               <v-icon class="my-2" large>mdi-numeric-2-circle</v-icon>&nbsp; Upload
               DICOMS, NIfTIs or any data you want to use in a workflow as a zip file via
               the dropzone.
-              <upload
-                labelIdle="Dicoms, ITK images or any other data"
-                :onProcessFile="fileComplete"
-              ></upload>
+              <upload labelIdle="Dicoms, ITK images or any other data" :onProcessFile="fileComplete"></upload>
               <br />
               <v-icon large>mdi-numeric-3-circle</v-icon>&nbsp;
               <v-btn color="primary" @click="() => (workflowDialog = true)">
@@ -96,14 +90,8 @@
         </v-col>
 
         <v-dialog v-model="workflowDialog" width="500">
-          <WorkflowExecution
-            :key="componentKey"
-            :onlyLocal="true"
-            kind_of_dags="import"
-            :isDialog="true"
-            @successful="() => (workflowDialog = false)"
-            @cancel="() => (workflowDialog = false)"
-          />
+          <WorkflowExecution :key="componentKey" :onlyLocal="true" kind_of_dags="import" :isDialog="true"
+            @successful="() => (workflowDialog = false)" @cancel="() => (workflowDialog = false)" />
         </v-dialog>
       </v-row>
     </v-container>
@@ -137,7 +125,7 @@ export default Vue.extend({
     } else {
       this.supported = true;
     }
-    this.hostname = window.location.origin;
+    this.hostname = window.location.hostname;
   },
   computed: {
     ...mapGetters(["currentUser", "isAuthenticated", "selectedProject"]),

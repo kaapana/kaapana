@@ -1,13 +1,13 @@
 <template>
     <v-container max-width="1200">
         <v-row justify="space-between">
-            <v-col cols="6">
+            <v-col>
                 <h4 class="text-h4 py-8">Project {{ projectId }}</h4>
                 <p v-if="details">{{ details.description }}</p>
             </v-col>
         </v-row>
         <v-row>
-            <v-col>
+            <v-col v-if="users.length > 0">
                 <v-row justify="space-between">
                     <v-col cols="6">
                         <h5 class="text-h5 py-4">Project Users</h5>
@@ -59,6 +59,18 @@
                         </tr>
                     </tbody>
                 </v-table>
+            </v-col>
+            <v-col v-else>
+                <!-- <v-row align="center" justify="center"> -->
+                    <v-row align="center" justify="center" class="py-5 mt-10">
+                    <v-alert text="No User found under this Project. Add the following button to Add new user." type="info"
+                    variant="tonal" max-width="850"></v-alert>
+                    </v-row>
+                    <v-row align="center" justify="center">
+                        <v-btn @click="userDialog = true" size="large" prepend-icon="mdi-account-plus">
+                        Add User to Project
+                    </v-btn>
+                    </v-row>
             </v-col>
         </v-row>
     </v-container>

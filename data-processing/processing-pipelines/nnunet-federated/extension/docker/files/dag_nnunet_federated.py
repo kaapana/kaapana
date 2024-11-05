@@ -15,7 +15,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from nnunet_federated.nnUNetFederatedOperator import nnUNetFederatedOperator
@@ -161,12 +161,12 @@ dcm_send_int = DcmSendOperator(
     input_operator=bin2dcm,
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[nnunet_federated],
+    batch_input_operators=[nnunet_federated],
     zip_files=True,
-    file_white_tuples=(".zip"),
+    whitelisted_file_extensions=(".zip"),
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

@@ -514,7 +514,7 @@ put_to_minio = MinioOperator(
         pyradiomics_5,
         pyradiomics_6,
     ],
-    whitelisted_file_extensions=(".json",),
+    whitelisted_file_extensions=[".json"],
     trigger_rule="none_failed_min_one_success",
 )
 

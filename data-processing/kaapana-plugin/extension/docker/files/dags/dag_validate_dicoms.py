@@ -8,7 +8,7 @@ from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalClearValidationResultOperator import (
     LocalClearValidationResultOperator,
 )
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.ValidationResult2MetaOperator import (
     ValidationResult2MetaOperator,
 )
@@ -81,13 +81,13 @@ save_to_meta = ValidationResult2MetaOperator(
     validation_tag="00111001",
 )
 
-put_html_to_minio = LocalMinioOperator(
+put_html_to_minio = MinioOperator(
     dag=dag,
-    action_operator_dirs=[validate.operator_out_dir],
+    batch_input_operators=[validate],
     name="put-results-html-to-minio",
     action="put",
-    bucket_name="staticwebsiteresults",
-    file_white_tuples=(".html"),
+    minio_prefix="staticwebsiteresults",
+    whitelisted_file_extensions=[".html"],
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

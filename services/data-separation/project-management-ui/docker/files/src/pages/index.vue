@@ -38,7 +38,7 @@
       </thead>
       <tbody>
         <tr v-for="item in projects" :key="item.name">
-          <td><v-icon>mdi-application-cog</v-icon></td>
+          <td><v-icon>mdi-folder-file</v-icon></td>
           <td>{{ item.id }}</td>
           <td class="project-name-col">{{ item.name }}</td>
           <td class="desc-col">{{ item.description }}</td>
@@ -47,6 +47,7 @@
             <v-btn 
               class="text-none" color="medium-emphasis" 
               min-width="92" variant="outlined" size="small" rounded
+              append-icon="mdi-arrow-right"
               @click="goToProjects(item.name)">
               View
             </v-btn>

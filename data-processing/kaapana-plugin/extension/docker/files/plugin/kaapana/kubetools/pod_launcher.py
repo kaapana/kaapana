@@ -18,19 +18,20 @@
 import json
 import time
 import traceback
+from datetime import datetime as dt
+from pathlib import Path
+
+from airflow import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from datetime import datetime as dt
+from kaapana.kubetools.kube_client import get_kube_client
+from kaapana.kubetools.pod import Pod
+from kaapana.kubetools.pod_stopper import PodStopper
 from kubernetes import watch
+from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
-from airflow import AirflowException
 from requests.exceptions import HTTPError
-from kaapana.kubetools.kube_client import get_kube_client
-from kaapana.kubetools.pod_stopper import PodStopper
-from kaapana.kubetools.pod import Pod
-from pathlib import Path
-from kubernetes.client.models.v1_pod import V1Pod
 
 # NONE = None
 # REMOVED = "removed"
@@ -254,11 +255,29 @@ class PodLauncher(LoggingMixin):
                     namespace=api_pod_obj.metadata.namespace,
                     container=api_pod_obj.spec.containers[0].name,
                     follow=True,
-                    tail_lines=10,
                     _preload_content=False,
                 )
                 for log in logs:
                     self.log.info(log)
+                # let process change state, if due to connection timeout restart log
+                time.sleep(2)
+                while self.pod_is_running(pod):
+                    self.log.debug("Pod %s has state %s", pod.name, State.RUNNING)
+                    self.log.info(
+                        "Pod logging got interruppted by pod connection timeout!"
+                    )
+                    self.log.info("Reprinting the 10 newest log lines log-lines!")
+                    logs = self._client.read_namespaced_pod_log(
+                        name=api_pod_obj.metadata.name,
+                        namespace=api_pod_obj.metadata.namespace,
+                        container=api_pod_obj.spec.containers[0].name,
+                        follow=True,
+                        tail_lines=10,
+                        _preload_content=False,
+                    )
+                    for log in logs:
+                        self.log.info(log)
+                    time.sleep(2)
 
             result = None
             if self.extract_xcom:
@@ -268,9 +287,6 @@ class PodLauncher(LoggingMixin):
                 result = self._extract_xcom(pod)
                 self.log.info(result)
                 result = json.loads(result)
-            while self.pod_is_running(pod):
-                self.log.debug("Pod %s has state %s", pod.name, State.RUNNING)
-                time.sleep(2)
             return (self._task_status(pod=pod, event=self.read_pod(pod)), result)
         except Exception as e:
             self.log.warn(

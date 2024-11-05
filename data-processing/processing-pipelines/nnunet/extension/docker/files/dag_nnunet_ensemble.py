@@ -17,7 +17,7 @@ from nnunet.NnUnetModelOperator import NnUnetModelOperator
 from nnunet.getTasks import get_available_protocol_names
 
 # from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
@@ -336,12 +336,12 @@ evaluation = DiceEvaluationOperator(
     batch_name=str(get_test_images.operator_out_dir),
 )
 
-get_notebooks_from_minio = LocalMinioOperator(
+get_notebooks_from_minio = MinioOperator(
     dag=dag,
     name="nnunet-get-notebook-from-minio",
-    bucket_name="analysis-scripts",
+    minio_prefix="analysis-scripts",
     action="get",
-    action_files=["run_nnunet_evaluation_notebook.ipynb"],
+    source_files=["run_nnunet_evaluation_notebook.ipynb"],
 )
 
 nnunet_evaluation_notebook = JupyterlabReportingOperator(
@@ -352,22 +352,22 @@ nnunet_evaluation_notebook = JupyterlabReportingOperator(
     output_format="html,pdf",
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     name="upload-nnunet-evaluation",
     zip_files=True,
     action="put",
-    action_operators=[evaluation, nnunet_evaluation_notebook],
-    file_white_tuples=(".zip"),
+    batch_input_operators=[evaluation, nnunet_evaluation_notebook],
+    whitelisted_file_extensions=(".zip"),
 )
 
-put_report_to_minio = LocalMinioOperator(
+put_report_to_minio = MinioOperator(
     dag=dag,
     name="upload-staticwebsiteresults",
-    bucket_name="staticwebsiteresults",
+    minio_prefix="staticwebsiteresults",
     action="put",
-    action_operators=[nnunet_evaluation_notebook],
-    file_white_tuples=(".html", ".pdf"),
+    batch_input_operators=[nnunet_evaluation_notebook],
+    whitelisted_file_extensions=(".html", ".pdf"),
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

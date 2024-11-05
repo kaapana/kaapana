@@ -5,7 +5,7 @@ from airflow.models import DAG
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
 
@@ -81,16 +81,16 @@ dag = DAG(
 
 radiomics_federated_central = RadiomicsFederatedOperator(dag=dag)
 
-put_radiomics_to_minio = LocalMinioOperator(
-    dag=dag, action="put", action_operators=[radiomics_federated_central]
+put_radiomics_to_minio = MinioOperator(
+    dag=dag, action="put", none_batch_input_operators=[radiomics_federated_central]
 )
 
-get_notebook_from_minio = LocalMinioOperator(
+get_notebook_from_minio = MinioOperator(
     dag=dag,
     name="radiomics-get-notebook-from-minio",
-    bucket_name="analysis-scripts",
+    minio_prefix="analysis-scripts",
     action="get",
-    action_files=["FedRad-Analysis.ipynb"],
+    source_files=["FedRad-Analysis.ipynb"],
 )
 
 radiomics_reporting = JupyterlabReportingOperator(
@@ -99,13 +99,13 @@ radiomics_reporting = JupyterlabReportingOperator(
     notebook_filename="FedRad-Analysis.ipynb",
 )
 
-put_report_to_minio = LocalMinioOperator(
+put_report_to_minio = MinioOperator(
     dag=dag,
     name="upload-staticwebsiteresults",
-    bucket_name="staticwebsiteresults",
+    minio_prefix="staticwebsiteresults",
     action="put",
-    action_operators=[radiomics_reporting],
-    file_white_tuples=(".html", ".pdf"),
+    none_batch_input_operators=[radiomics_reporting],
+    whitelisted_file_extensions=(".html", ".pdf"),
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

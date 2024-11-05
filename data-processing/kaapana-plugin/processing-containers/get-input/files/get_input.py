@@ -36,9 +36,11 @@ def check_modality_of_workflow(modality: str):
         raise TypeError(
             f"{workflow_modality=} has not the expected type of str. {workflow_config=}"
         )
-    elif not workflow_modality.lower() == modality.lower():
+    valid_modalities = workflow_modality.lower().split(",")
+
+    if modality.lower() not in valid_modalities:
         raise ValueError(
-            f"Missmatch of {workflow_modality.lower()=} {modality.lower()}"
+            f"Data modality {modality.lower()} is not one of {valid_modalities=}"
         )
 
 

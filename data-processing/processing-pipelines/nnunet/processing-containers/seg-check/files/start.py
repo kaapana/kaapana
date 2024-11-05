@@ -701,9 +701,9 @@ def resample_image(input_path, original_path, replace=True, target_dir=None):
     print(f"# Resampling: {input_path} -> {target_path}")
     command = [
         str(executable),
-        "-f",
+        "-t",
         str(original_path),
-        "-m",
+        "-i",
         str(input_path),
         "-o",
         str(target_path),
@@ -765,7 +765,7 @@ executable = getenv("EXECUTABLE", "/kaapana/app/MitkCLResampleImageToReference.s
 executable = executable if executable.lower() != "none" else None
 assert executable is not None
 
-# 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
+#  Default: 2; allowed values: 1: Nearest Neighbour, 2: Linear, 3: BSpline 3, 4: WSinc Hamming, 5: WSinc Welch (optional), (default: 2), Type: Int
 interpolator = getenv("INTERPOLATOR", "None")
 interpolator = int(interpolator) if interpolator.lower() != "none" else 1
 

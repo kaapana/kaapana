@@ -5,10 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def create_project(session: AsyncSession, project: schemas.CreateProject):
+    kubernetes_namespace = f"project-{project.name}"
+    s3_bucket = f"project-{project.name}"
+    opensearch_index = f"project_{project.name}"
+
     new_project = Projects(
         name=project.name,
         description=project.description,
         external_id=project.external_id,
+        kubernetes_namespace=kubernetes_namespace,
+        s3_bucket=s3_bucket,
+        opensearch_index=opensearch_index,
     )
     session.add(new_project)
     await session.commit()

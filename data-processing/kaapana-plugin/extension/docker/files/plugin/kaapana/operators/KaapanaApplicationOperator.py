@@ -23,7 +23,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
 
         try:
             project_form = conf.get("project_form")
-            self.namespace = "project-" + project_form.get("name")
+            self.namespace = project_form.get("kubernetes_namespace")
         except (KeyError, AttributeError):
             self.namespace = "project-admin"
 

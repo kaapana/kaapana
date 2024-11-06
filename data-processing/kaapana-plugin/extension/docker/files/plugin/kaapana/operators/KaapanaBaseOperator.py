@@ -622,7 +622,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         try:
             project_form = context.get("params").get("project_form")
-            self.namespace = "project-" + project_form.get("name")
+            self.namespace = project_form.get("kubernetes_namespace")
         except (KeyError, AttributeError):
             self.namespace = "project-admin"
         self.set_volumes_and_volume_mounts()
@@ -734,7 +734,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         time.sleep(2)  # since the phase needs some time to get updated
         try:
             project_form = context.get("params").get("project_form")
-            namespace = "project-" + project_form.get("name")
+            namespace = project_form.get("kubernetes_namespace")
         except (KeyError, AttributeError):
             namespace = "project-admin"
 

@@ -10,7 +10,7 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import KaapanaSettings
+from kaapanapy.settings import KaapanaSettings, OpensearchSettings
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -43,20 +43,22 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         id = json_dict["0020000E SeriesInstanceUID_keyword"]
         clinical_trial_protocol_id = json_dict.get(
             "00120020 ClinicalTrialProtocolID_keyword"
-        )
+        )[0]
         project = self.get_project_by_name(clinical_trial_protocol_id)
-        project_id = project.get("id")
         try:
             json_dict = self.produce_inserts(json_dict)
             response = HelperOpensearch.os_client.index(
-                index=f"project_{project_id}", body=json_dict, id=id, refresh=True
+                index=project.get("opensearch_index"),
+                body=json_dict,
+                id=id,
+                refresh=True,
             )
         except Exception as e:
             logger.error("Error while pushing JSON ...")
             raise (e)
 
     def push_json(self, json_dict):
-        logger.info("Pushing JSON admin project index")
+        logger.info("Pushing JSON to admin-project index")
         if "0020000E SeriesInstanceUID_keyword" in json_dict:
             id = json_dict["0020000E SeriesInstanceUID_keyword"]
         elif self.instanceUID is not None:
@@ -67,7 +69,10 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         try:
             json_dict = self.produce_inserts(json_dict)
             response = HelperOpensearch.os_client.index(
-                index=HelperOpensearch.index, body=json_dict, id=id, refresh=True
+                index=OpensearchSettings().default_index,
+                body=json_dict,
+                id=id,
+                refresh=True,
             )
         except Exception as e:
             logger.error("Error while pushing JSON ...")
@@ -77,7 +82,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         logger.info("get old json from index.")
         try:
             old_json = HelperOpensearch.os_client.get(
-                index=HelperOpensearch.index, id=self.instanceUID
+                index=OpensearchSettings().default_index, id=self.instanceUID
             )["_source"]
             print("Series already found in OS")
             if self.no_update:
@@ -179,16 +184,12 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     def get_project_by_name(self, project_name: str):
         response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects",
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
             params={"name": project_name},
         )
         response.raise_for_status()
-        projects = response.json()
-        try:
-            return projects[0]
-        except IndexError as e:
-            print(f"Project {project_name} not found!")
-            raise e
+        project = response.json()
+        return project
 
     def __init__(
         self,

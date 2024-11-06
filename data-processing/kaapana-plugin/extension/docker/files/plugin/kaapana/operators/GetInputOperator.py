@@ -74,5 +74,6 @@ class GetInputOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             ram_mem_mb_lmt=10000,
+            batch_name=batch_name,
             **kwargs,
         )

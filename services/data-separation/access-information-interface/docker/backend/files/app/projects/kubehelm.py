@@ -18,12 +18,12 @@ def install_project_helm_chart(project: Project):
     kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION")
     payload = {
         "name": "project-namespace",
-        "release_name": f"project-{project.name}",
+        "release_name": project.kubernetes_namespace,
         "version": kaapana_build_version,
         "extension_params": {
             "project": project.name,
-            "project_namespace": f"project-{project.name}",
-            "namespace": f"project-{project.name}",
+            "project_namespace": project.kubernetes_namespace,
+            "namespace": project.kubernetes_namespace,
         },
     }
     response = requests.post(f"{kube_helm_api}/helm-install-chart", json=payload)

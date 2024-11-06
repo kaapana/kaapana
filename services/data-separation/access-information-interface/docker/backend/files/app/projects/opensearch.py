@@ -6,7 +6,8 @@ from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings
 from opensearchpy.exceptions import RequestError
 
-from .schemas import Project
+from app.projects.schemas import Project
+from app.projects.crud import get_rights
 
 logger = get_logger(__name__)
 
@@ -22,7 +23,8 @@ class OpenSearchHelper:
         self.settings = OpensearchSettings()
         self.security_api_url = f"https://{self.settings.opensearch_host}:{self.settings.opensearch_port}/_plugins/_security/api"
 
-        self.wait_for_service()
+        if wait_for_service:
+            self.wait_for_service()
 
     def wait_for_service(self, max_retries=60, delay=5):
         """
@@ -90,18 +92,16 @@ class OpenSearchHelper:
         )
         raise Exception(f"Template '{template_name}' not found after retries")
 
-    def create_index(self, index: str):
-        """
-        Create a new index in opensearch
-        """
-        self.os_client.indices.create(index)
-
-    def create_role(self, role: str, index: str):
+    def create_role(self, role_name: str, payload: dict):
         """
         Create an opensearch role
+
+        :param claim_value: Name of the
+        :param index: Name of the index the role should grant access to
+
+        Return:
+        Name of the role in opensearch.
         """
-        payload = get_payload_for_role_and_index(role, index)
-        role_name = conventional_role_name(role, index)
         logger.info(f"Create role {role_name}")
         response = requests.put(
             f"{self.security_api_url}/roles/{role_name}",
@@ -113,15 +113,16 @@ class OpenSearchHelper:
             verify=False,
         )
         response.raise_for_status()
+        return response
 
-    def create_rolemappings(self, role_name: str):
+    def create_rolemappings(self, role_name: str, backend_role: str):
         """
         Create a role mapping in opensearch
 
-        :role_name: Name of the opensearch role.
+        :role_name: Name of the opensearch role
+        :backend_role: Name of the role in the access token.
         """
-        backend_role = role_name
-        logger.info(f"Create rolemapping for {role_name}")
+        logger.info(f"Create rolemapping for {role_name=} to {backend_role=}")
         payload = {
             "backend_roles": [backend_role]
         }  ### List of roles in the "opensearch" claim of the oidc access token
@@ -136,23 +137,35 @@ class OpenSearchHelper:
         )
         response.raise_for_status()
 
-    def setup_new_project(self, project: Project):
+    async def setup_new_project(self, project: Project, session):
         """
         Create index, roles and rolemappings for a new project
         """
-        index = f"project_{project.id}"
+        index = project.opensearch_index
         try:
-            self.create_index(index)
+            self.os_client.indices.create(index)
         except RequestError as e:
             if "resource_already_exists_exception" in str(e):
                 logger.warning("Resource already exists")
             else:
                 raise e
         logger.info("Create opensearch roles and rolemappings")
-        for role in ["admin", "read"]:
-            self.create_role(role, index)
-            role_name = conventional_role_name(role, index)
-            self.create_rolemappings(role_name)
+
+        db_rights = await get_rights(session)
+
+        for right in db_rights:
+            if not right.claim_key == "opensearch":
+                continue
+            claim_value = right.claim_value
+            assert claim_value
+            backend_role = f"{claim_value}_{project.id}"
+            role_name = f"{claim_value}_{project.name}"
+
+            payload = get_payload_for_claim_and_index(claim_value, index)
+            self.create_role(role_name=role_name, payload=payload)
+            self.create_rolemappings(role_name=role_name, backend_role=backend_role)
+
+        return index
 
 
 def get_opensearch_helper(request: Request) -> OpenSearchHelper:
@@ -160,40 +173,35 @@ def get_opensearch_helper(request: Request) -> OpenSearchHelper:
     return OpenSearchHelper(access_token)
 
 
-def get_payload_for_role_and_index(role, index):
+def get_payload_for_claim_and_index(claim_value: str, index):
     """
-    Return the payload for creating a specific index role in opensearch,
+    Return the payload for creating a specific index role in opensearch
+
+    :param claim_value:
+    :param index:
     """
     allowed_actions = {
-        "read": ["read"],
-        "admin": [
+        "read_project": ["read"],
+        "admin_project": [
             "data_access",
             "indices:admin/mappings/get",
         ],
     }
     cluster_permissions = {
-        "read": ["cluster_composite_ops_ro"],
-        "admin": ["cluster_composite_ops"],
+        "read_project": ["cluster_composite_ops_ro"],
+        "admin_project": ["cluster_composite_ops"],
     }
-    assert role in allowed_actions.keys()
+    assert claim_value in allowed_actions.keys()
     return {
-        "cluster_permissions": cluster_permissions.get(role),
+        "cluster_permissions": cluster_permissions.get(claim_value),
         "index_permissions": [
             {
                 "index_patterns": [index, ".opensearch_dashboards_1"],
                 "dls": "",
                 "fls": [],
                 "masked_fields": [],
-                "allowed_actions": allowed_actions.get(role),
+                "allowed_actions": allowed_actions.get(claim_value),
             }
         ],
         "tenant_permissions": [],
     }
-
-
-def conventional_role_name(role, index):
-    """
-    Convention for rolenames.
-    Role names in opensearch should match claim values in the opensearch claim of the access token.
-    """
-    return f"{role}_{index}"

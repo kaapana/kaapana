@@ -37,8 +37,8 @@ async def projects(
         await session.rollback()
         db_project = await crud.get_projects(session, project.name)
         created_project = db_project[0]
-    opensearch_helper.setup_new_project(created_project)
-    minio_helper.setup_new_project(created_project)
+    await opensearch_helper.setup_new_project(project=created_project, session=session)
+    await minio_helper.setup_new_project(project=created_project, session=session)
     kubehelm.install_project_helm_chart(created_project)
     return created_project
 

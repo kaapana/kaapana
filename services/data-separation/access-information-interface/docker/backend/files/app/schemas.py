@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Optional
 
 
 class OrmBaseModel(BaseModel):
@@ -27,6 +28,6 @@ class AiiProjectResponse(OrmBaseModel):
 class KeycloakUser(BaseModel):
     id: str
     username: str
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email_verified: bool

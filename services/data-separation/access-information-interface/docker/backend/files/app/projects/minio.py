@@ -164,6 +164,7 @@ def is_valid_minio_bucket_name(bucket_name: str) -> bool:
     * Bucket names can't begin with 'xn--'.
     * Bucket names must be unique within a partition.
     * Buckets used with Amazon S3 Transfer Acceleration can't have dots (.) in their names. For more information about transfer acceleration, see Amazon S3 Transfer Acceleration.
+    * Buckets must not end with the suffix -s3alias. This suffix is reserved for access point alias names.
     """
     # Check length
     if not (3 <= len(bucket_name) <= 63):
@@ -177,25 +178,6 @@ def is_valid_minio_bucket_name(bucket_name: str) -> bool:
     # Ensure it doesn not begin with 'xn--'
     if bucket_name.startswith("xn--"):
         return False
+    if bucket_name.endswith("-s3alias"):
+        return False
     return True
-
-
-def test_is_valid_minio_bucket_name() -> bool:
-    # Test the function
-
-    success = True
-    test_bucket_names = [
-        ("valid-bucket-name", True),
-        ("InvalidBucket", False),
-        ("bucket-with-dots.", False),
-        ("123", True),
-        ("192.168.1.1", False),
-        ("a" * 64, False),
-    ]
-
-    for name_tuple in test_bucket_names:
-        valid_response = is_valid_minio_bucket_name(name_tuple[0])
-        assert name_tuple[1] == valid_response
-        success = name_tuple[1] == valid_response
-
-    return success

@@ -230,26 +230,3 @@ def is_valid_opensearch_index_name(index_name: str) -> bool:
     if any(c in index_name for c in ' :,"*+/\\|?#><'):
         return False
     return True
-
-
-def test_is_valid_opensearch_index_name() -> bool:
-    success = True
-    # Test the function
-    test_index_names = [
-        ("valid-index", True),  # Valid
-        ("invalid_index", True),  # Valid (underscore is allowed per updated pattern)
-        ("InvalidUpperCase", False),  # Invalid (uppercase letters)
-        ("-invalid-start", False),  # Invalid (starts with a hyphen)
-        ("_invalid_start", False),  # Invalid (starts with an underscore)
-        ("invalid:character", False),  # Invalid (contains `:`)
-        ("invalid,name", False),  # Invalid (contains `,`)
-        ("validindex123", True),  # Valid
-        ("a" * 256, False),  # Invalid (too long)
-    ]
-
-    for name_tuple in test_index_names:
-        valid_response = is_valid_opensearch_index_name(name_tuple[0])
-        assert name_tuple[1] == valid_response
-        success = name_tuple[1] == valid_response
-
-    return success

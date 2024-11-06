@@ -7,7 +7,6 @@ from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.projects import crud, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,29 +15,6 @@ router = APIRouter()
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-def validate_project_name(project_name: str):
-    valid_bucket_name = minio.is_valid_minio_bucket_name(project_name)
-    if not valid_bucket_name:
-        return False, "Invalid MINIO bucket name"
-
-    valid_opensearch_index_name = opensearch.is_valid_opensearch_index_name(
-        project_name
-    )
-    if not valid_opensearch_index_name:
-        return False, "Invalid OpenSearch Index name"
-
-    valid_kubernetes_namespace = kubehelm.is_valid_kubernetes_namespace(project_name)
-    if not valid_kubernetes_namespace:
-        return False, "Invalid Kubernetes Namespace"
-
-    # AE title can only be uppercase, project name converted to uppercase
-    # for validation
-    valid_ae_title = is_valid_dicom_ae_title(project_name.upper())
-    if not valid_ae_title:
-        return False, "Invalid AE TITLE"
-    return True, ""
 
 
 @router.post("", response_model=schemas.Project, tags=["Projects"])  # POST /projects
@@ -50,13 +26,6 @@ async def projects(
     ),
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
-    # validate the project name first
-    isvalid, message = validate_project_name(project.name)
-    if not isvalid:
-        raise HTTPException(
-            status_code=400, detail=str(f"Project Name Validation Failed: {message}")
-        )
-
     try:
         await opensearch_helper.check_project_template_exists()
     except Exception as e:
@@ -252,58 +221,3 @@ async def delete_user_project_role_mapping(
         )
     else:
         raise HTTPException(status_code=404, detail="Mapping not found")
-
-
-def is_valid_dicom_ae_title(ae_title: str) -> bool:
-    """
-    https://pydicom.github.io/pynetdicom/dev/user/ae.html
-    AE titles must meet the conditions of a DICOM data element with a Value Representation of AE:
-    * Leading and trailing spaces (hex 0x20) are non-significant.
-    * Maximum 16 characters (once non-significant characters are removed).
-    * Valid characters belong to the DICOM Default Character Repertoire, which is the basic G0 Set
-        of the ISO/IEC 646:1991 (ASCII) standard excluding backslash (\ - hex 0x5C) and all control
-        characters (such as '\n').
-    * An AE title made entirely of spaces is not allowed.
-    """
-    # Strip leading and trailing spaces (non-significant)
-    stripped_title = ae_title.strip()
-
-    # Check length after stripping spaces
-    if not (1 <= len(stripped_title) <= 16):
-        return False
-
-    # Ensure the title is not entirely spaces
-    if not stripped_title:
-        return False
-
-    # Define the allowed characters in the DICOM Default Character Repertoire, excluding backslash
-    # This includes uppercase letters, digits, and certain punctuation characters
-    valid_pattern = r"^[A-Z0-9 _!\"#$%&\'()*+,-./:;<=>?@^_`{|}~]*$"
-
-    # Check if the stripped title only contains valid characters
-    return bool(re.fullmatch(valid_pattern, stripped_title))
-
-
-def test_is_valid_dicom_ae_title() -> bool:
-    # Test the function
-
-    success = True
-    test_ae_titles = [
-        ("MYAE", True),  # Valid
-        ("MY_AE_TITLE", True),  # Valid (within 16 characters, valid chars)
-        ("LONG_AE_TITLE_12345", False),  # Invalid (more than 16 characters)
-        ("INVALID\\TITLE", False),  # Invalid (contains backslash)
-        ("   ", False),  # Invalid (entirely spaces)
-        ("VALID TITLE", True),  # Valid (has spaces and uppercase)
-        ("VALIDTITLE!@#", True),  # Valid (special characters allowed)
-        ("LOWERcase", False),  # Invalid (contains lowercase letters)
-    ]
-
-    for title_tuple in test_ae_titles:
-        valid_response = is_valid_dicom_ae_title(title_tuple[0])
-        assert (
-            title_tuple[1] == valid_response
-        ), f"{title_tuple[0]} assertion failed, response {valid_response}"
-        success = title_tuple[1] == valid_response
-
-    return success

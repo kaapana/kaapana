@@ -29,6 +29,18 @@ properties_template = {
         "type": "string",
         "readOnly": True,
     },
+    "model_name": {
+        "title": "Model Description",
+        "description": "Description of the model.",
+        "type": "string",
+        "readOnly": True,
+    },
+    "involved_instances": {
+        "title": "Involved Instances",
+        "description": "IP addresses of involved instances.",
+        "type": "string",
+        "readOnly": True,
+    },
     "task_url": {
         "title": "Website",
         "description": "Website to the task.",
@@ -97,7 +109,6 @@ workflow_form = {
     "description": "Select one of the available tasks.",
     "oneOf": [],
 }
-print("nnUnet Predict")
 # for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
 for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
     print(f"{idx=}")
@@ -126,10 +137,8 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
                 item["default"] = to_be_placed
     for key in list(properties_template.keys()):
         task_properties[f"{key}#{idx}"] = task_properties.pop(key)
-
     
     task_selection["properties"].update(task_properties)
-    print(task_selection)
     workflow_form["oneOf"].append(task_selection)
 
 
@@ -202,7 +211,7 @@ nnunet_predict = NnUnetOperator(
     inf_threads_nifti=2,
     execution_timeout=timedelta(minutes=30),
 )
-print(nnunet_predict.image)
+# TODO why is nnunet_predict.image used. Is that really the indicator of the alg_name used ?
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,

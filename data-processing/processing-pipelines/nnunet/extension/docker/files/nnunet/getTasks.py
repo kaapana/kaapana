@@ -91,6 +91,8 @@ def _get_installed_tasks(af_home_path):
                 dataset_json = _get_dataset_json(
                     model_path=model_path, installed_task=installed_task
                 )
+                print(f"DATASET: {dataset_json}")
+
                 # and extract task's details to installed_tasks dict
                 model_name = f"{installed_model}---{installed_task}"
                 save_task_name(model_name)
@@ -102,7 +104,6 @@ def _get_installed_tasks(af_home_path):
                         if "description" in dataset_json
                         else "N/A"
                     ),
-                    "model": [],
                     "input-mode": (
                         dataset_json["input-mode"]
                         if "input-mode" in dataset_json
@@ -129,6 +130,8 @@ def _get_installed_tasks(af_home_path):
                         if "task_url" in dataset_json
                         else "N/A"
                     ),
+                    "model_name": dataset_json["model"][0] if "model" in dataset_json else "N/A",
+                    "involved_instances": dataset_json["instance_name"] if "instance_name" in dataset_json else "N/A",
                 }
 
     print(f"INSTALLED TASKS: {installed_tasks}")
@@ -152,19 +155,12 @@ def get_task_name_to_friendly_name_mapping() -> Dict[str, str]:
 def to_friendly_name(task_name: str) -> str:
     """Generate a friendly name in the format 'nnunet_<id>_<DATE_TIME>'."""
     mapping = get_task_name_to_friendly_name_mapping()
-    print("------------TASK NAME---")
-    print(task_name)
-    print("---------------")
     friendly_name = mapping.get(task_name)
     if friendly_name:
         return friendly_name
     
     date_time_str = task_name.split("---")[0].split("_")[-1]
-    print("---------------")
-    print(mapping)
-    print("---------------")
-    
-    next_id = 1 if len(mapping.keys()) == 0 else max([int(name.split("_")[1]) for name in mapping.values()])
+    next_id = 1 if len(mapping.keys()) == 0 else max([int(name.split("_")[1]) for name in mapping.values()]) + 1
     default = f"nnunet_{next_id:03}_{date_time_str}"
     return default
 

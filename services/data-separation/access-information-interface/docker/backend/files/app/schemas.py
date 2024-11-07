@@ -31,3 +31,4 @@ class KeycloakUser(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email_verified: bool
+    groups: list[str]

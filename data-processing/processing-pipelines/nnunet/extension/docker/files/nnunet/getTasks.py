@@ -1,7 +1,9 @@
 import json
 import os
+import re
 from glob import glob
-from os.path import join, basename, dirname, normpath, exists
+from os.path import basename, exists, join, normpath
+from typing import Dict
 from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 
@@ -33,14 +35,6 @@ def _get_dataset_json(model_path, installed_task):
         print(f"{keys=}")
         keys.remove("background")
         targets = keys
-        # keys = list(dataset_json["labels"].keys())
-        # print(f"{keys=}")
-        # keys.sort(key=int)
-        # for key in keys:
-        #     label = dataset_json["labels"][key]
-        #     if key == "0" and label == "Clear Label":
-        #         continue
-        #     targets.append(label)
     else:
         targets.append("N/A")
     dataset_json["targets"] = targets
@@ -54,6 +48,13 @@ def _get_dataset_json(model_path, installed_task):
     dataset_json["input"] = input_modalty_list
 
     return dataset_json
+
+
+def _get_plans_json(model_path, installed_task):
+    plans_json_path = join(model_path, installed_task, "plans.json")
+    with open(plans_json_path) as f:
+        plans_json = json.load(f)
+    return plans_json
 
 
 def _get_available_pretrained_tasks(af_home_path):
@@ -87,35 +88,120 @@ def _get_installed_tasks(af_home_path):
         ]
         for installed_task in installed_tasks_dirs:
             if installed_task not in installed_tasks:
+                # get details installed tasks from dataset.json of installed tasks
                 dataset_json = _get_dataset_json(
                     model_path=model_path, installed_task=installed_task
                 )
-                installed_tasks[f"{installed_model} --- {installed_task}"] = {
-                    "description": dataset_json["description"]
-                    if "description" in dataset_json
-                    else "N/A",
-                    "model": [],
-                    "input-mode": dataset_json["input-mode"]
-                    if "input-mode" in dataset_json
-                    else "all",
-                    "input": list(dataset_json["channel_names"].values()),
-                    "body_part": dataset_json["body_part"]
-                    if "body_part" in dataset_json
-                    else "N/A",
-                    "targets": dataset_json["targets"],
+                plans_json = _get_plans_json(
+                    model_path=model_path, installed_task=installed_task
+                )
+
+                # and extract task's details to installed_tasks dict
+                model_name = f"{installed_model}---{installed_task}"
+                save_task_name(model_name)
+                friendly_model_name = to_friendly_name(model_name)
+
+                installed_tasks[friendly_model_name] = {
+                    "description": dataset_json.get("description", "N/A"),
+                    "input-mode": dataset_json.get("input-mode", "all"),
+                    "input": list(dataset_json.get("channel_names", {}).values())
+                    or "N/A",
+                    "body_part": dataset_json.get("body_part", "N/A"),
+                    "targets": dataset_json.get("targets", "N/A"),
                     "supported": True,
-                    "info": dataset_json["info"] if "info" in dataset_json else "N/A",
-                    "url": dataset_json["url"] if "url" in dataset_json else "N/A",
-                    "task_url": dataset_json["task_url"]
-                    if "task_url" in dataset_json
-                    else "N/A",
+                    "info": dataset_json.get("info", "N/A"),
+                    "url": dataset_json.get("url", "N/A"),
+                    "task_url": dataset_json.get("task_url", "N/A"),
+                    "model_name": dataset_json.get("model", ["N/A"])[0],
+                    "instance_name": dataset_json.get("instance_name", "N/A"),
+                    "model_network_trainer": dataset_json.get("network_trainer", "N/A"),
+                    "model_plan": plans_json.get("plans_name", "N/A"),
                 }
-            # if installed_model not in installed_tasks[installed_task]["model"]:
-            #     installed_tasks[installed_task]["model"].append(installed_model)
-            #     installed_tasks[installed_task]["model"].sort()
 
     print(f"INSTALLED TASKS: {installed_tasks}")
     return installed_tasks
+
+
+def get_task_name_to_friendly_name_mapping() -> Dict[str, str]:
+    models_path = "/kaapana/mounted/workflows/models/models.json"
+
+    if os.path.isfile(models_path):
+        with open(models_path, "r") as fp:
+            try:
+                mappings = json.load(fp)
+                return mappings
+
+            except json.JSONDecodeError:
+                print("Error: JSON file is corrupted.")
+    return {}
+
+
+def to_friendly_name(task_name: str) -> str:
+    """Generate a friendly name in the format 'nnunet_<id>_<DATE_TIME>'."""
+    mapping = get_task_name_to_friendly_name_mapping()
+    friendly_name = mapping.get(task_name)
+    if friendly_name:
+        return friendly_name
+
+    dataset_pattern = r"Dataset(\d{3})"
+    dataset_match = re.search(dataset_pattern, task_name)
+    dataset_id = dataset_match.group(1) if dataset_match else None
+    date_time_str = task_name.split("---")[0].split("_")[-1]
+    default = f"nnunet_{dataset_id:03}_{date_time_str}"
+    return default
+
+
+def to_task_name(friendly_name: str) -> str:
+    """Retrieve the task name associated with the given friendly name from models.json."""
+    mapping = get_task_name_to_friendly_name_mapping()
+    reverse_mapping = {v: k for k, v in mapping.items()}
+    return reverse_mapping.get(friendly_name)
+
+
+def delete_task_name(task_name: str) -> None:
+    models_file = "/kaapana/mounted/workflows/models/models.json"
+
+    # Initialize an empty dictionary for mappings
+    mappings = {}
+
+    # Check if the file exists and load existing mappings
+    if os.path.isfile(models_file):
+        with open(models_file, "r") as fp:
+            try:
+                mappings = json.load(fp)
+            except json.JSONDecodeError:
+                print("Warning: Existing JSON file is corrupted. Recreating the file.")
+
+    mappings.pop(task_name, None)
+
+    with open(models_file, "w") as fp:
+        json.dump(mappings, fp, indent=4)
+
+
+def save_task_name(task_name: str) -> None:
+    """Save a mapping from task name to friendly name in models.json, creating a unique ID for each entry."""
+
+    models_file = "/kaapana/mounted/workflows/models/models.json"
+
+    # Initialize an empty dictionary for mappings
+    mappings = {}
+
+    # Check if the file exists and load existing mappings
+    if os.path.isfile(models_file):
+        with open(models_file, "r") as fp:
+            try:
+                mappings = json.load(fp)
+            except json.JSONDecodeError:
+                print("Warning: Existing JSON file is corrupted. Recreating the file.")
+
+    # If task name was already saved
+    if task_name in mappings.keys():
+        return
+
+    # If task name was not saved yet
+    mappings[task_name] = to_friendly_name(task_name)
+    with open(models_file, "w") as fp:
+        json.dump(mappings, fp, indent=4)
 
 
 def get_tasks():
@@ -128,6 +214,7 @@ def get_tasks():
         all_selectable_tasks = installed_tasks.copy()
         all_selectable_tasks.update(tasks)
 
+        # TODO why do we need to return all three?
         return available_pretrained_task_names, installed_tasks, all_selectable_tasks
     except Exception as e:
         print("Error in getTasks.py: ", e)

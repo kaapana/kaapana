@@ -1,16 +1,16 @@
 import copy
-from airflow.utils.dates import days_ago
-from datetime import timedelta
+from datetime import datetime, timedelta
+
 from airflow.models import DAG
-from datetime import datetime
-from nnunet.NnUnetOperator import NnUnetOperator
-from nnunet.getTasks import get_tasks
+from airflow.utils.dates import days_ago
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
+from nnunet.getTasks import get_tasks, to_task_name
+from nnunet.NnUnetOperator import NnUnetOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 2
@@ -19,7 +19,9 @@ default_prep_thread_count = 1
 default_nifti_thread_count = 1
 ae_title = "nnUnet-predict-results"
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
-
+print(available_pretrained_task_names)
+print(installed_tasks)
+print(all_selectable_tasks)
 properties_template = {
     "description": {
         "title": "Task Description",
@@ -95,7 +97,7 @@ workflow_form = {
     "description": "Select one of the available tasks.",
     "oneOf": [],
 }
-
+print("nnUnet Predict")
 # for idx, (task_name, task_values) in enumerate(all_selectable_tasks.items()):
 for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
     print(f"{idx=}")
@@ -103,12 +105,14 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
     print(f"{task_values=}")
     task_selection = {
         "title": task_name,  # task_values["model"][0],
-        "properties": {"task_ids": {"type": "string", "const": task_name}},
+        "properties": {"task_ids": {"type": "string", "const": to_task_name(task_name)}},
     }
     task_properties = copy.deepcopy(properties_template)
     for key, item in task_properties.items():
         if key in task_values:
             to_be_placed = task_values[key]
+            
+            # TODO Can this even happen?
             if key == "model":
                 item["enum"] = to_be_placed
                 # set the first available model or `3d_lowres` as default model
@@ -116,13 +120,16 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
                 if "3d_lowres" in to_be_placed:
                     item["default"] = "3d_lowres"
             else:
+                # TODO This happens for list of body parts
                 if isinstance(to_be_placed, list):
                     to_be_placed = ",".join(to_be_placed)
                 item["default"] = to_be_placed
     for key in list(properties_template.keys()):
         task_properties[f"{key}#{idx}"] = task_properties.pop(key)
 
+    
     task_selection["properties"].update(task_properties)
+    print(task_selection)
     workflow_form["oneOf"].append(task_selection)
 
 
@@ -195,7 +202,7 @@ nnunet_predict = NnUnetOperator(
     inf_threads_nifti=2,
     execution_timeout=timedelta(minutes=30),
 )
-
+print(nnunet_predict.image)
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,

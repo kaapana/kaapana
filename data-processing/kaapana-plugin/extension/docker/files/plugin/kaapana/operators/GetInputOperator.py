@@ -1,9 +1,10 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+from datetime import timedelta
+
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-from datetime import timedelta
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class GetInputOperator(KaapanaBaseOperator):
@@ -72,6 +73,6 @@ class GetInputOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/get-input:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
-            ram_mem_mb=1000,
+            ram_mem_mb_lmt=10000,
             **kwargs,
         )

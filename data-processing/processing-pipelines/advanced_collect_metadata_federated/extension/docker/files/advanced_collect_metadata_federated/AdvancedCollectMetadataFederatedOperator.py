@@ -9,7 +9,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 
 
-class AdvancedCollectMetatdataFederatedOperator(KaapanaBaseOperator):
+class AdvancedCollectMetadataFederatedOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,

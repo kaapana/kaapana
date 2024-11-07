@@ -15,9 +15,9 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from advanced_collect_metadata_federated.AdvancedCollectMetatdataFederatedOperator import (
-    AdvancedCollectMetatdataFederatedOperator,
+from kaapana.operators.MinioOperator import MinioOperator
+from advanced_collect_metadata_federated.AdvancedCollectMetadataFederatedOperator import (
+    AdvancedCollectMetadataFederatedOperator,
 )
 
 log = LoggingMixin().log
@@ -96,17 +96,17 @@ dag = DAG(
     schedule_interval=None,
 )
 
-acmd_federated = AdvancedCollectMetatdataFederatedOperator(
+acmd_federated = AdvancedCollectMetadataFederatedOperator(
     dag=dag,
     # dev_server="code-server",
     image_pull_policy="Always",
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[acmd_federated],
-    zip_files=True,
+    batch_input_operators=[acmd_federated],
+    whitelisted_file_extensions=True,
     file_white_tuples=(".zip"),
 )
 

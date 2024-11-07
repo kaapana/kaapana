@@ -30,3 +30,4 @@ class KeycloakUser(BaseModel):
     first_name: str
     last_name: str
     email_verified: bool
+    groups: list[str]

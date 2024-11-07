@@ -117,7 +117,7 @@ export default defineComponent({
       let projects_url = `users/${user.id}/projects`;
 
       // if default-user / super-admin, fetch all the projects
-      if (user.username == 'kaapana') {
+      if (user.groups && user.groups.includes('kaapana_admin')) {
         projects_url = `projects`;
       }
 

@@ -11,6 +11,7 @@ export type UserItem = {
     first_name: string,
     last_name: string,
     email_verified: boolean,
+    groups?: string[],
 }
 
 export type UserRole = {

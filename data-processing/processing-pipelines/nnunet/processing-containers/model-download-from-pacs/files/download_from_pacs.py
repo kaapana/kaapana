@@ -10,8 +10,7 @@ logger = get_logger(__name__)
 
 def get_data(dcm_uid_object):
     """
-    Download series data either from PACS or from Opensearch based on the workflow_config.
-
+    Download series data either from PACS.
     Input:
     :dcm_uid_object: {"dcm-uid": {"series-uid":<series_uid>, "study-uid":<study_uid>, "curated_modality": <curated_modality>}}
 
@@ -45,6 +44,13 @@ def make_target_dir_for_series(series_uid: str):
 
 
 def get_identifier_for_model(workflow_config):
+    """
+    Get the series uids as identifier for a model.
+    Modelnames are taken from the list at workflow_config["workflow_form"]["tasks"].
+    Strings in this list resamble values for the dicom tag "00181030 ProtocolName_keyword.keyword".
+    The corresponding identifiers are queries from opensearch.
+
+    """
     query = {
         "bool": {
             "must": [{"match_all": {}}, {"match_all": {}}],
@@ -77,6 +83,9 @@ def get_identifier_for_model(workflow_config):
 if __name__ == "__main__":
     workflow_config = load_workflow_config()
     logger.debug("Workflow config loaded.")
+    project_form = workflow_config.get("project_form")
+    HelperOpensearch.index = project_form.get("opensearch_index")
+    assert HelperOpensearch.index
     logger.info("Start data download.")
     identifiers = get_identifier_for_model(workflow_config=workflow_config)
     dcm_uid_objects = HelperOpensearch.get_dcm_uid_objects(identifiers)

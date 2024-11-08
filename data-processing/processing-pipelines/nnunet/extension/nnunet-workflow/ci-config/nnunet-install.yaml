@@ -3,6 +3,6 @@ instance_names:
   - central
 conf_data:
   data_form:
-    dataset_name: testMODEL  ## task name will be "Dataset451_10.135.76.131_061124-144541---nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres"
+    dataset_name: test-MODELS  ## task name will be "Dataset451_10.135.76.131_061124-144541---nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres"
 remote: false
 username: "kaapana"

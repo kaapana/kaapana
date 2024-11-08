@@ -1,10 +1,11 @@
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+import json
+from datetime import timedelta
+
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-from datetime import timedelta
-import json
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class GetRefSeriesOperator(KaapanaBaseOperator):
@@ -25,6 +26,7 @@ class GetRefSeriesOperator(KaapanaBaseOperator):
         parallel_downloads: int = 3,
         modalities: list = [],
         custom_tags: list = [],
+        skip_empty_ref_dir: bool = False,
         **kwargs,
     ):
         """Operator to get DICOM series in dependency of certain search filters.
@@ -38,6 +40,7 @@ class GetRefSeriesOperator(KaapanaBaseOperator):
             parallel_downloads (int, optional): Number of parallel downloads. Defaults to 3.
             modalities (list, optional): List of modalities to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".
             custom_tags (list, optional): List of custom tags to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".
+            skip_empty_ref_dir (bool): If true, it allows to skip empty reference directories, for series where no operator_in_dir exists
         """
 
         env_vars = {}
@@ -49,6 +52,7 @@ class GetRefSeriesOperator(KaapanaBaseOperator):
             "PARALLEL_DOWNLOADS": str(parallel_downloads),
             "MODALITIES": json.dumps(modalities),
             "CUSTOM_TAGS": json.dumps(custom_tags),
+            "SKIP_EMPTY_REF_DIR": str(skip_empty_ref_dir),
         }
 
         env_vars.update(envs)

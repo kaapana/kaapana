@@ -437,20 +437,32 @@ class GetRefSeriesOperator:
         if self.search_policy == "reference_uid":
             # Prepare the download
             with ThreadPoolExecutor(max_workers=self.parallel_downloads) as executor:
-                futures = [
-                    executor.submit(
-                        self.prepare_download_of_ref_series,
-                        join(
+                futures = []
+                for series_dir in series_dirs:
+                    try:
+                        dcm_file = join(
                             series_dir,
                             operator_in_dir,
                             os.listdir(join(series_dir, operator_in_dir))[0],
-                        ),
-                        workflow_dir,
-                        batch_name,
-                        operator_out_dir,
+                        )
+                    except FileNotFoundError as e:
+                        if getenv("SKIP_EMPTY_REF_DIR", "FALSE").upper() == "TRUE":
+                            print(
+                                f"Skipping empty directory: {join(series_dir, operator_in_dir)}"
+                            )
+                            continue
+                        else:
+                            raise e
+                    futures.append(
+                        executor.submit(
+                            self.prepare_download_of_ref_series,
+                            dcm_file,
+                            workflow_dir,
+                            batch_name,
+                            operator_out_dir,
+                        )
                     )
-                    for series_dir in series_dirs
-                ]
+
                 for future in as_completed(futures):
                     download_series_list.append(future.result())
         elif self.search_policy == "study_uid":

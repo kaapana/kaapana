@@ -3,39 +3,18 @@ ci_ignore: true
 conf_data:
   workflow_form:
     single_execution: true
-    task_ids: "Task010_Colon"
-    task_url: "http://medicaldecathlon.com/"
+    task_ids: "Dataset451_10.135.76.131_061124-144541---nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres"
+    task_url: "N/A"
     inf_softmax: false
-    interpolation_order: default
+    interpolation_order: "default"
     inf_threads_prep: 1
     inf_threads_nifti: 1
-    targets: cancer@colon
-    body_part: "abdomen"
-    input: "ct"
-    model: "3d_fullres"
+    targets: "aorta,esophagus,gallbladder,inferior-vena-cava,left@kidney,liver,pancreas,portal-vein,right@adrenal-gland,right@kidney,spleen,splenic-vein,stomach"
+    body_part: "N/A"
+    input: "CT"
   data_form:
     dataset_name: test-CT
     dataset_limit: 2
 remote: false
 username: "kaapana"
 ---
-dag_id: "nnunet-predict"
-ci_ignore: true
-conf_data:
-  workflow_form:
-    single_execution: true
-    task_ids: "Task017_AbdominalOrganSegmentation"
-    body_part: "abdomen"
-    input: "ct"
-    targets: "spleen,right@kidney,left@kidyney,gallbladder,esophagus,liver,stomach,aorta,inferior-vena-cava,portal-vein,splenic-vein,pancreas,right@adrenal-gland,left@adrenal-gland"
-    model: "3d_fullres"
-    inf_softmax: false
-    interpolation_order: default
-    inf_threads_prep: 1
-    inf_threads_nifti: 1
-    task_url: "https://www.synapse.org/'!Synapse:syn3193805/wiki/217754"
-  data_form:
-    dataset_name: test-CT
-    dataset_limit: 1
-remote: false
-username: "kaapana"

@@ -97,6 +97,11 @@ data:
             "label": "Grafana",
             "endpoint": "/grafana",
             "linkTo": "/grafana/dashboards"
+          },
+          "Projects": {
+            "label": "Projects",
+            "endpoint": "/projects-ui",
+            "linkTo": "/projects-ui/"
           }
         }
       }

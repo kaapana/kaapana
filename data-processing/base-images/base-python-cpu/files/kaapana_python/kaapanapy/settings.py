@@ -29,16 +29,10 @@ class OpensearchSettings(KaapanaSettings):
 
     opensearch_host: str = "opensearch-service.services.svc"
     opensearch_port: str = "9200"
-    default_index: str = "project_1"
-
-
-class MinioSettings(KaapanaSettings):
-    """
-    Settings for MinIO
-    """
-
-    minio_system_user: str = "kaapanaminio"
-    minio_system_password: str = "Kaapana2020"
+    default_index: str = Field(
+        "project_admin",
+        validation_alias=AliasChoices("KAAPANA_DEFAULT_OPENSEARCH_INDEX"),
+    )
 
 
 class ProjectSettings(KaapanaSettings):

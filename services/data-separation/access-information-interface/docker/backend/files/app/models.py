@@ -11,6 +11,9 @@ class Projects(Base):
     external_id = Column(String)
     name = Column(String, unique=True)
     description = Column(String)
+    kubernetes_namespace = Column(String, unique=True)
+    s3_bucket = Column(String, unique=True)
+    opensearch_index = Column(String, unique=True)
     data = relationship("Data", secondary="data_projects")
 
 

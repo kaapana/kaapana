@@ -1,4 +1,5 @@
 import os
+import re
 
 import requests
 
@@ -18,13 +19,27 @@ def install_project_helm_chart(project: Project):
     kaapana_build_version = os.getenv("KAAPANA_BUILD_VERSION")
     payload = {
         "name": "project-namespace",
-        "release_name": f"project-{project.name}",
+        "release_name": project.kubernetes_namespace,
         "version": kaapana_build_version,
         "extension_params": {
             "project": project.name,
-            "project_namespace": f"project-{project.name}",
-            "namespace": f"project-{project.name}",
+            "project_namespace": project.kubernetes_namespace,
+            "namespace": project.kubernetes_namespace,
         },
     }
     response = requests.post(f"{kube_helm_api}/helm-install-chart", json=payload)
     response.raise_for_status()
+
+
+def is_valid_kubernetes_namespace(name: str) -> bool:
+    """
+    Kubernetes namespace nameing convention
+    * names must be at least and and at most 253 charackters
+    * names must consist only of lower case alphanumerical charackters, hyphens (-) and dots (-)
+    * names must not start or end with a hyphen (-)
+    """
+    # Check length
+    if not (1 <= len(name) <= 253):
+        return False
+    # Check for allowed characters and valid start/end
+    return bool(re.fullmatch(r"[a-z0-9]([a-z0-9.\-]*[a-z0-9])?", name))

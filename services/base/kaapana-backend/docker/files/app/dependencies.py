@@ -69,6 +69,4 @@ def get_opensearch(request: Request):
 def get_project_index(request: Request):
     project_header = request.headers.get("Project")
     project = json.loads(project_header)
-    project_id = project.get("id")
-    project_index = f"project_{project_id}"
-    return project_index
+    return project.get("opensearch_index")

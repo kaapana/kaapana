@@ -173,5 +173,10 @@ if __name__ == "__main__":
     logger.debug("HelperDcmWeb object initialized.")
     workflow_config = load_workflow_config()
     logger.debug("Workflow config loaded.")
+
+    ### Overwrite HelperOpenseach index to be the project specific index
+    project_form = workflow_config.get("project_form")
+    HelperOpensearch.index = project_form.get("opensearch_index")
+    assert HelperOpensearch.index
     logger.info("Start data download.")
     download_data_for_workflow(workflow_config)

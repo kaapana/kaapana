@@ -28,6 +28,8 @@ metadata:
 spec:
   forwardAuth:
     address: http://auth-backend-service.{{  .Values.global.admin_namespace  }}.svc:5000/auth-check
+    authResponseHeaders:
+      - Project
 ---
 apiVersion: traefik.containo.us/v1alpha1
 kind: Middleware

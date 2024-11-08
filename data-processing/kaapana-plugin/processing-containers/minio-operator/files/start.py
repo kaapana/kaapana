@@ -24,8 +24,7 @@ def get_project_bucket_name():
     The project is received form the workflow config.
     """
     project = WORKFLOW_CONFIG.get("project_form")
-    project_name = project.get("name")
-    return f"project-{project_name}"
+    return project.get("s3_bucket")
 
 
 class MinioOperatorArguments(BaseSettings):

@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import List
 
 from app.database import get_session
@@ -6,7 +7,6 @@ from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.projects import crud, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,8 +37,8 @@ async def projects(
         await session.rollback()
         db_project = await crud.get_projects(session, project.name)
         created_project = db_project[0]
-    opensearch_helper.setup_new_project(created_project)
-    minio_helper.setup_new_project(created_project)
+    await opensearch_helper.setup_new_project(project=created_project, session=session)
+    await minio_helper.setup_new_project(project=created_project, session=session)
     kubehelm.install_project_helm_chart(created_project)
     return created_project
 

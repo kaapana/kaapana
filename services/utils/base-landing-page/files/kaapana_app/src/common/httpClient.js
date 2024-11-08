@@ -10,7 +10,8 @@ const httpClient = axios.create({
 httpClient.interceptors.request.use((config) => {
   const selectedProject = store.getters.selectedProject
   if (selectedProject) {
-    config.headers['Project'] = JSON.stringify(selectedProject); 
+    // config.headers['Project'] = JSON.stringify(selectedProject); 
+    config.headers['Project-Name'] = selectedProject.name; 
   }
   return config;
 }, (error) => {

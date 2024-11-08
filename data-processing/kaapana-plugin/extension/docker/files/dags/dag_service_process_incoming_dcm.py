@@ -12,7 +12,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
-from kaapana.operators.Json2MetaOperator import Json2MetaOperator
+from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
@@ -181,7 +181,7 @@ assign_to_project = LocalAssignDataToProjectOperator(
     dag=dag, input_operator=extract_metadata
 )
 
-push_json = Json2MetaOperator(
+push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=get_input, json_operator=extract_metadata
 )
 

@@ -108,10 +108,10 @@ class Json2MetaOperator:
             project_id = project.get("id")
             logger.info(f"Project ID taken from ClinicalTrialProtocolID: {project_id}")
 
-        json_dict = self.produce_inserts(json_dict, f"project_{project_id}")
+        json_dict = self.produce_inserts(json_dict, project.get("opensearch_index"))
         try:
             _ = HelperOpensearch.os_client.index(
-                index=f"project_{project_id}",
+                index=project.get("opensearch_index"),
                 body=json_dict,
                 id=self.series_instance_uid,
                 refresh=True,
@@ -257,16 +257,11 @@ class Json2MetaOperator:
             dict: Project data
         """
         response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects",
-            params={"name": project_name},
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
         )
         response.raise_for_status()
-        projects = response.json()
-        try:
-            return projects[0]
-        except IndexError as e:
-            logger.error(f"Project {project_name} not found!")
-            raise e
+        project = response.json()
+        return project
 
 
 if __name__ == "__main__":

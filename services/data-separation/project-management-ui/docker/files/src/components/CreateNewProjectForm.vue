@@ -64,7 +64,6 @@ const fetching = ref(false)
 // Early validation rules for project naming from the UI
 const project_name_rules = ref<Array<(value: string) => boolean | string>>([
   (value) => !!value || 'Required.',
-  (value) => (value && value.length >= 3) || 'Min 3 characters',
   (value) => (value && value.length <= 16) || 'Max 16 characters',
   (value) => (value == value.toLowerCase()) || 'Only lowercase alphanumeric characters are supported',
   (value) => (!value.includes(" ")) || 'Space are not allowed',

@@ -4,7 +4,7 @@ from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.SegmentationEvaluationOperator import (
@@ -136,7 +136,7 @@ get_test_images = GetInputOperator(
     include_custom_tag_property="test_tag",
 )
 
-get_ref_ct_from_test = LocalGetRefSeriesOperator(
+get_ref_ct_from_test = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_test_images,
     search_policy="reference_uid",

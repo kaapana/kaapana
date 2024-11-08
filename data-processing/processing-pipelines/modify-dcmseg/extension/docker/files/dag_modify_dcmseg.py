@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from modify_dcmseg.LocalModifySegLabelNamesOperator import (
     LocalModifySegLabelNamesOperator,
@@ -82,7 +82,7 @@ get_input = GetInputOperator(
     dag=dag, name="get-input", check_modality=True, parallel_downloads=5
 )
 
-get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
+get_ref_ct_series_from_seg = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
     search_policy="reference_uid",

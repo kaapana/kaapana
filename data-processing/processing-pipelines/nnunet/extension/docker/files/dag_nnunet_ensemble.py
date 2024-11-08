@@ -9,7 +9,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from nnunet.LocalSortGtOperator import LocalSortGtOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
 from nnunet.GetModelFromPacsOperator import GetModelFromPacsOperator
@@ -161,7 +161,7 @@ sort_gt = LocalSortGtOperator(
 )
 
 
-get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
+get_ref_ct_series_from_gt = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_test_images,
     search_policy="reference_uid",

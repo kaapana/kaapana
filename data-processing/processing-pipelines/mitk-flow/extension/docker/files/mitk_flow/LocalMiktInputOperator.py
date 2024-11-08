@@ -1,34 +1,47 @@
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
-import os
-import json
-import pydicom
 import glob
+import json
+import os
+from pathlib import Path
+
+import pydicom
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class LocalMiktInputOperator(KaapanaPythonBaseOperator):
+    """
+    Operator to create an "MITK Segmentation Task List".
+    https://docs.mitk.org/2024.06/MITKSegmentationTaskListsPage.html
 
-    def __init__(self, dag, operator_out_dir="mitk-results", **kwargs):
+    """
+
+    def __init__(
+        self,
+        dag,
+        operator_out_dir="mitk-results",
+        reference_in_dir="get-ref-series",
+        segmentation_in_dir="branch-get-reference",
+        **kwargs
+    ):
+        self.reference_in_dir = reference_in_dir
+        self.segmentation_in_dir = segmentation_in_dir
+
         super().__init__(
             dag=dag,
             name="get-mitk-input",
             operator_out_dir=operator_out_dir,
-            python_callable=self.get_files,
+            python_callable=self.create_task_list,
             **kwargs
         )
 
-    def downloadSeries(self, studyUID: str, seriesUID: str, target_dir: str):
-        print("Downloading Series %s from Study %s" % (seriesUID, studyUID))
-        print("Target DIR: %s" % target_dir)
-        result = self.dcmweb_helper.download_series(
-            study_uid=studyUID, series_uid=seriesUID, target_dir=target_dir
-        )
-        return result
+    def dump_task_list(self, run_dir: str, tasks: list):
+        """
+        Save the created task list to the run directory.
 
-    def createTasklist(self, run_dir: str, tasks: list):
-        print(
-            "create json tasklist and dump it to batch level of the current airflow task run,"
-        )
+        Args:
+            run_dir (str): The directory path of the workflow execution
+            tasks (list): List of task objects to be dumped
+        """
+
         tasklist = dict()
         tasklist["FileFormat"] = "MITK Segmentation Task List"
         tasklist["Version"] = 1
@@ -36,77 +49,68 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
         tasklist["Tasks"] = tasks
 
         with open(
-            os.path.join(run_dir, self.batch_name, "tasklist.json"),
+            os.path.join(run_dir, "tasklist.json"),
             "w",
             encoding="utf-8",
         ) as f:
             json.dump(tasklist, f, ensure_ascii=False, indent=4)
 
-    def get_files(self, ds, **kwargs):
-        self.dcmweb_helper = HelperDcmWeb()
+    def create_task_list(self, ds, **kwargs):
+        """
+        Generate an MITK tasklist based on the provided workflow data.
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = [
-            f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
-        ]
+        Args:
+            ds: airflow specific dataset
+            **kwargs: Additional keyword arguments for task creation
+        """
+        run_dir = (
+            Path(self.airflow_workflow_dir) / kwargs["dag_run"].run_id / self.batch_name
+        )
+        batch_folders = run_dir.glob("*")
 
         print("Starting module MtikInputOperator")
 
         tasks = list()
         number = 0
-        for batch_element_dir in batch_folder:
-            print("batch_element_dir: " + batch_element_dir)
+        for batch_element_dir in batch_folders:
+            print("batch_element_dir: ", batch_element_dir)
             path_dir = os.path.basename(batch_element_dir)
             print("operator_in_dir: ", self.operator_in_dir)
             dcm_files = sorted(
-                glob.glob(
-                    os.path.join(batch_element_dir, self.operator_in_dir, "*.dcm*"),
-                    recursive=True,
-                )
+                Path(batch_element_dir).joinpath(self.operator_in_dir).glob("*.dcm*")
             )
-            print("Dicom files: ", dcm_files)
+            seg_files = []
+            if not len(dcm_files) > 0:
+                print("Segmentation and reference images are used as input.")
+                dcm_files = sorted(
+                    Path(batch_element_dir)
+                    .joinpath(self.reference_in_dir)
+                    .glob("*.dcm*")
+                )
+                seg_files = sorted(
+                    Path(batch_element_dir)
+                    .joinpath(self.segmentation_in_dir)
+                    .glob("*.dcm*")
+                )
+
             if len(dcm_files) > 0:
                 task = dict()
                 incoming_dcm = pydicom.dcmread(dcm_files[0])
                 seriesUID = incoming_dcm.SeriesInstanceUID
                 patientID = incoming_dcm.PatientID + " task " + str(number)
                 number = number + 1
-                # check if it is a segmentation, if so, download the referencing images
-                if "ReferencedSeriesSequence" in incoming_dcm:
-                    reference = incoming_dcm.ReferencedSeriesSequence
-                    seriesUID = reference._list[0].SeriesInstanceUID
-                    REF_IMG = "REF_IMG"
-                    target_dir = os.path.join(batch_element_dir, REF_IMG)
-                    if not os.path.exists(target_dir):
-                        os.makedirs(target_dir)
-
-                    result = self.downloadSeries(
-                        studyUID=incoming_dcm.StudyInstanceUID,
-                        seriesUID=seriesUID,
-                        target_dir=target_dir,
+                if len(seg_files) > 0:
+                    task["Image"] = str(
+                        Path(path_dir) / self.reference_in_dir / dcm_files[0].name
                     )
-                    if result:
-                        dcm_image = sorted(
-                            glob.glob(
-                                os.path.join(target_dir, "*.dcm*"), recursive=True
-                            )
-                        )
-                        task["Image"] = os.path.join(
-                            path_dir, REF_IMG, os.path.basename(dcm_image[0])
-                        )
-                        task["Segmentation"] = os.path.join(
-                            path_dir,
-                            self.operator_in_dir,
-                            os.path.basename(dcm_files[0]),
-                        )
-                    else:
-                        print("Reference images to segmentation not found!")
-                        raise ValueError("ERROR")
+                    task["Segmentation"] = str(
+                        Path(path_dir) / self.segmentation_in_dir / seg_files[0].name
+                    )
                 # otherwise only open images without segmentation
                 else:
                     print("No segementaion, create scene with image only")
-                    task["Image"] = os.path.join(
-                        path_dir, self.operator_in_dir, os.path.basename(dcm_files[0])
+                    task["Image"] = str(
+                        Path(path_dir) / self.operator_in_dir / dcm_files[0].name
                     )
                 task["Result"] = os.path.join(
                     path_dir, self.operator_out_dir, "result.dcm"
@@ -115,4 +119,4 @@ class LocalMiktInputOperator(KaapanaPythonBaseOperator):
                 tasks.append(task)
                 print("task successfully added:")
                 print(task)
-        self.createTasklist(run_dir, tasks)
+        self.dump_task_list(run_dir, tasks)

@@ -88,7 +88,7 @@ put_radiomics_to_minio = MinioOperator(
 get_notebook_from_minio = MinioOperator(
     dag=dag,
     name="radiomics-get-notebook-from-minio",
-    minio_prefix="analysis-scripts",
+    bucket_name="template-analysis-scripts"
     action="get",
     source_files=["FedRad-Analysis.ipynb"],
 )
@@ -97,6 +97,7 @@ radiomics_reporting = JupyterlabReportingOperator(
     dag=dag,
     input_operator=radiomics_federated_central,
     notebook_filename="FedRad-Analysis.ipynb",
+    notebook_dir=get_notebook_from_minio.operator_out_dir,
 )
 
 put_report_to_minio = MinioOperator(

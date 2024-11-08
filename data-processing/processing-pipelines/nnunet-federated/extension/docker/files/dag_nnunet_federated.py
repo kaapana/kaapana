@@ -166,7 +166,7 @@ put_to_minio = MinioOperator(
     action="put",
     batch_input_operators=[nnunet_federated],
     zip_files=True,
-    whitelisted_file_extensions=(".zip"),
+    whitelisted_file_extensions=[".zip"],
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

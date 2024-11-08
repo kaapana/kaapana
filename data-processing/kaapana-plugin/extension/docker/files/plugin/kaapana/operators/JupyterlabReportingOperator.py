@@ -20,6 +20,7 @@ class JupyterlabReportingOperator(KaapanaBaseOperator):
         self,
         dag,
         notebook_filename: str,
+        notebook_dir: str,
         output_format: str = "html",
         name="jupyterlab-reporting-operator",
         execution_timeout=timedelta(minutes=20),
@@ -28,10 +29,12 @@ class JupyterlabReportingOperator(KaapanaBaseOperator):
     ):
         """
         :param: notebook_filename: File name of the jupyter notebook filename.
+        :param: notebook_dir: The directory where notebook file is located, usually at `<get-notebook-operator>.operator_out_dir`.
         :param: output_format: Comma separated list of output formats the jupyter notebook should be converted to after execution.
         """
         env_vars = {
             "NOTEBOOK_FILENAME": notebook_filename,
+            "NOTEBOOK_DIR": notebook_dir,
             "OUTPUT_FORMAT": output_format,
         }
         super().__init__(

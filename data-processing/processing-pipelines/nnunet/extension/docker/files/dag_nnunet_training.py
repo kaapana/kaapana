@@ -401,7 +401,7 @@ nnunet_train = NnUnetOperator(
 get_notebooks_from_minio = MinioOperator(
     dag=dag,
     name="nnunet-get-notebook-from-minio",
-    minio_prefix="analysis-scripts",
+    bucket_name="template-analysis-scripts",
     action="get",
     source_files=["run_generate_nnunet_report.ipynb"],
 )
@@ -411,6 +411,7 @@ generate_nnunet_report = JupyterlabReportingOperator(
     name="generate-nnunet-report",
     input_operator=nnunet_train,
     notebook_filename="run_generate_nnunet_report.ipynb",
+    notebook_dir=get_notebooks_from_minio.operator_out_dir,
     output_format="html,pdf",
 )
 
@@ -419,8 +420,8 @@ put_to_minio = MinioOperator(
     name="upload-nnunet-data",
     zip_files=True,
     action="put",
-    batch_input_operators=[nnunet_train, generate_nnunet_report],
-    whitelisted_file_extensions=(".zip"),
+    none_batch_input_operators=[nnunet_train, generate_nnunet_report],
+    whitelisted_file_extensions=[".zip"],
 )
 
 put_report_to_minio = MinioOperator(
@@ -428,7 +429,7 @@ put_report_to_minio = MinioOperator(
     name="upload-staticwebsiteresults",
     bucket_name="staticwebsiteresults",
     action="put",
-    batch_input_operators=[generate_nnunet_report],
+    none_batch_input_operators=[generate_nnunet_report],
     whitelisted_file_extensions=(".html", ".pdf"),
 )
 

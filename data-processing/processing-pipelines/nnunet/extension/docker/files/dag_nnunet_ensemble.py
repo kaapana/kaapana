@@ -339,7 +339,7 @@ evaluation = DiceEvaluationOperator(
 get_notebooks_from_minio = MinioOperator(
     dag=dag,
     name="nnunet-get-notebook-from-minio",
-    minio_prefix="analysis-scripts",
+    bucket_name="template-analysis-scripts",
     action="get",
     source_files=["run_nnunet_evaluation_notebook.ipynb"],
 )
@@ -349,6 +349,7 @@ nnunet_evaluation_notebook = JupyterlabReportingOperator(
     name="nnunet-evaluation-notebook",
     input_operator=evaluation,
     notebook_filename="run_nnunet_evaluation_notebook.ipynb",
+    notebook_dir=get_notebooks_from_minio.operator_out_dir,
     output_format="html,pdf",
 )
 
@@ -358,7 +359,7 @@ put_to_minio = MinioOperator(
     zip_files=True,
     action="put",
     batch_input_operators=[evaluation, nnunet_evaluation_notebook],
-    whitelisted_file_extensions=(".zip"),
+    whitelisted_file_extensions=[".zip"],
 )
 
 put_report_to_minio = MinioOperator(

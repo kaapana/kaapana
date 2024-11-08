@@ -10,7 +10,7 @@ from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from airflow.api.common.experimental import pool as pool_api
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
@@ -398,12 +398,12 @@ nnunet_train = NnUnetOperator(
     retries=0,
 )
 
-get_notebooks_from_minio = LocalMinioOperator(
+get_notebooks_from_minio = MinioOperator(
     dag=dag,
     name="nnunet-get-notebook-from-minio",
-    bucket_name="analysis-scripts",
+    bucket_name="template-analysis-scripts",
     action="get",
-    action_files=["run_generate_nnunet_report.ipynb"],
+    source_files=["run_generate_nnunet_report.ipynb"],
 )
 
 generate_nnunet_report = JupyterlabReportingOperator(
@@ -411,25 +411,26 @@ generate_nnunet_report = JupyterlabReportingOperator(
     name="generate-nnunet-report",
     input_operator=nnunet_train,
     notebook_filename="run_generate_nnunet_report.ipynb",
+    notebook_dir=get_notebooks_from_minio.operator_out_dir,
     output_format="html,pdf",
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     name="upload-nnunet-data",
     zip_files=True,
     action="put",
-    action_operators=[nnunet_train, generate_nnunet_report],
-    file_white_tuples=(".zip"),
+    none_batch_input_operators=[nnunet_train, generate_nnunet_report],
+    whitelisted_file_extensions=[".zip"],
 )
 
-put_report_to_minio = LocalMinioOperator(
+put_report_to_minio = MinioOperator(
     dag=dag,
     name="upload-staticwebsiteresults",
     bucket_name="staticwebsiteresults",
     action="put",
-    action_operators=[generate_nnunet_report],
-    file_white_tuples=(".html", ".pdf"),
+    none_batch_input_operators=[generate_nnunet_report],
+    whitelisted_file_extensions=(".html", ".pdf"),
 )
 
 pdf2dcm = Pdf2DcmOperator(

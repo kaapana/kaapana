@@ -12,7 +12,8 @@
             "Resource": [
                 "arn:aws:s3:::staticwebsiteresults/*",
                 "arn:aws:s3:::thumbnails/*",
-                "arn:aws:s3:::uploads/*"
+                "arn:aws:s3:::uploads/*",
+                "arn:aws:s3:::template-analysis-scripts/*"
                         ]
         }
     ]

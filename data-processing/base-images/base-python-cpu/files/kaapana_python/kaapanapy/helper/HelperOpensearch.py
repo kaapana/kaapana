@@ -126,13 +126,15 @@ class HelperOpensearch:
     def get_dcm_uid_objects(
         series_instance_uids, include_custom_tag="", exclude_custom_tag=""
     ):
-        # defauly query for fetching via identifiers
+        # default query for fetching via identifiers
         query = {"bool": {"must": [{"ids": {"values": series_instance_uids}}]}}
+
         # must have custom tag
         if include_custom_tag != "":
             query["bool"]["must"].append(
                 {"term": {"00000000 Tags_keyword.keyword": include_custom_tag}}
             )
+
         # must_not have custom tag
         if exclude_custom_tag != "":
             if "must_not" in query["bool"]:

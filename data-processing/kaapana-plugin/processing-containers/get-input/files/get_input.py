@@ -16,8 +16,8 @@ logger = get_logger(__name__)
 
 class GetInputArguments(BaseSettings):
     data_type: str = Field("dicom")
-    include_custom_tag: str = ""
-    exclude_custom_tag: str = ""
+    include_custom_tag_property: str = ""
+    exclude_custom_tag_property: str = ""
     batch_name: str = "batch"
     check_modality: bool = False
     parallel_downloads: int = 3
@@ -129,10 +129,18 @@ def download_data_for_workflow(workflow_config):
     identifiers = workflow_config.get("data_form").get("identifiers")
     parallel_downloads = operator_arguments.parallel_downloads
 
+    # set include and exclude tags from respective workflow form keys
+    include_custom_tag=""
+    exclude_custom_tag=""
+    if operator_arguments.include_custom_tag_property != "":
+        include_custom_tag = workflow_config.get("workflow_form").get(operator_arguments.include_custom_tag_property)
+    if operator_arguments.exclude_custom_tag_property != "":
+        exclude_custom_tag = workflow_config.get("workflow_form").get(operator_arguments.exclude_custom_tag_property)
+
     dcm_uid_objects = HelperOpensearch.get_dcm_uid_objects(
         identifiers,
-        include_custom_tag=operator_arguments.include_custom_tag,
-        exclude_custom_tag=operator_arguments.exclude_custom_tag,
+        include_custom_tag=include_custom_tag,
+        exclude_custom_tag=exclude_custom_tag,
     )
 
     dataset_limit = workflow_config.get("data_form").get("dataset_limit")

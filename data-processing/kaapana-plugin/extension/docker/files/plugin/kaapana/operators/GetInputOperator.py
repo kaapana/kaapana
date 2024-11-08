@@ -56,8 +56,8 @@ class GetInputOperator(KaapanaBaseOperator):
 
         envs = {
             "DATA_TYPE": data_type,
-            "INCLUDE_CUSTOM_TAGS": include_custom_tag_property,
-            "EXCLUDE_CUSTOM_TAGS": exclude_custom_tag_property,
+            "INCLUDE_CUSTOM_TAG_PROPERTY": include_custom_tag_property,
+            "EXCLUDE_CUSTOM_TAG_PROPERTY": exclude_custom_tag_property,
             "BATCH_NAME": batch_name,
             "CHECK_MODALITY": "False" if not check_modality else "True",
             "PARALLEL_DOWNLOADS": str(parallel_downloads),
@@ -74,5 +74,6 @@ class GetInputOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             ram_mem_mb_lmt=10000,
+            batch_name=batch_name,
             **kwargs,
         )

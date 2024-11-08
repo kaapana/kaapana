@@ -6,7 +6,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.SegmentationEvaluationOperator import (
     SegmentationEvaluationOperator,
 )
@@ -214,13 +214,13 @@ evaluation = SegmentationEvaluationOperator(
     trigger_rule="none_failed",
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     name="put-eval-metrics-to-minio",
     zip_files=True,
     action="put",
-    action_operators=[evaluation],
-    file_white_tuples=(".zip"),
+    batch_input_operators=[evaluation],
+    whitelisted_file_extensions=[".zip"],
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

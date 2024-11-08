@@ -8,16 +8,12 @@ from datetime import timedelta
 
 class GetModelFromPacsOperator(KaapanaBaseOperator):
     """
-    Operator to get input data for a workflow/dag.
+    Downloads series that belong to an nnunet model from the PACS.
 
-    This operator pulls all defined files from it's defined source and stores the files in the workflow directory.
-    All subsequent operators can get and process the files from within the workflow directory.
-    Typically, this operator can be used as the first operator in a workflow.
-
-
-    **Outputs:**
-
-    * Stores downloaded 'dicoms' or 'json' files in the 'operator_out_dir'
+    The operator expects a list called 'tasks' in the workflow_config
+    The list must contain values for the dicom tag '00181030 ProtocolName_keyword.keyword'
+    The operator queries the project index in opensearch for all series that belong to these 'protocols'.
+    The operator will download these series from the PACS.
     """
 
     def __init__(
@@ -42,6 +38,6 @@ class GetModelFromPacsOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/nnunet-model-download-from-pacs:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
-            ram_mem_mb=1000,
+            ram_mem_mb_lmt=10000,
             **kwargs,
         )

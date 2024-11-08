@@ -1,13 +1,11 @@
-from os import getenv
-from os.path import join, exists, dirname, basename, normpath
 from glob import glob
 from pathlib import Path
 import zipfile
 import os
-import json
 from shutil import rmtree
 
 from kaapanapy.logger import get_logger
+from kaapanapy.helper import load_workflow_config
 
 logger = get_logger(__name__)
 
@@ -33,23 +31,23 @@ def install_tasks():
     # Counter to check if smth has been processed
     processed_count = 0
     input_file_extension = "*.zip"
-    workflow_dir = getenv("WORKFLOW_DIR", "None")
+    workflow_dir = os.getenv("WORKFLOW_DIR", "None")
     workflow_dir = workflow_dir if workflow_dir.lower() != "none" else None
     assert workflow_dir is not None
 
-    batch_name = getenv("BATCH_NAME", "None")
+    batch_name = os.getenv("BATCH_NAME", "None")
     batch_name = batch_name if batch_name.lower() != "none" else None
     assert batch_name is not None
 
-    operator_in_dir = getenv("OPERATOR_IN_DIR", "None")
+    operator_in_dir = os.getenv("OPERATOR_IN_DIR", "None")
     operator_in_dir = operator_in_dir if operator_in_dir.lower() != "none" else None
     assert operator_in_dir is not None
 
-    operator_out_dir = getenv("OPERATOR_OUT_DIR", "None")
+    operator_out_dir = os.getenv("OPERATOR_OUT_DIR", "None")
     operator_out_dir = operator_out_dir if operator_out_dir.lower() != "none" else None
     assert operator_out_dir is not None
 
-    target_level = getenv("TARGET_LEVEL", "None")
+    target_level = os.getenv("TARGET_LEVEL", "None")
     target_level = target_level if target_level.lower() != "none" else None
     assert target_level is not None
 
@@ -60,15 +58,17 @@ def install_tasks():
     logger.debug(f"operator_out_dir: {operator_out_dir}")
 
     # Loop for every batch-element (usually series)
-    batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
+    batch_folders = sorted(
+        [f for f in glob(os.path.join("/", workflow_dir, batch_name, "*"))]
+    )
     for batch_element_dir in batch_folders:
 
         logger.info(f"Processing batch-element {batch_element_dir}")
-        element_input_dir = join(batch_element_dir, operator_in_dir)
-        element_output_dir = join(batch_element_dir, operator_out_dir)
+        element_input_dir = os.path.join(batch_element_dir, operator_in_dir)
+        element_output_dir = os.path.join(batch_element_dir, operator_out_dir)
 
         # check if input dir present
-        if not exists(element_input_dir):
+        if not os.path.exists(element_input_dir):
             logger.warning.info(f"Input-dir: {element_input_dir} does not exists!")
             logger.warning.info("-> skipping")
             continue
@@ -81,15 +81,15 @@ def install_tasks():
         if target_level == "default":
             models_dir = "/models/nnUNet"
         elif target_level == "batch":
-            models_dir = join(workflow_dir, element_output_dir)
+            models_dir = os.path.join(workflow_dir, element_output_dir)
         elif target_level == "batch_element":
-            models_dir = join(batch_element_dir, element_output_dir)
+            models_dir = os.path.join(batch_element_dir, element_output_dir)
         else:
             logger.error(f"target_level: {target_level} not supported!")
             exit(1)
 
         input_files = glob(
-            join(element_input_dir, input_file_extension), recursive=True
+            os.path.join(element_input_dir, input_file_extension), recursive=True
         )
         logger.info(f"Found {len(input_files)} input-files!")
 
@@ -119,37 +119,51 @@ def install_tasks():
         logger.info("Successfully extracted model into model-dir.")
 
 
-def uninstall_tasks():
-    tasks_to_uninstall = getenv("UNINSTALL_TASKS", "[]")
-    tasks_to_uninstall = json.loads(tasks_to_uninstall.replace("'", '"'))
+def uninstall_tasks(models_dir="/models/nnUNet"):
+    """
+    Remove the directory corresponding all tasks in 'uninstall_tasks' in the workflow_form of the workflow_config.
+    The directory that will be removed is generated as <models_dir>/<dataset_directory>/<model_directory>
+    If the <dataset_directory> is empty after the <model_directory> was removed it will also be removed.
+
+    Example:
+        uninstall_tasks = ['Dataset451_10.135.76.131_061124-144541---nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres']
+        Path of removed directory:
+        /models/nnUNet/Dataset451_10.135.76.131_061124-144541/nnUNetTrainer__nnUNetResEncUNetMPlans__3d_fullres
+    """
+    workflow_config = load_workflow_config()
+    tasks_to_uninstall = workflow_config.get("workflow_form").get("uninstall_tasks")
 
     logger.info(f"tasks_to_uninstall:   {tasks_to_uninstall}")
     logger.info("Starting processing on BATCH-ELEMENT-level ...")
+    for uninstall_task in tasks_to_uninstall:
+        logger.info(f"Un-installing TASK: {uninstall_task}")
 
-    if tasks_to_uninstall:
-        models_dir = "/models/nnUNet"
-        for uninstall_task in tasks_to_uninstall:
-            logger.info(f"Un-installing TASK: {uninstall_task}")
-            installed_models = [
-                basename(normpath(f.path)) for f in os.scandir(models_dir) if f.is_dir()
-            ]
-            for installed_model in installed_models:
-                model_path = join(models_dir, installed_model)
-                installed_tasks_dirs = [
-                    basename(normpath(f.path))
-                    for f in os.scandir(model_path)
-                    if f.is_dir()
-                ]
-                for installed_task in installed_tasks_dirs:
-                    if installed_task.lower() == uninstall_task.lower():
-                        task_path = join(models_dir, installed_model, installed_task)
-                        logger.info(f"Removing: {task_path}")
-                        rmtree(task_path)
-            logger.info(f"{uninstall_task} scuessfully uninstalled!.")
+        dataset_directory_name, model_directory_name = tuple(
+            uninstall_task.split("---")
+        )
+        dataset_path = Path(os.path.join(models_dir, dataset_directory_name))
+        task_path = Path(
+            os.path.join(models_dir, dataset_directory_name, model_directory_name)
+        )
+
+        assert task_path.is_dir()
+        logger.info(f"Recursively remove {task_path=}")
+        rmtree(task_path)
+
+        try:
+            dataset_path.rmdir()
+            logger.info(f"Recursively remove {dataset_path=}")
+        except OSError as e:
+            if e.errno == 39:  ### Directory not empty error
+                pass
+            logger.error(f"Tried to remove the directory {dataset_path=}")
+            raise e
+
+        logger.info(f"{uninstall_task} successfully uninstalled!.")
 
 
 if __name__ == "__main__":
-    action = getenv("ACTION")
+    action = os.getenv("ACTION")
 
     if action == "install":
         install_tasks()

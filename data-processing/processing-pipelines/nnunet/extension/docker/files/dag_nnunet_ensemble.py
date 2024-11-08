@@ -37,13 +37,6 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            # "input": {
-            #     "title": "Input Modality",
-            #     "default": "OT",
-            #     "description": "Expected input modality.",
-            #     "type": "string",
-            #     "readOnly": True,
-            # },
             "tasks": {
                 "title": "Tasks available",
                 "description": "Select available tasks",

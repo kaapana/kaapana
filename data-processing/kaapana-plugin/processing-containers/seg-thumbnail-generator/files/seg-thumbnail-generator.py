@@ -15,22 +15,10 @@ import pydicom_seg
 import SimpleITK as sitk
 from colormath.color_conversions import convert_color
 from colormath.color_objects import LabColor, sRGBColor
-from logger_helper import get_logger
+from kaapanapy.logger import get_logger
 from PIL import Image, ImageDraw, ImageFilter
 
-log_level = getenv("LOG_LEVEL", "warning").lower()
-
-log_levels = {
-    "debug": logging.DEBUG,
-    "info": logging.INFO,
-    "warning": logging.WARNING,
-    "error": logging.ERROR,
-    "critical": logging.CRITICAL,
-}
-
-log_level_int = log_levels.get(log_level, logging.INFO)
-
-logger = get_logger(__name__, log_level_int)
+logger = get_logger(__name__)
 
 processed_count = 0
 

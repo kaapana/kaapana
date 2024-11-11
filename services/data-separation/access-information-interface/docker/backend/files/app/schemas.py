@@ -1,5 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrmBaseModel(BaseModel):
@@ -31,3 +32,7 @@ class KeycloakUser(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email_verified: bool
+
+
+class KeycloakUserWithGroup(KeycloakUser):
+    groups: Optional[list[str]] = None

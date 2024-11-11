@@ -3,7 +3,7 @@ from typing import List
 
 from app.database import get_session
 from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
-from app.schemas import AiiProjectResponse, KeycloakUser
+from app.schemas import AiiProjectResponse, KeycloakUser, KeycloakUserWithGroup
 from app.users import crud
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +29,7 @@ async def get_users(kc_client: KeycloakHelper = Depends(get_keycloak_helper)):
     return users
 
 
-@router.get("/current", response_model=KeycloakUser, tags=["Users"])
+@router.get("/current", response_model=KeycloakUserWithGroup, tags=["Users"])
 async def get_current_user(
     request: Request,
     kc_client: KeycloakHelper = Depends(get_keycloak_helper),
@@ -44,7 +44,9 @@ async def get_current_user(
     return await get_keycloak_user_by_id(user_id, kc_client)
 
 
-@router.get("/username/{username}", response_model=KeycloakUser, tags=["Users"])
+@router.get(
+    "/username/{username}", response_model=KeycloakUserWithGroup, tags=["Users"]
+)
 async def get_keycloak_user_by_name(
     username: str, kc_client: KeycloakHelper = Depends(get_keycloak_helper)
 ):
@@ -54,12 +56,12 @@ async def get_keycloak_user_by_name(
     if not keycloak_user_json:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user = KeycloakUser(**keycloak_user_json)
+    user = KeycloakUserWithGroup(**keycloak_user_json)
 
     return user
 
 
-@router.get("/{keycloak_id}", response_model=KeycloakUser, tags=["Users"])
+@router.get("/{keycloak_id}", response_model=KeycloakUserWithGroup, tags=["Users"])
 async def get_keycloak_user_by_id(
     keycloak_id: str, kc_client: KeycloakHelper = Depends(get_keycloak_helper)
 ):
@@ -69,7 +71,7 @@ async def get_keycloak_user_by_id(
     if not keycloak_user_json:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user = KeycloakUser(**keycloak_user_json)
+    user = KeycloakUserWithGroup(**keycloak_user_json)
     return user
 
 

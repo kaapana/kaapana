@@ -1,8 +1,14 @@
 <template>
     <v-container max-width="1200">
+        <v-row no-gutters>
+            <v-btn size="x-small" variant="outlined" prepend-icon="mdi-arrow-left" @click="goToProjectsList">Back</v-btn>
+        </v-row>
         <v-row justify="space-between">
-            <v-col cols="6">
-                <h4 class="text-h4 py-8">Project {{ projectId }}</h4>
+            <v-col>
+                <h4 class="text-h4 pb-8">
+                    <v-btn class="ma-2" icon="mdi-folder-file" fab readonly></v-btn>
+                    Project {{ projectId }}
+                </h4>
                 <p v-if="details">{{ details.description }}</p>
             </v-col>
         </v-row>
@@ -18,7 +24,7 @@
                         </v-btn>
                     </v-col>
                 </v-row>
-                <v-table>
+                <v-table v-if="users.length > 0">
                     <thead>
                         <tr>
                             <th></th>
@@ -51,14 +57,30 @@
                             <td>{{ item.email_verified }}</td>
                             <td>{{ item.role?.name }}</td>
                             <td class="text-right">
-                                <v-btn @click="openUserEditDialog(item)" density="default"
-                                    icon="mdi-link-edit"></v-btn>
+                                <v-btn @click="openUserEditDialog(item)" density="default" icon="mdi-link-edit"></v-btn>
                                 <v-btn @click="deleteUserProjectMapping(item.id)" density="default"
                                     icon="mdi-trash-can"></v-btn>
                             </td>
                         </tr>
                     </tbody>
                 </v-table>
+                <v-sheet rounded v-else-if="!fetchingUser">
+                    <v-container>
+                        <v-row align="center" justify="center" no-gutters>
+                            <v-icon icon="mdi-information" size="x-large" class="large-font"</v-icon>
+                        </v-row>
+                        <v-row align="center" justify="center" no-gutters class="py-6">                            
+                            <div class="text-subtitle-1 font-weight-light text-center">
+                                No User found under this Project. Click the following button to Add new user.
+                            </div>
+                        </v-row>
+                        <v-row align="center" justify="center" no-gutters>
+                            <v-btn @click="userDialog = true" size="large" variant="outlined" prepend-icon="mdi-account-plus">
+                                Add User to Project
+                            </v-btn>
+                        </v-row>
+                    </v-container>
+                </v-sheet>
             </v-col>
         </v-row>
     </v-container>
@@ -67,8 +89,8 @@
             :oncancel="resetUserFormValues" />
     </v-dialog>
     <v-dialog v-model="userEditDialog" max-width="1000">
-        <AddUserToProject :project-name="projectId" action-type="update" :selected-user="selectedUser" :current-role="selectedUser?.role" :onsuccess="handleUserSubmit"
-            :oncancel="resetUserFormValues" />
+        <AddUserToProject :project-name="projectId" action-type="update" :selected-user="selectedUser"
+            :current-role="selectedUser?.role" :onsuccess="handleUserSubmit" :oncancel="resetUserFormValues" />
     </v-dialog>
     <confirm ref="confirm"></confirm>
 </template>
@@ -98,6 +120,7 @@ export default defineComponent({
             users: [] as User[],
             userDialog: false,
             userIds: [] as string[],
+            fetchingUser: false,
             userEditDialog: false,
             selectedUser: undefined as User | undefined,
         };
@@ -143,6 +166,9 @@ export default defineComponent({
 
             this.selectedUser = undefined;
         },
+        goToProjectsList() {
+            this.$router.push(`/`);
+        },
         fetchProjectDetails() {
             if (this.projectId) {
                 try {
@@ -156,12 +182,15 @@ export default defineComponent({
         },
         fetchProjectUsers() {
             if (this.projectId) {
+                this.fetchingUser = true;
                 try {
                     aiiApiGet(`projects/${this.projectId}/users`).then((users: UserItem[]) => {
                         this.users = users;
+                        this.fetchingUser = false;
                     })
                 } catch (error: unknown) {
                     console.log(error);
+                    this.fetchingUser = false;
                 }
             }
         },
@@ -192,3 +221,9 @@ export default defineComponent({
     }
 })
 </script>
+
+<style scoped>
+.large-font{
+    font-size: 40px;
+}
+</style>

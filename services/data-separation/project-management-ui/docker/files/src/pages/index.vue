@@ -38,15 +38,16 @@
       </thead>
       <tbody>
         <tr v-for="item in projects" :key="item.name">
-          <td><v-icon>mdi-application-cog</v-icon></td>
+          <td><v-icon>mdi-folder-file</v-icon></td>
           <td>{{ item.id }}</td>
-          <td>{{ item.name }}</td>
-          <td>{{ item.description }}</td>
+          <td class="project-name-col">{{ item.name }}</td>
+          <td class="desc-col">{{ item.description }}</td>
           <td>{{ item.external_id }}</td>
           <td class="text-center">
             <v-btn 
               class="text-none" color="medium-emphasis" 
               min-width="92" variant="outlined" size="small" rounded
+              append-icon="mdi-arrow-right"
               @click="goToProjects(item.name)">
               View
             </v-btn>
@@ -115,8 +116,8 @@ export default defineComponent({
       // project url to fetch the projects under the user
       let projects_url = `users/${user.id}/projects`;
 
-      // if default-user / super-admin, fetch all the projects
-      if (user.username == 'kaapana') {
+      // if default-user / kaapana_admin, fetch all the projects
+      if (user.groups && user.groups.includes('kaapana_admin')) {
         projects_url = `projects`;
       }
 
@@ -146,3 +147,19 @@ export default defineComponent({
   },
 })
 </script>
+
+
+<style scoped>
+.project-name-col{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+}
+.desc-col{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 350px;
+}
+</style>

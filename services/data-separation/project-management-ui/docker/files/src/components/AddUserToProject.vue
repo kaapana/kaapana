@@ -38,10 +38,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { aiiApiPost, aiiApiGet, aiiApiPut } from '@/common/aiiApi.service';
 import { UserRole, UserItem } from '@/common/types';
-import store from '@/common/store';
 import { PropType } from 'vue';
-// import {AxiosError} from axios;
-
 
 
 const props = defineProps({
@@ -111,14 +108,11 @@ const fetchAllRoles = async () => {
 
 const fetchAllUsers = async () => {
     fetching.value = true;
-    const user = store.state.user;
 
+    // filter current users of the project
     let filterUsers: string[] = [];
-    if (user) {
-        filterUsers.push(user.id)
-    }
     if (props.currentUserIds) {
-        filterUsers = [...filterUsers, ...props.currentUserIds]
+        filterUsers = [...props.currentUserIds]
     }
 
     try {

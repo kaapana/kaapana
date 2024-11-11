@@ -154,16 +154,32 @@ class KeycloakHelper:
         users_dict = list_of_dict_camel_to_snake(r.json())
         return users_dict
 
+    def get_user_groups(self, userid: str):
+        """
+        Get keycloak user groups by userid
+        """
+        groups_url = self.auth_url + f"kaapana/users/{userid}/groups"
+        try:
+            groups_response = self.make_authorized_request(groups_url, requests.get)
+            user_groups = [group["name"] for group in groups_response.json()]
+            return user_groups
+        except Exception as e:
+            return []
+
     def get_user_by_name(self, username: str):
         """
         Get the user representation by the username
         """
         url = self.auth_url + f"kaapana/users?username={username}&exact=true"
         r = self.make_authorized_request(url, requests.get)
+
         response = r.json()
-        if len(response) > 0:
-            return dict_keys_camel_to_snake(r.json()[0])
-        return None
+        if len(response) == 0:
+            return None
+
+        user_data = dict_keys_camel_to_snake(r.json()[0])
+        user_data["groups"] = self.get_user_groups(user_data["id"])
+        return user_data
 
     def get_user_by_id(self, userid: str):
         """
@@ -171,8 +187,10 @@ class KeycloakHelper:
         """
         url = self.auth_url + f"kaapana/users/{userid}"
         try:
-            r = self.make_authorized_request(url, requests.get)
+            user_response = self.make_authorized_request(url, requests.get)
+            user_data = dict_keys_camel_to_snake(user_response.json())
         except Exception as e:
             return None
 
-        return dict_keys_camel_to_snake(r.json())
+        user_data["groups"] = self.get_user_groups(userid)
+        return user_data

@@ -33,7 +33,7 @@ from nnunet.SegCheckOperator import SegCheckOperator
 
 study_id = "Kaapana"
 TASK_NUM = random.randint(100,999)
-TASK_NAME = f"Task{TASK_NUM}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
+TASK_DESCRIPTION = f"{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 label_filter = ""
 prep_modalities = "CT"
 default_model = "3d_fullres"
@@ -89,11 +89,19 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "task": {
-                "title": "TASK_NAME",
+            "task_num": {
+                "title": "TASK_NUM",
+                "description": "Specify an id for the training task",
+                "type": "integer",
+                "default": TASK_NUM,
+                "readOnly": False,
+                "required": True,
+            },
+            "task_description": {
+                "title": "TASK_DESCRIPTION",
                 "description": "Specify a name for the training task",
                 "type": "integer",
-                "default": TASK_NAME,
+                "default": TASK_DESCRIPTION,
                 "readOnly": True,
                 "required": True,
             },
@@ -438,7 +446,7 @@ pdf2dcm = Pdf2DcmOperator(
     input_operator=generate_nnunet_report,
     study_uid=training_results_study_uid,
     aetitle=ae_title,
-    pdf_title=f"Training Report nnUNet {TASK_NAME} {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+    pdf_title=f"Training Report nnUNet {TASK_NUM} {TASK_DESCRIPTION}",
 )
 
 dcmseg_send_pdf = DcmSendOperator(

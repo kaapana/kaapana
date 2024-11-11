@@ -4,7 +4,6 @@ from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
@@ -20,6 +19,7 @@ from kaapana.operators.LocalModifySegLabelNamesOperator import (
 
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
+from nnunet.GetModelFromPacsOperator import GetModelFromPacsOperator
 from nnunet.getTasks import get_available_protocol_names
 
 
@@ -202,9 +202,7 @@ dcm2nifti_ct = DcmConverterOperator(
     batch_name="nnunet-dataset",
 )
 
-get_model = LocalModelGetInputDataOperator(
-    dag=dag, name="get-model", check_modality=True, parallel_downloads=5
-)
+get_model = GetModelFromPacsOperator(dag=dag, name="get-model")
 
 dcm2bin = Bin2DcmOperator(
     dag=dag, input_operator=get_model, name="extract-binary", file_extensions="*.dcm"

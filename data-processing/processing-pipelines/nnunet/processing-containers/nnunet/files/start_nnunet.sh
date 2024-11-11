@@ -8,7 +8,7 @@ export OMP_NUM_THREADS=1
 # disable stdout/stderr buffer  
 export PYTHONUNBUFFERED=1
 
-TASK_NAME="Task${TASK_NUM}_${$TASK_DESCRIPTION}"
+TASK_NAME="Task${TASK_NUM}_${TASK_DESCRIPTION}"
 
 
 # TASK_NUM=$(echo "$TASK" | cut -f1 -d"_" | tr -dc '0-9')

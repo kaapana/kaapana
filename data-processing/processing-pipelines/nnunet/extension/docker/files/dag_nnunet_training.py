@@ -32,7 +32,7 @@ from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 
 study_id = "Kaapana"
-TASK_NUM = random.randint(100,999)
+TASK_NUM = random.randint(100, 999)
 TASK_DESCRIPTION = f"{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 label_filter = ""
 prep_modalities = "CT"
@@ -100,7 +100,7 @@ ui_forms = {
             "task_description": {
                 "title": "TASK_DESCRIPTION",
                 "description": "Specify a name for the training task",
-                "type": "integer",
+                "type": "string",
                 "default": TASK_DESCRIPTION,
                 "readOnly": True,
                 "required": True,

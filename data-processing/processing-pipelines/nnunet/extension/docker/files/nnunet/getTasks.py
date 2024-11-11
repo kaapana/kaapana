@@ -1,7 +1,8 @@
 import json
 import os
+import re
 from glob import glob
-from os.path import basename, dirname, exists, join, normpath
+from os.path import basename, exists, join, normpath
 from typing import Dict
 
 from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
@@ -56,6 +57,13 @@ def _get_dataset_json(model_path, installed_task):
     return dataset_json
 
 
+def _get_plans_json(model_path, installed_task):
+    plans_json_path = join(model_path, installed_task, "plans.json")
+    with open(plans_json_path) as f:
+        plans_json = json.load(f)
+    return plans_json
+
+
 def _get_available_pretrained_tasks(af_home_path):
     tasks_json_path = join(af_home_path, "dags", "nnunet", "nnunet_tasks.json")
     with open(tasks_json_path) as f:
@@ -91,7 +99,9 @@ def _get_installed_tasks(af_home_path):
                 dataset_json = _get_dataset_json(
                     model_path=model_path, installed_task=installed_task
                 )
-                print(f"DATASET: {dataset_json}")
+                plans_json = _get_plans_json(
+                    model_path=model_path, installed_task=installed_task
+                )
 
                 # and extract task's details to installed_tasks dict
                 model_name = f"{installed_model}---{installed_task}"
@@ -99,39 +109,20 @@ def _get_installed_tasks(af_home_path):
                 friendly_model_name = to_friendly_name(model_name)
 
                 installed_tasks[friendly_model_name] = {
-                    "description": (
-                        dataset_json["description"]
-                        if "description" in dataset_json
-                        else "N/A"
-                    ),
-                    "input-mode": (
-                        dataset_json["input-mode"]
-                        if "input-mode" in dataset_json
-                        else "all"
-                    ),
-                    "input": (
-                        list(dataset_json["channel_names"].values())
-                        if "channel_names" in dataset_json
-                        else "N/A"
-                    ),
-                    "body_part": (
-                        dataset_json["body_part"]
-                        if "body_part" in dataset_json
-                        else "N/A"
-                    ),
-                    "targets": (
-                        dataset_json["targets"] if "targets" in dataset_json else "N/A"
-                    ),
+                    "description": dataset_json.get("description", "N/A"),
+                    "input-mode": dataset_json.get("input-mode", "all"),
+                    "input": list(dataset_json.get("channel_names", {}).values())
+                    or "N/A",
+                    "body_part": dataset_json.get("body_part", "N/A"),
+                    "targets": dataset_json.get("targets", "N/A"),
                     "supported": True,
-                    "info": dataset_json["info"] if "info" in dataset_json else "N/A",
-                    "url": dataset_json["url"] if "url" in dataset_json else "N/A",
-                    "task_url": (
-                        dataset_json["task_url"]
-                        if "task_url" in dataset_json
-                        else "N/A"
-                    ),
-                    "model_name": dataset_json["model"][0] if "model" in dataset_json else "N/A",
-                    "involved_instances": dataset_json["instance_name"] if "instance_name" in dataset_json else "N/A",
+                    "info": dataset_json.get("info", "N/A"),
+                    "url": dataset_json.get("url", "N/A"),
+                    "task_url": dataset_json.get("task_url", "N/A"),
+                    "model_name": dataset_json.get("model", ["N/A"])[0],
+                    "instance_name": dataset_json.get("instance_name", "N/A"),
+                    "model_network_trainer": dataset_json.get("network_trainer", "N/A"),
+                    "model_plan": plans_json.get("plans_name", "N/A"),
                 }
 
     print(f"INSTALLED TASKS: {installed_tasks}")
@@ -158,10 +149,12 @@ def to_friendly_name(task_name: str) -> str:
     friendly_name = mapping.get(task_name)
     if friendly_name:
         return friendly_name
-    
+
+    dataset_pattern = r"Dataset(\d{3})"
+    dataset_match = re.search(dataset_pattern, task_name)
+    dataset_id = dataset_match.group(1) if dataset_match else None
     date_time_str = task_name.split("---")[0].split("_")[-1]
-    next_id = 1 if len(mapping.keys()) == 0 else max([int(name.split("_")[1]) for name in mapping.values()]) + 1
-    default = f"nnunet_{next_id:03}_{date_time_str}"
+    default = f"nnunet_{dataset_id:03}_{date_time_str}"
     return default
 
 
@@ -211,7 +204,7 @@ def save_task_name(task_name: str) -> None:
     # If task name was already saved
     if task_name in mappings.keys():
         return
-    
+
     # If task name was not saved yet
     mappings[task_name] = to_friendly_name(task_name)
     with open(models_file, "w") as fp:
@@ -227,7 +220,7 @@ def get_tasks():
         installed_tasks = _get_installed_tasks(af_home_path=af_home_path)
         all_selectable_tasks = installed_tasks.copy()
         all_selectable_tasks.update(tasks)
-        
+
         # TODO why do we need to return all three?
         return available_pretrained_task_names, installed_tasks, all_selectable_tasks
     except Exception as e:

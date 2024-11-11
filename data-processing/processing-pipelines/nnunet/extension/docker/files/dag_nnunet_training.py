@@ -1,13 +1,29 @@
 import random
 from datetime import datetime, timedelta
 
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
+from kaapana.blueprints.kaapana_global_variables import GPU_COUNT, INSTANCE_NAME
+from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
+from kaapana.operators.LocalModifySegLabelNamesOperator import (
+    LocalModifySegLabelNamesOperator,
+)
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from kaapana.operators.LocalModifySegLabelNamesOperator import (
+    LocalModifySegLabelNamesOperator,
+)
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.MinioOperator import MinioOperator
@@ -15,25 +31,9 @@ from airflow.api.common.experimental import pool as pool_api
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 
-from kaapana.operators.MergeMasksOperator import MergeMasksOperator
-from kaapana.operators.LocalModifySegLabelNamesOperator import (
-    LocalModifySegLabelNamesOperator,
-)
-from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
-from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
-
-from airflow.utils.dates import days_ago
-from airflow.models import DAG
-from airflow.utils.trigger_rule import TriggerRule
-from kaapana.blueprints.kaapana_global_variables import (
-    INSTANCE_NAME,
-    SERVICES_NAMESPACE,
-    GPU_COUNT,
-    CPU_CORE_COUNT,
-)
-
 study_id = "Kaapana"
-TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
+TASK_NUM = random.randint(100,999)
+TASK_NAME = f"Task{TASK_NUM}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 label_filter = ""
 prep_modalities = "CT"
 default_model = "3d_fullres"
@@ -92,8 +92,9 @@ ui_forms = {
             "task": {
                 "title": "TASK_NAME",
                 "description": "Specify a name for the training task",
-                "type": "string",
+                "type": "integer",
                 "default": TASK_NAME,
+                "readOnly": True,
                 "required": True,
             },
             "model": {
@@ -280,7 +281,6 @@ ui_forms = {
                 "description": "Whether your report is execute in single mode or not",
                 "default": False,
                 "readOnly": True,
-                # "required": True
             },
         },
     },

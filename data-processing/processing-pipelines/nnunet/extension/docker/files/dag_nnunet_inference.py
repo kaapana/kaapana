@@ -34,10 +34,22 @@ properties_template = {
         "description": "Description of the model.",
         "type": "string",
         "readOnly": True,
+    },    
+    "instance_name": {
+        "title": "Instance Name",
+        "description": "Name of the central instance.",
+        "type": "string",
+        "readOnly": True,
     },
-    "involved_instances": {
-        "title": "Involved Instances",
-        "description": "IP addresses of involved instances.",
+    "model_network_trainer": {
+        "title": "Model Network Trainer",
+        "description": "Trainer used to train the network.",
+        "type": "string",
+        "readOnly": True,
+    },
+    "model_plan": {
+        "title": "Model Plan",
+        "description": "Plan user to train the network.",
         "type": "string",
         "readOnly": True,
     },

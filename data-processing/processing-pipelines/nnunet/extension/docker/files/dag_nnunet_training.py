@@ -310,7 +310,7 @@ get_input = LocalGetInputDataOperator(
 get_ref_ct_series_from_seg = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
-    search_query="reference_uid",
+    search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
 )

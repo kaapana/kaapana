@@ -1,15 +1,15 @@
-import os
-import json
 import glob
-import pydicom
-import shutil
+import json
+import os
 import pathlib
+import shutil
 
+import pydicom
 
 if __name__ == "__main__":
     print("# Starting nnUNet data preparation...")
 
-    task = os.getenv("TASK", None)
+    task = os.getenv("TASK_NUM", None)
     input_dirs = os.getenv("INPUT_MODALITY_DIRS", "").split(",")
     operator_output_dir = os.getenv("OPERATOR_OUT_DIR", None)
 

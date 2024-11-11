@@ -1,15 +1,16 @@
-from genericpath import isdir
-import os
 import glob
 import json
-import shutil
-from pathlib import Path
+import os
 import random
+import shutil
 import time
+from multiprocessing.pool import ThreadPool
+from os.path import basename, dirname, exists, isdir, join
+from pathlib import Path
+
 import nibabel as nib
 import numpy as np
-from multiprocessing.pool import ThreadPool
-from os.path import join, exists, dirname, basename, isdir
+from genericpath import isdir
 
 
 def timing(f):
@@ -296,7 +297,7 @@ def prepare_dataset(datset_list, dataset_id):
     print("#")
 
 
-task_name = os.getenv("TASK", "")
+task_name = f'Task{os.getenv("TASK_NUM")}_{os.getenv("TASK_DESCRIPTION")}'
 licence = os.getenv("LICENCE", "N/A")
 version = os.getenv("VERSION", "N/A")
 training_name = task_name

@@ -41,7 +41,6 @@ import json
 import logging
 from airflow.models import Variable
 
-
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
 kaapana_build_version = KAAPANA_BUILD_VERSION

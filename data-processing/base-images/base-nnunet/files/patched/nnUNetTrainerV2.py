@@ -13,37 +13,37 @@
 #    limitations under the License.
 
 
+import json
+import os
+import shutil
 from collections import OrderedDict
+from pathlib import Path
 from typing import Tuple
 
 import numpy as np
 import torch
-from nnunet.training.data_augmentation.data_augmentation_moreDA import (
-    get_moreDA_augmentation,
-)
-from nnunet.training.loss_functions.deep_supervision import MultipleOutputLoss2
-from nnunet.utilities.to_torch import maybe_to_torch, to_cuda
+from batchgenerators.utilities.file_and_folder_operations import *
 from nnunet.network_architecture.generic_UNet import Generic_UNet
 from nnunet.network_architecture.initialization import InitWeights_He
 from nnunet.network_architecture.neural_network import SegmentationNetwork
+from nnunet.training.data_augmentation.data_augmentation_moreDA import (
+    get_moreDA_augmentation,
+)
 from nnunet.training.data_augmentation.default_data_augmentation import (
     default_2D_augmentation_params,
-    get_patch_size,
     default_3D_augmentation_params,
+    get_patch_size,
 )
 from nnunet.training.dataloading.dataset_loading import unpack_dataset
+from nnunet.training.learning_rate.poly_lr import poly_lr
+from nnunet.training.loss_functions.deep_supervision import MultipleOutputLoss2
 from nnunet.training.network_training.nnUNetTrainer import nnUNetTrainer
 from nnunet.utilities.nd_softmax import softmax_helper
+from nnunet.utilities.to_torch import maybe_to_torch, to_cuda
 from sklearn.model_selection import KFold
 from torch import nn
 from torch.cuda.amp import autocast
-from nnunet.training.learning_rate.poly_lr import poly_lr
-from batchgenerators.utilities.file_and_folder_operations import *
-import os
-import shutil
-import json
 from torch.utils.tensorboard import SummaryWriter
-from pathlib import Path
 
 
 class JsonWriter(object):
@@ -161,7 +161,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
                 os.getenv("WORKFLOW_DIR"),
                 os.getenv("OPERATOR_IN_DIR"),
                 "nnUNet_raw_data",
-                os.getenv("TASK"),
+                f'Task{os.getenv("TASK_NUM")}_{os.getenv("TASK_DESCRIPTION")}',
                 "dataset.json",
             )
             dataset_info_path = os.path.join(self.output_folder, "dataset.json")

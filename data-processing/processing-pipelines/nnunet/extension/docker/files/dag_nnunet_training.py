@@ -94,7 +94,7 @@ ui_forms = {
                 "description": "Specify an id for the training task",
                 "type": "integer",
                 "default": TASK_NUM,
-                "minimum": 0,
+                "minimum": 1,
                 "maximum": 999,
                 "readOnly": False,
                 "required": True,

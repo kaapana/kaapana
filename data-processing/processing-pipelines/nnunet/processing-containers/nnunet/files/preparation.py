@@ -18,7 +18,7 @@ if __name__ == "__main__":
         exit(1)
 
     if task == None:
-        print("# Env 'TASK' has to be specified!")
+        print("# Env 'TASK_NUM' has to be specified!")
         print("# Abort!")
         exit(1)
 

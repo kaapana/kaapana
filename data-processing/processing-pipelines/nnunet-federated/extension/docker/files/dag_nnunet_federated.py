@@ -70,7 +70,7 @@ ui_forms = {
             "global_fingerprint": {
                 "type": "string",
                 "title": "Global fingerprint generation",
-                "enum": ["estimate"],
+                "enum": ["accurate", "estimate"],
                 "description": "accurate: Clients share partially voxel data for accurate fingerprint statistic computation; more accurate, less privacy-preserving, slower!\nestimate: Clients share data fingerprints, server estimates global data fingerprint statistics; less accurate, more privacy-preserving, faster!",
                 "default": "estimate",
                 "required": True,

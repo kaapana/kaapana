@@ -37,6 +37,7 @@ from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
 
+
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
 kaapana_build_version = KAAPANA_BUILD_VERSION

@@ -1,16 +1,15 @@
+from genericpath import isdir
+import os
 import glob
 import json
-import os
-import random
 import shutil
-import time
-from multiprocessing.pool import ThreadPool
-from os.path import basename, dirname, exists, isdir, join
 from pathlib import Path
-
+import random
+import time
 import nibabel as nib
 import numpy as np
-from genericpath import isdir
+from multiprocessing.pool import ThreadPool
+from os.path import join, exists, dirname, basename, isdir
 
 """
 Documentation create_dataset.py:

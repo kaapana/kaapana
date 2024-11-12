@@ -1,10 +1,10 @@
-import glob
-import json
 import os
-import pathlib
-import shutil
-
+import json
+import glob
 import pydicom
+import shutil
+import pathlib
+
 
 if __name__ == "__main__":
     print("# Starting nnUNet data preparation...")

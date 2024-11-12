@@ -102,7 +102,7 @@ class NnUnetOperator(KaapanaBaseOperator):
             "TENSORBOARD_DIR": "/tensorboard",
         }
         env_vars.update(envs)
-        
+
         gpu_mem_mb = None
         if mode == "training" or mode == "inference" or mode == "ensemble":
             if mode == "training":

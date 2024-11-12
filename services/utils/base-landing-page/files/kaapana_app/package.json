@@ -25,7 +25,7 @@
     "vue-property-decorator": "9.1.2",
     "vue-router": "3.6.5",
     "vue-selecto": "1.26.3",
-    "vue-cookies":"1.8.3",
+    "vue-cookies":"1.8.4",
     "vuetify": "2.7.2",
     "vuex": "3.6.2",
     "webpack": "5.91.0",

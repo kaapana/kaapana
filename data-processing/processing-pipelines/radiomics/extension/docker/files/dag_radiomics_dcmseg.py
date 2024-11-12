@@ -4,7 +4,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.MinioOperator import MinioOperator
 
 from kaapana.operators.GetInputOperator import GetInputOperator
@@ -67,7 +67,7 @@ dcmseg2nrrd = Mask2nifitiOperator(
     output_type="nrrd",
 )
 
-get_dicom = LocalGetRefSeriesOperator(
+get_dicom = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
 )

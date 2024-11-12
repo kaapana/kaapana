@@ -88,6 +88,8 @@ ui_forms = {
                 "description": "Specify an id for the training task",
                 "type": "integer",
                 "default": TASK_NUM,
+                "minimum": 0,
+                "maximum": 999,
                 "readOnly": False,
                 "required": True,
             },
@@ -462,7 +464,7 @@ pdf2dcm = Pdf2DcmOperator(
     input_operator=generate_nnunet_report,
     study_uid=training_results_study_uid,
     aetitle=ae_title,
-    pdf_title=f"Training Report nnUNet {TASK_NUM} {TASK_DESCRIPTION}",
+    pdf_title=f"Training Report nnUNet {TASK_NUM:03} {TASK_DESCRIPTION}",
 )
 
 dcmseg_send_pdf = DcmSendOperator(

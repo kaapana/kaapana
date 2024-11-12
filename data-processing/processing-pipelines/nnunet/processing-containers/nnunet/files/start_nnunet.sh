@@ -8,6 +8,12 @@ export OMP_NUM_THREADS=1
 # disable stdout/stderr buffer  
 export PYTHONUNBUFFERED=1
 
+if ! [[ "$TASK_NUM" =~ ^[0-9]+$ ]] || [ "$TASK_NUM" -lt 1 ] || [ "$TASK_NUM" -gt 999 ]; then
+  echo "Error: TASK_NUM must be an integer between 1 and 999."
+  exit 1
+fi
+
+TASK_NUM=$(printf "%03d" "$TASK_NUM")
 TASK_NAME="Task${TASK_NUM}_${TASK_DESCRIPTION}"
 
 
@@ -43,7 +49,7 @@ echo "#"
 echo "# Starting nnUNet..."
 echo "#"
 echo "# MODE:     $MODE";
-echo "# TASK_NAME:     $TASK_NAME";
+echo "# TASK_NAME:$TASK_NAME";
 echo "# TASK_NUM: $TASK_NUM";
 echo "#"
 
@@ -273,7 +279,7 @@ elif [ "$MODE" = "zip-model" ]; then
     
     mkdir -p "/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/"
     TIMESTAMP=`date +%Y-%m-%d_%H-%M`
-    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_$TASK_NAME_$MODEL_$TIMESTAMP.zip"
+    model_output_path="/$WORKFLOW_DIR/$OPERATOR_OUT_DIR/nnunet_${TASK_NAME}_${MODEL}_${TIMESTAMP}.zip"
     
     echo "#"
     echo "# Starting export-model..."

@@ -161,7 +161,7 @@ class nnUNetTrainerV2(nnUNetTrainer):
                 os.getenv("WORKFLOW_DIR"),
                 os.getenv("OPERATOR_IN_DIR"),
                 "nnUNet_raw_data",
-                f'Task{os.getenv("TASK_NUM")}_{os.getenv("TASK_DESCRIPTION")}',
+                f'Task{os.getenv("TASK_NUM"):003}_{os.getenv("TASK_DESCRIPTION")}',
                 "dataset.json",
             )
             dataset_info_path = os.path.join(self.output_folder, "dataset.json")

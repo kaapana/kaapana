@@ -1301,6 +1301,9 @@ def get_remote_updates(db: Session, periodically=False):
         remote_update_log = "Success"
         if remote_update_logs:
             remote_update_log = str(remote_update_logs)
+
+        # Refetching the client, since it might have been updated in the meantime
+        db_client_kaapana = get_kaapana_instance(db)
         client_kaapana_instance = schemas.ClientKaapanaInstanceCreate(
             ssl_check=db_client_kaapana.ssl_check,
             automatic_update=db_client_kaapana.automatic_update,

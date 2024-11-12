@@ -12,7 +12,7 @@ log = LoggingMixin().log
 study_id = "KaapanaFederated"
 dicom_model_slice_size_limit = 70
 training_results_study_uid = None
-ae_title = "nnUnet-results"
+ae_title = "nnU-Net-results"
 
 ## FL releated
 remote_dag_id = "nnunet-training"
@@ -70,11 +70,11 @@ ui_forms = {
             "global_fingerprint": {
                 "type": "string",
                 "title": "Global fingerprint generation",
-                "enum": ["accurate", "estimate"],
+                "enum": ["estimate"],
                 "description": "accurate: Clients share partially voxel data for accurate fingerprint statistic computation; more accurate, less privacy-preserving, slower!\nestimate: Clients share data fingerprints, server estimates global data fingerprint statistics; less accurate, more privacy-preserving, faster!",
                 "default": "estimate",
                 "required": True,
-                "readOnly": False,
+                "readOnly": True,
             },
         },
     },

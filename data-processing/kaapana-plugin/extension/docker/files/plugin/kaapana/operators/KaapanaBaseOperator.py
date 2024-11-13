@@ -524,10 +524,16 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     f"global.dynamicVolumes[{idx}].mount_path": f"{volume_mounts_lookup[k]}",
                 }
             )
+
+        project_name = self.project.get("name")
+        ingress_path = (
+            f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
+        )
+
         helm_sets = {
             "global.complete_image": self.image,
             "global.namespace": self.namespace,
-            "global.ingress_path": "{{ .Release.Name }}",
+            "global.ingress_path": ingress_path,
             **env_vars_sets,
             **dynamic_volumes,
             **env_vars_from_secret_key_refs,
@@ -622,6 +628,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         try:
             project_form = context.get("params").get("project_form")
+            self.project = project_form
             self.namespace = project_form.get("kubernetes_namespace")
         except (KeyError, AttributeError):
             self.namespace = "project-admin"

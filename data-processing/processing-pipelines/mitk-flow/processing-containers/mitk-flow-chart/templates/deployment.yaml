@@ -26,7 +26,7 @@ spec:
             memory: "8Gi"
         env:
         - name: INGRESS_PATH
-          value: {{ printf "/%s" .Release.Name }}
+          value: "applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
         - name: USER
           value: mitk
         - name: PASSWORD

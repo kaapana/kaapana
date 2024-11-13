@@ -50,7 +50,7 @@ async def auth_check(request: Request, response: Response):
         )
 
     method = request.headers.get("x-forwarded-method")
-    project_name = request.headers.get("Project-Name", None)
+    project_name = request.cookies.get("Project-Name", None)
     logger.debug(f"{project_name=}")
     aii_response = requests.get(
         f"http://aii-service.services.svc:8080/projects/{project_name}"

@@ -7,15 +7,4 @@ const httpClient = axios.create({
   timeout: 10000
 });
 
-httpClient.interceptors.request.use((config) => {
-  const selectedProject = store.getters.selectedProject
-  if (selectedProject) {
-    // config.headers['Project'] = JSON.stringify(selectedProject); 
-    config.headers['Project-Name'] = selectedProject.name; 
-  }
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
-
 export default httpClient;

@@ -238,14 +238,66 @@ generate_segmentation_thumbnail = GenerateThumbnailOperator(
     orig_image_operator=get_ref_ct_series_from_seg,
 )
 
-put_to_minio = LocalMinioOperator(
+
+def upload_thumbnails_into_project_bucket(ds, **kwargs):
+    """
+    Uploads the generated thumbnails to the project bucket,
+    where project is determined from the "00120020 ClinicalTrialProtocolID_keyword" tag of the dicom metadata.
+    Additionally uploads the thumbnails to the project bucket of the admin project.
+    """
+    import json, requests
+    from kaapanapy.helper import get_minio_client
+    from kaapanapy.settings import KaapanaSettings
+
+    kaapana_settings = KaapanaSettings()
+    minio = get_minio_client()
+
+    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
+    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
+    for batch_element_dir in batch_folder:
+        json_dir = Path(batch_element_dir) / extract_metadata.operator_out_dir
+        thumbnail_dir = (
+            Path(batch_element_dir) / generate_segmentation_thumbnail.operator_out_dir
+        )
+
+        json_files = [f for f in json_dir.glob("*.json")]
+        assert len(json_files) == 1
+        metadata_file = json_files[0]
+        with open(metadata_file, "r") as f:
+            metadata = json.load(f)
+
+        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")[0]
+        response = requests.get(
+            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_name}"
+        )
+        project = response.json()
+        thumbnails = [f for f in thumbnail_dir.glob("*.png")]
+        assert len(thumbnails) == 1
+        thumbnail_path = thumbnails[0]
+        series_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
+        minio_object_path = f"thumbnails/{series_uid}.png"
+        minio.fput_object(
+            bucket_name=project.get("s3_bucket"),
+            object_name=minio_object_path,
+            file_path=thumbnail_path,
+        )
+
+        if project_name != "admin":
+            response = requests.get(
+                f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
+            )
+            project = response.json()
+            minio.fput_object(
+                bucket_name=project.get("s3_bucket"),
+                object_name=minio_object_path,
+                file_path=thumbnail_path,
+            )
+
+
+put_thumbnail_to_project_bucket = KaapanaPythonBaseOperator(
+    name="thumbnail_to_project_bucket",
+    python_callable=upload_thumbnails_into_project_bucket,
     dag=dag,
-    name="upload-thumbnail",
-    zip_files=False,
-    action="put",
-    bucket_name="thumbnails",
-    action_operators=[generate_segmentation_thumbnail],
-    file_white_tuples=(".png"),
 )
 
 skip_if_dcm_is_no_segmetation = KaapanaPythonBaseOperator(
@@ -280,6 +332,6 @@ extract_metadata >> assign_to_project >> [validate, skip_if_dcm_is_no_segmetatio
     skip_if_dcm_is_no_segmetation
     >> get_ref_ct_series_from_seg
     >> generate_segmentation_thumbnail
-    >> put_to_minio
+    >> put_thumbnail_to_project_bucket
     >> clean
 )

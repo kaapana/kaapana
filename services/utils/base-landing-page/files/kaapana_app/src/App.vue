@@ -141,6 +141,8 @@
 
 <script lang="ts">
 import Vue from "vue";
+import VueCookies from 'vue-cookies';
+Vue.use(VueCookies, { expires: '1d'})
 import { mapGetters } from "vuex";
 import httpClient from "@/common/httpClient.js";
 import kaapanaApiService from "@/common/kaapanaApi.service";
@@ -272,6 +274,7 @@ export default Vue.extend({
       () => this.$store.getters.selectedProject,
       (newValue, oldValue) => {
         if (newValue !== oldValue) {
+          Vue.$cookies.set("Project-Name", newValue.name);
           location.reload(); // Reload the page
         }
       }

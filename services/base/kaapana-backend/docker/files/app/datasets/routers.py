@@ -7,6 +7,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from minio.error import S3Error
 from starlette.responses import StreamingResponse
+import json
 
 router = APIRouter(tags=["datasets"])
 
@@ -170,8 +171,9 @@ async def get_aggregatedSeriesNum(
     return JSONResponse(res)
 
 
-@router.get("/get-thumbnail/{series_instance_uid}")
+@router.get("/series/{series_instance_uid}/thumbnail")
 def get_thumbnail_png(
+    request: Request,
     series_instance_uid: str,
     minioClient=Depends(get_minio),
 ) -> StreamingResponse:
@@ -187,9 +189,10 @@ def get_thumbnail_png(
     Returns:
         StreamingResponse: Streaming response of the PNG file.
     """
+    project = json.loads(request.headers.get("project"))
 
-    bucket = "thumbnails"
-    object_name = f"batch/{series_instance_uid}/generate-segmentation-thumbnail/{series_instance_uid}.png"
+    bucket = project["s3_bucket"]
+    object_name = f"thumbnails/{series_instance_uid}.png"
 
     try:
         png_file = minioClient.get_object(bucket, object_name)
@@ -217,7 +220,9 @@ async def get_data(
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
 
-        thumbnail_src = f"/kaapana-backend/dataset/get-thumbnail/{series_instance_uid}"
+        thumbnail_src = (
+            f"/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
+        )
     else:
         thumbnail_src = (
             f"/dicom-web-filter/studies/{metadata['Study Instance UID']}/"

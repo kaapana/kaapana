@@ -8,11 +8,6 @@ export OMP_NUM_THREADS=1
 # disable stdout/stderr buffer  
 export PYTHONUNBUFFERED=1
 
-if ! [[ "$TASK_NUM" =~ ^[0-9]+$ ]] || [ "$TASK_NUM" -lt 1 ] || [ "$TASK_NUM" -gt 999 ]; then
-  echo "Error: TASK_NUM must be an integer between 1 and 999."
-  exit 1
-fi
-
 TASK_NUM=$(printf "%03d" "$TASK_NUM")
 TASK_NAME="Task${TASK_NUM}_${TASK_DESCRIPTION}"
 
@@ -61,6 +56,11 @@ if [ "$MODE" = "preprocess" ]; then
     echo "#"
     echo "# Starting preprocessing..."
     echo "#"
+    
+    if ! [[ "$TASK_NUM" =~ ^[0-9]+$ ]] || [ "$TASK_NUM" -lt 1 ] || [ "$TASK_NUM" -gt 999 ]; then
+        echo "Error: TASK_NUM ($TASK_NUM) must be an integer between 1 and 999."
+        exit 1
+    fi
     
     if [ "$PREP_INCREMENT_STEP" = "all" ] || [ "$PREP_INCREMENT_STEP" = "to_dataset_properties" ]; then
         echo "#"
@@ -148,6 +148,11 @@ elif [ "$MODE" = "training" ]; then
     echo "#"
     echo "# Starting training..."
     echo "#"
+
+    if ! [[ "$TASK_NUM" =~ ^[0-9]+$ ]] || [ "$TASK_NUM" -lt 1 ] || [ "$TASK_NUM" -gt 999 ]; then
+        echo "Error: TASK_NUM ($TASK_NUM) must be an integer between 1 and 999."
+        exit 1
+    fi
 
     if [ ! -z "$PLAN_NETWORK_PLANNER" ]; then
         if [ "$PLAN_NETWORK_PLANNER" == "nnUNetPlannerResEncM" ]; then

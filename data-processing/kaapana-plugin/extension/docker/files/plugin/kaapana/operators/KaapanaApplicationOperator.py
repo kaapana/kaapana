@@ -48,6 +48,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
             "sets": {
                 "global.namespace": self.namespace,
                 "global.project_namespace": self.namespace,
+                "global.project_name": project_form.get("name"),
                 **dynamic_volumes,
                 "mount_path": f'{self.data_dir}/{kwargs["run_id"]}',
                 "workflow_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{kwargs["run_id"]}',

@@ -1,39 +1,32 @@
 import random
 from datetime import datetime, timedelta
 
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.trigger_rule import TriggerRule
+from kaapana.blueprints.kaapana_global_variables import GPU_COUNT, INSTANCE_NAME
+from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
-from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from airflow.api.common.experimental import pool as pool_api
-from nnunet.NnUnetOperator import NnUnetOperator
-from nnunet.SegCheckOperator import SegCheckOperator
-
-from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from kaapana.operators.LocalModifySegLabelNamesOperator import (
     LocalModifySegLabelNamesOperator,
 )
-from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
-from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
-
-from airflow.utils.dates import days_ago
-from airflow.models import DAG
-from airflow.utils.trigger_rule import TriggerRule
-from kaapana.blueprints.kaapana_global_variables import (
-    INSTANCE_NAME,
-    SERVICES_NAMESPACE,
-    GPU_COUNT,
-    CPU_CORE_COUNT,
-)
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
+from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
+from nnunet.NnUnetOperator import NnUnetOperator
+from nnunet.SegCheckOperator import SegCheckOperator
 
 study_id = "Kaapana"
-TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
+TASK_NUM = random.randint(1, 999)
+TASK_DESCRIPTION = f"{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
 label_filter = ""
 prep_modalities = "MR"
 default_model = "3d_fullres"
@@ -90,11 +83,22 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "task": {
-                "title": "TASK_NAME",
+            "task_num": {
+                "title": "TASK_NUM",
+                "description": "Specify an id for the training task",
+                "type": "integer",
+                "default": TASK_NUM,
+                "minimum": 1,
+                "maximum": 999,
+                "readOnly": False,
+                "required": True,
+            },
+            "task_description": {
+                "title": "TASK_DESCRIPTION",
                 "description": "Specify a name for the training task",
                 "type": "string",
-                "default": TASK_NAME,
+                "default": TASK_DESCRIPTION,
+                "readOnly": True,
                 "required": True,
             },
             "model": {
@@ -300,7 +304,6 @@ ui_forms = {
                 "description": "Whether your report is execute in single mode or not",
                 "default": False,
                 "readOnly": True,
-                # "required": True
             },
         },
     },
@@ -461,7 +464,7 @@ pdf2dcm = Pdf2DcmOperator(
     input_operator=generate_nnunet_report,
     study_uid=training_results_study_uid,
     aetitle=ae_title,
-    pdf_title=f"Training Report nnUNet {TASK_NAME} {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+    pdf_title=f"Training Report nnUNet {TASK_NUM:03} {TASK_DESCRIPTION}",
 )
 
 dcmseg_send_pdf = DcmSendOperator(

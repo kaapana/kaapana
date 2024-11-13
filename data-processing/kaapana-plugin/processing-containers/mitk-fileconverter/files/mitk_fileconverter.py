@@ -71,7 +71,7 @@ def process_input_file(paras):
         )
         if not exists(output_filepath):
             command = [
-                "/kaapana/app/apps/MitkFileConverter.sh",
+                "/kaapana/app/MitkFileConverter.sh",
                 "-i",
                 input_filepath,
                 "-o",

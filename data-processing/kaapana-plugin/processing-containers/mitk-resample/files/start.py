@@ -43,9 +43,9 @@ def process_input_file(input_path, original_path, original_shape, target_dir):
 
         command = [
             str(executable),
-            "-t",
+            "-f",
             str(original_path),
-            "-i",
+            "-m",
             str(input_path),
             "-o",
             str(target_path),
@@ -123,7 +123,7 @@ executable = getenv("EXECUTABLE", "None")
 executable = executable if executable.lower() != "none" else None
 assert executable is not None
 
-#  Default: 2; allowed values: 1: Nearest Neighbour, 2: Linear, 3: BSpline 3, 4: WSinc Hamming, 5: WSinc Welch (optional), (default: 2), Type: Int
+# 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int
 interpolator = getenv("INTERPOLATOR", "None")
 interpolator = int(interpolator) if interpolator.lower() != "none" else 1
 

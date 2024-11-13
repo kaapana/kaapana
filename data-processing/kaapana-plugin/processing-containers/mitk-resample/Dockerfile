@@ -1,4 +1,4 @@
-FROM local-only/base-mitk:latest
+FROM local-only/base-mitk-phenotyping:latest
 
 LABEL IMAGE="mitk-resample"
 LABEL VERSION="2021-02-18"
@@ -13,28 +13,20 @@ ENV OPERATOR_OUT_DIR mitk-resample
 ENV INTERPOLATOR 1 
 ENV ORG_IMG_IN_DIR ""
 
-ENV EXECUTABLE /kaapana/app/apps/MitkMapImage.sh
+ENV EXECUTABLE /kaapana/app/MitkCLResampleImageToReference.sh
 
 COPY files/start.py /kaapana/app/start.py
 CMD ["python3","-u","/kaapana/app/start.py"]
 
-# ./MitkMapImage.sh 
-# Running Command Line Utility *Map Image*
-# Command Line Utility *Map Image* in Category *Registration Tools*
-# MiniApp that allows to map a image into a given output geometry by using a given registration.
-# MIC, German Cancer Research Center (DKFZ)
+# root@cd72f914f1cd:/opt# ./MitkCLResampleImageToReference.sh 
+# Running Command Line Utility *Resample Image To Reference*
+# Command Line Utility *Resample Image To Reference* in Category *Classification Tools*
+# Resamples an image (moving) to an given image (fix) without additional registration.
+# German Cancer Research Center (DKFZ)
 
 # Use --xml to generate an XML description parsable as a CTK Command Line Module Plugin.
 # Use --version to print MITK revision information.
-
-# Optional parameters
-#   -r, --registration, Path to the registration that should be used. If no registration is specified, an identity transform is assumed. (optional), Type: File, Channel: input
-#   -t, --template, File path to an image that serves as template for the output geometry. If no template is specified, the geometry of the input image will be used., Type: File, Channel: input
-#   -n, --interpolator, Interpolator used for mapping the images. Default: 2; allowed values: 1: Nearest Neighbour, 2: Linear, 3: BSpline 3, 4: WSinc Hamming, 5: WSinc Welch (optional), (default: 2), Type: Int
-#   -p, --padding, Value used for output voxels that are not covered by any input image. (optional), (default: 0), Type: Float
-#   -s, --super-sampling, Value used for super sampling of the result. E.g. factor 2 will lead to a doubled resolution compared to the used template. If not specified, no super sampling will be done. (optional), Type: StringList
-#   -h, --help, Show this help text (optional), Type: Bool
-
-# Required I/O parameters
-#   -i, --input, Path to the input images that should be mapped, Type: File, Channel: input
-#   -o, --output, Path to the mapped image., Type: File, Channel: output
+#   -f, --fix, fixed image file, Type: Image, Channel: input
+#   -m, --moving, moving image file, Type: File, Channel: output
+#   -o, --output, output image, Type: File, Channel: output
+#   --interpolator, interpolator type: 0=linear (default), 1=nearest neighbor, 2=sinc (optional), (default: 0), Type: Int

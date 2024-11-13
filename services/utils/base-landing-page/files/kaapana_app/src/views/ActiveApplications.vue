@@ -50,14 +50,14 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import Vue from "vue";
 import { mapGetters } from "vuex";
-import kaapanaApiService from '@/common/kaapanaApi.service';
-import IdleTracker from '@/components/IdleTracker.vue';
+import kaapanaApiService from "@/common/kaapanaApi.service";
+import IdleTracker from "@/components/IdleTracker.vue";
 
 export default Vue.extend({
   components: {
-    IdleTracker
+    IdleTracker,
   },
   data: () => ({
     loading: true,
@@ -88,23 +88,39 @@ export default Vue.extend({
       },
       { text: "Action", value: "releaseName" },
     ],
-    activeHeaders: [
-      { text: "Name", value: "name" },
-    ],
+    activeHeaders: [{ text: "Name", value: "name" }],
   }),
   mounted() {
     this.getHelmCharts();
     this.getTraefikRoutes();
   },
   computed: {
-    ...mapGetters(['currentUser', 'isAuthenticated', "commonData", "launchApplicationData", "availableApplications", "selectedProject"])
+    ...mapGetters([
+      "currentUser",
+      "isAuthenticated",
+      "commonData",
+      "launchApplicationData",
+      "availableApplications",
+      "selectedProject",
+    ]),
   },
   methods: {
     getHelmCharts() {
       kaapanaApiService
         .helmApiGet("/active-applications", {})
         .then((response: any) => {
-          this.launchedAppLinks = response.data;
+          const launchedApps: Array<any> = response.data;
+          const rulePattern = new RegExp(
+            `^\/applications\/project\/${this.selectedProject.name}\/release\/.+$`
+          );
+          this.launchedAppLinks = launchedApps.filter((item: any) => {
+            // check that all links for the application belong to the selected project.
+            const applicationPaths: Array<string> = item.links;
+            return applicationPaths.every((path: string) => {
+              return rulePattern.test(path);
+            });
+          });
+
           this.loading = false;
         })
         .catch((err: any) => {
@@ -133,14 +149,20 @@ export default Vue.extend({
 
               // check if the rule contains the required pattern for project namespace
               const rulePath = item.rule.slice(12, -2);
-              const rulePattern = new RegExp(`^\/applications\/project\/${this.selectedProject.name}\/release\/[^/]+$`);
+              const rulePattern = new RegExp(
+                `^\/applications\/project\/${this.selectedProject.name}\/release\/.+$`
+              );
               return rulePattern.test(rulePath);
             })
             .map((item: any) => {
-              const url = item.rule.slice(12, -2) // extract path from PathPrefix("<path>")
+              const url: string = item.rule.slice(12, -2).replace(RegExp("/\/+$/"), ""); // extract path from PathPrefix("<path>")
+              const strippedUrl: string = url.replace(/\/+$/, "");
+              const name: string = strippedUrl.substring(
+                strippedUrl.lastIndexOf("/") + 1
+              );
               return {
-                name: url.substring(url.lastIndexOf('/') + 1),
-                url: url
+                name: name,
+                url: url,
               };
             });
           this.loadingProject = false;
@@ -148,10 +170,8 @@ export default Vue.extend({
         .catch((err: any) => {
           console.log(err);
           this.loadingProject = false;
-
         });
     },
-
 
     deleteChart(releaseName: any) {
       let params = {
@@ -171,8 +191,8 @@ export default Vue.extend({
           console.log(err);
         });
     },
-  }
-})
+  },
+});
 </script>
 
 <style lang="scss">

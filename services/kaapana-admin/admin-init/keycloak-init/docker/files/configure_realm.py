@@ -29,23 +29,32 @@ if __name__ == "__main__":
     ### Add user role to default-roles-kaapana
     keycloak.post_composite_role("default-roles-kaapana", ["user"])
 
-    ### Add group
+    ### Add group kaapana_admin
     file = "realm_objects/group-kaapana_admin.json"
     payload = json.load(open(file, "r"))
     keycloak.post_group(payload)
 
     ### Add role mappings to group kaapana_admin
-    roles = ["admin", "user"]
-    keycloak.post_role_mapping(roles, "kaapana_admin")
+    roles = ["admin", "project-manager", "user"]
+    keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_admin")
 
-    ### Add kaapana_user group kaapana_user
+    ### Add group kaapana_user
     file = "realm_objects/group-kaapana_user.json"
     payload = json.load(open(file, "r"))
     keycloak.post_group(payload)
 
     ### Add role mappings to group kaapana_user
     roles = ["user"]
-    keycloak.post_role_mapping(roles, "kaapana_user")
+    keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_user")
+
+    ### Add group kaapana_project_manager
+    file = "realm_objects/group-kaapana_project_manager.json"
+    payload = json.load(open(file, "r"))
+    keycloak.post_group(payload)
+
+    ### Add role mappings to group kaapana_project_manager
+    roles = ["project-manager", "user"]
+    keycloak.post_role_mapping(roles_to_add=roles, group="kaapana_project_manager")
 
     ### Add user
     file = "realm_objects/kaapana-user.json"

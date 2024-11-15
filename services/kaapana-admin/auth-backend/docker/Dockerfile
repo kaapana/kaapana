@@ -12,7 +12,7 @@ RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.
 COPY ./files/*.py /kaapana/app/
 COPY ./files/*.html /kaapana/app/
 
-RUN curl -L -o opa https://openpolicyagent.org/downloads/v0.56.0/opa_linux_amd64_static
+RUN curl -L -o opa https://openpolicyagent.org/downloads/v0.70.0/opa_linux_amd64_static
 RUN chmod 755 ./opa
 
 COPY files/bundle/ bundle/

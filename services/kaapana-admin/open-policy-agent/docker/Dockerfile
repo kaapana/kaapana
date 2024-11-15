@@ -1,4 +1,4 @@
-FROM docker.io/openpolicyagent/opa:0.62.0
+FROM docker.io/openpolicyagent/opa:0.70.0
 
 LABEL IMAGE="open-policy-agent"
 LABEL VERSION="0.0.1"

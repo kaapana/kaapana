@@ -26,7 +26,7 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /kaapana/app
 RUN npm run build
 
-FROM nginxinc/nginx-unprivileged:1.25.3-alpine
+FROM nginxinc/nginx-unprivileged:1.27.2-alpine
 WORKDIR /kaapana/app
 
 COPY --from=build-stage /kaapana/app/dist /kaapana/app

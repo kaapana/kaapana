@@ -2,7 +2,7 @@ FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="mitk-flow"
 LABEL VERSION="2023.12"
-LABEL BUILD_IGNORE="False"
+LABEL BUILD_IGNORE="True"
 
 WORKDIR /src
 RUN mkdir -p /mitk

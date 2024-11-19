@@ -3,7 +3,7 @@ FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="mitk-workbench"
 LABEL VERSION="2023.12"
-LABEL BUILD_IGNORE="False"
+LABEL BUILD_IGNORE="True"
 
 
 RUN mkdir -p /mitk

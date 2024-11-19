@@ -2,7 +2,7 @@ FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="desktop-container"
 LABEL VERSION="0.0.1"
-LABEL BUILD_IGNORE="False"
+LABEL BUILD_IGNORE="True"
 
 RUN mkdir  -p /home/desktop/Desktop/
 RUN ln -s /kaapana/minio /home/desktop/Desktop/

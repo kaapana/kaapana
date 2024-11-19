@@ -3,6 +3,7 @@ psycopg2-binary == 2.9.10
 Flask-Admin==1.6.1
 kubernetes==30.1.0
 dicom_parser==1.2.3
+pint==0.24.4
 statsd==4.0.1
 cryptography==42.0.8
 jupyterlab==4.3.1

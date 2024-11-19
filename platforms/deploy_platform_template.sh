@@ -474,7 +474,7 @@ function deploy_chart {
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
     --set-string global.email_address_receiver="$EMAIL_ADDRESS_RECEIVER" \
-    --set-string global.kaapana_init_admin_email="KAAPANA_INIT_ADMIN_EMAIL" \
+    --set-string global.kaapana_init_admin_email="$KAAPANA_INIT_ADMIN_EMAIL" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
@@ -555,7 +555,7 @@ function print_deployment_done {
         echo -e "${GREEN}you can visit: https://$DOMAIN:$HTTPS_PORT/"
         echo -e "You should be welcomed by the login page."
         echo -e "Initial credentials:"
-        echo -e "username: kaapana"
+        echo -e "admin email: $KAAPANA_INIT_ADMIN_EMAIL"
         echo -e "password: ${KAAPANA_INIT_PASSWORD} ${NC}"
     fi
 }

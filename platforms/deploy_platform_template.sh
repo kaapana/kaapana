@@ -18,6 +18,7 @@ CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}
 # Deployment configuration
 ######################################################
 
+
 DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will always be re-downloaded after pod-restart
 GPU_SUPPORT="{{ gpu_support|default('false') }}"
 
@@ -46,6 +47,14 @@ if [ "$DEV_MODE" == "true" ]; then
 else
     KAAPANA_INIT_PASSWORD="Kaapana2020!"
 fi
+
+KAAPANA_INIT_ADMIN_EMAIL="admin@kaapana.ai"
+
+if [[ ! "$KAAPANA_INIT_ADMIN_EMAIL" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
+    echo "Error: '$KAAPANA_INIT_ADMIN_EMAIL' is not a valid email address. Please provide a valid email for KAAPANA_INIT_ADMIN_EMAIL (e.g., 'admin@example.com')."
+    exit 1
+fi
+
 
 CREDENTIALS_MINIO_USERNAME="{{ credentials_minio_username|default('kaapanaminio', true) }}"
 CREDENTIALS_MINIO_PASSWORD="{{ credentials_minio_password|default('Kaapana2020', true) }}"
@@ -465,6 +474,7 @@ function deploy_chart {
     --set-string global.smtp_password="$SMTP_PASSWORD" \
     --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
     --set-string global.email_address_receiver="$EMAIL_ADDRESS_RECEIVER" \
+    --set-string global.kaapana_init_admin_email="KAAPANA_INIT_ADMIN_EMAIL" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"

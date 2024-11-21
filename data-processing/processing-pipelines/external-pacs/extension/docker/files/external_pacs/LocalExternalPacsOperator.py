@@ -154,10 +154,12 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         )
         os.makedirs(target_dir, exist_ok=True)
         json_path = os.path.join(target_dir, "metadata.json")
+        
+        
 
         instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
         instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
-        instance["00120020"] = {"vr": "LO", "Value": [self.project_form["name"]]}
+        instance["00120020"] = {"vr": "LO", "Value": [self.project_form["project_user_name"]]}
 
         with open(json_path, "w", encoding="utf8") as fp:
             json.dump(instance, fp, indent=4, sort_keys=True)
@@ -261,6 +263,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
         self.workflow_config = kwargs["dag_run"].conf
         self.workflow_form = self.workflow_config["workflow_form"]
         self.project_form = self.workflow_config["project_form"]
+        
         dcmweb_endpoint = self.workflow_form.get("dcmweb_endpoint")
         service_account_info = self.workflow_form.get("service_account_info")
 

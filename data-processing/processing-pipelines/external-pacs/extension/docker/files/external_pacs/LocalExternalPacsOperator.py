@@ -159,7 +159,7 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
 
         instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
         instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
-        instance["00120020"] = {"vr": "LO", "Value": [self.project_form["project_user_name"]]}
+        instance["00120020"] = {"vr": "LO", "Value": [self.project_form["name"]]}
 
         with open(json_path, "w", encoding="utf8") as fp:
             json.dump(instance, fp, indent=4, sort_keys=True)

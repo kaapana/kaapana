@@ -117,7 +117,6 @@ class HelperOpensearch:
     def get_dcm_uid_objects(
         series_instance_uids, include_custom_tag="", exclude_custom_tag=""
     ):
-        index = index if index is not None else HelperOpensearch.index
         # default query for fetching via identifiers
         query = {"bool": {"must": [{"ids": {"values": series_instance_uids}}]}}
 

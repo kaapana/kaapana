@@ -3,6 +3,5 @@ opencv-python-headless==4.10.0.84
 pytorch-lightning==2.4.0
 scipy==1.14.1
 albumentations==1.4.21
-dataclasses
 pandas==2.2.3
 torchvision==0.20.1

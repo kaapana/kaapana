@@ -12,7 +12,8 @@ ENV DICT_PATH /scripts/dicom_tag_dict.json
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt /files/requirements.txt
-RUN python -m pip install --upgrade setuptools pip && pip3 install -c https://raw.githubusercontent.com/apache/airflow/constraints-2.10.3/constraints-3.12.txt -r /files/requirements.txt
+COPY files/constraints-3.12.txt files/constraints-3.12.txt
+RUN python -m pip install --upgrade setuptools pip && pip3 install -c /files/constraints-3.12.txt -r /files/requirements.txt
 
 COPY files/scripts/ /scripts
 

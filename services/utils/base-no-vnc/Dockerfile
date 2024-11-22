@@ -49,7 +49,7 @@ FROM local-only/base-python-gpu:latest
 LABEL REGISTRY="local-only"
 LABEL IMAGE="no-vnc-base"
 LABEL VERSION="latest"
-LABEL BUILD_IGNORE="True"
+LABEL BUILD_IGNORE="False"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \

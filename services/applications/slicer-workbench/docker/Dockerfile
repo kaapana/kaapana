@@ -2,7 +2,7 @@ FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="slicer-workbench"
 LABEL VERSION="0.1.0"
-LABEL BUILD_IGNORE="True"
+LABEL BUILD_IGNORE="False"
 
 WORKDIR /src
 RUN mkdir -p /kaapana/mounted/slicer-data

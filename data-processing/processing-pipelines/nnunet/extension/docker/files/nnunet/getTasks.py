@@ -221,8 +221,9 @@ def get_tasks():
         all_selectable_tasks = installed_tasks.copy()
         all_selectable_tasks.update(tasks)
 
-        # TODO why do we need to return all three?
-        return available_pretrained_task_names, installed_tasks, all_selectable_tasks
+        sorted_installed_tasks = dict(sorted(installed_tasks.items()))
+        
+        return available_pretrained_task_names, sorted_installed_tasks, all_selectable_tasks
     except Exception as e:
         print("Error in getTasks.py: ", e)
         return [], {}, {}

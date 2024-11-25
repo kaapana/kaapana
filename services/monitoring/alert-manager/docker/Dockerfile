@@ -1,5 +1,5 @@
-FROM docker.io/prom/alertmanager:main@sha256:05502d41e671f58d650c5eb6bd8956d70a68fa5be1375ee958dbf7ee72611427
+FROM docker.io/prom/alertmanager:main@sha256:16529df5632c7643ab86db734909152dea3299a9902503c0c25e1b8c51d9c06c
 
 LABEL IMAGE="alert-manager"
-LABEL VERSION="v0.26.0"
+LABEL VERSION="v0.27.0"
 LABEL BUILD_IGNORE="False"

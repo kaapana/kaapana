@@ -69,5 +69,7 @@ class DcmSendOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,
+            ram_mem_mb=50,
+            ram_mem_mb_lmt=4000,
             **kwargs,
         )

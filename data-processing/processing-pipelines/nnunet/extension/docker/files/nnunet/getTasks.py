@@ -218,10 +218,9 @@ def get_tasks():
             af_home_path=af_home_path
         )
         installed_tasks = _get_installed_tasks(af_home_path=af_home_path)
+        sorted_installed_tasks = dict(sorted(installed_tasks.items()))
         all_selectable_tasks = installed_tasks.copy()
         all_selectable_tasks.update(tasks)
-
-        sorted_installed_tasks = dict(sorted(installed_tasks.items()))
         
         return available_pretrained_task_names, sorted_installed_tasks, all_selectable_tasks
     except Exception as e:

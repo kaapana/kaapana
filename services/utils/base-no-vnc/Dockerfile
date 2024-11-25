@@ -90,7 +90,7 @@ RUN apt-get update \
 
 RUN apt update \
     && apt install -y --no-install-recommends --allow-unauthenticated \
-    lightdm lxde gtk2-engines-murrine gnome-themes-standard gtk2-engines-pixbuf gtk2-engines-murrine arc-theme \
+    lightdm lxde gtk2-engines-murrine gtk2-engines-pixbuf gtk2-engines-murrine arc-theme \
     && apt autoclean -y \
     && apt autoremove -y \
     && rm -rf /var/lib/apt/lists/*

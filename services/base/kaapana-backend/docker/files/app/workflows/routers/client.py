@@ -536,7 +536,6 @@ def get_datasets(
 ):
     db_objs = crud.get_datasets(
         db,
-        instance_name,
         limit=limit,
         username=request.headers["x-forwarded-preferred-username"],
     )

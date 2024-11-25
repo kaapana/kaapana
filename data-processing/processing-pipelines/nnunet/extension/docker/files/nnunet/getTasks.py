@@ -218,11 +218,14 @@ def get_tasks():
             af_home_path=af_home_path
         )
         installed_tasks = _get_installed_tasks(af_home_path=af_home_path)
-        sorted_installed_tasks = dict(sorted(installed_tasks.items()))
         all_selectable_tasks = installed_tasks.copy()
         all_selectable_tasks.update(tasks)
         
-        return available_pretrained_task_names, sorted_installed_tasks, all_selectable_tasks
+        sorted_available_pretrained_task_names = sorted(available_pretrained_task_names)
+        sorted_installed_tasks = dict(sorted(installed_tasks.items()))
+        sorted_all_selectable_tasks = dict(sorted(all_selectable_tasks.items()))
+
+        return sorted_available_pretrained_task_names, sorted_installed_tasks, sorted_all_selectable_tasks
     except Exception as e:
         print("Error in getTasks.py: ", e)
         return [], {}, {}

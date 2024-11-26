@@ -1,7 +1,20 @@
-alembic init alembic
-cp env.py /kaapana/app/alembic/env.py
-alembic revision --autogenerate -m "Migration"
+if [ ! -d "/kaapana/app/alembic" ]; then
+    alembic init alembic
+    cp env.py /kaapana/app/alembic/env.py
+fi
+# Apply existing migrations
 alembic upgrade head
+alembic revision --autogenerate -m "Automated Migration"
+# Apply the new migration
+alembic upgrade head
+
+# Trying to handle multiple heads if they exist
+if [ $(alembic heads | wc -l) -gt 1 ]; then
+    echo "Multiple heads detected, trying to automaticly merge."
+    alembic merge $(alembic heads | awk '{print $1}')
+    alembic upgrade head
+fi
+
 
 export PYTHONPATH="$PWD" 
 

@@ -1,19 +1,17 @@
-echo '==============================='
-echo 'Run an awesome MITK Application'
-echo '==============================='
+#!/bin/bash
+echo "Starting MITK Workbench"
 /mitk/MitkWorkbench.sh &
 PID=$!
-# wait until Workbench is ready
-tail -f  /home/mitk/Desktop/logfile | while read LOGLINE
+
+tail -f $HOME/logfile | while read LOGLINE
 do
 	[[ "${LOGLINE}" == *"BlueBerry Workbench ready"* ]] && pkill -P $$ tail
 done
+
 echo 'Setting fullscreen mode'
 wmctrl -r 'Research' -b toggle,fullscreen
-# wait for process to end, before starting new process
+
 wait $PID
-#clear logfile
-> /home/mikt/Desktop/logfile
 
 
 

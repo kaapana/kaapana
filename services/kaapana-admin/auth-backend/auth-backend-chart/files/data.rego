@@ -40,6 +40,15 @@ allowed_user_endpoints := [
     {"path": "^/kaapana-backend/client/file", "methods": ["POST", "HEAD", "PATCH","DELETE"]},
 ]
 
+allowed_project_manager_endpoints := [
+    {"path": "^/aii/.*" ,"methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/system/Projects.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/projects-ui.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/kaapana-backend/open-policy-data", "methods": ["GET"]},
+    {"path": "^/kaapana-backend/settings", "methods": ["GET"]},
+    {"path": "^/kaapana-backend/get-traefik-routes", "methods": ["GET"]},
+]
+
 allowed_admin_endpoints := [
     {"path":"^/.*", "methods": ["GET","POST","PUT","DELETE","HEAD","PATCH"]},
 ]
@@ -47,4 +56,5 @@ allowed_admin_endpoints := [
 endpoints_per_role := {
     "user" : allowed_user_endpoints,
     "admin" : allowed_admin_endpoints,
+    "project-manager": allowed_project_manager_endpoints
 }

@@ -1,5 +1,6 @@
 import Vue from "vue";
 import httpClient from "./httpClient";
+import store from '../store/index';
 
 const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT;
 
@@ -200,8 +201,14 @@ const loadDicomTagMapping = async () => {
 };
 
 const fetchProjects = async () => {
+  const currentUser = store.getters.currentUser
   try {
-    return (await httpClient.get("/aii/projects")).data;
+    if (currentUser.roles.includes("admin")) {
+      return (await httpClient.get("/aii/projects")).data;
+    } else {
+      return (await httpClient.get("/aii/users/" + currentUser.id + "/projects")).data
+    }
+    
   } catch (error) {
     Vue.notify({
       title: "Error",

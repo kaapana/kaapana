@@ -2,8 +2,11 @@ import json
 import re
 
 import requests
-from fastapi import Request
-from kaapanapy.helper import get_minio_client, minio_credentials
+from kaapanapy.helper import (
+    get_minio_client,
+    minio_credentials,
+    get_project_user_access_token,
+)
 from kaapanapy.logger import get_logger
 
 from app.projects.schemas import Project
@@ -12,12 +15,12 @@ from app.projects.crud import get_rights
 logger = get_logger(__name__)
 
 
-def get_minio_helper(request: Request):
+def get_minio_helper():
     """
     Get an instance of the MinioHelper class that uses the
-    x-forwarded-access-token header in the requests to authenticate against MinIO
+    project-system-user access token to authenticate against MinIO
     """
-    access_token = request.headers.get("x-forwarded-access-token")
+    access_token = get_project_user_access_token()
     return MinioHelper(access_token=access_token)
 
 

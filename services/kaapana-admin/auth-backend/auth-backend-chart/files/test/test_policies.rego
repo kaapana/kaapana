@@ -26,6 +26,14 @@ test_allow_admin {
     allow with input as {"access_token": {"realm_access" : {"roles": ["admin"] } }, "requested_prefix": "/anyroute", "method": "POST"}
 }
 
+test_allow_project_management {
+    allow with input as {"access_token": {"realm_access" : {"roles": ["project-manager"] } }, "requested_prefix": "/aii/projects", "method": "POST"}
+}
+
+test_deny_project_management {
+    not allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/aii/projects", "method": "POST"}
+}
+
 test_deny_kubernetes_for_user {
     not allow with input as {"access_token": {"realm_access" : {"roles": ["user"] } }, "requested_prefix": "/kubernetes", "method": "POST"}
 }

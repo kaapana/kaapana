@@ -12,6 +12,7 @@ export type UserItem = {
     last_name: string,
     email_verified: boolean,
     groups?: string[],
+    realm_roles?: string[],
 }
 
 export type UserRole = {

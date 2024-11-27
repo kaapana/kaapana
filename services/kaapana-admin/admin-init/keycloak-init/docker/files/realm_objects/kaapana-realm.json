@@ -18,6 +18,13 @@
       "clientRole" : false,
       "containerId" : "kaapana",
       "attributes" : { }
+    }, {
+      "name" : "project-manager",
+      "description": "Project manager role with full access to the access-information-interface",
+      "composite" : false,
+      "clientRole" : false,
+      "containerId" : "kaapana",
+      "attributes" : { }
     } ]
   },
   "attributes" : {

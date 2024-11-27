@@ -34,5 +34,6 @@ class KeycloakUser(BaseModel):
     email_verified: bool
 
 
-class KeycloakUserWithGroup(KeycloakUser):
+class KeycloakUserExtended(KeycloakUser):
     groups: Optional[list[str]] = None
+    realm_roles: Optional[list[str]] = None

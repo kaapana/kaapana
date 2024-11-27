@@ -2,8 +2,7 @@ import asyncio
 import re
 
 import requests
-from fastapi import Request
-from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings
 from opensearchpy.exceptions import RequestError
@@ -170,8 +169,8 @@ class OpenSearchHelper:
         return index
 
 
-def get_opensearch_helper(request: Request) -> OpenSearchHelper:
-    access_token = request.headers.get("x-forwarded-access-token")
+def get_opensearch_helper() -> OpenSearchHelper:
+    access_token = get_project_user_access_token()
     return OpenSearchHelper(access_token)
 
 

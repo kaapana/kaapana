@@ -11,7 +11,6 @@
 </template>
 
 <script>
-import axios from "axios";
 import { fetchProjects } from "../common/api.service";
 import { UPDATE_SELECTED_PROJECT } from "@/store/actions.type";
 

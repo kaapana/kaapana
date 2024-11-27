@@ -16,7 +16,7 @@ allow {
     input.requested_prefix == "/"
 }
 
-### Allow access to endpoints depending on the role
+### Allow access to endpoints depending on the realm-role
 allow {
     some i 
     role := input.access_token.realm_access.roles[i]

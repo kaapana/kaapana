@@ -1,20 +1,12 @@
-FROM local-only/no-vnc-base:latest
+FROM local-only/base-desktop:latest
 
 LABEL IMAGE="desktop-container"
-LABEL VERSION="0.0.1"
+LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
 
-RUN mkdir  -p /home/desktop/Desktop/
-RUN ln -s /kaapana/minio /home/desktop/Desktop/
+RUN ln -s /kaapana/minio /home/$USER/Desktop/data
 WORKDIR /kaapana/minio
 
-
-
-RUN useradd -u 1000 -ms /bin/bash desktop
-RUN chown -R desktop /home/desktop
-
-
-
-# As an kaapana admin, you can build and install software here, that should be part of 
+# As an kaapana admin, you can build and install software here, that should be part of
 # the desktop-container.
 

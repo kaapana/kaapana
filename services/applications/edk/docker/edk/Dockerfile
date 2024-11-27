@@ -10,7 +10,7 @@ WORKDIR /kaapana/app
 RUN apt-get update -y && apt-get -y install skopeo
 
 # install helm
-ENV HELM_VERSION="v3.14.0"
+ENV HELM_VERSION="v3.16.3"
 RUN curl https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm && chmod +x /usr/local/bin/helm
 
 RUN mkdir -p /kaapana/app/kaapana

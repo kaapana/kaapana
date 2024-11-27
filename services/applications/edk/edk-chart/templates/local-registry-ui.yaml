@@ -59,7 +59,7 @@ spec:
                 port:
                   number: 80
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: strip-prefix-local-registry-ui
@@ -68,7 +68,6 @@ spec:
   stripPrefix:
     prefixes:
     - "{{ .Values.global.local_registry_ui_path }}"
-    forceSlash: false
 ---
 apiVersion: v1
 kind: Service

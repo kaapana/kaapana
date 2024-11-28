@@ -1,5 +1,5 @@
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: strip-prefix-aii
@@ -8,7 +8,6 @@ spec:
   stripPrefix:
     prefixes:
     - /aii
-    forceSlash: true
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

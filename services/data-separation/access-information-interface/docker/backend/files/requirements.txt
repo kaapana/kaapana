@@ -3,3 +3,4 @@ asyncpg==0.30.0
 SQLAlchemy==2.0.36
 psycopg2-binary==2.9.10
 python-keycloak==4.7.2
+uvicorn==0.32.1

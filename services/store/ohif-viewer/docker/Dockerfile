@@ -1,13 +1,13 @@
-FROM docker.io/node:20-alpine3.18 as build
+FROM docker.io/node:23-alpine3.20 as build
 
 LABEL IMAGE="ohif"
-LABEL VERSION="v3.7.0"
+LABEL VERSION="v3.9.1"
 LABEL BUILD_IGNORE="False"
 
 RUN apk add --no-cache ca-certificates git build-base python3
 
 
-RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout df32a05a4d64878c3aaccb54c4b19665ffa58788
+RUN git clone https://github.com/OHIF/Viewers.git /src && cd /src && git checkout 3b668675084bc7bb506f1d960d98e9563e6d4899
 
 RUN yarn config set workspaces-experimental true
 
@@ -22,7 +22,7 @@ ENV APP_CONFIG "config/kaapana.js"
 RUN yarn install
 RUN yarn run build
 
-FROM docker.io/nginx:1.25.4-alpine as production-stage
+FROM docker.io/nginx:1.27.3-alpine as production-stage
 
 COPY --from=build /src/platform/app/dist/ /usr/share/nginx/html/ohif/
 

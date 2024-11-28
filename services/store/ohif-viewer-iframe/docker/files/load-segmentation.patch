@@ -35,7 +35,6 @@ index 08ed004f0..3d3c3342d 100644
 @@ -154,15 +154,16 @@ function OHIFCornerstoneSEGViewport(props) {
        return;
      }
- 
 -    promptHydrateSEG({
 -      servicesManager,
 -      viewportIndex,

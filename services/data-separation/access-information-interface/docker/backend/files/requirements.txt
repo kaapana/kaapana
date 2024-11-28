@@ -1,5 +1,6 @@
-fastapi==0.111.0
-asyncpg==0.29.0
-SQLAlchemy==2.0.30
-psycopg2-binary==2.9.9
-python-keycloak==4.1.0
+fastapi==0.115.5
+asyncpg==0.30.0
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+python-keycloak==4.7.2
+uvicorn==0.32.1

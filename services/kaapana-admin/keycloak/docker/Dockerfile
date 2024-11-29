@@ -43,9 +43,9 @@ COPY files/login.jpg /app/kaapana/login/resources/img/kaapana-bg.png
 RUN sed -i '/^stylesCommon=/c\stylesCommon=node_modules/@patternfly/patternfly/patternfly.min.css node_modules/patternfly/dist/css/patternfly.min.css node_modules/patternfly/dist/css/patternfly-additions.min.css lib/pficon/pficon.css' /app/kaapana/login/theme.properties
 
 # Stage 4: Build the final Keycloak image with the custom theme and provider
-FROM quay.io/keycloak/keycloak:23.0.4
+FROM quay.io/keycloak/keycloak:26.0.6
 LABEL IMAGE="keycloak"
-LABEL VERSION="23.0.4"
+LABEL VERSION="26.0.6"
 LABEL BUILD_IGNORE="False"
 
 COPY --from=builder /app/kaapana /opt/keycloak/themes/kaapana

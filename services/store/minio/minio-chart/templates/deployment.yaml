@@ -61,6 +61,9 @@ spec:
         volumeMounts:
         - name: minio-data
           mountPath: "/kaapana/mounted/minio"
+        - name: kaapana-cert
+          mountPath: /root/.minio/certs/CAs/kaapana.pem
+          subPath: tls.crt
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -68,6 +71,10 @@ spec:
       - name: minio-data
         persistentVolumeClaim:
           claimName: minio-pv-claim
+      - name: kaapana-cert
+        secret:
+          secretName: certificate
+          defaultMode: 420
       imagePullSecrets:
       - name: registry-secret
 ---

@@ -16,8 +16,8 @@ WORKDIR /src
 COPY files/viewer-only.patch /src/
 RUN git apply viewer-only.patch
 
-# COPY files/load-segmentation.patch /src/
-# RUN git apply load-segmentation.patch
+COPY files/load-segmentation.patch /src/
+RUN git apply load-segmentation.patch
 
 COPY files/kaapana.js /src/platform/app/public/config/kaapana.js
 

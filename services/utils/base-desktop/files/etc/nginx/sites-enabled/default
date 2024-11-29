@@ -15,7 +15,7 @@ server {
 
 	#_RELATIVE_URL_ROOT_location /_RELATIVE_URL_ROOT_/ {
 	#_RELATIVE_URL_ROOT_	rewrite /_RELATIVE_URL_ROOT_/(.*) /$1 break;
-	#_RELATIVE_URL_ROOT_	root /usr/local/lib/web/frontend/;
+	#_RELATIVE_URL_ROOT_	root /opt/novnc/;
 	#_RELATIVE_URL_ROOT_}
 
 	location ~ .*/(api/.*|websockify|resize) {
@@ -41,7 +41,7 @@ server {
 	}
 
 	location @api {
-		#_RELATIVE_URL_ROOT_rewrite /_RELATIVE_URL_ROOT_/(.*) $1 break;
+		#_RELATIVE_URL_ROOT_rewrite /_RELATIVE_URL_ROOT_/api/(.*) /$1 break;
 		rewrite ^/api/(.*)$ /$1 break;
 		proxy_set_header X-Real-IP  $remote_addr;
 		proxy_set_header X-Forwarded-For $remote_addr;

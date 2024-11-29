@@ -96,9 +96,12 @@ ENV HOME=/root \
 
 # Default User
 ENV USER=researcher
-RUN useradd -m researcher -s /bin/bash -u 1000 -G sudo \
+RUN useradd -m $USER -s /bin/bash -u 1000 -G sudo \
     && echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$USER \
-    && su researcher -c "mkdir -p /home/researcher/Desktop"
+    && su $USER -c "mkdir -p /home/researcher/Desktop"
+
+# Note: if sudo access should not be possible in derived containers:
+# RUN  rm /etc/sudoers.d/$USER
 
 COPY files/startup.sh /startup.sh
 ENTRYPOINT ["/startup.sh"]

@@ -30,12 +30,42 @@
             font-size: 1.5em;
             text-align: center;
         }
+        #loadingMessage img {
+            width: 100px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            animation: wiggle 1.5s ease-in-out infinite;
+        }
+
+        #loadingMessage p {
+            margin-top: 10px;
+            font-size: 1.2em;
+        }
+
+        @keyframes wiggle {
+            0%, 100% {
+                transform: translateX(0) rotate(0);
+            }
+            25% {
+                transform: translateX(-5px) rotate(-5deg);
+            }
+            50% {
+                transform: translateX(5px) rotate(5deg);
+            }
+            75% {
+                transform: translateX(-5px) rotate(-5deg);
+            }
+        }
     </style>
 </head>
 
 <body>
 
-    <div id="loadingMessage">Loading... Please wait.</div>
+    <div id="loadingMessage">
+        <img src="./logo.png" alt="Loading logo" />
+        <p>Loading...</p>
+    </div>
     <iframe id="novncFrame"></iframe>
 
     <script>

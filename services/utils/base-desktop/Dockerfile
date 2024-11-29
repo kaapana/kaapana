@@ -82,6 +82,7 @@ RUN chmod +x /bin/tini
 ARG NOVNC_VERSION=v1.5.0
 RUN git clone --depth 1 --branch ${NOVNC_VERSION} https://github.com/novnc/noVNC.git /opt/novnc
 COPY files/index.html /opt/novnc/index.html
+COPY files/logo.png /opt/novnc/logo.png
 RUN git clone --depth 1 --branch v0.12.0 https://github.com/novnc/websockify /opt/novnc/utils/websockify
 COPY /files/etc /etc
 COPY /files/root /root

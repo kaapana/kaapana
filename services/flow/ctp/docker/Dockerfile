@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build-ctp
 
-RUN git clone --depth=1 -n https://github.com/johnperry/CTP.git . && git checkout b003bd0ee7763e3e99a4a26ed1a8084bdc562ba1
+RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout b003bd0ee7763e3e99a4a26ed1a8084bdc562ba1
 
 COPY /files/Runner.java ./source/java/org/rsna/runner/
 COPY /files/PCTable.java ./source/java/org/rsna/ctp/stdstages/dicom

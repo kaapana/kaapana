@@ -90,10 +90,6 @@ spec:
         env:
         - name: INGRESS_PATH
           value: "applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
-        - name: USER
-          value: mitk
-        - name: PASSWORD
-          value: mitk 
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:

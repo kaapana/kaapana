@@ -9,6 +9,7 @@ if __name__ == "__main__":
     kc_client = KeycloakHelper()
     project_user = os.getenv("PROJECT_USER")
     project_user_password = os.getenv("PROJECT_USER_PASSWORD")
+    project_name = os.getenv("PROJECT_NAME")
     user_payload = {
         "username": project_user,
         "credentials": [{"type": "password", "value": project_user_password}],
@@ -16,7 +17,7 @@ if __name__ == "__main__":
         "emailVerified": False,
         "firstName": project_user,
         "lastName": "System",
-        "email": "",
+        "email": f"{project_user}@{project_name}.kaapana",
         "requiredActions": [],
         "groups": ["kaapana_user"],
     }
@@ -26,7 +27,6 @@ if __name__ == "__main__":
     keycloak_user_id = keycloak_user.get("id")
 
     ### Add role mappings to system user in access-information-point
-    project_name = os.getenv("PROJECT_NAME")
     SERVICE_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
     project_user_role = "admin"
     response = requests.post(

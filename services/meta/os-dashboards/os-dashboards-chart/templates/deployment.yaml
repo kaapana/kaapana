@@ -62,6 +62,9 @@ spec:
             - name: uuid-file
               mountPath: "/usr/share/opensearch-dashboards/data/"
               subPath: uuid
+            - name: kaapana-cert
+              mountPath: /etc/certs/kaapana.pem
+              subPath: tls.crt
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -72,6 +75,10 @@ spec:
           items:
           - key: opensearch_dashboards.yml
             path: opensearch_dashboards.yml
+      - name: kaapana-cert
+        secret:
+          secretName: certificate
+          defaultMode: 420
       - name: uuid-file
         emptyDir: {}
       imagePullSecrets:

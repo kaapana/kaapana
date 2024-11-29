@@ -9,7 +9,7 @@ RUN mkdir -p /mitk-flow \
     && tar -xzf /mitk-flow/mitk.tar.gz --strip 1 -C /mitk-flow/ \
     && rm -rf /mitk-flow/mitk.tar.gz
 
-COPY files/startMITKFlow.sh /mitk/startMITKFlow.sh
+COPY files/startMITKFlow.sh /mitk-flow/startMITKFlow.sh
 
 RUN ln -s /data /home/$USER/Desktop/
 WORKDIR /data

@@ -44,12 +44,13 @@
         let timerState = null;
         let errorMessage = '';
         let stateErrorCount = 0;
-        let resized = false
+        let resized = false;
+        const baseURL = window.location.origin + window.location.pathname.replace(/\/$/, '');
 
         async function setResolution(width, height) {
             try {
                 const params = new URLSearchParams({ width: width, height: height }).toString();
-                const response = await fetch(`/api/resize?${params}`, {
+                const response = await fetch(`${baseURL}/api/resize?${params}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'

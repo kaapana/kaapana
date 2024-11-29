@@ -1,13 +1,12 @@
 import logging
 
 import httpx
-from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app import crud
 from app.config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
 from app.database import get_session
+from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Create a router
 router = APIRouter()

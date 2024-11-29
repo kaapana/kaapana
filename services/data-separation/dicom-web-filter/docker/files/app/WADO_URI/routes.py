@@ -1,13 +1,12 @@
 import logging
 
 import httpx
+from app import crud
+from app.config import DICOMWEB_BASE_URL_WADO_URI
+from app.database import get_session
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app import crud
-from app.config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL_WADO_URI
-from app.database import get_session
 
 router = APIRouter()
 
@@ -52,9 +51,14 @@ async def retrieve_instance(
     if request.scope.get("admin") is True:
         return StreamingResponse(stream_wado(request=request))
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     # Retrieve all studies mapped to the project
     studies = set(
-        await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
+        await crud.get_all_studies_mapped_to_projects(session, project_ids_of_user)
     )
 
     # check if studyUID is in the query parameters
@@ -74,9 +78,9 @@ async def retrieve_instance(
         series_in_query_params = set(request.query_params.getlist("seriesUID"))
 
         all_mapped_series = set(
-            await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
+            await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
                 session=session,
-                project_id=DEFAULT_PROJECT_ID,
+                project_ids=project_ids_of_user,
                 study_instance_uid=list(studies)[
                     0
                 ],  # If seriesUID is present, providing multiple studies is not supported (Ambiguity)

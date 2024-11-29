@@ -96,9 +96,8 @@ ENV HOME=/root \
 
 # Default User
 ENV USER=researcher
-RUN useradd -m researcher -s /bin/bash -u 1000 \
-    && gpasswd -a researcher sudo \
-    && passwd -d researcher && passwd -u researcher \
+RUN useradd -m researcher -s /bin/bash -u 1000 -G sudo \
+    && echo "$USER ALL=(ALL) NOPASSWD:ALL" | sudo tee /etc/sudoers.d/$USER \
     && su researcher -c "mkdir -p /home/researcher/Desktop"
 
 COPY files/startup.sh /startup.sh

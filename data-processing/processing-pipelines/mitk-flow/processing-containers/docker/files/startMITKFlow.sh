@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "Fixing input data permissions"
-echo "mitk" | sudo -S chown $USER -R /$WORKFLOW_DIR/$BATCH_NAME
+sudo chown $USER -R /$WORKFLOW_DIR/$BATCH_NAME
 
 echo "Starting MTIK Flow"
 /mitk-flow/MitkFlowBench.sh /$WORKFLOW_DIR/$BATCH_NAME/tasklist.json &

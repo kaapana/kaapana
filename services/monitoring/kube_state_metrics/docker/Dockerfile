@@ -1,5 +1,5 @@
-FROM registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.10.1
+FROM bitnami/kube-state-metrics:2.14.0
 
 LABEL IMAGE="kube-state-metrics"
-LABEL VERSION="v2.10.1"
+LABEL VERSION="2.14.0"
 LABEL BUILD_IGNORE="False"

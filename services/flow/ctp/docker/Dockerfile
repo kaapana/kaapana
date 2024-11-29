@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /build-ctp
 
-RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout 867f8933de7ce99a035a32639261a3af72ae91e0
+RUN git clone -n https://github.com/johnperry/CTP.git . && git checkout b003bd0ee7763e3e99a4a26ed1a8084bdc562ba1
 
 COPY /files/Runner.java ./source/java/org/rsna/runner/
 COPY /files/PCTable.java ./source/java/org/rsna/ctp/stdstages/dicom
@@ -34,19 +34,15 @@ RUN rm -f ./libraries/ftp/commons-net-3.3.jar
 COPY /files/security-fix-libraries/build.xml ./
 
 # use java 8 for correct build process
-ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64 
+ENV JAVA_HOME /usr/lib/jvm/java-1.8.0-openjdk-amd64
 RUN ant -buildfile build.xml
 
 COPY /files/additional-libraries ./build/CTP/libraries
-
 COPY /files/kaapana-dag-trigger ./build/kaapana-dag-trigger
 
 RUN cd ./build/kaapana-dag-trigger \
   && ant -buildfile build.xml
 
-#############################################################################################
-###############################           2nd STAGE           ###############################
-#############################################################################################
 
 FROM local-only/base-python-cpu:latest
 

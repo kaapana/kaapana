@@ -46,15 +46,15 @@ data:
           openid_auth_domain:
             http_enabled: true
             transport_enabled: true
-            order: 0
+            order: 1
             http_authenticator:
               type: openid
               challenge: false
               config:
                 openid_connect_idp:
-                  enable_ssl: false
+                  enable_ssl: true
                   verify_hostnames: false
-                  # pemtrustedcas_filepath: /usr/share/opensearch/config/root-ca.pem
+                  pemtrustedcas_filepath: /usr/share/opensearch/config/root-ca.pem
                 subject_key: preferred_username
                 roles_key: opensearch
                 openid_connect_url: http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration
@@ -64,11 +64,9 @@ data:
             description: "Authenticate via HTTP Basic against internal users database"
             http_enabled: true
             transport_enabled: true
-            order: 1
+            order: 0
             http_authenticator:
               type: basic
               challenge: false
             authentication_backend:
               type: intern
-          
-              

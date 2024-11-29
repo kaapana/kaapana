@@ -124,35 +124,45 @@ if __name__ == "__main__":
                                     continue
 
                                 cves[vulnerability["VulnerabilityID"]] = {
-                                    "Class": issue["Class"]
-                                    if "Class" in issue
-                                    else None,
+                                    "Class": (
+                                        issue["Class"] if "Class" in issue else None
+                                    ),
                                     "Type": issue["Type"] if "Type" in issue else None,
-                                    "Title": vulnerability["Title"]
-                                    if "Title" in vulnerability
-                                    else None,
+                                    "Title": (
+                                        vulnerability["Title"]
+                                        if "Title" in vulnerability
+                                        else None
+                                    ),
                                     "PkgName": vulnerability["PkgName"],
-                                    "PublishedDate": vulnerability["PublishedDate"]
-                                    if "PublishedDate" in vulnerability
-                                    else None,
-                                    "LastModifiedDate": vulnerability[
-                                        "LastModifiedDate"
-                                    ]
-                                    if "LastModifiedDate" in vulnerability
-                                    else None,
+                                    "PublishedDate": (
+                                        vulnerability["PublishedDate"]
+                                        if "PublishedDate" in vulnerability
+                                        else None
+                                    ),
+                                    "LastModifiedDate": (
+                                        vulnerability["LastModifiedDate"]
+                                        if "LastModifiedDate" in vulnerability
+                                        else None
+                                    ),
                                     "InstalledVersion": vulnerability[
                                         "InstalledVersion"
                                     ],
-                                    "FixedVersion": vulnerability["FixedVersion"]
-                                    if "FixedVersion" in vulnerability
-                                    else None,
+                                    "FixedVersion": (
+                                        vulnerability["FixedVersion"]
+                                        if "FixedVersion" in vulnerability
+                                        else None
+                                    ),
                                     "Severity": vulnerability["Severity"],
-                                    "SeveritySource": vulnerability["SeveritySource"]
-                                    if "SeveritySource" in vulnerability
-                                    else None,
-                                    "Target": issue["Type"]
-                                    if issue["Type"] in issue["Target"]
-                                    else issue["Target"],
+                                    "SeveritySource": (
+                                        vulnerability["SeveritySource"]
+                                        if "SeveritySource" in vulnerability
+                                        else None
+                                    ),
+                                    "Target": (
+                                        issue["Type"]
+                                        if issue["Type"] in issue["Target"]
+                                        else issue["Target"]
+                                    ),
                                     "Modules": [module],
                                 }
                             else:

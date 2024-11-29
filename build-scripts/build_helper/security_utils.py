@@ -14,7 +14,7 @@ suite_tag = "security"
 # Class containing security related helper functions
 # Using Trivy to create SBOMS and check for vulnerabilities
 class TrivyUtils:
-    trivy_image = "aquasec/trivy:0.38.3"
+    trivy_image = "aquasec/trivy:0.57.1"
     timeout = 10000
     threadpool = None
     list_of_running_containers = []
@@ -74,9 +74,9 @@ class TrivyUtils:
 
         self.threadpool = ThreadPool(BuildUtils.parallel_processes)
 
-        # create reports path (/kaapana/security-reports)
+        # create reports path
         self.reports_path = os.path.normpath(
-            os.path.join(BuildUtils.build_dir, "..", "security-reports")
+            os.path.join(BuildUtils.build_dir, "security-reports")
         )
 
         os.makedirs(self.reports_path, exist_ok=True)
@@ -691,7 +691,7 @@ class TrivyUtils:
                     "w",
                 ) as f:
                     json.dump(compressed_vulnerability_report, f)
-            
+
             module_vulnerability_count[vulnerability_report["ArtifactName"]] = len(compressed_vulnerability_report)
 
         with open(

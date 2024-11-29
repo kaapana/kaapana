@@ -1,9 +1,10 @@
 import asyncio
+import httpx
 import re
 
 import requests
 from fastapi import Request
-from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings
 from opensearchpy.exceptions import RequestError
@@ -94,7 +95,7 @@ class OpenSearchHelper:
         )
         raise Exception(f"Template '{template_name}' not found after retries")
 
-    def create_role(self, role_name: str, payload: dict):
+    async def create_role(self, role_name: str, payload: dict):
         """
         Create an opensearch role
 
@@ -105,19 +106,20 @@ class OpenSearchHelper:
         Name of the role in opensearch.
         """
         logger.info(f"Create role {role_name}")
-        response = requests.put(
-            f"{self.security_api_url}/roles/{role_name}",
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
-            },
-            verify=False,
-        )
+
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.put(
+                f"{self.security_api_url}/roles/{role_name}",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {self.access_token}",
+                    "Content-Type": "application/json",
+                },
+            )
         response.raise_for_status()
         return response
 
-    def create_rolemappings(self, role_name: str, backend_role: str):
+    async def create_rolemappings(self, role_name: str, backend_role: str):
         """
         Create a role mapping in opensearch
 
@@ -128,15 +130,15 @@ class OpenSearchHelper:
         payload = {
             "backend_roles": [backend_role]
         }  ### List of roles in the "opensearch" claim of the oidc access token
-        response = requests.put(
-            f"{self.security_api_url}/rolesmapping/{role_name}",
-            json=payload,
-            headers={
-                "Authorization": f"Bearer {self.access_token}",
-                "Content-Type": "application/json",
-            },
-            verify=False,
-        )
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.put(
+                f"{self.security_api_url}/rolesmapping/{role_name}",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {self.access_token}",
+                    "Content-Type": "application/json",
+                },
+            )
         response.raise_for_status()
 
     async def setup_new_project(self, project: Project, session):
@@ -164,14 +166,17 @@ class OpenSearchHelper:
             role_name = f"{claim_value}_{project.name}"
 
             payload = get_payload_for_claim_and_index(claim_value, index)
-            self.create_role(role_name=role_name, payload=payload)
-            self.create_rolemappings(role_name=role_name, backend_role=backend_role)
+            await self.create_role(role_name=role_name, payload=payload)
+            await self.create_rolemappings(
+                role_name=role_name, backend_role=backend_role
+            )
 
         return index
 
 
 def get_opensearch_helper(request: Request) -> OpenSearchHelper:
-    access_token = request.headers.get("x-forwarded-access-token")
+    ## access_token = request.headers.get("x-forwarded-access-token")
+    access_token = get_project_user_access_token()
     return OpenSearchHelper(access_token)
 
 

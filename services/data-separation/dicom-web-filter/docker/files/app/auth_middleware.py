@@ -97,5 +97,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         else:
             request.scope["admin"] = False
 
+        # Add decoded token to the request scope
+        request.scope["token"] = payload
+
         response = await call_next(request)
         return response

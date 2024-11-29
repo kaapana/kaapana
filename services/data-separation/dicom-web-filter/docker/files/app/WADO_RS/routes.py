@@ -4,14 +4,13 @@ import os
 import re
 
 import httpx
+from app import crud
+from app.config import DICOMWEB_BASE_URL
+from app.database import get_session
+from app.streaming_helpers import metadata_replace_stream
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app import crud
-from app.config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
-from app.database import get_session
-from app.streaming_helpers import metadata_replace_stream
 
 # Create a router
 router = APIRouter()
@@ -166,10 +165,15 @@ async def retrieve_study(
     if request.scope.get("admin") is True:
         return stream_study(study, request)
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
-            session=session, project_id=DEFAULT_PROJECT_ID, study_instance_uid=study
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+            session=session, project_ids=project_ids_of_user, study_instance_uid=study
         )
     )
 
@@ -264,11 +268,16 @@ async def retrieve_series(
         StreamingResponse: Response object
     """
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
@@ -314,11 +323,16 @@ async def retrieve_instance(
         StreamingResponse: Response object
     """
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
@@ -367,11 +381,17 @@ async def retrieve_frames(
     Returns:
         StreamingResponse: Response object
     """
+
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
@@ -412,13 +432,18 @@ async def retrieve_study_metadata(
         StreamingResponse: Response object
     """
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if request.scope.get("admin") is True:
         return stream_study_metadata(study, request)
 
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
-            session=session, project_id=DEFAULT_PROJECT_ID, study_instance_uid=study
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+            session=session, project_ids=project_ids_of_user, study_instance_uid=study
         )
     )
 
@@ -493,11 +518,16 @@ async def retrieve_series_metadata(
         StreamingResponse: Response object
     """
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
@@ -540,11 +570,16 @@ async def retrieve_instance_metadata(
         response: Response object
     """
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
@@ -582,10 +617,15 @@ async def retrieve_study_rendered(
     if request.scope.get("admin") is True:
         return stream_study_rendered(study, request)
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
-            session=session, project_id=DEFAULT_PROJECT_ID, study_instance_uid=study
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+            session=session, project_ids=project_ids_of_user, study_instance_uid=study
         )
     )
 
@@ -668,11 +708,17 @@ async def retrieve_series_rendered(
     Returns:
         StreamingResponse: Response object
     """
+
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
@@ -719,11 +765,16 @@ async def retrieve_instance_rendered(
         StreamingResponse: Response object
     """
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):

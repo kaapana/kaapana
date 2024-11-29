@@ -126,6 +126,9 @@ spec:
           mountPath: /kaapana/app/uploads
         - name: tmp
           mountPath: /tmp
+        - name: kaapana-cert
+          mountPath: /etc/certs/kaapana.pem
+          subPath: tls.crt
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -133,6 +136,10 @@ spec:
       imagePullSecrets:
         - name: registry-secret
       volumes:
+      - name: kaapana-cert
+        secret:
+          secretName: certificate
+          defaultMode: 420
       - name: tmp
         emptyDir: {}
       - name: alembic

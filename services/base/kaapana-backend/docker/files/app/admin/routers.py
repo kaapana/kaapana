@@ -160,10 +160,9 @@ def oidc_logout(request: Request):
     Response with a redirect to oauth2-proxy browser session logout url.
     """
 
-    def get_access_token(
+    def _get_access_token(
         username: str,
         password: str,
-        ssl_check: bool,
         client_id: str,
     ):
         """
@@ -177,7 +176,7 @@ def oidc_logout(request: Request):
         }
         r = requests.post(
             f"{settings.keycloak_url}/auth/realms/master/protocol/openid-connect/token",
-            verify=ssl_check,
+            verify="/etc/certs/kaapana.pem",
             data=payload,
         )
         r.raise_for_status()
@@ -185,30 +184,33 @@ def oidc_logout(request: Request):
 
     access_token = request.headers.get("x-forwarded-access-token")
     decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
-    session_state = decoded_access_token.get("session_state")
+    token_session_id = decoded_access_token.get("sid")
+    assert token_session_id, "Session id could not be determined from access token"
     user_id = decoded_access_token.get("sub")
 
-    keycloak_admin_access_token = get_access_token(
+    keycloak_admin_access_token = _get_access_token(
         settings.keycloak_admin_username,
         settings.keycloak_admin_password,
-        False,
         "admin-cli",
     )
     security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}
 
-    user_sessions = requests.get(
+    response_sessions = requests.get(
         f"{settings.keycloak_url}/auth/admin/realms/kaapana/users/{user_id}/sessions",
-        verify=False,
+        verify="/etc/certs/kaapana.pem",
         headers=security_headers,
-    ).json()
+    )
+
+    user_sessions = response_sessions.json()
 
     ### Remove the session that corresponds to the access token from keycloak if the session exists
     for user_session in user_sessions:
-        if user_session.get("id") == session_state:
+        user_session_id = user_session.get("id")
+        if user_session.get("id") == token_session_id:
             r = requests.delete(
-                f"{settings.keycloak_url}/auth/admin/realms/kaapana/sessions/{session_state}",
+                f"{settings.keycloak_url}/auth/admin/realms/kaapana/sessions/{token_session_id}",
                 headers=security_headers,
-                verify=False,
+                verify="/etc/certs/kaapana.pem",
             )
             r.raise_for_status()
             break

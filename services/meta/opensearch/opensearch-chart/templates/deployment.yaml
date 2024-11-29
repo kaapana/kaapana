@@ -28,6 +28,12 @@ spec:
           mountPath: /os/certs
         - name: os-security-backup
           mountPath: /kaapana/opensearch-security-backup
+        - name: kaapana-cert
+          mountPath: /certs/root-ca-key.pem
+          subPath: tls.key
+        - name: kaapana-cert
+          mountPath: /certs/root-ca.pem
+          subPath: tls.crt
         securityContext:
           runAsUser: 0
       securityContext:
@@ -120,6 +126,10 @@ spec:
             path: config.yml
           - key: internal_users.yml
             path: internal_users.yml
+      - name: kaapana-cert
+        secret:
+          secretName: certificate
+          defaultMode: 420
       imagePullSecrets:
       - name: registry-secret
 ---

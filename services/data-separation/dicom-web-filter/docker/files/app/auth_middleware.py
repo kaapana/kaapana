@@ -5,6 +5,7 @@ import jwt
 from fastapi import HTTPException, Request
 from jwt import InvalidTokenError, PyJWKClient
 from starlette.middleware.base import BaseHTTPMiddleware
+import ssl
 
 logger = logging.getLogger(__name__)
 
@@ -20,19 +21,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.config_url = config_url
         self.client_id = client_id
+        self.ca_file = "/etc/certs/kaapana.pem"
         self.jwks_url = None
         self.issuer = None
         self.jwks_client = None
+        self.ssl_context = ssl.create_default_context(cafile=self.ca_file)
 
     async def load_openid_config(self):
         """Load OpenID configuration from the provided URL."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=self.ca_file) as client:
             response = await client.get(self.config_url)
             response.raise_for_status()
             openid_config = response.json()
             self.jwks_url = openid_config["jwks_uri"]
             self.issuer = openid_config["issuer"]
-            self.jwks_client = PyJWKClient(self.jwks_url)
+            self.jwks_client = PyJWKClient(self.jwks_url, ssl_context=self.ssl_context)
 
     async def authenticate(self, token: str):
         """Authenticate the user using the provided token.
@@ -96,6 +99,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             request.scope["admin"] = True
         else:
             request.scope["admin"] = False
+
+        # Add decoded token to the request scope
+        request.scope["token"] = payload
 
         response = await call_next(request)
         return response

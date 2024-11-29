@@ -15,6 +15,7 @@ data:
     opensearch_security.openid.client_secret: "{{ .Values.global.oidc_client_secret }}"
     opensearch_security.openid.base_redirect_url: "https://{{  .Values.global.hostname  }}/meta"
     opensearch_security.openid.verify_hostnames: false
+    opensearch_security.openid.root_ca: "/etc/certs/kaapana.pem"
     opensearch.requestHeadersWhitelist: ["Authorization","securitytenant","x-forwarded-access-token"]
     
     # Specifies the address to which the OpenSearch Dashboards server will bind. IP addresses and host names are both valid values.
@@ -53,8 +54,8 @@ data:
     opensearch.password: ${KAAPANA_KIBANASERVER_PASSWORD}
 
     # To disregard the validity of SSL certificates, change this setting's value to 'none'.
-    opensearch.ssl.verificationMode: none
+    opensearch.ssl.verificationMode: "certificate"
+    opensearch.ssl.certificateAuthorities: ["/etc/certs/kaapana.pem"]
 
     opensearchDashboards.branding:
       applicationTitle: "META"
-

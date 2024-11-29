@@ -4,7 +4,7 @@
     "emailVerified" : false,
     "firstName" : "System",
     "lastName" : "User",
-    "email" : "",
+    "email" : "user@system.kaapana",
     "attributes" : { "policy": ["consoleAdmin"]
       },
     "requiredActions" : [ ],

@@ -1,8 +1,7 @@
 import httpx
+from app.config import DICOMWEB_BASE_URL
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
-
-from app.config import DICOMWEB_BASE_URL
 
 router = APIRouter()
 

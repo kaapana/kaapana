@@ -8,14 +8,13 @@ from .auth_middleware import AuthMiddleware
 from .config import DWF_IDENTITY_OPENID_CLIENT_ID, DWF_IDENTITY_OPENID_CONFIG_URL
 from .CUSTOM_RS.routes import router as custom_router
 from .database import async_engine
-from .models import Base
 from .DATAPROJECTS.routes import router as dataprojects_router
+from .models import Base
 from .QIDO_RS.routes import router as qido_router
 from .STOW_RS.routes import router as stow_router
 from .SUPPLEMENTS.routes import router as supplements_router
 from .WADO_RS.routes import router as wado_router
 from .WADO_URI.routes import router as wado_uri_router
-
 
 logger = logging.getLogger(__name__)
 

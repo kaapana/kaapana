@@ -31,7 +31,7 @@ spec:
       name: http
   type: ClusterIP
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: strip-prefix-{{ .Release.Name }}-wopi
@@ -40,7 +40,6 @@ spec:
   stripPrefix:
     prefixes:
     - /collabora-wopi
-    forceSlash: true
 ---
 # A dirty woraround till https://github.com/bitly/oauth2_proxy/issues/506 is fixed
 # This issue occures because the WOPI Server is fully encoded in the url: 
@@ -48,7 +47,7 @@ spec:
 # which is redirected by oauth2 proxy to 
 # collabora/browser/5093121/cool.html?WOPISrc=http:/localhost:5000/wopi/files/asdf/
 # leading to 1) Websockets not working in Chrome 2) Invalid WOPI Server in the request
-# apiVersion: traefik.containo.us/v1alpha1
+# apiVersion: traefik.io/v1alpha1
 # kind: Middleware
 # metadata:
 #   name: collabora-wopi-redirect-workaround

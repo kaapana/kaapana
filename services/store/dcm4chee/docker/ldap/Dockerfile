@@ -1,7 +1,7 @@
-FROM docker.io/dcm4che/slapd-dcm4chee:2.6.6-32.0
+FROM docker.io/dcm4che/slapd-dcm4chee:2.6.7-33.1
 
 LABEL IMAGE="dcm4chee-ldap"
-LABEL VERSION="2.6.6-32.0"
+LABEL VERSION="2.6.7-33.1"
 LABEL BUILD_IGNORE="False"
 
 RUN apk update

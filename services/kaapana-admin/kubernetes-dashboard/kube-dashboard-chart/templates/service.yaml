@@ -14,7 +14,7 @@ spec:
   ports:
     - port: 9090
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: kube-redirect
@@ -24,7 +24,7 @@ spec:
     regex: ^.*/kubernetes([^\/]*)$
     replacement: /kubernetes/#/pod?namespace=_all
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: kube-strip-prefix
@@ -33,7 +33,6 @@ spec:
   stripPrefix:
     prefixes:
     - /kubernetes
-    forceSlash: true
 ---
 apiVersion: networking.k8s.io/v1 
 kind: Ingress

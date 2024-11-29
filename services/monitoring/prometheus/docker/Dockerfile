@@ -1,5 +1,5 @@
-FROM ubuntu/prometheus:2.49.1-22.04_stable
+FROM prom/prometheus:v3.0.0
 
 LABEL IMAGE="prometheus"
-LABEL VERSION="v2.49.1"
+LABEL VERSION="v3.0.0"
 LABEL BUILD_IGNORE="False"

@@ -84,6 +84,9 @@ spec:
             memory: "5Gi"
           limits:
             memory: "8Gi"
+            {{- if and (.Values.global.gpu_support) (.Values.global.gpu_container) }}
+            nvidia.com/gpu: '1'
+            {{- end }}
         env:
         - name: INGRESS_PATH
           value: "applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"

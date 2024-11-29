@@ -2,13 +2,12 @@ import json
 import logging
 
 import httpx
+from app import config, crud
+from app.database import get_session
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app import config, crud
-from app.database import get_session
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

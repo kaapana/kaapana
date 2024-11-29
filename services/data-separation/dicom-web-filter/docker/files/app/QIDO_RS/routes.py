@@ -1,13 +1,12 @@
 import httpx
+from app import crud
+from app.config import DICOMWEB_BASE_URL
+from app.database import get_session
+from app.streaming_helpers import metadata_replace_stream
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_204_NO_CONTENT
-
-from app import crud
-from app.config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
-from app.database import get_session
-from app.streaming_helpers import metadata_replace_stream
 
 router = APIRouter()
 
@@ -133,10 +132,15 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
     if request.scope.get("admin") is True:
         return await retrieve_studies(request=request)
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     if "SeriesInstanceUID" in request.query_params:
         # retrieve series mapped to the project
         series = set(
-            await crud.get_all_series_mapped_to_project(session, DEFAULT_PROJECT_ID)
+            await crud.get_all_series_mapped_to_projects(session, project_ids_of_user)
         )
 
         # Check if the requested series are mapped to the project
@@ -163,7 +167,7 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
 
         # Retrieve studies mapped to the project
         studies = set(
-            await crud.get_all_studies_mapped_to_project(session, DEFAULT_PROJECT_ID)
+            await crud.get_all_studies_mapped_to_projects(session, project_ids_of_user)
         )
 
         # Check if the requested studies are mapped to the project
@@ -205,6 +209,11 @@ async def query_series(
     if request.scope.get("admin") is True:
         return await retrieve_series(study=study, request=request)
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     # If StudyInstanceUID is in the query parameters, remove it
     query_params = dict(request.query_params)
     if "StudyInstanceUID" in query_params:
@@ -212,8 +221,8 @@ async def query_series(
 
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = set(
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_project(
-            session=session, project_id=DEFAULT_PROJECT_ID, study_instance_uid=study
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+            session=session, project_ids=project_ids_of_user, study_instance_uid=study
         )
     )
 
@@ -261,6 +270,11 @@ async def query_instances(
     if request.scope.get("admin") is True:
         return await retrieve_instances(study=study, series=series, request=request)
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     query_params = dict(request.query_params)
 
     # If StudyInstanceUID is in the query parameters, remove it
@@ -274,9 +288,9 @@ async def query_instances(
     # Update the query parameters
     request._query_params = query_params
 
-    if not await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if not await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):

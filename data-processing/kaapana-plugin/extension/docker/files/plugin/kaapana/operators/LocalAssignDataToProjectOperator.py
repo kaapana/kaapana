@@ -64,8 +64,8 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
     def assign_data_to_projects(self, path_to_metadata: str) -> None:
         """
         Map a dicom series to a project in the Dicom-Web-Filter based on the dicom metadata stored in path_to_metadata.
-
         The project name is stored in the metadata as the key '00120020 ClinicalTrialProtocolID_keyword'
+        Additionally map the series to the admin project.
         """
         with open(path_to_metadata) as f:
             metadata = json.load(f)
@@ -74,6 +74,9 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         clinical_trial_protocol_id = metadata.get(
             "00120020 ClinicalTrialProtocolID_keyword"
         )
+        if type(clinical_trial_protocol_id) == list:
+            assert len(clinical_trial_protocol_id) == 1
+            clinical_trial_protocol_id = clinical_trial_protocol_id[0]
         try:
             project = self.get_project_by_name(clinical_trial_protocol_id)
         except IndexError as e:
@@ -86,22 +89,22 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
         response = self.dcmweb_helper.session.put(url)
         response.raise_for_status()
+        logger.debug(f"Added {series_instance_uid} to project with {project_id=}")
+
+        url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/1/data/{series_instance_uid}"
+        response = self.dcmweb_helper.session.put(url)
+        response.raise_for_status()
+        logger.debug(f"Added {series_instance_uid} to admin project with id 1.")
 
     def get_project_by_name(self, project_name: str):
         """
         Return the project object from the access-information-point database with name project_name
 
         Raises:
-            IndexError: If there is no project with the given name.
+            HttpException: If the response from the access-information code has status code >= 400.
         """
         response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects",
-            params={"name": project_name},
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}"
         )
         response.raise_for_status()
-        projects = response.json()
-        try:
-            return projects[0]
-        except IndexError as e:
-            logger.warning(f"Project {project_name} not found!")
-            raise e
+        return response.json()

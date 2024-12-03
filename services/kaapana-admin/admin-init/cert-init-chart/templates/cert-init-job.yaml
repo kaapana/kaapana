@@ -32,7 +32,12 @@ spec:
         - name: EXPIRATION
           value: "{{ .Values.global.tls_secret.expiration }}"
         - name: HOSTNAME
-          value: "{{ .Values.global.hostname }}"
+          value: "{{ .Values.global.hostname }}"      
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+
         volumeMounts:
         - name: tls-storage
           mountPath: /cert/tls

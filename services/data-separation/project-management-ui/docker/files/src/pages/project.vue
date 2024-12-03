@@ -19,7 +19,7 @@
                         <h5 class="text-h5 py-4">Project Users</h5>
                     </v-col>
                     <v-col cols="3" class="d-flex justify-end align-center">
-                        <v-btn block @click="userDialog = true" size="large" prepend-icon="mdi-account-plus">
+                        <v-btn block @click="userDialog = true" size="large" prepend-icon="mdi-account-plus" v-if="userHasAdminAccess">
                             Add User to Project
                         </v-btn>
                     </v-col>
@@ -43,7 +43,7 @@
                             <th class="text-left">
                                 Role
                             </th>
-                            <th class="text-center">
+                            <th class="text-center" v-if="userHasAdminAccess">
                                 Actions
                             </th>
                         </tr>
@@ -56,7 +56,7 @@
                             <td>{{ item.last_name }}</td>
                             <td>{{ item.email_verified }}</td>
                             <td>{{ item.role?.name }}</td>
-                            <td class="text-right">
+                            <td class="text-right" v-if="userHasAdminAccess">
                                 <v-btn @click="openUserEditDialog(item)" density="default" icon="mdi-link-edit"></v-btn>
                                 <v-btn @click="deleteUserProjectMapping(item.id)" density="default"
                                     icon="mdi-trash-can"></v-btn>
@@ -100,6 +100,7 @@ import { defineComponent } from 'vue'
 import { aiiApiGet, aiiApiDelete } from '@/common/aiiApi.service'
 import { ProjectItem, UserItem, UserRole } from '@/common/types'
 import AddUserToProject from '@/components/AddUserToProject.vue'
+import store from "@/common/store";
 
 // const route = useRoute()
 
@@ -123,11 +124,22 @@ export default defineComponent({
             fetchingUser: false,
             userEditDialog: false,
             selectedUser: undefined as User | undefined,
+            userHasAdminAccess: false,
         };
     },
     mounted() {
         this.fetchProjectDetails();
         this.fetchProjectUsers();
+        
+        // set the userAdminAccess by watching the changes in store user
+        const setAdminAccessRef = this.setUserAdminAccess;
+        let checkForUser = setInterval(function () {
+            const user = store.state.user;
+            if (user) {
+                setAdminAccessRef(user);
+                clearInterval(checkForUser);
+            }
+        }, 100);
     },
     watch: {
         // Watch the route to handle dynamic changes to the route param
@@ -165,6 +177,12 @@ export default defineComponent({
             this.userEditDialog = false;
 
             this.selectedUser = undefined;
+        },
+        // enable the admin access of the user to be able to create new projects from the UI
+        setUserAdminAccess(user: UserItem) {
+            if (user.realm_roles && (user.realm_roles.includes('project-manager') || user.realm_roles.includes('admin'))) {
+                this.userHasAdminAccess = true;
+            }
         },
         goToProjectsList() {
             this.$router.push(`/`);

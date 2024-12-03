@@ -34,9 +34,11 @@ allowed_user_endpoints := [
     {"path": "^/active-applications", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/meta/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/system/Projects.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kube-helm-api/active-applications", "methods": ["GET"]},
     {"path": "^/thumbnails/.*", "methods": ["GET"]},
     {"path": "^/aii/.*", "methods": ["GET"]},
+    {"path": "^/projects-ui.*", "methods": ["GET"]},
     {"path": "^/kaapana-backend/client/file", "methods": ["POST", "HEAD", "PATCH","DELETE"]},
 ]
 

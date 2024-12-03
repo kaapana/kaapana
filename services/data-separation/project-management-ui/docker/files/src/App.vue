@@ -8,10 +8,11 @@
           <v-btn icon="mdi-account-circle" variant="text" v-bind="props"></v-btn>
         </template>
 
-        <v-card class="mx-auto" min-width="344" elevated>
+        <v-card class="mx-auto" min-width="200" elevated>
           <v-list>
             <v-list-item :title="store.state.user?.username"
-              :subtitle="`${store.state.user?.first_name} ${store.state.user?.last_name}`">
+              :subtitle="`${store.state.user?.first_name} ${store.state.user?.last_name}`"
+              min-height="80">
               <template v-slot:prepend>
                 <v-icon icon="mdi-account-circle" size="x-large"></v-icon>
               </template>
@@ -22,8 +23,13 @@
                 <v-btn color="grey-lighten-1" icon="mdi-information" variant="text"></v-btn>
               </template> -->
             </v-list-item>
-          </v-list>
-          <v-divider></v-divider>
+            <v-divider v-if="!devMode"></v-divider>
+            <v-list-item title="Logout" @click="logOut" v-if="!devMode">
+              <template v-slot:prepend>
+                <v-icon icon="mdi-logout" size="x-large"></v-icon>
+              </template>
+            </v-list-item>
+          </v-list>          
         </v-card>
       </v-menu>
     </v-app-bar>
@@ -35,17 +41,13 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
-// import { onMounted } from "vue";
 import store from '@/common/store';
 import { UserItem } from '@/common/types';
 import { aiiApiGet } from '@/common/aiiApi.service';
 
 
 const user = ref<UserItem | null>(null);
-
-// onMounted(() => {
-//   console.log('mounted');
-// });
+const devMode = import.meta.env.DEV;
 
 function fetchCurrentUser() {
   store.state.fetching = true;
@@ -58,6 +60,14 @@ function fetchCurrentUser() {
   } catch (error: unknown) {
     console.log(error);
     store.state.fetching = false;
+  }
+}
+
+function logOut() {
+  // Enable the logout button if not running on localhost
+  if (!devMode) {
+    const logoutUrl = window.location.origin + "/kaapana-backend/oidc-logout";
+    window.location.href = logoutUrl;
   }
 }
 

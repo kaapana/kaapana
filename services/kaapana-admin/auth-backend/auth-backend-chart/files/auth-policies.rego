@@ -32,7 +32,9 @@ allow {
     regex.match("^/kaapana-backend/.*", input.requested_prefix)
     some p
     input.access_token.projects[p].id == input.project.id
-    input.access_token.projects[p].role_name in ["admin","read"]
+
+    # allow kaapana backend routs if user has access to any project indifferent of roles
+    # input.access_token.projects[p].role_name in ["admin","read"]
 }
 
 ### Allow access to multiinstallable applications only in projects, where the user is part of.

@@ -1,6 +1,7 @@
 import copy
 import json
 import logging
+import math
 import os
 import random
 import shutil
@@ -13,10 +14,12 @@ from typing import List, Tuple, Union
 
 import jsonschema
 import jsonschema.exceptions
-from app.dependencies import get_db
+from app.datasets.routers import get_aggregatedSeriesNum
+from app.datasets.utils import MAX_RETURN_LIMIT, execute_initial_search
+from app.dependencies import get_db, get_opensearch, get_project_index
 from app.workflows import crud, schemas
 from app.workflows.utils import get_dag_list
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 
@@ -497,6 +500,24 @@ def check_for_remote_updates(db: Session = Depends(get_db)):
     return {f"Federated backend is up and running!"}
 
 
+# @router.post("/dataset", response_model=schemas.Dataset)
+# def create_dataset(
+#     request: Request,
+#     dataset: Union[schemas.DatasetCreate, None] = None,
+#     db: Session = Depends(get_db),
+# ):
+#     dataset.username = request.headers["x-forwarded-preferred-username"]
+#     db_obj = crud.create_dataset(db=db, dataset=dataset)
+
+#     return schemas.Dataset(
+#         name=db_obj.name,
+#         time_created=db_obj.time_created,
+#         time_updated=db_obj.time_updated,
+#         username=db_obj.username,
+#         identifiers=[x.id for x in db_obj.identifiers],
+#     )
+
+
 @router.post("/dataset", response_model=schemas.Dataset)
 def create_dataset(
     request: Request,
@@ -513,6 +534,52 @@ def create_dataset(
         username=db_obj.username,
         identifiers=[x.id for x in db_obj.identifiers],
     )
+
+
+@router.post("/dataset-from-query", response_model=schemas.Dataset)
+async def create_dataset_from_query(
+    request: Request,
+    db: Session = Depends(get_db),
+    os_client=Depends(get_opensearch),
+):
+    body = await request.json()
+    query = body["query"]
+    filters = query["bool"]["filter"]
+    # get project_index from filters
+    for filter_item in filters:
+        if isinstance(filter_item, dict) and "match_phrase" in filter_item:
+            if "_index" in filter_item["match_phrase"]:
+                project_index = filter_item["match_phrase"]["_index"]
+                break
+    response = await get_aggregatedSeriesNum(
+        data=query, os_client=os_client, project_index=project_index
+    )
+    response_content = json.loads(response.body.decode("utf-8"))
+    aggregated_series_num = response_content
+    pages = math.ceil(aggregated_series_num / MAX_RETURN_LIMIT)
+    identifiers = []
+    for page in range(pages):
+        identifiers.extend(
+            d["_id"]
+            for d in execute_initial_search(
+                os_client=os_client,
+                index=project_index,
+                query=query,
+                source=False,
+                sort=[{"_id": "desc"}],
+                page_index=page + 1,  # start at 1
+                page_length=MAX_RETURN_LIMIT,
+                aggregated_series_num=aggregated_series_num,
+                use_execute_sliced_search=False,
+            )
+        )
+
+    dataset = schemas.DatasetCreate(
+        name=body["name"],
+        identifiers=identifiers,
+    )
+
+    return create_dataset(request=request, dataset=dataset, db=db)
 
 
 @router.get("/dataset", response_model=schemas.Dataset)

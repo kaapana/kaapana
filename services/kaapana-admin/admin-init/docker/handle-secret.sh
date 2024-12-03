@@ -76,9 +76,13 @@ function install_cert {
 
         echo "Generating new self-signed certificate for $COMMON_NAME"
         openssl genrsa 4096 > tls.key
+<<<<<<< HEAD
 
         openssl req -new -x509 -nodes -sha256 -days $EXPIRATION -key tls.key -out tls.crt -subj "/CN=$COMMON_NAME" -addext "extendedKeyUsage = serverAuth" -addext "subjectAltName=DNS:${HOSTNAME},IP:${HOST_IP}"
         echo "Certificate generated successfully for NAME: $COMMON_NAME with HOSTNAME ${HOSTNAME} and IP ${HOST_IP}"
+=======
+        openssl req -new -x509 -nodes -sha256 -days $EXPIRATION -key tls.key -out tls.crt -subj "/CN=$COMMON_NAME" -addext "extendedKeyUsage = serverAuth"
+>>>>>>> parent of 35bae3c8f (Add SAN to self-signed certificate.)
 
         TLS_CERT_FILE="tls.crt"
         TLS_KEY_FILE="tls.key"

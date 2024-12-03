@@ -31,16 +31,9 @@ spec:
           value: "{{ .Values.global.tls_secret.common_name }}"
         - name: EXPIRATION
           value: "{{ .Values.global.tls_secret.expiration }}"
-<<<<<<< HEAD
         - name: HOSTNAME
-          value: "{{ .Values.global.hostname }}"      
-        - name: HOST_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.hostIP
+          value: "{{ .Values.global.hostname }}"
 
-=======
->>>>>>> parent of 35bae3c8f (Add SAN to self-signed certificate.)
         volumeMounts:
         - name: tls-storage
           mountPath: /cert/tls

@@ -80,18 +80,14 @@ function install_cert {
             echo "HOSTNAME ${HOSTNAME} is an IP address"
             SAN="IP:${HOSTNAME}"
         else
-            echo "Testing DNS for ${HOSTNAME}"
-            
-            # Resolve the HOSTNAME to an IP address
             HOST_IP=$(nslookup $HOSTNAME | awk '/^Address: / { print $2; exit }')
 
-            # If IP resolution failed
             if [ -z "$HOST_IP" ]; then
                 echo "Error: Unable to resolve IP for $HOSTNAME"
                 exit 1
             fi
+            echo "DNS for ${HOSTNAME} -> ${HOST_IP}"
 
-            # If HOSTNAME is valid, use DNS
             SAN="DNS:$HOSTNAME"
         fi
 

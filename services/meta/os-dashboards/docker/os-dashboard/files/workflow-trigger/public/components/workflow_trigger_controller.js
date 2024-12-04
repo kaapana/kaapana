@@ -49,8 +49,6 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
                 }
         
                 const project_names = await response.json();
-                console.log("Project names:", project_names);
-
                 return project_names;
             } catch (error) {
                 console.error("Error fetching project names:", error);
@@ -58,18 +56,13 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
         }
 
         async updateDashboardFilter(index) {
-            this.project_dropdown_index = index;
-            console.log("filterManager", this.filter_manager);
-            
+            this.project_dropdown_index = index;            
             const filters = this.filter_manager.getFilters();
-            console.log("Current filters:", filters);
         
             // Check if there are filters related to `_index` and extract the project value
             const projectFilters = filters.filter(
                 (filter) => filter.meta?.key === "_index"
-            );
-            console.log("projectFilters", projectFilters);
-        
+            );        
             // Remove all projectFilters that do not match the given index
             projectFilters.forEach((filter) => {
                 if (filter.meta?.params?.query !== index) {
@@ -94,7 +87,6 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
                 },
             };
         
-            console.log("Adding filter:", filterQuery);
             this.filter_manager.addFilters(filterQuery);
         }
         
@@ -123,9 +115,9 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
             const projectFilter = filters.filter(
                 (filter) => filter.meta?.key === "_index"
             );
-            console.log("projectFilters", projectFilter);
+
             if (projectFilter.length != 1){
-                alert("Exactly one project has to be set")
+                alert("A project has to be selected.")
                 return false;
             }
             
@@ -196,7 +188,6 @@ export const getWorkflowTriggerVisController = (data, getStartServices, buildOpe
             const project_dropdown = document.getElementById("projectSelection");
             //Add empty object to and filternames
             const project_names = ["", ...(await this.fillProjectDropDown())];
-            console.log('project_names', project_names);
             project_names.forEach(index => {
                 const option = document.createElement('option');
                 option.value = index;

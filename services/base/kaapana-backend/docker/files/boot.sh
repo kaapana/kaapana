@@ -1,24 +1,22 @@
-if [ ! -d "/kaapana/app/alembic" ]; then
-    alembic init alembic
-    cp env.py /kaapana/app/alembic/env.py
-fi
-# Apply existing migrations
-alembic upgrade head
-alembic revision --autogenerate -m "Automated Migration"
-# Apply the new migration
-alembic upgrade head
-
-# Trying to handle multiple heads if they exist
-if [ $(alembic heads | wc -l) -gt 1 ]; then
-    echo "Multiple heads detected, trying to automaticly merge."
-    alembic merge $(alembic heads | awk '{print $1}')
-    alembic upgrade head
-fi
-
+#!/bin/bash
 
 export PYTHONPATH="$PWD" 
 
 if [ "$BACKEND_TYPE" = "backend" ]; then
+    WORKING_DIR="$PWD"
+    ALEMBIC_DIR="$WORKING_DIR/alembic"
+    ENV_FILE="$ALEMBIC_DIR/env.py"
+    if [ ! -d "$ALEMBIC_DIR" ] || [ ! -f "$ENV_FILE" ]; then
+        echo "Alembic is not initialized. Initializing now..."
+        alembic init alembic
+        cp env.py "$ENV_FILE"
+    else
+        echo "Alembic is already initialized."
+    fi
+
+    alembic revision --autogenerate -m "Migration"
+    alembic upgrade head
+
     python3 scripts/create_kaapana_instance.py
 fi
 

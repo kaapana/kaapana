@@ -65,8 +65,7 @@ class HelperOpensearch:
             hits = HelperOpensearch.execute_opensearch_query(**query_dict)
         except Exception as e:
             print("ERROR in search!")
-            print(e)
-            return None
+            raise e
 
         if only_uids:
             return [hit["_id"] for hit in hits]
@@ -186,8 +185,7 @@ class HelperOpensearch:
             res = HelperOpensearch.os_client.get(index=index, id=series_instance_uid)
         except Exception as e:
             print("ERROR in search!")
-            print(e)
-            return None
+            raise e
 
         return res["_source"]
 

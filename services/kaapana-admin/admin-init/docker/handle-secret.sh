@@ -75,9 +75,25 @@ function install_cert {
         echo "No tls certificates found, creating self-signed ones..."
 
         echo "Generating new self-signed certificate for $COMMON_NAME"
-        openssl genrsa 4096 > tls.key
-        openssl req -new -x509 -nodes -sha256 -days $EXPIRATION -key tls.key -out tls.crt -subj "/CN=$COMMON_NAME" -addext "extendedKeyUsage = serverAuth" -addext "subjectAltName=DNS:${HOSTNAME},IP:${HOSTNAME}"
 
+        if echo "$HOSTNAME" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+            echo "HOSTNAME ${HOSTNAME} is an IP address"
+            SAN="IP:${HOSTNAME}"
+        else
+            HOST_IP=$(nslookup $HOSTNAME | awk '/^Address: / { print $2; exit }')
+
+            if [ -z "$HOST_IP" ]; then
+                echo "Error: Unable to resolve IP for $HOSTNAME"
+                exit 1
+            fi
+            echo "DNS for ${HOSTNAME} -> ${HOST_IP}"
+
+            SAN="DNS:$HOSTNAME"
+        fi
+
+        openssl genrsa 4096 > tls.key
+        openssl req -new -x509 -nodes -sha256 -days $EXPIRATION -key tls.key -out tls.crt -subj "/CN=$COMMON_NAME" -addext "extendedKeyUsage = serverAuth" -addext "subjectAltName=${SAN}"
+        
         TLS_CERT_FILE="tls.crt"
         TLS_KEY_FILE="tls.key"
     fi

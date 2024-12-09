@@ -2,7 +2,7 @@ import logging
 
 import httpx
 from app import crud
-from app.config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
+from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import StreamingResponse
@@ -26,12 +26,14 @@ async def retrieve_instance_thumbnail(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):
@@ -65,11 +67,14 @@ async def retrieve_series_thumbnail(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
     if request.scope.get(
         "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_project(
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ):

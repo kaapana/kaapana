@@ -4,7 +4,11 @@ import os
 import re
 from os import getenv
 
-from kaapanapy.helper import get_minio_client
+from kaapanapy.helper import (
+    get_minio_client,
+    get_opensearch_client,
+    load_workflow_config,
+)
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings, OperatorSettings
@@ -26,22 +30,31 @@ class ClearValidationResultOperator:
         self.result_bucket = result_bucket
         self.validation_tag = validation_tag
         self.validation_field = f"{validation_tag} ValidationResults_object"
-        self.opensearch_index = (
-            opensearch_index
-            if opensearch_index is not None
-            else OpensearchSettings().default_index
-        )
+        self.opensearch_index = opensearch_index
 
         # Airflow variables
         operator_settings = OperatorSettings()
+        workflow_config = load_workflow_config()
 
         self.operator_in_dir = operator_settings.operator_in_dir
         self.workflow_dir = operator_settings.workflow_dir
         self.batch_name = operator_settings.batch_name
         self.run_id = operator_settings.run_id
 
+        # set the opensearch_index if not provided
+        # Set the project index from workflow config or else default index from settings
+        if not opensearch_index:
+            project_opensearch_index = workflow_config["project_form"][
+                "opensearch_index"
+            ]
+            self.opensearch_index = (
+                project_opensearch_index
+                if project_opensearch_index is not None
+                else OpensearchSettings().default_index
+            )
+
         self.minio_client: Minio = get_minio_client()
-        self.os_client = HelperOpensearch.os_client
+        self.os_client = get_opensearch_client()
 
     def get_all_files_from_result_bucket(self, prefix=""):
         """
@@ -113,8 +126,12 @@ class ClearValidationResultOperator:
         allfiles = self.get_all_files_from_result_bucket()
 
         # match only the files placed under the subdirectory of serisuid
-        sereismatcher = re.compile(f"\/?{re.escape(seriesuid)}\/")
+        sereismatcher = re.compile(rf"\/?{re.escape(seriesuid)}\/")
         seriesresults = [s for s in allfiles if sereismatcher.search(s)]
+
+        print("-------------------------------")
+        print(str(len(seriesresults)) + " results found")
+        print("-------------------------------")
 
         if len(seriesresults) == 0:
             logger.info(f"No validation results found in minio for series {seriesuid}")

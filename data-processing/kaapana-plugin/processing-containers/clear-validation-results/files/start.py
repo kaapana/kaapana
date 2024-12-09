@@ -22,12 +22,12 @@ class ClearValidationResultOperator:
 
     def __init__(
         self,
-        result_bucket: str = "staticwebsiteresults",
+        static_results_dir: str = "staticwebsiteresults",
         validation_tag: str = "00111001",
         opensearch_index: str = None,
     ):
         # Operator attributes
-        self.result_bucket = result_bucket
+        self.static_results_dir = static_results_dir
         self.validation_tag = validation_tag
         self.validation_field = f"{validation_tag} ValidationResults_object"
         self.opensearch_index = opensearch_index
@@ -40,6 +40,7 @@ class ClearValidationResultOperator:
         self.workflow_dir = operator_settings.workflow_dir
         self.batch_name = operator_settings.batch_name
         self.run_id = operator_settings.run_id
+        self.project_bucket = workflow_config["project_form"]["s3_bucket"]
 
         # set the opensearch_index if not provided
         # Set the project index from workflow config or else default index from settings
@@ -66,7 +67,9 @@ class ClearValidationResultOperator:
         Returns:
             list: A list of file paths in the specified MinIO bucket.
         """
-        allresults = self.minio_client.list_objects(self.result_bucket, prefix)
+        if prefix == "":
+            prefix = self.static_results_dir
+        allresults = self.minio_client.list_objects(self.project_bucket, prefix)
         files = []
         for item in allresults:
             if item.is_dir:
@@ -129,16 +132,12 @@ class ClearValidationResultOperator:
         sereismatcher = re.compile(rf"\/?{re.escape(seriesuid)}\/")
         seriesresults = [s for s in allfiles if sereismatcher.search(s)]
 
-        print("-------------------------------")
-        print(str(len(seriesresults)) + " results found")
-        print("-------------------------------")
-
         if len(seriesresults) == 0:
             logger.info(f"No validation results found in minio for series {seriesuid}")
             return
 
         for result in seriesresults:
-            self.minio_client.remove_object(self.result_bucket, result)
+            self.minio_client.remove_object(self.project_bucket, result)
             logger.info(f"{result} is removed from minio")
 
         return
@@ -183,12 +182,12 @@ class ClearValidationResultOperator:
 
 if __name__ == "__main__":
 
-    result_bucket = getenv("RESULT_BUCKET", None)
+    static_results_dir = getenv("STATIC_RESULTS_DIR", None)
     validation_tag = getenv("VALIDATION_TAG", None)
     opensearch_index = getenv("OPENSEARCH_INDEX", None)
 
     operator = ClearValidationResultOperator(
-        result_bucket=result_bucket,
+        static_results_dir=static_results_dir,
         validation_tag=validation_tag,
         opensearch_index=opensearch_index,
     )

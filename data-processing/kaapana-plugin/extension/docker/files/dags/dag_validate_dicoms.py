@@ -71,7 +71,7 @@ clear_validation_results = ClearValidationResultOperator(
     dag=dag,
     name="clear-validation-results",
     input_operator=get_input_json,
-    result_bucket="staticwebsiteresults",
+    static_results_dir="staticwebsiteresults",
 )
 
 save_to_meta = ValidationResult2MetaOperator(

@@ -20,7 +20,8 @@ class ClearValidationResultOperator(KaapanaBaseOperator):
     Args:
         dag (DAG): The DAG to which the operator belongs.
         name (str): The name of the operator. Defaults to "clear-validation-results".
-        results_bucket (str): minio bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
+        static_results_dir (str): directory inside the bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
+                associated bucket name from the project will be taken from the project form.
         validation_tag (str): Base tag used to store validation results on OpenSearch (default: "00111001").
         opensearch_index (str): Index in OpenSearch where metadata will be stored. Defaults to OpensearchSettings().default_index.
         *args: Additional arguments for the parent class.
@@ -34,7 +35,7 @@ class ClearValidationResultOperator(KaapanaBaseOperator):
         self,
         dag,
         name="clear-validation-results",
-        result_bucket: str = "staticwebsiteresults",
+        static_results_dir: str = "staticwebsiteresults",
         validation_tag: str = "00111001",
         opensearch_index=None,
         **kwargs,
@@ -44,14 +45,15 @@ class ClearValidationResultOperator(KaapanaBaseOperator):
         Args:
             dag (DAG): The DAG to which the operator belongs.
             name (str, optional): The name of the operator. Defaults to "clear-validation-results".
-            result_bucket (str, optional): minio bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
+            static_results_dir (str, optional): directory inside the bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
+                associated bucket name from the project will be taken from the project form.
             validation_tag (str, optional): Base tag used to store validation results on OpenSearch (default: "00111001").
             opensearch_index (_type_, optional): Index in OpenSearch where metadata will be stored. Defaults to OpensearchSettings().default_index.
         """
 
         env_vars = {}
 
-        env_vars["RESULT_BUCKET"] = result_bucket
+        env_vars["STATIC_RESULTS_DIR"] = static_results_dir
         env_vars["VALIDATION_TAG"] = validation_tag
 
         if opensearch_index is not None:

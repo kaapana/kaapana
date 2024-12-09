@@ -1,4 +1,4 @@
-FROM local-only/base-python-cpu:latest
+FROM local-only/base-nnunet-v2:latest
 
 LABEL IMAGE="nnunet-federated"
 LABEL VERSION="0.1.0"

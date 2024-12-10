@@ -53,11 +53,11 @@ def get_data_from_pacs(target_dir: str, studyUID: str, seriesUID: str):
     )
 
 
-def get_data_from_opensearch(target_dir: str, seriesUID: str):
+def get_data_from_opensearch(target_dir: str, seriesUID: str, project_index: str):
     """
     Download metadata of a series from opensearch and store it as a json file into target_dir
     """
-    meta_data = HelperOpensearch.get_series_metadata(series_instance_uid=seriesUID)
+    meta_data = os_helper.os_client.get(id=seriesUID, index=project_index)["_source"]
     json_path = os.path.join(target_dir, "metadata.json")
     with open(json_path, "w") as fp:
         json.dump(meta_data, fp, indent=4, sort_keys=True)
@@ -123,6 +123,8 @@ def download_data_for_workflow(workflow_config):
     """
     settings = OperatorSettings()
     operator_arguments = GetInputArguments()
+    project_form = workflow_config.get("project_form")
+    project_index = project_form.get("opensearch_index")
     logger.debug(f"{settings=}")
     logger.debug(f"{operator_arguments=}")
 
@@ -130,17 +132,22 @@ def download_data_for_workflow(workflow_config):
     parallel_downloads = operator_arguments.parallel_downloads
 
     # set include and exclude tags from respective workflow form keys
-    include_custom_tag=""
-    exclude_custom_tag=""
+    include_custom_tag = ""
+    exclude_custom_tag = ""
     if operator_arguments.include_custom_tag_property != "":
-        include_custom_tag = workflow_config.get("workflow_form").get(operator_arguments.include_custom_tag_property)
+        include_custom_tag = workflow_config.get("workflow_form").get(
+            operator_arguments.include_custom_tag_property
+        )
     if operator_arguments.exclude_custom_tag_property != "":
-        exclude_custom_tag = workflow_config.get("workflow_form").get(operator_arguments.exclude_custom_tag_property)
+        exclude_custom_tag = workflow_config.get("workflow_form").get(
+            operator_arguments.exclude_custom_tag_property
+        )
 
-    dcm_uid_objects = HelperOpensearch.get_dcm_uid_objects(
-        identifiers,
+    dcm_uid_objects = os_helper.get_dcm_uid_objects(
+        series_instance_uids=identifiers,
         include_custom_tag=include_custom_tag,
         exclude_custom_tag=exclude_custom_tag,
+        index=project_index,
     )
 
     dataset_limit = workflow_config.get("data_form").get("dataset_limit")
@@ -178,13 +185,9 @@ if __name__ == "__main__":
     logger.info("Start GetInputOperator.")
     ### This helper is used in get_data_from_pacs()
     dcmweb_helper = HelperDcmWeb()
+    os_helper = HelperOpensearch()
     logger.debug("HelperDcmWeb object initialized.")
     workflow_config = load_workflow_config()
     logger.debug("Workflow config loaded.")
-
-    ### Overwrite HelperOpenseach index to be the project specific index
-    project_form = workflow_config.get("project_form")
-    HelperOpensearch.index = project_form.get("opensearch_index")
-    assert HelperOpensearch.index
     logger.info("Start data download.")
     download_data_for_workflow(workflow_config)

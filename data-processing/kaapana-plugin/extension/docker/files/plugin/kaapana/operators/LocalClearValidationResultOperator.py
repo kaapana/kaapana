@@ -4,7 +4,8 @@ import os
 import re
 
 from kaapana.operators.HelperMinio import HelperMinio
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.helper import get_opensearch_client
 from kaapanapy.settings import OpensearchSettings
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
@@ -106,7 +107,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
 
     def _init_clients(self, dag_run):
         """
-        Initializes the MinIO Client and Referes to the HelperOpenSearch client.
+        Initializes the MinIO Client and the Opensearch client.
 
         Args:
             dag_run (DAGRun): The current DAG run instance providing context and configuration.
@@ -117,7 +118,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         # initialize MinIO client
         self.minio_client = HelperMinio(dag_run=dag_run)
         # Point to the already initialized HelperOpensearch client
-        self.os_client = HelperOpensearch.os_client
+        self.os_client = get_opensearch_client()
 
     def start(self, ds, **kwargs):
         """
@@ -156,7 +157,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
                     metadata = json.load(fs)
 
                 seriesuid = metadata[
-                    HelperOpensearch.series_uid_tag
+                    DicomTags.series_uid_tag
                 ]  # "0020000E SeriesInstanceUID_keyword"
 
                 self.remove_from_minio(seriesuid)

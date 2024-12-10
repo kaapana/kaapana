@@ -51,6 +51,9 @@ def get_identifier_for_model(workflow_config):
     The corresponding identifiers are queries from opensearch.
 
     """
+    os_helper = HelperOpensearch()
+    project_form = workflow_config.get("project_form")
+    opensearch_index = project_form.get("opensearch_index")
     query = {
         "bool": {
             "must": [{"match_all": {}}, {"match_all": {}}],
@@ -77,16 +80,21 @@ def get_identifier_for_model(workflow_config):
     query["bool"]["must"].append(
         {"match_phrase": {"00080060 Modality_keyword.keyword": {"query": "OT"}}}
     )
-    return HelperOpensearch.get_query_dataset(query=query, only_uids=True)
+    return os_helper.get_query_dataset(
+        index=opensearch_index, query=query, only_uids=True
+    )
 
 
 if __name__ == "__main__":
     workflow_config = load_workflow_config()
     logger.debug("Workflow config loaded.")
     project_form = workflow_config.get("project_form")
-    HelperOpensearch.index = project_form.get("opensearch_index")
-    assert HelperOpensearch.index
+    opensearch_index = project_form.get("opensearch_index")
+    assert opensearch_index
+    os_helper = HelperOpensearch()
     logger.info("Start data download.")
     identifiers = get_identifier_for_model(workflow_config=workflow_config)
-    dcm_uid_objects = HelperOpensearch.get_dcm_uid_objects(identifiers)
+    dcm_uid_objects = os_helper.get_dcm_uid_objects(
+        series_instance_uids=identifiers, index=opensearch_index
+    )
     get_data(dcm_uid_object=dcm_uid_objects[0])

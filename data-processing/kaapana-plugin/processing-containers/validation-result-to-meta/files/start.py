@@ -8,7 +8,8 @@ from html.parser import HTMLParser
 from os import getenv
 from typing import List
 
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.helper import get_opensearch_client
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings, OperatorSettings
 from pytz import timezone
@@ -92,7 +93,6 @@ class ValidationResult2MetaOperator:
     ):
         # OS settings
         self.opensearch_settings = OpensearchSettings()
-        self.helper_opensearch = HelperOpensearch()
 
         # Operator settings
         self.validator_output_dir = validator_output_dir
@@ -214,15 +214,6 @@ class ValidationResult2MetaOperator:
 
         return n_errors, n_warnings, validation_time
 
-    def _init_client(self):
-        """
-        Point to the already initialized HelperOpensearch client.
-
-        Returns:
-            None
-        """
-        self.os_client = HelperOpensearch.os_client
-
     def start(self):
         """
         Main execution method called by Airflow to run the operator.
@@ -240,7 +231,7 @@ class ValidationResult2MetaOperator:
             f for f in glob.glob(os.path.join(self.workflow_dir, self.batch_name, "*"))
         ]
 
-        self._init_client()
+        self.os_client = get_opensearch_client()
 
         for batch_element_dir in batch_folder:
             html_outputs = []
@@ -284,7 +275,7 @@ class ValidationResult2MetaOperator:
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
                     series_uid = metadata[
-                        HelperOpensearch.series_uid_tag
+                        DicomTags.series_uid_tag
                     ]  # "0020000E SeriesInstanceUID_keyword"
                     existing_tags = metadata.get(self.tag_field, None)
 

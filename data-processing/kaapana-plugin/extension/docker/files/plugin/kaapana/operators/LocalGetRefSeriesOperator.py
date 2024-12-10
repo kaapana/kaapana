@@ -12,7 +12,8 @@ import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper import get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -90,9 +91,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         Path(series.target_dir).mkdir(parents=True, exist_ok=True)
 
         # Get metadata from OpenSearch
-        meta_data = HelperOpensearch.get_series_metadata(
-            series_instance_uid=series.reference_series_uid
-        )
+        meta_data = self.os_client.get(id=series.reference_series_uid)["_source"]
 
         # Save metadata to json file
         with open(join(series.target_dir, "metadata.json"), "w") as fp:
@@ -202,6 +201,8 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         self.dag_run = kwargs["dag_run"].run_id
         logger.info("Starting module LocalGetRefSeriesOperator")
         self.dcmweb_helper = get_dcmweb_helper()
+        self.os_client = get_opensearch_client()
+        self.opensearch_index = OpensearchSettings().default_index
 
         series_dirs = glob.glob(
             join(

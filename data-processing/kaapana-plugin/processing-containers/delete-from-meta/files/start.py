@@ -4,8 +4,7 @@ import os
 from os import getenv
 
 import pydicom
-from kaapanapy.helper import load_workflow_config
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper import load_workflow_config, get_opensearch_client
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings, OperatorSettings
 
@@ -40,6 +39,9 @@ class DeleteFromMetaOperator:
         self.run_id = operator_settings.run_id
 
         self.workflow_config = load_workflow_config()
+        project_form: dict = self.workflow_config.get("project_form")
+        self.os_index = project_form.get("opensearch_index")
+        self.os_client = get_opensearch_client()
 
         if not self.delete_complete_study:
             if (
@@ -71,7 +73,7 @@ class DeleteFromMetaOperator:
             query = {"query": {"match_all": {}}}
 
             # Delete from project index
-            HelperOpensearch.delete_by_query(query)
+            self.os_client.delete_by_query(index=self.os_index, body=query)
 
         else:
             batch_folder = [
@@ -129,7 +131,7 @@ class DeleteFromMetaOperator:
             else:
                 query = {"query": {"terms": {"_id": dicoms_to_delete}}}
 
-            HelperOpensearch.delete_by_query(query)
+            self.os_client.delete_by_query(index=self.os_index, body=query)
 
 
 if __name__ == "__main__":

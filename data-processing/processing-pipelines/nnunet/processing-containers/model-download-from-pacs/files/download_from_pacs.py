@@ -43,7 +43,7 @@ def make_target_dir_for_series(series_uid: str):
     return target_dir
 
 
-def get_identifier_for_model(workflow_config):
+def get_identifier_for_model(workflow_config: dict, os_helper: HelperOpensearch):
     """
     Get the series uids as identifier for a model.
     Modelnames are taken from the list at workflow_config["workflow_form"]["tasks"].
@@ -51,7 +51,6 @@ def get_identifier_for_model(workflow_config):
     The corresponding identifiers are queries from opensearch.
 
     """
-    os_helper = HelperOpensearch()
     project_form = workflow_config.get("project_form")
     opensearch_index = project_form.get("opensearch_index")
     query = {
@@ -93,7 +92,9 @@ if __name__ == "__main__":
     assert opensearch_index
     os_helper = HelperOpensearch()
     logger.info("Start data download.")
-    identifiers = get_identifier_for_model(workflow_config=workflow_config)
+    identifiers = get_identifier_for_model(
+        workflow_config=workflow_config, os_helper=os_helper
+    )
     dcm_uid_objects = os_helper.get_dcm_uid_objects(
         series_instance_uids=identifiers, index=opensearch_index
     )

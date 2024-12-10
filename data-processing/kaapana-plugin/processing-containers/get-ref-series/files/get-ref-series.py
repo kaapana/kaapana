@@ -17,8 +17,6 @@ from kaapanapy.helper import load_workflow_config
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-os_helper = HelperOpensearch()
-
 
 @dataclass
 class DownloadSeries:
@@ -154,6 +152,7 @@ class GetRefSeriesOperator:
         self.data_type = data_type
         self.parallel_downloads = parallel_downloads
         self.search_policy = search_policy
+        self.os_helper = HelperOpensearch()
 
     def download_metadata_from_opensearch(self, series: DownloadSeries):
         """Download metadata of a series from opensearch and store it as a json file into target_dir.
@@ -168,7 +167,7 @@ class GetRefSeriesOperator:
         Path(series.target_dir).mkdir(parents=True, exist_ok=True)
 
         # Get metadata from OpenSearch
-        meta_data = os_helper.os_client.get(
+        meta_data = self.os_helper.os_client.get(
             index=self.opensearch_index, id=series.reference_series_uid
         )["_source"]
 
@@ -264,7 +263,7 @@ class GetRefSeriesOperator:
 
         logger.info(f"Search query: {query}")
 
-        series_of_study = os_helper.execute_opensearch_query(
+        series_of_study = self.os_helper.execute_opensearch_query(
             index=self.opensearch_index, query=query
         )
 
@@ -388,7 +387,7 @@ class GetRefSeriesOperator:
 
         logger.info(f"Search query: {search_query}")
 
-        series_of_search_query = os_helper.execute_opensearch_query(
+        series_of_search_query = self.os_helper.execute_opensearch_query(
             index=self.opensearch_index, query=search_query
         )
 

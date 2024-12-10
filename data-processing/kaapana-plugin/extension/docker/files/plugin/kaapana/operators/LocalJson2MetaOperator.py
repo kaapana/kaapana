@@ -8,7 +8,6 @@ import pydicom
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings, OpensearchSettings
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -47,7 +46,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         project = self.get_project_by_name(clinical_trial_protocol_id)
         try:
             json_dict = self.produce_inserts(json_dict)
-            response = HelperOpensearch.os_client.index(
+            response = self.os_client.index(
                 index=project.get("opensearch_index"),
                 body=json_dict,
                 id=id,
@@ -68,8 +67,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             exit(1)
         try:
             json_dict = self.produce_inserts(json_dict)
-            response = HelperOpensearch.os_client.index(
-                index=OpensearchSettings().default_index,
+            response = self.os_client.index(
+                index=self.opensearch_index,
                 body=json_dict,
                 id=id,
                 refresh=True,
@@ -81,8 +80,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     def produce_inserts(self, new_json):
         logger.info("get old json from index.")
         try:
-            old_json = HelperOpensearch.os_client.get(
-                index=OpensearchSettings().default_index, id=self.instanceUID
+            old_json = self.os_client.get(
+                index=self.opensearch_index, id=self.instanceUID
             )["_source"]
             print("Series already found in OS")
             if self.no_update:
@@ -106,8 +105,11 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         return old_json
 
     def start(self, ds, **kwargs):
-        global es
+        from kaapanapy.helper import get_opensearch_client
+
+        self.os_client = get_opensearch_client()
         self.dcmweb_helper = get_dcmweb_helper()
+        self.opensearch_index = OpensearchSettings().default_index
 
         self.ti = kwargs["ti"]
         logger.info("Starting module json2meta")

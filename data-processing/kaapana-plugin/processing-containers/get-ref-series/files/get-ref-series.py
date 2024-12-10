@@ -12,6 +12,7 @@ from pathlib import Path
 import pydicom
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper import load_workflow_config
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -79,6 +80,7 @@ class GetRefSeriesOperator:
 
     def __init__(
         self,
+        opensearch_index: str,
         search_policy: str = "reference_uid",
         data_type: str = "dicom",
         search_query: dict = {},
@@ -89,6 +91,7 @@ class GetRefSeriesOperator:
         """Initialize the GetRefSeriesOperator.
 
         Args:
+            opensearch_index (str): The opensearch index to search for series metadata.
             search_policy (str, optional): The search policy to filter the series. Can be "reference_uid", "study_uid" or "search_query". Defaults to "reference_uid". "reference_uid" downloads the reference series of a SEG or RTSTRUCT, "study_uid" downloads all series of a study, "search_query" downloads all series based on a search query.
             data_type (str, optional): The type of data to download. Can be "dicom" or "json". Defaults to "dicom".
             search_query (list, optional): The search query for opensearch. Syntax must be the same as for opensearch. Defaults to {}. Must be a bool query (https://opensearch.org/docs/latest/query-dsl/compound/bool).
@@ -97,6 +100,7 @@ class GetRefSeriesOperator:
             custom_tags (list, optional): List of custom tags to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".
 
         """
+        self.opensearch_index = opensearch_index
         assert data_type in ["dicom", "json"], "Unknown data-type!"
 
         assert search_policy in [
@@ -148,6 +152,7 @@ class GetRefSeriesOperator:
         self.data_type = data_type
         self.parallel_downloads = parallel_downloads
         self.search_policy = search_policy
+        self.os_helper = HelperOpensearch()
 
     def download_metadata_from_opensearch(self, series: DownloadSeries):
         """Download metadata of a series from opensearch and store it as a json file into target_dir.
@@ -162,9 +167,9 @@ class GetRefSeriesOperator:
         Path(series.target_dir).mkdir(parents=True, exist_ok=True)
 
         # Get metadata from OpenSearch
-        meta_data = HelperOpensearch.get_series_metadata(
-            series_instance_uid=series.reference_series_uid
-        )
+        meta_data = self.os_helper.os_client.get(
+            index=self.opensearch_index, id=series.reference_series_uid
+        )["_source"]
 
         # Save metadata to json file
         with open(join(series.target_dir, "metadata.json"), "w") as fp:
@@ -258,7 +263,9 @@ class GetRefSeriesOperator:
 
         logger.info(f"Search query: {query}")
 
-        series_of_study = HelperOpensearch.execute_opensearch_query(query=query)
+        series_of_study = self.os_helper.execute_opensearch_query(
+            index=self.opensearch_index, query=query
+        )
 
         # Extract SeriesInstanceUID from each study
         series_instance_uids = [
@@ -380,8 +387,8 @@ class GetRefSeriesOperator:
 
         logger.info(f"Search query: {search_query}")
 
-        series_of_search_query = HelperOpensearch.execute_opensearch_query(
-            query=search_query
+        series_of_search_query = self.os_helper.execute_opensearch_query(
+            index=self.opensearch_index, query=search_query
         )
 
         list_of_series = []
@@ -537,8 +544,13 @@ if __name__ == "__main__":
     logger.info(f"Modalities: {modalities}")
     logger.info(f"Custom tags: {custom_tags}")
 
+    workflow_config = load_workflow_config()
+    project_form = workflow_config.get("project_form")
+    project_index = project_form.get("opensearch_index")
+
     # Start the operator
     get_ref_series_operator = GetRefSeriesOperator(
+        opensearch_index=project_index,
         search_policy=search_policy,
         data_type=data_type,
         search_query=search_query,

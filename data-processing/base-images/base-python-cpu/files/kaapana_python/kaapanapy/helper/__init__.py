@@ -8,7 +8,7 @@ from minio import Minio
 from opensearchpy import OpenSearch
 
 
-def get_opensearch_client(access_token=None):
+def get_opensearch_client(access_token=None) -> OpenSearch:
     settings = OpensearchSettings()
     access_token = access_token or get_project_user_access_token()
     auth_headers = {"Authorization": f"Bearer {access_token}"}
@@ -29,7 +29,7 @@ def get_opensearch_client(access_token=None):
     )
 
 
-def get_minio_client(access_token=None):
+def get_minio_client(access_token=None) -> Minio:
     """
     :access_token: Access token that should be used for communication with minio.
     """

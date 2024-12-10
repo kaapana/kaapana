@@ -16,7 +16,7 @@ class DeleteFromMetaOperator(KaapanaBaseOperator):
 
     **Inputs:**
 
-    * Input data which should be removed is given via input parameter: delete_operator.
+    * Input data which should be removed is given via input parameter: input_operator.
     """
 
     def __init__(

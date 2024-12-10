@@ -7,8 +7,9 @@ from enum import Enum
 from html.parser import HTMLParser
 from typing import List
 
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.settings import OpensearchSettings
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.helper import get_opensearch_client
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from pytz import timezone
 
@@ -185,15 +186,6 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
 
         return n_errors, n_warnings, validation_time
 
-    def _init_client(self):
-        """
-        Point to the already initialized HelperOpensearch client.
-
-        Returns:
-            None
-        """
-        self.os_client = HelperOpensearch.os_client
-
     def start(self, ds, **kwargs):
         """
         Main execution method called by Airflow to run the operator.
@@ -205,6 +197,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         Returns:
             None
         """
+
         print("Start tagging")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
@@ -212,7 +205,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
         ]
 
-        self._init_client()
+        self.os_client = get_opensearch_client()
 
         for batch_element_dir in batch_folder:
             html_outputs = []
@@ -256,7 +249,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
                     series_uid = metadata[
-                        HelperOpensearch.series_uid_tag
+                        DicomTags.series_uid_tag
                     ]  # "0020000E SeriesInstanceUID_keyword"
                     existing_tags = metadata.get(self.tag_field, None)
 

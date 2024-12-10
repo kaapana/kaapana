@@ -13,7 +13,6 @@ MAX_SLICES_PER_PIT = 1024
 logger = get_logger(__name__, logging.DEBUG)
 
 
-#  from kaapana.operators.HelperOpensearch import HelperOpensearch
 # Function to create a PIT
 def create_pit(os_client, index, keep_alive="1m"):
     response = os_client.create_pit(index=index, keep_alive=keep_alive)

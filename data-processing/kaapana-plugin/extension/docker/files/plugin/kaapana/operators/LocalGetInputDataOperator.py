@@ -7,7 +7,6 @@ import shutil
 import time
 from datetime import timedelta
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, join
 from pathlib import Path
@@ -16,6 +15,8 @@ import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapanapy.logger import get_logger
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.settings import OpensearchSettings
 
 logger = get_logger(__file__)
 
@@ -92,9 +93,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 download_successful = False
 
         elif self.data_type == "json":
-            meta_data = HelperOpensearch.get_series_metadata(
-                series_instance_uid=seriesUID
-            )
+            meta_data = self.os_helper.os_client.get(
+                id=seriesUID, index=self.opensearch_index
+            )["_source"]
             json_path = join(target_dir, "metadata.json")
             with open(json_path, "w", encoding="utf8") as fp:
                 json.dump(meta_data, fp, indent=4, sort_keys=True)
@@ -192,6 +193,8 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         self.conf = kwargs["dag_run"].conf
         self.dag_run_id = kwargs["dag_run"].run_id
         self.dag_run = kwargs["dag_run"]
+        self.opensearch_index = OpensearchSettings().default_index
+        self.os_helper = HelperOpensearch()
 
         if not self.conf:
             raise Exception("No conf object found!")
@@ -227,12 +230,16 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             )
         if "query" in self.data_form:
             logger.info(
-                HelperOpensearch.get_query_dataset(
-                    self.data_form["query"], only_uids=True
+                self.os_helper.get_query_dataset(
+                    index=self.opensearch_index,
+                    query=self.data_form["query"],
+                    only_uids=True,
                 )
             )
-            self.data_form["identifiers"] = HelperOpensearch.get_query_dataset(
-                self.data_form["query"], only_uids=True
+            self.data_form["identifiers"] = self.os_helper.get_query_dataset(
+                index=self.opensearch_index,
+                query=self.data_form["query"],
+                only_uids=True,
             )
 
         logger.debug("data_form:")
@@ -255,8 +262,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
                 exclude_custom_tag = self.conf["workflow_form"][
                     self.exclude_custom_tag_property
                 ]
-            self.dicom_data_infos = HelperOpensearch.get_dcm_uid_objects(
-                self.data_form["identifiers"],
+            self.dicom_data_infos = self.os_helper.get_dcm_uid_objects(
+                index=self.opensearch_index,
+                series_instance_uids=self.data_form["identifiers"],
                 include_custom_tag=include_custom_tag,
                 exclude_custom_tag=exclude_custom_tag,
             )
@@ -277,8 +285,9 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
             else ""
         )
 
-        self.dcm_uid_objects = HelperOpensearch.get_dcm_uid_objects(
-            self.data_form["identifiers"],
+        self.dcm_uid_objects = self.os_helper.get_dcm_uid_objects(
+            index=self.opensearch_index,
+            series_instance_uids=self.data_form["identifiers"],
             include_custom_tag=include_custom_tag,
             exclude_custom_tag=exclude_custom_tag,
         )

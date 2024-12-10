@@ -30,7 +30,7 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperOpensearch import DicomTags
 
 args = {
     "ui_visible": False,
@@ -88,12 +88,12 @@ def set_skip_if_dcm_is_no_segmetation(ds, **kwargs):
 
 def get_series_metadata(dcmfile: pydicom.Dataset):
     target_tags = [
-        HelperOpensearch.study_uid_tag,
-        HelperOpensearch.series_uid_tag,
-        HelperOpensearch.SOPInstanceUID_tag,
-        HelperOpensearch.modality_tag,
-        HelperOpensearch.protocol_name,
-        HelperOpensearch.curated_modality_tag,
+        DicomTags.study_uid_tag,
+        DicomTags.series_uid_tag,
+        DicomTags.SOPInstanceUID_tag,
+        DicomTags.modality_tag,
+        DicomTags.protocol_name,
+        DicomTags.curated_modality_tag,
         "00080016 SOPClassUID_keyword",
         "00080020 StudyDate_date",
         "00080030 StudyTime_time",

@@ -500,24 +500,6 @@ def check_for_remote_updates(db: Session = Depends(get_db)):
     return {f"Federated backend is up and running!"}
 
 
-# @router.post("/dataset", response_model=schemas.Dataset)
-# def create_dataset(
-#     request: Request,
-#     dataset: Union[schemas.DatasetCreate, None] = None,
-#     db: Session = Depends(get_db),
-# ):
-#     dataset.username = request.headers["x-forwarded-preferred-username"]
-#     db_obj = crud.create_dataset(db=db, dataset=dataset)
-
-#     return schemas.Dataset(
-#         name=db_obj.name,
-#         time_created=db_obj.time_created,
-#         time_updated=db_obj.time_updated,
-#         username=db_obj.username,
-#         identifiers=[x.id for x in db_obj.identifiers],
-#     )
-
-
 @router.post("/dataset", response_model=schemas.Dataset)
 def create_dataset(
     request: Request,

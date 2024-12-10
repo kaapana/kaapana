@@ -53,11 +53,13 @@ def get_data_from_pacs(target_dir: str, studyUID: str, seriesUID: str):
     )
 
 
-def get_data_from_opensearch(target_dir: str, seriesUID: str, project_index: str):
+def get_data_from_opensearch(target_dir: str, seriesUID: str):
     """
     Download metadata of a series from opensearch and store it as a json file into target_dir
     """
-    meta_data = os_helper.os_client.get(id=seriesUID, index=project_index)["_source"]
+    global PROJECT_INDEX
+    index = PROJECT_INDEX
+    meta_data = os_helper.os_client.get(id=seriesUID, index=index)["_source"]
     json_path = os.path.join(target_dir, "metadata.json")
     with open(json_path, "w") as fp:
         json.dump(meta_data, fp, indent=4, sort_keys=True)
@@ -188,6 +190,8 @@ if __name__ == "__main__":
     os_helper = HelperOpensearch()
     logger.debug("HelperDcmWeb object initialized.")
     workflow_config = load_workflow_config()
+    project_form = workflow_config.get("project_form")
+    PROJECT_INDEX = project_form.get("opensearch_index")
     logger.debug("Workflow config loaded.")
     logger.info("Start data download.")
     download_data_for_workflow(workflow_config)

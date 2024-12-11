@@ -7,9 +7,11 @@ LABEL IMAGE="base-mitk"
 LABEL VERSION="latest"
 LABEL BUILD_IGNORE="False"
 
+WORKDIR /kaapana/app
+
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
     ca-certificates \
-    # CVE-2023-46343
+    # CVE-2023-46343 
     linux-libc-dev \
     libtiff5-dev \
     libwrap0-dev \
@@ -40,5 +42,8 @@ RUN wget --no-check-certificate https://www.mitk.org/download/kaapana/workbench/
     && tar -xzf /kaapana/app/mitk.tar.gz --strip 1 -C /kaapana/app/ \
     && rm -rf /kaapana/app/mitk.tar.gz
 
-WORKDIR /kaapana/app
+    
+
+
+
 CMD ["echo","Do not use this container directly - only as base-image!"]

@@ -1,15 +1,26 @@
 FROM local-only/base-mitk:latest AS mitk-image
-FROM local-only/base-desktop:latest
+FROM local-only/no-vnc-base:latest
 
 LABEL IMAGE="mitk-workbench"
 LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
 
+
+RUN mkdir -p /mitk
+RUN mkdir  -p /home/mitk/Desktop/
+RUN ln -s /kaapana/minio /home/mitk/Desktop/
+
+# Create a user "mitk" with a home directory
+RUN useradd -u 1000 -ms /bin/bash mitk
+
+WORKDIR /home/mitk
+
 COPY --from=mitk-image /kaapana/app/ /mitk/
 
-RUN ln -s /kaapana/minio /home/$USER/Desktop/data
-WORKDIR /kaapana/minio
+COPY files/startMITK.sh /home/mitk/Desktop/
 
-COPY files/startMITK.sh /mitk/
-COPY files/supervisord-mitk.conf /etc/supervisor/conf.d/
+RUN chown -R mitk /home/mitk/Desktop/
+RUN chmod +x /home/mitk/Desktop/startMITK.sh
+# A supervisord config is used to make the application managed
+COPY files/supervisord.conf /etc/supervisor/conf.d/
 

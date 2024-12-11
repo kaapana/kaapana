@@ -7,4 +7,3 @@ pint==0.24.4
 statsd==4.0.1
 cryptography==42.0.8
 jupyterlab==4.3.1
-python-gdcm==3.0.24.1

@@ -213,6 +213,7 @@ save_to_meta = LocalValidationResult2MetaOperator(
     input_operator=get_input_json_from_input_files,
     validator_output_dir=validate.operator_out_dir,
     validation_tag="00111001",
+    apply_project_context=True,
 )
 
 put_html_to_minio = LocalMinioOperator(
@@ -314,7 +315,7 @@ skip_if_dcm_is_no_segmetation = KaapanaPythonBaseOperator(
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
-    clean_workflow_dir=False,
+    clean_workflow_dir=True,
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 

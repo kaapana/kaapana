@@ -19,9 +19,7 @@ default_prep_thread_count = 1
 default_nifti_thread_count = 1
 ae_title = "nnUnet-predict-results"
 available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tasks()
-print(available_pretrained_task_names)
-print(installed_tasks)
-print(all_selectable_tasks)
+
 properties_template = {
     "description": {
         "title": "Task Description",
@@ -134,8 +132,6 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
     for key, item in task_properties.items():
         if key in task_values:
             to_be_placed = task_values[key]
-            
-            # TODO Can this even happen?
             if key == "model":
                 item["enum"] = to_be_placed
                 # set the first available model or `3d_lowres` as default model
@@ -143,13 +139,11 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
                 if "3d_lowres" in to_be_placed:
                     item["default"] = "3d_lowres"
             else:
-                # TODO This happens for list of body parts
                 if isinstance(to_be_placed, list):
                     to_be_placed = ",".join(to_be_placed)
                 item["default"] = to_be_placed
     for key in list(properties_template.keys()):
         task_properties[f"{key}#{idx}"] = task_properties.pop(key)
-    
     task_selection["properties"].update(task_properties)
     workflow_form["oneOf"].append(task_selection)
 
@@ -223,7 +217,7 @@ nnunet_predict = NnUnetOperator(
     inf_threads_nifti=2,
     execution_timeout=timedelta(minutes=30),
 )
-# TODO why is nnunet_predict.image used. Is that really the indicator of the alg_name used ?
+
 alg_name = nnunet_predict.image.split("/")[-1].split(":")[0]
 nrrd2dcmSeg_multi = Itk2DcmSegOperator(
     dag=dag,

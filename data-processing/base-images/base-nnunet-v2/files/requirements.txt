@@ -1,2 +1,2 @@
-acvl-utils==0.2.0
-tensorboard==2.15.1
+nnunetv2==2.4.2
+tensorboard==2.17.0

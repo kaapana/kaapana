@@ -1,3 +1,11 @@
+<template>
+  <v-app>
+    <v-main>
+      <router-view />
+    </v-main>
+  </v-app>
+</template>
+
 <script lang="ts" setup>
 import { ref } from 'vue'
 import store from '@/common/store';
@@ -6,6 +14,7 @@ import { aiiApiGet } from '@/common/aiiApi.service';
 
 
 const user = ref<UserItem | null>(null);
+
 
 function fetchCurrentUser() {
   store.state.fetching = true;

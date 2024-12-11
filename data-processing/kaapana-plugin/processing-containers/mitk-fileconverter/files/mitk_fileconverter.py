@@ -1,9 +1,10 @@
-from os import getenv
-from os.path import join, exists, dirname, basename
+from os import getenv, remove
+from os.path import join, exists, dirname, basename, split
 from glob import glob
 import pydicom
 from pathlib import Path
 import logging
+import SimpleITK as sitk
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -19,13 +20,33 @@ execution_timeout = 1200
 # Counter to check if smth has been processed
 processed_count = 0
 
-# Alternative Process smth via shell-command
+
+def nrrd2nifti(nrrd_path):
+    img = sitk.ReadImage(nrrd_path)
+    # split dir and file name
+    d, fname = split(nrrd_path)
+    # new file name with .nii.gz extension
+    new_fname = fname.rsplit('.', 1)[0] + ".nii.gz"
+    new_path = join(d, new_fname)
+    
+    
+    sitk.WriteImage(img, new_path)
+    
+    print(f"# Converted: {nrrd_path} -> {new_path}")
+    
+    # remove the original .nrrd file
+    try:
+        remove(nrrd_path)
+        print(f"# Deleted nrrd file: {nrrd_path}")
+    except Exception as e:
+        print(f"# Error deleting nrrd file {nrrd_path}: {e}")
 
 
 def process_input_file(paras):
     global execution_timeout, input_file_extension, convert_to
     input_filepaths, element_output_dir = paras
 
+    out_fpaths = []
     for input_filepath in input_filepaths:
         try:
             # Try to get the SeriesInstanceUID from the dicom file
@@ -41,8 +62,9 @@ def process_input_file(paras):
 
             incoming_dcm_series_id = file_name
 
+        # by default output is nrrd since mitk can not convert multi label dcmseg to nifti 
         output_filepath = join(
-            element_output_dir, f"{incoming_dcm_series_id}.{convert_to}"
+            element_output_dir, f"{incoming_dcm_series_id}.nrrd"
         )
         print(
             f"# Starting conversion: {basename(input_filepath)} -> {basename(output_filepath)}"
@@ -81,7 +103,7 @@ def process_input_file(paras):
                 print("#")
                 return False, input_filepath
             elif output.returncode == 0 and input_file_extension == "dcm":
-                target_files = glob(join(dirname(output_filepath), f"*.{convert_to}"))
+                target_files = glob(join(dirname(output_filepath), f"*.nrrd"))
                 if len(target_files) != 1:
                     print("#")
                     print("##################################################")
@@ -98,12 +120,22 @@ def process_input_file(paras):
                     print("#")
                     print("##################################################")
                     print("#")
+                else:
+                    out_fpaths.append(output_filepath)
+            else:
+                out_fpaths.append(output_filepath)
         else:
             print(f"# Target already exists -> skipping ")
 
         if input_file_extension == "dcm":
             print("# Dicom -> only one slice needed -> break")
             break
+    
+    # if output is nifti, manually convert and delete nrrd files
+    if convert_to == "nii.gz" or convert_to == "nifti":
+        print("# Converting nrrd to nifti")
+        for out_fpath in out_fpaths:
+            nrrd2nifti(out_fpath)
 
     return True, input_filepaths
 

@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     logger.info("##################################################")
     logger.info("#")
-    logger.info("# Starting merge-masks operator:")
+    logger.info("# Starting cca operator:")
     logger.info("#")
     logger.info(f"# workflow_dir:     {workflow_dir}")
     logger.info(f"# batch_name:       {batch_name}")

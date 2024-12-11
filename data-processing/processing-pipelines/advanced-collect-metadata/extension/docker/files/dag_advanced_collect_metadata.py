@@ -80,7 +80,7 @@ dcm2nifti_ct = DcmConverterOperator(
 
 extract_img_intensities = LocalExtractImgIntensitiesOperator(
     dag=dag,
-    input_operator=get_input,  # dcm2nifti_ct,
+    input_operator=get_input,
     json_operator=extract_metadata,
 )
 

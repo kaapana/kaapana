@@ -12,7 +12,6 @@ from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
-from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
@@ -25,6 +24,7 @@ from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
@@ -217,9 +217,10 @@ save_to_meta = LocalValidationResult2MetaOperator(
 put_html_to_minio = LocalMinioOperator(
     dag=dag,
     action_operator_dirs=[validate.operator_out_dir],
+    json_operator=extract_metadata,
+    target_dir_prefix="staticwebsiteresults",
     name="put-results-html-to-minio",
     action="put",
-    bucket_name="staticwebsiteresults",
     file_white_tuples=(".html"),
 )
 
@@ -245,7 +246,9 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
     where project is determined from the "00120020 ClinicalTrialProtocolID_keyword" tag of the dicom metadata.
     Additionally uploads the thumbnails to the project bucket of the admin project.
     """
-    import json, requests
+    import json
+
+    import requests
     from kaapanapy.helper import get_minio_client
     from kaapanapy.settings import KaapanaSettings
 

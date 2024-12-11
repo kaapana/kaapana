@@ -1,20 +1,62 @@
 import datetime
 import glob
+import json
 import os
 from datetime import timedelta
 from zipfile import ZipFile
 
+import requests
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.logger import get_logger
 from minio import Minio
+
+logger = get_logger(__name__)
 
 
 class LocalMinioOperator(KaapanaPythonBaseOperator):
     """
     Operator to communicate with MinIO buckets
     """
+
+    def get_project_by_name(self, project_name: str):
+        response = requests.get(
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
+            params={"name": project_name},
+        )
+        response.raise_for_status()
+        project = response.json()
+        return project
+
+    def get_project_bucket_from_meta_json(self, json_dict):
+        logger.info(f"Applying action to project bucket")
+        id = json_dict["0020000E SeriesInstanceUID_keyword"]
+        clinical_trial_protocol_id = json_dict.get(
+            "00120020 ClinicalTrialProtocolID_keyword"
+        )[0]
+
+        project = self.get_project_by_name(clinical_trial_protocol_id)
+
+        if project:
+            return project["s3_bucket"]
+        else:
+            return None
+
+    def get_project_bucket_from_json(self, batch_folders):
+        for batch_element_dir in batch_folders:
+            json_dir = os.path.join(
+                batch_element_dir, self.json_operator.operator_out_dir
+            )
+            json_list = glob.glob(json_dir + "/**/*.json", recursive=True)
+            logger.info(f"Found json files: {json_list}")
+            assert len(json_list) > 0
+
+            with open(json_list[0], encoding="utf-8") as f:
+                new_json = json.load(f)
+
+            return self.get_project_bucket_from_meta_json(new_json)
 
     @cache_operator_output
     def start(self, ds, **kwargs):
@@ -71,6 +113,9 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         ]
 
         print(batch_folder)
+        if self.json_operator:
+            project_bucket = self.get_project_bucket_from_json(batch_folder)
+            self.bucket_name = project_bucket
 
         if self.bucket_name is None:
             print("No BUCKETID env set!")
@@ -147,6 +192,11 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                             object_name = os.path.join(rel_dir, name)
                             zipObj.write(os.path.join(path, name), object_name)
 
+            # append directory prefix before zip object name
+            # to store the zip file inside target directory of the bucket
+            if self.target_dir_prefix and self.target_dir_prefix != "":
+                zip_object_name = os.path.join(self.target_dir_prefix, zip_object_name)
+
             minioClient.apply_action_to_file(
                 "put",
                 self.bucket_name,
@@ -164,6 +214,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                 local_root_dir,
                 object_names,
                 self.file_white_tuples,
+                target_dir_prefix=self.target_dir_prefix,
             )
         else:
             if not object_dirs:
@@ -177,6 +228,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
                 local_root_dir,
                 object_dirs,
                 self.file_white_tuples,
+                target_dir_prefix=self.target_dir_prefix,
             )
 
         return
@@ -191,10 +243,12 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         action_operators=None,
         action_operator_dirs=None,
         action_files=None,
+        json_operator=None,
         minio_host: str = f"minio-service.{SERVICES_NAMESPACE}.svc",
         minio_port: str = "9000",
         file_white_tuples=None,
         zip_files: bool = False,
+        target_dir_prefix: str = "",
         **kwargs,
     ):
         """
@@ -205,10 +259,13 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         :param action_operator_dirs: (Additional) directory to apply MinIO
             action on.
         :param action_files: (Additional) files to apply MinIO action on.
+        :param json_operator: (Additional) Operator that convert dicom to JSON. Json data used to extract project name from metadata.
         :param minio_host: MinIO host
         :param minio_port: MinIO port
         :param file_white_tuples: Optional whitelisting for files
         :param zip_files: If files should be zipped
+        :param target_dir_prefix: Specifies if files will be copied inside a target directory within the bucket. Applicable
+            only for the `put` action.
         """
 
         if action not in ["get", "remove", "put"]:
@@ -234,10 +291,12 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         self.action_operator_dirs = action_operator_dirs or []
         self.action_operators = action_operators or []
         self.action_files = action_files or []
+        self.json_operator = json_operator
         self.minio_host = minio_host
         self.minio_port = minio_port
         self.file_white_tuples = file_white_tuples
         self.zip_files = zip_files
+        self.target_dir_prefix = target_dir_prefix
 
         super(LocalMinioOperator, self).__init__(
             dag=dag,

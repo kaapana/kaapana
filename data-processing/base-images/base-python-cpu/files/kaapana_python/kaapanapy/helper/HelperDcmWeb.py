@@ -329,11 +329,6 @@ class HelperDcmWeb:
         Returns:
             Response: The response object returned by the DICOMWeb server.
         """
-        if not self.check_if_study_in_archive(study_uid):
-            logger.info(f"Study {study_uid} does not exist in PACS")
-            return None
-
-        self.reject_study(study_uid)
 
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}"
         response = self.session.delete(url)
@@ -344,6 +339,45 @@ class HelperDcmWeb:
                 return response
         response.raise_for_status()
         logger.info(f"Study {study_uid} deleted")
+
+        return response
+
+    def delete_series(self, study_uid: str, series_uid: str):
+        """This function deletes a series from the PACS. It first rejects the series and then deletes it.
+
+        Args:
+            study_uid (str): Study Instance UID of the series to delete
+            series_uid (str): Series Instance UID of the series to delete
+        """
+
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
+        response = self.session.delete(url)
+
+        if response.status_code == 404 and "errorMessage" in response.json():
+            logger.error(f"Some error occurred: {response.json()['errorMessage']}")
+            return response
+        response.raise_for_status()
+        logger.info(f"Study {study_uid} deleted")
+
+        return response
+
+    def delete_instance(self, study_uid: str, series_uid: str, instance_uid: str):
+        """This function deletes an instance from the PACS.
+
+        Args:
+            study_uid (str): Study Instance UID of the instance to delete
+            series_uid (str): Series Instance UID of the instance to delete
+            instance_uid (str): SOP Instance UID of the instance to delete
+        """
+
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}"
+        response = self.session.delete(url)
+
+        if response.status_code == 404 and "errorMessage" in response.json():
+            logger.error(f"Some error occurred: {response.json()['errorMessage']}")
+            return response
+        response.raise_for_status()
+        logger.info(f"Instance {instance_uid} deleted")
 
         return response
 
@@ -404,54 +438,6 @@ class HelperDcmWeb:
         else:
             r.raise_for_status()
             return r.json()
-
-    def delete_series(self, study_uid: str, series_uids: List[str]):
-        """This function deletes a series from the PACS. It first rejects the series and then deletes it.
-
-        Args:
-            study_uid (str): Study Instance UID of the series to delete
-            series_uids (List[str]): List of Series Instance UIDs to delete
-        """
-        for series_uid in series_uids:
-            if not self.check_if_series_in_archive(series_uid, study_uid):
-                logger.info(
-                    f"Series {series_uid} with study {study_uid} does not exist in PACS"
-                )
-                continue
-
-            if self.check_if_series_is_rejected(series_uid, study_uid):
-                logger.info(
-                    f"Series {series_uid} with study {study_uid} is already rejected"
-                )
-                continue
-
-            # Reject series
-            logger.info(f"Rejecting series {series_uids} in study {study_uid}")
-
-            url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/reject/113001^DCM"
-            response = self.session.post(url, verify=False)
-            if response.status_code == 404:
-                if "errorMessage" in response.json():
-                    logger.error(
-                        f"Some error occurred: {response.json()['errorMessage']}"
-                    )
-                else:
-                    response.raise_for_status()
-            else:
-                response.raise_for_status
-
-        # Delete all rejected instances
-        logger.info(f"Deleting series {series_uids} in study {study_uid}")
-
-        url = f"{self.dcmweb_rs_endpoint}/reject/113001^DCM"
-        response = self.session.delete(url, verify=False)
-        if response.status_code == 404:
-            if "errorMessage" in response.json():
-                logger.error(f"Some error occurred: {response.json()['errorMessage']}")
-            else:
-                response.raise_for_status()
-        else:
-            response.raise_for_status
 
     def __encode_multipart_message_part(self, boundary: str, payload: bytes) -> bytes:
         """This function encodes the DICOM file as a part of the multipart message.

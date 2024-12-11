@@ -67,7 +67,10 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
 
         # If we are not deleting the complete study, we need to delete the series one by one
         for study_uid, series_uids in series_of_studies_which_should_be_deleted.items():
-            self.log.info("Deleting series: %s from study: %s", series_uids, study_uid)
-            self.dcmweb_helper.delete_series(
-                series_uids=series_uids, study_uid=study_uid
-            )
+            for series_uid in series_uids:
+                self.log.info(
+                    "Deleting series: %s from study: %s", series_uid, study_uid
+                )
+                self.dcmweb_helper.delete_series(
+                    series_uid=series_uid, study_uid=study_uid
+                )

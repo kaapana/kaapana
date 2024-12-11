@@ -149,6 +149,14 @@ class GetInputOperator:
             index=self.project_index,
         )
 
+        if len(dcm_uid_objects) == 0:
+            logger.error(
+                f"No metadata found in {self.project_index=} for {identifiers=}"
+            )
+            raise ValueError(
+                f"No metadata found in {self.project_index=} for {identifiers=}"
+            )
+
         dataset_limit = self.workflow_config.get("data_form").get("dataset_limit")
         if self.workflow_config.get("data_form").get("dataset_limit"):
             dcm_uid_objects = dcm_uid_objects[:dataset_limit]

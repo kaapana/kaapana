@@ -5,7 +5,7 @@ from airflow.models import DAG
 
 from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
 from kaapana.operators.LocalDeleteFromPacsOperator import LocalDeleteFromPacsOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
@@ -48,7 +48,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, data_type="json")
+get_input = GetInputOperator(dag=dag, data_type="json")
 delete_dcm_pacs = LocalDeleteFromPacsOperator(
     dag=dag, input_operator=get_input, delete_complete_study=False, retries=1
 )

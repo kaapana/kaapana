@@ -32,7 +32,6 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
 
     def get_project_bucket_from_meta_json(self, json_dict):
         logger.info(f"Applying action to project bucket")
-        id = json_dict["0020000E SeriesInstanceUID_keyword"]
         clinical_trial_protocol_id = json_dict.get(
             "00120020 ClinicalTrialProtocolID_keyword"
         )[0]
@@ -44,7 +43,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         else:
             return None
 
-    def get_project_bucket_from_json(self, batch_folders):
+    def get_project_bucket_from_json_in_batch_dirs(self, batch_folders):
         for batch_element_dir in batch_folders:
             json_dir = os.path.join(
                 batch_element_dir, self.json_operator.operator_out_dir
@@ -113,8 +112,10 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         ]
 
         print(batch_folder)
-        if self.json_operator:
-            project_bucket = self.get_project_bucket_from_json(batch_folder)
+        if self.bucket_name is None and self.json_operator:
+            project_bucket = self.get_project_bucket_from_json_in_batch_dirs(
+                batch_folder
+            )
             self.bucket_name = project_bucket
 
         if self.bucket_name is None:

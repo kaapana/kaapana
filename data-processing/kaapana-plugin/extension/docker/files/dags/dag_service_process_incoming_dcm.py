@@ -104,6 +104,7 @@ def get_series_metadata(dcmfile: pydicom.Dataset):
         "00100040 PatientSex_keyword",
         "00102180 Occupation_keyword",
         "00104000 PatientComments_keyword",
+        "00120020 ClinicalTrialProtocolID_keyword",
     ]
     ds = pydicom.dcmread(dcmfile)
     series_metadata = {}
@@ -203,7 +204,7 @@ clear_validation_results = LocalClearValidationResultOperator(
     dag=dag,
     name="clear-validation-results",
     input_operator=get_input_json_from_input_files,
-    result_bucket="staticwebsiteresults",
+    apply_project_context=True,
     trigger_rule="none_failed_min_one_success",
 )
 
@@ -313,7 +314,7 @@ skip_if_dcm_is_no_segmetation = KaapanaPythonBaseOperator(
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
-    clean_workflow_dir=True,
+    clean_workflow_dir=False,
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 

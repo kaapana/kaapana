@@ -46,11 +46,13 @@ RUN git apply fixed_tensorboard_paths_for_logging.patch
 # install pip package in editable/dev mode
 RUN cd /nnunet-pip-package && pip3 install -e .
 
-WORKDIR /app
-COPY files/requirements.txt /app/
-RUN python -m pip install --upgrade setuptools pip && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r /app/requirements.txt
+# # Option 2: Install nnunetv2 pip package
+# WORKDIR /app
+# COPY files/requirements.txt /app/
+# RUN python -m pip install --upgrade setuptools pip && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r /app/requirements.txt
 
 # Kaapana
 RUN cd /nnunet-pip-package && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt ./
+RUN pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt tensorboard==2.15.1
 
 WORKDIR /kaapana/app

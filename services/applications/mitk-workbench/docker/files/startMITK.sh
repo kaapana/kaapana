@@ -4,8 +4,6 @@ echo "Starting MITK Workbench"
 PID=$!
 
 tail -f $HOME/logfile | while read LOGLINE
-# wait until Workbench is ready
-tail -f  /home/mitk/Desktop/logfile | while read LOGLINE
 do
 	[[ "${LOGLINE}" == *"BlueBerry Workbench ready"* ]] && pkill -P $$ tail
 done
@@ -14,8 +12,6 @@ echo 'Setting fullscreen mode'
 wmctrl -r 'Research' -b toggle,fullscreen
 
 wait $PID
-#clear logfile
-> /home/mikt/Desktop/logfile
 
 
 

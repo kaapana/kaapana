@@ -36,7 +36,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     libxcb-cursor0 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget --no-check-certificate https://www.mitk.org/download/ci/snapshots/Ubuntu%2022.04/MITK-snapshots_2024-11-18-linux-x86_64.tar.gz -O /kaapana/app/mitk.tar.gz \
+RUN wget --no-check-certificate https://www.mitk.org/download/kaapana/workbench/MITK-v2024.12-linux-x86_64.tar.gz -O /kaapana/app/mitk.tar.gz \
     && tar -xzf /kaapana/app/mitk.tar.gz --strip 1 -C /kaapana/app/ \
     && rm -rf /kaapana/app/mitk.tar.gz
 

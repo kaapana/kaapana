@@ -5,7 +5,7 @@ LABEL VERSION="2023.12"
 LABEL BUILD_IGNORE="False"
 
 RUN mkdir -p /mitk-flow \
-    && wget https://www.mitk.org/download/kaapana/flowbench/MITK-122321bb-linux-x86_64.tar.gz -O /mitk-flow/mitk.tar.gz \
+    && wget https://www.mitk.org/download/kaapana/flowbench/MITK-v2024.12-linux-x86_64.tar.gz -O /mitk-flow/mitk.tar.gz \
     && tar -xzf /mitk-flow/mitk.tar.gz --strip 1 -C /mitk-flow/ \
     && rm -rf /mitk-flow/mitk.tar.gz
 

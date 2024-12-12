@@ -285,9 +285,9 @@ class HelperDcmWeb:
             list: List of object UIDs in the series.
         """
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
-        httpResponse = self.session.get(url)
-        if httpResponse.status_code == 200:
-            response = httpResponse.json()
+        response = self.session.get(url)
+        if response.status_code == 200:
+            response_json = response.json()
             return [
                 (
                     resultObject["0020000D"]["Value"][0],  # StudyInstanceUID
@@ -296,7 +296,7 @@ class HelperDcmWeb:
                         0
                     ],  # NumberOfFrames
                 )
-                for resultObject in response
+                for resultObject in response_json
             ]
         else:
             response.raise_for_status()

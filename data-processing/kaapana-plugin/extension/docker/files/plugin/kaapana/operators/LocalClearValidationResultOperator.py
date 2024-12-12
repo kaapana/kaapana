@@ -6,13 +6,9 @@ import re
 import requests
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperMinio import HelperMinio
-<<<<<<< HEAD
-from kaapanapy.helper.HelperOpensearch import DicomTags
-from kaapanapy.helper import get_opensearch_client
-=======
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
->>>>>>> df3e6e342 (LocalClearValidationResultOperator fetching project context feature added)
+from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import OpensearchSettings
 
 

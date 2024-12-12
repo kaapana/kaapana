@@ -327,6 +327,36 @@ async def pull_docker_image(request: Request):
         return Response(f"Pulling docker image failed {e}", 400)
 
 
+@router.post("/complete-active-application")
+async def complete_active_application(request: Request):
+    try:
+        payload = await request.json()
+        logger.info(f"/complete-active-application called with {payload=}")
+
+        # check if release name has 'kaapanaint' , i.e. an active application
+        assert (
+            "release_name" in payload
+        ), "Required key 'release_name' not found in payload"
+        if "kaapanaint" not in payload["release_name"]:
+            return Response(
+                f"{payload['release_name']} is not an active application, aborting", 500
+            )
+
+        # delete chart
+        success, stdout = utils.helm_delete(
+            release_name=payload["release_name"],
+        )
+        if success:
+            return Response(
+                f"Completing active application {payload['release_name']}", 200
+            )
+        else:
+            return Response(f"Completing application command failed{stdout}", 500)
+    except AssertionError as e:
+        logger.error(f"/complete-active-application failed: {str(e)}", exc_info=True)
+        return Response(f"/complete-active-application failed: {str(e)}", 400)
+
+
 @router.get("/active-applications")
 async def active_applications():
     try:

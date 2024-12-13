@@ -9,7 +9,7 @@ from kaapanapy.helper import (
     get_opensearch_client,
     load_workflow_config,
 )
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings, OperatorSettings
 from minio import Minio
@@ -126,7 +126,7 @@ class ClearValidationResultOperator:
         Returns:
             None
         """
-        allfiles = self.get_all_files_from_result_bucket()
+        allfiles = self.get_all_files_from_result_bucket(prefix=self.static_results_dir)
 
         # match only the files placed under the subdirectory of serisuid
         sereismatcher = re.compile(rf"\/?{re.escape(seriesuid)}\/")
@@ -171,7 +171,7 @@ class ClearValidationResultOperator:
                     metadata = json.load(fs)
 
                 seriesuid = metadata[
-                    HelperOpensearch.series_uid_tag
+                    DicomTags.series_uid_tag
                 ]  # "0020000E SeriesInstanceUID_keyword"
 
                 self.remove_from_minio(seriesuid)

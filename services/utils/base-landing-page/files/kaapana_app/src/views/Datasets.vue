@@ -374,6 +374,7 @@ import {
   loadPatients,
   getAggregatedSeriesNum,
   fetchProjects,
+  fetchProjectDetails,
 } from "../common/api.service";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 import Dashboard from "@/components/Dashboard.vue";
@@ -421,6 +422,7 @@ export default {
       searchQuery: {},
       allPatients: true,
       queryParams: this.$route.query,
+      selectedProjectBucket: ""
     };
   },
   components: {
@@ -447,8 +449,6 @@ export default {
   async mounted() {
     window.addEventListener("keydown", (event) => this.keyDownEventListener(event));
     window.addEventListener("keyup", (event) => this.keyUpEventListener(event));
-
-    this.getStaticWebsiteResults();
 
     // if 'project' is present in queryparams, set it as selected project
     if (this.queryParams.project_name) {
@@ -486,7 +486,11 @@ export default {
         // TODO: We somehow have to ensure that the dataset update is finished before we add the other queryParameters
         this.datasetName = this.queryParams.dataset_name;
       }
+      
     }
+
+    this.getStaticWebsiteResults();
+
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) => this.keyDownEventListener(event));
@@ -595,9 +599,22 @@ export default {
     async updateDatasetNames() {
       this.datasetNames = await loadDatasets();
     },
-    getStaticWebsiteResults() {
+    async getStaticWebsiteResults() {
+      const selectedProject = this.$store.getters.selectedProject;
+      var staticWebUrl = "/get-static-website-results"
+
+      if (selectedProject && 's3_bucket' in selectedProject) {
+        this.selectedProjectBucket = selectedProject['s3_bucket'];
+        staticWebUrl = staticWebUrl + `?bucket_name=${this.selectedProjectBucket}`;
+      } else if(selectedProject) {
+        // if s3_bucket name not in the project details, fetch project details
+        // to get the project bucket name and set the URL
+        const selectedProjectDetails = await fetchProjectDetails(selectedProject['name']);
+        staticWebUrl = staticWebUrl + `?bucket_name=${selectedProjectDetails['s3_bucket']}`;
+      }
+
       kaapanaApiService
-        .kaapanaApiGet("/get-static-website-results")
+        .kaapanaApiGet(staticWebUrl)
         .then((response) => {
           this.staticUrls = response.data;
           this.extractChildPaths(this.staticUrls);
@@ -611,7 +628,11 @@ export default {
         let rootPaths = this.extractRootPath(i);
         for (let path of rootPaths) {
           let seriesID = this.extractSeriesId(path);
-          this.resultPaths[seriesID] = path;
+          let fullpath = path;
+          if (this.selectedProjectBucket != "") {
+            fullpath = path + `&bucket_name=${this.selectedProjectBucket}`
+          }
+          this.resultPaths[seriesID] = fullpath;
           // this.readAndParseHTML(path)
         }
       });

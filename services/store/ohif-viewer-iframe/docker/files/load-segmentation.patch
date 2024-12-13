@@ -1,48 +1,60 @@
 diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
-index 1c4a9e0e9..ff8ea9684 100644
+index 58d190f5a..34b59980e 100644
 --- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
 +++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
-@@ -161,18 +161,7 @@ function OHIFCornerstoneRTViewport(props: withAppTypes) {
-     if (rtIsLoading) {
+@@ -151,15 +151,16 @@ function OHIFCornerstoneRTViewport(props) {
        return;
      }
--
+ 
 -    promptHydrateRT({
 -      servicesManager,
--      viewportId,
+-      viewportIndex,
 -      rtDisplaySet,
--      preHydrateCallbacks: [storePresentationState],
--      hydrateRTDisplaySet,
 -    }).then(isHydrated => {
 -      if (isHydrated) {
 -        setIsHydrated(true);
 -      }
 -    });
 +    setIsHydrated(true);
-   }, [servicesManager, viewportId, rtDisplaySet, rtIsLoading]);
++    // promptHydrateRT({
++    //   servicesManager,
++    //   viewportIndex,
++    //   rtDisplaySet,
++    // }).then(isHydrated => {
++    //   if (isHydrated) {
++    //     setIsHydrated(true);
++    //   }
++    // });
+   }, [servicesManager, viewportIndex, rtDisplaySet, rtIsLoading]);
  
    useEffect(() => {
 diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-index 21dff244f..ede7c2a93 100644
+index 08ed004f0..3d3c3342d 100644
 --- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
 +++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
-@@ -174,18 +174,7 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
-     if (segIsLoading) {
+@@ -154,15 +154,16 @@ function OHIFCornerstoneSEGViewport(props) {
        return;
      }
--
+ 
 -    promptHydrateSEG({
 -      servicesManager,
--      viewportId,
+-      viewportIndex,
 -      segDisplaySet,
--      preHydrateCallbacks: [storePresentationState],
--      hydrateCallback: hydrateSEG,
 -    }).then(isHydrated => {
 -      if (isHydrated) {
 -        setIsHydrated(true);
 -      }
 -    });
 +    setIsHydrated(true);
-   }, [servicesManager, viewportId, segDisplaySet, segIsLoading, hydrateSEG]);
++    // promptHydrateSEG({
++    //   servicesManager,
++    //   viewportIndex,
++    //   segDisplaySet,
++    // }).then(isHydrated => {
++    //   if (isHydrated) {
++    //     setIsHydrated(true);
++    //   }
++    // });
+   }, [servicesManager, viewportIndex, segDisplaySet, segIsLoading]);
  
    useEffect(() => {

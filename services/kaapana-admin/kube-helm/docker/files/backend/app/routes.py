@@ -327,6 +327,41 @@ async def pull_docker_image(request: Request):
         return Response(f"Pulling docker image failed {e}", 400)
 
 
+@router.post("/complete-active-application")
+async def complete_active_application(request: Request):
+    try:
+        payload = await request.json()
+        logger.info(f"/complete-active-application called with {payload=}")
+
+        # validate if release name contains 'kaapanaint'
+        release_name = payload.get("release_name")
+        if not release_name:
+            return Response(
+                "Payload does not have mandatory key: 'release_name'", status_code=400
+            )
+        if "kaapanaint" not in release_name:
+            return Response(
+                f"'{release_name}' is not an active application", status_code=400
+            )
+
+        # delete chart
+        success, stdout = utils.helm_delete(release_name=release_name)
+        if success:
+            logger.info(f"Successfully completed active application {release_name}")
+            return Response(
+                f"Completed active application: {release_name}", status_code=200
+            )
+        else:
+            logger.error(f"Helm chart deletion failed for {release_name}: {stdout}")
+            return Response(
+                f"Failed to complete active application: {stdout}", status_code=500
+            )
+
+    except Exception as e:
+        logger.error(f"/complete-active-application failed: {str(e)}", exc_info=True)
+        return Response(f"Internal server error: {str(e)}", status_code=500)
+
+
 @router.get("/active-applications")
 async def active_applications():
     try:

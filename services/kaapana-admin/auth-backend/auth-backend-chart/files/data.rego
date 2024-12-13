@@ -32,6 +32,7 @@ allowed_user_endpoints := [
     {"path": "^/workflows", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/results-browser", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/active-applications", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/kube-helm-api/complete-active-application", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/meta/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/system/Projects.*", "methods": ["GET","POST","PUT","DELETE"]},

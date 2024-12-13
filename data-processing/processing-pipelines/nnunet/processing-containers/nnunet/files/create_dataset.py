@@ -302,7 +302,7 @@ def prepare_dataset(datset_list, dataset_id):
     print("#")
 
 
-task_name = os.getenv("TASK", "")
+task_name = f'Task{int(os.getenv("TASK_NUM")):03}_{os.getenv("TASK_DESCRIPTION")}'
 licence = os.getenv("LICENCE", "N/A")
 version = os.getenv("VERSION", "N/A")
 training_name = task_name
@@ -328,8 +328,10 @@ input_modality_dirs = os.getenv("INPUT_MODALITY_DIRS", "")
 
 batch_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"])
 operator_out_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
-task_dir = join(operator_out_dir, "nnUNet_raw", os.environ["TASK"]).replace(
-    "Task", "Dataset"
+task_dir = join(
+    operator_out_dir,
+    "nnUNet_raw",
+    f'Dataset{int(os.getenv("TASK_NUM")):03}_{os.getenv("TASK_DESCRIPTION")}',
 )
 
 use_nifti_labels = (

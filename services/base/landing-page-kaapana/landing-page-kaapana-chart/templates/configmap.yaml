@@ -88,6 +88,11 @@ data:
             "endpoint": "/jupyterlab",
             "linkTo": "/jupyterlab"
           },
+          "pacs": {
+            "label": "PACS",
+            "endpoint": "/dcm4chee-arc",
+            "linkTo": "/dcm4chee-arc/ui2/"
+          },
           "prometheus": {
             "label": "Prometheus",
             "endpoint": "/prometheus",

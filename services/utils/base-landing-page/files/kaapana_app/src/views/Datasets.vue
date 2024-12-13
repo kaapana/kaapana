@@ -610,7 +610,11 @@ export default {
         // if s3_bucket name not in the project details, fetch project details
         // to get the project bucket name and set the URL
         const selectedProjectDetails = await fetchProjectDetails(selectedProject['name']);
-        staticWebUrl = staticWebUrl + `?bucket_name=${selectedProjectDetails['s3_bucket']}`;
+        this.selectedProjectBucket = selectedProjectDetails['s3_bucket'];
+        staticWebUrl = staticWebUrl + `?bucket_name=${this.selectedProjectBucket}`;
+        
+        // set the full project details to the store
+        this.$store.dispatch(UPDATE_SELECTED_PROJECT, selectedProjectDetails);
       }
 
       kaapanaApiService

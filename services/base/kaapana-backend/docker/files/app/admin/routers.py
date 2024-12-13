@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -32,14 +33,12 @@ def health_check():
 @router.get("/get-static-website-results-html")
 def get_static_website_results_html(
     request: Request,
-    bucket_name: str = DEFAULT_STATIC_WEBSITE_BUCKET,
     minioClient=Depends(get_minio),
 ) -> StreamingResponse:
     """Get the html file from the static website results bucket.
 
     Args:
         request (Request): Request object.
-        bucket_name (str): bucket name to get the HTML file from. default value `staticwebsiteresults`
         minioClient (minio.Minio): Minio client.
 
     Raises:
@@ -56,6 +55,12 @@ def get_static_website_results_html(
             status_code=400, detail="object_name query parameter is required."
         )
 
+    # set the bucket_name automatically from the request header
+    bucket_name: str = (DEFAULT_STATIC_WEBSITE_BUCKET,)
+    project = json.loads(request.headers.get("project"))
+    if project and "s3_bucket" in project:
+        bucket_name = project.get("s3_bucket")
+
     try:
         html_file = minioClient.get_object(bucket_name, object_name)
     except S3Error:
@@ -67,9 +72,14 @@ def get_static_website_results_html(
 @router.get("/get-static-website-results")
 def get_static_website_results(
     request: Request,
-    bucket_name: str = DEFAULT_STATIC_WEBSITE_BUCKET,
     minioClient=Depends(get_minio),
 ):
+    # set the bucket_name automatically from the request header
+    bucket_name: str = (DEFAULT_STATIC_WEBSITE_BUCKET,)
+    project = json.loads(request.headers.get("project"))
+    if project and "s3_bucket" in project:
+        bucket_name = project.get("s3_bucket")
+
     def build_tree(item, filepath, org_filepath):
         # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
         splits = filepath.split("/", 1)
@@ -90,7 +100,7 @@ def get_static_website_results(
     def _get_vuetify_tree_structure(tree):
         subtree = []
         for parent, children in tree.items():
-            print(parent, children)
+            # print(parent, children)
             if parent == "vuetifyFiles":
                 subtree = children
             else:
@@ -104,8 +114,8 @@ def get_static_website_results(
         return subtree
 
     # if bucket is not the default static website bucket,
-    # fetch all the static websites from the directory with the same name inside
-    # project bucket.
+    # fetch all the static websites from the directory with the `staticwebsiteresults`
+    # directory inside project bucket.
     prefix = None
     if bucket_name != DEFAULT_STATIC_WEBSITE_BUCKET:
         prefix = DEFAULT_STATIC_WEBSITE_BUCKET

@@ -221,22 +221,6 @@ const fetchProjects = async () => {
   }
 };
 
-const fetchProjectDetails = async (projectName) => {
-  const currentUser = store.getters.currentUser
-  try {
-    return (await httpClient.get(`/aii/projects/${projectName}`)).data;        
-  } catch (error) {
-    Vue.notify({
-      title: "Error",
-      text:
-        error.response && error.response.data && error.response.data.detail
-          ? error.response.data.detail
-          : error,
-      type: "error",
-    });
-  }
-};
-
 export {
   updateTags,
   loadPatients,
@@ -252,5 +236,4 @@ export {
   loadValues,
   getAggregatedSeriesNum,
   fetchProjects,
-  fetchProjectDetails,
 };

@@ -374,7 +374,6 @@ import {
   loadPatients,
   getAggregatedSeriesNum,
   fetchProjects,
-  fetchProjectDetails,
 } from "../common/api.service";
 import kaapanaApiService from "@/common/kaapanaApi.service";
 import Dashboard from "@/components/Dashboard.vue";
@@ -422,7 +421,6 @@ export default {
       searchQuery: {},
       allPatients: true,
       queryParams: this.$route.query,
-      selectedProjectBucket: ""
     };
   },
   components: {
@@ -486,11 +484,8 @@ export default {
         // TODO: We somehow have to ensure that the dataset update is finished before we add the other queryParameters
         this.datasetName = this.queryParams.dataset_name;
       }
-      
     }
-
     this.getStaticWebsiteResults();
-
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) => this.keyDownEventListener(event));
@@ -599,24 +594,8 @@ export default {
     async updateDatasetNames() {
       this.datasetNames = await loadDatasets();
     },
-    async getStaticWebsiteResults() {
-      const selectedProject = this.$store.getters.selectedProject;
+    getStaticWebsiteResults() {
       var staticWebUrl = "/get-static-website-results"
-
-      if (selectedProject && 's3_bucket' in selectedProject) {
-        this.selectedProjectBucket = selectedProject['s3_bucket'];
-        staticWebUrl = staticWebUrl + `?bucket_name=${this.selectedProjectBucket}`;
-      } else if(selectedProject) {
-        // if s3_bucket name not in the project details, fetch project details
-        // to get the project bucket name and set the URL
-        const selectedProjectDetails = await fetchProjectDetails(selectedProject['name']);
-        this.selectedProjectBucket = selectedProjectDetails['s3_bucket'];
-        staticWebUrl = staticWebUrl + `?bucket_name=${this.selectedProjectBucket}`;
-        
-        // set the full project details to the store
-        this.$store.dispatch(UPDATE_SELECTED_PROJECT, selectedProjectDetails);
-      }
-
       kaapanaApiService
         .kaapanaApiGet(staticWebUrl)
         .then((response) => {
@@ -632,11 +611,7 @@ export default {
         let rootPaths = this.extractRootPath(i);
         for (let path of rootPaths) {
           let seriesID = this.extractSeriesId(path);
-          let fullpath = path;
-          if (this.selectedProjectBucket != "") {
-            fullpath = path + `&bucket_name=${this.selectedProjectBucket}`
-          }
-          this.resultPaths[seriesID] = fullpath;
+          this.resultPaths[seriesID] = path;
           // this.readAndParseHTML(path)
         }
       });

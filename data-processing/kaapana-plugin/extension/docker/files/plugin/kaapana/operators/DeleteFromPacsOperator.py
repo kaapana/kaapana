@@ -8,6 +8,7 @@ from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class DeleteFromPacsOperator(KaapanaBaseOperator):
+    """This operator removes either selected series or whole studies from Kaapana's integrated PACS."""
 
     def __init__(
         self,

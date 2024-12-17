@@ -119,7 +119,7 @@ merge_branches = LocalMergeBranchesOperator(
     first_input_operator=extract_img_intensities,
     second_input_operator=concat_metadata,
     level="batch",
-    trigger_rule=TriggerRule.ALL_DONE,
+    trigger_rule=TriggerRule.ONE_SUCCESS,
     allow_federated_learning=True,
 )
 

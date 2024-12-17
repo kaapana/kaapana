@@ -320,7 +320,7 @@ class HelperDcmWeb:
         response.raise_for_status()
         return response
 
-    def delete_study(self, study_uid: str) -> requests.Response:
+    def delete_study(self, project_id: int, study_uid: str) -> requests.Response:
         """This function deletes a study from the PACS. It first rejects the study and then deletes it.
 
         Args:
@@ -330,7 +330,7 @@ class HelperDcmWeb:
             Response: The response object returned by the DICOMWeb server.
         """
 
-        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}"
+        url = f"{self.dcmweb_rs_endpoint}/projects/{project_id}/studies/{study_uid}"
         response = self.session.delete(url)
 
         if response.status_code == 404:
@@ -342,7 +342,7 @@ class HelperDcmWeb:
 
         return response
 
-    def delete_series(self, study_uid: str, series_uid: str):
+    def delete_series(self, project_id: int, study_uid: str, series_uid: str):
         """This function deletes a series from the PACS. It first rejects the series and then deletes it.
 
         Args:
@@ -350,7 +350,7 @@ class HelperDcmWeb:
             series_uid (str): Series Instance UID of the series to delete
         """
 
-        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}"
+        url = f"{self.dcmweb_rs_endpoint}/projects/{project_id}/studies/{study_uid}/series/{series_uid}"
         response = self.session.delete(url)
 
         if response.status_code == 404 and "errorMessage" in response.json():

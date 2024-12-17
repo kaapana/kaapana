@@ -88,7 +88,7 @@ put_radiomics_to_minio = MinioOperator(
 get_notebook_from_minio = MinioOperator(
     dag=dag,
     name="radiomics-get-notebook-from-minio",
-    bucket_name="template-analysis-scripts"
+    bucket_name="template-analysis-scripts",
     action="get",
     source_files=["FedRad-Analysis.ipynb"],
 )

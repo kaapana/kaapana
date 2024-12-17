@@ -81,6 +81,8 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
                 dataset = f"kp-{aetitle}"
             if not project_name.startswith("kp-"):
                 project_name = f"kp-{project_name}"
+        else:
+            dataset = aetitle
 
         env = dict(os.environ)
         command = [

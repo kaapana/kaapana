@@ -361,26 +361,6 @@ class HelperDcmWeb:
 
         return response
 
-    def delete_instance(self, study_uid: str, series_uid: str, instance_uid: str):
-        """This function deletes an instance from the PACS.
-
-        Args:
-            study_uid (str): Study Instance UID of the instance to delete
-            series_uid (str): Series Instance UID of the instance to delete
-            instance_uid (str): SOP Instance UID of the instance to delete
-        """
-
-        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}"
-        response = self.session.delete(url)
-
-        if response.status_code == 404 and "errorMessage" in response.json():
-            logger.error(f"Some error occurred: {response.json()['errorMessage']}")
-            return response
-        response.raise_for_status()
-        logger.info(f"Instance {instance_uid} deleted")
-
-        return response
-
     def get_instances_of_study(self, study_uid: str) -> List[dict]:
         """This function retrieves all instances of a study from the PACS.
 

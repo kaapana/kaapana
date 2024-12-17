@@ -156,6 +156,6 @@ async def remove_data_project_mapping(
     remove_mapping = await get_data_project_mapping(
         session, series_instance_uid=series_instance_uid, project_id=project_id
     )
-    session.delete(remove_mapping[0])
+    await session.delete(remove_mapping[0])
     await session.commit()
     return None

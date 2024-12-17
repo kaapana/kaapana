@@ -113,3 +113,19 @@ async def create_dicom_data(
         )
     except IntegrityError:
         return Response("Dicom data already exists!", status_code=200)
+
+
+# Debug endpoint
+@router.get(
+    "/data/overview",
+    tags=["DataProjects"],
+)
+async def get_overview(
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get overview of all data.
+    """
+    return await crud.get_overview(
+        session=session,
+    )

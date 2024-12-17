@@ -5,7 +5,7 @@ LABEL VERSION="2024-11-17"
 LABEL CI_IGNORE="False"
 
 
-RUN curl https://dl.min.io/client/mc/release/linux-amd64/mcli_20241117193525.0.0_amd64.deb \
+RUN curl https://dl.min.io/client/mc/release/linux-amd64/archive/mcli_20241117193525.0.0_amd64.deb \
   -o mcli.deb && \
   dpkg -i mcli.deb && \
   ln -s /usr/local/bin/mcli /usr/local/bin/mc

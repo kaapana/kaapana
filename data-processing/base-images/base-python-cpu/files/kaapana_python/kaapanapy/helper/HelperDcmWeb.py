@@ -357,7 +357,7 @@ class HelperDcmWeb:
             logger.error(f"Some error occurred: {response.json()['errorMessage']}")
             return response
         response.raise_for_status()
-        logger.info(f"Study {study_uid} deleted")
+        logger.info(f"Series {series_uid} in study {study_uid} deleted")
 
         return response
 

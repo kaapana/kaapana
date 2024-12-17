@@ -162,32 +162,31 @@ async def query_studies(request: Request, session: AsyncSession = Depends(get_se
             # return empty response with status code 204
             return Response(status_code=HTTP_204_NO_CONTENT)
 
+    # Retrieve studies mapped to the project
+    studies = set(
+        await crud.get_all_studies_mapped_to_projects(session, project_ids_of_user)
+    )
+
     # check if StudyInstanceUID is in the query parameters
     if "StudyInstanceUID" in request.query_params:
-
-        # Retrieve studies mapped to the project
-        studies = set(
-            await crud.get_all_studies_mapped_to_projects(session, project_ids_of_user)
-        )
-
         # Check if the requested studies are mapped to the project
         requested_studies = set(request.query_params.getlist("StudyInstanceUID"))
         studies = studies.intersection(requested_studies)
 
-        # Remove StudyInstanceUID from the query parameters
-        query_params = dict(request.query_params)
-        query_params["StudyInstanceUID"] = []
+    # Remove StudyInstanceUID from the query parameters
+    query_params = dict(request.query_params)
+    query_params["StudyInstanceUID"] = []
 
-        # Add the studies mapped to the project to the query parameters
-        for uid in studies:
-            query_params["StudyInstanceUID"].append(uid)
+    # Add the studies mapped to the project to the query parameters
+    for uid in studies:
+        query_params["StudyInstanceUID"].append(uid)
 
-        # Update the query parameters
-        request._query_params = query_params
+    # Update the query parameters
+    request._query_params = query_params
 
-        if not studies:
-            # return empty response with status code 204
-            return Response(status_code=HTTP_204_NO_CONTENT)
+    if not studies:
+        # return empty response with status code 204
+        return Response(status_code=HTTP_204_NO_CONTENT)
 
     return await retrieve_studies(request=request)
 

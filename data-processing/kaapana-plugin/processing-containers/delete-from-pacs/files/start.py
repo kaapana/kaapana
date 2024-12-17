@@ -41,6 +41,7 @@ class DeleteFromPacsOperator:
         self.run_id = operator_settings.run_id
 
     def start(self):
+        """Starts the operator to delete the series from the PACS system."""
 
         project_form: dict = self.conf.get("project_form")
 

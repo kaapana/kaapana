@@ -1,45 +1,57 @@
 import glob
-import os
 import json
-from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+import logging
+import os
+from os import getenv
+
 from kaapanapy.helper import load_workflow_config
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from kaapanapy.settings import KaapanaSettings, OperatorSettings
+
+# Set logging level
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
-class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
-    """
-    Operator to remove series from PACS system.
+class DeleteFromPacsOperator:
 
-    This operator removes either selected series or whole studies from Kaapana's integrated PACS.
-    The operator relies on the "delete_study" function of Kaapana's "HelperDcmWeb" operator.
+    def __init__(
+        self,
+        delete_complete_study: bool = False,
+    ):
+        """Initializes the operator with the given parameters.
 
-    **Inputs:**
-
-    * Input data which should be removed given by input parameter: input_operator.
-    """
-
-    def __init__(self, dag, delete_complete_study=False, **kwargs):
+        Args:
+            delete_complete_study (bool, optional): Boolean to delete the complete study. Defaults to False.
         """
-        :param delete_complete_study: Specifies the amount of removed data to all series of a specified study.
-        """
+        # Set the delete_complete_study flag
         self.delete_complete_study = delete_complete_study
-        super().__init__(
-            dag=dag, name="delete-pacs", python_callable=self.start, **kwargs
-        )
-
-    def start(self, ds, **kwargs):
-        conf = kwargs["dag_run"].conf
+        # Load the workflow configuration
+        self.conf = load_workflow_config()
+        # Initialize the DcmWeb helper
         self.dcmweb_helper = HelperDcmWeb()
-        project_form: dict = conf.get("project_form")
-        print("conf", conf)
 
-        self.delete_complete_study = conf.get("form_data", {}).get(
+        # Airflow variables
+        operator_settings = OperatorSettings()
+
+        self.operator_in_dir = operator_settings.operator_in_dir
+        self.workflow_dir = operator_settings.workflow_dir
+        self.batch_name = operator_settings.batch_name
+        self.run_id = operator_settings.run_id
+
+    def start(self):
+
+        project_form: dict = self.conf.get("project_form")
+
+        self.delete_complete_study = self.conf.get("form_data", {}).get(
             "delete_complete_study", self.delete_complete_study
         )
-        print("Delete entire study set to ", self.delete_complete_study)
+        logging.info(f"Delete entire study set to {self.delete_complete_study}")
 
-        run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
-        batch_folder = glob.glob(os.path.join(run_dir, self.batch_name, "*"))
+        batch_folder = [
+            f for f in glob.glob(os.path.join(self.workflow_dir, self.batch_name, "*"))
+        ]
 
         series_of_studies_which_should_be_deleted = {}
 
@@ -56,6 +68,7 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
                     study_uid = metadata["0020000D StudyInstanceUID_keyword"]
 
                     if self.delete_complete_study:
+                        logging.info(f"Deleting study: {study_uid}")
                         self.dcmweb_helper.delete_study(
                             project_id=project_form.get("id"), study_uid=study_uid
                         )
@@ -72,11 +85,20 @@ class LocalDeleteFromPacsOperator(KaapanaPythonBaseOperator):
         # If we are not deleting the complete study, we need to delete the series one by one
         for study_uid, series_uids in series_of_studies_which_should_be_deleted.items():
             for series_uid in series_uids:
-                self.log.info(
-                    "Deleting series: %s from study: %s", series_uid, study_uid
-                )
+                logging.info(f"Deleting series: {series_uid} from study: {study_uid}")
                 self.dcmweb_helper.delete_series(
                     project_id=project_form.get("id"),
                     study_uid=study_uid,
                     series_uid=series_uid,
                 )
+
+
+if __name__ == "__main__":
+
+    delete_complete_study = getenv("DELETE_COMPLETE_STUDY", "false").lower() == "true"
+
+    operator = DeleteFromPacsOperator(
+        delete_complete_study=delete_complete_study,
+    )
+
+    operator.start()

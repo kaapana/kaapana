@@ -16,9 +16,9 @@
               <br />
               <br />
               <code>
-                dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle
-                {{ "<" }}dataset-name{{ ">" }} --call
-                {{ selectedProject.name }} --scan-pattern '*.dcm' --recurse
+                dcmsend -v {{ hostname }} 11112 --scan-directories --aetitle 
+                kp-{{ "<" }}dataset-name{{ ">" }} --call
+                kp-{{ selectedProject.name }} --scan-pattern '*.dcm' --recurse
                 {{ "<" }}data-dir-of-DICOM-images{{ ">" }}
               </code>
             </v-card-text>

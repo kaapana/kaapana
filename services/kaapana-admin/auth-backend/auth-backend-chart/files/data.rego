@@ -18,7 +18,6 @@ allowed_user_endpoints := [
     {"path": "^/css/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/oauth2/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web-ide", "methods": ["GET","POST","PUT","DELETE"]},
-    {"path": "^/pacs", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/minio-console.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/ohif.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/dicom-web-filter/.*", "methods": ["GET","POST","PUT","DELETE"]},

@@ -219,7 +219,7 @@ put_to_minio = MinioOperator(
     name="put-eval-metrics-to-minio",
     zip_files=True,
     action="put",
-    batch_input_operators=[evaluation],
+    none_batch_input_operators=[evaluation],
     whitelisted_file_extensions=[".zip"],
 )
 

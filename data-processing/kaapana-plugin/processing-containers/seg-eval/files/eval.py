@@ -5,7 +5,7 @@ import os
 from os import getenv
 from pathlib import Path
 import ast
-from typing import List, Tuple
+import html
 
 import nibabel as nib
 import numpy as np
@@ -39,12 +39,13 @@ exit_on_error = get_and_assert_not_none("EXIT_ON_ERROR")
 eval_metrics_key = get_and_assert_not_none("METRICS_KEY")
 label_mapping = get_and_assert_not_none("LABEL_MAPPING")
 
-# array env var
+# array env var for evaluation metrics
 eval_metrics_str = getenv(eval_metrics_key.upper(), "None")
-eval_metrics_ast = (
-    ast.literal_eval(eval_metrics_str) if eval_metrics_str.lower() != "none" else None
-)
-assert eval_metrics_ast is not None
+eval_metrics_ast = None 
+if eval_metrics_str.lower() != "none":
+    eval_metrics_str = html.unescape(eval_metrics_str)  # decode html to unescape quotes
+    eval_metrics_ast = ast.literal_eval(eval_metrics_str)
+assert eval_metrics_ast is not None, "No evaluation metric was provided"
 eval_metrics: list = list(eval_metrics_ast)
 
 

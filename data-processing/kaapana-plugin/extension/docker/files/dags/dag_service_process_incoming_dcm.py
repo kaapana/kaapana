@@ -14,6 +14,10 @@ from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
+from kaapana.operators.LocalSanitizeProjectAndDatasetOperator import (
+    LocalSanitizeProjectAndDatasetOperator,
+)
+
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
@@ -169,6 +173,10 @@ def create_input_json_from_input(ds, **kwargs):
 
 get_input = LocalGetInputDataOperator(dag=dag, delete_input_on_success=True)
 
+sanitize_project_and_dataset = LocalSanitizeProjectAndDatasetOperator(
+    dag=dag, input_operator=get_input
+)
+
 dcm_send = LocalDicomSendOperator(
     dag=dag,
     input_operator=get_input,
@@ -319,7 +327,7 @@ clean = LocalWorkflowCleanerOperator(
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 
-get_input >> dcm_send >> extract_metadata
+get_input >> sanitize_project_and_dataset >> dcm_send >> extract_metadata
 extract_metadata >> push_json >> [validate, skip_if_dcm_is_no_segmetation]
 extract_metadata >> add_to_dataset >> [validate, skip_if_dcm_is_no_segmetation]
 extract_metadata >> assign_to_project >> [validate, skip_if_dcm_is_no_segmetation]

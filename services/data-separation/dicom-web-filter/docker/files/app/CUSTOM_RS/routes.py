@@ -85,7 +85,10 @@ async def del_study(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    """This endpoint is used to delete a study.
+    """
+    This endpoint is used to delete a study.
+    For all series belonging to study the mappings to project will be deleted.
+    If the series only belongs to one project, the series will be deleted from the PACS as well.
 
     Args:
         study (str): Study Instance UID
@@ -128,19 +131,15 @@ async def del_study(
         await crud.remove_data_project_mapping(
             session=session, series_instance_uid=series, project_id=project_id
         )
+
         # Check for other usages
         mapped_project_ids = await crud.get_project_ids_of_series(session, series)
 
-        if len(mapped_project_ids) == 1:
+        if len(mapped_project_ids) == 0:
             # This part should only run if a project deletes the last mapping of a series
             logging.info(f"Finally deleting series: {series}")
             # Delete in PACS
             response = await delete_series_dcm4chee(study, series, request)
-
-        # Remove the mapping to the current project
-        await crud.remove_data_project_mapping(
-            session=session, series_instance_uid=series, project_id=project_id
-        )
 
     return response
 

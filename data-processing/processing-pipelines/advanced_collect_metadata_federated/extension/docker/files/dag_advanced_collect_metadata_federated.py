@@ -80,9 +80,9 @@ acmd_federated = AdvancedCollectMetadataFederatedOperator(
 put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    batch_input_operators=[acmd_federated],
+    none_batch_input_operators=[acmd_federated],
     zip_files=True,
-    whitelisted_file_extensions=(".zip"),
+    whitelisted_file_extensions=(".json",),
 )
 
 clean = LocalWorkflowCleanerOperator(

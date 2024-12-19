@@ -197,16 +197,27 @@ Namespace configurations
 | The kubernetes namespace for furndamental parts of a Kaapana platform, e.g. reverse proxy, authentication.
 | 
 
-| :code:`JOBS_NAMESPACE` `(default: "jobs", type=string)`
-| The kubernetes namespace for pods that are started by airflow.
-|
-
 | :code:`EXTENSIONS_NAMESPACE` `(default: "extensions", type=string)`
 | Currently not used.
 | 
 
 | :code:`HELM_NAMESPACE` `(default: "default", type=string)` 
 | The helm namespace, where the platform charts are deployed. Note that it is different from the namespaces used for different types of Kubernetes resources on the cluster.
+|
+
+Resource configurations
+---------------------------------
+
+| :code:`PACS_PERCENT` `(default: 30, type=int)` 
+| Percentage of allocable memory (70% of server memory) allocated to PACS data storage system.
+|
+
+| :code:`AIRFLOW_PERCENT` `(default: 50, type=int)` 
+| Percentage of allocable memory (70% of server memory) allocated to Airflow workflow management system.
+|
+
+| :code:`OPENSEARCH_PERCENT` `(default: 20, type=int)` 
+| Percentage of allocable memory (70% of server memory) to Opensearch metadata and search engine system.
 |
 
 

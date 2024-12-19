@@ -866,6 +866,7 @@ def get_remote_updates(db: Session, periodically=False):
             aii_response = requests.get(
                 "http://aii-service.services.svc:8080/projects/admin"
             )
+            aii_response.raise_for_status()
             project_form = aii_response.json()
             incoming_job["conf_data"]["project_form"] = project_form
 

@@ -46,27 +46,20 @@ data:
     ]
   user_settings.json: |-
     {
-        "workbench.colorTheme": "Default Dark+"
+        "workbench.colorTheme": "Default Dark+",
+        "python.defaultInterpreterPath": "/opt/venv/bin/python"
     }
   launch.json: |-
     {
+    // to change launch.json, change the kubernetes configmap
         "version": "0.2.0",
         "configurations": [
             {
-                "name": "Python: Remote Attach",
-                "type": "python",
-                "request": "attach",
-                "connect": {
-                    "host": "airflow-webserver-service.{{  .Values.global.services_namespace  }}.svc",
-                    "port": 5678
-                },
-                "justMyCode": false,
-                "pathMappings": [
-                    {
-                        "localRoot": "${workspaceFolder}",
-                        "remoteRoot": "/home/airflow"
-                    }
-                ]
+                "name": "Python Debugger: Current File",
+                "type": "debugpy",
+                "request": "launch",
+                "program": "${file}",
+                "console": "integratedTerminal"
             }
         ]
     }

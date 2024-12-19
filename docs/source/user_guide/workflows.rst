@@ -40,19 +40,18 @@ Images can directly be send via DICOM DIMSE to the DICOM receiver port ``11112``
 If you have images locally you can use e.g. `DCMTK <https://dicom.offis.de/dcmtk.php.en>`_.
 However, any tool that sends images to a DICOM receiver can be used. 
 
-.. note::
-    
-Visit the :Code:`Data Upload` wizard page within the :code:`Workflows` menu of the Web interface to get precise command with your settings: `ip-address-or-hostname-of-server`.
-
 Here is an example of sending images with DCMTK:
 
 ::
+ 
   dcmsend -v <ip-address-or-hostname-of-server> 11112 --aetitle <dataset-name> --call <project-name> --scan-directories --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>
 
 .. hint::
     | The `aetitle` is used to specify the dataset. If the dataset already exist on the platform the new images will be appended.
     | The `call` is used to specify the project. That project has to exist, use `admin` as a default.
 
+.. note::
+    Visit the :Code:`Data Upload` wizard page within the :code:`Workflows` menu of the Web interface to get command tailored to its deployment.
 
 Option 2: Uploading images via the Web Interface (experimental)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""

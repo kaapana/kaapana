@@ -82,7 +82,7 @@ put_to_minio = MinioOperator(
     action="put",
     none_batch_input_operators=[acmd_federated],
     zip_files=True,
-    whitelisted_file_extensions=(".json",),
+    whitelisted_file_extensions=(".json", ".tar"),
 )
 
 clean = LocalWorkflowCleanerOperator(

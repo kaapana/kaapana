@@ -861,6 +861,15 @@ def get_remote_updates(db: Session, periodically=False):
             )
             incoming_job["external_job_id"] = incoming_job["id"]
             incoming_job["status"] = "pending"
+
+            ### Set the project_form of federated jobs according to the admin project
+            aii_response = requests.get(
+                "http://aii-service.services.svc:8080/projects/admin"
+            )
+            aii_response.raise_for_status()
+            project_form = aii_response.json()
+            incoming_job["conf_data"]["project_form"] = project_form
+
             job = schemas.JobCreate(**incoming_job)
             job.automatic_execution = (
                 db_incoming_workflow.automatic_execution
@@ -1515,8 +1524,7 @@ def get_workflows(
     offset: int = 0,
     search: Optional[str] = None,
 ):
-    
-    
+
     if limit == -1:
         limit = None
     base_query = db.query(models.Workflow)

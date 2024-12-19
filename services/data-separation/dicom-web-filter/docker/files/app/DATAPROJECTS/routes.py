@@ -62,7 +62,7 @@ async def get_projects_by_series_instance_uid(
     """
     Get all projects Data belongs to.
     """
-    return await crud.get_projects_of_data(
+    return await crud.get_project_ids_of_series(
         session=session,
         series_instance_uid=series_instance_uid,
     )

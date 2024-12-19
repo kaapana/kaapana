@@ -18,7 +18,7 @@ class DeleteFromPacsOperator(KaapanaBaseOperator):
         **kwargs,
     ):
         """
-        :param delete_complete_study: Specifies the amount of removed data to all series of a specified study.
+        :param delete_complete_study: Specifies the amount of removed data to all series of a specified study. This is will be overwritten by the value set in the workflow configuration.
         """
 
         env_vars = {}

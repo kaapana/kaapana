@@ -343,7 +343,7 @@ class HelperDcmWeb:
         return response
 
     def delete_series(self, project_id: int, study_uid: str, series_uid: str):
-        """This function deletes a series from the PACS. It first rejects the series and then deletes it.
+        """This function deletes a series from the PACS.
 
         Args:
             study_uid (str): Study Instance UID of the series to delete

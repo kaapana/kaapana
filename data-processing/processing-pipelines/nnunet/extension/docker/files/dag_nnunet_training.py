@@ -39,7 +39,6 @@ prep_modalities = "CT"
 default_model = "3d_fullres"
 plan_network_planner = "nnUNetPlannerResEncM"
 train_network_trainer = "nnUNetTrainer"
-ae_title = "nnUnet-training-results"
 max_epochs = 1000
 num_batches_per_epoch = 250
 num_val_batches_per_epoch = 50
@@ -437,7 +436,7 @@ put_to_minio = MinioOperator(
 put_report_to_minio = MinioOperator(
     dag=dag,
     name="upload-staticwebsiteresults",
-    bucket_name="staticwebsiteresults",
+    minio_prefix="staticwebsiteresults",
     action="put",
     none_batch_input_operators=[generate_nnunet_report],
     whitelisted_file_extensions=(".html", ".pdf"),
@@ -447,7 +446,7 @@ pdf2dcm = Pdf2DcmOperator(
     dag=dag,
     input_operator=generate_nnunet_report,
     study_uid=training_results_study_uid,
-    aetitle=ae_title,
+    aetitle="nnUNetPDF",
     pdf_title=f"Training Report nnUNet {TASK_NUM:03} {TASK_DESCRIPTION}",
 )
 
@@ -455,7 +454,7 @@ dcmseg_send_pdf = DcmSendOperator(
     dag=dag,
     parallel_id="pdf",
     level="batch",
-    ae_title=ae_title,
+    ae_title="nnUNetPDF",
     input_operator=pdf2dcm,
 )
 
@@ -492,7 +491,7 @@ bin2dcm = Bin2DcmOperator(
 dcm_send_int = DcmSendOperator(
     dag=dag,
     level="batch",
-    ae_title=ae_title,
+    ae_title="nnUNetTASK",
     input_operator=bin2dcm,
 )
 

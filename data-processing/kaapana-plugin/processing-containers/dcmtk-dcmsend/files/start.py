@@ -15,6 +15,10 @@ AETITLE = os.getenv("AETITLE", "NONE")
 AETITLE = None if AETITLE == "NONE" else AETITLE
 LEVEL = os.getenv("LEVEL", "element")
 WORKFLOW_CONFIG = load_workflow_config()
+# add TASK_NUM to AETITLE if it exists
+TASK_NUM = WORKFLOW_CONFIG.get("workflow_form").get("task_num")
+if AETITLE is not None and TASK_NUM is not None:
+    AETITLE = AETITLE + str(TASK_NUM)
 PROJECT = WORKFLOW_CONFIG.get("project_form")
 PROJECT_NAME = PROJECT.get("name")
 SERVICES_NAMESPACE = KaapanaSettings().services_namespace

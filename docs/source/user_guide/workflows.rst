@@ -14,7 +14,7 @@ Starting from Kaapana version 0.2.0, the Kaapana platform is equipped with a
 Workflow Management System (*WMS*) including a handy :ref:`data_upload` tool  
 and a powerful data inspection tool, :ref:`datasets`.
 The WMS allows the user to interact with the Kaapana object *workflow*. 
-The workflow object semantically binds together multiple jogbbbs, their processing data, 
+The workflow object semantically binds together multiple jobs, their processing data, 
 and the orchestrating- and runner-instances of those jobs. 
 In order to manage these workflows, the WMS comes with three components:
 :ref:`workflow_execution`, :ref:`workflow_list` and :ref:`instance_overview`.

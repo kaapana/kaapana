@@ -135,22 +135,12 @@ tag-seg-ct-tuples
 tag-train-test-split-dataset
 """""""""""""""""""""""""""""
 
-train-with-pretrained-weights
-"""""""""""""""""""""""""""""""
-This DAG allows users to run available training DAGs starting with previously trained model weights. It expects at least one of the two following DAGs to be installed: :code:`nnunet-workflow` or :code:`classification-workflow`. After selecting one, it is possible to choose a pretrained model for warm start. All the other fields will be the same as in the original DAG.
-
-The parent DAG will trigger one of the two child DAGs, passing the pretrained model path as parameter, and the child DAG run will be shown as a service workflow in the workflow list. It is only possible to start/stop individual jobs of a service workflow.
-
-Note that if either :code:`nnunet-workflow` or :code:`classification-workflow` is not visible under *Training Workflow* option, even though they are installed as extensions, it can be the case that :code:`airflow-webserver` did not refresh and pick up the changes yet. You can just wait, use the refresh button in the workflow execution form or delete :code:`airflow-webserver` pod via kubernetes to make sure the changes are up to date.
-
-
 validate-dicoms
 """"""""""""""""
 
-This DAG allows users to validate the DICOMS against the `DICOM standard <https://dicom.nema.org/medical/dicom/current/output/html/part01.html>`_. Currently 
-this DAG allows one of the two algorithms to validate DICOMS: `dciodvfy` and `dicom-validator`. Validation results are stored in MinIO as a result file. Generally This 
-DAG run each time data is imported to the platform.
-
+This DAG allows users to validate the DICOMS against the `DICOM standard <https://dicom.nema.org/medical/dicom/current/output/html/part01.html>`_. 
+Currently this DAG allows one of the two algorithms to validate DICOMS: `dciodvfy` and `dicom-validator`. 
+Validation results are stored in MinIO as a result file. The DAG runs each time data is imported into the platform.
 
 clear-validation-results
 """"""""""""""""""""""""""

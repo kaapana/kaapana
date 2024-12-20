@@ -90,97 +90,113 @@ Workflows
 
 .. _extensions_nnunet:
 
-nnU-Net (nnunet-predict)
-------------------------
+nnunet-predict
+--------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
 
-| **What's going on?**
+| **Workflow Overview**
 | A nnU-Net inference is executed.
 
 | 1) Model is downloaded
-| 2) DICOM will be converted to .nrrd files
-| 3) Selected task is applied on input image
-| 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
-| 5) DICOM SEGs will be sent to the internal platform PACS
+| 2) DICOM is converted to .nifti files
+| 3) The model runs inference on the input data
+| 4) Segmentations are converted to DICOM Segmentation (DICOM SEG) objects
+| 5) DICOM SEG objects are sent to the internal platform PACS
 
 | **Input data:**  
-| Depending on the Task see for more information on `Github <https://github.com/MIC-DKFZ/nnUNet>`_
+| A trained nnU-Net model that is already installed via *nnunet-install-model* workflow.
 
-nnU-Net (nnunet-training)
--------------------------
+nnunet-training
+---------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
 
-| **What's going on?**
+| **Workflow Overview**
 | A nnU-Net training is executed.
 
 | 1) Segmentation objects are downloaded
-| 2) Referenced DICOM objects are downloaded
-| 3) Segmentation objects will be converted to .nifti files
-| 4) DICOM will be converted to .nifti files
-| 5) The segmentation objects are evaluated for overlapping segmentations and in case of an overlap to a certain threshold, the segmentation object will be removed from the training data. 
-| 6) nnU-Net training is planned and training data is preprocessed
-| 7) The actual training is executed
-| 8) The trained model is zipped
-| 9) The zipped model is converted to a DICOM object
-| 10) The DICOM object is sent to the internal platform PACS
-| 11) A training report is generated
-| 12) The model and training logs are uploaded to Minio
-| 13) The training report is uploaded to a location, where it can be rendered by a static website
-| 14) The training report is converted to a DICOM object 
-| 15) The DICOM object is sent to the internal platform PACS
+| 2) Referenced DICOM images are downloaded
+| 3) DICOM images are converted to .nifti files
+| 4) Segmentation masks are converted to .nifti files
+| 5) If specified in input form, segmentation masks are filtered based on keywords "Keep: <label>" and "Ignore: <label>"
+| 6) If specified in input form, multiple labels are fused into a new label
+| 7) If specified in input form, label are renamed
+| 8) The segmentation masks are evaluated for overlapping segmentations and if the overlap is above a certain threshold, the segmentation object is removed from training data
+| 9) nnU-Net training is planned and training data is preprocessed
+| 10) The actual training is executed
+| 11) The trained model is zipped
+| 12) The zipped model is converted to a DICOM object
+| 13) The DICOM object is sent to the internal platform PACS
+| 14) A training report is generated
+| 15) The model and training logs are uploaded to Minio
+| 16) The training report is uploaded to a location, where it can be rendered by a static website
+| 17) The training report is converted to a DICOM object 
+| 18) The DICOM object is sent to the internal platform PACS
 
 | **Input data:**  
 | Segmentation objects. Please avoid overlapping segmentations and specify the segmentation labels that you want to use for the training in the *SEG* field.
 
-nnU-Net (nnunet-ensemble)
+nnunet-ensemble
 -------------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
 
-| **What's going on?**
-| The workflow allows to evaluate the performance of multiple trained nnU-Net models on a given dataset. It could also be used to only evaluate one model. The *seg-check-ensemble* operator will throw an error but the execution is still successful!
+| **Workflow Overview**
+| Evaluates the performance of multiple trained nnU-Net models on a given dataset. This workflow can also be used to evaluate only one model, where the *seg-check-ensemble* operator throws an error, but the execution is still successful.
 
 | 1) Segmentation objects used as reference segmentations are downloaded
-| 2) Sorting of segmentation objects
-| 2) Referenced DICOM objects are downloaded
-| 3) Segmentation objects will be converted to .nifti files
-| 4) DICOM will be converted to .nifti files
-| 5) The reference segmentation objects are evaluated for overlapping segmentations and in case of an overlap to a certain threshold, the segmentation object will be removed for the evaluation. 
-| 6) Models to be evaluated are downloaded
-| 7) Models are extracted from DIOCM objects
-| 8) Models are unzipped
-| 9) Models are applied to the input DICOM data
+| 2) Segmentation objects are sorted
+| 3) Referenced DICOM images are downloaded
+| 4) DICOM images are converted to .nifti files
+| 5) Models to be evaluated are downloaded
+| 6) Models are extracted from DIOCM objects and unzipped
+| 7) Models are applied to the DICOM images
+| 8) The predicted segmentations are restructured
+| 9) The predicted segmentations are evaluated for overlapping segmentations and if the overlap is above a certain threshold, they removed from the evaluation
 | 10) Model predictions are ensembled
-| 11) The predicted segmentations are restructured
-| 12) The ensembled segmentations are restructured
-| 13) The predicted segmentation objects are evaluated for overlapping segmentations and in case of an overlap to a certain threshold, the segmentation object will be removed for the evaluation.
-| 14) The ensembled segmentation objects are evaluated for overlapping segmentations and in case of an overlap to a certain threshold, the segmentation object will be removed for the evaluation.
-| 15) DICE scores between the reference and predicted (ensembled) segmentations are calculated
-| 16) A report containing the DICE Scores is created
-| 17) The results of the evaluation are uploaded to Minio
-| 18) A report is uploaded to a location, where it can be rendered by a static website
+| 11) The ensembled segmentations are restructured
+| 12) The ensembled segmentations are evaluated for overlapping segmentations and if the overlap is above a certain threshold, they removed from the evaluation
+| 13) The reference segmentations are converted to .nifti files
+| 14) If specified in input form, segmentation masks are filtered based on keywords "Keep: <label>" and "Ignore: <label>"
+| 15) If specified in input form, multiple labels are fused into a new label
+| 16) If specified in input form, labels are renamed
+| 17) The reference segmentations are evaluated for overlapping segmentations and and if the overlap is above a certain threshold, they removed from the evaluation
+| 18) DICE scores between the reference and predicted (ensembled) segmentations are calculated
+| 19) A report containing the DICE scores is created
+| 20) The evaluation results are uploaded to Minio
+| 21) A report is uploaded to a location, where it can be rendered by a static website
 
 | **Input data:**  
-| Segmentation objects. Please avoid overlapping segmentations. In addition, models to be used for the evaluation are expected. Make sure that the models actually predict the labels from the inputted segmentation objects.
+| Segmentation objects and models for evaluation. Please avoid overlapping segmentations, and make sure that the models predict the labels from the input (reference) segmentations.
 
 
-nnU-Net (nnunet-model-management)
----------------------------------
+nnunet-install-model
+--------------------
 | **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
 | **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
 | **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
 
-| **What's going on?**
-| Models that are stored as DICOM files in the internal PACS can be extracted into the *models* directory of Kaapana to be used by the nnunet-predict workflow. The workflow also allows to remove installed tasks.
+| **Workflow Overview**
+| Models that are stored as DICOM files the internal PACS are installed into the *models* directory of Kaapana. Installed models can be used in nnunet-predict and ensemble workflows.
 
-| 1) Models are downloaded
-| 2) Models are extracted from DIOCM objects
-| 3) Models are moved to the *models* directory of Kaapana
+| **Input data:**
+| Dataset that stores nnunet models as DICOM files. If the dataset contains any modality other than **OT**, the workflow will fail. Use the Datasets view to filter for the right model.
+
+nnunet-uninstall-models
+-----------------------
+| **Method:** "Automated Design of Deep Learning Methods for Biomedical Image Segmentation"
+| **Authors:**  Fabian Isensee, Paul F. Jäger, Simon A. A. Kohl, Jens Petersen, Klaus H. Maier-Hein
+| **Cite as:** `arXiv:1904.08128 [cs.CV] <https://arxiv.org/abs/1904.08128>`_
+
+| **Workflow Overview**
+| Installed models inside the *models* directory of Kaapana are uninstalled. Models still persist in the internal PACS as DICOM files.
+
+| **Input data:**
+| Installed model name.
 
 TotalSegmentator
 ----------------
@@ -189,15 +205,15 @@ TotalSegmentator
 | **DOI:** `10.48550/arXiv.2208.05868 <https://arxiv.org/abs/2208.05868>`_
 | **Code:** `https://github.com/wasserth/TotalSegmentator <https://github.com/wasserth/TotalSegmentator>`_
 
-| **What's going on?**
+| **Workflow Overview**
 | 1) Model is downloaded
-| 2) DICOM will be converted to .nrrd files
+| 2) DICOM is converted to .nrrd files
 | 3) TotalSegmentator with all its subtasks is applied to the input data
-| 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
+| 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object
 | 5) DICOM SEGs will be sent to the internal platform PACS
 
 | **Input data:**  
-| Any **CT** scans. 
+| Any **CT** scans.
 
 
 .. _extensions_organseg:
@@ -208,15 +224,15 @@ Automatic organ segmentation (shapemodel-organ-seg)
 | **Authors:**  Tobias Norajitra and Klaus H. Maier-Hein
 | **DOI:** `10.1109/TMI.2016.2600502 <https://ieeexplore.ieee.org/document/7544533>`_
 
-| **What's going on?**
-| 1) DICOM will be converted to .nrrd files
-| 2) Normalization of input images
+| **Workflow Overview**
+| 1) DICOMs are converted to .nrrd files
+| 2) Input images are normalized
 | 3) Parallel segmentation of liver,spleen and kidneys (left and right)
-| 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object.
-| 5) DICOM SEGs will be sent to the internal platform PACS
+| 4) .nrrd segmentations will be converted to DICOM Segmentation (DICOM SEG) object
+| 5) DICOM SEGs are sent to the internal platform PACS
 
 | **Input data:**  
-| Filter for **abdominal CT** scans within the meta dashboard. 
+| Filter for **abdominal CT** scans using the **Datasets** view. 
 
 
 .. _extensions_radiomics:
@@ -224,8 +240,8 @@ Automatic organ segmentation (shapemodel-organ-seg)
 Radiomics (radiomics-dcmseg)
 ----------------------------
 
-| **What's going on?**
-| 1) Selected DICOM SEGs are converted not .nrrd files
+| **Workflow Overview**
+| 1) Selected DICOM SEGs are converted to .nrrd files
 | 2) Corresponding CT file is downloaded form the PACS
 | 3) Downloaded CT files are converted to \*.nrrd
 | 4) Radiomics is applied on selected DICOMs
@@ -238,14 +254,14 @@ Radiomics (radiomics-dcmseg)
 
 MITK Flow
 ---------
-| **What's going on?**
-| 1) A MITK instance is launched within a noVNC application.
-| 2) Access the noVNC application with MITK running through the Pending applications page.
-| 3) In MITK, load the first task from the Kaapana Task List **Load task 1/x**.
-| 4) Modify or create segmentations.
-| 5) Accept the segmentations by clicking **Accept segmentation**. Only accepted segmentations will be stored.
-| 6) Load the next task.
-| 7) After completing manual interactions, click **Finish Manual Interaction** on the Pending applications page. Newly created segmentations will be uploaded to the PACS.
+| **Workflow Overview**
+| 1) A MITK instance is launched within a noVNC application
+| 2) Access the noVNC application with MITK running through the Pending applications page
+| 3) In MITK, load the first task from the Kaapana Task List **Load task 1/x**
+| 4) Modify or create segmentations
+| 5) Accept the segmentations by clicking **Accept segmentation**. Only accepted segmentations are stored
+| 6) Load the next task
+| 7) After completing manual interactions, click **Finish Manual Interaction** on the Pending applications page. Newly created segmentations are uploaded to the PACS
 
 | **Notes:**
 | The *mitk-flow* workflow aims to generate segmentations using MITK tools.
@@ -261,6 +277,9 @@ MITK Flow
 
 | **Input data:**  
 | DICOMs
+
+.. _extensions_classification:
+
 
 .. _extensions_applications:
 
@@ -280,6 +299,17 @@ Code server
 | **VSCode settings:**
 | If you want to use your costum VSCode settings inside the code-server you can save them under :code:`/kaapana/app/.vscode/settings.json`.
 
+.. _extensions_collabora:
+
+Collabora
+---------
+
+.. _extensions_edk:
+
+Extension Development Kit (EDK)
+-------------------------------
+
+
 
 .. _extensions_jupyterlab:
 
@@ -296,6 +326,12 @@ While JupyterLab is great for exploratory data analysis, for more complex calcul
 | **Mount point:**  
 | <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/jupyterlab
 | <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/analysis-scripts
+
+
+.. _extensions_minio_sync:
+
+MinIO Sync
+----------
 
 .. _extensions_mitk_workbench:
 

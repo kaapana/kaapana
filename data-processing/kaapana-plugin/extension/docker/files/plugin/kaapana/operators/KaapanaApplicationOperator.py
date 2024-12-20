@@ -14,38 +14,6 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
     """
     A custom Airflow operator for deploying and managing Helm charts within the Kaapana framework.
-
-    Attributes:
-        HELM_API (str): The base URL for the Helm API service within the Kubernetes cluster.
-        TIMEOUT (int): The timeout duration (in seconds) for the Helm chart deployment process.
-
-    Methods:
-        start(ds, **kwargs):
-            Deploys a Helm chart based on the provided configurations in the Airflow DAG run context.
-            Handles namespace selection, dynamic volume allocation, and additional configuration
-            settings. Monitors the status of the deployment until it completes or times out.
-
-        uninstall_helm_chart(kwargs):
-            Uninstalls the Helm release corresponding to the given release name using the Helm API.
-
-        on_failure(context):
-            Triggered when the operator fails. Logs a failure message.
-            (Use with caution due to unclear state of the context object during execution.)
-
-        on_retry(context):
-            Triggered when the operator is retried. Logs a retry message.
-            (Use with caution due to unclear state of the context object during execution.)
-
-    Args:
-        dag (airflow.models.DAG): The DAG object to which the operator belongs.
-        chart_name (str): The name of the Helm chart to be deployed.
-        version (str): The version of the Helm chart to be deployed.
-        name (str): The name of the operator task (default: "helm-chart").
-        data_dir (str, optional): The directory for storing workflow-specific data (default: `DATADIR` environment variable).
-        sets (dict, optional): Additional key-value pairs to be included in the Helm chart configuration.
-        release_name (str, optional): The release name for the Helm deployment (default: generated dynamically).
-        **kwargs: Additional arguments passed to the `KaapanaPythonBaseOperator` constructor.
-
     """
 
     HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
@@ -157,6 +125,16 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         release_name=None,
         **kwargs,
     ):
+        """
+        :param dag (airflow.models.DAG): The DAG object to which the operator belongs.
+        :param chart_name (str): The name of the Helm chart to be deployed.
+        :param version (str): The version of the Helm chart to be deployed.
+        :param name (str): The name of the operator task (default: "helm-chart").
+        :param data_dir (str, optional): The directory for storing workflow-specific data (default: `DATADIR` environment variable).
+        :param sets (dict, optional): Additional key-value pairs to be included in the Helm chart configuration.
+        :param release_name (str, optional): The release name for the Helm deployment (default: generated dynamically).
+        :param kwargs: Additional arguments passed to the `KaapanaPythonBaseOperator` constructor.
+        """
         self.chart_name = chart_name
         self.version = version
 

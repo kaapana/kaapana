@@ -1,12 +1,12 @@
-from pathlib import Path
-from typing import List
-from subprocess import PIPE, run
 import datetime
+from pathlib import Path
+from subprocess import PIPE, run
+from typing import List
+
 import pydicom
 import pytz
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings
 
@@ -19,12 +19,12 @@ class LocalSanitizeProjectAndDatasetOperator(KaapanaPythonBaseOperator):
     Sanitizes the dicom tags used to derive project and dataset name of incoming dicom data.
 
     Check, that the the value of 00120020 ClinicalTrialProtocolID_keyword complies with the format kp-<project name>
-        If the tag complies: Remove the prefix kp- and update the tag in the dicom meta header
-        If the tag does not comply: Overwrite 00120020 ClinicalTrialProtocolID_keyword with the default project "admin"
+    If the tag complies: Remove the prefix kp- and update the tag in the dicom meta header
+    If the tag does not comply: Overwrite 00120020 ClinicalTrialProtocolID_keyword with the default project "admin"
 
     Check, that the the value of 00120010 ClinicalTrialSponsorName_keyword complies with the format kp-<dataset name>
-        If the tag complies: Remove the prefix kp- and update the tag in the dicom meta header
-        If the tag does not comply: Overwrite 00120010 ClinicalTrialSponsorName_keyword with a timestamp, when this operator starts.
+    If the tag complies: Remove the prefix kp- and update the tag in the dicom meta header
+    If the tag does not comply: Overwrite 00120010 ClinicalTrialSponsorName_keyword with a timestamp, when this operator starts.
     """
 
     def __init__(

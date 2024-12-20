@@ -388,7 +388,7 @@ LocalDagTriggerOperator
    :show-inheritance:
 
 ClearValidationResultOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: kaapana.operators.ClearValidationResultOperator
    :members:

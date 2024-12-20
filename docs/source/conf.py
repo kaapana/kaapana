@@ -78,6 +78,7 @@ autodoc_mock_imports = [
     "kubernetes",
     "dicomweb_client",
     "minio",
+    "kaapanapy",
 ]
 autoclass_content = "both"
 

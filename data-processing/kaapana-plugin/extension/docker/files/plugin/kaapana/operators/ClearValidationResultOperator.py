@@ -15,20 +15,7 @@ SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 class ClearValidationResultOperator(KaapanaBaseOperator):
     """
-    Initializes the LocalClearValidationResultOperator.
-
-    Args:
-        dag (DAG): The DAG to which the operator belongs.
-        name (str): The name of the operator. Defaults to "clear-validation-results".
-        static_results_dir (str): directory inside the bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
-                associated bucket name from the project will be taken from the project form.
-        validation_tag (str): Base tag used to store validation results on OpenSearch (default: "00111001").
-        opensearch_index (str): Index in OpenSearch where metadata will be stored. Defaults to OpensearchSettings().default_index.
-        *args: Additional arguments for the parent class.
-        **kwargs: Additional keyword arguments for the parent class.
-
-    Returns:
-        None
+    Clears validation results from OpenSearch and Minio.
     """
 
     def __init__(
@@ -40,15 +27,13 @@ class ClearValidationResultOperator(KaapanaBaseOperator):
         opensearch_index=None,
         **kwargs,
     ):
-        """Clears validation results from OpenSearch and Minio.
-
-        Args:
-            dag (DAG): The DAG to which the operator belongs.
-            name (str, optional): The name of the operator. Defaults to "clear-validation-results".
-            static_results_dir (str, optional): directory inside the bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
-                associated bucket name from the project will be taken from the project form.
-            validation_tag (str, optional): Base tag used to store validation results on OpenSearch (default: "00111001").
-            opensearch_index (_type_, optional): Index in OpenSearch where metadata will be stored. Defaults to OpensearchSettings().default_index.
+        """
+        :param dag (DAG): The DAG to which the operator belongs.
+        :param name (str, optional): The name of the operator. Defaults to "clear-validation-results".
+        :param static_results_dir (str, optional): directory inside the bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
+            associated bucket name from the project will be taken from the project form.
+        :param validation_tag (str, optional): Base tag used to store validation results on OpenSearch (default: "00111001").
+        :param opensearch_index (_type_, optional): Index in OpenSearch where metadata will be stored. Defaults to OpensearchSettings().default_index.
         """
 
         env_vars = {}

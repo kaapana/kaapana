@@ -131,6 +131,15 @@ Pdf2DcmOperator
    :undoc-members:
    :show-inheritance:
 
+DcmValidatorOperator
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: kaapana.operators.DcmValidatorOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
 File-based operators
 ---------------------------
 
@@ -197,23 +206,32 @@ ResampleOperator
    :undoc-members:
    :show-inheritance:
 
+
+ConnectedComponentAnalysisOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: kaapana.operators.ConnectedComponentAnalysisOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Opensearch operators
 ----------------------
 
 Utilize the following operators to establish communication with Opensearch and effectively manage metadata information.
 
-LocalDeleteFromMetaOperator
+DeleteFromMetaOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: kaapana.operators.LocalDeleteFromMetaOperator
+.. automodule:: kaapana.operators.DeleteFromMetaOperator
    :members:
    :undoc-members:
    :show-inheritance:
 
-LocalJson2MetaOperator
+Json2MetaOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: kaapana.operators.LocalJson2MetaOperator
+.. automodule:: kaapana.operators.Json2MetaOperator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -271,6 +289,14 @@ LocalServiceSyncDagsDbOperator
    :undoc-members:
    :show-inheritance:
 
+LocalSanitizeProjectAndDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: kaapana.operators.LocalSanitizeProjectAndDatasetOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Store operators (MinIO and PACS)
 -------------------------------------
 
@@ -285,10 +311,10 @@ DcmSendOperator
    :undoc-members:
    :show-inheritance:
 
-LocalDeleteFromPacsOperator
+DeleteFromPacsOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: kaapana.operators.LocalDeleteFromPacsOperator
+.. automodule:: kaapana.operators.DeleteFromPacsOperator
    :members:
    :undoc-members:
    :show-inheritance: 
@@ -301,18 +327,18 @@ LocalDicomSendOperator
    :undoc-members:
    :show-inheritance:
 
-LocalGetRefSeriesOperator
+GetRefSeriesOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: kaapana.operators.LocalGetRefSeriesOperator
+.. automodule:: kaapana.operators.GetRefSeriesOperator
    :members:
    :undoc-members:
    :show-inheritance:
 
-LocalMinioOperator
+MinioOperator
 ^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: kaapana.operators.LocalMinioOperator
+.. automodule:: kaapana.operators.MinioOperator
    :members:
    :undoc-members:
    :show-inheritance: 
@@ -321,6 +347,28 @@ LocalTaggingOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: kaapana.operators.LocalTaggingOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Project operators
+---------------------------
+
+These Operators can be used to utilize the project feature within the Kaapana Platform and
+Group the dataset under different projects.
+
+LocalAssignDataToProjectOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: kaapana.operators.LocalAssignDataToProjectOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+LocalSanitizeProjectAndDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: kaapana.operators.LocalSanitizeProjectAndDatasetOperator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -335,6 +383,22 @@ LocalDagTriggerOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: kaapana.operators.LocalDagTriggerOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ClearValidationResultOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: kaapana.operators.ClearValidationResultOperator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+JupyterlabReportingOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: kaapana.operators.JupyterlabReportingOperator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -360,10 +424,10 @@ GetZenodoModelOperator
    :undoc-members:
    :show-inheritance:
 
-LocalGetInputDataOperator
+GetInputOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: kaapana.operators.LocalGetInputDataOperator
+.. automodule:: kaapana.operators.GetInputOperator
    :members:
    :undoc-members:
    :show-inheritance:

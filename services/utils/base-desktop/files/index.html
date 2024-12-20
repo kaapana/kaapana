@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kaapana Desktop</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #3b3b3b;
+        }
+
+        #novncFrame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        #loadingMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.5em;
+            text-align: center;
+        }
+        #loadingMessage img {
+            width: 100px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            animation: wiggle 1.5s ease-in-out infinite;
+        }
+
+        #loadingMessage p {
+            margin-top: 10px;
+            font-size: 1.2em;
+        }
+
+        @keyframes wiggle {
+            0%, 100% {
+                transform: translateX(0) rotate(0);
+            }
+            25% {
+                transform: translateX(-5px) rotate(-5deg);
+            }
+            50% {
+                transform: translateX(5px) rotate(5deg);
+            }
+            75% {
+                transform: translateX(-5px) rotate(-5deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loadingMessage">
+        <img src="./logo.png" alt="Loading logo" />
+        <p>Loading...</p>
+    </div>
+    <iframe id="novncFrame"></iframe>
+
+    <script>
+        let novncState = 'stopped';
+
+        let timerState = null;
+        let errorMessage = '';
+        let stateErrorCount = 0;
+        let resized = false;
+        const baseURL = window.location.origin + window.location.pathname.replace(/\/$/, '');
+
+        async function setResolution(width, height) {
+            try {
+                const params = new URLSearchParams({ width: width, height: height }).toString();
+                const response = await fetch(`${baseURL}/api/resize?${params}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    errorMessage = 'Service is unavailable';
+                    throw new Error(errorMessage);
+                }
+            } catch (error) {
+                console.error('Error setting resolution:', error);
+                return { code: 500 };
+            }
+        }
+
+
+        async function updateStatus() {
+            const novncFrame = document.getElementById('novncFrame');
+            const widh = novncFrame.clientWidth;
+            const height = novncFrame.clientHeight;
+
+            try {
+                if (!resized) {
+                    await setResolution(widh, height);
+                    resized = true
+                }
+
+                if (novncState === 'stopped') {
+                    reconnect(false);
+                }
+
+                scheduleNextUpdateStatus();
+            } catch (error) {
+                stateErrorCount += 1;
+                if (stateErrorCount > 10) {
+                    errorMessage = 'Service is unavailable';
+                } else {
+                    scheduleNextUpdateStatus();
+                }
+            }
+        }
+
+        function scheduleNextUpdateStatus(afterMseconds = 1000) {
+            if (timerState !== null) {
+                return;
+            }
+            timerState = setTimeout(() => {
+                timerState = null;
+                updateStatus();
+            }, afterMseconds);
+        }
+
+        function reconnect(force = false) {
+            console.log('connecting...');
+            errorMessage = '';
+            const novncFrame = document.getElementById('novncFrame');
+            let websockifyPath = location.pathname.substr(1) + 'websockify';
+            const hostname = window.location.hostname;
+            let port = window.location.port || (window.location.protocol === 'https:' ? 443 : 80);
+            let url = `vnc.html?autoconnect=1&host=${hostname}&port=${port}&path=${websockifyPath}&title=novnc&logging=warn`;
+
+            if (force || novncState === 'stopped') {
+                novncState = 'connecting';
+                novncFrame.setAttribute('src', url);
+            }
+        }
+        function onMessage(event) {
+            try {
+                const message = event.data;
+
+                if (typeof message === 'string' && isJsonString(message)) {
+                    const data = JSON.parse(message);
+
+                    if (data.from === 'novnc') {
+                        if (data.state) {
+                            novncState = data.state;
+                        }
+                    }
+                } else {
+                    console.warn('Non-JSON message received:', message);
+                }
+            } catch (exc) {
+                console.error('Message parsing error:', exc);
+            }
+        }
+
+        function isJsonString(str) {
+            try {
+                JSON.parse(str);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        window.addEventListener('message', onMessage, false);
+
+        window.addEventListener('load', () => {
+            const novncFrame = document.getElementById('novncFrame');
+            const loadingMessage = document.getElementById('loadingMessage');
+
+            novncFrame.addEventListener('load', () => {
+                loadingMessage.style.display = 'none';
+                novncFrame.style.display = 'block';
+            });
+
+            updateStatus();
+        });
+
+    </script>
+
+</body>
+
+</html>

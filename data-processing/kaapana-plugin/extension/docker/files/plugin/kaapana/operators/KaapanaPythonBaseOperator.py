@@ -1,45 +1,9 @@
-import os
-import glob
-import functools
 from datetime import timedelta
 
 from airflow.operators.python import PythonOperator
 from airflow.models.skipmixin import SkipMixin
+from kaapana.operators import HelperSendEmailService
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
-from kaapana.blueprints.kaapana_global_variables import (
-    DEFAULT_REGISTRY,
-    KAAPANA_BUILD_VERSION,
-)
-
-
-def rest_self_udpate(func):
-    """
-    Every operator which should be adjustable from an api call should add this as an decorator above the python_callable:
-    @rest_self_udpate
-    """
-
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if (
-            kwargs["dag_run"] is not None
-            and kwargs["dag_run"].conf is not None
-            and "rest_call" in kwargs["dag_run"].conf
-            and kwargs["dag_run"].conf["rest_call"] is not None
-        ):
-            payload = kwargs["dag_run"].conf["rest_call"]
-            operator_conf = {}
-            if "operators" in payload and self.name in payload["operators"]:
-                operator_conf.update(payload["operators"][self.name])
-            if "global" in payload:
-                operator_conf.update(payload["global"])
-
-            for k, v in operator_conf.items():
-                if k in self.__dict__.keys():
-                    self.__dict__[k] = v
-
-        return func(self, *args, **kwargs)
-
-    return wrapper
 
 
 class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
@@ -117,6 +81,7 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
             execution_timeout=execution_timeout,
             executor_config=self.executor_config,
             on_success_callback=KaapanaBaseOperator.on_success,
+            on_failure_callback=KaapanaPythonBaseOperator.on_failure,
             pool=self.pool,
             pool_slots=self.pool_slots,
             **kwargs
@@ -124,3 +89,11 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
 
     def post_execute(self, context, result=None):
         pass
+
+    @staticmethod
+    def on_failure(context):
+        send_email_on_workflow_failure = context["dag_run"].dag.default_args.get(
+            "send_email_on_workflow_failure", False
+        )
+        if send_email_on_workflow_failure:
+            HelperSendEmailService.handle_task_failure_alert(context)

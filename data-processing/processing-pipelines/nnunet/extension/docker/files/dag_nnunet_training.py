@@ -3,18 +3,25 @@ from datetime import datetime, timedelta
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Pdf2DcmOperator import Pdf2DcmOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from airflow.api.common.experimental import pool as pool_api
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.SegCheckOperator import SegCheckOperator
-from nnunet.NnUnetNotebookOperator import NnUnetNotebookOperator
+
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
+from kaapana.operators.LocalModifySegLabelNamesOperator import (
+    LocalModifySegLabelNamesOperator,
+)
+from kaapana.operators.LocalFilterMasksOperator import LocalFilterMasksOperator
+from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
+
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
 from airflow.utils.trigger_rule import TriggerRule
@@ -27,10 +34,11 @@ from kaapana.blueprints.kaapana_global_variables import (
 
 study_id = "Kaapana"
 TASK_NAME = f"Task{random.randint(100,999):03}_{INSTANCE_NAME}_{datetime.now().strftime('%d%m%y-%H%M')}"
-seg_filter = ""
+label_filter = ""
 prep_modalities = "CT"
-default_model = "3d_lowres"
-train_network_trainer = "nnUNetTrainerV2"
+default_model = "3d_fullres"
+plan_network_planner = "nnUNetPlannerResEncM"
+train_network_trainer = "nnUNetTrainer"
 ae_title = "nnUnet-training-results"
 max_epochs = 1000
 num_batches_per_epoch = 250
@@ -38,6 +46,9 @@ num_val_batches_per_epoch = 50
 dicom_model_slice_size_limit = 70
 training_results_study_uid = None
 prep_threads = 2
+initial_learning_rate = 1e-2
+weight_decay = 3e-5
+oversample_foreground_percent = 0.33
 
 print(f"### nnunet-training GPU_COUNT {GPU_COUNT}")
 max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1
@@ -94,12 +105,31 @@ ui_forms = {
                 "readOnly": False,
                 "required": True,
             },
+            "plan_network_planner": {
+                "title": "Network-planner",
+                "default": plan_network_planner,
+                "description": "nnUNetPlannerResEncM, nnUNetPlannerResEncL, nnUNetPlannerResEncXL, nnUNetPlanner",
+                "enum": [
+                    "nnUNetPlannerResEncM",
+                    "nnUNetPlannerResEncL",
+                    "nnUNetPlannerResEncXL",
+                    "ExperimentPlanner",
+                ],
+                "type": "string",
+                "readOnly": False,
+                "required": True,
+            },
             "train_network_trainer": {
                 "title": "Network-trainer",
                 "default": train_network_trainer,
-                "description": "nnUNetTrainerV2 or nnUNetTrainerV2CascadeFullRes",
+                "description": "nnUNetTrainer, nnUNetTrainerCELoss, ... (add more nnUNetTrainer variants (https://github.com/MIC-DKFZ/nnUNet/tree/master/nnunetv2/training/nnUNetTrainer/variants))",
+                "enum": [
+                    "nnUNetTrainer",
+                    "nnUNetTrainerCELoss",
+                ],
                 "type": "string",
                 "readOnly": False,
+                "required": True,
             },
             "prep_modalities": {
                 "title": "Modalities",
@@ -108,10 +138,34 @@ ui_forms = {
                 "type": "string",
                 "readOnly": False,
             },
-            "seg_filter": {
-                "title": "Seg",
-                "default": seg_filter,
-                "description": "Select organ for multi-label DICOM SEGs: eg 'liver' or 'spleen,liver'",
+            "label_filter": {
+                "title": "Filter Seg Masks with keyword 'Ignore' or 'Keep'",
+                "default": label_filter,
+                "description": "'Ignore' or 'Keep' labels of multi-label DICOM SEGs for segmentation task: e.g. 'Keep: liver' or 'Ignore: spleen,liver'",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fuse_labels": {
+                "title": "Fuse Segmentation Labels",
+                "description": "Segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "fused_label_name": {
+                "title": "Fuse Segmentation Label: New Label Name",
+                "description": "Segmentation label name of segmentation label maps which should be fused (all special characters are removed).",
+                "type": "string",
+                "readOnly": False,
+            },
+            "old_labels": {
+                "title": "Rename Label Names: Old Labels",
+                "description": "Old segmentation label names which should be overwritten (all special characters are removed); SAME ORDER AS NEW LABEL NAMES REQUIRED!!!",
+                "type": "string",
+                "readOnly": False,
+            },
+            "new_labels": {
+                "title": "Rename Label Names: New Labels",
+                "description": "New segmentation label names which should overwrite the old segmentation label names (all special characters are removed); SAME ORDER AS OLD LABEL NAMES REQUIRED!!!",
                 "type": "string",
                 "readOnly": False,
             },
@@ -139,14 +193,7 @@ ui_forms = {
             "training_description": {
                 "title": "Training description",
                 "default": "nnUnet Segmentation",
-                "description": "Specify a version.",
-                "type": "string",
-                "readOnly": False,
-            },
-            "body_part": {
-                "title": "Body Part",
-                "description": "Body part, which needs to be present in the image.",
-                "default": "N/A",
+                "description": "Specify a training description.",
                 "type": "string",
                 "readOnly": False,
             },
@@ -159,7 +206,7 @@ ui_forms = {
                 "readOnly": False,
             },
             "num_batches_per_epoch": {
-                "title": "Batches per epoch",
+                "title": "Training batches per epoch",
                 "default": num_batches_per_epoch,
                 "description": "Do only change if you know what you are doing!.",
                 "type": "integer",
@@ -171,14 +218,35 @@ ui_forms = {
                 "default": num_val_batches_per_epoch,
                 "description": "Do only change if you know what you are doing!.",
                 "type": "integer",
-                "required": True,
                 "readOnly": False,
             },
-            "fp32": {
+            "initial_learning_rate": {
+                "title": "Initial learning rate",
+                "default": initial_learning_rate,
+                "description": "Do only change if you know what you are doing! Learning rate to start training.",
+                "type": "integer",
+                "readOnly": False,
+            },
+            "weight_decay": {
+                "title": "Weight decaying value",
+                "default": weight_decay,
+                "description": "Do only change if you know what you are doing! Weight decaying value to start training.",
+                "type": "integer",
+                "readOnly": False,
+            },
+            "oversample_foreground_percent": {
+                "title": "Oversample foreground percentage",
+                "default": oversample_foreground_percent,
+                "description": "Do only change if you know what you are doing! Percentage of foreground samples being oversampled.",
+                "type": "integer",
+                "readOnly": False,
+            },
+            "enable_deep_supervision": {
                 "type": "boolean",
-                "title": "FP32",
-                "default": False,
-                "description": "Disable mixed precision training and run old school fp32",
+                "title": "Enable deep supervision",
+                "description": "Do only change if you know what you are doing! Enables deep supervision during training.",
+                "default": True,
+                "readOnly": False,
             },
             "prep_preprocess": {
                 "type": "boolean",
@@ -188,24 +256,16 @@ ui_forms = {
             },
             "prep_check_integrity": {
                 "type": "boolean",
-                "title": "Check integrity",
+                "title": "Check data integrity.",
                 "default": True,
-                "description": "Whether to check integrity of data",
+                "description": "Recommended! Integrity of data is checked.",
             },
-            # "version": {
-            #     "title": "Version",
-            #     "default": "0.0.1-alpha",
-            #     "description": "Specify a version.",
-            #     "type": "string",
-            #     "readOnly": False,
-            # },
-            # "training_reference": {
-            #     "title": "Training reference",
-            #     "default": "nnUNet",
-            #     "description": "Set a reference.",
-            #     "type": "string",
-            #     "readOnly": False,
-            # },
+            "disable_checkpointing": {
+                "type": "boolean",
+                "title": "Disable checkpointing",
+                "default": True,
+                "description": "Disable intermediate checkpointing after 50 epochs. The final checkpoint after the end of the training (after each federated communication round) is always saved.",
+            },
             "input": {
                 "title": "Input Modality",
                 "default": "SEG,RTSTRUCT",
@@ -247,20 +307,42 @@ get_input = LocalGetInputDataOperator(
 )
 
 
-get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
+get_ref_ct_series_from_seg = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
-    modality=None,
 )
 
 dcm2nifti_seg = Mask2nifitiOperator(
     dag=dag,
     input_operator=get_input,
     dicom_operator=get_ref_ct_series_from_seg,
-    seg_filter=seg_filter,
+)
+
+mask_filter = LocalFilterMasksOperator(
+    dag=dag,
+    name="filter-masks",
+    input_operator=dcm2nifti_seg,
+)
+
+fuse_masks = MergeMasksOperator(
+    dag=dag,
+    name="fuse-masks",
+    input_operator=mask_filter,
+    mode="fuse",
+    trigger_rule="all_done",
+)
+
+modify_seg_label_names = LocalModifySegLabelNamesOperator(
+    dag=dag,
+    input_operator=fuse_masks,
+    metainfo_input_operator=fuse_masks,
+    results_to_in_dir=False,
+    write_seginfo_results=False,
+    write_metainfo_results=True,
+    trigger_rule="all_done",
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -269,7 +351,7 @@ dcm2nifti_ct = DcmConverterOperator(
 
 check_seg = SegCheckOperator(
     dag=dag,
-    input_operator=dcm2nifti_seg,
+    input_operator=modify_seg_label_names,
     original_img_operator=dcm2nifti_ct,
     parallel_processes=3,
     delete_merged_data=True,
@@ -277,6 +359,7 @@ check_seg = SegCheckOperator(
     fail_if_label_already_present=False,
     fail_if_label_id_not_extractable=False,
     force_same_labels=False,
+    max_overlap_percentage=0.003,
 )
 
 nnunet_preprocess = NnUnetOperator(
@@ -284,6 +367,7 @@ nnunet_preprocess = NnUnetOperator(
     mode="preprocess",
     input_modality_operators=[dcm2nifti_ct],
     prep_label_operators=[check_seg],
+    plan_network_planner=plan_network_planner,
     prep_use_nifti_labels=False,
     prep_modalities=prep_modalities.split(","),
     prep_processes_low=prep_threads + 1,
@@ -295,9 +379,9 @@ nnunet_preprocess = NnUnetOperator(
     retries=0,
     instance_name=INSTANCE_NAME,
     allow_federated_learning=True,
-    whitelist_federated_learning=["dataset_properties.pkl", "intensityproperties.pkl"],
+    whitelist_federated_learning=["dataset_fingerprint.json", "dataset.json"],
     trigger_rule=TriggerRule.NONE_FAILED,
-    dev_server=None,  #'code-server'
+    dev_server=None,  # None,  # "code-server"
 )
 
 nnunet_train = NnUnetOperator(
@@ -307,35 +391,46 @@ nnunet_train = NnUnetOperator(
     input_operator=nnunet_preprocess,
     model=default_model,
     allow_federated_learning=True,
+    plan_network_planner=plan_network_planner,
     train_network_trainer=train_network_trainer,
     train_fold="all",
-    dev_server=None,
+    dev_server=None,  # None,  # "code-server"
     retries=0,
 )
 
-generate_nnunet_report = NnUnetNotebookOperator(
+get_notebooks_from_minio = MinioOperator(
+    dag=dag,
+    name="nnunet-get-notebook-from-minio",
+    bucket_name="template-analysis-scripts",
+    action="get",
+    source_files=["run_generate_nnunet_report.ipynb"],
+)
+
+generate_nnunet_report = JupyterlabReportingOperator(
     dag=dag,
     name="generate-nnunet-report",
     input_operator=nnunet_train,
-    arguments=["/kaapana/app/notebooks/nnunet_training/run_generate_nnunet_report.sh"],
+    notebook_filename="run_generate_nnunet_report.ipynb",
+    notebook_dir=get_notebooks_from_minio.operator_out_dir,
+    output_format="html,pdf",
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     name="upload-nnunet-data",
     zip_files=True,
     action="put",
-    action_operators=[nnunet_train, generate_nnunet_report],
-    file_white_tuples=(".zip"),
+    none_batch_input_operators=[nnunet_train, generate_nnunet_report],
+    whitelisted_file_extensions=[".zip"],
 )
 
-put_report_to_minio = LocalMinioOperator(
+put_report_to_minio = MinioOperator(
     dag=dag,
     name="upload-staticwebsiteresults",
     bucket_name="staticwebsiteresults",
     action="put",
-    action_operators=[generate_nnunet_report],
-    file_white_tuples=(".html", ".pdf"),
+    none_batch_input_operators=[generate_nnunet_report],
+    whitelisted_file_extensions=(".html", ".pdf"),
 )
 
 pdf2dcm = Pdf2DcmOperator(
@@ -357,8 +452,8 @@ dcmseg_send_pdf = DcmSendOperator(
 zip_model = ZipUnzipOperator(
     dag=dag,
     target_filename=f"nnunet_model.zip",
-    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*.json,*.png,*.pdf",
-    subdir="results/nnUNet",
+    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*.pth,*.json,*.png,*.pdf",
+    subdir="results",
     mode="zip",
     batch_level=True,
     input_operator=nnunet_train,
@@ -392,7 +487,15 @@ dcm_send_int = DcmSendOperator(
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> check_seg
+(
+    get_input
+    >> get_ref_ct_series_from_seg
+    >> dcm2nifti_seg
+    >> mask_filter
+    >> fuse_masks
+    >> modify_seg_label_names
+    >> check_seg
+)
 (
     get_input
     >> get_ref_ct_series_from_seg
@@ -404,6 +507,7 @@ get_input >> get_ref_ct_series_from_seg >> dcm2nifti_seg >> check_seg
 
 (
     nnunet_train
+    >> get_notebooks_from_minio
     >> generate_nnunet_report
     >> put_to_minio
     >> put_report_to_minio

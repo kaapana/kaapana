@@ -57,7 +57,9 @@ def convert_dcmseg(
     to_remove_indexes = []
     for idx, segment in enumerate(meta_data["segmentAttributes"]):
         segment_info = segment[0]
-        segment_label = segment_info["SegmentLabel"].lower()
+        segment_label = (
+            segment_info["SegmentLabel"].lower().replace(",", "").replace(" ", "")
+        )
         logger.info(f"SEG-INFO: {segment_label} -> Label: {segment_info['labelID']}")
         if (
             seg_filter is None

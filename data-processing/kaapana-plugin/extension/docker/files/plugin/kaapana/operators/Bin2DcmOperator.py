@@ -21,13 +21,14 @@ class Bin2DcmOperator(KaapanaBaseOperator):
     **Inputs:**
 
     * The input_operator
-    * When decoding: file_extension *.dcm
-    + When encoding: file_extensions, size_limit and additional encoded string parameters
+    * When decoding: file_extension \*.dcm
+    * When encoding: file_extensions, size_limit and additional encoded string parameters
 
     **Outputs:**
 
     * When encoding: DICOM files
     * When decoding: binary file (e.g. zip-file)
+
     """
 
     execution_timeout = timedelta(minutes=10)
@@ -99,9 +100,11 @@ class Bin2DcmOperator(KaapanaBaseOperator):
             "SOP_CLASS_UID": str(sop_class_uid),
             "SIZE_LIMIT_MB": str(size_limit),
             "EXTENSIONS": file_extensions,
-            "DICOM_IN_DIR": str(dicom_operator.operator_out_dir)
-            if dicom_operator is not None
-            else str(None),
+            "DICOM_IN_DIR": (
+                str(dicom_operator.operator_out_dir)
+                if dicom_operator is not None
+                else str(None)
+            ),
         }
         env_vars.update(envs)
 

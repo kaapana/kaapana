@@ -3,4 +3,6 @@ export const LOGIN = 'login'
 export const LOGOUT = 'logout'
 export const CHECK_AVAILABLE_WEBSITES = 'check_available_websites'
 export const LOAD_COMMON_DATA = 'load_common_data'
-
+export const GET_POLICY_DATA = 'get_policy_data'
+export const GET_SELECTED_PROJECT = 'get_selected_project'
+export const UPDATE_SELECTED_PROJECT = 'update_selected_project'

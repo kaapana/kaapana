@@ -1,5 +1,5 @@
-FROM docker.io/prom/node-exporter:v1.5.0
+FROM docker.io/prom/node-exporter:v1.8.2
 
 LABEL IMAGE="node-exporter"
-LABEL VERSION="v1.5.0"
-LABEL CI_IGNORE="False"
+LABEL VERSION="v1.8.2"
+LABEL BUILD_IGNORE="False"

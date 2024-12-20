@@ -1,5 +1,6 @@
 import Vue from "vue";
 import httpClient from "./httpClient";
+import store from '../store/index';
 
 const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT;
 
@@ -98,10 +99,31 @@ const loadSeriesData = async (seriesInstanceUID) => {
   }
 };
 
+
 const loadPatients = async (data) => {
   try {
     const res = await httpClient.post(
       KAAPANA_BACKEND_ENDPOINT + "dataset/series",
+      data
+    );
+    return res.data;
+  } catch (error) {
+    Vue.notify({
+      title: "Error",
+      text:
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : error,
+      type: "error",
+    });
+    throw error;
+  }
+};
+
+const getAggregatedSeriesNum = async (data) => {
+  try {
+    const res = await httpClient.post(
+      KAAPANA_BACKEND_ENDPOINT + "dataset/aggregatedSeriesNum",
       data
     );
     return res.data;
@@ -163,11 +185,12 @@ const updateTags = async (data) => {
   // TODO: ideally this should return the new tags which are then assigned
 };
 
-const loadDashboard = async (seriesInstanceUIDs, fields) => {
+const loadDashboard = async (seriesInstanceUIDs, fields, query = {}) => {
   return (
     await httpClient.post(KAAPANA_BACKEND_ENDPOINT + "dataset/dashboard", {
       series_instance_uids: seriesInstanceUIDs,
       names: fields,
+      query: query
     })
   ).data;
 };
@@ -175,6 +198,27 @@ const loadDashboard = async (seriesInstanceUIDs, fields) => {
 const loadDicomTagMapping = async () => {
   return (await httpClient.get(KAAPANA_BACKEND_ENDPOINT + "dataset/fields"))
     .data;
+};
+
+const fetchProjects = async () => {
+  const currentUser = store.getters.currentUser
+  try {
+    if (currentUser.roles.includes("admin")) {
+      return (await httpClient.get("/aii/projects")).data;
+    } else {
+      return (await httpClient.get("/aii/users/" + currentUser.id + "/projects")).data
+    }
+    
+  } catch (error) {
+    Vue.notify({
+      title: "Error",
+      text:
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : error,
+      type: "error",
+    });
+  }
 };
 
 export {
@@ -190,4 +234,6 @@ export {
   loadDicomTagMapping,
   loadFieldNames,
   loadValues,
+  getAggregatedSeriesNum,
+  fetchProjects,
 };

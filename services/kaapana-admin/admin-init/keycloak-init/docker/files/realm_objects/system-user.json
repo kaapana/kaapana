@@ -1,0 +1,12 @@
+{
+    "username" : "system",
+    "enabled" : true,
+    "emailVerified" : false,
+    "firstName" : "System",
+    "lastName" : "User",
+    "email" : "user@system.kaapana",
+    "attributes" : { "policy": ["consoleAdmin"]
+      },
+    "requiredActions" : [ ],
+    "groups": ["kaapana_admin"]
+  }

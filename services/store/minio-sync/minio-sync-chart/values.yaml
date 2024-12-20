@@ -1,0 +1,78 @@
+---
+global:
+  # extension_params
+  host_directory: ""
+  minio_path: ""
+  sync_strategy: ""
+  uid: ""
+  gid: ""
+
+extension_params:
+  doc:
+    type: "doc"
+    title: "Sync files from the filesytem to MINIO"
+    html: >
+      This service will constantly sync the host directory located directly on the server with a folder inside a MINIO bucket following a sync strategy.
+      <br/>
+      The following strategies are available:
+      <br/>
+      <ul>
+          <li><b>Bidirectional</b>: Syncs files from the host to minio and back</li>
+          <li><b>Host2Minio</b>: Syncs files undirectional form host into minio</li>
+          <li><b>Minio2Host</b>: Syncs files undirectional from MINIO to the host</li>
+      </ul>
+
+  separator_configuration:
+    type: "doc"
+    title: "Configuration"
+
+  host_directory:
+    definition: "Host Directory inside $FAST_DATA_DIR"
+    help: >
+      <h1>Host Directory</h1><br/>
+      <p>A subdirectory of $FAST_DATA_DIR on the machine Kaapana is running on (e.g. /minio-sync referes to $FAST_DAT_DIR/minio-sync)</p>
+    type: "string"
+    value: "/minio-sync"
+    default: "/minio-sync"
+
+  minio_path:
+    definition: "MINIO Path"
+    help: >
+      <h1>MINIO Path</h1><br/>
+      <p>Path to sync within minio<br/>
+      <b>Note:</b>The first component of the path is considered the bucket (e.g. bucket-name/path/in/bucket)
+      </p>
+    type: "string"
+    value: ""
+    default: "uploads/minio-sync"
+
+  sync_strategy:
+    definition: "Sync Strategy"
+    type: "list_single"
+    help: >
+      Defines the semantics of the sync:
+      <ul>
+          <li><b>Bidirectional</b>: Syncs files from the host to minio and back</li>
+          <li><b>Host2Minio</b>: Syncs files undirectional form host into minio</li>
+          <li><b>Minio2Host</b>: Syncs files undirectional from MINIO to the host</li>
+      </ul>
+    value: ["Host2Minio", "Minio2Host", "Bidirectional"]
+    default: "Bidirectional"
+
+  uid:
+    definition: "User ID"
+    help: >
+      <h1>User ID</h1><br/>
+      <p>The id of the user owning the host directory.</p>
+    type: "string"
+    value: ""
+    default: "1000"
+  
+  gid:
+    definition: "Group ID"
+    help: >
+      <h1>Group ID</h1><br/>
+      <p>The id of the group owning the host directory.</p>
+    type: "string"
+    value: ""
+    default: "1000"

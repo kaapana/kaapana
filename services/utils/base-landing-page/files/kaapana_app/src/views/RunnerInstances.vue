@@ -1,5 +1,6 @@
 <template>
   <v-container text-left fluid>
+    <IdleTracker />
     <v-row>
       <v-col cols="12">
         <v-card>
@@ -13,17 +14,9 @@
           <v-card-text>
             <v-container fluid="">
               <v-row dense="">
-                <v-col 
-                  v-for="instance in remoteInstances" 
-                  :key="instance.id"
-                  cols="6"
-                  align="left"
-                >
+                <v-col v-for="instance in remoteInstances" :key="instance.id" cols="6" align="left">
                   <!-- former old KaapanaInstance-->
-                  <KaapanaInstance 
-                    :instance="instance"
-                    @refreshView="getKaapanaInstances()" 
-                  ></KaapanaInstance>
+                  <KaapanaInstance :instance="instance" @refreshView="getKaapanaInstances()"></KaapanaInstance>
                 </v-col>
               </v-row>
             </v-container>
@@ -34,64 +27,63 @@
     </v-row>
   </v-container>
 </template>
-  
-  <script>
-  import Vue from "vue";
-  import kaapanaApiService from "@/common/kaapanaApi.service";
 
-  import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
-  import KaapanaInstance  from "@/components/KaapanaInstance.vue";
+<script>
+import Vue from "vue";
+import kaapanaApiService from "@/common/kaapanaApi.service";
 
-  export default Vue.extend({
-    components: {
-      AddRemoteInstance,
-      KaapanaInstance,
-    },
-    data: () => ({
-      polling: 0,
-      remoteInstances: {},
-    }),
+import AddRemoteInstance from "@/components/AddRemoteInstance.vue";
+import KaapanaInstance from "@/components/KaapanaInstance.vue";
+import IdleTracker from "@/components/IdleTracker.vue";
 
-    mounted () {
-      this.getKaapanaInstances();
-      this.startExtensionsInterval()
-    },
+export default Vue.extend({
+  components: {
+    AddRemoteInstance,
+    KaapanaInstance,
+    IdleTracker,
+  },
+  data: () => ({
+    polling: 0,
+    remoteInstances: {},
+  }),
 
-    methods: {
-      // API calls
-      getKaapanaInstances() {
-        kaapanaApiService
-          .federatedClientApiPost("/get-kaapana-instances")
-          .then((response) => {
-            this.remoteInstances = response.data;
-          })
-          .catch((err) => {
-            console.log(err);
-          });
-      },
-      checkForRemoteUpdates() {
-        kaapanaApiService.syncRemoteInstances().then(successful => {
-          this.getKaapanaInstances()
+  mounted() {
+    this.getKaapanaInstances();
+    this.startExtensionsInterval()
+  },
+
+  methods: {
+    // API calls
+    getKaapanaInstances() {
+      kaapanaApiService
+        .federatedClientApiPost("/get-kaapana-instances")
+        .then((response) => {
+          this.remoteInstances = response.data;
         })
-      },
-      clearExtensionsInterval() {
-        window.clearInterval(this.polling);
-      },
-      startExtensionsInterval() {
-        this.polling = window.setInterval(() => {
-          // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
-          // if (!this.$refs.workflowexecution.dialogOpen) {
-          this.getKaapanaInstances();
-          // }
-        }, 15000);
-      }
+        .catch((err) => {
+          console.log(err);
+        });
     },
-    beforeDestroy() {
-      this.clearExtensionsInterval()
+    checkForRemoteUpdates() {
+      kaapanaApiService.syncRemoteInstances().then(successful => {
+        this.getKaapanaInstances()
+      })
     },
-  });
+    clearExtensionsInterval() {
+      window.clearInterval(this.polling);
+    },
+    startExtensionsInterval() {
+      this.polling = window.setInterval(() => {
+        // a little bit ugly... https://stackoverflow.com/questions/40410332/vuejs-access-child-components-data-from-parent
+        // if (!this.$refs.workflowexecution.dialogOpen) {
+        this.getKaapanaInstances();
+        // }
+      }, 15000);
+    }
+  },
+  beforeDestroy() {
+    this.clearExtensionsInterval()
+  },
+});
 </script>
-  <style lang="scss">
-  
-  </style>
-  
+<style lang="scss"></style>

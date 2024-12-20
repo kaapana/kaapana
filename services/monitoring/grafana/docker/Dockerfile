@@ -1,5 +1,5 @@
-FROM docker.io/grafana/grafana:9.4.7
+FROM docker.io/grafana/grafana:11.3.1
 
 LABEL IMAGE="grafana"
-LABEL VERSION="8.4.7"
-LABEL CI_IGNORE="False"
+LABEL VERSION="11.3.1"
+LABEL BUILD_IGNORE="False"

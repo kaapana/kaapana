@@ -8,15 +8,18 @@ import hashlib
 
 import yaml
 import secrets
-import json
 
 from typing import Tuple
 from fastapi import Response
-from fastapi.logger import logger
 
 from config import settings
 import schemas
 import helm_helper
+import logging
+from logger import get_logger
+
+logger = get_logger(__name__)
+logger.warning("inside utils")
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -253,7 +256,7 @@ def helm_install(
     blocking=True,
     platforms=False,
     execute_cmd=True,
-) -> Tuple[bool, str, dict, str]:
+) -> Tuple[bool, str, dict, str, str]:
     # TODO: must be shell=False as default
     """
 
@@ -326,9 +329,13 @@ def helm_install(
             if isinstance(value, str) and value != "":
                 default_sets.update({f"global.{key}": value})
             elif isinstance(value, list) and value:
-                for idx, sub_dict in enumerate(value):
-                    for k, v in sub_dict.items():
-                        default_sets[f"global.{key}[{idx}].{k}"] = v
+                for idx, obj in enumerate(value):
+                    if isinstance(obj, dict):
+                        # more keys to be parsed since this is a sub-dictionary
+                        for k, v in obj.items():
+                            default_sets[f"global.{key}[{idx}].{k}"] = v
+                    else:
+                        default_sets[f"global.{key}[{idx}]"] = obj
 
     if "sets" not in payload:
         payload["sets"] = default_sets
@@ -340,7 +347,14 @@ def helm_install(
     if "release_name" in payload:
         release_name = payload["release_name"]
     elif "kaapanamultiinstallable" in keywords:
-        release_name = f"{name}-{secrets.token_hex(10)}"
+        # add suffix to a multiinstallable instance of extension if 'suffix_param_key' exists in values.yaml
+        suffix = secrets.token_hex(10)
+        suffix_param = default_sets.get("global.suffix_param_key")
+        if suffix_param is not None:
+            logger.info(f"suffix_param exists {suffix_param=}")
+            suffix = default_sets[f"global.{suffix_param}"][:20] # get first 20 chars
+        release_name = f"{name}-{suffix}"
+        logger.info(f"suffixed {release_name=}")
     else:
         release_name = name
 
@@ -416,9 +430,9 @@ def helm_install(
             logger.error(
                 f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}"
             )
-    timeout = 5
+    timeout = 15
     if platforms:
-        timeout = 15
+        timeout = 45  # plaforms usually take longer due to multiple sub-charts involved
     success, stdout = helm_helper.execute_shell_command(
         helm_command, shell=shell, blocking=blocking, timeout=timeout
     )

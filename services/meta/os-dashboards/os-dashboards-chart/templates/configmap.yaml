@@ -1,0 +1,61 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: os-dash-config
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  opensearch_dashboards.yml: |+
+    #OpenSearch Dashboards is served by a back end server. This setting specifies the port to use.
+    #server.port: 5601
+    #openid connect configuration.
+    opensearch_security.auth.type: "openid"
+    opensearch_security.openid.connect_url:  "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+    opensearch_security.openid.client_id: "kaapana"
+    opensearch_security.openid.client_secret: "{{ .Values.global.oidc_client_secret }}"
+    opensearch_security.openid.base_redirect_url: "https://{{  .Values.global.hostname  }}/meta"
+    opensearch_security.openid.verify_hostnames: false
+    opensearch_security.openid.root_ca: "/etc/certs/kaapana.pem"
+    opensearch.requestHeadersWhitelist: ["Authorization","securitytenant","x-forwarded-access-token"]
+    
+    # Specifies the address to which the OpenSearch Dashboards server will bind. IP addresses and host names are both valid values.
+    # The default is 'localhost', which usually means remote machines will not be able to connect.
+    # To allow connections from remote users, set this parameter to a non-loopback address.
+    server.host: "0.0.0.0"
+
+    # Enables you to specify a path to mount OpenSearch Dashboards at if you are running behind a proxy.
+    # Use the `server.rewriteBasePath` setting to tell OpenSearch Dashboards if it should remove the basePath
+    # from requests it receives, and to prevent a deprecation warning at startup.
+    # This setting cannot end in a slash.
+    server.basePath: "/meta"
+
+    # Specifies whether OpenSearch Dashboards should rewrite requests that are prefixed with
+    # `server.basePath` or require that they are rewritten by your reverse proxy.
+    server.rewriteBasePath: true
+
+    # The maximum payload size in bytes for incoming server requests.
+    #server.maxPayloadBytes: 1048576
+
+    # The OpenSearch Dashboards server's name.  This is used for display purposes.
+    server.name: "Meta"
+
+    # The URLs of the OpenSearch instances to use for all your queries.
+    opensearch.hosts: ["https://opensearch-service.{{  .Values.global.services_namespace  }}.svc:9200"]
+
+    # OpenSearch Dashboards uses an index in OpenSearch to store saved searches, visualizations and
+    # dashboards. OpenSearch Dashboards creates a new index if the index doesn't already exist.
+    opensearchDashboards.index: ".opensearch_dashboards"
+
+    # If your OpenSearch is protected with basic authentication, these settings provide
+    # the username and password that the OpenSearch Dashboards server uses to perform maintenance on the OpenSearch Dashboards
+    # index at startup. Your OpenSearch Dashboards users still need to authenticate with OpenSearch, which
+    # is proxied through the OpenSearch Dashboards server.
+    opensearch.username: kaapanaopensearch
+    opensearch.password: ${KAAPANA_KIBANASERVER_PASSWORD}
+
+    # To disregard the validity of SSL certificates, change this setting's value to 'none'.
+    opensearch.ssl.verificationMode: "certificate"
+    opensearch.ssl.certificateAuthorities: ["/etc/certs/kaapana.pem"]
+
+    opensearchDashboards.branding:
+      applicationTitle: "META"

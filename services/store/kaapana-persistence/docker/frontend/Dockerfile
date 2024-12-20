@@ -1,4 +1,4 @@
-FROM node:lts-alpine3.16 as build-stage
+FROM node:lts-alpine3.19 as build-stage
 
 WORKDIR /app
 COPY . ./
@@ -6,11 +6,11 @@ RUN yarn install
 
 LABEL IMAGE="kaapana-persistence-frontend"
 LABEL VERSION="0.0.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 RUN yarn build
 
-FROM nginx:1.19.3-alpine
+FROM nginx:1.25.4-alpine
 
 RUN mkdir /app
 COPY --from=build-stage /app/dist /app

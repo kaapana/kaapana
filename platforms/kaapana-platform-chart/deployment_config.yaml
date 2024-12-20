@@ -1,6 +1,6 @@
-offline_mode: 'false'
-prefetch_extensions: 'false'
-dev_mode: 'true'
+offline_mode: false
+prefetch_extensions: false
+dev_mode: true
 container_registry_url:
 container_registry_username:
 container_registry_password:
@@ -11,7 +11,6 @@ https_port: 443
 dicom_port: 11112
 services_namespace: "services"
 admin_namespace: "admin"
-jobs_namespace: "jobs"
 extensions_namespace: "extensions"
 helm_namespace: "services"
 mount_points_to_monitor: "/"

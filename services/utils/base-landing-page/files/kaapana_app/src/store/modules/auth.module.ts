@@ -54,7 +54,8 @@ const mutations = {
     state.isAuthenticated = true
     state.user = {
         username: jwt.preferredUsername,
-        role: jwt.groups.indexOf('role:admin') > -1 ? 'admin' : 'user',
+        roles: jwt.groups.filter((group: string) => group.startsWith('role:')).map((role: string) => role.slice('role:'.length)),
+        id: jwt.user
       }
     state.errors = {}
   },

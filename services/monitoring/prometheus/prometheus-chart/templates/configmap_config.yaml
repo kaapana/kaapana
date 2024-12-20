@@ -25,6 +25,16 @@ data:
         - targets: ['nvidia-dcgm-exporter.gpu-operator-resources.svc:9400']
     {{- end }}
 
+      - job_name: 'Kaapana Backend'
+        scheme: http
+        static_configs:
+        - targets: ['kaapana-backend-service.{{  .Values.global.services_namespace  }}.svc:5000']
+
+      - job_name: 'Kaapana Kube Helm Backend'
+        scheme: http
+        static_configs:
+        - targets: ['kube-helm-service.{{  .Values.global.admin_namespace  }}.svc:5000']
+
       - job_name: 'Kaapana Node Info'
         scheme: http
         scrape_interval: 60s
@@ -45,7 +55,7 @@ data:
         - targets: ['oauth2-proxy-service.{{  .Values.global.admin_namespace  }}.svc:8443']
         tls_config:
           insecure_skip_verify: true
-      
+
       - job_name: 'kube-state-metrics'
         scheme: http
         metrics_path: '/metrics'

@@ -3,10 +3,22 @@
 import json
 import pathlib
 import subprocess
+import argparse
 
+# parse --script-dir from deploy script
+parser = argparse.ArgumentParser(description="Helm GPU operator installation script")
+parser.add_argument(
+    "--script-dir",
+    required=True,
+    help="dir where gpu-operator.tgz chart is located",
+)
+args = parser.parse_args()
+
+# global vars
 chart_name = "gpu-operator"
-chart_version = "v22.9.2"
-chart_path = "/home/kaapana/installation-scripts/gpu-operator.tgz"
+chart_version = "v22.9.1"
+script_dir = pathlib.Path(args.script_dir)
+chart_path = script_dir / "gpu-operator.tgz"
 
 try:
     subprocess.check_call(["nvidia-smi", "-L"])
@@ -22,7 +34,7 @@ CONTAINERD_TOML = pathlib.Path(
 helm_args = [
     "install",
     chart_name,
-    chart_path,
+    chart_path.as_posix(),
     f"--version={chart_version}",
     "--create-namespace",
     f"--namespace={chart_name}-resources",
@@ -42,14 +54,10 @@ helm_config = {
         "env": [
             {"name": "CONTAINERD_CONFIG", "value": CONTAINERD_TOML.as_posix()},
             {"name": "CONTAINERD_SOCKET", "value": CONTAINERD_SOCKET.as_posix()},
-            {
-                "name": "CONTAINERD_SET_AS_DEFAULT",
-                "value": "1",
-            },
+            {"name": "CONTAINERD_SET_AS_DEFAULT", "value": "1"},
         ],
     },
 }
-
 
 HELM = "/snap/bin/helm"
 subprocess.run([HELM, *helm_args], input=json.dumps(helm_config).encode())

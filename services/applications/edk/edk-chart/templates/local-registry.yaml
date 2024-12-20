@@ -1,0 +1,112 @@
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: local-registry-pv-claim
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.global.local_registry_disk_space }}
+  storageClassName: nfs
+  volumeName: local-registry-pv-volume
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: local-registry-pv-volume
+spec:
+  capacity:
+    storage: {{ .Values.global.local_registry_disk_space }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/registry
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: {{ .Values.global.slow_data_dir }}/applications/registry
+{{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: local-registry-pv-claim
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: local-registry
+  name: local-registry
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: local-registry
+  template:
+    metadata:
+      labels:
+        app: local-registry
+    spec:
+      containers:
+        - name: local-registry
+          image: "{{ .Values.global.registry_url }}/local-registry:{{ .Values.global.kaapana_build_version  }}"
+          env:
+            - name: REGISTRY_HTTP_ADDR
+              value: :5000
+            - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+              value: /var/lib/registry
+            - name: REGISTRY_STORAGE_DELETE_ENABLED
+              value: "yes"
+          ports:
+            - containerPort: 5000
+              name: local-registry
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/registry
+              name: local-registry
+      volumes:
+        - name: local-registry
+          persistentVolumeClaim:
+            claimName: local-registry-pv-claim
+      imagePullSecrets:
+      - name: registry-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: local-registry
+  name: local-registry
+  namespace: "{{ tpl .Values.global.namespace . }}"
+spec:
+  type: NodePort
+  selector:
+    app: local-registry
+  ports:
+    - name: "local-registry"
+      port: 5000
+      targetPort: 5000
+      nodePort: 32000
+---
+# https://github.com/kubernetes/enhancements/issues/1755
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    help: "https://microk8s.io/docs/registry-built-in"
+    host: "localhost:32000"

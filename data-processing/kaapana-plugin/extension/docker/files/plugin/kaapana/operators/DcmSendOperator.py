@@ -25,7 +25,6 @@ class DcmSendOperator(KaapanaBaseOperator):
         pacs_port: str = "11112",
         env_vars=None,
         level: str = "element",
-        check_arrival: bool = False,
         execution_timeout: datetime = timedelta(minutes=60),
         **kwargs,
     ):
@@ -37,7 +36,6 @@ class DcmSendOperator(KaapanaBaseOperator):
         :param level: 'element' or batch'
             If batch, an operator folder next to the batch folder with .dcm files is expected.
             If element, \*.dcm are expected in the corresponding operator with .dcm files is expected.
-        :param check_arrival: Verifies if data transfer was successful
         :param execution_timeout: timeout for connection requests
         """
 
@@ -50,14 +48,19 @@ class DcmSendOperator(KaapanaBaseOperator):
             env_vars = {}
 
         envs = {
-            "HOST": str(pacs_host),
-            "PORT": str(pacs_port),
+            "PACS_HOST": str(pacs_host),
+            "PACS_PORT": str(pacs_port),
             "AETITLE": str(ae_title),
-            "CHECK_ARRIVAL": str(check_arrival),
             "LEVEL": str(level),
         }
 
         env_vars.update(envs)
+
+        if not kwargs.get("labels"):
+            kwargs["labels"] = {"network-access": "ctp"}
+        else:
+            if not kwargs.get("labels").get("network-access"):
+                kwargs["labels"]["network-access"] = "ctp"
 
         super().__init__(
             dag=dag,

@@ -1,0 +1,48 @@
+diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+index 1c4a9e0e9..ff8ea9684 100644
+--- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
++++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+@@ -161,18 +161,7 @@ function OHIFCornerstoneRTViewport(props: withAppTypes) {
+     if (rtIsLoading) {
+       return;
+     }
+-
+-    promptHydrateRT({
+-      servicesManager,
+-      viewportId,
+-      rtDisplaySet,
+-      preHydrateCallbacks: [storePresentationState],
+-      hydrateRTDisplaySet,
+-    }).then(isHydrated => {
+-      if (isHydrated) {
+-        setIsHydrated(true);
+-      }
+-    });
++    setIsHydrated(true);
+   }, [servicesManager, viewportId, rtDisplaySet, rtIsLoading]);
+ 
+   useEffect(() => {
+diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+index 21dff244f..ede7c2a93 100644
+--- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
++++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+@@ -174,18 +174,7 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
+     if (segIsLoading) {
+       return;
+     }
+-
+-    promptHydrateSEG({
+-      servicesManager,
+-      viewportId,
+-      segDisplaySet,
+-      preHydrateCallbacks: [storePresentationState],
+-      hydrateCallback: hydrateSEG,
+-    }).then(isHydrated => {
+-      if (isHydrated) {
+-        setIsHydrated(true);
+-      }
+-    });
++    setIsHydrated(true);
+   }, [servicesManager, viewportId, segDisplaySet, segIsLoading, hydrateSEG]);
+ 
+   useEffect(() => {

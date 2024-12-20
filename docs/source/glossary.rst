@@ -36,6 +36,9 @@ Glossary
       In the `Workflow List` tab you can view information about worfklows and their jobs. 
       Some workflows are preinstalled in the platform, others can be installed as :term:`extensions<extension>`.
 
+    workflow-extension
+      A workflow extension is an installable Helm chart that contains either one or multiple Airflow DAGs and operators. After installing a workflow extension, you can see the DAGs available under Workflow Execution menu.
+
     application
       In the scope of Kaapana an application is a tool or service that can be installed as an :term:`extension<extension>` into a running platform. 
       Moreover, an application can be started and deleted and runs statically. 
@@ -98,7 +101,7 @@ Glossary
       It will execute the following steps:
 
         1. Configure a proxy (if needed)
-        2. Install packages if not present: snap, nano, jq, curl, net-tools, core18, helm
+        2. Install packages if not present: snap, nano, jq, curl, net-tools, core20, core24, helm
         3. Install, configure and start :term:`microk8s`
         4. Add alias for :code:`kubectl` to :code:`.bashrc` file and enable auto-completion
         5. (opt) Enable GPU for :term:`microk8s` 

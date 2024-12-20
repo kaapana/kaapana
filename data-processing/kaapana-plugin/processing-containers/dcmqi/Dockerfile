@@ -2,13 +2,13 @@ FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="dcmqi"
 LABEL VERSION="v1.2.4"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
 # set work directory
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt --no-cache-dir -r /kaapana/app/requirements.txt
+RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
 
 #Release 1.2.5
 RUN mkdir -p /kaapana/app/src && wget --no-check-certificate https://github.com/QIICR/dcmqi/releases/download/v1.2.5/dcmqi-1.2.5-linux.tar.gz -O /kaapana/app/src/dcmqi.tar.gz \

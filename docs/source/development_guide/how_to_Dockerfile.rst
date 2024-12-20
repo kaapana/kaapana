@@ -1,6 +1,6 @@
 .. _how_to_dockerfile:
 
-Best Practices: Writing Dockerfile
+Writing Dockerfile
 **********************************
 
 .. important:: 
@@ -28,7 +28,7 @@ Kaapana Docker images often utilize the following labels:
 - `REGISTRY`: Specifies the target registry for pushing the Docker image. This is an optional label, and can be used to control where the built image is stored.
 - `IMAGE`: Defines the intended usage of the image. It can be used to quickly identify the purpose of a particular image.
 - `VERSION`: Indicates the version of the Docker image that is built from the Dockerfile. Providing explicit versions helps with traceability and debugging, instead of just using the :code:`<image>:latest` tag.
-- `CI_IGNORE`: A flag used by the Kaapana build system. If this label is set to true, it will prevent specific containers from being built.
+- `BUILD_IGNORE`: A flag used by the Kaapana build system. If this label is set to true, it will prevent specific containers from being built.
 
 Package managers: apt, apk
 --------------------------
@@ -63,7 +63,7 @@ When installing Python packages, it's also recommended to use a constraints file
 
 .. code-block:: bash
 
-  pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt <package-name>
+  pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt <package-name>
 
 
 Utilizing Multi-Stage Dockerfiles
@@ -105,7 +105,7 @@ Assume that the processing algorithm of your workflow is written in a Python fil
   LABEL REGISTRY="example-registry"
   LABEL IMAGE="example-dockerfile-workflow"
   LABEL VERSION="0.1.0"
-  LABEL CI_IGNORE="False"
+  LABEL BUILD_IGNORE="False"
 
   # Setting up the working directory
   WORKDIR /app
@@ -113,7 +113,7 @@ Assume that the processing algorithm of your workflow is written in a Python fil
   # Update pip first and install the necessary Python packages using constraints file
   COPY files/requirements.txt .
   RUN pip install --upgrade pip && \
-      pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt -r requirements.txt
+      pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r requirements.txt
 
   # Copy only the necessary script to be executed
   COPY files/example-workflow.py .

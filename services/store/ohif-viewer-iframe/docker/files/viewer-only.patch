@@ -1,0 +1,55 @@
+diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
+index e19a24c68..ff0a19dfd 100644
+--- a/extensions/default/src/ViewerLayout/index.tsx
++++ b/extensions/default/src/ViewerLayout/index.tsx
+@@ -4,8 +4,6 @@ import PropTypes from 'prop-types';
+ import { LoadingIndicatorProgress, InvestigationalUseDialog } from '@ohif/ui';
+ import { HangingProtocolService, CommandsManager } from '@ohif/core';
+ import { useAppConfig } from '@state';
+-import ViewerHeader from './ViewerHeader';
+-import SidePanelWithServices from '../Components/SidePanelWithServices';
+ import { Onboarding } from '@ohif/ui-next';
+ 
+ function ViewerLayout({
+@@ -111,26 +109,12 @@ function ViewerLayout({
+ 
+   return (
+     <div>
+-      <ViewerHeader
+-        hotkeysManager={hotkeysManager}
+-        extensionManager={extensionManager}
+-        servicesManager={servicesManager}
+-        appConfig={appConfig}
+-      />
+       <div
+         className="relative flex w-full flex-row flex-nowrap items-stretch overflow-hidden bg-black"
+-        style={{ height: 'calc(100vh - 52px' }}
++        style={{ height: '100vh' }}
+       >
+         <React.Fragment>
+           {showLoadingIndicator && <LoadingIndicatorProgress className="h-full w-full bg-black" />}
+-          {/* LEFT SIDEPANELS */}
+-          {hasLeftPanels ? (
+-            <SidePanelWithServices
+-              side="left"
+-              activeTabIndex={leftPanelClosedState ? null : 0}
+-              servicesManager={servicesManager}
+-            />
+-          ) : null}
+           {/* TOOLBAR + GRID */}
+           <div className="flex h-full flex-1 flex-col">
+             <div className="relative flex h-full flex-1 items-center justify-center overflow-hidden bg-black">
+@@ -141,13 +125,6 @@ function ViewerLayout({
+               />
+             </div>
+           </div>
+-          {hasRightPanels ? (
+-            <SidePanelWithServices
+-              side="right"
+-              activeTabIndex={rightPanelClosedState ? null : 0}
+-              servicesManager={servicesManager}
+-            />
+-          ) : null}
+         </React.Fragment>
+       </div>
+       <Onboarding />

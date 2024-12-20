@@ -1,0 +1,49 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-management-ui-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels: 
+    app-name: project-management-ui-service
+spec:
+  selector: 
+    app-name: project-management-ui-app
+  ports:
+    - name: proj-list-http-svc
+      port: 80
+      targetPort: proj-list-http
+  type: ClusterIP
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-proj-management-ui
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /projects-ui
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: proj-management-ui-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-proj-management-ui@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host: 
+    http:
+      paths:
+      - path: /projects-ui
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: project-management-ui-service
+            port:
+              number: 80
+---

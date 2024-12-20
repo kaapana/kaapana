@@ -10,8 +10,8 @@ ENV HELM_VERSION="v3.8.1"
 RUN . /etc/os-release \
     && apt-get update -y \
     && apt-get install curl wget gnupg2 -y \
-    && sh -c "echo 'deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list" \
-    && wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/xUbuntu_${VERSION_ID}/Release.key -O- | apt-key add -  \
+    && sh -c "echo 'deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/Debian_${VERSION_ID}/ /' > /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list" \
+    && wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/Debian_${VERSION_ID}/Release.key -O- | apt-key add -  \
     && apt-get update -qq -y \
     && apt-get -qq --yes install podman fuse-overlayfs \
     && apt-get clean \

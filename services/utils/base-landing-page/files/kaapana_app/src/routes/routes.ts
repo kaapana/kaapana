@@ -9,10 +9,10 @@ const routes = [
         },
     },
     {
-        name: 'pending-applications',
-        path: '/pending-applications',
-        component: () => import('@/views/PendingApplications.vue'),
-        title: 'PendingApplications',
+        name: 'active-applications',
+        path: '/active-applications',
+        component: () => import('@/views/ActiveApplications.vue'),
+        title: 'ActiveApplications',
         permissions: {
             isPublic: false,
         },

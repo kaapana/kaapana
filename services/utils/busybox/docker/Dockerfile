@@ -1,5 +1,5 @@
-FROM docker.io/busybox:1.31
+FROM docker.io/busybox:1.37
 
 LABEL IMAGE="busybox"
-LABEL VERSION="1.31"
-LABEL CI_IGNORE="False"
+LABEL VERSION="1.37"
+LABEL BUILD_IGNORE="False"

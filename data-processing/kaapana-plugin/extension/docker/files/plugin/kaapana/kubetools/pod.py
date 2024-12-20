@@ -17,7 +17,6 @@
 
 import kubernetes
 from kaapana.kubetools.resources import Resources
-import uuid
 
 
 class Pod:
@@ -69,6 +68,7 @@ class Pod:
         annotations=None,
         restart_policy="Never",
         affinity=None,
+        tolerations=None,
     ):
         self.image = image
         self.envs = envs or {}
@@ -97,6 +97,7 @@ class Pod:
         self.last_kube_status = None
         self.last_af_status = None
         self.task_instance = None
+        self.tolerations = tolerations or []
 
     def get_kube_object(self):
         pod_api_version = self.api_version
@@ -121,6 +122,10 @@ class Pod:
         # spec - node_selector
         if self.node_selectors is not None and len(self.node_selectors) is not 0:
             pod_spec.node_selector = self.node_selectors
+
+        # spec - tolerations
+        if self.tolerations is not None and len(self.tolerations) is not 0:
+            pod_spec.tolerations = self.tolerations
 
         # spec - init_container
         if self.init_containers is not None:
@@ -156,6 +161,7 @@ class Pod:
         pod_container.args = self.args
 
         pod_container.env = self.get_envs()
+
         pod_container.image = self.image
         pod_container.image_pull_policy = self.image_pull_policy
         pod_container.image_pull_policy = self.image_pull_policy
@@ -168,7 +174,10 @@ class Pod:
             pod_container.volume_mounts.append(volume_mount.get_kube_object())
 
         for secret in self.secrets:
-            pod_container.volume_mounts.append(secret.get_kube_object_volume_mount())
+            if secret.deploy_type == "volume":
+                pod_container.volume_mounts.append(
+                    secret.get_kube_object_volume_mount()
+                )
 
         pod_spec.containers.append(pod_container)
 
@@ -185,7 +194,8 @@ class Pod:
             pod_spec.volumes.append(volume.get_kube_object())
 
         for secret in self.secrets:
-            pod_spec.volumes.append(secret.get_kube_object_volume())
+            if secret.deploy_type == "volume":
+                pod_spec.volumes.append(secret.get_kube_object_volume())
 
         pod_status = kubernetes.client.V1PodStatus()
 
@@ -204,58 +214,6 @@ class Pod:
         for env_key in self.envs.keys():
             env = kubernetes.client.V1EnvVar(name=env_key)
             env.value = self.envs[env_key]
-
-            # if "value" in env_config:
-            # env.value = env_config["value"]
-
-            # if "valueFrom" in env_config:
-            #     env_value_from = kubernetes.client.V1EnvVarSource()
-
-            #     if "configMapKeyRef" in env_config:
-            #         config = env_config["configMapKeyRef"]
-            #         configMapKeySelector = kubernetes.client.V1ConfigMapKeySelector()
-            #         if "name" in config:
-            #             configMapKeySelector.name = config["name"]
-            #         if "key" in config:
-            #             configMapKeySelector.key = config["key"]
-            #         if "optional" in config:
-            #             configMapKeySelector.optional = config["optional"]
-            #         env_value_from.config_map_key_ref = configMapKeySelector
-
-            #     elif "fieldRef" in env_config:
-            #         config = env_config["fieldRef"]
-            #         objectFieldSelector = kubernetes.client.V1ObjectFieldSelector()
-            #         if "api_version" in config:
-            #             objectFieldSelector.api_version = config["api_version"]
-            #         if "field_path" in config:
-            #             objectFieldSelector.field_path = config["field_path"]
-
-            #         env_value_from.field_ref = objectFieldSelector
-
-            #     elif "resourceFieldRef" in env_config:
-            #         config = env_config["resourceFieldRef"]
-            #         resourceFieldSelector = kubernetes.client.V1ResourceFieldSelector()
-            #         if "container_name" in config:
-            #             resourceFieldSelector.container_name = config["container_name"]
-            #         if "divisor" in config:
-            #             resourceFieldSelector.divisor = config["containdivisorer_name"]
-            #         if "resource" in config:
-            #             resourceFieldSelector.resource = config["resource"]
-            #         env_value_from.resource_field_ref = resourceFieldSelector
-
-            #     elif "secretKeyRef" in env_config:
-            #         config = env_config["secretKeyRef"]
-            #         secretKeySelector = kubernetes.client.V1SecretKeySelector()
-
-            #         if "name" in config:
-            #             secretKeySelector.name = config["name"]
-            #         if "key" in config:
-            #             secretKeySelector.key = config["key"]
-            #         if "optional" in config:
-            #             secretKeySelector.optional = config["optional"]
-            #         env_value_from.secret_key_ref = secretKeySelector
-
-            # env.value_from = env_value_from
             container_envs.append(env)
 
         for secret in self.secrets:

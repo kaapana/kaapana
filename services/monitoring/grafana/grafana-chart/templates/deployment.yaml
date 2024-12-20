@@ -61,11 +61,19 @@ spec:
           - name: grafana-airflow-dag-dashboard
             mountPath: /etc/grafana/dashboards/prometheus/dashboards/airflow-dag-dashboard.json
             subPath: airflow-dag-dashboard.json
+          - name: api-dashboard
+            mountPath: /etc/grafana/dashboards/prometheus/dashboards/api-dashboard.json
+            subPath: api-dashboard.json
           {{- if .Values.global.gpu_support }}
           - name: grafana-gpu-dashboard
             mountPath: /etc/grafana/dashboards/gpu/dashboards/gpu-dashboard.json
             subPath: gpu-dashboard.json
           {{- end }}
+          - name: grafana-strorage
+            mountPath: /var/lib/grafana
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
         livenessProbe:
           httpGet:
             path: /
@@ -126,5 +134,13 @@ spec:
           items:
           - key: airflow-dag-dashboard.json
             path: airflow-dag-dashboard.json
+      - name: api-dashboard
+        configMap:
+          name: grafana-dashboards
+          items:
+          - key: api-dashboard.json
+            path: api-dashboard.json
+      - name: grafana-strorage
+        emptyDir: {}
       imagePullSecrets:
         - name: registry-secret

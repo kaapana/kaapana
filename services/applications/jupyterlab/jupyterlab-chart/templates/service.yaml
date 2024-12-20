@@ -26,7 +26,7 @@ spec:
   - host: 
     http:
       paths:
-      - path: {{ printf "/%s" (tpl .Values.global.ingress_path .) }}
+      - path: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
         pathType: ImplementationSpecific
         backend:
           service:

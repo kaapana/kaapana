@@ -1,14 +1,12 @@
 from typing import List
 from .schemas import Measurement
 from datetime import datetime
-from opensearchpy import OpenSearch
-from opensearchpy import logger as os_logger
 from app.config import settings
 from prometheus_api_client import PrometheusConnect
 from prometheus_client import CollectorRegistry, Info, Gauge, generate_latest
 import logging
-
-os_logger.setLevel(logging.WARNING)
+from kaapanapy.helper import get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
 
 
 class MonitoringService:
@@ -17,6 +15,7 @@ class MonitoringService:
     def __init__(self, prometheus_url: str):
         self.prometheus_url = prometheus_url
         self.con = PrometheusConnect(self.prometheus_url, disable_ssl=True)
+        MonitoringService.opensearchClient = get_opensearch_client()
 
     def query(self, name: str, q: str) -> Measurement:
         result = self.con.custom_query(query=q)
@@ -32,11 +31,9 @@ class MonitoringService:
         return self.con.all_metrics()
 
     def es_query(query):
-        _opensearchhost = f"opensearch-service.{settings.services_namespace}.svc:9200"
-        os_client = OpenSearch(hosts=_opensearchhost)
         try:
-            res = os_client.search(
-                index="meta-index",
+            res = MonitoringService.opensearchClient.search(
+                index=OpensearchSettings().default_index,
                 body=query,
                 size=10000,
                 from_=0,

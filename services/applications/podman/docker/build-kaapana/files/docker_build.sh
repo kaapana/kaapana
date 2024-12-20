@@ -51,14 +51,14 @@ fi
 
 if [ -z ${BRANCH-""} ]; then
     BRANCH=develop
-    echo "GIT_REPOSITORY not set, setting it to $BRANCH"
+    echo "BRANCH not set, setting it to $BRANCH"
 fi
 
 echo kwargs for start_build.py for $START_BUILD_KWARGS
 echo Cloning from $GIT_REPOSITORY
 echo Building branch $BRANCH
 git clone -b $BRANCH --single-branch $GIT_REPOSITORY
-pip install -c https://raw.githubusercontent.com/kaapana/kaapana/0.2.1/build-scripts/constraints-0.2.1.txt -r /kaapana/app/kaapana/build-scripts/requirements.txt
+pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r /kaapana/app/kaapana/build-scripts/requirements.txt
 cp /kaapana/app/kaapana/build-scripts/build-config-template.yaml /kaapana/app/kaapana/build-scripts/build-config.yaml
 sed -i 's/container_engine: "docker"/container_engine: "podman"/g' /kaapana/app/kaapana/build-scripts/build-config.yaml
 python3 /kaapana/app/kaapana/build-scripts/start_build.py $START_BUILD_KWARGS

@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: access-information-interface-config
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  initial_rights.json: | # This is the initial rights that will be created
+    [
+      {
+        "name": "edit_project",
+        "description": "Add or remove users from project",
+        "claim_key": "kaapana",
+        "claim_value": "edit_project"
+      },
+      {
+        "name": "edit_user",
+        "description": "Edit user rights within project",
+        "claim_key": "kaapana",
+        "claim_value": "edit_user"
+      },
+      {
+        "name": "dev_tools",
+        "description": "Get access to dev tools and APIs",
+        "claim_key": "kaapana",
+        "claim_value": "dev_tools"
+      },
+      {
+        "name": "workflows",
+        "description": "Rights to start a workflow, see workflow status and logs",
+        "claim_key": "kaapana",
+        "claim_value": "workflows"
+      },
+      {
+        "name": "delete_data",
+        "description": "Delete data from platform",
+        "claim_key": "kaapana",
+        "claim_value": "delete_data"
+      },
+      {
+        "name": "opensearch_access",
+        "description": "User gets full access to OpenSearch",
+        "claim_key": "opensearch",
+        "claim_value": "admin_project"
+      },
+      {
+        "name": "minio_access",
+        "description": "User gets full access to Minio",
+        "claim_key": "policy",
+        "claim_value": "admin_project"
+      }
+    ]
+  initial_roles.json: | # This is the initial roles that will be created
+    [
+      {
+        "name": "admin",
+        "description": "Admin role"
+      },
+      {
+        "name": "project-pi",
+        "description": "Project PI role"
+      },
+      {
+        "name": "project-member",
+        "description": "Project member role"
+      }
+    ]
+  initial_projects.json: | # This is the initial admin project that will be created
+    [
+      {
+        "name": "admin",
+        "description": "Initial admin project"
+      }
+    ]
+  initial_roles_rights_mapping.json: | # This is the mapping of roles to rights
+    [
+      {
+        "role": "admin",
+        "rights": ["edit_project", "edit_user", "dev_tools", "workflows", "opensearch_access", "minio_access", "delete_data"]
+      },
+      {
+        "role": "project-pi",
+        "rights": ["edit_user", "workflows", "opensearch_access", "minio_access", "delete_data"]
+      },
+      {
+        "role": "project-member",
+        "rights": ["workflows", "opensearch_access", "minio_access"]
+      }
+    ]
+
+  # Init User, Project and Role mapping will be done at a later stage (FastAPI lifespan init function) to dynamically incorporate the keycloak id.

@@ -3,6 +3,224 @@
 Changelog
 #########
 
+.. _release-0.3.5:
+
+-------------------------
+
+********************
+Release Notes v0.3.5
+********************
+
+September 11, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Build fix - wsi-converter dependency link updated
+* Removed breaking LocalDiceOperator from nnUNet
+* Fix file opening issue in Collabora for nested files
+
+
+.. _release-0.3.4:
+
+-------------------------
+
+********************
+Release Notes v0.3.4
+********************
+
+July 15, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fixes offline deployment caused by wrong NVIDIA gpu-operator version
+* Fixes requirements file for operator trigger-ansible-playbook
+* Fixes missing requirements for OtsusNotebookOperator
+
+
+.. _release-0.3.3:
+
+-------------------------
+
+********************
+Release Notes v0.3.3
+********************
+
+May 29, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fixes broken build due to breaking changes in vueuse/core 10.10.0
+
+
+.. _release-0.3.2:
+
+-------------------------
+
+********************
+Release Notes v0.3.2
+********************
+
+May 24, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fixes landing page UI dev-mode
+* Removes mechanism to add access control ids from HelperDcmWeb and LocalDicomSendOperator
+* Fixes patient age inconsistency bug in LocalDcm2JsonOperator
+* Adds local tests to CI/CD pipeline
+
+Documentation
+-------------
+
+* Adds links of main GitLab repository and YouTube channel in README
+
+.. _release-0.3.1:
+
+-------------------------
+
+********************
+Release Notes v0.3.1
+********************
+
+April 22, 2024
+
+-------------------------
+
+Bug fixes
+---------
+
+* Fixes dcm4chee import image bug, by pinning image container hash and dcm4chee-postgres git commit hash
+
+.. _release-0.3.0:
+
+-------------------------
+
+********************
+Release Notes v0.3.0
+********************
+
+April 15, 2024
+
+-------------------------
+ 
+DAGs and Operators
+------------------
+* advanced-collect-metadata workflow
+* modify-dcmseg workflow
+* nnunet-training
+    * integrated label renaming, fusing, keeping/ignoring functionality
+    * warm-start functionality for fine-tuning pre-trained model
+* nnunet-ensemble
+    * integrated label renaming, fusing, keeping/ignoring functionality
+    * new evaluation metrics
+* evaluate-segmentations: new DAG for evaluating predicted segmentations with ground truth
+* train-with-pretrained-weights: new DAG for training nnunet and classification workflows starting with pretrained model weights
+* download-selected-series: now allows downloading DICOMs as NIFTIs
+* Introduce `JupyterlabReportingOperator`
+* Adjust radiomics-federated, nnunet-training and nnunet-ensemble to use JupyterLabReportingOperator instead of custom processing-operators.
+* Introduce LocalVolumeMountOperator to transfer data between container file systems and PersistentVolumes
+* Adapt DAGs `import-dicoms-in-zip-to-internal-pacs`, `convert-niftis-to-dicoms-and-import-to-pacs` and `WSI-import` to get data from PersistentVolume instead of MinIO Bucket.
+
+KaapanaFed
+----------
+* FedDC as FL aggregation method
+* federated radiomics workflow
+* federated advanced-collect-metadata workflow
+
+Workflow Management System
+--------------------------
+* Workflow List:
+    * operator state reporting in Job List
+    * restarting/stopping service jobs
+* Instance overview:
+    * easier instance registration
+* Data Upload:
+    * Adjust upload mechanism to store data in PersistentVolume instead of MinIO
+
+Extensions
+----------
+* specify links in values.yaml of extensions to overwrite ingress paths
+* option to filter by resources in the UI
+* New Collabora extension to view and edit office documents in the platform
+
+Bug Fixes
+---------
+* LocalDcm2JsonOperator.py (Importing .dcm metadata)
+    * Fixed an issue when LocalDcm2JsonOperator errors on valid .dcm files with valid symbols like ^%+
+    * LocalDcm2JsonOperator now correctly parses all valid formats of datetime, time and date
+    * LocalDcm2JsonOperator now correctly identifies Sequence keyword as `object` not `object_object`
+* Fix bodypart regression opencv-python-headless version
+* Fix issue when downloading models for bodypart regression
+* Fix path to source files for pixelmed in wsiconv
+* Fix logging error in pod_launchyer.py
+* Fix proxy configuration in server installation script
+
+MinIO
+-----
+* Introduce new local-only/base-minio-mc image with minio client
+* Introduce minio-mirror image to provide minio bucket data to volume mounts
+* Adjust staticwebisteresults to provide files from mirrored minio bucket
+* Adjust applications to get filesystem data from mirrored minio buckets
+* Refactor minio-init to use base-minio-mc image
+* Introduce new policy: KaapanaUser for restricted access to all buckets but upload.
+
+Meta-dashboard
+--------------
+* Removed modality chart graph from the metadashboard
+
+Keycloak
+--------
+* Keycloak roles and attributes are inherited from group `kaapana_user` and `kaapana_admin`
+* Assign new minio policy KaapanaUser to group kaapana_user
+* Remove keycloak group `all_data`
+* Add role user to default_roles_kaapana
+
+Dcm4chee
+--------
+* Introduce reverse-proxy in front of dcm4chee for access control
+* Introduce mechanisms to assign access control ids to studies and AEs in dcm4chee
+
+Authorization and security
+--------------------------
+* Introduce open policy agent as policy decision point.
+* Introduce system user for impersonation.
+* Add network policy to restrict access to the kube-api server
+* Run containers for landing-page, staticwebsiteresults, jupyterlab and tensorboard as non-root users
+* Implement impersonation and authorization mechanism in HelperMinio.py and adjust kaapana-backend and operators.
+* Implement impersonation and authorization mechanism in HelperDcmWeb.py and adjust operators.
+* Refactor access control and authorization in the landingpage
+* Adding idle timeout processed by frontend in the landingpage
+* Add new ClusterRole for the kubernetes-dashboard in production systems
+
+Updates and Security Fixes
+--------------------------
+* Update MicroK8s v1.28
+* Base Image to Ubuntu:22.04
+* Base Postgres to 15.6-alpine
+* Base python to version 3.10
+* Updated alertmanager:v0.25.0
+* Updated statsd-exporter:v0.23.1
+* Updated Grafana:9.4.7
+* Updated opensearch:2.12.0
+* Updated open-policy-agent:0.62.0
+* Updated OHIF v3.7
+* Updated Mitk 2023.12
+* Update Apache Airflow 2.8.4
+* Update MinIO to RELEASE.2024-01-29T03-56-32Z
+* and many more
+
 .. _release-0.2.6:
 
 -------------------------

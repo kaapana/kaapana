@@ -3,7 +3,7 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.DcmQueryOperator import DcmQueryOperator
-from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
+from kaapana.operators.Json2MetaOperator import Json2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from airflow.operators.python import PythonOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -196,7 +196,7 @@ dcm2meta_json = Dcm2MetaJsonLinesOperator(
     pacs_port=pacs_port,
 )
 
-push_jsonl = LocalJson2MetaOperator(
+push_jsonl = Json2MetaOperator(
     dag=dag,
     input_operator=dcm2meta_json,
     jsonl_operator=dcm2meta_json,

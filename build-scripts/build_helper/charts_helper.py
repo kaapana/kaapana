@@ -334,7 +334,7 @@ class HelmChart:
     enable_lint = True
     enable_kubeval = True
     enable_push = True
-    max_tries = 5
+    max_tries = 30
 
     def __eq__(self, other):
         if isinstance(self, HelmChart) and isinstance(other, HelmChart):
@@ -598,9 +598,9 @@ class HelmChart:
                 x for x in BuildUtils.charts_available if x == extension_collection_id
             ]
             if len(collection_chart) == 1:
-                self.kaapana_collections[
-                    collection_chart[0].chart_id
-                ] = collection_chart[0]
+                self.kaapana_collections[collection_chart[0].chart_id] = (
+                    collection_chart[0]
+                )
             else:
                 BuildUtils.generate_issue(
                     component=suite_tag,
@@ -627,9 +627,9 @@ class HelmChart:
                 x for x in BuildUtils.charts_available if x == preinstall_extension_id
             ]
             if len(preinstall_extension_chart) == 1:
-                self.preinstall_extensions[
-                    preinstall_extension_chart[0].chart_id
-                ] = preinstall_extension_chart[0]
+                self.preinstall_extensions[preinstall_extension_chart[0].chart_id] = (
+                    preinstall_extension_chart[0]
+                )
             else:
                 BuildUtils.generate_issue(
                     component=suite_tag,
@@ -670,9 +670,9 @@ class HelmChart:
                     if len(oparator_container_found) == 1:
                         oparator_container_found = oparator_container_found[0]
                         if oparator_container_found.tag not in self.chart_containers:
-                            self.chart_containers[
-                                oparator_container_found.tag
-                            ] = oparator_container_found
+                            self.chart_containers[oparator_container_found.tag] = (
+                                oparator_container_found
+                            )
                         else:
                             BuildUtils.logger.debug(
                                 f"{self.chart_id}: operator container already present: {oparator_container_found.tag}"
@@ -803,7 +803,7 @@ class HelmChart:
                         if "#" in line.split("image:")[0]:
                             BuildUtils.logger.debug(f"Commented: {line} -> skip")
                             continue
-                        elif "-if" in line:
+                        elif ("-if." in line and "{{else}}" in line) or ("test_pull_image" in line): # edge case for the job of custom-registry-chart
                             BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 
@@ -844,7 +844,9 @@ class HelmChart:
                                 )
 
                             default_registry = "/".join(container_tag.split("/")[:-1])
-                            container_version = container_tag.split("/")[-1].split(":")[-1]
+                            container_version = container_tag.split("/")[-1].split(":")[
+                                -1
+                            ]
                             container_name = container_tag.split("/")[-1].split(":")[0]
                             self.add_container_by_tag(
                                 container_registry=default_registry,
@@ -853,6 +855,9 @@ class HelmChart:
                             )
 
     def lint_chart(self, build_version=False):
+        if self.ignore_linting:
+            BuildUtils.logger.info(f"{self.chart_id} has ignore_linting: true - skipping")
+            return
         if self.helmlint_done:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart already done - skip")
             return
@@ -889,6 +894,9 @@ class HelmChart:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart disabled")
 
     def lint_kubeval(self, build_version=False):
+        if self.ignore_linting:
+            BuildUtils.logger.info(f"{self.chart_id} has ignore_linting: true - skipping")
+            return
         if self.kubeval_done:
             BuildUtils.logger.debug(
                 f"{self.chart_id}: lint_kubeval already done -> skip"
@@ -1394,9 +1402,9 @@ class HelmChart:
                                     name=issue["name"],
                                     level=issue["level"],
                                     msg=issue["msg"],
-                                    output=issue["output"]
-                                    if "output" in issue
-                                    else None,
+                                    output=(
+                                        issue["output"] if "output" in issue else None
+                                    ),
                                     path=issue["path"] if "path" in issue else "",
                                 )
                             else:
@@ -1454,7 +1462,10 @@ class HelmChart:
         if BuildUtils.vulnerability_scan:
             trivy_utils.create_vulnerability_reports(successful_built_containers)
         if BuildUtils.create_offline_installation is True:
-            OfflineInstallerHelper.generate_microk8s_offline_version()
+
+            OfflineInstallerHelper.generate_microk8s_offline_version(
+                dirname(platform_chart.build_chart_dir)
+                )
             images_tarball_path = join(
                 dirname(platform_chart.build_chart_dir),
                 f"{platform_chart.name}-{platform_chart.build_version}-images.tar",

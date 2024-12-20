@@ -1,27 +1,15 @@
-import requests
-
-from fastapi import (
-    APIRouter,
-    Depends,
-    Request,
-    HTTPException,
-    UploadFile,
-    Response,
-    File,
-    Header,
-)
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
-from opensearchpy import OpenSearch
-from sqlalchemy.orm import Session
-
 import uuid
-from app.workflows.utils import (
-    HelperMinio,
-    raise_kaapana_connection_error,
-    requests_retry_session,
-)
+from datetime import datetime, timezone
+
+import jwt
+import requests
 from app.config import settings
+from app.dependencies import get_minio, get_opensearch
+from app.workflows.utils import raise_kaapana_connection_error, requests_retry_session
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from minio.error import S3Error
+from starlette.responses import StreamingResponse
 
 router = APIRouter()
 
@@ -39,8 +27,47 @@ def health_check():
     return {f"Kaapana backend is up and running!"}
 
 
+@router.get("/get-static-website-results-html")
+def get_static_website_results_html(
+    request: Request,
+    minioClient=Depends(get_minio),
+) -> StreamingResponse:
+    """Get the html file from the static website results bucket.
+
+    Args:
+        request (Request): Request object.
+        minioClient (minio.Minio): Minio client.
+
+    Raises:
+        HTTPException: If object_name query parameter is not provided.
+        HTTPException: If object is not found in the bucket.
+
+    Returns:
+        StreamingResponse: Streaming response of the html file.
+    """
+    # Retrieve the object name from query parameters
+    object_name = request.query_params.get("object_name")
+    if not object_name:
+        raise HTTPException(
+            status_code=400, detail="object_name query parameter is required."
+        )
+
+    # Bucket name
+    bucket = "staticwebsiteresults"
+
+    try:
+        html_file = minioClient.get_object(bucket, object_name)
+    except S3Error:
+        raise HTTPException(status_code=404, detail="Object not found in the bucket.")
+
+    return StreamingResponse(html_file, media_type="text/html")
+
+
 @router.get("/get-static-website-results")
-def get_static_website_results():
+def get_static_website_results(
+    request: Request,
+    minioClient=Depends(get_minio),
+):
     def build_tree(item, filepath, org_filepath):
         # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
         splits = filepath.split("/", 1)
@@ -49,7 +76,7 @@ def get_static_website_results():
                 {
                     "name": splits[0],
                     "file": "html",
-                    "path": f"/static-website-browser/{org_filepath}",
+                    "path": f"/kaapana-backend/get-static-website-results-html?object_name={org_filepath}",
                 }
             )
         else:
@@ -75,7 +102,7 @@ def get_static_website_results():
         return subtree
 
     tree = {"vuetifyFiles": []}
-    objects = HelperMinio.minioClient.list_objects(
+    objects = minioClient.list_objects(
         "staticwebsiteresults", prefix=None, recursive=True
     )
     for obj in objects:
@@ -85,11 +112,9 @@ def get_static_website_results():
 
 
 @router.get("/get-os-dashboards")
-def get_os_dashboards():
+def get_os_dashboards(os_client=Depends(get_opensearch)):
     try:
-        res = OpenSearch(
-            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-        ).search(
+        res = os_client.search(
             body={
                 "query": {"exists": {"field": "dashboard"}},
                 "_source": ["dashboard.title"],
@@ -118,3 +143,95 @@ def get_traefik_routes():
     except Exception as e:
         print("ERROR in getting traefik routes!")
         return {"Error message": str(e)}, 500
+
+
+@router.get("/open-policy-data")
+def get_open_policy_data():
+    r = requests.get(
+        f"http://open-policy-agent-service.{settings.admin_namespace}.svc:8181/v1/data/httpapi/authz"
+    )
+    return r.json().get("result")
+
+
+@router.get("/oidc-logout")
+def oidc_logout(request: Request):
+    """
+    Delete the keycloak session corresponding to the session of the access token in the request.
+    Response with a redirect to oauth2-proxy browser session logout url.
+    """
+
+    def _get_access_token(
+        username: str,
+        password: str,
+        client_id: str,
+    ):
+        """
+        Get access token for the admin keycloak user.
+        """
+        payload = {
+            "username": username,
+            "password": password,
+            "client_id": client_id,
+            "grant_type": "password",
+        }
+        r = requests.post(
+            f"{settings.keycloak_url}/auth/realms/master/protocol/openid-connect/token",
+            verify="/etc/certs/kaapana.pem",
+            data=payload,
+        )
+        r.raise_for_status()
+        return r.json()["access_token"]
+
+    access_token = request.headers.get("x-forwarded-access-token")
+    decoded_access_token = jwt.decode(access_token, options={"verify_signature": False})
+    token_session_id = decoded_access_token.get("sid")
+    assert token_session_id, "Session id could not be determined from access token"
+    user_id = decoded_access_token.get("sub")
+
+    keycloak_admin_access_token = _get_access_token(
+        settings.keycloak_admin_username,
+        settings.keycloak_admin_password,
+        "admin-cli",
+    )
+    security_headers = {"Authorization": f"Bearer {keycloak_admin_access_token}"}
+
+    response_sessions = requests.get(
+        f"{settings.keycloak_url}/auth/admin/realms/kaapana/users/{user_id}/sessions",
+        verify="/etc/certs/kaapana.pem",
+        headers=security_headers,
+    )
+
+    user_sessions = response_sessions.json()
+
+    ### Remove the session that corresponds to the access token from keycloak if the session exists
+    for user_session in user_sessions:
+        user_session_id = user_session.get("id")
+        if user_session.get("id") == token_session_id:
+            r = requests.delete(
+                f"{settings.keycloak_url}/auth/admin/realms/kaapana/sessions/{token_session_id}",
+                headers=security_headers,
+                verify="/etc/certs/kaapana.pem",
+            )
+            r.raise_for_status()
+            break
+    response = RedirectResponse("/oauth2/sign_out?rd=/")
+    ### Delete the token cookie for the minio session.
+    response.set_cookie(
+        key="token", value="", expires=datetime(1900, 1, 1, tzinfo=timezone.utc)
+    )
+    ### Delete the session cookies for the opensearch session: https://opensearch.org/docs/latest/security/authentication-backends/openid-connect/#session-management-with-additional-cookies
+    for cookie in [
+        "security_authentication",
+        "security_authentication_oidc1",
+        "security_authentication_oidc2",
+        "security_authentication_oidc3",
+    ]:
+        response.set_cookie(
+            key=cookie,
+            value="",
+            max_age=0,
+            path="/meta",
+            expires=datetime(1900, 1, 1, tzinfo=timezone.utc),
+        )
+
+    return response

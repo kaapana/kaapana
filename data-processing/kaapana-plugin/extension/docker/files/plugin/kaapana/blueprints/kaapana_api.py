@@ -7,7 +7,7 @@ from airflow.api.common.experimental.mark_tasks import (
     set_dag_run_state_to_failed as set_dag_run_failed,
 )
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun, DagModel, DagBag, DAG
+from airflow.models import DagRun, DagModel, DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import State, TaskInstanceState, DagRunState
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -20,13 +20,10 @@ from flask import current_app as app
 from sqlalchemy import and_
 from sqlalchemy.orm.exc import NoResultFound
 
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import (
     generate_run_id,
-    generate_minio_credentials,
     parse_ui_dict,
 )
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 
 _log = LoggingMixin().log
 parallel_processes = 1
@@ -117,28 +114,28 @@ def get_dagrun_tasks(dag_id, run_id):
     )
     tis = [ti for ti in tis]
 
-    # compose 2 response dict in style: {"task_instance": "state"/"execution_date"}
-    state_dict = {}
-    exdate_dict = {}
+    # compose response dict in style: {"task_instance": {"state": <state>, "execution_date": <execution_date, "duration": <duration>}}
+    ti_dict = {}
     for ti in tis:
-        state_dict[ti.task_id] = ti.state
-        exdate_dict[ti.task_id] = str(ti.execution_date)
+        ti_dict[ti.task_id] = {
+            "state": ti.state,
+            "execution_date": str(ti.execution_date),
+            "duration": str(ti.duration),
+            "start_date": str(ti.start_date),
+        }
 
-    # message.append(f"Result of task querying: {tis}")
-    message.append(f"{state_dict}")
-    message.append(f"{exdate_dict}")
-    response = jsonify(message=message)
-    return response
+    return ti_dict
 
 
 @csrf.exempt
 @kaapanaApi.route("/api/abort/<dag_id>/<run_id>", methods=["POST"])
 def abort_dag_run(dag_id, run_id):
     # abort dag_run by executing set_dag_run_state_to_failed() (source: https://github.com/apache/airflow/blob/main/airflow/api/common/mark_tasks.py#L421)
-    dag_objects = DagBag().dags  # returns all DAGs available on platform
-    desired_dag = dag_objects[
-        dag_id
-    ]  # filter desired_dag from all available dags via dag_id
+
+    # returns all DAGs available on platform
+    dag_objects = DagBag().dags
+    # filter desired_dag from all available dags via dag_id
+    desired_dag = dag_objects[dag_id]
 
     session = settings.Session()
     dag_runs_of_desired_dag = session.query(DagRun).filter(
@@ -358,6 +355,10 @@ def get_dags_endpoint():
         del dag_dict["_sa_instance_state"]
 
         dags[dag_id] = parse_ui_dict(dag_dict)
+        try:
+            dags[dag_id]["tags"] = dag_objects[dag_id].tags
+        except KeyError as e:
+            dags[dag_id]["tags"] = []
 
     return jsonify(dags)
 

@@ -1,8 +1,8 @@
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
 from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -44,7 +44,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 anonymizer = LocalDcmAnonymizerOperator(
     dag=dag, input_operator=get_input, single_slice=True
 )
@@ -52,11 +52,11 @@ extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=anonymizer)
 concat_metadata = LocalConcatJsonOperator(
     dag=dag, name="concatenated-metadata", input_operator=extract_metadata
 )
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[concat_metadata],
-    bucket_name="downloads",
+    none_batch_input_operators=[concat_metadata],
+    minio_prefix="downloads",
     zip_files=True,
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

@@ -2,6 +2,7 @@ node_modules
 build
 venv
 security-reports/*.json
+security-reports/*/
 tmpcharts
 migrations
 .ipynb_checkpoints
@@ -25,5 +26,12 @@ __pycache__
 *~
 history
 build-scripts/build-config.yaml
+*del.*
+platform_config.yaml
+platform_config.json
+request_config.yaml
 .direnv/
 .envrc
+.venv/
+tests/airflow_workflow_dir/*
+tests/venv/*

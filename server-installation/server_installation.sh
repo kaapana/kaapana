@@ -63,35 +63,44 @@ function proxy_environment {
 
 
 function no_proxy_environment {
+    # Note: This script makes sure no_proxy configuration is configured correctly so microk8s doesn't send cluster traffic to the 
+    #       proxy server. The specific settings for ip ranges used by microk8s to request external resource might change in the future
+    #       and are (currently) described here: https://microk8s.io/docs/install-proxy
     echo "${GREEN}Checking no_proxy settings${NC}"
     if [ ! -v no_proxy ] && [ ! -v NO_PROXY ]; then
         echo "${YELLOW}no_proxy not found, setting it and adding ${HOSTNAME}${NC}"
-        echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
-        echo "no_proxy=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+        echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
+        echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         sed -i "$ a\\${INSERTLINE}" /etc/environment && echo "Adding $HOSTNAME to no_proxy"
     else
         echo "${YELLOW}no_proxy | NO_PROXY found - check if complete ...!${NC}"
 
+        if [ -v no_proxy ]; then
+                no_proxy=$no_proxy
+        else
+                no_proxy=$NO_PROXY
+        fi
+
         # remove any " from no_proxy ENV
         no_proxy=$( echo $no_proxy | sed 's/"//g')
         
-        if [[ $no_proxy == *"10.152.183.0/24"* ]]; then
+        if [[ $no_proxy == *"172.16.0.0/16"* ]]; then
             echo "${GREEN}NO_PROXY is already configured correctly ...${NC}"
             return
         fi
 
         if grep -Fq "NO_PROXY" /etc/environment
         then
-            sed -i "/NO_PROXY/c\NO_PROXY=$no_proxy,10.1.0.0/16,10.152.183.0/24" /etc/environment
+            sed -i "/NO_PROXY/c\NO_PROXY=$no_proxy,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" /etc/environment
         else
-            echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+            echo "NO_PROXY=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         fi
 
         if grep -Fq "no_proxy" /etc/environment
         then
-            sed -i "/no_proxy/c\no_proxy=$no_proxy,10.1.0.0/16,10.152.183.0/24" /etc/environment
+            sed -i "/no_proxy/c\no_proxy=$no_proxy,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" /etc/environment
         else
-            echo "no_proxy=127.0.0.1,$HOSTNAME,10.1.0.0/16,10.152.183.0/24" >> /etc/environment
+            echo "no_proxy=127.0.0.1,$HOSTNAME,10.0.0.0/8,192.168.0.0/16,172.16.0.0/16" >> /etc/environment
         fi
     fi
     echo "${GREEN}Source /etc/environment ${NC}"
@@ -211,7 +220,7 @@ function enable_gpu {
 
     if [ $GPU_SUPPORT == true ];then
         echo "${YELLOW}Activating GPU ...${NC}"
-        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU ...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable gpu) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
+        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU ...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable nvidia) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
         echo "${YELLOW}Waiting for nvidia-device-plugin-daemonset ...${NC}"
     else
         echo "${YELLOW}No GPU support.${NC}"
@@ -231,29 +240,32 @@ function insert_text {
     return $rc
 }
 
-function install_core18 {
-    echo "${YELLOW}Checking if core18 is installed ... ${NC}"
-    if ls -l /var/lib/snapd/snaps | grep core18 ;
+
+function install_core {
+    local package_name=$1
+    echo "${YELLOW}Checking if ${package_name} is installed ... ${NC}"
+    if ls -l /var/lib/snapd/snaps | grep ${package_name} ;
     then
         echo ""
-        echo "${GREEN}core18 is already installed ...${NC}"
+        echo "${GREEN}${package_name} is already installed ...${NC}"
         echo "${GREEN}-> skipping installation ${NC}"
         echo ""
     else
-        echo "${YELLOW}core18 is not installed -> start installation ${NC}"
-        if [ "$OFFLINE_SNAPS" = "true" ];then
-            echo "${YELLOW} -> core18 offline installation! ${NC}"
-            snap_path=$SCRIPT_DIR/core18.snap
-            assert_path=$SCRIPT_DIR/core18.assert
+        echo "${YELLOW}${package_name} is not installed -> start installation ${NC}"
+        if [ "$OFFLINE_SNAPS" = "true" ]; then
+            echo "${YELLOW} -> ${package_name} offline installation! ${NC}"
+            snap_path=$SCRIPT_DIR/${package_name}.snap
+            assert_path=$SCRIPT_DIR/${package_name}.assert
             [ -f $snap_path ] && echo "${GREEN}$snap_path exists ... ${NC}" || (echo "${RED}$snap_path does not exist -> exit ${NC}" && exit 1)
             [ -f $assert_path ] && echo "${GREEN}$assert_path exists ... ${NC}" || (echo "${RED}$assert_path does not exist -> exit ${NC}" && exit 1)
             snap ack $assert_path
             snap install --classic $snap_path
         else
-            echo "${YELLOW}Core18 will be automatically installed ...${NC}"
+            echo "${YELLOW}${package_name} will be automatically installed ...${NC}"
         fi
     fi
 }
+
 
 function install_helm {
     if command -v helm &> /dev/null
@@ -371,6 +383,9 @@ function install_microk8s {
         insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
         echo "${YELLOW}Disable insecure port ...${NC}";
         insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
+        echo "${YELLOW}Enable ValidatingAdmissionPolicy ...${NC}";
+        insert_text "--feature-gates=ValidatingAdmissionPolicy=true" /var/snap/microk8s/current/args/kube-apiserver
+        insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
         
         echo "${YELLOW}Set limit of completed pods to 50 ...${NC}";
         insert_text "--terminated-pod-gc-threshold=50" /var/snap/microk8s/current/args/kube-controller-manager
@@ -419,8 +434,11 @@ function install_microk8s {
         if [ "$REAL_USER" != "root" ]; then
             echo "${YELLOW} Setting non-root permissions ...${NC}"
             sudo usermod -a -G microk8s $REAL_USER
-            sudo chown -f -R $REAL_USER:$REAL_USER $USER_HOME/.kube
+            sudo chown -f -R $REAL_USER $USER_HOME/.kube
         fi
+
+        echo "${YELLOW}Removing configmap kube-public/local-registry-hosting ...${NC}"
+        microk8s.kubectl delete configmap -n kube-public local-registry-hosting
 
         echo ""
         echo ""
@@ -481,7 +499,7 @@ echo -e "${GREEN}REAL_USER: $REAL_USER ${NC}";
 echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
 echo ""
 
-DEFAULT_MICRO_VERSION=1.26/stable
+DEFAULT_MICRO_VERSION=1.31/stable
 DEFAULT_HELM_VERSION=latest/stable
 
 ### Parsing command line arguments:
@@ -579,7 +597,8 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting AlmaLinux installation...${NC}";
         proxy_environment
         install_packages_almalinux
-        install_core18
+        install_core core20 # for microk8s
+        install_core core24 # for helm
         install_helm
         install_microk8s
     ;;
@@ -588,7 +607,8 @@ case "$OS_PRESENT" in
         echo -e "${GREEN}Starting Ubuntu installation...${NC}";
         proxy_environment
         install_packages_ubuntu
-        install_core18
+        install_core core20 # for microk8s
+        install_core core24 # for helm
         install_helm
         install_microk8s
     ;;

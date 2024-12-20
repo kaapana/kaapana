@@ -1,13 +1,8 @@
 <template>
   <div>
+    <IdleTracker />
     <splitpanes :class="$vuetify.theme.dark ? 'dark-theme' : ''">
-      <pane
-        ref="mainPane"
-        class="main"
-        :class="navigationMode ? 'side-navigation' : 'top-navigation'"
-        size="70"
-        min-size="30"
-      >
+      <pane ref="mainPane" class="main side-navigation" size="70" min-size="30">
         <v-container class="pa-0" fluid>
           <v-card class="rounded-0">
             <div style="padding: 10px 10px 10px 10px">
@@ -29,11 +24,7 @@
                   >
                   </v-autocomplete>
                 </v-col>
-                <v-col
-                  cols="1"
-                  align="center"
-                  @click="editDatasetsDialog = true"
-                >
+                <v-col cols="1" align="center" @click="editDatasetsDialog = true">
                   <v-icon>mdi-folder-edit-outline</v-icon>
                 </v-col>
               </v-row>
@@ -51,15 +42,23 @@
             </div>
             <v-divider></v-divider>
           </v-card>
+          <div class="d-flex flex-column pa-0" style="height: 100%">
+            <Paginate
+              align="right"
+              ref="paginate"
+              :pageLength="settings.datasets.itemsPerPagePagination"
+              :aggregatedSeriesNum="aggregatedSeriesNum"
+              :executeSlicedSearch="settings.datasets.executeSlicedSearch"
+              @updateData="updateData"
+              @onPageIndexChange="onPageIndexChange"
+            />
+          </div>
         </v-container>
         <!-- Gallery View -->
         <v-container fluid class="pa-0">
           <!-- Loading -->
-          <v-skeleton-loader
-            v-if="isLoading"
-            class="mx-auto"
-            type="list-item@100"
-          >
+
+          <v-skeleton-loader v-if="isLoading" class="mx-auto" type="list-item@100">
           </v-skeleton-loader>
 
           <!-- Data available -->
@@ -93,14 +92,11 @@
                 <v-card-title style="padding-left: 30px; padding-right: 30px">
                   <v-row class="pa-0">
                     <v-col class="pa-0" align="right">
-                      {{ this.identifiersOfInterest.length }} selected
+                      {{ displaySelectedItems }}
                       <v-tooltip bottom>
                         <template v-slot:activator="{ on }">
                           <span v-on="on">
-                            <v-btn
-                              :disabled="identifiersOfInterest.length == 0"
-                              icon
-                            >
+                            <v-btn :disabled="identifiersOfInterest.length == 0" icon>
                               <v-icon
                                 v-on="on"
                                 icon
@@ -117,10 +113,7 @@
                       <v-tooltip bottom>
                         <template v-slot:activator="{ on }">
                           <span v-on="on">
-                            <v-btn
-                              :disabled="identifiersOfInterest.length == 0"
-                              icon
-                            >
+                            <v-btn :disabled="identifiersOfInterest.length == 0" icon>
                               <v-icon
                                 v-on="on"
                                 icon
@@ -139,8 +132,7 @@
                           <span v-on="on">
                             <v-btn
                               :disabled="
-                                identifiersOfInterest.length == 0 ||
-                                !datasetName
+                                identifiersOfInterest.length == 0 || !datasetName
                               "
                               icon
                             >
@@ -159,10 +151,7 @@
                       <v-tooltip bottom>
                         <template v-slot:activator="{ on }">
                           <span v-on="on">
-                            <v-btn
-                              :disabled="identifiersOfInterest.length == 0"
-                              icon
-                            >
+                            <v-btn :disabled="identifiersOfInterest.length == 0" icon>
                               <v-icon
                                 v-on="on"
                                 color="primary"
@@ -184,12 +173,7 @@
             <!--        property patients in two-ways bound -->
             <v-container
               fluid
-              class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area"
-              :class="
-                navigationMode
-                  ? 'gallery-side-navigation'
-                  : 'gallery-top-navigation'
-              "
+              class="overflow-auto rounded-0 v-card v-sheet pa-0 elements selecto-area gallery-side-navigation"
             >
               <StructuredGallery
                 v-if="
@@ -221,12 +205,7 @@
           </v-container>
         </v-container>
       </pane>
-      <pane
-        class="sidebar"
-        :class="navigationMode ? 'side-navigation' : 'top-navigation'"
-        size="30"
-        min-size="20"
-      >
+      <pane class="sidebar side-navigation" size="30" min-size="25">
         <DetailView
           v-if="this.$store.getters.detailViewItem"
           :series-instance-u-i-d="this.$store.getters.detailViewItem"
@@ -234,7 +213,9 @@
         <Dashboard
           v-else
           :seriesInstanceUIDs="identifiersOfInterest"
+          :allPatients="allPatients"
           :fields="dashboardFields"
+          :searchQuery="searchQuery"
           @dataPointSelection="(d) => addFilterToSearch(d)"
         />
         <!--      </ErrorBoundary>-->
@@ -268,14 +249,9 @@
             ></v-select>
           </v-card-text>
           <v-divider></v-divider>
-
           <v-card-actions>
             <v-spacer></v-spacer>
-            <v-btn
-              color="primary"
-              @click.stop="addToDataset"
-              :disabled="!datasetToAddTo"
-            >
+            <v-btn color="primary" @click.stop="addToDataset" :disabled="!datasetToAddTo">
               Save
             </v-btn>
             <v-btn @click.stop="addToDatasetDialog = false">Cancel</v-btn>
@@ -288,14 +264,99 @@
           :onlyLocal="true"
           :isDialog="true"
           kind_of_dags="dataset"
-          @successful="() => (this.workflowDialog = false)"
-          @cancel="() => (this.workflowDialog = false)"
+          :validDags="filteredDags"
+          @successful="onWorkflowSubmit"
+          @cancel="onWorkflowSubmit"
         />
       </v-dialog>
       <EditDatasetsDialog
         v-model="editDatasetsDialog"
         @close="(reloadDatasets) => editedDatasets(reloadDatasets)"
       />
+      <v-dialog
+        v-model="this.$store.getters.showValidationResults"
+        width="850"
+        persistent
+        @click:outside="onValidationResultClose"
+      >
+        <v-card>
+          <v-app-bar flat color="rgba(0, 0, 0, 0)">
+            <v-toolbar-title class="text-h6 white--text pl-0"> Reports </v-toolbar-title>
+            <v-spacer></v-spacer>
+            <v-menu bottom left>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn icon v-bind="attrs" v-on="on" :disabled="false">
+                  <v-icon>mdi-dots-vertical</v-icon>
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item @click="runValidationWorkflow(validationResultItem)">
+                  <v-list-item-title>Rerun Validation</v-list-item-title>
+                  <!-- <v-list-item-title v-else>Run Validation</v-list-item-title> -->
+                  <v-list-item-icon class="mt-4">
+                    <v-icon>mdi-play</v-icon>
+                  </v-list-item-icon>
+                </v-list-item>
+                <v-list-item @click="deleteValidationResult(validationResultItem)">
+                  <v-list-item-title>Delete Report</v-list-item-title>
+                  <v-list-item-icon class="mt-4">
+                    <v-icon>mdi-delete-empty</v-icon>
+                  </v-list-item-icon>
+                </v-list-item>
+                <v-list-item @click="downloadValidationResult(validationResultItem)">
+                  <v-list-item-title>Download Report</v-list-item-title>
+                  <v-list-item-icon class="mt-4">
+                    <v-icon>mdi-file-download</v-icon>
+                  </v-list-item-icon>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+          </v-app-bar>
+          <v-card-text v-if="validationResultItem != null">
+            <ElementsFromHTML
+              v-if="validationResultItem in resultPaths"
+              :rawHtmlURL="resultPaths[validationResultItem]"
+            />
+            <div class="container" v-else>
+              <h1 class="pb-5">Validation Report</h1>
+              <p class="text--primary">
+                Report not found, or earlier report has been deleted from workflow
+                results. Please re-run the dicom validation workflow to have up-to-date
+                report.
+              </p>
+              <v-btn
+                class="ma-2 ml-0"
+                outlined
+                color="light"
+                @click="runValidationWorkflow(validationResultItem)"
+              >
+                <v-icon left>mdi-cog-play</v-icon>
+                Re-run Validation
+              </v-btn>
+            </div>
+            <v-card-actions>
+              <!--
+              <v-btn
+                  color="error"
+                  icon
+                  @click="runValidationWorkflow(validationResultItem)"
+                >
+                  <v-icon>mdi-cog-play</v-icon>
+                </v-btn>
+                <v-btn
+                  color="error"
+                  icon
+                  @click="deleteValidationResult(validationResultItem)"
+                >
+                  <v-icon>mdi-delete-empty</v-icon>
+                </v-btn>
+                -->
+              <v-spacer></v-spacer>
+              <v-btn color="primary" @click="onValidationResultClose"> Close </v-btn>
+            </v-card-actions>
+          </v-card-text>
+        </v-card>
+      </v-dialog>
     </div>
   </div>
 </template>
@@ -311,7 +372,10 @@ import {
   updateDataset,
   loadDatasets,
   loadPatients,
+  getAggregatedSeriesNum,
+  fetchProjects,
 } from "../common/api.service";
+import kaapanaApiService from "@/common/kaapanaApi.service";
 import Dashboard from "@/components/Dashboard.vue";
 import { settings } from "@/static/defaultUIConfig";
 import { VueSelecto } from "vue-selecto";
@@ -323,6 +387,10 @@ import KeyController from "keycon";
 import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
 import "splitpanes/dist/splitpanes.css";
+import IdleTracker from "@/components/IdleTracker.vue";
+import ElementsFromHTML from "@/components/ElementsFromHTML.vue";
+import Paginate from "@/components/Paginate.vue";
+import { UPDATE_SELECTED_PROJECT } from "@/store/actions.type";
 
 const keycon = new KeyController();
 
@@ -345,12 +413,20 @@ export default {
       editDatasetsDialog: false,
       datasetToAddTo: null,
       debouncedIdentifiers: [],
-      navigationMode: false,
+      staticUrls: [],
+      resultPaths: {},
+      filteredDags: [],
+      aggregatedSeriesNum: 100,
+      pageIndex: 1,
+      searchQuery: {},
+      allPatients: true,
+      queryParams: this.$route.query,
     };
   },
   components: {
     DetailView,
     StructuredGallery,
+    IdleTracker,
     Search,
     TagBar,
     Gallery,
@@ -362,28 +438,59 @@ export default {
     VueSelecto,
     Splitpanes,
     Pane,
+    ElementsFromHTML,
+    Paginate,
   },
-  async created() {
+  created() {
     this.settings = JSON.parse(localStorage["settings"]);
-    // this.datasetName = JSON.parse(localStorage['Dataset.search.datasetName'] || '')
-    this.updateDatasetNames();
   },
-  mounted() {
-    window.addEventListener("keydown", (event) =>
-      this.keyDownEventListener(event)
-    );
+  async mounted() {
+    window.addEventListener("keydown", (event) => this.keyDownEventListener(event));
     window.addEventListener("keyup", (event) => this.keyUpEventListener(event));
 
-    this.navigationMode =
-      !document.getElementsByClassName("v-bottom-navigation").length > 0;
+    this.getStaticWebsiteResults();
+
+    // if 'project' is present in queryparams, set it as selected project
+    if (this.queryParams.project_name) {
+      // load all projects
+      const projects = await fetchProjects();
+      // find the project with the name from queryparams
+      const project = projects.find((p) => p.name === this.queryParams.project_name);
+
+      if (!project) {
+        this.$notify({
+          title: "Error",
+          text: `Project with name ${this.queryParams.project_name} doesn't exist or you don't have access.`,
+          type: "error",
+        });
+      }
+
+      // if project != current project, update selected project
+      if (project && project.id !== this.$store.getters.selectedProject.id) {
+        this.$store.dispatch(UPDATE_SELECTED_PROJECT, project);
+      }
+    }
+
+    // load all datasets
+    // this is dependent on the selected project, so we need to wait for the selected project to be set
+    await this.updateDatasetNames();
+    if (this.queryParams.dataset_name) {
+      // check if dataset_name is in datasetNames
+      if (!this.datasetNames.includes(this.queryParams.dataset_name)) {
+        this.$notify({
+          title: "Error",
+          text: `Dataset with name ${this.queryParams.dataset_name} not found.`,
+          type: "error",
+        });
+      } else {
+        // TODO: We somehow have to ensure that the dataset update is finished before we add the other queryParameters
+        this.datasetName = this.queryParams.dataset_name;
+      }
+    }
   },
   beforeDestroy() {
-    window.removeEventListener("keydown", (event) =>
-      this.keyDownEventListener(event)
-    );
-    window.removeEventListener("keyup", (event) =>
-      this.keyUpEventListener(event)
-    );
+    window.removeEventListener("keydown", (event) => this.keyDownEventListener(event));
+    window.removeEventListener("keyup", (event) => this.keyUpEventListener(event));
   },
   methods: {
     keyDownEventListener(event) {
@@ -426,45 +533,119 @@ export default {
       });
       this.debouncedIdentifiers = e.selected.map((el) => el.id);
     },
+    onValidationResultClose() {
+      this.$store.commit("setShowValidationResults", false);
+      this.$store.commit("setValidationResultItem", null);
+    },
+    onWorkflowSubmit() {
+      this.workflowDialog = false;
+      if (this.filteredDags.length > 0) {
+        this.filteredDags = [];
+      }
+    },
     addFilterToSearch(selectedFilterItem) {
       this.$refs.search.addFilterItem(
         selectedFilterItem["key"],
         selectedFilterItem["value"]
       );
     },
-    async updateData(query = {}) {
+    async updateData(query = {}, useLastquery = false) {
+      if (!useLastquery) {
+        this.searchQuery = { ...query };
+      }
       this.isLoading = true;
       this.selectedSeriesInstanceUIDs = [];
       this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
       this.$store.dispatch("resetDetailViewItem");
-
-      loadPatients({
-        structured: this.settings.datasets.structured,
-        query: query,
-      })
-        .then((data) => {
-          // TODO: this is not ideal...
-          if (this.settings.datasets.structured) {
-            this.patients = data;
-            this.seriesInstanceUIDs = Object.values(this.patients)
-              .map((studies) => Object.values(studies))
-              .flat(Infinity);
-          } else {
-            this.seriesInstanceUIDs = data;
-          }
-          if (this.seriesInstanceUIDs.length === 0)
-            this.message = "No data found.";
-          this.isLoading = false;
+      getAggregatedSeriesNum({
+        query: this.searchQuery,
+      }).then((data) => {
+        this.aggregatedSeriesNum = data;
+        this.allPatients =
+          this.aggregatedSeriesNum > this.settings.datasets.itemsPerPagePagination;
+        loadPatients({
+          structured: this.settings.datasets.structured,
+          executeSlicedSearch: this.settings.datasets.executeSlicedSearch,
+          query: this.searchQuery,
+          sort: this.settings.datasets.sort,
+          sortDirection: this.settings.datasets.sortDirection,
+          pageIndex: this.pageIndex,
+          pageLength: this.settings.datasets.itemsPerPagePagination,
+          aggregatedSeriesNum: this.aggregatedSeriesNum,
         })
-        .catch((e) => {
-          this.message = e;
-          this.isLoading = false;
+          .then((data) => {
+            // TODO: this is not ideal...
+            if (this.settings.datasets.structured) {
+              this.patients = data;
+              this.seriesInstanceUIDs = Object.values(this.patients)
+                .map((studies) => Object.values(studies))
+                .flat(Infinity);
+            } else {
+              this.seriesInstanceUIDs = data;
+            }
+            if (this.seriesInstanceUIDs.length === 0) this.message = "No data found.";
+            this.isLoading = false;
+          })
+          .catch((e) => {
+            this.message = e;
+            this.isLoading = false;
+          });
+      });
+    },
+    async updateDatasetNames() {
+      this.datasetNames = await loadDatasets();
+    },
+    getStaticWebsiteResults() {
+      kaapanaApiService
+        .kaapanaApiGet("/get-static-website-results")
+        .then((response) => {
+          this.staticUrls = response.data;
+          this.extractChildPaths(this.staticUrls);
+        })
+        .catch((err) => {
+          this.staticUrls = [];
         });
     },
-    updateDatasetNames() {
-      loadDatasets().then(
-        (_datasetNames) => (this.datasetNames = _datasetNames)
-      );
+    extractChildPaths(urlObjs) {
+      urlObjs.forEach((i) => {
+        let rootPaths = this.extractRootPath(i);
+        for (let path of rootPaths) {
+          let seriesID = this.extractSeriesId(path);
+          this.resultPaths[seriesID] = path;
+          // this.readAndParseHTML(path)
+        }
+      });
+      this.resultPaths.__ob__.dep.notify();
+    },
+    extractRootPath(urlObj) {
+      let paths = [];
+
+      function traverseChild(node) {
+        if ("children" in node) {
+          for (let child of node.children) {
+            traverseChild(child);
+          }
+        } else if ("path" in node) {
+          paths.push(node.path);
+        } else {
+          paths.push(undefined);
+        }
+      }
+
+      traverseChild(urlObj);
+      return paths;
+    },
+    extractSeriesId(urlStr) {
+      const seriesIdRegx = "^(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*$";
+      const subDirs = urlStr.split("/");
+      let matched = "";
+      for (let dir of subDirs.reverse()) {
+        if (dir.match(seriesIdRegx)) {
+          matched = dir;
+          break;
+        }
+      }
+      return matched;
     },
     async updateDataset(name, identifiers, action = "UPDATE") {
       try {
@@ -544,10 +725,7 @@ export default {
       if (this.seriesInstanceUIDs.length === 0) this.message = "No data found.";
     },
     async saveDatasetFromDialog(name) {
-      const successful = await this.saveDataset(
-        name,
-        this.identifiersOfInterest
-      );
+      const successful = await this.saveDataset(name, this.identifiersOfInterest);
       if (successful) {
         this.saveAsDatasetDialog = false;
       }
@@ -564,7 +742,7 @@ export default {
           text: `Successfully new dataset ${name}.`,
           type: "success",
         });
-        this.updateDatasetNames();
+        await this.updateDatasetNames();
         return true;
       } catch (error) {
         this.$notify({
@@ -578,6 +756,9 @@ export default {
         return false;
       }
     },
+    onPageIndexChange(newPageIndex) {
+      this.pageIndex = newPageIndex;
+    },
     editedDatasets(reloadDatasets) {
       if (reloadDatasets) {
         loadDatasets().then((_datasetNames) => {
@@ -589,6 +770,30 @@ export default {
       }
       this.editDatasetsDialog = false;
     },
+    runValidationWorkflow(resultItemID) {
+      this.selectedSeriesInstanceUIDs = [resultItemID];
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
+      this.filteredDags = ["validate-dicoms"];
+      this.onValidationResultClose();
+      this.workflowDialog = true;
+    },
+    deleteValidationResult(resultItemID) {
+      this.selectedSeriesInstanceUIDs = [resultItemID];
+      this.$store.commit("setSelectedItems", this.selectedSeriesInstanceUIDs);
+      this.filteredDags = ["clear-validation-results"];
+      this.onValidationResultClose();
+      this.workflowDialog = true;
+    },
+    downloadValidationResult(resultItemID) {
+      const resultUri = this.resultPaths[resultItemID];
+      var link = document.createElement("a");
+      link.download = resultItemID + ".html";
+      link.href = resultUri;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      link = null;
+    },
   },
   watch: {
     debouncedIdentifiers: debounce(function (val) {
@@ -598,51 +803,71 @@ export default {
   },
   computed: {
     identifiersOfInterest() {
-      return this.selectedSeriesInstanceUIDs.length > 0
-        ? this.selectedSeriesInstanceUIDs
-        : this.seriesInstanceUIDs;
+      if (this.selectedSeriesInstanceUIDs.length > 0) {
+        this.allPatients = false;
+        return this.selectedSeriesInstanceUIDs;
+      }
+      return this.seriesInstanceUIDs;
     },
     continueSelectKey() {
-      return window.navigator.userAgent.indexOf("Mac") !== -1
-        ? ["meta"]
-        : ["ctrl"];
+      return window.navigator.userAgent.indexOf("Mac") !== -1 ? ["meta"] : ["ctrl"];
     },
     mainPaneWidth() {
       return this.$refs.mainPane.style.width;
     },
     dashboardFields() {
-      return this.settings.datasets.props
-        .filter((i) => i.dashboard)
-        .map((i) => i.name);
+      return this.settings.datasets.props.filter((i) => i.dashboard).map((i) => i.name);
+    },
+    validationResultItem() {
+      return this.$store.getters.validationResultItem;
+    },
+    displaySelectedItems() {
+      if (
+        this.aggregatedSeriesNum > 0 &&
+        this.aggregatedSeriesNum > this.identifiersOfInterest.length
+      ) {
+        return `${this.identifiersOfInterest.length} selected of ${this.aggregatedSeriesNum}`;
+      } else {
+        return `${this.identifiersOfInterest.length} selected`;
+      }
     },
   },
 };
 </script>
 <style scoped>
 .sidebar {
-  /* height: calc(100vh - 81px); */
   overflow-y: auto;
 }
 
 .main {
-  /* height: calc(100vh - 81px); */
   position: relative;
 }
 
 .side-navigation {
-  height: calc(100vh - 81px);
-}
-
-.top-navigation {
-  height: calc(100vh - 81px - 56px);
+  height: calc(100vh - 80px);
+  overflow-y: auto;
 }
 
 .gallery-side-navigation {
   height: calc(100vh - 258px);
 }
 
-.gallery-top-navigation {
-  height: calc(100vh - 258px - 56px);
+/deep/ .item-label {
+  line-height: 20px;
+  max-width: 100%;
+  outline: none;
+  overflow: hidden;
+  padding: 2px 12px;
+  position: relative;
+  border-radius: 12px;
+  margin-right: 4px;
+  text-align: center;
+}
+
+/deep/ .item-count-label {
+  padding: 2px 16px;
+  border-radius: 15px;
+  margin-left: 8px;
 }
 </style>
 
@@ -653,6 +878,7 @@ export default {
   cursor: col-resize;
   background-color: rgba(0, 0, 0, 0.12);
 }
+
 .splitpanes--vertical.dark-theme > .splitpanes__splitter {
   background-color: hsla(0, 0%, 100%, 0.12);
 }

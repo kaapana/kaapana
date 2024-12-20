@@ -19,4 +19,6 @@ global:
     host_path: /workflows/models
   - name: mounted-scripts
     host_path: /workflows/mounted_scripts
+  - name: uploads
+    host_path: /uploads
     

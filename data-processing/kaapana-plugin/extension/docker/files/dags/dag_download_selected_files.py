@@ -2,10 +2,13 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-
+from kaapana.operators.KaapanaBranchPythonBaseOperator import (
+    KaapanaBranchPythonBaseOperator,
+)
 
 log = LoggingMixin().log
 
@@ -13,9 +16,16 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "zip_files": {
-                "title": "Do you want to zip the downloaded files?",
+            "convert_to_nifti": {
+                "title": "Convert to nifti format",
                 "type": "boolean",
+                "description": "Supported for DCM Image, DCM RT Dose and DCM Seg",
+                "default": False,
+            },
+            "zip_files": {
+                "title": "Compress files",
+                "type": "boolean",
+                "description": "Should the files be compressed into a zip file?",
                 "default": True,
             },
             "single_execution": {
@@ -46,16 +56,54 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
-put_to_minio = LocalMinioOperator(
-    dag=dag,
-    input_operator=get_input,
-    action="put",
-    action_operator_dirs=[get_input.operator_out_dir],
-    bucket_name="downloads",
-    file_white_tuples=(".zip", ".dcm"),
-    zip_files=True,
-)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> put_to_minio >> clean
+class BranchIfNiftiOperator(KaapanaBranchPythonBaseOperator):
+    def branch_if_nifti(self, ds, **kwargs):
+        conf = kwargs["dag_run"].conf
+        print("conf", conf)
+
+        convert_to_nifti = bool(conf["form_data"]["convert_to_nifti"])
+
+        if convert_to_nifti:
+            return "dcm-converter"
+        else:
+            return "minio-actions-put-dicom"
+
+    def __init__(self, dag, **kwargs):
+        super().__init__(
+            dag=dag,
+            name="branch-nifti-conversion",
+            python_callable=self.branch_if_nifti,
+            **kwargs
+        )
+
+
+get_input = GetInputOperator(dag=dag)
+branch_if_nifti = BranchIfNiftiOperator(dag=dag)
+dcm2nifti = DcmConverterOperator(
+    dag=dag, input_operator=get_input, output_format="nii.gz"
+)
+
+put_to_minio_nifti = MinioOperator(
+    dag=dag,
+    name="minio-actions-put-nifti",
+    action="put",
+    batch_input_operators=[dcm2nifti],
+    minio_prefix="downloads",
+    whitelisted_file_extensions=(".zip", ".nii.gz"),
+)
+put_to_minio_dicom = MinioOperator(
+    dag=dag,
+    name="minio-actions-put-dicom",
+    action="put",
+    batch_input_operators=[get_input],
+    minio_prefix="downloads",
+    whitelisted_file_extensions=(".zip", ".dcm"),
+)
+clean = LocalWorkflowCleanerOperator(
+    dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped"
+)
+
+get_input >> branch_if_nifti >> [dcm2nifti, put_to_minio_dicom]
+dcm2nifti >> put_to_minio_nifti >> clean
+put_to_minio_dicom >> clean

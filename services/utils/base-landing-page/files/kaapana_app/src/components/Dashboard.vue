@@ -61,6 +61,13 @@ export default {
       type: Array,
       default: () => [],
     },
+    allPatients:{
+      type: Boolean,
+      default: false,
+    },
+    searchQuery:{  
+      type: Object,
+    },
   },
   data() {
     return {
@@ -176,18 +183,24 @@ export default {
       };
     },
     updateDashboard() {
-      if (this.seriesInstanceUIDs.length === 0) {
+      if (this.seriesInstanceUIDs.length === 0 && !this.allPatients) {
         this.histograms = {};
         this.metrics = {};
-      } else {
-        loadDashboard(this.seriesInstanceUIDs, this.fields).then((data) => {
+      } else {  
+        let series = this.seriesInstanceUIDs;
+        let query = []
+        if(this.allPatients){
+          series = [];
+          query = this.searchQuery;
+        }
+        loadDashboard(series, this.fields, query).then((data) => {
           this.histograms = data["histograms"] || {};
           this.metrics = data["metrics"] || {};
         });
       }
     },
     dataPointSelection(event, chartContext, config, key, value) {
-      console.log(Object.keys(value["items"]), config["dataPointIndex"]);
+      //console.log(Object.keys(value["items"]), config["dataPointIndex"]);
       this.$emit("dataPointSelection", {
         key: key,
         value: Object.keys(value["items"])[config["dataPointIndex"]],

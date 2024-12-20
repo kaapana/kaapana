@@ -18,10 +18,13 @@ class DcmConverterOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
+        name="dcm-converter",
         output_format="nrrd",
         parallel_processes=3,
         env_vars=None,
         execution_timeout=timedelta(hours=10),
+        ram_mem_mb=2000,
+        ram_mem_mb_lmt=12000,
         **kwargs,
     ):
         """
@@ -39,21 +42,19 @@ class DcmConverterOperator(KaapanaBaseOperator):
 
         env_vars.update(envs)
 
-        if output_format != "nrrd" and (
-            output_format != "nii.gz" and output_format != "nii"
-        ):
-            print(("output format %s is currently not supported!" % output_format))
-            print("Dcm2nrrdOperator options: 'nrrd' or 'nii'")
-            raise ValueError("ERROR")
+        if output_format not in ["nrrd", "nii.gz", "nii"]:
+            raise ValueError(
+                f"Output format not supported: {output_format}. Supported formats: nrrd, nii.gz, nii"
+            )
 
         super().__init__(
             dag=dag,
             image=f"{DEFAULT_REGISTRY}/mitk-fileconverter:{KAAPANA_BUILD_VERSION}",
-            name="dcm-converter",
+            name=name,
             env_vars=env_vars,
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb=2000,
-            ram_mem_mb_lmt=12000,
+            ram_mem_mb=ram_mem_mb,
+            ram_mem_mb_lmt=ram_mem_mb_lmt,
             **kwargs,
         )

@@ -1,21 +1,37 @@
-FROM local-only/base-landing-page:latest as build-stage
+FROM local-only/base-landing-page:latest AS build-stage
 
 LABEL IMAGE="landing-page-kaapana"
 LABEL VERSION="0.2.1"
-LABEL CI_IGNORE="False"
+LABEL BUILD_IGNORE="False"
 
-WORKDIR /kaapana/app
 
-RUN npm run build
+################################
+######### Development ##########
+################################
+# USER 0
+# RUN chown -R 1000:1000 /kaapana/app && \
+#     ln -s /kaapana/app/jsons /kaapana/app/public
+
+# USER 1000
+# WORKDIR /kaapana/app
+
+# RUN npm run build
+
+# CMD ["npm", "run", "serve"]
+
 
 ###############################
 ######### Production ##########
 ###############################
-FROM docker.io/nginx:1.23.3-alpine
+WORKDIR /kaapana/app
+RUN npm run build
 
+FROM nginxinc/nginx-unprivileged:1.27.2-alpine
 WORKDIR /kaapana/app
 
-# RUN mkdir -p /kaapana/app
 COPY --from=build-stage /kaapana/app/dist /kaapana/app
 COPY --from=build-stage /kaapana/app/nginx.conf /etc/nginx/nginx.conf
+USER 0
+RUN chown 1000 /etc/nginx/nginx.conf
 
+USER 1000

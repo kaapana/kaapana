@@ -15,8 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import kubernetes
 import os
+
+import kubernetes
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__file__)
 
 
 class Secret:
@@ -48,20 +52,14 @@ class Secret:
 
     def get_kube_object_env(self):
         if self.deploy_type == "env":
-            env = kubernetes.client.V1EnvVar()
-            env.name = self.deploy_target
-
-            env_value_from = kubernetes.client.V1EnvVarSource()
-
-            secretKeySelector = kubernetes.client.V1SecretKeySelector()
-            secretKeySelector.name = self.secret
-            secretKeySelector.key = self.key
-            secretKeySelector.optional = self.optional
-
-            env_value_from.secret_key_ref = secretKeySelector
-            env.value_from = env_value_from
-
-            return env
+            return kubernetes.client.V1EnvVar(
+                name=self.deploy_target,
+                value_from=kubernetes.client.V1EnvVarSource(
+                    secret_key_ref=kubernetes.client.V1SecretKeySelector(
+                        name=self.secret, key=self.key, optional=self.optional
+                    )
+                ),
+            )
 
         else:
             return None

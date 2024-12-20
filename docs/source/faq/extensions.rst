@@ -1,5 +1,6 @@
 .. _faq_extensions:
 
+.. _failed_to_install:
 
 Failed to Install or Launch an Extension
 ****************************************
@@ -35,11 +36,14 @@ If you encounter this issue, follow these steps:
        helm uninstall --no-hooks <release-name>
 
 
+.. _failed_to_uninstall:
+
 Failed to Uninstall or Delete an Extension
 ******************************************
 
 Follow the same steps as for the installation failure. Check the logs and run the same commands to manually uninstall the extension. It is also possible to force uninstall an extension if it is stuck in a Pending state.
 
+.. _extension_not_available:
 
 No Extensions Available
 ***********************
@@ -50,6 +54,7 @@ If there are no extensions available on the frontend, it is possible that the fo
 
 2. Wait for a minute or so. The extensions should now be visible on the webpage.
 
+.. _extension_stuck:
 
 Extensions Page Stuck in Loading
 ********************************
@@ -59,6 +64,7 @@ To resolve this issue, manually delete some of the unused older versions of char
 
 Note that there is no hard limit for the number of extensions or versions that will cause this issue. It will vary based on the state of resources for every instance.
 
+.. _extension_chart_upload_fail:
 
 Chart Upload Failed
 *******************
@@ -67,14 +73,20 @@ The upload component only accepts valid `.tgz` files for charts. If the issue is
 
 Additionally, if any Kubernetes resource inside the Helm package is configured to run under the `admin` namespace, the platform will raise an error. By default, this is not allowed.
 
-If the issue persists, check the logs by going to `<hostname>/kubernetes/#/pod?namespace=admin` and searching for the pod named `kube-helm-deployment-<random-generated-id>`.
+If the issue persists, check the logs by going to `<hostname>/kubernetes/#/pod?namespace=admin` and searching for the pod named `kube-helm-deployment-<random-id>`.
 
+.. _extension_container_upload_fail:
 
 Container Upload Failed
 ***********************
 
-The upload component only accepts valid `.tar` files for containers. If the issue is related to unsupported file types, check the webpage console logs for more information.
+The upload component only accepts valid `.tar` files for containers. If the issue is related to unsupported file types, check the browser console logs for more information.
 
-If the upload completes to 100% but you can not access the container, it is possible that the import is failed. Check the logs in the frontend and see if an error message stating "import failed" exists.
+If the upload completes to 100% but you can not access the container, it is possible that the import is failed. Check logs on the browser once again and see if "import failed" error message exists.
 
-Otherwise, once again check the logs by accessing `<hostname>/kubernetes/#/pod?namespace=admin` and looking for the pod `kube-helm-deployment-<random-generated-id>`.
+Otherwise, the backend service logs should be checked via accessing `<hostname>/kubernetes/#/pod?namespace=admin` and looking for the pod `kube-helm-deployment-<random-id>`.
+
+If it is possible to access a terminal by an admin user, the following steps can be followed:
+
+1. check if the container is imported into microk8s ctr correctly via  :code:`microk8s ctr images ls | grep <image-tag>` and see if the image tag is listed there.
+2. If the image is not listed, then manually import via :code:`microk8s ctr image import --digests <tar-file-path>` where :code:`<tar-file-path>` is :code:`FAST_DATA_DIR/extensions/<tar-file>`. 

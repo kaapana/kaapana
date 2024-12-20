@@ -37,9 +37,20 @@ spec:
         volumeMounts:
           - name: common-data-file
             mountPath: /app/jsons
+          - name: tmp
+            mountPath: /var/run
+          - name: cache
+            mountPath: /var/cache/nginx
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       volumes:
       - name: common-data-file
         configMap:
           name: maintenance-page-config
+      - name: cache
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
       imagePullSecrets:
       - name: registry-secret

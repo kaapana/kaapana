@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oauth2-proxy-cfg
+  namespace: "{{ .Values.global.helm_namespace }}"
+data:
+  oauth2-proxy.cfg: |
+    # OAuth2 Proxy configuration file
+
+    # TLS settings
+    tls_cipher_suites = [
+      "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+      "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+      "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+      "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+      "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+      "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+      "TLS_AES_128_GCM_SHA256",
+      "TLS_AES_256_GCM_SHA384",
+      "TLS_CHACHA20_POLY1305_SHA256"
+    ]
+
+    # URLs
+    {{- if ne (.Values.global.https_port | default "443") "443" }}
+    login_url = "https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}:{{ .Values.global.https_port }}/auth/realms/kaapana/protocol/openid-connect/auth"
+    oidc_issuer_url = "https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}:{{ .Values.global.https_port }}/auth/realms/kaapana"
+    {{- else }}
+    login_url = "https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana/protocol/openid-connect/auth"
+    oidc_issuer_url = "https://{{ required "A valid hostname (or fqdn) is required!" $.Values.global.hostname }}/auth/realms/kaapana"
+    {{- end }}
+    redeem_url = "https://keycloak-internal-service.{{ .Values.global.admin_namespace }}.svc/auth/realms/kaapana/protocol/openid-connect/token"
+    oidc_jwks_url = "https://keycloak-internal-service.{{ .Values.global.admin_namespace }}.svc/auth/realms/kaapana/protocol/openid-connect/certs"
+    profile_url = "https://keycloak-internal-service.{{ .Values.global.admin_namespace }}.svc/auth/realms/kaapana/protocol/openid-connect/userinfo"
+
+    # Provider details
+    provider = "keycloak-oidc"
+    client_id = "kaapana"
+    client_secret = "{{ .Values.global.oidc_client_secret }}"
+    cookie_secret = "{{ randAlphaNum 32 | b64enc }}"
+
+    # TLS and SSL settings
+    tls_cert_file = "/ssl/tls.crt"
+    tls_key_file = "/ssl/tls.key"
+    https_address = "0.0.0.0:8443"
+    metrics_address = ":8081"
+    ssl_insecure_skip_verify = true
+    ssl_upstream_insecure_skip_verify = true
+
+    # Cookie settings
+    cookie_expire = "30m"
+    cookie_refresh = "5m"
+
+    # Additional flags
+    custom_templates_dir = "/usr/share/oauth2-proxy"
+    upstreams = ["https://traefik-{{ .Values.global.instance_uid | default 0 }}.{{ .Values.global.helm_namespace }}.svc:{{ .Values.global.https_port }}"]
+    skip_provider_button = true
+    skip_oidc_discovery = true
+    skip_jwt_bearer_tokens = true
+    insecure_oidc_allow_unverified_email = true
+    email_domains = ["*"]
+    skip_auth_routes = [
+      "^/auth/*",
+      "^/kaapana-backend/remote/*",
+      "^/oauth2/metrics"
+    ]
+    pass_access_token = true
+    reverse_proxy = true
+    show_debug_on_error = false

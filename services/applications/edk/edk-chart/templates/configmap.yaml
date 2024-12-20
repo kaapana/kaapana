@@ -1,0 +1,16 @@
+apiVersion: v1
+data:
+  user_settings.json: |-
+    {
+        "workbench.colorTheme": "Default Dark+"
+    }
+  launch.json: |-
+    {
+        "version": "0.2.0",
+        "configurations": []
+    }
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}
+  namespace: "{{ tpl .Values.global.namespace . }}"
+---

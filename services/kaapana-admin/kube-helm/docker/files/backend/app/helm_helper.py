@@ -1,21 +1,22 @@
-import os
-import glob
-from os.path import basename
-import yaml
-import re
-import json
-import subprocess
-import hashlib
-import time
 import asyncio
+import glob
+import hashlib
+import json
+import logging
+import os
+import re
+import subprocess
+import time
 from distutils.version import LooseVersion
+from os.path import basename
+from typing import Dict, List, Set, Tuple, Union
 
-from typing import Dict, List, Set, Union, Tuple
-from fastapi import UploadFile
-from fastapi.logger import logger
-
-from config import settings
 import schemas
+import yaml
+from config import settings
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 CHART_STATUS_UNDEPLOYED = "un-deployed"
 CHART_STATUS_DEPLOYED = "deployed"
@@ -37,12 +38,12 @@ global_extensions_list = []
 global_platforms_list = []
 global_collected_tgz_charts = {}
 global_collected_tgz_charts_platforms = {}
-global_extension_states: Dict[
-    str, schemas.ExtensionState
-] = {}  # keys are in form <name>__<version>
-global_recently_updated: Set[
-    str
-] = set()  # list of keys for recently updated ( < refresh_delay) extensions
+global_extension_states: Dict[str, schemas.ExtensionState] = (
+    {}
+)  # keys are in form <name>__<version>
+global_recently_updated: Set[str] = (
+    set()
+)  # list of keys for recently updated ( < refresh_delay) extensions
 global_extensions_release_names: Set[str] = set()
 
 
@@ -210,13 +211,18 @@ def add_extension_to_dict(
             available_versions={},
             description=extension_dict["description"],
             keywords=extension_dict["keywords"],
-            experimental="yes"
-            if "kaapanaexperimental" in extension_dict["keywords"]
-            else "no",
-            multiinstallable="yes"
-            if "kaapanamultiinstallable" in extension_dict["keywords"]
-            else "no",
+            experimental=(
+                "yes" if "kaapanaexperimental" in extension_dict["keywords"] else "no"
+            ),
+            multiinstallable=(
+                "yes"
+                if "kaapanamultiinstallable" in extension_dict["keywords"]
+                else "no"
+            ),
             kind=extension_kind,
+            resourceRequirement=(
+                "gpu" if "gpurequired" in extension_dict["keywords"] else "cpu"
+            ),
             extension_params=ext_params,
             # "values": extension_dict["values"]
         )
@@ -257,7 +263,11 @@ def add_extension_to_dict(
                         if success:
                             chart_info["kube_status"] = concatenated_states["status"]
                             chart_info["kube_info"] = concatenated_states
-                            chart_info["links"] = paths
+                            chart_info["links"] = (
+                                extension_dict["links"]
+                                if "links" in extension_dict
+                                else paths
+                            )
                             chart_info["ready"] = deployment_ready
                             latest_kube_status = concatenated_states["ready"]
                             # all_links.extend(paths)
@@ -360,7 +370,6 @@ def add_info_from_deployments(
                 extension_info.successful = ""
             else:
                 for deployment in version_content.deployments:
-                    # TODO: /pending-applications does not use this function so it's fine to exclude "kaapanaint", but definitely a workaround for now
                     extension_info.links.extend(
                         [link for link in deployment.links if "kaapanaint" not in link]
                     )
@@ -422,7 +431,7 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
 
             if len(states_w_indexes) == 0:
                 # nothing updated recently, return cached
-                logger.info(f"nothing updated recently -> returning cached list")
+                logger.info(f"no recent updates -> returning cached list")
                 if platforms:
                     return global_platforms_list
                 else:
@@ -613,7 +622,16 @@ def collect_all_tgz_charts(
                 chart = list(yaml.load_all(stdout, yaml.FullLoader))[0]
                 if "keywords" in chart and (set(chart["keywords"]) & keywords_filter):
                     logger.debug(f"Valid keyword-filter!")
-                    chart = add_extension_params(chart, platforms=platforms)
+                    vals = helm_show_values(
+                        chart["name"], chart["version"], platforms=platforms
+                    )
+                    if (vals is not None) and "extension_params" in vals:
+                        chart = add_extension_params(chart, vals)
+                    if (vals is not None) and "links" in vals["global"]:
+                        logger.debug(
+                            f"'links' specified in values.yaml of {chart['name']}"
+                        )
+                        chart["links"] = vals["global"]["links"]
                     current_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                     collected_tgz_charts[f'{chart["name"]}-{chart["version"]}'] = chart
                 else:
@@ -712,14 +730,17 @@ def collect_helm_deployments(
 
 
 def get_kube_objects(
-    release_name: str, helm_namespace: str = settings.helm_namespace
+    release_name: str,
+    helm_namespace: str = settings.helm_namespace,
+    single_status_for_jobs: bool = False,
 ) -> Tuple[bool, bool, List[str], schemas.KubeInfo]:
     """
     Gets information about all kube objects in helm manifest
 
     Arguments:
-        release_name    (str): Name of the helm chart
-        helm_namespace  (str): Namespace for helm commands
+        release_name           (str) : Name of the helm chart
+        helm_namespace         (str) : Namespace for helm commands
+        single_status_for_jobs (bool): Whether to return a single status for jobs if there are many pods but at least one is completed
 
     Returns:
         success             (bool)             : whether the helm command ran successfully
@@ -728,7 +749,9 @@ def get_kube_objects(
         concatenated_states (schemas.KubeInfo]): contains all information about related kube objects
     """
 
-    def get_kube_status(kind, name, namespace) -> Union[schemas.KubeInfo, None]:
+    def get_pod_status(
+        kind, name, namespace, single_status_for_jobs: bool = False
+    ) -> Union[schemas.KubeInfo, None]:
         """
         Returns pod information as KubeInfo
         """
@@ -741,13 +764,34 @@ def get_kube_objects(
             states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[])
 
             stdout = stdout.splitlines()[1:]
-            for row in stdout:
-                name, ready, status, restarts, age = re.split("\s\s+", row)
-                states.name.append(name)
-                states.ready.append(ready)
-                states.status.append(status.lower())
-                states.restarts.append(restarts)
-                states.age.append(age)
+
+            # for pods of a Job, check if one of them already has 'completed' status
+            job_completed = False
+            if kind == "job" and single_status_for_jobs:
+                for row in stdout:
+                    name, ready, status, restarts, age = re.split("\s\s+", row)
+                    if status.lower() == "completed":
+                        # ignore other pods and only return the completed pod status
+                        job_completed = True
+                        logger.info(
+                            f"job {name=} has a completed pod, ignoring its other pods"
+                        )
+                        states.name = [name]
+                        states.ready = [ready]
+                        states.status = [status.lower()]
+                        states.restarts = [restarts]
+                        states.age = [age]
+                        break
+
+            if not job_completed:
+                # return all pod states if no pod is completed or if resource kind is not Job
+                for row in stdout:
+                    name, ready, status, restarts, age = re.split("\s\s+", row)
+                    states.name.append(name)
+                    states.ready.append(ready)
+                    states.status.append(status.lower())
+                    states.restarts.append(restarts)
+                    states.age.append(age)
         else:
             logger.error(f"Could not get kube status of {name}")
             logger.error(stdout)
@@ -770,11 +814,13 @@ def get_kube_objects(
             logger.debug(config)
             if config is None:
                 continue
-            if config["kind"] == "Ingress":
+
+            kind = config["kind"]
+            if kind == "Ingress":
                 path = config["spec"]["rules"][0]["http"]["paths"][0]["path"]
                 paths.append(path)
             elif (
-                config["kind"] == "Service"
+                kind == "Service"
                 and "type" in config["spec"]
                 and config["spec"]["type"] == "NodePort"
             ):
@@ -783,24 +829,27 @@ def get_kube_objects(
                 nodeport = config["spec"]["ports"][0]["nodePort"]
                 nodeport_path = ":" + str(nodeport)
                 paths.append(nodeport_path)
-            elif config["kind"] == "Deployment" or config["kind"] == "Job":
+            elif kind == "Deployment" or kind == "Job":
                 obj_kube_status = None
-                if config["kind"] == "Deployment":
+                if kind == "Deployment":
                     # TODO: only traefik lacks app-name in matchLabels
                     match_labels = config["spec"]["selector"]["matchLabels"]
-                    app_name = (
-                        match_labels["app-name"]
-                        if ("app-name" in match_labels)
-                        else match_labels["app"]
+                    # There are different conventions for app name
+                    app_name = match_labels.get(
+                        "app.kubernetes.io/name",
+                        match_labels.get("app", match_labels.get("app-name")),
                     )
-                    obj_kube_status = get_kube_status(
+                    if not app_name:
+                        app_name = "-- UNKNOWN APP --"
+                    obj_kube_status = get_pod_status(
                         "app", app_name, config["metadata"]["namespace"]
                     )
-                elif config["kind"] == "Job":
-                    obj_kube_status = get_kube_status(
+                elif kind == "Job":
+                    obj_kube_status = get_pod_status(
                         "job",
                         config["metadata"]["name"],
                         config["metadata"]["namespace"],
+                        single_status_for_jobs,
                     )
 
                 if obj_kube_status != None:
@@ -997,15 +1046,13 @@ def get_recently_updated_extensions() -> List[schemas.KaapanaExtension]:
     return res
 
 
-def add_extension_params(chart, platforms=False):
+def add_extension_params(chart, vals):
     """
-    Add 'extension_params' to chart object, if a valid field exists in chart values.
+    Add 'extension_params' from vals to chart object.
     """
     logger.debug(f"in function add_extension_params {chart['name']=}")
-    vals = helm_show_values(chart["name"], chart["version"], platforms=platforms)
-    if (vals is not None) and "extension_params" in vals:
-        # TODO: validate the parameter fields
-        params_dict = vals["extension_params"]
-        logger.debug(f"extension_params {params_dict}")
-        chart["extension_params"] = params_dict
+    # TODO: validate the parameter fields
+    params_dict = vals["extension_params"]
+    logger.debug(f"extension_params {params_dict}")
+    chart["extension_params"] = params_dict
     return chart

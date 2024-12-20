@@ -6,6 +6,8 @@ dependencies:
     version: 0.0.0
   - name: code-server-chart
     version: 0.0.0
+  - name: edk
+    version: 0.0.0
   - name: jupyterlab-chart
     version: 0.0.0
   - name: federated-setup-central-test-workflow
@@ -17,11 +19,13 @@ dependencies:
   - name: slicer-workbench-chart
     version: 0.0.0
   - name: mitk-flow-chart
-    version: 0.0.0 
+    version: 0.0.0
   - name: mitk-flow-workflow
     version: 0.0.0
   - name: bodypartregression-workflow
     version: 0.0.0
+  # - name: wsiconv-workflow
+  #   version: 0.0.0
   - name: nnunet-workflow
     version: 0.0.0
   - name: total-segmentator-workflow
@@ -34,6 +38,8 @@ dependencies:
     version: 0.0.0
   - name: shapemodel-workflow
     version: 0.0.0
+  - name: tfda-spe-orchestrator-workflow
+    version: 0.0.0
   # - name: rateme-workflow
   #   version: 0.0.0
   # - name: rateme-chart
@@ -45,6 +51,12 @@ dependencies:
   # - name: mhub-models-workflow
   #   version: 0.0.0
   - name: debug-container-chart
+    version: 0.0.0
+  - name: advanced-collect-metadata-workflow
+    version: 0.0.0
+  - name: advanced-collect-metadata-federated-workflow
+    version: 0.0.0
+  - name: slim-chart
     version: 0.0.0
   # - name: openedc-chart
   #   version: 0.0.0
@@ -62,5 +74,19 @@ dependencies:
   #   version: 0.0.0
   # - name: podman-chart # lives here before build script can handle the code-server as dependency
   #   version: 0.0.0
+  - name: classification-training-workflow
+    version: 0.0.0
+  - name: modify-dcmseg-workflow
+    version: 0.0.0
   - name: collabora-chart
     version: 0.0.0
+  - name: minio-sync-chart
+    version: 0.0.0
+  - name: project-namespace
+    version: 0.0.0
+  - name: custom-registry-chart
+    version: 0.0.0
+  - name: dev-server-chart
+    version: 0.0.0
+  # - name: desktop-container-chart
+  #   version: 0.0.0

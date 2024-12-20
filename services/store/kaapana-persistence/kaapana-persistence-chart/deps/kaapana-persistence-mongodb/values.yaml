@@ -1,6 +1,4 @@
-global:
-  dev_mode: False
-  
+ 
 mongodb:
   user: kaapanauser
   password: kaapanapassword

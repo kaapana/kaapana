@@ -62,16 +62,7 @@ spec:
             value: "true"
           - name: WILDFLY_LOG_RETENTION_DAYS
             value: "7"
-          # - name: GELF_LEVEL
-          #   value: INFO
-          # - name: AUTH_SERVER_URL
-          #   value: https://192.168.99.100:8080/auth
-          # - name: REALM_NAME
-          #   value: jipdktk
-          # - name: UI_CLIENT_ID
-          #   value: jip
           ports:
-            - containerPort: 8080
             - containerPort: 8443
             - containerPort: 9990
             - containerPort: 11112
@@ -84,14 +75,16 @@ spec:
             periodSeconds: 120
           resources:
             requests:
-              memory: 800Mi
+              memory: "{{ .Values.global.pacs_memory_request }}Mi"
             limits:
-              memory: 1500Mi
+              memory: "{{ .Values.global.pacs_memory_limit }}Mi"
           volumeMounts:
             - mountPath: /opt/wildfly/standalone
               name: standalone-data
             - mountPath: /storage
               name: storage-data
+          securityContext:
+            allowPrivilegeEscalation: false
       volumes:
         - name: standalone-data
           persistentVolumeClaim:
@@ -99,6 +92,12 @@ spec:
         - name: storage-data
           persistentVolumeClaim:
             claimName: dcm4chee-dicom-pv-claim
+        - name: nginx-conf
+          configMap: 
+            name: nginx-config
+            items:
+              - key: nginx.conf
+                path: nginx.conf
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
       - name: registry-secret

@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from airflow.utils.dates import days_ago
 from airflow.models import DAG
@@ -63,11 +63,11 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input_dicom = LocalGetInputDataOperator(
+get_input_dicom = GetInputOperator(
     dag=dag, name="get-input-dicom", check_modality=True, parallel_downloads=5
 )
 
-get_input_json = LocalGetInputDataOperator(
+get_input_json = GetInputOperator(
     dag=dag,
     name="get-input-json",
     check_modality=True,
@@ -75,14 +75,13 @@ get_input_json = LocalGetInputDataOperator(
     parallel_downloads=5,
 )
 
-get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
+get_ref_ct_series_from_seg = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_input_dicom,
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
     data_type="json",
-    modality=None,
 )
 
 tag_cts = LocalTaggingOperator(

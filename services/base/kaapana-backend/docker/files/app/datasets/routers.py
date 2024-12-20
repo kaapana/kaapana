@@ -1,25 +1,27 @@
-import json
-from typing import Union
+import base64
 
-from fastapi import APIRouter, HTTPException, Body
+from app.datasets import utils
+from app.dependencies import get_minio, get_opensearch, get_project_index
+from app.middlewares import sanitize_inputs
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from opensearchpy import OpenSearch
-
-from app.config import settings
-from app.datasets.utils import (
-    get_metadata,
-    execute_opensearch_query,
-    get_field_mapping,
-)
+from minio.error import S3Error
+from starlette.responses import StreamingResponse
+import json
 
 router = APIRouter(tags=["datasets"])
 
 
 @router.post("/tag")
-async def tag_data(data: list = Body(...)):
+async def tag_data(
+    data: list = Body(...),
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
     from typing import List
 
     def tagging(
+        os_client,
         series_instance_uid: str,
         tags: List[str],
         tags2add: List[str] = [],
@@ -30,10 +32,7 @@ async def tag_data(data: list = Body(...)):
         print(f"Tags 2 delete: {tags2delete}")
 
         # Read Tags
-        es = OpenSearch(
-            hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-        )
-        doc = es.get(index="meta-index", id=series_instance_uid)
+        doc = os_client.get(index=project_index, id=series_instance_uid)
         print(doc)
         index_tags = doc["_source"].get("00000000 Tags_keyword", [])
 
@@ -47,11 +46,12 @@ async def tag_data(data: list = Body(...)):
 
         # Write Tags back
         body = {"doc": {"00000000 Tags_keyword": final_tags}}
-        es.update(index="meta-index", id=series_instance_uid, body=body)
+        os_client.update(index=project_index, id=series_instance_uid, body=body)
 
     try:
         for series in data:
             tagging(
+                os_client,
                 series["series_instance_uid"],
                 series["tags"],
                 series["tags2add"],
@@ -67,23 +67,55 @@ async def tag_data(data: list = Body(...)):
 # This should actually be a get request but since the body is too large for a get request
 # we use a post request
 @router.post("/series")
-async def get_series(data: dict = Body(...)):
+async def get_series(
+    data: dict = Body(...),
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
     import pandas as pd
 
     structured: bool = data.get("structured", False)
     query: dict = data.get("query", {"query_string": {"query": "*"}})
+    page_index: int = data.get("pageIndex", 1)
+    page_length: int = data.get("pageLength", 1000)
+    aggregated_series_num: int = data.get("aggregatedSeriesNum", 1)
+    sort_param: str = data.get("sort", "00000000 TimestampArrived_datetime")
+    sort_direction: str = data.get("sortDirection", "desc").lower()
+    use_execute_sliced_search: bool = data.get("executeSlicedSearch", False)
 
+    if sort_direction not in ["asc", "desc"]:
+        sort_direction = "desc"
+    sort = [{sort_param: sort_direction}]
+
+    # important! only add source if needed, otherwise the hole datastructure is returned
+    source = False
     if structured:
-        hits = execute_opensearch_query(
-            query=query,
-            source={
-                "includes": [
-                    "00100020 PatientID_keyword",
-                    "0020000D StudyInstanceUID_keyword",
-                    "0020000E SeriesInstanceUID_keyword",
-                ]
-            },
-        )
+        source = {
+            "includes": [
+                "00100020 PatientID_keyword",
+                "0020000D StudyInstanceUID_keyword",
+                "0020000E SeriesInstanceUID_keyword",
+            ]
+        }
+
+    hits = utils.execute_initial_search(
+        os_client,
+        project_index,
+        query,
+        source,
+        sort,
+        page_index,
+        page_length,
+        aggregated_series_num,
+        use_execute_sliced_search,
+    )
+    if structured:
+        if aggregated_series_num > page_length:
+            # The results have to be reorderd according to the patients,
+            # otherwise patients are not completed (because they can be on another page)
+            hits = utils.requery_and_fill_missing_series_for_patients(
+                os_client, project_index, query, source, sort, page_length, hits
+            )
 
         res_array = [
             [
@@ -106,76 +138,130 @@ async def get_series(data: dict = Body(...)):
                 for k, f in df.groupby("Patient ID")
             }
         )
-    elif not structured:
-        return JSONResponse([d["_id"] for d in execute_opensearch_query(query)])
+    else:
+        return JSONResponse([d["_id"] for d in hits])
+
+
+# This should actually be a get request but since the body is too large for a get request
+# we use a post request
+# sepcific function, to get a often needed aggregation request
+@router.post("/aggregatedSeriesNum")
+async def get_aggregatedSeriesNum(
+    data: dict = Body(...),
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
+    query: dict = data.get("query", {"query_string": {"query": "*"}})
+    res = os_client.search(
+        index=project_index,
+        body={
+            "size": 0,
+            "query": query,
+            "aggs": {
+                "Series": {
+                    "cardinality": {
+                        "field": "0020000E SeriesInstanceUID_keyword.keyword",
+                    }
+                },
+            },
+            "_source": False,
+        },
+    )["aggregations"]["Series"]["value"]
+
+    return JSONResponse(res)
+
+
+@router.get("/series/{series_instance_uid}/thumbnail")
+def get_thumbnail_png(
+    request: Request,
+    series_instance_uid: str,
+    minioClient=Depends(get_minio),
+) -> StreamingResponse:
+    """Get the PNG file from the thumbnails bucket.
+
+    Args:
+        series_instance_uid (str): Series instance UID.
+        minioClient (Minio): Minio client.
+
+    Raises:
+        HTTPException: If object is not found in the bucket.
+
+    Returns:
+        StreamingResponse: Streaming response of the PNG file.
+    """
+    project = json.loads(request.headers.get("project"))
+
+    bucket = project["s3_bucket"]
+    object_name = f"thumbnails/{series_instance_uid}.png"
+
+    try:
+        png_file = minioClient.get_object(bucket, object_name)
+    except S3Error:
+        raise HTTPException(status_code=404, detail="Object not found in the bucket.")
+
+    return StreamingResponse(png_file, media_type="image/png")
 
 
 @router.get("/series/{series_instance_uid}")
-async def get_data(series_instance_uid):
-    metadata = await get_metadata(series_instance_uid)
-
+async def get_data(
+    series_instance_uid,
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
+    metadata = await utils.get_metadata(os_client, project_index, series_instance_uid)
+    # sanitize path params
+    series_instance_uid = sanitize_inputs(series_instance_uid)
     modality = metadata["Modality"]
+    dcmweb_endpoint = metadata.get("Source Presentation Address")
+    if dcmweb_endpoint:
+        thumbnail_src = f"/thumbnails/batch/{series_instance_uid}/external_thumbnail_operator/{series_instance_uid}.png"
 
-    if modality in ["SEG", "RTSTRUCT"]:
+    elif modality in ["SEG", "RTSTRUCT"]:
         # TODO: We could actually check if this file already exists.
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
+
         thumbnail_src = (
-            f"minio/thumbnails/batch/{series_instance_uid}"
-            f"/generate-segmentation-thumbnail/{series_instance_uid}.png"
+            f"/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
         )
     else:
         thumbnail_src = (
-            f"/dcm4chee-arc/aets/KAAPANA/rs/studies/{metadata['Study Instance UID']}/"
+            f"/dicom-web-filter/studies/{metadata['Study Instance UID']}/"
             f"series/{series_instance_uid}/thumbnail?viewport=300,300"
         )
 
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))
 
 
-async def get_field_values(query, field, size=10000):
-    res = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).search(
-        body={
-            "size": 0,
-            "query": query,
-            "aggs": {
-                field: {
-                    "composite": {
-                        "sources": [{field: {"terms": {"field": field, "size": size}}}]
-                    }
-                }
-            },
-        }
-    )
-
-    data = res["hits"]["aggregations"][field]
-    if len(data["buckets"]) < size:
-        return []
-
-
 # This should actually be a get request but since the body is too large for a get request
 # we use a post request
 @router.post("/dashboard")
-async def get_dashboard(config: dict = Body(...)):
+async def get_dashboard(
+    config: dict = Body(...),
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
     series_instance_uids = config.get("series_instance_uids")
     names = config.get("names", [])
 
-    name_field_map = await get_field_mapping()
+    name_field_map = utils.get_field_mapping(os_client, project_index)
     filtered_name_field_map = {
         name: name_field_map[name] for name in names if name in name_field_map
     }
 
-    res = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).search(
+    search_query = config.get("query", {})
+
+    if series_instance_uids:
+        query = {"query": {"ids": {"values": series_instance_uids}}}
+    elif search_query:
+        query = {"query": search_query}
+    else:
+        query = {}
+
+    res = os_client.search(
+        index=project_index,
         body={
             "size": 0,
-            **(
-                {"query": {"ids": {"values": series_instance_uids}}}
-                if series_instance_uids
-                else {}
-            ),
+            **(query),
             "aggs": {
                 "Series": {
                     "cardinality": {
@@ -197,10 +283,8 @@ async def get_dashboard(config: dict = Body(...)):
                     for name, field in filtered_name_field_map.items()
                 },
             },
-        }
-    )[
-        "aggregations"
-    ]
+        },
+    )["aggregations"]
 
     histograms = {
         k: {
@@ -231,31 +315,25 @@ async def get_dashboard(config: dict = Body(...)):
         Studies=res["Studies"]["value"],
         Patients=res["Patients"]["value"],
     )
-
     return JSONResponse(dict(histograms=histograms, metrics=metrics))
 
 
-async def get_all_values(item_name, query):
-    name_field_map = await get_field_mapping()
+async def get_all_values(os_client, index, item_name, query):
+    name_field_map = utils.get_field_mapping(os_client, index)
 
     item_key = name_field_map.get(item_name)
     if not item_key:
         return {}  # todo: maybe better default
 
-    item = OpenSearch(
-        hosts=f"opensearch-service.{settings.services_namespace}.svc:9200"
-    ).search(
+    item = os_client.search(
+        index=index,
         body={
             "size": 0,
             # {"query":"D","field":"00000000 Tags_keyword.keyword","boolFilter":[]}
             "query": query,  # {"query": {"ids": {"values": series_instance_uids}}}
             "aggs": {item_name: {"terms": {"field": item_key, "size": 10000}}},
-        }
-    )[
-        "aggregations"
-    ][
-        item_name
-    ]
+        },
+    )["aggregations"][item_name]
 
     if "buckets" in item and len(item["buckets"]) > 0:
         return {
@@ -276,21 +354,39 @@ async def get_all_values(item_name, query):
 
 
 @router.post("/query_values/{field_name}")
-async def get_query_values_item(field_name: str, query: dict = Body(...)):
+async def get_query_values_item(
+    field_name: str,
+    query: dict = Body(...),
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
+    # sanitize field_name path params
+    field_name = sanitize_inputs(field_name)
     if not query or query == {}:
         query = {"query_string": {"query": "*"}}
 
-    return JSONResponse(await get_all_values(field_name, query))
+    return JSONResponse(
+        await get_all_values(os_client, project_index, field_name, query)
+    )
 
 
 @router.get("/field_names")
-async def get_field_names():
-    return JSONResponse(list((await get_field_mapping()).keys()))
+async def get_field_names(
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
+    return JSONResponse(
+        list((utils.get_field_mapping(os_client, project_index)).keys())
+    )
 
 
 @router.get("/fields")
-async def get_fields(index: str = "meta-index", field: str = None):
-    mapping = await get_field_mapping(index)
+async def get_fields(
+    field: str = None,
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
+    mapping = utils.get_field_mapping(os_client, project_index)
     if field:
         return JSONResponse(mapping[field])
     else:

@@ -6,15 +6,13 @@ from airflow.utils.dates import days_ago
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
 from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.CombineMasksOperator import CombineMasksOperator
+from kaapana.operators.MinioOperator import MinioOperator
+from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
-
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3
@@ -169,6 +167,13 @@ ui_forms = {
                 "readOnly": False,
                 "required": True,
             },
+            "input": {
+                "title": "Input",
+                "default": "CT",
+                "description": "Input-data modality",
+                "type": "string",
+                "readOnly": True,
+            },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
@@ -203,9 +208,7 @@ get_total_segmentator_model_0 = GetZenodoModelOperator(
     task_ids="Task251_TotalSegmentator_part1_organs_1139subj,Task252_TotalSegmentator_part2_vertebrae_1139subj,Task253_TotalSegmentator_part3_cardiac_1139subj,Task254_TotalSegmentator_part4_muscles_1139subj,Task255_TotalSegmentator_part5_ribs_1139subj,Task256_TotalSegmentator_3mm_1139subj",
 )
 
-get_input = LocalGetInputDataOperator(
-    dag=dag, parallel_downloads=5, check_modality=True
-)
+get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=True)
 
 dcm2nifti = DcmConverterOperator(
     dag=dag,
@@ -217,7 +220,7 @@ ta = "total"
 total_segmentator_0 = TotalSegmentatorOperator(
     dag=dag, task=ta, input_operator=dcm2nifti
 )
-combine_masks_0 = CombineMasksOperator(
+combine_masks_0 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_0,
     parallel_id=ta,
@@ -260,7 +263,7 @@ total_segmentator_1 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_1 = CombineMasksOperator(
+combine_masks_1 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_1,
     parallel_id=ta,
@@ -302,7 +305,7 @@ total_segmentator_2 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_2 = CombineMasksOperator(
+combine_masks_2 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_2,
     parallel_id=ta,
@@ -344,7 +347,7 @@ total_segmentator_3 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_3 = CombineMasksOperator(
+combine_masks_3 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_3,
     parallel_id=ta,
@@ -386,7 +389,7 @@ total_segmentator_4 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_4 = CombineMasksOperator(
+combine_masks_4 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_4,
     parallel_id=ta,
@@ -428,7 +431,7 @@ total_segmentator_5 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_5 = CombineMasksOperator(
+combine_masks_5 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_5,
     parallel_id=ta,
@@ -470,7 +473,7 @@ total_segmentator_6 = TotalSegmentatorOperator(
     delete_output_on_start=False,
     parallel_id=ta,
 )
-combine_masks_6 = CombineMasksOperator(
+combine_masks_6 = MergeMasksOperator(
     dag=dag,
     input_operator=total_segmentator_6,
     parallel_id=ta,
@@ -498,11 +501,11 @@ pyradiomics_6 = PyRadiomicsOperator(
     parallel_id=ta,
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    bucket_name="totalsegmentator",
-    action_operators=[
+    minio_prefix="radiomics-totalsegmentator",
+    batch_input_operators=[
         pyradiomics_0,
         pyradiomics_1,
         pyradiomics_2,
@@ -511,8 +514,8 @@ put_to_minio = LocalMinioOperator(
         pyradiomics_5,
         pyradiomics_6,
     ],
-    file_white_tuples=(".json"),
-    trigger_rule="none_failed",
+    whitelisted_file_extensions=[".json"],
+    trigger_rule="none_failed_min_one_success",
 )
 
 clean = LocalWorkflowCleanerOperator(

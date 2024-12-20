@@ -1,12 +1,11 @@
-asyncio==3.4.3
-aiofiles==23.1.0
-connexion==2.14.2
-opensearch-py==2.2.0
-fastapi==0.95.0
-gunicorn==20.1.0
-Jinja2==3.1.2
-python-dotenv==1.0.0
-uvicorn==0.21.1
-python-multipart==0.0.6
-# Security fix for CVE-2020-14343
-PyYAML==6.0
+aiofiles==24.1.0
+connexion==3.1.0
+fastapi==0.115.5
+gunicorn==23.0.0
+Jinja2==3.1.4
+python-dotenv==1.0.1
+uvicorn==0.32.0
+python-multipart==0.0.17
+pydantic-settings==2.6.1
+PyYAML==6.0.2
+prometheus-fastapi-instrumentator==7.0.0

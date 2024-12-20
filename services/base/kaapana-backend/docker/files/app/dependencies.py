@@ -1,14 +1,15 @@
-import os
-from fastapi import Header, HTTPException, Depends
+from fastapi import Header, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
-from minio import Minio
 from .monitoring.services import MonitoringService
 from .users.services import UserService
+import json
 
 # from .workflows.services import WorkflowService
 from .workflows.models import KaapanaInstance
 from .config import settings
 from .database import SessionLocal
+from .workflows.utils import HelperMinio
+from kaapanapy.helper import get_opensearch_client
 
 
 def get_db():
@@ -31,13 +32,9 @@ def get_user_service() -> UserService:
     )
 
 
-def get_minio() -> Minio:
-    yield Minio(
-        settings.minio_url,
-        access_key=settings.minio_username,
-        secret_key=settings.minio_password,
-        secure=False,
-    )
+def get_minio(request: Request) -> HelperMinio:
+    x_auth_token = request.headers.get("x-forwarded-access-token")
+    yield HelperMinio(x_auth_token)
 
 
 # def get_workflow_service() -> WorkflowService:
@@ -62,3 +59,14 @@ async def get_token_header(
 async def get_query_token(token: str):
     if token != "jessica":
         raise HTTPException(status_code=400, detail="No Jessica token provided")
+
+
+def get_opensearch(request: Request):
+    x_auth_token = request.headers.get("x-forwarded-access-token")
+    yield get_opensearch_client(access_token=x_auth_token)
+
+
+def get_project_index(request: Request):
+    project_header = request.headers.get("Project")
+    project = json.loads(project_header)
+    return project.get("opensearch_index")

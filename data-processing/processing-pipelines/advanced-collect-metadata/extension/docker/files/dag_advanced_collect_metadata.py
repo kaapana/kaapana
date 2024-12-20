@@ -80,7 +80,7 @@ dcm2nifti_ct = DcmConverterOperator(
 
 extract_img_intensities = LocalExtractImgIntensitiesOperator(
     dag=dag,
-    input_operator=get_input,  # dcm2nifti_ct,
+    input_operator=get_input,
     json_operator=extract_metadata,
 )
 
@@ -119,7 +119,6 @@ merge_branches = LocalMergeBranchesOperator(
     first_input_operator=extract_img_intensities,
     second_input_operator=concat_metadata,
     level="batch",
-    trigger_rule=TriggerRule.ALL_DONE,
     allow_federated_learning=True,
 )
 

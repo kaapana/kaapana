@@ -11,9 +11,9 @@ Introduction
 .. Adjust the introduction
 
 Starting from Kaapana version 0.2.0, the Kaapana platform is equipped with a 
-Workflow Management System (*WMS*) including a handy Data Upload tool :ref:`data_upload` 
-and a powerful data inspection tool, Datasets :ref:`datasets`.
-The WMS allows the user to interact with the also newly introduced Kaapana object *workflow*. 
+Workflow Management System (*WMS*) including a handy :ref:`data_upload` tool  
+and a powerful data inspection tool, :ref:`datasets`.
+The WMS allows the user to interact with the Kaapana object *workflow*. 
 The workflow object semantically binds together multiple jobs, their processing data, 
 and the orchestrating- and runner-instances of those jobs. 
 In order to manage these workflows, the WMS comes with three components:
@@ -25,7 +25,7 @@ In order to manage these workflows, the WMS comes with three components:
 Data Upload
 ^^^^^^^^^^^
 
-There are two ways of getting images into the platform either sending them directly via DICOM (which is the preferred way) or uploading them via the web browser (currently an experimental feature).
+There are two ways of getting images into the platform either sending them directly via DICOM or uploading them via the web browser.
 
 .. note::
   When DICOM data is sent to the DICOM receiver of the platform two things happen:
@@ -43,12 +43,15 @@ However, any tool that sends images to a DICOM receiver can be used.
 Here is an example of sending images with DCMTK:
 
 ::
-  
-  dcmsend -v <ip-address-of-server> 11112 (default) --scan-directories --call <dataset-name> --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>
+ 
+  dcmsend -v <ip-address-or-hostname-of-server> 11112 --aetitle <dataset-name> --call <project-name> --scan-directories --scan-pattern '*.dcm' --recurse <data-dir-of-DICOM-images>
 
 .. hint::
-    | The called AE title is used to specify the dataset. If the dataset already exist on the platform the new images will be appended.
+    | The `aetitle` is used to specify the dataset. If the dataset already exist on the platform the new images will be appended.
+    | The `call` is used to specify the project. That project has to exist, use `admin` as a default.
 
+.. note::
+    Visit the :Code:`Data Upload` wizard page within the :code:`Workflows` menu of the Web interface to get command tailored to its deployment.
 
 Option 2: Uploading images via the Web Interface (experimental)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -430,7 +433,7 @@ The Workflow Execution component can either be directly accessed from Workflows 
 or from the Datasets component. 
 Workflows are configured in the following way:
 
-* specify runner instance(s), i.e. the instances on which jobs of the configured workflow should be executed. Thereby it is worth mentioning that remote and federated workflow executions are in the new WMS more built-in
+* specify runner instance(s), i.e. the instances on which jobs of the configured workflow should be executed.
 * select the Airflow-DAG which should be run and further configured with DAG-specific specification
 * select a dataset is selected with the data which should be processed within the workflow
 

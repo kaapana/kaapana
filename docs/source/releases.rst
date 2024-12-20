@@ -3,6 +3,170 @@
 Changelog
 #########
 
+.. _release-0.4.0:
+
+------------------------
+
+********************
+Release Notes v0.4.0
+********************
+
+December 20, 2024
+
+-------------------------
+
+Data Separation
+---------------
+* Opensearch authentication with OIDC 
+* Metadata exists in project context, i.e., project indices
+* Minio authentication with OIDC
+* Minio project bucket
+
+Multiinstallable Applications in Project Context
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Multiinstallable applications like MITK Workbench, JupyterLab, 3D Slicer, and Tensorboard are adapted to the project context. Only users who are part of a project have access to applications that run in the corresponding project context. These applications receive their data from the dedicated project bucket in Minio.
+
+When an admin launches an instance of a multiinstallable application from the Extensions view, the admin must select the correct project in the header of the website.
+
+DicomWebFilter
+^^^^^^^^^^^^^^
+The DicomWebFilter enables series-level access control to DICOM data via a DicomWeb API. For example, two users can access the same DICOM study but only specific series within it. This is required in scenarios where a user generates segmentations for certain series of a study and does not want to share these segmentations.
+
+The DicomWebFilter operates as a database storing access information and a REST API supporting the DicomWeb standard. Acting as an intermediary layer, it filters data received from a PACS based on the client’s access token and stored access rules.
+
+A management API is also provided for updating access information.
+
+Keycloak
+^^^^^^^^
+
+New Realm Roles and Groups
+""""""""""""""""""""""""""
+By default, the Kaapana realm in Keycloak includes three roles: :code:`admin`, :code:`project-manager`, and :code:`user`. Policies defining these permissions are managed via ConfigMaps in the auth-backend chart:
+
+- :code:`admin`: Unlimited access to all APIs, routes, and objects.
+- :code:`project-manager`: Full access to the project management API.
+- :code:`user`: General access to Kaapana's non-system components and project-specific data based on roles.
+
+Keycloak also includes the following groups, each inheriting specific roles:
+
+- :code:`kaapana_admin`: Includes roles :code:`admin`, :code:`project-manager`, :code:`user`.
+- :code:`kaapana_project_manager`: Includes roles :code:`project-manager`, `user`.
+- :code:`kaapana_user`: Includes role :code:`user`.
+
+Custom Token Mapper
+^^^^^^^^^^^^^^^^^^^
+Custom token mappers populate the client access token with project-specific claims, derived from the access information interface.
+
+Access Information Interface
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+This interface includes:
+
+* **Database**: Stores user, project, and permission data.
+* **REST API**: Enables Keycloak token mappers to fetch permissions and manage stored information.
+
+Main database objects:
+
+- **Rights**: Key-value claims for access tokens.
+- **Projects**: Projects bundle the information.
+- **Roles**: Collections of rights mapped to users and projects.
+- **UsersProjectsRoles**: Links users, roles, and projects. A user can only have a single UsersProjectsRoles mapping per project. But a user can be mapped to the same role for multiple projects.
+
+Example: If a role that contains the right {"claim_key": "opensearch", "claim_value": "admin_project"} is mapped to user A in Project foo, the access token of user A will contain the claim :code:`"opensearch": ["admin_project_foo"]`. Opensearch is configured accordingly to look for backend-roles in the opensearch claim of the access token and to know which permissions to grant users with the respective roles.
+
+Initial rights, roles, projects and respective mappings can be configured in the `access-information-interface-config <https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/release/0.4.0/services/data-separation/access-information-interface/access-information-interface-chart/templates/configmap.yaml>`_ . Per default version 0.4.0 comes with only one project role, i.e. :code:`admin`. This role grants access to the project bucket in Minio and the project index in opensearch.
+
+Workflow Execution
+^^^^^^^^^^^^^^^^^^
+* Requests to the Kaapana backend must include a Project-Name cookie or project header.
+* Processing containers run in dedicated Kubernetes project namespaces.
+* Introduced :code:`kaapanapy` package in base-python-cpu image.
+* Operators use project-system-user credentials for authentication to to DicomWebFilter, MinIO and Opensearch.
+
+Project-Based UI
+----------------
+* Workflow menu requires a selected project.
+* Selected project is stored in VueStore and browser cookies.
+* Gallery View only shows series that are part of the selected project.
+* The confiuraton of any job is extended with a :code:`project_form` that has information about the selected project from which the workflow was started.
+* "Active Applications" view shows all multiinstallable applications that are started within the selected project context.
+* "Workflow Results" view displays data only from the corresponding project bucket.
+
+Project Management UI
+^^^^^^^^^^^^^^^^^^^^^
+A new project management UI is introduced for viewing all available projects for the user. Admin users can create new projects and add/update/delete users to/from projects.
+
+Project-Based Data Ingestion
+----------------------------
+Incoming data assignments depend on calling and called AE title conventions (:code:`kp-<project-name>` and :code:`kp-<dataset-name>`). Both arguments have a size limit of 16 chars, modify conventions via the :code:`LocalSanitizeProjectAndDatasetOperator`.
+
+Extension Development Kit (EDK)
+-------------------------------
+* New application for developing and deploying extensions within Kaapana.
+* Includes VSCode-based development environment and local registry.
+* Build container images and Helm charts inside the environment and deploy them directly to the platform.
+
+Deploy Script
+-------------
+* Configurable memory resources for PACS, OpenSearch, and Airflow.
+* Ensures stuck Helm charts are deleted during undeployment.
+
+Workflow List
+-------------
+* Introduced pagination.
+
+DICOM Validation
+----------------
+* Validates incoming DICOM files, showing error and warning counts.
+* Supports :code:`dciodvfy` and :code:`dicom-validator`.
+* Stores validation reports in MinIO with a configurable whitelist for excluded tags.
+
+DAGs
+----
+* nnUNet workflows updated to v2.
+* Added service DAG for workflow result notifications.
+* DICOM validation DAGs support manual revalidation.
+
+Custom Registry Secrets
+-----------------------
+* New application for pulling from multiple registries apart from the one that the Kaapana instance is deployed from
+* Allows adding secrets of new registries to Kubernetes
+
+Operators
+---------
+* Containerized local operators (e.g., :code:`GetInputOperator`, :code:`MinioOperator`).
+* Refactored helper modules in :code:`kaapanapy.helper`.
+* Added CI/CD tests for operators.
+
+Bug Fixes
+---------
+* Fixed :code:`patient_age` inconsistencies in :code:`LocalDcm2JsonOperator`.
+* :code:`dicom-init` now waits until opensearch is ready
+* :code:`init-extensions` job has better monitoring for failed pods
+* and many more
+
+Updates and Security Fixes
+--------------------------
+* Microk8s to :code:`v1.31`
+* Base image to :code:`Ubuntu:24.04`
+* Base python to :code:`3.12`
+* Base postgres to :code:`17.2`
+* MITK to :code:`v2024.12`
+* Airflow to :code:`2.10.3`
+* Minio to :code:`2024-11-07`
+* Opensearch to :code:`2.18.0`
+* Dcm4chee to :code:`5.33.1`
+* Prometheus to :code:`v3.0.0`
+* Grafana to :code:`11.3.1`
+* Open Policy Agent to :code:`0.70.0`
+* Added security headers and middleware: (e.g. `X-Frame-Options`, `Referrer-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`)
+* and more
+
+Removed features
+----------------
+* nnUNet v1 and its pretrained models are no longer supported, the default version is v2
+* The dag :code:`train-with-pretrained-weights` is removed
+* The extension :code:`external-pacs` remove due to refactor changes
+
 .. _release-0.3.5:
 
 -------------------------

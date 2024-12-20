@@ -179,7 +179,7 @@ export default Vue.extend({
       };
       this.loading = true;
       kaapanaApiService
-        .helmApiPost("/helm-delete-chart", params)
+        .helmApiPost("/complete-active-application", params)
         .then((response: any) => {
           setTimeout(() => {
             this.getHelmCharts();

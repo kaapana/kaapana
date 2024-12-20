@@ -237,9 +237,17 @@ class HelperMinio(Minio):
         local_root_dir,
         object_names=None,
         file_white_tuples=None,
+        target_dir_prefix=None,
     ):
         for object_name in object_names:
             file_path = os.path.join(local_root_dir, object_name)
+
+            # append directory prefix before object name
+            # to store inside target directory of the bucket
+            # only for `put` action
+            if action == "put" and target_dir_prefix and target_dir_prefix != "":
+                object_name = os.path.join(target_dir_prefix, object_name)
+
             if action != "put" or os.path.isfile(file_path):
                 self.apply_action_to_file(
                     action,
@@ -256,6 +264,7 @@ class HelperMinio(Minio):
         local_root_dir,
         object_dirs=None,
         file_white_tuples=None,
+        target_dir_prefix=None,
     ):
         object_dirs = object_dirs or []
         if action == "put":
@@ -269,6 +278,12 @@ class HelperMinio(Minio):
                         rel_dir = os.path.relpath(path, local_root_dir)
                         rel_dir = "" if rel_dir == "." else rel_dir
                         object_name = os.path.join(rel_dir, name)
+
+                        # append directory prefix before object name
+                        # to store inside target directory of the bucket
+                        if target_dir_prefix and target_dir_prefix != "":
+                            object_name = os.path.join(target_dir_prefix, object_name)
+
                         self.apply_action_to_file(
                             action,
                             bucket_name,

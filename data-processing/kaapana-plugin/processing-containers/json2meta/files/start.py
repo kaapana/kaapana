@@ -6,7 +6,8 @@ from os.path import exists, join
 
 import pydicom
 import requests
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from opensearchpy.exceptions import NotFoundError
+from kaapanapy.helper import get_opensearch_client
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import KaapanaSettings
 from kaapanapy.settings import OpensearchSettings
@@ -91,6 +92,7 @@ class Json2MetaOperator:
 
         self.project_id = self.workflow_config.get("project_form", {}).get("id", None)
         self.opensearch_settings = OpensearchSettings()
+        self.os_client = get_opensearch_client()
 
     def push_to_project_index(self, json_dict: dict):
         """Pushes JSON data to the project index
@@ -110,7 +112,7 @@ class Json2MetaOperator:
 
         json_dict = self.produce_inserts(json_dict, project.get("opensearch_index"))
         try:
-            _ = HelperOpensearch.os_client.index(
+            _ = self.os_client.index(
                 index=project.get("opensearch_index"),
                 body=json_dict,
                 id=self.series_instance_uid,
@@ -139,7 +141,7 @@ class Json2MetaOperator:
             json_dict, self.opensearch_settings.default_index
         )
         try:
-            _ = HelperOpensearch.os_client.index(
+            _ = self.os_client.index(
                 index=self.opensearch_settings.default_index,
                 body=json_dict,
                 id=id,
@@ -165,15 +167,15 @@ class Json2MetaOperator:
         logger.info("get old json from index.")
 
         # Try to get the series from OpenSearch
-        old_json = HelperOpensearch.get_series_metadata(
-            series_instance_uid=self.series_instance_uid,
-            index=index,
-        )
-
-        if old_json is None:
-            logger.info(f"Series not found in OS. Creating new entry.")
+        try:
+            old_json = self.os_client.get(
+                series_instance_uid=self.series_instance_uid,
+                index=index,
+            )["_source"]
+        except NotFoundError:
             old_json = {}
-        elif old_json and self.no_update:
+
+        if old_json and self.no_update:
             logger.error("Series already found in OS and no_update is set!")
             raise ValueError("Series already found in OS and no_update is set!")
         else:

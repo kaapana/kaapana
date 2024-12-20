@@ -4,7 +4,8 @@ import pydicom
 import json
 
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper import get_opensearch_client
+from kaapanapy.settings import OpensearchSettings
 
 
 class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
@@ -16,10 +17,13 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
 
     **Inputs:**
 
-    * Input data which should be removed is given via input parameter: delete_operator.
+    * Input data which should be removed is given via input parameter: input_operator.
     """
 
     def start(self, ds, **kwargs):
+        self.os_client = get_opensearch_client()
+        self.os_index = OpensearchSettings().default_index
+
         conf = kwargs["dag_run"].conf
         if (
             "form_data" in conf
@@ -31,7 +35,7 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
         if self.delete_all_documents:
             print("Deleting all documents from META ...")
             query = {"query": {"match_all": {}}}
-            HelperOpensearch.delete_by_query(query)
+            self.os_client.delete_by_query(index=self.os_index, body=query)
         else:
             run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
             batch_folder = [
@@ -86,18 +90,12 @@ class LocalDeleteFromMetaOperator(KaapanaPythonBaseOperator):
             else:
                 query = {"query": {"terms": {"_id": dicoms_to_delete}}}
 
-            HelperOpensearch.delete_by_query(query)
+            self.os_client.delete_by_query(index=self.os_index, body=query)
 
     def __init__(
-        self,
-        dag,
-        delete_operator=None,
-        delete_all_documents=False,
-        delete_complete_study=False,
-        **kwargs
+        self, dag, delete_all_documents=False, delete_complete_study=False, **kwargs
     ):
         """
-        :param delete_operator:
         :param delete_all_documents: Specifies the amount of removed data to all documents.
         :param delete_complete_study: Specifies the amount of removed data to all series of a specified study.
         """

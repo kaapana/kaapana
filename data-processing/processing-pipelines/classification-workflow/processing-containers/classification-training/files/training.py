@@ -50,9 +50,13 @@ logger.addHandler(f_handler)
 
 TAG_TO_CLASS_MAPPING = {}
 
-for class_idx, tag in enumerate(
-    sorted(ast.literal_eval(os.environ["TAG_TO_CLASS_MAPPING_JSON"]))
-):
+# get TAG_TO_CLASS_MAPPING_JSON
+tag_class_mappings = os.getenv("TAG_TO_CLASS_MAPPING_JSON", "NONE").split(",")
+if len(tag_class_mappings) < 2:
+    raise AttributeError(f"Please provide at least two class mappings")
+
+# create {tag: idx} map from classes
+for class_idx, tag in enumerate(sorted(tag_class_mappings)):
     TAG_TO_CLASS_MAPPING[tag] = class_idx
 
 # Log config

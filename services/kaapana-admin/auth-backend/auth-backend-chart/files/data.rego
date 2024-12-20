@@ -18,7 +18,6 @@ allowed_user_endpoints := [
     {"path": "^/css/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/oauth2/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web-ide", "methods": ["GET","POST","PUT","DELETE"]},
-    {"path": "^/pacs", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/minio-console.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/ohif.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/dicom-web-filter/.*", "methods": ["GET","POST","PUT","DELETE"]},
@@ -32,11 +31,14 @@ allowed_user_endpoints := [
     {"path": "^/workflows", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/results-browser", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/active-applications", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/kube-helm-api/complete-active-application", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/meta/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/web/store/.*", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/system/Projects.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kube-helm-api/active-applications", "methods": ["GET"]},
     {"path": "^/thumbnails/.*", "methods": ["GET"]},
     {"path": "^/aii/.*", "methods": ["GET"]},
+    {"path": "^/projects-ui.*", "methods": ["GET"]},
     {"path": "^/kaapana-backend/client/file", "methods": ["POST", "HEAD", "PATCH","DELETE"]},
 ]
 

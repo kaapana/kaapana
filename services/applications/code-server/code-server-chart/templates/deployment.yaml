@@ -38,9 +38,6 @@ spec:
             mountPath: /root/.local/share/code-server/User/keybindings.json
             subPath: keybindings.json
           - name: configs
-            mountPath:  /root/.vscode/launch.json
-            subPath: launch.json
-          - name: configs
             mountPath: /root/.local/share/code-server/User/settings.json
             subPath: settings.json
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
@@ -57,8 +54,6 @@ spec:
           items:
           - key: keybindings.json
             path: keybindings.json
-          - key: launch.json
-            path: launch.json
           - key: user_settings.json
             path: settings.json
 {{ include "dynamicVolumes" $ | indent 6 }}

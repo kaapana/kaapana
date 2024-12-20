@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime, timezone
 
@@ -10,6 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from minio.error import S3Error
 from starlette.responses import StreamingResponse
+
+DEFAULT_STATIC_WEBSITE_BUCKET = "staticwebsiteresults"
 
 router = APIRouter()
 
@@ -52,11 +55,14 @@ def get_static_website_results_html(
             status_code=400, detail="object_name query parameter is required."
         )
 
-    # Bucket name
-    bucket = "staticwebsiteresults"
+    # set the bucket_name automatically from the request header
+    bucket_name: str = (DEFAULT_STATIC_WEBSITE_BUCKET,)
+    project = json.loads(request.headers.get("project"))
+    if project and "s3_bucket" in project:
+        bucket_name = project.get("s3_bucket")
 
     try:
-        html_file = minioClient.get_object(bucket, object_name)
+        html_file = minioClient.get_object(bucket_name, object_name)
     except S3Error:
         raise HTTPException(status_code=404, detail="Object not found in the bucket.")
 
@@ -68,6 +74,12 @@ def get_static_website_results(
     request: Request,
     minioClient=Depends(get_minio),
 ):
+    # set the bucket_name automatically from the request header
+    bucket_name: str = (DEFAULT_STATIC_WEBSITE_BUCKET,)
+    project = json.loads(request.headers.get("project"))
+    if project and "s3_bucket" in project:
+        bucket_name = project.get("s3_bucket")
+
     def build_tree(item, filepath, org_filepath):
         # Adapted from https://stackoverflow.com/questions/8484943/construct-a-tree-from-list-os-file-paths-python-performance-dependent
         splits = filepath.split("/", 1)
@@ -88,7 +100,7 @@ def get_static_website_results(
     def _get_vuetify_tree_structure(tree):
         subtree = []
         for parent, children in tree.items():
-            print(parent, children)
+            # print(parent, children)
             if parent == "vuetifyFiles":
                 subtree = children
             else:
@@ -101,14 +113,26 @@ def get_static_website_results(
                 )
         return subtree
 
+    # if bucket is not the default static website bucket,
+    # fetch all the static websites from the directory with the `staticwebsiteresults`
+    # directory inside project bucket.
+    prefix = None
+    if bucket_name != DEFAULT_STATIC_WEBSITE_BUCKET:
+        prefix = DEFAULT_STATIC_WEBSITE_BUCKET
+
     tree = {"vuetifyFiles": []}
-    objects = minioClient.list_objects(
-        "staticwebsiteresults", prefix=None, recursive=True
-    )
-    for obj in objects:
-        if obj.object_name.endswith("html") and obj.object_name != "index.html":
-            build_tree(tree, obj.object_name, obj.object_name)
-    return _get_vuetify_tree_structure(tree)
+
+    try:
+        objects = minioClient.list_objects(bucket_name, prefix=prefix, recursive=True)
+        for obj in objects:
+            if obj.object_name.endswith("html") and obj.object_name != "index.html":
+                build_tree(tree, obj.object_name, obj.object_name)
+        return _get_vuetify_tree_structure(tree)
+    except S3Error:
+        raise HTTPException(
+            status_code=404,
+            detail="Bucket name not found or Dont have access to the bucket",
+        )
 
 
 @router.get("/get-os-dashboards")

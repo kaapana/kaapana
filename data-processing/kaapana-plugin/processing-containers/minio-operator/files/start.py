@@ -159,6 +159,7 @@ def get_absolute_batch_operator_source_directories(
     )
     if not workflow_batch_directory.is_dir():
         logger.warning(f"{workflow_batch_directory=} does not exist!")
+        return [] # dir.iterdir() raises FileNotFoundError if dir doesn't exist
     absolute_batch_operator_source_directories = []
     for series_directory in workflow_batch_directory.iterdir():
         for operator_in_dir in batch_operator_source_directories:
@@ -256,7 +257,7 @@ def upload_objects(
             )
         )
         if zip_files:
-            with ZipFile(zip_archive_file_path, "w") as zip_file:
+            with ZipFile(zip_archive_file_path, "a") as zip_file:
                 zip_file.write(filename=file_path, arcname=relative_file_path)
         else:
             minio_file_path = os.path.join(minio_prefix, relative_file_path)

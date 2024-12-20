@@ -5,28 +5,15 @@
         <h4 class="text-h4 py-8">Available Projects</h4>
       </v-col>
       <v-col cols="3" class="d-flex justify-end align-center">
-        <v-btn
-          block
-          @click="projectDialog = true"
-          size="large"
-          prepend-icon="mdi-plus-box"
-        >
+        <v-btn block @click="projectDialog = true" size="large" prepend-icon="mdi-plus-box" v-if="userHasAdminAccess">
           Create New Projects
         </v-btn>
       </v-col>
     </v-row>
 
-    <v-alert
-      density="compact"
-      class="mb-6"
-      v-model="error"
-      icon="mdi-alert-circle"
+    <v-alert density="compact" class="mb-6" v-model="error" icon="mdi-alert-circle"
       text="Some error happened while creating the project. Please try again with different inputs."
-      title="Project Could not be created"
-      type="error"
-      prominent
-      closable
-    ></v-alert>
+      title="Project Could not be created" type="error" prominent closable></v-alert>
 
     <v-table>
       <thead>
@@ -47,16 +34,8 @@
           <td class="desc-col">{{ item.description }}</td>
           <td>{{ item.external_id }}</td>
           <td class="text-center">
-            <v-btn
-              class="text-none"
-              color="medium-emphasis"
-              min-width="92"
-              variant="outlined"
-              size="small"
-              rounded
-              append-icon="mdi-arrow-right"
-              @click="goToProjects(item.name)"
-            >
+            <v-btn class="text-none" color="medium-emphasis" min-width="92" variant="outlined" size="small" rounded
+              append-icon="mdi-arrow-right" @click="goToProjects(item.name)">
               View
             </v-btn>
           </td>
@@ -65,10 +44,7 @@
     </v-table>
   </v-container>
   <v-dialog v-model="projectDialog" max-width="1000">
-    <CreateNewProjectForm
-      :onsuccess="handleProjectCreate"
-      :oncancel="() => (projectDialog = false)"
-    />
+    <CreateNewProjectForm :onsuccess="handleProjectCreate" :oncancel="() => (projectDialog = false)" />
   </v-dialog>
 </template>
 
@@ -90,6 +66,7 @@ export default defineComponent({
       projectDialog: false,
       error: false,
       projectFetched: false,
+      userHasAdminAccess: false,
     };
   },
   mounted() {
@@ -97,10 +74,12 @@ export default defineComponent({
     // Temporary solution to check for user via
     // custom interval loop
     const fetchProjectsRef = this.fetchProjects;
+    const setAdminAccessRef = this.setUserAdminAccess;
     let checkForUser = setInterval(function () {
       const user = store.state.user;
       if (user) {
         fetchProjectsRef(user);
+        setAdminAccessRef(user);
         clearInterval(checkForUser);
       }
     }, 100);
@@ -111,8 +90,7 @@ export default defineComponent({
     // not triggering
     "store.state.user": {
       handler(newValue, oldValue) {
-        console.log("User object changed:", { newValue, oldValue });
-
+        // console.log("User object changed:", { newValue, oldValue });
         // Perform your logic here, e.g., fetching projects
         if (newValue !== oldValue) {
           this.fetchProjects(newValue);
@@ -152,6 +130,12 @@ export default defineComponent({
       }
       this.projectDialog = false;
     },
+    // enable the admin access of the user to be able to create new projects from the UI
+    setUserAdminAccess(user: UserItem) {
+      if (user.realm_roles && (user.realm_roles.includes('project-manager') || user.realm_roles.includes('admin'))) {
+        this.userHasAdminAccess = true;
+      }
+    },
     goToProjects(projectName: string) {
       this.$router.push(`/project/${projectName}`);
     },
@@ -166,6 +150,7 @@ export default defineComponent({
   white-space: nowrap;
   max-width: 150px;
 }
+
 .desc-col {
   overflow: hidden;
   text-overflow: ellipsis;

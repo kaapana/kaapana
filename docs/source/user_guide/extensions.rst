@@ -309,7 +309,14 @@ Collabora
 Extension Development Kit (EDK)
 -------------------------------
 
-
+Starting from v0.4.0, Kaapana provides an extension development environment where users can build extensions directly inside the platform.
+EDK deploys a VS Code server environment for the development of container images and Helm charts, and a local registry where the built container images can be pushed to or pulled from.
+Note that currently, EDK only includes ease-of-use scripts for workflow extensions, not for application extensions.
+Once you install EDK, proceed to the VS Code server by using the first link next to the application name. There are a couple of scripts for building images, charts, or directly an entire extension. Please refer to the :code:`README.md` inside for more details.
+To initialize the development environment, navigate to :code:`cd /kaapana/app` and run :code:`./init.sh` inside the terminal. This script builds all the Kaapana base images and pushes them to the local registry. Once it completes, you can check the images in the local registry by following the second link.
+For convenience, the init script copies an example pyradiomics extractor DAG under the :code:`dag` folder. You can build this extension directly by running :code:`./build_extension.sh --dir /kaapana/app/dag/pyradiomics-feature-extractor`. After this command is successfully executed, the extension should be available on the Extensions page (make sure that you change the Version filter to "All" on the Extensions page).
+This example DAG can be used as a template for building your own extensions. The easiest way to start modifying it is to change the script `processing-containers/pyradiomics-feature-extractor/files/extract_features.py` and rebuild it. This only changes the container that the operator :code:`PyradiomicsExtractorOperator` pulls, and the rest of the DAG stays the same.
+Once you have a better understanding of this DAG, you can start adapting the DAG definition file or even add more operators and containers that they pull. In the end, you should be able to write and deploy your own custom workflow extensions directly inside EDK and test them easily on your platform.
 
 .. _extensions_jupyterlab:
 

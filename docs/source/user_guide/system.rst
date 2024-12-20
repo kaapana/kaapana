@@ -21,3 +21,4 @@ All data-processing in the platform is based on Directed-Acyclic-Graphs (DAGs) d
     system/keycloak
     system/traefik
     system/monitoring
+    system/projects

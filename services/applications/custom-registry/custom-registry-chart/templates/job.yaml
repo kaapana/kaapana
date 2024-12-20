@@ -11,7 +11,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: "registry-test-{{ trunc 4 (sha256sum .Values.global.custom_registry_url) }}"
-  namespace: "{{ .Values.global.project_namespace }}"
+  namespace: "{{ .Values.global.services_namespace }}"
 spec:
   template:
     metadata:

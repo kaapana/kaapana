@@ -9,10 +9,9 @@ import shutil
 import collections
 from collections import OrderedDict
 from torch.utils.tensorboard import SummaryWriter
-from nnunet.training.model_restore import restore_model
-from nnunet.experiment_planning.DatasetAnalyzer import DatasetAnalyzer
-from batchgenerators.utilities.file_and_folder_operations import join
-import os, psutil
+import psutil
+import numpy as np
+import math
 
 sys.path.insert(0, "/")
 sys.path.insert(0, "/kaapana/app")
@@ -24,14 +23,17 @@ from kaapana_federated.KaapanaFederatedTraining import (
 
 class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
     @staticmethod
-    def get_network_trainer(folder):
-        checkpoint = join(folder, "model_final_checkpoint.model")
-        pkl_file = checkpoint + ".pkl"
-        return restore_model(pkl_file, checkpoint, False)
-
-    # https://github.com/MIC-DKFZ/nnUNet/blob/a7d1d875e8fc3f4e93ca7b51b1ba206711844d92/nnunet/experiment_planning/DatasetAnalyzer.py#L181
-    @staticmethod
     def collect_intensity_properties(v_per_mod, num_processes=8):
+        """
+        Method computes from voxel intensities per client and modality, the global intensity statistics/properties per modality.
+
+        Input:
+        * v_per_mod: List of voxel values per client and per modality
+        * num_processes
+
+        Output:
+        * results: Global intensity properties per modality (global over all clients).
+        """
         num_modalities = len(v_per_mod)
         p = Pool(num_processes)
 
@@ -39,24 +41,16 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         for mod_id in range(num_modalities):
             results[mod_id] = OrderedDict()
             w = []
-            for iv in v_per_mod[mod_id]:
+            for iv in v_per_mod[str(mod_id)]:
                 w += iv
 
-            (
-                median,
-                mean,
-                sd,
-                mn,
-                mx,
-                percentile_99_5,
-                percentile_00_5,
-            ) = DatasetAnalyzer._compute_stats(w)
-
+            percentiles = np.array((0.5, 50.0, 99.5))
+            percentile_00_5, median, percentile_99_5 = np.percentile(w, percentiles)
             results[mod_id]["median"] = median
-            results[mod_id]["mean"] = mean
-            results[mod_id]["sd"] = sd
-            results[mod_id]["mn"] = mn
-            results[mod_id]["mx"] = mx
+            results[mod_id]["mean"] = float(np.mean(w))
+            results[mod_id]["sd"] = float(np.std(w))
+            results[mod_id]["mn"] = float(np.min(w))
+            results[mod_id]["mx"] = float(np.max(w))
             results[mod_id]["percentile_99_5"] = percentile_99_5
             results[mod_id]["percentile_00_5"] = percentile_00_5
 
@@ -64,9 +58,86 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         p.join()
         return results
 
+    def estimate_global_intensity_properties(self, intensities_per_mod):
+        """
+        Method estimates from intensities properties per client and modality,
+        the global intensity statistics/properties per modality.
+
+        Input:
+        * intensities_per_mod: List of intensities properties per client and per modality
+
+        Output:
+        * results: Global intensity properties per modality (global over all clients).
+        """
+        results = {}
+
+        # Iterate over modalities
+        for mod_id, all_intensities in intensities_per_mod.items():
+            # Initialize accumulators
+            total_mean = 0.0
+            total_variance = 0.0
+            total_median = 0.0
+            total_percentile_00_5 = 0.0
+            total_percentile_99_5 = 0.0
+            total_samples = 0
+            glob_min = float("inf")
+            glob_max = float("-inf")
+
+            for stats in all_intensities:
+                mean = stats["mean"]
+                std = stats["std"]
+                median = stats["median"]
+                percentile_00_5 = stats["percentile_00_5"]
+                percentile_99_5 = stats["percentile_99_5"]
+                n = stats["n"]
+
+                # Update global mean
+                total_mean += mean * n
+                total_samples += n
+
+                # Update global standard deviation
+                total_variance += n * (
+                    std**2 + (mean - (total_mean / total_samples)) ** 2
+                )
+
+                # Update global min and max
+                glob_min = min(glob_min, stats["min"])
+                glob_max = max(glob_max, stats["max"])
+
+                # Update global median and percentiles
+                total_median += median * n
+                total_percentile_00_5 += percentile_00_5 * n
+                total_percentile_99_5 += percentile_99_5 * n
+
+            # Final global mean and standard deviation
+            glob_mean = total_mean / total_samples
+            glob_std = math.sqrt(total_variance / total_samples)
+
+            # Estimate global median and percentiles via weighted mean of client's medians and percentiles
+            # glob_median = np.mean([x["median"] for x in all_intensities])
+            # glob_percentile_00_5 = np.mean([x["percentile_00_5"] for x in all_intensities])
+            # glob_percentile_99_5 = np.mean([x["percentile_99_5"] for x in all_intensities])
+            glob_median = total_median / total_samples
+            glob_percentile_00_5 = total_percentile_00_5 / total_samples
+            glob_percentile_99_5 = total_percentile_99_5 / total_samples
+
+            # Store results in the dictionary
+            results[int(mod_id)] = {
+                "mn": glob_min,
+                "mx": glob_max,
+                "mean": glob_mean,
+                "sd": glob_std,
+                "median": glob_median,
+                "percentile_00_5": glob_percentile_00_5,
+                "percentile_99_5": glob_percentile_99_5,
+            }
+
+        return results
+
     def __init__(self, workflow_dir=None):
         super().__init__(workflow_dir=workflow_dir)
 
+        # recovery mode
         if (
             "federated_round" in self.remote_conf_data["federated_form"]
             and self.remote_conf_data["federated_form"]["federated_round"] > -1
@@ -77,6 +148,8 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data["federated_form"]["federated_total_rounds"] = (
                 self.remote_conf_data["federated_form"]["federated_total_rounds"] - 1
             )
+
+        # setting epochs configs to be also available in client's nnunet-training workflows
         if (
             self.remote_conf_data["workflow_form"]["train_max_epochs"]
             % self.remote_conf_data["federated_form"]["federated_total_rounds"]
@@ -90,11 +163,13 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
                 self.remote_conf_data["workflow_form"]["train_max_epochs"]
                 / self.remote_conf_data["federated_form"]["federated_total_rounds"]
             )
-        print(f"Overwriting prep_increment_step to to_dataset_properties!")
 
+        # set to 'to_dataset_properties' to start training with generation of dataset_properties at clients
+        print(f"Overwriting prep_increment_step to to_dataset_properties!")
         self.remote_conf_data["workflow_form"][
             "prep_increment_step"
         ] = "to_dataset_properties"
+
         # We increase the total federated round by one, because we need the final round to download the final model.
         # The nnUNet won't train an epoch longer, since its train_max_epochs!
         self.remote_conf_data["federated_form"]["federated_total_rounds"] = (
@@ -102,6 +177,15 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
         )
         print(
             f"Epochs per round {self.remote_conf_data['workflow_form']['epochs_per_round']}"
+        )
+
+        # make federated data fingerprint strategy available in client's nnunet-training workflow
+        self.remote_conf_data["workflow_form"][
+            "fed_global_fingerprint"
+        ] = self.remote_conf_data["federated_form"]["global_fingerprint"]
+        # make number of FL clients availiable in client's nnunet-training workflow
+        self.remote_conf_data["workflow_form"]["fed_num_clients"] = len(
+            self.remote_conf_data["instance_names"]
         )
 
     def tensorboard_logs(self, federated_round):
@@ -144,105 +228,195 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             preprocessing_path = Path(
                 os.path.join(self.fl_working_dir, str(federated_round))
             )
+
+            # iterate over client's fingerprints and concatenate them
             voxels_in_foreground = {}
-            dataset_properties_files = []
+            clients_intensity_properties = {}
+            dataset_fingerprints_files = []
             for idx, fname in enumerate(
-                preprocessing_path.rglob("dataset_properties.pkl")
+                preprocessing_path.rglob("dataset_fingerprint.json")
             ):
-                if "nnUNet_cropped_data" in str(fname):
-                    dataset_properties_files.append(fname)
+                if "nnUNet_preprocessed" in str(fname):
+                    dataset_fingerprints_files.append(fname)
+
+                    # process fingerprint of first client
                     if idx == 0:
                         with open(fname, "rb") as f:
-                            concat_dataset_properties = pickle.load(f)
+                            concat_dataset_fingerprints = json.load(f)
                         if (
-                            "intensityproperties" in concat_dataset_properties
-                            and concat_dataset_properties["intensityproperties"]
+                            "foreground_intensity_properties_per_channel"
+                            in concat_dataset_fingerprints
+                            and concat_dataset_fingerprints[
+                                "foreground_intensity_properties_per_channel"
+                            ]
                         ):
-                            local_intensityproperties = collections.OrderedDict()
-                            for mod_id, _ in concat_dataset_properties[
-                                "intensityproperties"
+                            # iterate over modalities
+                            for mod_id, _ in concat_dataset_fingerprints[
+                                "foreground_intensity_properties_per_channel"
                             ].items():
-                                voxels_in_foreground[
-                                    mod_id
-                                ] = concat_dataset_properties["intensityproperties"][
-                                    mod_id
-                                ][
-                                    "v"
-                                ]
-                                local_intensityproperties[
-                                    mod_id
-                                ] = collections.OrderedDict()
-                                local_intensityproperties[mod_id][
-                                    "local_props"
-                                ] = concat_dataset_properties["intensityproperties"][
-                                    mod_id
-                                ][
-                                    "local_props"
-                                ]
-                                print(idx, mod_id)
-                            concat_dataset_properties[
-                                "intensityproperties"
-                            ] = local_intensityproperties
+                                if (
+                                    self.remote_conf_data["workflow_form"][
+                                        "fed_global_fingerprint"
+                                    ]
+                                    == "accurate"
+                                ):
+                                    voxels_in_foreground[
+                                        mod_id
+                                    ] = concat_dataset_fingerprints[
+                                        "foreground_intensity_properties_per_channel"
+                                    ][
+                                        mod_id
+                                    ][
+                                        "v"
+                                    ]
+                                elif (
+                                    self.remote_conf_data["workflow_form"][
+                                        "fed_global_fingerprint"
+                                    ]
+                                    == "estimate"
+                                ):
+                                    clients_intensity_properties[mod_id] = [
+                                        {
+                                            **concat_dataset_fingerprints[
+                                                "foreground_intensity_properties_per_channel"
+                                            ][mod_id],
+                                            "n": len(
+                                                concat_dataset_fingerprints["spacings"]
+                                            ),
+                                        }
+                                    ]
+
+                                print(
+                                    f"Processed first fingerprint {idx} of modality {mod_id}!"
+                                )
+                    # process fingerprints of other clients
                     else:
                         with open(fname, "rb") as f:
-                            dataset_properties = pickle.load(f)
-                        for k in ["all_sizes", "all_spacings"]:
-                            concat_dataset_properties[k] = (
-                                concat_dataset_properties[k] + dataset_properties[k]
+                            dataset_fingerprints = json.load(f)
+
+                        # concatenate 'shapes' and 'spacings'
+                        for k in [
+                            "shapes_after_crop",
+                            "spacings",
+                        ]:
+                            concat_dataset_fingerprints[k] = (
+                                concat_dataset_fingerprints[k] + dataset_fingerprints[k]
                             )
-                        concat_dataset_properties["size_reductions"].update(
-                            dataset_properties["size_reductions"]
-                        )
+
+                        # concatenate data fingerprint intensities or sampled voxels
                         if (
-                            "intensityproperties" in concat_dataset_properties
-                            and concat_dataset_properties["intensityproperties"]
+                            "foreground_intensity_properties_per_channel"
+                            in concat_dataset_fingerprints
+                            and concat_dataset_fingerprints[
+                                "foreground_intensity_properties_per_channel"
+                            ]
                         ):
+                            # iterate over modalities
                             for (
                                 mod_id,
                                 intensityproperties,
-                            ) in concat_dataset_properties[
-                                "intensityproperties"
+                            ) in concat_dataset_fingerprints[
+                                "foreground_intensity_properties_per_channel"
                             ].items():
-                                voxels_in_foreground[mod_id] = (
-                                    voxels_in_foreground[mod_id]
-                                    + dataset_properties["intensityproperties"][mod_id][
-                                        "v"
+                                if (
+                                    self.remote_conf_data["workflow_form"][
+                                        "fed_global_fingerprint"
                                     ]
-                                )
-                                concat_dataset_properties["intensityproperties"][
-                                    mod_id
-                                ]["local_props"].update(
-                                    dataset_properties["intensityproperties"][mod_id][
-                                        "local_props"
+                                    == "accurate"
+                                ):
+                                    voxels_in_foreground[mod_id] = (
+                                        voxels_in_foreground[mod_id]
+                                        + dataset_fingerprints[
+                                            "foreground_intensity_properties_per_channel"
+                                        ][mod_id]["v"]
+                                    )
+                                if (
+                                    self.remote_conf_data["workflow_form"][
+                                        "fed_global_fingerprint"
                                     ]
+                                    == "estimate"
+                                ):
+                                    clients_intensity_properties[mod_id].append(
+                                        {
+                                            **concat_dataset_fingerprints[
+                                                "foreground_intensity_properties_per_channel"
+                                            ][mod_id],
+                                            "n": len(dataset_fingerprints["spacings"]),
+                                        }
+                                    )
+                                print(
+                                    f"Concatenated fingerprint {idx} of modality {mod_id}."
                                 )
-                                print(idx, mod_id)
-                        for k in ["all_classes", "modalities"]:
-                            assert json.dumps(dataset_properties[k]) == json.dumps(
-                                concat_dataset_properties[k]
-                            )
-                    print(fname)
-            print(len(dataset_properties_files))
+
+            datasets = []
+            for idx, fname in enumerate(preprocessing_path.rglob("dataset.json")):
+                with open(fname, "rb") as f:
+                    datasets.append(json.load(f))
+
+            # check channel_names/modality and label consistency among FL clients
+            if len(datasets) > 0:
+                for i, dataset in enumerate(datasets):
+                    if i == 0:
+                        ref_channels = dataset["channel_names"]
+                        ref_labels = dataset["labels"]
+                    else:
+                        current_channels = dataset["channel_names"]
+                        current_labels = dataset["labels"]
+                        assert ref_channels == current_channels
+                        assert ref_labels == current_labels
+
+            print(
+                f"Number of to be aggregated data fingerprints: {len(dataset_fingerprints_files)}."
+            )
+            # aggregate extracted and concatenated data fingerprints to obtain global data fingerprint
             if (
-                "intensityproperties" in concat_dataset_properties
-                and concat_dataset_properties["intensityproperties"]
+                "foreground_intensity_properties_per_channel"
+                in concat_dataset_fingerprints
+                and concat_dataset_fingerprints[
+                    "foreground_intensity_properties_per_channel"
+                ]
             ):
-                global_intensityproperties = (
-                    nnUNetFederatedTraining.collect_intensity_properties(
-                        voxels_in_foreground
+                # compute or estimate global intensity properties based
+                if (
+                    self.remote_conf_data["workflow_form"]["fed_global_fingerprint"]
+                    == "accurate"
+                ):
+                    print(
+                        "Accurate, slower and less privacy-preserving computation of global dataset fingerprint!"
                     )
-                )
-                for mod_id, _ in concat_dataset_properties[
-                    "intensityproperties"
-                ].items():
-                    print(idx, mod_id)
-                    concat_dataset_properties["intensityproperties"][mod_id].update(
-                        global_intensityproperties[mod_id]
+                    global_intensityproperties = (
+                        nnUNetFederatedTraining.collect_intensity_properties(
+                            voxels_in_foreground
+                        )
+                    )
+                elif (
+                    self.remote_conf_data["workflow_form"]["fed_global_fingerprint"]
+                    == "estimate"
+                ):
+                    print(
+                        "Estimated, faster and more privacy-preserving computation of global dataset fingerprint!"
+                    )
+                    global_intensityproperties = (
+                        self.estimate_global_intensity_properties(
+                            clients_intensity_properties
+                        )
                     )
 
-            for fname in dataset_properties_files:
-                with open(fname, "wb") as f:
-                    pickle.dump(concat_dataset_properties, f)
+                # write obtained global_intensity properties to result
+                for mod_id, _ in concat_dataset_fingerprints[
+                    "foreground_intensity_properties_per_channel"
+                ].items():
+                    print(
+                        f"Number of aggregated data fingerprints {idx} of modality {mod_id}."
+                    )
+                    concat_dataset_fingerprints[
+                        "foreground_intensity_properties_per_channel"
+                    ][str(mod_id)].update(global_intensityproperties[int(mod_id)])
+                    print(0)
+
+            for fname in dataset_fingerprints_files:
+                with open(fname, "w") as f:
+                    json.dump(concat_dataset_fingerprints, f)
 
             # Dummy creation of nnunet-training folder, because a tar is expected in the next round due
             # to from_previous_dag_run not None. Mybe there is a better solution for the future...
@@ -269,28 +443,34 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             print(psutil.Process(os.getpid()).memory_info().rss / 1024**2)
 
             ### FL Aggregation during training ###
-            # load state_dicts
-            site_statedict_dict = self.load_state_dicts(current_federated_round_dir)
-            # process state_dicts according to aggregation method
+            # load model_weights
+            site_model_weights_dict = self.load_model_weights(
+                current_federated_round_dir
+            )
+            # process model_weights according to aggregation method
             if self.aggregation_strategy == "fedavg":
                 # FedAvg
-                processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
+                processed_site_model_weights_dict = self.fed_avg(
+                    site_model_weights_dict
+                )
             elif self.aggregation_strategy == "feddc":
                 if federated_round == -1:
                     # average in fl_round=-1 to initialize everywhere w/ same model
-                    processed_site_statedict_dict = self.fed_avg(site_statedict_dict)
+                    processed_site_model_weights_dict = self.fed_avg(
+                        site_model_weights_dict
+                    )
                 else:
                     # FedDC
-                    processed_site_statedict_dict = self.fed_dc(
-                        site_statedict_dict, federated_round
+                    processed_site_model_weights_dict = self.fed_dc(
+                        site_model_weights_dict, federated_round
                     )
             else:
                 raise ValueError(
                     "No Federated Learning method is given. Choose between 'fedavg', 'feddc'."
                 )
-            # save state_dicts to server's minio
-            fname = self.save_state_dicts(
-                current_federated_round_dir, processed_site_statedict_dict
+            # save model_weights to server's minio
+            fname = self.save_model_weights(
+                current_federated_round_dir, processed_site_model_weights_dict
             )
 
             # last fl_round
@@ -346,10 +526,10 @@ class nnUNetFederatedTraining(KaapanaFederatedTrainingBase):
             self.remote_conf_data["workflow_form"]["prep_increment_step"] = ""
         else:
             self.remote_conf_data["workflow_form"]["train_continue"] = True
-            self.run_in_parallel = True
+            # set run_in_parallel to False if model communication is too slow or models are too large
+            self.run_in_parallel = False
         print(
-            federated_round,
-            self.remote_conf_data["federated_form"]["federated_total_rounds"],
+            f"Current fl_round={federated_round} out of {self.remote_conf_data['federated_form']['federated_total_rounds']} total fl_rounds."
         )
 
 

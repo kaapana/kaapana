@@ -1,8 +1,8 @@
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalDcmAnonymizerOperator import LocalDcmAnonymizerOperator
 from kaapana.operators.LocalConcatJsonOperator import LocalConcatJsonOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -61,7 +61,7 @@ dag = DAG(
 )
 
 ### COMMON ###
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 
 anonymizer = LocalDcmAnonymizerOperator(
     dag=dag,
@@ -80,7 +80,7 @@ dcm2nifti_ct = DcmConverterOperator(
 
 extract_img_intensities = LocalExtractImgIntensitiesOperator(
     dag=dag,
-    input_operator=get_input,  # dcm2nifti_ct,
+    input_operator=get_input,
     json_operator=extract_metadata,
 )
 
@@ -119,15 +119,14 @@ merge_branches = LocalMergeBranchesOperator(
     first_input_operator=extract_img_intensities,
     second_input_operator=concat_metadata,
     level="batch",
-    trigger_rule=TriggerRule.ALL_DONE,
     allow_federated_learning=True,
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[merge_branches],
-    bucket_name="advanced-collect-metadata",
+    none_batch_input_operators=[merge_branches],
+    minio_prefix="downloads",
     zip_files=True,
 )
 

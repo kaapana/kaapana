@@ -1,0 +1,35 @@
+---
+{{- if not .Values.global.dev_mode}}
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: "forbid-privileged-pods"
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:   [""]
+      apiVersions: ["v1"]
+      operations:  ["CREATE", "UPDATE"]
+      resources:   ["pods"]
+  variables:
+    - name: containersWithSecurityContext
+      expression: "object.spec.containers.filter(c, has(c.securityContext) && has(c.securityContext.privileged))"
+  validations:
+    - expression: "variables.containersWithSecurityContext.all(c, c.securityContext.privileged != true)"
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: "forbid-privileged-pods-binding"
+spec:
+  policyName: "forbid-privileged-pods"
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+          - "kube-system"
+{{- end }}

@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Values.global.services_namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: {{ .Release.Name }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: {{ .Release.Name }}
+    spec:
+      restartPolicy: Always
+      securityContext:
+        runAsUser: {{ int .Values.global.uid }}
+        runAsGroup: {{ int .Values.global.gid }}
+        fsGroup: {{ int .Values.global.gid }}
+      initContainers:
+        - name: minio-sync-permission-fix
+          securityContext:
+            runAsUser: 0
+          image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version }}"
+          command: ["chown", "-R", "{{ int .Values.global.uid }}:{{ int .Values.global.gid }}", "/mount"]
+          volumeMounts:
+            - name: {{ .Release.Name }}-host-path
+              mountPath: /mount
+      containers:
+        - name: minio-sync
+          image: "{{ .Values.global.registry_url }}/minio-mirror:{{ .Values.global.kaapana_build_version }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
+          env:
+          - name: LOCAL_PATH
+            value: /host
+          - name: MINIO_PATH
+            value: {{ .Values.global.minio_path }}
+          - name: ACTION
+            value: {{ if eq .Values.global.sync_strategy "Minio2Host" }}"FETCH"{{ else if eq .Values.global.sync_strategy "Host2Minio"}}"PUSH"{{ else if eq .Values.global.sync_strategy "Bidirectional" }}"SYNC"{{ else }}{{.Values.global.sync_strategy }}{{ end }}
+          - name: MINIO_SERVICE
+            value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
+          - name: MINIO_USER
+            value: {{ .Values.global.credentials_minio_username  | default "" }}
+          - name: MINIO_PASSWORD
+            value: {{ .Values.global.credentials_minio_password | default ""}}
+          volumeMounts:
+            - name: {{ .Release.Name }}-host-path
+              mountPath: /host
+      imagePullSecrets:
+        - name: registry-secret
+      volumes:
+        - name: {{ .Release.Name }}-host-path
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-host-path-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Release.Name }}-host-path-pv-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "1Mi"
+{{- if $.Values.global.enable_nfs }}
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: {{ .Values.global.host_directory }}
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath: 
+    path: "{{ $.Values.global.fast_data_dir }}/{{ .Values.global.host_directory }}"
+{{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    name: {{ .Release.Name }}-host-path-pv-claim
+    namespace: {{ .Values.global.services_namespace }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-host-path-pv-claim
+  namespace: {{ .Values.global.services_namespace }}
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: {{ .Release.Name }}-host-path-pv-volume
+---

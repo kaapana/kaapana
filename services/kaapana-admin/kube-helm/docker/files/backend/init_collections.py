@@ -13,15 +13,10 @@ from app.utils import (
     helm_status,
 )
 from app.helm_helper import get_kube_objects
+import logging
+from app.logger import get_logger
 
-logger = logging.getLogger("fastapi")
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-logger.debug("set fastapi logger level to debug")
+logger = get_logger(__name__)
 
 logger.info(
     "##############################################################################"

@@ -1,29 +1,17 @@
 import os
 import sys
 import time
-import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
 
 from app.utils import helm_prefetch_extension_docker, helm_status
 from app.config import settings
+import logging
+from app.logger import get_logger
 
-logger = logging.getLogger("fastapi")
-logger.setLevel(logging.DEBUG)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-logger.debug("set fastapi logger level to debug")
+logger = get_logger(__name__, "DEBUG")
 
-logger.info(
-    "##############################################################################"
-)
-logger.info("Prefechting extensions on startup!")
-logger.info(
-    "##############################################################################"
-)
+
 if settings.offline_mode is False and settings.prefetch_extensions is True:
     try:
         installed_release_names = helm_prefetch_extension_docker()

@@ -1,6 +1,3 @@
-global:
-  dev_mode: False
-  
 couchdb:
   user: kaapanauser
   password: kaapanapassword

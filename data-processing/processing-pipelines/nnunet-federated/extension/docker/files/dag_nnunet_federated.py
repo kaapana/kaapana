@@ -15,7 +15,7 @@ from kaapana.blueprints.kaapana_global_variables import (
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from nnunet_federated.nnUNetFederatedOperator import nnUNetFederatedOperator
@@ -30,10 +30,9 @@ ae_title = "nnUnet-results"
 
 ## FL releated
 remote_dag_id = "nnunet-training"
-# skip_operators = ["zip-unzip-training", "model2dicom", "dcmsend", "upload-nnunet-data", "pdf2dcm-training", "dcmsend-pdf", "generate-nnunet-report-training"]
-# federated_operators = ["nnunet-training"]
 skip_operators = [
     "nnunet-training",
+    "nnunet-get-notebook-from-minio",
     "zip-unzip-training",
     "model2dicom",
     "dcmsend",
@@ -45,6 +44,7 @@ skip_operators = [
     "workflow-cleaner",
 ]
 federated_operators = ["nnunet-preprocess", "nnunet-training"]
+
 ui_forms = {
     "data_form": {},
     "external_schema_federated_form": {
@@ -85,6 +85,15 @@ ui_forms = {
                 "required": True,
                 "readOnly": True,
             },
+            "global_fingerprint": {
+                "type": "string",
+                "title": "Global fingerprint generation",
+                "enum": ["accurate", "estimate"],
+                "description": "accurate: Clients share partially voxel data for accurate fingerprint statistic computation; more accurate, less privacy-preserving, slower!\nestimate: Clients share data fingerprints, server estimates global data fingerprint statistics; less accurate, more privacy-preserving, faster!",
+                "default": "estimate",
+                "required": True,
+                "readOnly": False,
+            },
         },
     },
     "external_schemas": remote_dag_id,
@@ -115,8 +124,8 @@ nnunet_federated = nnUNetFederatedOperator(
 zip_model = ZipUnzipOperator(
     dag=dag,
     target_filename=f"nnunet_model.zip",
-    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*.json,*.png,*.pdf",
-    subdir="results/nnUNet",
+    whitelist_files="model_latest.model.pkl,model_latest.model,model_final_checkpoint.model,model_final_checkpoint.model.pkl,plans.pkl,*pth,*.json,*.png,*.pdf",
+    subdir="results",
     mode="zip",
     batch_level=True,
     operator_in_dir="nnunet-training",
@@ -152,12 +161,12 @@ dcm_send_int = DcmSendOperator(
     input_operator=bin2dcm,
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[nnunet_federated],
+    batch_input_operators=[nnunet_federated],
     zip_files=True,
-    file_white_tuples=(".zip"),
+    whitelisted_file_extensions=[".zip"],
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

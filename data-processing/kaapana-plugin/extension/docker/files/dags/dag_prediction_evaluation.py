@@ -1,15 +1,13 @@
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
-from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.SegmentationEvaluationOperator import (
     SegmentationEvaluationOperator,
 )
@@ -21,6 +19,7 @@ from kaapana.operators.LocalModifySegLabelNamesOperator import (
 
 from nnunet.NnUnetOperator import NnUnetOperator
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
+from nnunet.GetModelFromPacsOperator import GetModelFromPacsOperator
 from nnunet.getTasks import get_available_protocol_names
 
 
@@ -39,7 +38,7 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "WARNING":  {
+            "WARNING": {
                 "title": "WARNING: experimental DAG for evaluating nnunet-predict",
                 "default": "Use the stable evaluation DAG: evaluate-segmentations",
                 "description": "WARNING: this DAG will only run if nnunet is installed",
@@ -176,13 +175,13 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_gt_seg = LocalGetInputDataOperator(
+get_gt_seg = GetInputOperator(
     dag=dag,
     name="get-gt-seg",
     dataset_limit=None,
     parallel_downloads=5,
     check_modality=False,
-    batch_name="nnunet-dataset"
+    batch_name="nnunet-dataset",
 )
 
 get_ref_ct = LocalGetRefSeriesOperator(
@@ -191,8 +190,7 @@ get_ref_ct = LocalGetRefSeriesOperator(
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="gt",
-    modality=None,
-    batch_name="nnunet-dataset"
+    batch_name="nnunet-dataset",
 )
 
 dcm2nifti_ct = DcmConverterOperator(
@@ -201,12 +199,10 @@ dcm2nifti_ct = DcmConverterOperator(
     parallel_id="gt",
     parallel_processes=parallel_processes,
     output_format="nii.gz",
-    batch_name="nnunet-dataset"
+    batch_name="nnunet-dataset",
 )
 
-get_model = LocalModelGetInputDataOperator(
-    dag=dag, name="get-model", check_modality=True, parallel_downloads=5
-)
+get_model = GetModelFromPacsOperator(dag=dag, name="get-model")
 
 dcm2bin = Bin2DcmOperator(
     dag=dag, input_operator=get_model, name="extract-binary", file_extensions="*.dcm"
@@ -231,10 +227,7 @@ nnunet_predict = NnUnetOperator(
 )
 
 mask2nifti_gt = Mask2nifitiOperator(
-    dag=dag,
-    input_operator=get_gt_seg,
-    parallel_id="gt",
-    batch_name="nnunet-dataset"
+    dag=dag, input_operator=get_gt_seg, parallel_id="gt", batch_name="nnunet-dataset"
 )
 
 filter_gt = LocalFilterMasksOperator(
@@ -242,7 +235,7 @@ filter_gt = LocalFilterMasksOperator(
     name="filter-masks",
     label_filter_key="gt_label_filter",
     input_operator=mask2nifti_gt,
-    batch_name="nnunet-dataset"
+    batch_name="nnunet-dataset",
 )
 
 fuse_gt = MergeMasksOperator(
@@ -251,7 +244,7 @@ fuse_gt = MergeMasksOperator(
     input_operator=filter_gt,
     mode="fuse",
     trigger_rule="all_done",
-    batch_name="nnunet-dataset"
+    batch_name="nnunet-dataset",
 )
 
 rename_gt = LocalModifySegLabelNamesOperator(
@@ -262,7 +255,7 @@ rename_gt = LocalModifySegLabelNamesOperator(
     write_seginfo_results=False,
     write_metainfo_results=True,
     trigger_rule="all_done",
-    batch_name="nnunet-dataset"
+    batch_name="nnunet-dataset",
 )
 
 combine_gt = MergeMasksOperator(
@@ -270,7 +263,7 @@ combine_gt = MergeMasksOperator(
     name="combine-masks-gt",
     input_operator=filter_gt,
     mode="combine",
-    batch_name="nnunet-dataset"
+    batch_name="nnunet-dataset",
 )
 
 evaluation = SegmentationEvaluationOperator(
@@ -284,13 +277,13 @@ evaluation = SegmentationEvaluationOperator(
     # dev_server="code-server"
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     name="put-eval-metrics-to-minio",
     zip_files=True,
     action="put",
-    action_operators=[evaluation],
-    file_white_tuples=(".zip"),
+    batch_input_operators=[evaluation],
+    whitelisted_file_extensions=[".zip"],
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
@@ -298,6 +291,14 @@ clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 get_model >> dcm2bin >> extract_model >> nnunet_predict
 get_gt_seg >> get_ref_ct >> dcm2nifti_ct >> nnunet_predict
 nnunet_predict >> evaluation
-get_gt_seg >> mask2nifti_gt >> filter_gt >> fuse_gt >> rename_gt >> combine_gt >> evaluation
+(
+    get_gt_seg
+    >> mask2nifti_gt
+    >> filter_gt
+    >> fuse_gt
+    >> rename_gt
+    >> combine_gt
+    >> evaluation
+)
 
 evaluation >> put_to_minio >> clean

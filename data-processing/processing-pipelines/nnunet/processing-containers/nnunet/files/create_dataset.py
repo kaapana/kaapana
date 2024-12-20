@@ -11,6 +11,12 @@ import numpy as np
 from multiprocessing.pool import ThreadPool
 from os.path import join, exists, dirname, basename, isdir
 
+"""
+Documentation create_dataset.py:
+
+Script takes default Kaapana dataset and transforms it into nnUNet compatible dataset format.
+"""
+
 
 def timing(f):
     def wrap(*args, **kwargs):
@@ -189,6 +195,8 @@ def process_seg_nifti(seg_nifti):
 def prepare_dataset(datset_list, dataset_id):
     global template_dataset_json, label_names_found, thread_count
     print(f"# Preparing all {dataset_id} series: {len(datset_list)}")
+    images_set_folder = "imagesTr" if dataset_id == "training" else "imagesTs"
+    labels_set_folder = "labelsTr" if dataset_id == "training" else "labelsTs"
     for series in datset_list:
         print("######################################################################")
         print("#")
@@ -197,7 +205,7 @@ def prepare_dataset(datset_list, dataset_id):
         print("#")
         print("######################################################################")
 
-        imagesTr_path = join(task_dir, "imagesTr")
+        images_path = join(task_dir, images_set_folder)
         base_file_path = f"{basename(series)}.nii.gz"
 
         for i in range(0, len(input_modality_dirs)):
@@ -222,7 +230,7 @@ def prepare_dataset(datset_list, dataset_id):
                 exit(1)
             modality_nifti = modality_nifti[0]
             target_modality_path = join(
-                imagesTr_path, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz")
+                images_path, base_file_path.replace(".nii.gz", f"_{i:04}.nii.gz")
             )
             Path(dirname(target_modality_path)).mkdir(parents=True, exist_ok=True)
             if copy_target_data:
@@ -230,7 +238,7 @@ def prepare_dataset(datset_list, dataset_id):
             else:
                 shutil.move(modality_nifti, target_modality_path)
 
-        target_seg_path = join(task_dir, "labelsTr", base_file_path)
+        target_seg_path = join(task_dir, labels_set_folder, base_file_path)
 
         seg_nifti_list = []
         for label_dir in input_label_dirs:
@@ -283,8 +291,8 @@ def prepare_dataset(datset_list, dataset_id):
         print("# Adding dataset ...")
         template_dataset_json[dataset_id].append(
             {
-                "image": join("./", "imagesTr", base_file_path),
-                "label": join("./", "labelsTr", base_file_path),
+                "image": join("./", images_set_folder, base_file_path),
+                "label": join("./", labels_set_folder, base_file_path),
             }
         )
         print("# -> element DONE!")
@@ -294,13 +302,13 @@ def prepare_dataset(datset_list, dataset_id):
     print("#")
 
 
-task_name = os.getenv("TASK", "")
+task_name = f'Task{int(os.getenv("TASK_NUM")):03}_{os.getenv("TASK_DESCRIPTION")}'
 licence = os.getenv("LICENCE", "N/A")
 version = os.getenv("VERSION", "N/A")
 training_name = task_name
 training_description = os.getenv("TRAINING_DESCRIPTION", "nnUNet training")
 training_reference = os.getenv("TRAINING_REFERENCE", "nnUNet")
-shuffle_seed = (int(os.getenv("SHUFFLE_SEED", "0")),)
+shuffle_seed = int(os.getenv("SHUFFLE_SEED", "0"))
 network_trainer = os.getenv("TRAIN_NETWORK_TRAINER", "N/A")
 model_architecture = os.getenv("MODEL", "UNKNOWN")  # -> model 2d,3d_lowres etc
 test_percentage = int(os.getenv("TEST_PERCENTAGE", "0"))
@@ -320,7 +328,11 @@ input_modality_dirs = os.getenv("INPUT_MODALITY_DIRS", "")
 
 batch_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"])
 operator_out_dir = join("/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
-task_dir = join(operator_out_dir, "nnUNet_raw_data", os.environ["TASK"])
+task_dir = join(
+    operator_out_dir,
+    "nnUNet_raw",
+    f'Dataset{int(os.getenv("TASK_NUM")):03}_{os.getenv("TASK_DESCRIPTION")}',
+)
 
 use_nifti_labels = (
     True if os.getenv("PREP_USE_NIFITI_LABELS", "False").lower() == "true" else False
@@ -394,7 +406,8 @@ template_dataset_json = {
     "licence": licence,
     "release": version,
     "tensorImageSize": tensor_size,
-    "modality": modality,
+    "channel_names": modality,
+    "file_ending": ".nii.gz",  # yes, for now hard-coded as nifti file ending is everywhere
     "labels": None,
     "numTraining": 0,
     "numTest": 0,
@@ -450,20 +463,30 @@ prepare_dataset(datset_list=test_series, dataset_id="test")
 print("#")
 print("# Creating dataset.json ....")
 print("#")
-labels = {
-    "0": "Clear Label",
-}
+
+# get found labels
+labels = {}
 for key, value in label_names_found.items():
     labels[str(value)] = key
+# bring labels in nnunetv2 format
+sorted_labels = {
+    v: int(k) for k, v in sorted(labels.items(), key=lambda item: int(item[0]))
+}
+# rename "Clear label" to "background" (necessary for nnunetv2)
+sorted_labels["background"] = sorted_labels.pop("Clear Label")
 
 print("# Extracted labels:")
-sorted_labels = {}
-for key in sorted(labels.keys(), key=int):
-    sorted_labels[str(key)] = labels[key]
 print(json.dumps(sorted_labels, indent=4, sort_keys=False))
 template_dataset_json["labels"] = sorted_labels
 print("#")
 print("#")
+
+# if federated: remove training and test identifiers form dataset.json
+fed_num_clients = os.getenv("FED_NUM_CLIENTS", None)
+fed_global_fingerprint = os.getenv("FED_GLOBAL_FINGERPRINT", None)
+if fed_num_clients and fed_global_fingerprint:
+    template_dataset_json["training"] = []
+    template_dataset_json["test"] = []
 
 with open(join(task_dir, "dataset.json"), "w") as fp:
     json.dump(template_dataset_json, fp, indent=4, sort_keys=False)

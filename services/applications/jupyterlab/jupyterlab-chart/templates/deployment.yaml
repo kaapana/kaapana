@@ -44,7 +44,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/minio/jupyterlab
         - name: MINIO_PATH
-          value: {{ .Release.Name }}
+          value: project-{{ .Values.global.project_name }}/{{ .Release.Name }}/input
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -67,7 +67,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/minio/analysis-scripts
         - name: MINIO_PATH
-          value: analysis-scripts/{{ .Release.Name }}
+          value: "project-{{ .Values.global.project_name }}/{{ .Release.Name }}/output"
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: EXCLUDE
@@ -89,7 +89,7 @@ spec:
           containerPort: 8888
         env:
         - name: INGRESS_PATH
-          value: {{ printf "/%s" (tpl .Values.global.ingress_path .) }}
+          value: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
 {{ include "dynamicEnvs" $ | indent 8 }}
         volumeMounts:
           - name: dshm

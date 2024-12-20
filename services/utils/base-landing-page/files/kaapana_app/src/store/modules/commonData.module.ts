@@ -32,7 +32,7 @@ const getters = {
       ["Workflow List", "mdi-clipboard-text-outline", "/workflows"],
       ["Workflow Results", "mdi-chart-bar-stacked", "/results-browser"],
       ["Instance Overview", "mdi-vector-triangle", "/runner-instances"],
-      ["Pending Applications", "mdi-timer-sand", "/pending-applications"],
+      ["Active Applications", "mdi-laptop", "/active-applications"],
     ]
   },
   policyData(state: any) {

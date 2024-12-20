@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: access-information-interface-config
+  namespace: "{{ .Values.global.services_namespace }}"
+data:
+  initial_rights.json: | # This is the initial rights that will be created
+    [
+      {
+        "name": "opensearch_access",
+        "description": "User gets full access to OpenSearch",
+        "claim_key": "opensearch",
+        "claim_value": "admin_project"
+      },
+      {
+        "name": "minio_access",
+        "description": "User gets full access to Minio",
+        "claim_key": "policy",
+        "claim_value": "admin_project"
+      }
+    ]
+  initial_roles.json: | # This is the initial roles that will be created
+    [
+      {
+        "name": "admin",
+        "description": "Admin role"
+      }
+    ]
+  initial_projects.json: | # This is the initial admin project that will be created
+    [
+      {
+        "name": "admin",
+        "description": "Initial admin project"
+      }
+    ]
+  initial_roles_rights_mapping.json: | # This is the mapping of roles to rights
+    [
+      {
+        "role": "admin",
+        "rights": ["opensearch_access", "minio_access"]
+      }
+    ]
+
+  # Init User, Project and Role mapping will be done at a later stage (FastAPI lifespan init function) to dynamically incorporate the keycloak id.

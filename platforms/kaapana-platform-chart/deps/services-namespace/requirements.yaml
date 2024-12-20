@@ -1,11 +1,7 @@
 ---
 dependencies:
 # BASE
-  - name: auth-backend-chart
-    version: 0.0.0
   - name: kaapana-backend-chart
-    version: 0.0.0
-  - name: static-website-chart
     version: 0.0.0
   - name: system-user-password-chart
     version: 0.0.0
@@ -29,8 +25,6 @@ dependencies:
   - name: dcm4chee-chart
     version: 0.0.0
   - name: ohif-chart
-    version: 0.0.0
-  - name: ohif-chart-v2
     version: 0.0.0
   - name: ohif-iframe-chart
     version: 0.0.0
@@ -61,4 +55,13 @@ dependencies:
     version: 0.0.0
 # BASE
   - name: landing-page-kaapana-chart
+    version: 0.0.0
+# SEPERATION
+  - name: dicom-web-filter
+    version: 0.0.0
+  - name: access-information-interface
+    version: 0.0.0
+  - name: aip-postgres-chart
+    version: 0.0.0
+  - name: project-management-ui
     version: 0.0.0

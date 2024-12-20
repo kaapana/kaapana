@@ -1,0 +1,44 @@
+diff --git a/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py b/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
+index 8ba0c5e..3499d8c 100644
+--- a/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
++++ b/nnunetv2/experiment_planning/plan_and_preprocess_entrypoints.py
+@@ -177,11 +177,36 @@ def plan_and_preprocess_entry():
+     parser.add_argument('--verbose', required=False, action='store_true',
+                         help='Set this to print a lot of stuff. Useful for debugging. Will disable progress bar! '
+                              'Recommended for cluster environments')
++    parser.add_argument(
++        "--increment_step",
++        type=str,
++        default="all",
++        help="Kaapana adaption for federated usage of nnunet-training workflow: 'all', 'to_dataset_properties' or 'from_dataset_properties', "
++             "enables to do the preprocessing incremental",
++    )
++
+     args = parser.parse_args()
+ 
+-    # fingerprint extraction
+-    print("Fingerprint extraction...")
+-    extract_fingerprints(args.d, args.fpe, args.npfp, args.verify_dataset_integrity, args.clean, args.verbose)
++    # incremental execution of preprocessing
++    if args.increment_step not in [
++        "all",
++        "to_dataset_properties",
++        "from_dataset_properties",
++    ]:
++        raise NameError(
++            "--increment_step has to be one of 'all', 'to_dataset_properties', 'from_dataset_properties'"
++        )
++
++    if args.increment_step in ["all", "to_dataset_properties"]:
++          # fingerprint extraction
++          print("Fingerprint extraction...")
++          extract_fingerprints(args.d, args.fpe, args.npfp, args.verify_dataset_integrity, args.increment_step, args.clean, args.verbose)
++    else:
++          print("Skipping fingerprint extraction due to argument 'increment_step'!")
++
++    if args.increment_step == "to_dataset_properties":
++          print("Interupting plan and preprocess due to argument 'increment_step'== 'to_dataset_properties'!")
++          return
+ 
+     # experiment planning
+     print('Experiment planning...')

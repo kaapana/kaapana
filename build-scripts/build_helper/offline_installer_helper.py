@@ -161,12 +161,17 @@ class OfflineInstallerHelper:
 
         DEFAULT_CORE_VERSION = "latest/stable"
         OfflineInstallerHelper.download_snap_package(
-            name="core18",
+            name="core20",
+            version=DEFAULT_CORE_VERSION,
+            target_path=microk8s_offline_installer_target_dir,
+        )
+        OfflineInstallerHelper.download_snap_package(
+            name="core24",
             version=DEFAULT_CORE_VERSION,
             target_path=microk8s_offline_installer_target_dir,
         )
 
-        DEFAULT_MICRO_VERSION = "1.28/stable"
+        DEFAULT_MICRO_VERSION = "1.31/stable"
         OfflineInstallerHelper.download_snap_package(
             name="microk8s",
             version=DEFAULT_MICRO_VERSION,

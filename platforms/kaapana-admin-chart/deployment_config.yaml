@@ -1,6 +1,6 @@
-offline_mode: 'false'
-prefetch_extensions: 'false'
-dev_mode: 'true'
+offline_mode: false
+prefetch_extensions: false
+dev_mode: true
 container_registry_url:
 container_registry_username:
 container_registry_password:
@@ -13,7 +13,6 @@ instance_name: ""
 admin_namespace: "admin"
 helm_namespace: "default"
 services_namespace: "services"
-jobs_namespace: "jobs"
 extensions_namespace: "extensions"
 mount_points_to_monitor: "/"
 kaapana_collections:

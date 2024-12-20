@@ -3,8 +3,8 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.KaapanaBranchPythonBaseOperator import (
     KaapanaBranchPythonBaseOperator,
@@ -78,29 +78,27 @@ class BranchIfNiftiOperator(KaapanaBranchPythonBaseOperator):
         )
 
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 branch_if_nifti = BranchIfNiftiOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(
     dag=dag, input_operator=get_input, output_format="nii.gz"
 )
 
-put_to_minio_nifti = LocalMinioOperator(
+put_to_minio_nifti = MinioOperator(
     dag=dag,
-    input_operator=dcm2nifti,
     name="minio-actions-put-nifti",
     action="put",
-    action_operator_dirs=[dcm2nifti.operator_out_dir],
-    bucket_name="downloads",
-    file_white_tuples=(".zip", ".nii.gz"),
+    batch_input_operators=[dcm2nifti],
+    minio_prefix="downloads",
+    whitelisted_file_extensions=(".zip", ".nii.gz"),
 )
-put_to_minio_dicom = LocalMinioOperator(
+put_to_minio_dicom = MinioOperator(
     dag=dag,
-    input_operator=dcm2nifti,
     name="minio-actions-put-dicom",
     action="put",
-    action_operator_dirs=[get_input.operator_out_dir],
-    bucket_name="downloads",
-    file_white_tuples=(".zip", ".dcm"),
+    batch_input_operators=[get_input],
+    minio_prefix="downloads",
+    whitelisted_file_extensions=(".zip", ".dcm"),
 )
 clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped"

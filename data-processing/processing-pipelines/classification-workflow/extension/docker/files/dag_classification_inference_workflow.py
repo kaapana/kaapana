@@ -8,7 +8,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from classification_inference_workflow.InferenceOperator import InferenceOperator
 from classification_training_workflow.PreprocessingOperator import PreprocessingOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 ui_forms = {
@@ -89,12 +89,12 @@ args = {
 }
 
 dag = DAG(
-    dag_id="classification-inference-workflow",
+    dag_id="classification-inference",
     default_args=args,
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 convert = DcmConverterOperator(dag=dag, input_operator=get_input)
 preprocessing = PreprocessingOperator(
     dag=dag,

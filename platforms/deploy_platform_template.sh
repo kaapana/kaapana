@@ -18,10 +18,11 @@ CONTAINER_REGISTRY_PASSWORD="{{ container_registry_password|default('', true) }}
 # Deployment configuration
 ######################################################
 
-DEV_MODE="{{ dev_mode|default('true', true) }}" # dev-mode -> containers will always be re-downloaded after pod-restart
-GPU_SUPPORT="{{ gpu_support|default('false') }}"
+ # dev-mode -> containers will always be re-downloaded after pod-restart
+DEV_MODE={{ dev_mode|default(true) }}
+GPU_SUPPORT={{ gpu_support|default(false)}}
 
-PREFETCH_EXTENSIONS="{{ prefetch_extensions|default('false') }}"
+PREFETCH_EXTENSIONS={{prefetch_extensions|default('false')}}
 CHART_PATH=""
 NO_HOOKS=""
 ENABLE_NFS=false
@@ -30,13 +31,37 @@ OFFLINE_MODE=false
 INSTANCE_UID=""
 SERVICES_NAMESPACE="{{ services_namespace }}"
 ADMIN_NAMESPACE="{{ admin_namespace }}"
-JOBS_NAMESPACE="{{ jobs_namespace }}"
 EXTENSIONS_NAMESPACE="{{ extensions_namespace }}"
 HELM_NAMESPACE="{{ helm_namespace }}"
 
 OIDC_CLIENT_SECRET=$(echo $RANDOM | md5sum | base64 | head -c 32)
 
 INCLUDE_REVERSE_PROXY=false
+
+######################################################
+# Resource configurations
+######################################################
+
+# Memory percentages for PACS, Airflow, and OpenSearch.
+PACS_PERCENT="30"
+AIRFLOW_PERCENT="50"
+OPENSEARCH_PERCENT="20"
+TOTAL_PERCENT=$((PACS_PERCENT + AIRFLOW_PERCENT + OPENSEARCH_PERCENT))
+
+# Get allocatable RAM (70% of total free memory)
+TOTAL_MEMORY=$(free -m | awk '/^Mem:/{print $2}')
+ALLOCATABLE_MEMORY=$((TOTAL_MEMORY * 70 / 100))
+
+# Set max memory limits for components
+PACS_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * PACS_PERCENT / TOTAL_PERCENT))
+AIRFLOW_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * AIRFLOW_PERCENT / TOTAL_PERCENT))
+OPENSEARCH_MEMORY_LIMIT=$((ALLOCATABLE_MEMORY * OPENSEARCH_PERCENT / TOTAL_PERCENT))
+
+# Set memory min requests (1/3 of limit)
+PACS_MEMORY_REQUEST=$((PACS_MEMORY_LIMIT / 3))
+AIRFLOW_MEMORY_REQUEST=$((AIRFLOW_MEMORY_LIMIT / 3))
+OPENSEARCH_MEMORY_REQUEST=$((OPENSEARCH_MEMORY_LIMIT / 3))
+
 ######################################################
 # Individual platform configuration
 ######################################################
@@ -49,12 +74,21 @@ GRAFANA_PASSWORD="{{ credentials_grafana_password|default('admin', true) }}"
 KEYCLOAK_ADMIN_USERNAME="{{ credentials_keycloak_admin_username|default('admin', true) }}"
 KEYCLOAK_ADMIN_PASSWORD="{{ credentials_keycloak_admin_password|default('Kaapana2020', true) }}" #  Minimum policy for production: 1 specialChar + 1 upperCase + 1 lowerCase and 1 digit + min-length = 8
 
+CREDENTIALS_POSTGRES_AIP_PASSWORD="{{ credentials_postgres_aip_password|default('Kaapana2020', true) }}"
+CREDENTIALS_POSTGRES_DICOM_WEB_FILTER_PASSWORD="{{ credentials_postgres_aip_password|default('Kaapana2020', true) }}"
+
 FAST_DATA_DIR="{{ fast_data_dir|default('/home/kaapana')}}" # Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 SLOW_DATA_DIR="{{ slow_data_dir|default('/home/kaapana')}}" # Directory on the server, where the DICOM images will be stored (can be slower)
 
 HTTP_PORT="{{ http_port|default(80)|int }}"      # -> has to be 80
 HTTPS_PORT="{{ https_port|default(443) }}"    # HTTPS port
 DICOM_PORT="{{ dicom_port|default(11112) }}"  # configure DICOM receiver port
+
+SMTP_HOST="{{ smtp_host|default('')}}"
+SMTP_PORT="{{ smtp_port|default(0)|int }}"
+EMAIL_ADDRESS_SENDER="{{ email_address_sender|default('')}}"
+SMTP_USERNAME="{{ smtp_username|default('')}}"
+SMTP_PASSWORD="{{ smtp_password|default('')}}"
 
 VERSION_IMAGE_COUNT="20"
 DEPLOYMENT_TIMESTAMP=`date  --iso-8601=seconds`
@@ -79,7 +113,6 @@ if [ ! -z $INSTANCE_UID ]; then
     echo "Setting INSTANCE_UID: $INSTANCE_UID namespaces ..."
     SERVICES_NAMESPACE="$INSTANCE_UID-$SERVICES_NAMESPACE"
     # ADMIN_NAMESPACE="$INSTANCE_UID-$ADMIN_NAMESPACE"
-    JOBS_NAMESPACE="$INSTANCE_UID-$JOBS_NAMESPACE"
     EXTENSIONS_NAMESPACE="$INSTANCE_UID-$EXTENSIONS_NAMESPACE"
     HELM_NAMESPACE="$INSTANCE_UID-$HELM_NAMESPACE"
 
@@ -89,7 +122,6 @@ if [ ! -z $INSTANCE_UID ]; then
     INCLUDE_REVERSE_PROXY=true
 fi
 echo ""
-echo "JOBS_NAMESPACE:       $JOBS_NAMESPACE "
 echo "HELM_NAMESPACE:       $HELM_NAMESPACE "
 echo "ADMIN_NAMESPACE:      $ADMIN_NAMESPACE "
 echo "SERVICES_NAMESPACE:   $SERVICES_NAMESPACE "
@@ -138,10 +170,10 @@ fi
 if command -v nvidia-smi &> /dev/null && nvidia-smi
 then
     echo "${GREEN}Nvidia GPU detected!${NC}"
-    GPU_SUPPORT="true"
+    GPU_SUPPORT=true
 else
     echo "${YELLOW}No GPU detected...${NC}"
-    GPU_SUPPORT="false"
+    GPU_SUPPORT=false
 fi
 
 function delete_all_images_docker {
@@ -174,7 +206,13 @@ function get_domain {
         SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
         echo -e "${YELLOW}SERVER_IP: $SERVER_IP${NC}";
         echo -e "${YELLOW}NS lookup DOMAIN ...${NC}";
-        DOMAIN=$(nslookup $SERVER_IP | head -n 1 | awk -F '= ' '{print $2}')
+        # get nslookup result, use || true to ensure script doesn't exit immediately is cmd fails
+        NSLOOKUP_RESULT=$(nslookup "$SERVER_IP" || true)
+        if [[ -z "$NSLOOKUP_RESULT" || "$NSLOOKUP_RESULT" == *"server can't find"* ]]; then
+            echo -e "NS lookup failed, could not determine DOMAIN from SERVER_IP. Run the script with explicit domain name: ./deploy_platform.sh --domain <domain-name>"
+            exit 1
+        fi
+        DOMAIN=$(echo "$NSLOOKUP_RESULT" | head -n 1 | awk -F '= ' '{print $2}')
         DOMAIN=${DOMAIN%.*}
         echo -e "${YELLOW}DOMAIN: $DOMAIN${NC}";
     else
@@ -203,7 +241,7 @@ function get_domain {
 function delete_deployment {
     echo -e "${YELLOW}Undeploy releases${NC}"
     for namespace in $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        helm -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -L1 -I % sh -c "helm -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
+        helm -n $namespace ls --deployed --failed --pending --superseded --uninstalling --date --reverse | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "helm -n $namespace uninstall ${NO_HOOKS} --wait --timeout 5m30s %; sleep 2"
     done
 
     echo -e "${YELLOW}Waiting until everything is terminated ...${NC}"
@@ -211,7 +249,11 @@ function delete_deployment {
     for idx in $(seq 0 $WAIT_UNINSTALL_COUNT)
     do
         sleep 3
-        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$JOBS_NAMESPACE|$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
+        if [ "$idx" -eq 2 ]; then
+            echo "Deleting helm charts in 'uninstalling' state with --no-hooks"
+            helm -n $namespace ls --uninstalling | awk 'NR > 1 { print  "-n "$2, $1}' | xargs -I % sh -c "helm -n $namespace uninstall --no-hooks --wait --timeout 5m30s %; sleep 2"
+        fi
+        DEPLOYED_NAMESPACES=$(/bin/bash -i -c "kubectl get namespaces | grep -E --line-buffered '$EXTENSIONS_NAMESPACE' | cut -d' ' -f1")
         TERMINATING_PODS=$(/bin/bash -i -c "kubectl get pods --all-namespaces | grep -E --line-buffered 'Terminating' | cut -d' ' -f1")
         echo -e ""
         UNINSTALL_TEST=$DEPLOYED_NAMESPACES$TERMINATING_PODS
@@ -250,7 +292,7 @@ function delete_deployment {
 }
 
 function nuke_pods {
-    for namespace in $JOBS_NAMESPACE $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
+    for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
         echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}"; 
         for mypod in $(microk8s.kubectl get pods -n $namespace -o jsonpath="{.items[*].metadata.name}");
         do
@@ -262,7 +304,7 @@ function nuke_pods {
 
 
 function clean_up_kubernetes {
-    for n in $EXTENSIONS_NAMESPACE $JOBS_NAMESPACE; # $HELM_NAMESPACE;
+    for n in $EXTENSIONS_NAMESPACE; # $HELM_NAMESPACE;
     do
         echo "${YELLOW}Deleting namespace ${n} with all its resources ${NC}"
         microk8s.kubectl delete --ignore-not-found namespace $n
@@ -288,7 +330,7 @@ function deploy_chart {
         exit 1
     fi
 
-    if [ "$OFFLINE_MODE" == "true" ] && [ -z "$CHART_PATH" ]; then
+    if [ "${OFFLINE_MODE,,}" == true ] && [ -z "$CHART_PATH" ]; then
         echo "${RED}ERROR: CHART_PATH needs to be set when in OFFLINE_MODE!${NC}"
         exit 1
     fi
@@ -300,15 +342,15 @@ function deploy_chart {
         echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
     fi
 
-    if [ "$GPU_SUPPORT" = "true" ];then
+    if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "${GREEN} -> GPU found ...${NC}"
     else
         if [ ! "$QUIET" = "true" ];then
             while true; do
                 read -e -p "No Nvidia GPU detected - Enable GPU support anyway?" -i " no" yn
                 case $yn in
-                    [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT="true"; break;;
-                    [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT="false"; break;;
+                    [Yy]* ) echo -e "${GREEN}ENABLING GPU SUPPORT${NC}" && GPU_SUPPORT=true; break;;
+                    [Nn]* ) echo -e "${YELLOW}SET NO GPU SUPPORT${NC}" && GPU_SUPPORT=false; break;;
                     * ) echo "Please answer yes or no.";;
                 esac
             done
@@ -318,12 +360,12 @@ function deploy_chart {
     fi
 
     echo -e "${YELLOW}GPU_SUPPORT: $GPU_SUPPORT ${NC}"
-    if [ "$GPU_SUPPORT" = "true" ];then
+    if [ "${GPU_SUPPORT,,}" == true ];then
         echo -e "-> enabling GPU in Microk8s ..."
         if [[ $deployments == *"gpu-operator"* ]];then
             echo -e "-> gpu-operator chart already exists"
         else
-            if [ "$OFFLINE_MODE" = "true" ];then
+            if [ "${OFFLINE_MODE,,}" == true ];then
                 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
                 OFFLINE_ENABLE_GPU_PATH=$SCRIPT_DIR/offline_enable_gpu.py
                 [ -f $OFFLINE_ENABLE_GPU_PATH ] && echo "${GREEN}$OFFLINE_ENABLE_GPU_PATH exists ... ${NC}" || (echo "${RED}$OFFLINE_ENABLE_GPU_PATH does not exist -> exit ${NC}" && exit 1)
@@ -340,13 +382,13 @@ function deploy_chart {
         fi
     fi
 
-    if [ "$DEV_MODE" == "true" ]; then
+    if [ "${DEV_MODE,,}" == true ]; then
         KAAPANA_INIT_PASSWORD="kaapana"
     else
         KAAPANA_INIT_PASSWORD="Kaapana2020!"
     fi
 
-    if [ "$OFFLINE_MODE" == "true" ] || [ "$DEV_MODE" == "false" ]; then
+    if [ "${OFFLINE_MODE,,}" == true ] || [ "${DEV_MODE,,}" == false ]; then
         PULL_POLICY_IMAGES="IfNotPresent"
     else
         PULL_POLICY_IMAGES="Always"
@@ -411,13 +453,14 @@ function deploy_chart {
     --set-string global.credentials_grafana_password="$GRAFANA_PASSWORD" \
     --set-string global.credentials_keycloak_admin_username="$KEYCLOAK_ADMIN_USERNAME" \
     --set-string global.credentials_keycloak_admin_password="$KEYCLOAK_ADMIN_PASSWORD" \
+    --set-string global.credentials_postgres_aip_password="$CREDENTIALS_POSTGRES_AIP_PASSWORD" \
+    --set-string global.credentials_postgres_dicom_web_filter_password="$CREDENTIALS_POSTGRES_DICOM_WEB_FILTER_PASSWORD" \
     --set-string global.dicom_port="$DICOM_PORT" \
     --set-string global.fast_data_dir="$FAST_DATA_DIR" \
     --set-string global.services_namespace=$SERVICES_NAMESPACE \
-    --set-string global.jobs_namespace=$JOBS_NAMESPACE \
     --set-string global.extensions_namespace=$EXTENSIONS_NAMESPACE \
     --set-string global.admin_namespace=$ADMIN_NAMESPACE \
-    --set-string global.gpu_support="$GPU_SUPPORT" \
+    --set global.gpu_support=$GPU_SUPPORT \
     --set-string global.helm_namespace="$ADMIN_NAMESPACE" \
     --set global.enable_nfs=$ENABLE_NFS \
     --set global.oidc_client_secret=$OIDC_CLIENT_SECRET \
@@ -440,8 +483,19 @@ function deploy_chart {
     --set-string global.slow_data_dir="$SLOW_DATA_DIR" \
     --set-string global.instance_uid="$INSTANCE_UID" \
     --set-string global.instance_name="$INSTANCE_NAME" \
-    --set-string global.dev_mode="$DEV_MODE" \
+    --set global.dev_mode=$DEV_MODE \
     --set-string global.kaapana_init_password="$KAAPANA_INIT_PASSWORD" \
+    --set-string global.pacs_memory_limit="$PACS_MEMORY_LIMIT" \
+    --set-string global.airflow_memory_limit="$AIRFLOW_MEMORY_LIMIT" \
+    --set-string global.opensearch_memory_limit="$OPENSEARCH_MEMORY_LIMIT" \
+    --set-string global.pacs_memory_request="$PACS_MEMORY_REQUEST" \
+    --set-string global.airflow_memory_request="$AIRFLOW_MEMORY_REQUEST" \
+    --set-string global.opensearch_memory_request="$OPENSEARCH_MEMORY_REQUEST" \
+    --set-string global.smtp_host="$SMTP_HOST" \
+    --set-string global.smtp_port="$SMTP_PORT" \
+    --set-string global.smtp_username="$SMTP_USERNAME" \
+    --set-string global.smtp_password="$SMTP_PASSWORD" \
+    --set-string global.email_address_sender="$EMAIL_ADDRESS_SENDER" \
     {% for item in additional_env -%}--set-string {{ item.helm_path }}="${{ item.name }}" \
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
@@ -517,6 +571,7 @@ function install_certs {
 
 function print_deployment_done {
     echo -e "${GREEN}Deployment done."
+    print_resource_configs
     echo -e "Please wait till all components have been downloaded and started."
     echo -e "You can check the progress with:"
     echo -e "watch microk8s.kubectl get pods -A"
@@ -529,6 +584,21 @@ function print_deployment_done {
         echo -e "username: kaapana"
         echo -e "password: ${KAAPANA_INIT_PASSWORD} ${NC}"
     fi
+}
+
+function print_resource_configs {
+    echo "Total memory of the node: $(awk "BEGIN {printf \"%.2f\", $TOTAL_MEMORY/1024}") Gi"
+    echo "Allocatable memory of the node: $(awk "BEGIN {printf \"%.2f\", $ALLOCATABLE_MEMORY/1024}") Gi"
+    echo ""
+    echo "PACS minimum memory request: $(awk "BEGIN {printf \"%.2f\", $PACS_MEMORY_REQUEST/1024}") Gi"
+    echo "PACS maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $PACS_MEMORY_LIMIT/1024}") Gi"
+    echo ""
+    echo "Airflow minimum memory request: $(awk "BEGIN {printf \"%.2f\", $AIRFLOW_MEMORY_REQUEST/1024}") Gi"
+    echo "Airflow maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $AIRFLOW_MEMORY_LIMIT/1024}") Gi"
+    echo ""
+    echo "Opensearch minimum memory request: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_REQUEST/1024}") Gi"
+    echo "Opensearch maximum memory limit: $(awk "BEGIN {printf \"%.2f\", $OPENSEARCH_MEMORY_LIMIT/1024}") Gi"
+    echo ""
 }
 
 
@@ -712,7 +782,7 @@ function preflight_checks {
     echo " "
 
     if [ "$TERMINATE" = "true" ]; then
-        if [ ! "$QUIET" = "false" ] ; then
+        if [ "$QUIET" = "false" ] ; then
             while true; do
                 read -e -p "Do you want to fix the problems before continuing? (Recommended)" -i " no" yn
                 case $yn in
@@ -822,6 +892,9 @@ helm registry login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSW
 --- "Systemd Status"
 systemd status
 
+--- "Kernel Modules"
+lsmod
+
 --- "Storage"
 df -h
 
@@ -837,6 +910,12 @@ microk8s.kubectl describe pods -A
 --- "k8s Node Status"
 microk8s.kubectl describe node
 
+--- "GPU Hardware"
+lshw -C Display
+
+--- "GPU Kernel Module"
+modinfo nvidia | grep ^version
+
 --- "GPU"
 nvidia-smi
 
@@ -848,10 +927,11 @@ nvidia-smi
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
+_Flag: --undeploy undeploys the current platform
+_Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
 _Flag: --install-certs set new HTTPS-certificates for the platform
 _Flag: --remove-all-images-ctr will delete all images from Microk8s (containerd)
 _Flag: --remove-all-images-docker will delete all Docker images from the system
-_Flag: --no-hooks will purge all kubernetes deployments and jobs as well as all helm charts. Use this if the undeployment fails or runs forever.
 _Flag: --nuke-pods will force-delete all pods of the Kaapana deployment namespaces.
 _Flag: --quiet, meaning non-interactive operation
 _Flag: --offline, using prebuilt tarball and chart (--chart-path required!)

@@ -33,10 +33,7 @@
           </v-list-group>
           <v-list-group
             :prepend-icon="section.icon"
-            v-if="
-              isAuthenticated &&
-              checkAuthSection(policyData, section, currentUser)
-            "
+            v-if="isAuthenticated && checkAuthSection(policyData, section, currentUser)"
             v-for="(section, sectionKey) in externalWebpages"
             :key="section.id"
           >
@@ -62,10 +59,7 @@
           <!-- EXTENSIONS -->
           <v-list-item
             :to="'/extensions'"
-            v-if="
-              isAuthenticated &&
-              _checkAuthR(policyData, '/extensions', currentUser)
-            "
+            v-if="isAuthenticated && _checkAuthR(policyData, '/extensions', currentUser)"
           >
             <v-list-item-action>
               <!-- <v-icon>mdi-view-comfy</v-icon> -->
@@ -83,6 +77,14 @@
         <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
         <v-toolbar-title>{{ commonData.name }}</v-toolbar-title>
         <v-spacer></v-spacer>
+        <v-menu offset-y v-if="isAuthenticated" :close-on-content-click="false">
+          <template v-slot:activator="{ on }">
+            <v-btn color="secondary" dark v-on="on">
+              Project: {{ selectedProject.name }}
+            </v-btn>
+          </template>
+          <ProjectSelection v-on="on"> </ProjectSelection>
+        </v-menu>
         <v-menu
           v-if="isAuthenticated"
           :close-on-content-click="false"
@@ -139,40 +141,33 @@
 
 <script lang="ts">
 import Vue from "vue";
-import request from "@/request";
-import kaapanaApiService from "@/common/kaapanaApi.service";
-
+import VueCookies from 'vue-cookies';
+Vue.use(VueCookies, { expires: '1d'})
 import { mapGetters } from "vuex";
-import { LOGIN, LOGOUT, CHECK_AUTH } from "@/store/actions.type";
-import {
-  CHECK_AVAILABLE_WEBSITES,
-  LOAD_COMMON_DATA,
-  GET_POLICY_DATA,
-} from "@/store/actions.type";
+import httpClient from "@/common/httpClient.js";
+import kaapanaApiService from "@/common/kaapanaApi.service";
 import Settings from "@/components/Settings.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
-import { settings } from "@/static/defaultUIConfig";
+import ProjectSelection from "@/components/ProjectSelection.vue";
+import { settings as defaultSettings } from "@/static/defaultUIConfig";
+import {
+  CHECK_AVAILABLE_WEBSITES,
+  LOGIN,
+  LOGOUT,
+  LOAD_COMMON_DATA,
+  GET_POLICY_DATA,
+  GET_SELECTED_PROJECT,
+} from "@/store/actions.type";
 import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   name: "App",
-  components: { Settings, IdleTracker },
+  components: { Settings, IdleTracker, ProjectSelection },
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
-    settings: settings,
+    settings: defaultSettings,
   }),
-  created() {
-    this.$store.watch(
-      () => this.$store.getters["isIdle"],
-      (newValue, oldValue) => {
-        if (newValue) {
-          this.onIdle();
-        }
-      }
-    );
-  },
-
   computed: {
     ...mapGetters([
       "currentUser",
@@ -181,6 +176,7 @@ export default Vue.extend({
       "workflowsList",
       "commonData",
       "policyData",
+      "selectedProject",
     ]),
   },
   methods: {
@@ -201,11 +197,10 @@ export default Vue.extend({
       this.settings["darkMode"] = v;
       localStorage["settings"] = JSON.stringify(this.settings);
       this.$vuetify.theme.dark = v;
+      this.storeSettingsItemInDb("darkMode");
     },
     login() {
-      this.$store
-        .dispatch(LOGIN)
-        .then(() => this.$router.push({ name: "home" }));
+      this.$store.dispatch(LOGIN).then(() => this.$router.push({ name: "home" }));
     },
     logout() {
       this.$store.dispatch(LOGOUT);
@@ -215,19 +210,81 @@ export default Vue.extend({
         this.$router.push({ name: "" });
       });
     },
+    updateSettings() {
+      this.settings = JSON.parse(localStorage["settings"]);
+      this.$vuetify.theme.dark = this.settings["darkMode"];
+    },
+    settingsResponseToObject(response: any[]) {
+      let converted: Object = {};
+      response.forEach((item) => {
+        converted[item.key as keyof Object] = item.value;
+      });
+      return converted;
+    },
+    getSettingsFromDb() {
+      kaapanaApiService
+        .kaapanaApiGet("/settings")
+        .then((response: any) => {
+          let settingsFromDb = this.settingsResponseToObject(response.data);
+          const updatedSettings = Object.assign({}, defaultSettings, settingsFromDb);
+          localStorage["settings"] = JSON.stringify(updatedSettings);
+        })
+        .catch((err) => {
+          console.log(err);
+          localStorage["settings"] = JSON.stringify(defaultSettings);
+        });
+    },
+    storeSettingsItemInDb(item_name: string) {
+      if (item_name in this.settings) {
+        let item = {
+          key: item_name,
+          value: this.settings[item_name as keyof Object],
+        };
+        kaapanaApiService
+          .kaapanaApiPut("/settings/item", item)
+          .then((response) => {
+            // console.log(response);
+          })
+          .catch((err) => {
+            console.log(err);
+          });
+      }
+    },
   },
   beforeCreate() {
     this.$store.dispatch(CHECK_AVAILABLE_WEBSITES);
     this.$store.dispatch(LOAD_COMMON_DATA);
     this.$store.dispatch(GET_POLICY_DATA);
+    this.$store.dispatch(GET_SELECTED_PROJECT);
     if (!localStorage["settings"]) {
-      localStorage["settings"] = JSON.stringify(settings);
+      localStorage["settings"] = JSON.stringify(defaultSettings);
     }
   },
+  created() {
+    this.$store.watch(
+      () => this.$store.getters["isIdle"],
+      (newValue, oldValue) => {
+        if (newValue) {
+          this.onIdle();
+        }
+      }
+    );
+    // Watch for changes in selectedProject and reload the page when it changes
+    this.$store.watch(
+      () => this.$store.getters.selectedProject,
+      (newValue, oldValue) => {
+        if (newValue !== oldValue) {
+          Vue.$cookies.set("Project-Name", newValue.name);
+          location.reload(); // Reload the page
+        }
+      }
+    );
+
+    this.getSettingsFromDb();
+    this.updateSettings();
+  },
   mounted() {
-    this.settings = JSON.parse(localStorage["settings"]);
-    this.$vuetify.theme.dark = this.settings["darkMode"];
-    request
+    httpClient
       .get("/kaapana-backend/get-traefik-routes")
       .then((response: { data: {} }) => {
         this.federatedBackendAvailable = kaapanaApiService.checkUrl(

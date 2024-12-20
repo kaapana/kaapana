@@ -3,42 +3,17 @@ import os
 import sys
 import time
 from pathlib import Path
-import logging
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
 
 from app.config import settings
 from app.utils import all_successful, helm_install, helm_status
-from app.helm_helper import get_kube_objects, helm_show_chart
+from app.helm_helper import get_kube_objects, helm_show_chart, execute_shell_command
 
+import logging
+from app.logger import get_logger
 
-logger = logging.getLogger("fastapi")
-# set log level
-log_level = settings.log_level.upper()
-if log_level == "DEBUG":
-    log_level = logging.DEBUG
-elif log_level == "INFO":
-    log_level = logging.INFO
-elif log_level == "WARNING":
-    log_level = logging.WARNING
-elif log_level == "ERROR":
-    log_level = logging.ERROR
-elif log_level == "CRITICAL":
-    log_level = logging.CRITICAL
-else:
-    logging.error(
-        f"Unknown log-level: {settings.log_level} -> Setting log-level to 'INFO'"
-    )
-    log_level = logging.INFO
-
-logger.setLevel(log_level)
-
-ch = logging.StreamHandler()
-ch.setLevel(log_level)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-logger.debug(f"set fastapi logger level to {log_level}")
+logger = get_logger(__name__)
 
 # init
 errors_during_preinstalling = False
@@ -77,6 +52,18 @@ for extension in preinstall_extensions:
         is_platform = False
         if "keywords" in chart and "kaapanaplatform" in chart["keywords"]:
             is_platform = True
+
+        # if chart is stuck in 'uninstalling' state, uninstall with --no-hooks
+        chart_name = chart["name"]
+        chart_status = helm_status(chart_name)
+        if len(chart_status) != 0 and chart_status["STATUS"] == "uninstalling":
+            # if it is stuck in uninstalling, delete with --no-hooks
+            logger.warning(f"{chart_name} stuck in 'uninstalling' status")
+            logger.info(f"Deleting {chart_name} with --no-hooks")
+            execute_shell_command(
+                f"{settings.helm_path} uninstall {chart_name} --no-hooks"
+            )
+
         success, _, _, release_name, _ = helm_install(
             extension,
             shell=True,
@@ -120,7 +107,7 @@ for _ in range(1800):
             helm_namespace = "default"
         status = helm_status(release_name, helm_namespace=helm_namespace)
         success, _, _, kube_status = get_kube_objects(
-            release_name, helm_namespace=helm_namespace
+            release_name, helm_namespace=helm_namespace, single_status_for_jobs=True
         )
 
         if not success:
@@ -129,11 +116,18 @@ for _ in range(1800):
             )
             continue
 
-        installed = (
-            True
-            if all_successful(set(kube_status["status"] + [status["STATUS"]])) == "yes"
-            else False
-        )
+        installed = True
+        ks = kube_status["status"]
+        for i in range(0, len(ks)):
+            s = ks[i]
+            if type(s) is not str or s.lower() not in [
+                "completed",
+                "running",
+                "deployed",
+            ]:
+                logger.warning(f"Pod {kube_status['name'][i]} is not successful")
+                installed = False
+                break
 
         if installed:
             logger.info(

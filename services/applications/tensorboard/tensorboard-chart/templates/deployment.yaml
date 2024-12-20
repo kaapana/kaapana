@@ -44,7 +44,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/mounted/tb-logs/minio
         - name: MINIO_PATH
-          value: {{ .Release.Name }}
+          value: project-{{ .Values.global.project_name }}/tensorboard
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -61,7 +61,9 @@ spec:
             memory: "1Gi"
         env:
           - name: INGRESS_PATH
-            value: {{ printf "/%s" .Release.Name }}
+            value: "/applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
+          - name: LOG_DIR
+            value: /kaapana/mounted/tb-logs
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:

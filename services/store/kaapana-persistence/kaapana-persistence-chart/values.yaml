@@ -1,6 +1,5 @@
 ---
 global:
-  dev_mode: False
   dynamicVolumes:
   - name: kaapana-persistence-mongodb
     host_path: /persistence/mongodb

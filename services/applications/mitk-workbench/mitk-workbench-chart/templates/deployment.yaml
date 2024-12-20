@@ -43,7 +43,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/minio/input
         - name: MINIO_PATH
-          value: {{ .Release.Name }}/input
+          value: "project-{{ .Values.global.project_name }}/{{ .Release.Name }}/input"
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -66,7 +66,7 @@ spec:
         - name: LOCAL_PATH
           value: /kaapana/minio/output
         - name: MINIO_PATH
-          value: {{ .Release.Name }}/output
+          value: "project-{{ .Values.global.project_name }}/{{ .Release.Name }}/output"
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -84,9 +84,12 @@ spec:
             memory: "4Gi"
           limits:
             memory: "8Gi"
+            {{- if and (.Values.global.gpu_support) (.Values.global.gpu_container) }}
+            nvidia.com/gpu: '1'
+            {{- end }}
         env:
         - name: INGRESS_PATH
-          value: {{ .Release.Name }}
+          value: "applications/project/{{ .Values.global.project_name }}/release/{{ .Release.Name }}"
         volumeMounts:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
       volumes:

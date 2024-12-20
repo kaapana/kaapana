@@ -2,18 +2,18 @@
 # # # ############# Build ###########
 # # # ###############################
 
-FROM docker.io/node:lts-alpine3.19 as build-stage
-
-WORKDIR /maintenance/app
-COPY files/kaapana_app/package*.json ./
-RUN npm install -g npm@10.3.0 && npm install
-
-COPY files/kaapana_app .
-
+FROM docker.io/node:lts-alpine3.20 AS build-stage
 
 LABEL IMAGE="maintenance-page-kaapana"
 LABEL VERSION="0.2.1"
 LABEL BUILD_IGNORE="False"
+
+WORKDIR /kaapana/app
+COPY files/kaapana_app/package*.json ./
+RUN npm install -g npm@10.9.0 && npm install
+
+COPY files/kaapana_app .
+
 
 RUN npm run build
 
@@ -30,9 +30,13 @@ RUN npm run build
 ###############################
 ######### Production ##########
 ###############################
-FROM docker.io/nginx:1.25.4-alpine
+FROM nginxinc/nginx-unprivileged:1.27.2-alpine
 
-RUN mkdir /app
-COPY --from=build-stage /maintenance/app/dist /app/maintenance
-COPY --from=build-stage /maintenance/app/nginx.conf /etc/nginx/nginx.conf
+WORKDIR /kaapana/app
 
+COPY --from=build-stage /kaapana/app/dist /app/maintenance
+COPY --from=build-stage /kaapana/app/nginx.conf /etc/nginx/nginx.conf
+USER 0
+RUN chown 1000 /etc/nginx/nginx.conf
+
+USER 1000

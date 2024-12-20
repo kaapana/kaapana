@@ -1,28 +1,24 @@
-import requests
-import urllib3
-import os
 import logging
+import os
 import traceback
-import psutil
 
-from fastapi import Depends, FastAPI, Request
+import psutil
+import urllib3
+from fastapi import Depends, FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from .admin import routers as admin
-from .datasets import routers
-from .workflows.routers import remote, client
-from .monitoring import routers as monitoring
-from .storage import routers as storage
-from .users import routers as users
-
-from .dependencies import get_query_token, get_token_header
 from .database import SessionLocal, engine
+from .datasets import routers
 from .decorators import repeat_every
+from .dependencies import get_token_header
+from .monitoring import routers as monitoring
+from .settings import routers as settings
 from .workflows import models
-from .workflows.crud import (
-    get_remote_updates,
-    sync_states_from_airflow,
-    sync_n_clean_qsr_jobs_with_airflow,
-)
+from .workflows.crud import get_remote_updates, sync_states_from_airflow
+from .workflows.routers import client, remote
+
+from . import middlewares
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -31,6 +27,12 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logging.getLogger().setLevel(logging.INFO)
 
 app = FastAPI(root_path="/kaapana-backend")
+
+# sanitize user inputs from the POST and PUT body
+app.add_middleware(middlewares.SanitizeBodyInputs)
+
+# sanitze user inputs from the query parameters in get requests
+app.add_middleware(middlewares.SanitizeQueryParams)
 
 
 @app.on_event("startup")
@@ -97,6 +99,11 @@ app.include_router(
     prefix="/client",
     responses={418: {"description": "I'm the clients backend..."}},
 )
+app.include_router(
+    settings.router,
+    prefix="/settings",
+    responses={418: {"description": "I'm the settings backend..."}},
+)
 
 app.include_router(routers.router, prefix="/dataset")
 app.include_router(monitoring.router, prefix="/monitoring")
@@ -106,3 +113,4 @@ app.include_router(monitoring.router, prefix="/monitoring")
 
 # # Not used yet
 # app.include_router(storage.router, prefix="/storage")
+Instrumentator().instrument(app).expose(app)

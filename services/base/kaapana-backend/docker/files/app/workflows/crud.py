@@ -1,39 +1,36 @@
-import json
-import os
-import logging
-import traceback
-import uuid
 import copy
-from typing import List
 import datetime
+import json
+import logging
+import os
 import string
-import random
+import uuid
+from typing import List, Optional
 
 import requests
+from app.config import settings
+from app.database import SessionLocal
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
-from sqlalchemy import desc
+from sqlalchemy import String, cast, desc, func
 from sqlalchemy.exc import IntegrityError, NoResultFound
-from sqlalchemy.orm import Session
-from sqlalchemy import func, cast, String, JSON
+from sqlalchemy.orm import Session, aliased
 
 from urllib3.util import Timeout
 
-from app.config import settings
-from app.database import SessionLocal
 from . import models, schemas
 from .schemas import DatasetCreate
 from .utils import (
-    execute_job_airflow,
-    abort_job_airflow,
-    get_dagrun_tasks_airflow,
-    get_dagrun_details_airflow,
-    get_dagruns_airflow,
-    check_dag_id_and_dataset,
-    get_utc_timestamp,
     HelperMinio,
+    abort_job_airflow,
+    check_dag_id_and_dataset,
+    execute_job_airflow,
     get_dag_list,
+    get_dagrun_details_airflow,
+    get_dagrun_tasks_airflow,
+    get_dagruns_airflow,
+    get_utc_timestamp,
     raise_kaapana_connection_error,
     requests_retry_session,
 )
@@ -205,10 +202,11 @@ def create_and_update_client_kaapana_instance(
         for dataset_name in client_kaapana_instance.allowed_datasets:
             db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
             if db_dataset:
-                dataset = schemas.AllowedDatasetCreate(**(db_dataset).__dict__).dict()
+                dataset = dict(**(db_dataset).__dict__)
                 dataset["identifiers"] = [
                     identifier.id for identifier in db_dataset.identifiers
                 ]
+                dataset = schemas.AllowedDatasetCreate(**(dataset)).dict()
                 if "identifiers" in dataset:
                     dataset["identifiers"] = [
                         fernet.encrypt(identifier.encode()).decode()
@@ -464,10 +462,11 @@ def get_jobs(
     limit=None,
 ):
     if instance_name is not None and status is not None:
+
         return (
             db.query(models.Job)
             .filter_by(status=status)
-            .join(models.Job.kaapana_instance, aliased=True)
+            .join(aliased(models.Job.kaapana_instance))
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -477,7 +476,7 @@ def get_jobs(
         return (
             db.query(models.Job)
             .filter_by(status=status)
-            .join(models.Job.workflow, aliased=True)
+            .join(aliased(models.Job.workflow))
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -486,7 +485,7 @@ def get_jobs(
     elif instance_name is not None:
         return (
             db.query(models.Job)
-            .join(models.Job.kaapana_instance, aliased=True)
+            .join(aliased(models.Job.kaapana_instance))
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -495,7 +494,7 @@ def get_jobs(
     elif workflow_name is not None:
         return (
             db.query(models.Job)
-            .join(models.Job.workflow, aliased=True)
+            .join(aliased(models.Job.workflow))
             .filter_by(workflow_name=workflow_name)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -505,7 +504,7 @@ def get_jobs(
         return (
             db.query(models.Job)
             .filter_by(status=status)
-            .join(models.Job.kaapana_instance, aliased=True)
+            .join(aliased(models.Job.kaapana_instance))
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
             .all()
@@ -513,8 +512,8 @@ def get_jobs(
     else:
         return (
             db.query(models.Job)
-            .join(models.Job.workflow, aliased=True)
-            .join(models.Workflow.kaapana_instance, aliased=True)
+            .join(aliased(models.Job.workflow))
+            .join(aliased(models.Job.kaapana_instance))
             .filter_by(remote=remote)
             .order_by(desc(models.Job.time_updated))
             .limit(limit)
@@ -658,7 +657,7 @@ def sync_client_remote(
             continue
         outgoing_jobs.append(schemas.Job(**db_outgoing_job.__dict__).dict())
 
-        db_outgoing_workflow = get_workflows(db, workflow_job_id=db_outgoing_job.id)
+        db_outgoing_workflow, _ = get_workflows(db, workflow_job_id=db_outgoing_job.id)
         outgoing_workflow = (
             [
                 schemas.Workflow(**workflow.__dict__).dict()
@@ -706,7 +705,8 @@ def delete_external_job(db: Session, db_job):
                 verify=db_remote_kaapana_instance.ssl_check,
                 params=params,
                 headers={
-                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )
@@ -741,7 +741,8 @@ def update_external_job(db: Session, db_job):
                     verify=db_remote_kaapana_instance.ssl_check,
                     json=payload,
                     headers={
-                        "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                        "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                        "User-Agent": f"kaapana",
                     },
                     timeout=TIMEOUT,
                 )
@@ -787,7 +788,8 @@ def get_remote_updates(db: Session, periodically=False):
                 json=update_remote_instance_payload,
                 verify=db_remote_kaapana_instance.ssl_check,
                 headers={
-                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )
@@ -854,11 +856,20 @@ def get_remote_updates(db: Session, periodically=False):
                 ]
 
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
-            incoming_job[
-                "owner_kaapana_instance_name"
-            ] = db_remote_kaapana_instance.instance_name
+            incoming_job["owner_kaapana_instance_name"] = (
+                db_remote_kaapana_instance.instance_name
+            )
             incoming_job["external_job_id"] = incoming_job["id"]
             incoming_job["status"] = "pending"
+
+            ### Set the project_form of federated jobs according to the admin project
+            aii_response = requests.get(
+                "http://aii-service.services.svc:8080/projects/admin"
+            )
+            aii_response.raise_for_status()
+            project_form = aii_response.json()
+            incoming_job["conf_data"]["project_form"] = project_form
+
             job = schemas.JobCreate(**incoming_job)
             job.automatic_execution = (
                 db_incoming_workflow.automatic_execution
@@ -1238,24 +1249,12 @@ def get_dataset(db: Session, name: str, raise_if_not_existing=True):
 
 def get_datasets(
     db: Session,
-    instance_name: str = None,
     limit=None,
     username: str = None,
 ) -> List[models.Dataset]:
     logging.debug(username)
-    # if username is not None:
-    #     db_datasets = (
-    #         db.query(models.Dataset)
-    #         .filter_by(username=username)
-    #         .join(models.Dataset.kaapana_instance, aliased=True)
-    #         .order_by(desc(models.Dataset.time_updated))
-    #         .limit(limit)
-    #         .all()
-    #     )
-    # else:
     db_datasets = (
         db.query(models.Dataset)
-        # .join(models.Dataset.kaapana_instance, aliased=True)
         .order_by(desc(models.Dataset.time_updated))
         .limit(limit)
         .all()
@@ -1417,9 +1416,11 @@ def queue_generate_jobs_and_add_to_workflow(
         db,
         filter_kaapana_instances=schemas.FilterKaapanaInstances(
             **{
-                "instance_names": conf_data["workflow_form"]["runner_instances"]
-                if not json_schema_data.federated
-                else json_schema_data.instance_names,
+                "instance_names": (
+                    conf_data["workflow_form"]["runner_instances"]
+                    if not json_schema_data.federated
+                    else json_schema_data.instance_names
+                ),
             }
         ),
     )
@@ -1511,50 +1512,55 @@ def get_workflow(
         return db.query(models.Workflow).filter_by(dag_id=dag_id).first()
     # if not db_workflow:
     #     raise HTTPException(status_code=404, detail="Workflow not found")
-    # return db_workflow
+    # return db_workfloq
 
 
 def get_workflows(
     db: Session,
-    instance_name: str = None,
-    involved_instance_name: str = None,
-    workflow_job_id: int = None,
-    limit=None,
+    instance_name: Optional[str] = None,
+    involved_instance_name: Optional[str] = None,
+    workflow_job_id: Optional[int] = None,
+    limit: Optional[int] = -1,  # v-data-table return -1 for option `all
+    offset: int = 0,
+    search: Optional[str] = None,
 ):
+
+    if limit == -1:
+        limit = None
+    base_query = db.query(models.Workflow)
+
     if instance_name is not None:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.kaapana_instance, aliased=True)
+        query = (
+            base_query.join(aliased(models.Workflow.kaapana_instance))
             .filter_by(instance_name=instance_name)
             .order_by(desc(models.Workflow.time_updated))
-            .limit(limit)
-            .all()
         )
     elif involved_instance_name is not None:
-        return (
-            db.query(models.Workflow)
-            .filter(
-                models.Workflow.involved_kaapana_instances.contains(
-                    involved_instance_name
-                )
-            )
-            .all()
+        query = base_query.filter(
+            models.Workflow.involved_kaapana_instances.contains(involved_instance_name)
         )
     elif workflow_job_id is not None:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.workflow_jobs, aliased=True)
-            .filter_by(id=workflow_job_id)
-            .all()
+        query = base_query.join(aliased(models.Workflow.workflow_jobs)).filter_by(
+            id=workflow_job_id
         )
     else:
-        return (
-            db.query(models.Workflow)
-            .join(models.Workflow.kaapana_instance)
-            .order_by(desc(models.Workflow.time_updated))
-            .limit(limit)
-            .all()
-        )  # , aliased=True
+        query = base_query.join(models.Workflow.kaapana_instance).order_by(
+            desc(models.Workflow.time_updated)
+        )
+    if search is not None:
+        query = query.filter(models.Workflow.workflow_name.ilike(f"%{search}%"))
+
+    workflows = (
+        query.order_by(desc(models.Workflow.time_updated))
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+    total_count_subquery = query.statement.with_only_columns(func.count()).order_by(
+        None
+    )
+    total_count = db.execute(total_count_subquery).scalar()
+    return workflows, total_count
 
 
 def update_workflow(db: Session, workflow=schemas.WorkflowUpdate):
@@ -1673,7 +1679,8 @@ def update_remote_workflow(
                 verify=db_remote_kaapana_instance.ssl_check,
                 json=payload,
                 headers={
-                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}"
+                    "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
+                    "User-Agent": f"kaapana",
                 },
                 timeout=TIMEOUT,
             )

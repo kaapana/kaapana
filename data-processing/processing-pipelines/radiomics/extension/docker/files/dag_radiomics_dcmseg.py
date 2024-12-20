@@ -4,10 +4,10 @@ from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
+from kaapana.operators.MinioOperator import MinioOperator
 
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from radiomics.RadiomicsOperator import RadiomicsOperator
 
@@ -59,7 +59,7 @@ dag = DAG(
     max_active_runs=15,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag, check_modality=True)
+get_input = GetInputOperator(dag=dag, check_modality=True)
 
 dcmseg2nrrd = Mask2nifitiOperator(
     dag=dag,
@@ -67,7 +67,7 @@ dcmseg2nrrd = Mask2nifitiOperator(
     output_type="nrrd",
 )
 
-get_dicom = LocalGetRefSeriesOperator(
+get_dicom = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
 )
@@ -86,11 +86,12 @@ radiomics = RadiomicsOperator(
     whitelist_federated_learning=["radiomics.csv", "radiomics.json", "radiomics.xml"],
 )
 
-put_radiomics_to_minio = LocalMinioOperator(
+put_radiomics_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    action_operators=[radiomics],
-    file_white_tuples=(".xml"),
+    batch_input_operators=[radiomics],
+    minio_prefix="radiomics",
+    whitelisted_file_extensions=(".xml", ".json", ".html", ".csv"),
 )
 
 clean = LocalWorkflowCleanerOperator(

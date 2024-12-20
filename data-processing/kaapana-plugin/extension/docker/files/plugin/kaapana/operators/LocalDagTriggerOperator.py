@@ -1,8 +1,9 @@
 from kaapana.operators.HelperMinio import HelperMinio
-from kaapana.operators.HelperOpensearch import HelperOpensearch
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 from kaapana.blueprints.kaapana_utils import generate_run_id
+from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
+
 from airflow.api.common.trigger_dag import trigger_dag as trigger
 from os.path import join
 import os
@@ -60,6 +61,8 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
         return loaded_from_cache
 
     def get_dicom_list(self):
+        self.os_helper = HelperOpensearch()
+
         batch_dir = join(self.airflow_workflow_dir, self.dag_run_id, "batch", "*")
         batch_folders = sorted([f for f in glob(batch_dir)])
         print("##################################################################")
@@ -144,18 +147,16 @@ class LocalDagTriggerOperator(KaapanaPythonBaseOperator):
                     query = opensearch_query["query"]
                     index = opensearch_query["index"]
 
-                    dataset = HelperOpensearch.get_query_dataset(
-                        index=index, query=query
-                    )
+                    dataset = self.os_helper.get_query_dataset(index=index, query=query)
                     print(f"opensearch-query: found {len(dataset)} results.")
                     if dataset_limit is not None:
                         print(f"Limiting dataset to: {dataset_limit}")
                         dataset = dataset[:dataset_limit]
                     for series in dataset:
                         series = series["_source"]
-                        study_uid = series[HelperOpensearch.study_uid_tag]
-                        series_uid = series[HelperOpensearch.series_uid_tag]
-                        modality = series[HelperOpensearch.modality_tag]
+                        study_uid = series[DicomTags.study_uid_tag]
+                        series_uid = series[DicomTags.series_uid_tag]
+                        modality = series[DicomTags.modality_tag]
                         dicom_info_list.append(
                             {
                                 "dcm-uid": {

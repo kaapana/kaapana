@@ -1,30 +1,27 @@
 import copy
 import json
 import logging
+import math
+import os
 import random
+import shutil
 import string
 import uuid
-import shutil
-import os
-from datetime import datetime, timedelta
-from typing import List, Union
-import asyncio
-from threading import Thread
-
+from datetime import datetime
 from pathlib import Path
-import jsonschema
-from app.datasets.utils import execute_opensearch_query
-from app.dependencies import get_db, get_minio
-from app.workflows import crud
-from app.workflows import schemas
-from app.config import settings
-from app.workflows.utils import get_dag_list
-from fastapi import APIRouter, Depends, File, Request, HTTPException
-from fastapi.responses import JSONResponse, Response
-from pydantic import ValidationError
-from pydantic.schema import schema
-from sqlalchemy.orm import Session
+from threading import Thread
+from typing import List, Tuple, Union
 
+import jsonschema
+import jsonschema.exceptions
+from app.datasets.routers import get_aggregatedSeriesNum
+from app.datasets.utils import MAX_RETURN_LIMIT, execute_initial_search
+from app.dependencies import get_db, get_opensearch, get_project_index
+from app.workflows import crud, schemas
+from app.workflows.utils import get_dag_list
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, Response
+from sqlalchemy.orm import Session
 
 logging.getLogger().setLevel(logging.DEBUG)
 
@@ -58,6 +55,7 @@ def remove_outdated_tmp_files(search_dir):
                     f"Something went wrong with the removal of {file_found} .. "
                 )
 
+
 @router.head("/file")
 def head_file_upload(request: Request, patch: str):
     uoffset = request.headers.get("upload-offset", None)
@@ -70,14 +68,21 @@ def head_file_upload(request: Request, patch: str):
         offset = 0
     return Response(str(offset))
 
+
 @router.get("/files")
-async def get_file(request: Request, pattern: str="*"):
+async def get_file(request: Request, pattern: str = "*"):
     """
     Return a list of file paths relative to UPLOAD_DIR matching the provided pattern.
     List only files with resolved filepaths being a subpath of UPLOAD_DIR.
     """
     absolute_file_paths = list(Path(UPLOAD_DIR).rglob(pattern))
-    return [file.relative_to(UPLOAD_DIR) for file in absolute_file_paths if file.is_file() and file.resolve().parts[:len(Path(UPLOAD_DIR).parts)] == Path(UPLOAD_DIR).parts]
+    return [
+        file.relative_to(UPLOAD_DIR)
+        for file in absolute_file_paths
+        if file.is_file()
+        and file.resolve().parts[: len(Path(UPLOAD_DIR).parts)]
+        == Path(UPLOAD_DIR).parts
+    ]
 
 
 @router.post("/file")
@@ -102,6 +107,7 @@ async def post_file(request: Request):
     logging.debug(f"post_minio_file_upload returns {patch=}")
     logging.debug(f"{filepath=}")
     return Response(content=patch)
+
 
 @router.patch("/file")
 async def patch_file(
@@ -146,6 +152,7 @@ async def patch_file(
             )
     return Response(patch)
 
+
 @router.delete("/file")
 async def delete_minio_file_upload(request: Request):
     body = await request.body()
@@ -174,6 +181,7 @@ def create_remote_kaapana_instance(
             db=db, remote_kaapana_instance=remote_kaapana_instance
         )
     )
+
 
 @router.put("/remote-kaapana-instance", response_model=schemas.KaapanaInstance)
 def put_remote_kaapana_instance(
@@ -255,7 +263,7 @@ def create_job(request: Request, job: schemas.JobCreate, db: Session = Depends(g
 def get_job(job_id: int = None, run_id: str = None, db: Session = Depends(get_db)):
     job = crud.get_job(db, job_id, run_id)
     if job.kaapana_instance:
-        job.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
+        job.kaapana_instance = schemas.KaapanaInstance.clean_return(
             job.kaapana_instance
         )
     return job
@@ -496,19 +504,11 @@ def check_for_remote_updates(db: Session = Depends(get_db)):
 def create_dataset(
     request: Request,
     dataset: Union[schemas.DatasetCreate, None] = None,
-    query: Union[str, None] = None,
     db: Session = Depends(get_db),
 ):
-    if not dataset and query:
-        query_dict = json.loads(query)
-        dataset = schemas.DatasetCreate(
-            name=query_dict["name"],
-            identifiers=[
-                d["_id"] for d in execute_opensearch_query(query_dict["query"])
-            ],
-        )
     dataset.username = request.headers["x-forwarded-preferred-username"]
     db_obj = crud.create_dataset(db=db, dataset=dataset)
+
     return schemas.Dataset(
         name=db_obj.name,
         time_created=db_obj.time_created,
@@ -516,6 +516,52 @@ def create_dataset(
         username=db_obj.username,
         identifiers=[x.id for x in db_obj.identifiers],
     )
+
+
+@router.post("/dataset-from-query", response_model=schemas.Dataset)
+async def create_dataset_from_query(
+    request: Request,
+    db: Session = Depends(get_db),
+    os_client=Depends(get_opensearch),
+):
+    body = await request.json()
+    query = body["query"]
+    filters = query["bool"]["filter"]
+    # get project_index from filters
+    for filter_item in filters:
+        if isinstance(filter_item, dict) and "match_phrase" in filter_item:
+            if "_index" in filter_item["match_phrase"]:
+                project_index = filter_item["match_phrase"]["_index"]
+                break
+    response = await get_aggregatedSeriesNum(
+        data=query, os_client=os_client, project_index=project_index
+    )
+    response_content = json.loads(response.body.decode("utf-8"))
+    aggregated_series_num = response_content
+    pages = math.ceil(aggregated_series_num / MAX_RETURN_LIMIT)
+    identifiers = []
+    for page in range(pages):
+        identifiers.extend(
+            d["_id"]
+            for d in execute_initial_search(
+                os_client=os_client,
+                index=project_index,
+                query=query,
+                source=False,
+                sort=[{"_id": "desc"}],
+                page_index=page + 1,  # start at 1
+                page_length=MAX_RETURN_LIMIT,
+                aggregated_series_num=aggregated_series_num,
+                use_execute_sliced_search=False,
+            )
+        )
+
+    dataset = schemas.DatasetCreate(
+        name=body["name"],
+        identifiers=identifiers,
+    )
+
+    return create_dataset(request=request, dataset=dataset, db=db)
 
 
 @router.get("/dataset", response_model=schemas.Dataset)
@@ -539,7 +585,6 @@ def get_datasets(
 ):
     db_objs = crud.get_datasets(
         db,
-        instance_name,
         limit=limit,
         username=request.headers["x-forwarded-preferred-username"],
     )
@@ -587,10 +632,21 @@ def create_workflow(
     json_schema_data: schemas.JsonSchemaData,
     db: Session = Depends(get_db),
 ):
+    # exception handling for admin requests via fastapi's kaapana-backend/docs
+    # necessary for maually restarting federated workflows via recovery_conf
+    try:
+        project = request.headers.get("Project")
+        json_schema_data.conf_data["project_form"] = json.loads(project)
+    except:
+        pass
+
     # validate incoming json_schema_data
     try:
-        jsonschema.validate(json_schema_data.json(), schema([schemas.JsonSchemaData]))
-    except ValidationError as e:
+        jsonschema.validate(
+            json.loads(json_schema_data.model_dump_json()),
+            schemas.JsonSchemaData.model_json_schema(),
+        )
+    except jsonschema.exceptions.ValidationError as e:
         logging.error(f"JSON Schema is not valid for the Pydantic model. Error: {e}")
         raise HTTPException(
             status_code=400, detail="JSON Schema is not valid for the Pydantic model."
@@ -703,7 +759,8 @@ def get_workflow(
 
 # get_workflows
 @router.get(
-    "/workflows", response_model=List[schemas.WorkflowWithKaapanaInstanceWithJobs]
+    "/workflows",
+    response_model=Tuple[List[schemas.WorkflowWithKaapanaInstanceWithJobs], int],
 )
 # also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
 def get_workflows(
@@ -711,18 +768,27 @@ def get_workflows(
     instance_name: str = None,
     involved_instance_name: str = None,
     workflow_job_id: int = None,
-    limit: int = None,
+    limit: int = -1,  # v-data-table return -1 for option `all`
+    offset: int = 0,
+    search: str = None,
     db: Session = Depends(get_db),
 ):
-    workflows = crud.get_workflows(
-        db, instance_name, involved_instance_name, workflow_job_id, limit=limit
+    workflows, total_items = crud.get_workflows(
+        db,
+        instance_name,
+        involved_instance_name,
+        workflow_job_id,
+        limit=limit,
+        offset=offset,
+        search=search,
     )
     for workflow in workflows:
         if workflow.kaapana_instance:
             workflow.kaapana_instance = schemas.KaapanaInstance.clean_full_return(
                 workflow.kaapana_instance
             )
-    return workflows  # , username=request.headers["x-forwarded-preferred-username"]
+
+    return workflows, total_items
 
 
 # put/update_workflow

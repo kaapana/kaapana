@@ -2,7 +2,6 @@ import json
 import os
 import requests
 import logging
-import functools
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from requests_cache import CachedSession
@@ -11,7 +10,6 @@ import datetime
 from fastapi import HTTPException
 from app.config import settings
 
-from opensearchpy import OpenSearch
 from minio import Minio
 from urllib3.util import Timeout
 import xml.etree.ElementTree as ET
@@ -111,6 +109,7 @@ class HelperMinio(Minio):
                         federated_dir,
                         federated_round,
                         instance_name,
+                        "from_server",
                         f"{federated_operator}.tar",
                     ),
                 ),
@@ -121,6 +120,7 @@ class HelperMinio(Minio):
                         federated_dir,
                         federated_round,
                         instance_name,
+                        "from_client",
                         f"{federated_operator}.tar",
                     ),
                 ),

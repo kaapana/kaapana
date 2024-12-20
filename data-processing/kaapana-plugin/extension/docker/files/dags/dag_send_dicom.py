@@ -2,7 +2,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -16,14 +16,14 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            "host": {
+            "pacs_host": {
                 "title": "Receiver host",
                 "description": "Specify the url/IP of the DICOM receiver.",
                 "type": "string",
                 "default": pacs_host,
                 "required": True,
             },
-            "port": {
+            "pacs_port": {
                 "title": "Receiver port",
                 "description": "Specify the port of the DICOM receiver.",
                 "type": "integer",
@@ -65,7 +65,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 dcm_send = DcmSendOperator(
     dag=dag,
     input_operator=get_input,

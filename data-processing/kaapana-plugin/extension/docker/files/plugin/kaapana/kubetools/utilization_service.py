@@ -271,18 +271,6 @@ class UtilService:
                 )
                 UtilService.node_requested_memory = tmp_node_requested_memory
 
-            # pool_id = "NODE_RAM"
-            # processing_memory_node = abs(UtilService.mem_alloc - UtilService.mem_req)
-            # if UtilService.pool_mem == None:
-            #     # if UtilService.pool_mem == None or UtilService.pool_mem != processing_memory_node:
-            #     UtilService.create_pool(
-            #         pool_name=pool_id,
-            #         pool_slots=processing_memory_node,
-            #         pool_description="Pool for the available nodes RAM memory in MB",
-            #         logger=logger,
-            #     )
-            #     UtilService.pool_mem = processing_memory_node
-
             pool_id = "NODE_CPU_CORES"
             if (
                 UtilService.pool_cpu == None
@@ -399,9 +387,9 @@ class UtilService:
                                 ) in UtilService.node_gpu_queued_dict.items():
                                     UtilService.node_gpu_queued_dict[key] = 0
 
-                        UtilService.node_gpu_list[i][
-                            "queued_count"
-                        ] = UtilService.node_gpu_queued_dict[pool_id]
+                        UtilService.node_gpu_list[i]["queued_count"] = (
+                            UtilService.node_gpu_queued_dict[pool_id]
+                        )
 
                 UtilService.node_gpu_list = sorted(
                     UtilService.node_gpu_list, key=lambda d: d["queued_count"]

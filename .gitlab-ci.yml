@@ -15,13 +15,13 @@ workflow:
   rules:
   - if: $CI_PIPELINE_SOURCE == "web"
     when: always
-  - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
-    when: always
-  - if: $CI_PIPELINE_SOURCE == "schedule"
-    when: always
   - if: $CI_PIPELINE_SOURCE == "trigger"
     when: always
-  - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
+  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
+    when: always
+  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
+    when: always
+  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
     when: always
   - when: never
 

@@ -1,20 +1,17 @@
-FROM local-only/no-vnc-base:latest
+FROM local-only/base-desktop:latest
 
 LABEL IMAGE="mitk-flow"
 LABEL VERSION="2023.12"
 LABEL BUILD_IGNORE="False"
 
-WORKDIR /src
-RUN mkdir -p /mitk
+RUN mkdir -p /mitk-flow \
+    && wget https://www.mitk.org/download/kaapana/flowbench/MITK-v2024.12-linux-x86_64.tar.gz -O /mitk-flow/mitk.tar.gz \
+    && tar -xzf /mitk-flow/mitk.tar.gz --strip 1 -C /mitk-flow/ \
+    && rm -rf /mitk-flow/mitk.tar.gz
 
-RUN wget https://www.mitk.org/download/kaapana/flowbench/MITK-122321bb-linux-x86_64.tar.gz -O /src/mitk.tar.gz \
-    && tar -xzf /src/mitk.tar.gz --strip 1 -C /mitk/ && rm -rf /src/mitk.tar.gz
+COPY files/startMITKFlow.sh /mitk-flow/startMITKFlow.sh
 
-# Application start definition, here a shell script is used to start the application
-COPY files/startMITK.sh /home/mitk/Desktop/
-RUN chmod 0777 /home/mitk/Desktop/startMITK.sh
-RUN ln -s /data /home/mitk/Desktop/
+RUN ln -s /data /home/$USER/Desktop/
 WORKDIR /data
 
-# A supervisord config is used to make the application managed
-COPY files/supervisord.conf /etc/supervisor/conf.d/
+COPY files/supervisord-mitk-flowbench.conf /etc/supervisor/conf.d/

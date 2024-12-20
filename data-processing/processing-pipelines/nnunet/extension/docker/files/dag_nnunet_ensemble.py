@@ -9,15 +9,15 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from nnunet.LocalSortGtOperator import LocalSortGtOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.Mask2nifitiOperator import Mask2nifitiOperator
-from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
+from kaapana.operators.GetRefSeriesOperator import GetRefSeriesOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.JupyterlabReportingOperator import JupyterlabReportingOperator
-from nnunet.LocalModelGetInputDataOperator import LocalModelGetInputDataOperator
+from nnunet.GetModelFromPacsOperator import GetModelFromPacsOperator
 from nnunet.NnUnetModelOperator import NnUnetModelOperator
 from nnunet.getTasks import get_available_protocol_names
 
 # from kaapana.operators.LocalPatchedGetInputDataOperator import LocalPatchedGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from nnunet.SegCheckOperator import SegCheckOperator
 
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
@@ -37,13 +37,6 @@ ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
-            # "input": {
-            #     "title": "Input Modality",
-            #     "default": "OT",
-            #     "description": "Expected input modality.",
-            #     "type": "string",
-            #     "readOnly": True,
-            # },
             "tasks": {
                 "title": "Tasks available",
                 "description": "Select available tasks",
@@ -163,40 +156,17 @@ get_test_images = LocalGetInputDataOperator(
     check_modality=False,
 )
 
-# get_test_images = LocalGetRefSeriesOperator(
-#     dag=dag,
-#     name="nnunet-dataset",
-#     target_level="batch",
-#     expected_file_count="all",
-#     limit_file_count=5,
-#     dicom_tags=[
-#         {
-#             'id': 'ClinicalTrialProtocolID',
-#             'value': 'tcia-lymph'
-#         },
-#         {
-#             'id': 'Modality',
-#             'value': 'SEG'
-#         },
-#     ],
-#     modality=None,
-#     search_policy=None,
-#     parallel_downloads=5,
-#     delete_input_on_success=True
-# )
-
 sort_gt = LocalSortGtOperator(
     dag=dag, batch_name="nnunet-dataset", input_operator=get_test_images
 )
 
 
-get_ref_ct_series_from_gt = LocalGetRefSeriesOperator(
+get_ref_ct_series_from_gt = GetRefSeriesOperator(
     dag=dag,
     input_operator=get_test_images,
     search_policy="reference_uid",
     parallel_downloads=5,
     parallel_id="ct",
-    modality=None,
     batch_name=str(get_test_images.operator_out_dir),
     delete_input_on_success=False,
 )
@@ -248,9 +218,7 @@ dcm2nifti_ct = DcmConverterOperator(
     output_format="nii.gz",
 )
 
-get_input = LocalModelGetInputDataOperator(
-    dag=dag, name="get-models", check_modality=True, parallel_downloads=5
-)
+get_input = GetModelFromPacsOperator(dag=dag, name="get-models")
 
 dcm2bin = Bin2DcmOperator(
     dag=dag, input_operator=get_input, name="extract-binary", file_extensions="*.dcm"
@@ -359,12 +327,12 @@ evaluation = DiceEvaluationOperator(
     batch_name=str(get_test_images.operator_out_dir),
 )
 
-get_notebooks_from_minio = LocalMinioOperator(
+get_notebooks_from_minio = MinioOperator(
     dag=dag,
     name="nnunet-get-notebook-from-minio",
-    bucket_name="analysis-scripts",
+    bucket_name="template-analysis-scripts",
     action="get",
-    action_files=["run_nnunet_evaluation_notebook.ipynb"],
+    source_files=["run_nnunet_evaluation_notebook.ipynb"],
 )
 
 nnunet_evaluation_notebook = JupyterlabReportingOperator(
@@ -372,25 +340,26 @@ nnunet_evaluation_notebook = JupyterlabReportingOperator(
     name="nnunet-evaluation-notebook",
     input_operator=evaluation,
     notebook_filename="run_nnunet_evaluation_notebook.ipynb",
+    notebook_dir=get_notebooks_from_minio.operator_out_dir,
     output_format="html,pdf",
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     name="upload-nnunet-evaluation",
     zip_files=True,
     action="put",
-    action_operators=[evaluation, nnunet_evaluation_notebook],
-    file_white_tuples=(".zip"),
+    batch_input_operators=[evaluation, nnunet_evaluation_notebook],
+    whitelisted_file_extensions=[".zip"],
 )
 
-put_report_to_minio = LocalMinioOperator(
+put_report_to_minio = MinioOperator(
     dag=dag,
     name="upload-staticwebsiteresults",
-    bucket_name="staticwebsiteresults",
+    minio_prefix="staticwebsiteresults",
     action="put",
-    action_operators=[nnunet_evaluation_notebook],
-    file_white_tuples=(".html", ".pdf"),
+    batch_input_operators=[nnunet_evaluation_notebook],
+    whitelisted_file_extensions=(".html", ".pdf"),
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

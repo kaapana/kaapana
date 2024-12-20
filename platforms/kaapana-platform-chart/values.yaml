@@ -88,6 +88,16 @@ extension_params:
         definition: ""
         type: string
         value: ""
+    credentials_postgres_aip_password:
+        default: Kaapana2020
+        definition: ""
+        type: string
+        value: ""
+    credentials_postgres_dicom_web_filter_password:
+        default: Kaapana2020
+        definition: ""
+        type: string
+        value: ""
     admin_namespace:
         default: admin
         definition: "Namespace for Kubernetes resources with admin access, such as reverse proxy and authentication"
@@ -106,11 +116,6 @@ extension_params:
     helm_namespace:
         default: services
         definition: Namespace for helm charts of this platform
-        type: string
-        value: ""
-    jobs_namespace:
-        default: jobs
-        definition: Kubernetes namespace for jobs
         type: string
         value: ""
     services_namespace:
@@ -159,9 +164,9 @@ extension_params:
         type: string
         value: ""
     gpu_support:
-        default: "false"
+        default: false
         definition: Enables microk8s GPU support
-        type: string
+        type: bool
         value: ""
     pull_policy_jobs:
         default: Always

@@ -1,18 +1,21 @@
-import os
-import json
 import glob
-import traceback
-import logging
+import json
+import os
 import pydicom
-import errno
 import time
-
 import requests
-
-from kaapana.operators.HelperDcmWeb import HelperDcmWeb
+import pydicom
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.HelperOpensearch import HelperOpensearch
-from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+
+from kaapanapy.logger import get_logger
+from kaapanapy.settings import KaapanaSettings, OpensearchSettings
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
+
+logger = get_logger(__name__)
+
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
 class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
@@ -34,43 +37,58 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
 
     """
 
+    def push_to_project_index(self, json_dict):
+        logger.info(f"Pushing JSON to project index")
+        id = json_dict["0020000E SeriesInstanceUID_keyword"]
+        clinical_trial_protocol_id = json_dict.get(
+            "00120020 ClinicalTrialProtocolID_keyword"
+        )[0]
+        project = self.get_project_by_name(clinical_trial_protocol_id)
+        try:
+            json_dict = self.produce_inserts(json_dict)
+            response = self.os_client.index(
+                index=project.get("opensearch_index"),
+                body=json_dict,
+                id=id,
+                refresh=True,
+            )
+        except Exception as e:
+            logger.error("Error while pushing JSON ...")
+            raise (e)
+
     def push_json(self, json_dict):
-        print("# Pushing JSON ...")
+        logger.info("Pushing JSON to admin-project index")
         if "0020000E SeriesInstanceUID_keyword" in json_dict:
             id = json_dict["0020000E SeriesInstanceUID_keyword"]
         elif self.instanceUID is not None:
             id = self.instanceUID
         else:
-            print("# No ID found! - exit")
+            logger.error("No ID found! - exit")
             exit(1)
         try:
             json_dict = self.produce_inserts(json_dict)
-            response = HelperOpensearch.os_client.index(
-                index=HelperOpensearch.index, body=json_dict, id=id, refresh=True
+            response = self.os_client.index(
+                index=self.opensearch_index,
+                body=json_dict,
+                id=id,
+                refresh=True,
             )
         except Exception as e:
-            print("#")
-            print("# Error while pushing JSON ...")
-            print("#")
-            print(e)
-            exit(1)
-
-        print("#")
-        print("# Success")
-        print("#")
+            logger.error("Error while pushing JSON ...")
+            raise (e)
 
     def produce_inserts(self, new_json):
-        print("INFO: get old json from index.")
+        logger.info("get old json from index.")
         try:
-            old_json = HelperOpensearch.os_client.get(
-                index=HelperOpensearch.index, id=self.instanceUID
+            old_json = self.os_client.get(
+                index=self.opensearch_index, id=self.instanceUID
             )["_source"]
             print("Series already found in OS")
             if self.no_update:
                 raise ValueError("ERROR")
         except Exception as e:
-            print("doc is not updated! -> not found in os")
-            print(e)
+            logger.warning("doc is not updated! -> not found in os")
+            logger.warning(str(e))
             old_json = {}
 
         # special treatment for bodypart regression since keywords don't match
@@ -87,13 +105,14 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         return old_json
 
     def start(self, ds, **kwargs):
-        global es
-        self.dcmweb_helper = HelperDcmWeb(
-            application_entity="KAAPANA", dag_run=kwargs["dag_run"]
-        )
+        from kaapanapy.helper import get_opensearch_client
+
+        self.os_client = get_opensearch_client()
+        self.dcmweb_helper = get_dcmweb_helper()
+        self.opensearch_index = OpensearchSettings().default_index
 
         self.ti = kwargs["ti"]
-        print("# Starting module json2meta")
+        logger.info("Starting module json2meta")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [
@@ -106,7 +125,6 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             self.rel_dicom_dir = self.operator_in_dir
 
         self.run_id = kwargs["dag_run"].run_id
-        print(("RUN_ID: %s" % self.run_id))
 
         for batch_element_dir in batch_folder:
             if self.jsonl_operator:
@@ -115,38 +133,26 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                 )
                 json_list = glob.glob(json_dir + "/**/*.jsonl", recursive=True)
                 for json_file in json_list:
-                    print(f"Pushing file: {json_file} to META!")
+                    logger.info(f"Pushing file: {json_file} to META!")
                     with open(json_file, encoding="utf-8") as f:
                         for line in f:
                             obj = json.loads(line)
                             self.push_json(obj)
+                            self.push_to_project_index(obj)
             else:
-                # TODO: is this dcm check necessary? InstanceID is set in upload
-                dcm_files = sorted(
-                    glob.glob(
-                        os.path.join(batch_element_dir, self.rel_dicom_dir, "*.dcm*"),
-                        recursive=True,
-                    )
-                )
-                self.set_id(dcm_files[0])
-
                 json_dir = os.path.join(
                     batch_element_dir, self.json_operator.operator_out_dir
                 )
-                print(("Pushing json files from: %s" % json_dir))
                 json_list = glob.glob(json_dir + "/**/*.json", recursive=True)
-                print("#")
-                print("#")
-                print("#")
-                print("####  Found json files: %s" % len(json_list))
-                print("#")
+                logger.info(f"Found json files: {json_list}")
                 assert len(json_list) > 0
 
                 for json_file in json_list:
-                    print(f"Pushing file: {json_file} to META!")
+                    logger.info(f"Pushing file: {json_file} to META!")
                     with open(json_file, encoding="utf-8") as f:
                         new_json = json.load(f)
                     self.push_json(new_json)
+                    self.push_to_project_index(new_json)
 
     def set_id(self, dcm_file=None):
         if dcm_file is not None:
@@ -177,6 +183,15 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             print(f"# -> waiting {self.avalability_check_delay} s")
             time.sleep(self.avalability_check_delay)
             check_count += 1
+
+    def get_project_by_name(self, project_name: str):
+        response = requests.get(
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
+            params={"name": project_name},
+        )
+        response.raise_for_status()
+        project = response.json()
+        return project
 
     def __init__(
         self,

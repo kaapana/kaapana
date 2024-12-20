@@ -4,7 +4,7 @@
       <v-col cols="1" align="center">
         <v-icon>mdi-magnify</v-icon>
       </v-col>
-      <v-col cols="7">
+      <v-col cols="6">
         <v-text-field
           label="Search"
           v-model="query_string"
@@ -39,6 +39,17 @@
         </v-btn>
       </v-col>
 
+      <!-- Copy query button -->
+      <v-col cols="1" align="center">
+        <v-tooltip bottom>
+          <template v-slot:activator="{ on, attrs }">
+            <v-btn icon v-bind="attrs" v-on="on" @click="copyQueryToClipboard">
+              <v-icon>mdi-content-copy</v-icon>
+            </v-btn>
+          </template>
+          <span>Copy Query URL to Clipboard</span>
+        </v-tooltip>
+      </v-col>
       <v-col cols="2" align="center">
         <v-btn color="primary" style="width: 100%" @click="search">
           Search
@@ -90,11 +101,13 @@
 
 <script>
 import {
+  loadDatasets,
   loadDatasetByName,
   loadFieldNames,
   loadValues,
 } from "../common/api.service";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
+import { mapGetters } from "vuex";
 
 export default {
   name: "Search",
@@ -103,6 +116,7 @@ export default {
   },
   data() {
     return {
+      datasetNameLocal: this.datasetName,
       query_string: "",
       display_filters: true,
       filters: [],
@@ -110,32 +124,59 @@ export default {
       fieldNames: [],
       mapping: {},
       dialog: false,
+      queryParams: this.$route.query,
     };
   },
   components: { SaveDatasetDialog },
+  computed: {
+    ...mapGetters(["selectedProject"]),
+  },
   methods: {
-    addFilterItem(key, value) {
+    async addFilterItem(key, value) {
+      // check if mapping yet empty, if so, initialize it
+      if (Object.keys(this.mapping).length === 0) {
+        await this.initializeMapping();
+      }
+
+      // check if key actually exists in mapping, if not, raise an error
+      if (!this.mapping[key]) {
+        this.$notify({
+          title: "Error",
+          text: `Key ${key} does not exist.`,
+          type: "error",
+        });
+        return;
+      }
+      // check if the filter already exists
       const filters = this.filters.filter(
         (filter) => filter.key_select === key
       );
       if (
         filters.length > 0 &&
-        filters[0].item_select.filter((item) => item === value).length === 0
+        filters[0].item_select.filter((item) => String(item) === String(value))
+          .length === 0
       ) {
-        filters[0].item_select.push(value);
-        this.display_filters = true;
+        filters[0].item_select.push(
+          this.mapping[key]["key"].endsWith("_integer") ||
+            this.mapping[key]["key"].endsWith("_float")
+            ? parseFloat(value)
+            : value
+        );
       } else if (filters.length === 0) {
-        loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
-          this.mapping[key] = res.data;
-          this.filters.push({
-            id: this.counter++,
-            key_select: key,
-            item_select: [value],
-          });
+        const res = await loadValues(key, this.constructDatasetQuery() || {});
+        this.mapping[key] = res.data;
+        // if key ends with '_integer' or '_float' parse the values as numbers
+        this.filters.push({
+          id: this.counter++,
+          key_select: key,
+          item_select:
+            this.mapping[key]["key"].endsWith("_integer") ||
+            this.mapping[key]["key"].endsWith("_float")
+              ? [parseFloat(value)]
+              : [value],
         });
-
-        this.display_filters = true;
       }
+      this.display_filters = true;
     },
     addEmptyFilter() {
       this.display_filters = true;
@@ -162,23 +203,10 @@ export default {
           ],
         },
       };
-      console.log(JSON.stringify(query));
       return query;
     },
-    async search(onMount = false) {
-      this.display_filters = onMount;
+    async search() {
       this.$emit("search", await this.composeQuery());
-      // localStorage['Dataset.search.filters'] = JSON.stringify(
-      //     this.filters.map(filter => (
-      //         {
-      //           'id': filter.id,
-      //           'key_select': filter.key_select,
-      //           'item_select': filter.item_select
-      //         })
-      //     )
-      // )
-      // localStorage['Dataset.search.query_string'] = JSON.stringify(this.query_string)
-      // localStorage['Dataset.search.datasetName'] = JSON.stringify(this.datasetName)
     },
     queryFromFilter(filter) {
       if (filter.item_select && filter.item_select.length > 0) {
@@ -209,41 +237,134 @@ export default {
     async updateMapping(filter) {
       filter.item_select = [];
       const key = filter.key_select;
-      loadValues(key, this.constructDatasetQuery() || {}).then((res) => {
-        this.mapping[key] = res.data;
-      });
+      const res = await loadValues(key, this.constructDatasetQuery() || {});
+      this.mapping[key] = res.data;
     },
-    async reloadDataset(){
+    async reloadDataset() {
       this.dataset =
-        this.datasetName && (await loadDatasetByName(this.datasetName));
+        this.datasetNameLocal &&
+        (await loadDatasetByName(this.datasetNameLocal));
     },
-    async initSearch(onMount = false) {
+
+    /**
+     * Processes the query parameters provided via the URL. 
+     * Extracts the dataset name and other DICOM query filters from the URL and sets them as filter for the search. 
+     * Afterwards the search is executed and the URL parameters removed.
+     */
+    async processQueryParams() {
+      if (this.queryParams.dataset_name) {
+        const datasetNames = await loadDatasets();
+        if (datasetNames.includes(this.queryParams.dataset_name)) {
+          this.datasetNameLocal = this.queryParams.dataset_name;
+          await this.initSearch();
+        }
+        // invalid dataset name will be handled in Datasets.vue
+      } else {
+        await this.initSearch();
+      }
+      if (this.queryParams.query_string) {
+        // set query_string in search component
+        this.query_string = decodeURIComponent(this.queryParams.query_string);
+      }
+
+      if (this.queryParams) {
+        // all other queryparams are filters and should be added as filters
+        const params = Object.entries(this.queryParams).filter(
+          ([key, value]) =>
+            key !== "query_string" &&
+            key !== "dataset_name" &&
+            key !== "project_name"
+        );
+
+        // setting the filters in the search component
+        for (let [_key, _value] of params) {
+          // encode key and value
+          _key = decodeURIComponent(_key);
+          _value = decodeURIComponent(_value);
+          // if value contains a comma: split it and add multiple filters
+          if (_value.includes(",")) {
+            for (let val of _value.split(",")) {
+              await this.addFilterItem(_key, val);
+            }
+          } else {
+            await this.addFilterItem(_key, _value);
+          }
+        }
+      }
+      // if queryparams are present, run search manually
+      if (Object.keys(this.queryParams).length > 0) {
+        this.search();
+        // Remove query parameters from the URL without reloading the page
+        window.history.replaceState(
+          null,
+          "",
+          window.location.origin + window.location.pathname
+        );
+      }
+    },
+
+    async initializeMapping() {
+      const res = await loadFieldNames();
+      this.fieldNames = res.data;
+      this.mapping = Object.assign(
+        {},
+        ...this.fieldNames.map((_name) => ({
+          [_name]: { items: [], key: "" },
+        }))
+      );
+    },
+
+    async initSearch() {
       this.filters = [];
       this.dataset =
-        this.datasetName && (await loadDatasetByName(this.datasetName));
-      this.search(onMount);
-      loadFieldNames().then((res) => {
-        this.fieldNames = res.data;
-        this.mapping = Object.assign(
-          {},
-          ...this.fieldNames.map((_name) => ({
-            [_name]: { items: [], key: "" },
-          }))
-        );
+        this.datasetNameLocal &&
+        (await loadDatasetByName(this.datasetNameLocal));
+      // not sure if the awaits are necessary
+      await this.search();
+      await this.initializeMapping();
+    },
+
+    assembleQueryUrl() {
+      const baseUrl = window.location.origin + window.location.pathname;
+      // get current project name from store
+
+      const params = new URLSearchParams();
+      if (this.query_string) {
+        params.append("query_string", this.query_string);
+      }
+      if (this.selectedProject && this.selectedProject.name) {
+        params.append("project_name", this.selectedProject.name);
+      }
+      // datasetname
+      if (this.datasetNameLocal) {
+        params.append("dataset_name", this.datasetNameLocal);
+      }
+      this.filters.forEach((filter, index) => {
+        if (filter.key_select && filter.item_select.length > 0) {
+          params.append(filter.key_select, filter.item_select.join(","));
+        }
+      });
+      return `${baseUrl}?${params.toString()}`;
+    },
+    copyQueryToClipboard() {
+      const queryUrl = this.assembleQueryUrl();
+      navigator.clipboard.writeText(queryUrl).then(() => {
+        this.$notify({
+          title: "Copied",
+          text: "Search URL copied to clipboard!",
+          type: "success",
+        });
       });
     },
   },
-  async mounted() {
-    await this.initSearch(true);
-
-    // this.filters = JSON.parse(localStorage['Dataset.search.filters'] || "[]")
-    // this.counter = this.filters.length
-    // this.query_string = JSON.parse(localStorage['Dataset.search.query_string'] || "")
-    // await this.search(true)
+  async created() {
+    // here we should parse the query string and set the filters accordingly
+    await this.processQueryParams();
   },
   watch: {
-    async datasetName() {
-      await this.initSearch(false);
+    async datasetName(newVal) {
+      this.datasetNameLocal = newVal;
+      await this.initSearch();
     },
   },
 };

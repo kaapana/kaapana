@@ -6,15 +6,13 @@ from airflow.utils.dates import days_ago
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from totalsegmentator.TotalSegmentatorOperator import TotalSegmentatorOperator
 from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.MergeMasksOperator import MergeMasksOperator
 from pyradiomics.PyRadiomicsOperator import PyRadiomicsOperator
-
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 
 max_active_runs = 10
 concurrency = max_active_runs * 3
@@ -169,6 +167,13 @@ ui_forms = {
                 "readOnly": False,
                 "required": True,
             },
+            "input": {
+                "title": "Input",
+                "default": "CT",
+                "description": "Input-data modality",
+                "type": "string",
+                "readOnly": True,
+            },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
@@ -203,9 +208,7 @@ get_total_segmentator_model_0 = GetZenodoModelOperator(
     task_ids="Task251_TotalSegmentator_part1_organs_1139subj,Task252_TotalSegmentator_part2_vertebrae_1139subj,Task253_TotalSegmentator_part3_cardiac_1139subj,Task254_TotalSegmentator_part4_muscles_1139subj,Task255_TotalSegmentator_part5_ribs_1139subj,Task256_TotalSegmentator_3mm_1139subj",
 )
 
-get_input = LocalGetInputDataOperator(
-    dag=dag, parallel_downloads=5, check_modality=True
-)
+get_input = GetInputOperator(dag=dag, parallel_downloads=5, check_modality=True)
 
 dcm2nifti = DcmConverterOperator(
     dag=dag,
@@ -498,11 +501,11 @@ pyradiomics_6 = PyRadiomicsOperator(
     parallel_id=ta,
 )
 
-put_to_minio = LocalMinioOperator(
+put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    bucket_name="totalsegmentator",
-    action_operators=[
+    minio_prefix="radiomics-totalsegmentator",
+    batch_input_operators=[
         pyradiomics_0,
         pyradiomics_1,
         pyradiomics_2,
@@ -511,8 +514,8 @@ put_to_minio = LocalMinioOperator(
         pyradiomics_5,
         pyradiomics_6,
     ],
-    file_white_tuples=(".json"),
-    trigger_rule="none_failed",
+    whitelisted_file_extensions=[".json"],
+    trigger_rule="none_failed_min_one_success",
 )
 
 clean = LocalWorkflowCleanerOperator(

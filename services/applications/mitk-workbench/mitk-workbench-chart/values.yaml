@@ -22,4 +22,9 @@ extension_params:
             "NodePort"
         ]
         default: "ClusterIP"
+    gpu_container:
+        definition: "Pod with GPU - only if instance has GPU support"
+        type: "boolean"
+        default: false
+
         

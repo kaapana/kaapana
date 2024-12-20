@@ -6,7 +6,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from classification_training_workflow.PreprocessingOperator import PreprocessingOperator
 from classification_training_workflow.TrainingOperator import TrainingOperator
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 ui_forms = {
@@ -14,9 +14,9 @@ ui_forms = {
         "type": "object",
         "properties": {
             "tag_to_class_mapping_json": {
-                "title": "Tag to class mapping json",
-                "description": "Specify the used tags. E.g.: ['tag0', 'tag1']",
-                "default": "['CT', 'MR']",
+                "title": "Tags for mapping classes",
+                "description": "Specify the labels as tags (e.g. tag0,tag1)",
+                "default": "tag1,tag2",
                 "type": "string",
                 "required": True,
             },
@@ -82,10 +82,10 @@ args = {
 }
 
 dag = DAG(
-    dag_id="classification-training-workflow", default_args=args, schedule_interval=None
+    dag_id="classification-training", default_args=args, schedule_interval=None
 )
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 convert = DcmConverterOperator(dag=dag, input_operator=get_input)
 preprocessing = PreprocessingOperator(
     dag=dag,

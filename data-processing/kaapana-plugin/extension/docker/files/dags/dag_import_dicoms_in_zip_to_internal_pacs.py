@@ -2,7 +2,6 @@ from datetime import timedelta
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.models import DAG
 from airflow.operators.python import BranchPythonOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -21,8 +20,8 @@ ui_forms = {
         "type": "object",
         "properties": {
             "aetitle": {
-                "title": "Dataset tag",
-                "description": "Specify a tag for your dataset.",
+                "title": "Dataset name",
+                "description": "Specify a name for your dataset.",
                 "type": "string",
                 "default": "dicomupload",
                 "required": True,
@@ -51,7 +50,7 @@ dag = DAG(
     schedule_interval=None,
     concurrency=10,
     max_active_runs=5,
-    tags= ["import"]
+    tags=["import"],
 )
 
 get_object_from_uploads = LocalVolumeMountOperator(
@@ -69,9 +68,7 @@ unzip_files = ZipUnzipOperator(
     dag=dag, input_operator=get_object_from_uploads, batch_level=True, mode="unzip"
 )
 
-dicom_send = DcmSendOperator(
-    dag=dag, input_operator=unzip_files, ae_title="uploaded", level="batch"
-)
+dicom_send = DcmSendOperator(dag=dag, input_operator=unzip_files, level="batch")
 
 remove_object_from_file_uploads = LocalVolumeMountOperator(
     dag=dag,

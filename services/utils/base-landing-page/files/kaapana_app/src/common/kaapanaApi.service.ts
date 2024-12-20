@@ -1,14 +1,11 @@
 import Vue from 'vue'
-import request from '@/request'
 import AuthService from '@/common/auth.service'
-import routes from '@/routes/routes'
-
-
+import httpClient from './httpClient'
 
   const helmApiPost = (subUrl: any, payload: any, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
-      request.defaults.timeout = timeout
-      request.post('/kube-helm-api' + subUrl, payload).then((response: any) => {
+      httpClient.defaults.timeout = timeout
+      httpClient.post('/kube-helm-api' + subUrl, payload).then((response: any) => {
         console.log(response)
         resolve(response)
       }).catch((error: any) => {
@@ -20,8 +17,8 @@ import routes from '@/routes/routes'
 
   const helmApiGet = (subUrl: any, params: any, timeout: any = 10000) => {
     return new Promise((resolve, reject) => {
-      request.defaults.timeout = timeout
-      request.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
+      httpClient.defaults.timeout = timeout
+      httpClient.get('/kube-helm-api' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)
@@ -32,7 +29,7 @@ import routes from '@/routes/routes'
 
   const getPolicyData = () => {
     return new Promise((resolve, reject) => {
-      request.get('/kaapana-backend/open-policy-data').then((response: { data: any }) => {
+      httpClient.get('/kaapana-backend/open-policy-data').then((response: { data: any }) => {
         const policyData = response.data
         resolve(policyData)
       }).catch((error:any) => {
@@ -45,7 +42,7 @@ import routes from '@/routes/routes'
     return new Promise((resolve, reject) => {
 
 
-      request.get('/jsons/defaultExternalWebpages.json').then((response: { data: any }) => {
+      httpClient.get('/jsons/defaultExternalWebpages.json').then((response: { data: any }) => {
 
         const externalWebpages = response.data
 
@@ -66,7 +63,7 @@ import routes from '@/routes/routes'
         
         //// The following section checks, if the routes listed in the config file externalWebpages.json is also available, enabled and correctly configured in traefik.
         //// I.E. if there is a service in traefik that routes to the configured endpoint
-        request.get('/kaapana-backend/get-traefik-routes').then((response: { data: {} }) => {
+        httpClient.get('/kaapana-backend/get-traefik-routes').then((response: { data: {} }) => {
           trainingJson = response.data
 
           for (const key1 in externalWebpages) {
@@ -84,7 +81,7 @@ import routes from '@/routes/routes'
           
           //// Get a list of the available dashboards in opensearch and add them as subsections to the meta section.
           let osDashboardsUrl = '/kaapana-backend/get-os-dashboards'
-          request.get(osDashboardsUrl)
+          httpClient.get(osDashboardsUrl)
             .then((response: { data: any }) => {
               var dashboards = response.data['dashboards']
               const osDashboardsSubsections: { [k: string]: any } = {};
@@ -129,7 +126,7 @@ import routes from '@/routes/routes'
 
   const federatedClientApiPost = (subUrl: any, payload: any = null, params: any=null) => {
     return new Promise((resolve, reject) => {
-      request.post('/kaapana-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
+      httpClient.post('/kaapana-backend/client' + subUrl, payload, { params: params}).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)
@@ -140,7 +137,7 @@ import routes from '@/routes/routes'
 
   const federatedClientApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
-      request.get('/kaapana-backend/client' + subUrl, { params }).then((response: any) => {
+      httpClient.get('/kaapana-backend/client' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)
@@ -151,7 +148,7 @@ import routes from '@/routes/routes'
 
   const federatedClientApiPut = (subUrl: any, payload: any=null, params: any=null) => {
     return new Promise((resolve, reject) => {
-      request.put('/kaapana-backend/client' + subUrl,  payload, { params: params }).then((response: any) => {
+      httpClient.put('/kaapana-backend/client' + subUrl,  payload, { params: params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)
@@ -162,7 +159,7 @@ import routes from '@/routes/routes'
 
   const federatedClientApiDelete = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
-      request.delete('/kaapana-backend/client' + subUrl, { params: params} ).then((response: any) => {
+      httpClient.delete('/kaapana-backend/client' + subUrl, { params: params} ).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.response.data)
@@ -174,7 +171,7 @@ import routes from '@/routes/routes'
   const federatedRemoteApiPut = (subUrl: any, payload: any = null,  params: any=null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
-        request.put('/kaapana-backend/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
+        httpClient.put('/kaapana-backend/remote' + subUrl, payload, { params: params, headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
           console.log('Failed: ' + error.response.data)
@@ -190,7 +187,7 @@ import routes from '@/routes/routes'
   const federatedRemoteApiPost = (subUrl: any, payload: any=null, params: any=null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
-        request.post('/kaapana-backend/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
+        httpClient.post('/kaapana-backend/remote' + subUrl, payload, {params: params, headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
           console.log('Failed: ' + error.response.data)
@@ -206,7 +203,7 @@ import routes from '@/routes/routes'
   const federatedRemoteApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
-        request.get('/kaapana-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
+        httpClient.get('/kaapana-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
           console.log('Failed: ' + error.response.data)
@@ -221,7 +218,7 @@ import routes from '@/routes/routes'
   const federatedRemoteApiDelete = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
       AuthService.getFederatedHeaders().then((response: any) =>  {
-        request.delete('/kaapana-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
+        httpClient.delete('/kaapana-backend/remote' + subUrl, { params , headers: response}).then((response: any) => {
           resolve(response)
         }).catch((error: any) => {
           console.log('Failed: ' + error.response.data)
@@ -235,10 +232,32 @@ import routes from '@/routes/routes'
   }
   const kaapanaApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
-      request.get('/kaapana-backend/' + subUrl, { params }).then((response: any) => {
+      httpClient.get('/kaapana-backend' + subUrl, { params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
         console.log('Failed: ' + error.data)
+        reject(error)
+      })
+    })
+  }
+
+  const kaapanaApiPut = (subUrl: any, payload: any=null, params: any=null) => {
+    return new Promise((resolve, reject) => {
+      httpClient.put('/kaapana-backend' + subUrl,  payload, { params: params }).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
+        reject(error)
+      })
+    })
+  }
+
+  const kaapanaApiDelete = (subUrl: any, params: any = null) => {
+    return new Promise((resolve, reject) => {
+      httpClient.delete('/kaapana-backend' + subUrl, { params: params} ).then((response: any) => {
+        resolve(response)
+      }).catch((error: any) => {
+        console.log('Failed: ' + error.response.data)
         reject(error)
       })
     })
@@ -274,7 +293,9 @@ import routes from '@/routes/routes'
     federatedRemoteApiGet,
     federatedRemoteApiDelete,
     kaapanaApiGet,
+    kaapanaApiPut,
+    kaapanaApiDelete,
     syncRemoteInstances
   }
 
-export default kaapanaApiService
+export default kaapanaApiService;

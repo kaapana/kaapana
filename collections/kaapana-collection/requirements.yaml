@@ -6,6 +6,8 @@ dependencies:
     version: 0.0.0
   - name: code-server-chart
     version: 0.0.0
+  - name: edk
+    version: 0.0.0
   - name: jupyterlab-chart
     version: 0.0.0
   - name: federated-setup-central-test-workflow
@@ -17,13 +19,13 @@ dependencies:
   - name: slicer-workbench-chart
     version: 0.0.0
   - name: mitk-flow-chart
-    version: 0.0.0 
+    version: 0.0.0
   - name: mitk-flow-workflow
     version: 0.0.0
   - name: bodypartregression-workflow
     version: 0.0.0
-  - name: wsiconv-workflow
-    version: 0.0.0
+  # - name: wsiconv-workflow
+  #   version: 0.0.0
   - name: nnunet-workflow
     version: 0.0.0
   - name: total-segmentator-workflow
@@ -78,3 +80,13 @@ dependencies:
     version: 0.0.0
   - name: collabora-chart
     version: 0.0.0
+  - name: minio-sync-chart
+    version: 0.0.0
+  - name: project-namespace
+    version: 0.0.0
+  - name: custom-registry-chart
+    version: 0.0.0
+  - name: dev-server-chart
+    version: 0.0.0
+  # - name: desktop-container-chart
+  #   version: 0.0.0

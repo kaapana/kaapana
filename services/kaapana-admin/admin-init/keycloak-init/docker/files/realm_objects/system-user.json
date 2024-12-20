@@ -4,9 +4,9 @@
     "emailVerified" : false,
     "firstName" : "System",
     "lastName" : "User",
-    "email" : "",
+    "email" : "user@system.kaapana",
     "attributes" : { "policy": ["consoleAdmin"]
       },
     "requiredActions" : [ ],
-    "realmRoles" : [ "dcm4chee-admin" ]
+    "groups": ["kaapana_admin"]
   }

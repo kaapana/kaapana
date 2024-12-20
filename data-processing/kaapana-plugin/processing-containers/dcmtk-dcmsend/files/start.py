@@ -1,20 +1,27 @@
 import os
 import glob
-import time
 from typing import List
-import warnings
 from subprocess import PIPE, run
 import pydicom
-import requests
 from pathlib import Path
+from kaapanapy.helper import load_workflow_config
+from kaapanapy.settings import KaapanaSettings
 
-HOST = os.getenv("HOST")
-PORT = os.getenv("PORT")
+PACS_HOST = os.getenv("PACS_HOST")
+PACS_PORT = os.getenv("PACS_PORT")
 HTTP_PORT = os.getenv("HTTP_PORT", "8080")
 ### If the environment variable AETITLE is "NONE", then I want to set AETITLE = None
 AETITLE = os.getenv("AETITLE", "NONE")
 AETITLE = None if AETITLE == "NONE" else AETITLE
 LEVEL = os.getenv("LEVEL", "element")
+WORKFLOW_CONFIG = load_workflow_config()
+# add TASK_NUM to AETITLE if it exists
+TASK_NUM = WORKFLOW_CONFIG.get("workflow_form").get("task_num")
+if AETITLE is not None and TASK_NUM is not None:
+    AETITLE = AETITLE + str(TASK_NUM)
+PROJECT = WORKFLOW_CONFIG.get("project_form")
+PROJECT_NAME = PROJECT.get("name")
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 print(f"AETITLE: {AETITLE}")
 print(f"LEVEL: {LEVEL}")
@@ -22,7 +29,7 @@ print(f"LEVEL: {LEVEL}")
 dicom_sent_count = 0
 
 
-def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
+def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
     global dicom_sent_count
 
     dicom_list: List[Path] = sorted(
@@ -68,18 +75,29 @@ def send_dicom_data(send_dir, aetitle=AETITLE, timeout=60):
                     aetitle = "KAAPANA export"
                     print(f"Using default aetitle {aetitle}")
 
-        print(f"Sending {dicom_dir} to {HOST} {PORT} with aetitle {aetitle}")
+        print(f"Sending {dicom_dir} to {PACS_HOST} {PACS_PORT} with aetitle {aetitle}")
         # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
+
+        if PACS_HOST == f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc":
+            if aetitle.startswith("kp-"):
+                dataset = aetitle
+            else:
+                dataset = f"kp-{aetitle}"
+            if not project_name.startswith("kp-"):
+                project_name = f"kp-{project_name}"
+        else:
+            dataset = aetitle
+
         env = dict(os.environ)
         command = [
             "dcmsend",
             "-v",
-            f"{HOST}",
-            f"{PORT}",
+            f"{PACS_HOST}",
+            f"{PACS_PORT}",
             "-aet",
-            "kaapana",
+            dataset,
             "-aec",
-            f"{aetitle}",
+            project_name,
             "--scan-directories",
             "--no-halt",
             f"{dicom_dir}",
@@ -138,14 +156,14 @@ if LEVEL == "element":
         element_input_dir = os.path.join(
             batch_element_dir, os.environ["OPERATOR_IN_DIR"]
         )
-        send_dicom_data(element_input_dir, timeout=600)
+        send_dicom_data(element_input_dir, project_name=PROJECT_NAME, timeout=600)
 
 elif LEVEL == "batch":
     batch_input_dir = os.path.join(
         "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
     )
     print(f"Sending DICOM data from batch-level: {batch_input_dir}")
-    send_dicom_data(batch_input_dir, timeout=3600)
+    send_dicom_data(batch_input_dir, project_name=PROJECT_NAME, timeout=3600)
 else:
     raise NameError(
         'level must be either "element" or "batch". \

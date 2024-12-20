@@ -5,7 +5,6 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from kaapana.operators.GetZenodoModelOperator import GetZenodoModelOperator
 from kaapana.operators.Itk2DcmSegOperator import Itk2DcmSegOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
@@ -204,7 +203,6 @@ dag = DAG(
 get_input = LocalGetInputDataOperator(
     dag=dag, parallel_downloads=5, check_modality=True
 )
-get_task_model = GetZenodoModelOperator(dag=dag)
 dcm2nifti = DcmConverterOperator(
     dag=dag, input_operator=get_input, output_format="nii.gz"
 )
@@ -234,7 +232,6 @@ dcmseg_send_multi = DcmSendOperator(
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_task_model >> nnunet_predict
 (
     get_input
     >> dcm2nifti

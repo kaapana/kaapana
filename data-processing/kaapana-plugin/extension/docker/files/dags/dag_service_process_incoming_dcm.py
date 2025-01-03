@@ -14,10 +14,6 @@ from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
-from kaapana.operators.LocalSanitizeProjectAndDatasetOperator import (
-    LocalSanitizeProjectAndDatasetOperator,
-)
-
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
@@ -30,6 +26,9 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.LocalSanitizeProjectAndDatasetOperator import (
+    LocalSanitizeProjectAndDatasetOperator,
+)
 from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
@@ -224,12 +223,32 @@ save_to_meta = LocalValidationResult2MetaOperator(
     apply_project_context=True,
 )
 
+save_meta_to_admin_index = LocalValidationResult2MetaOperator(
+    dag=dag,
+    name="results-to-os-admin-index",
+    input_operator=get_input_json_from_input_files,
+    validator_output_dir=validate.operator_out_dir,
+    validation_tag="00111001",
+    apply_project_context=False,
+)
+
 put_html_to_minio = LocalMinioOperator(
     dag=dag,
     action_operator_dirs=[validate.operator_out_dir],
     json_operator=extract_metadata,
     target_dir_prefix="staticwebsiteresults",
     name="put-results-html-to-minio",
+    action="put",
+    file_white_tuples=(".html"),
+)
+
+put_html_to_minio_admin_bucket = LocalMinioOperator(
+    dag=dag,
+    name="put-results-html-to-minio-admin-bucket",
+    action_operator_dirs=[validate.operator_out_dir],
+    json_operator=extract_metadata,
+    bucket_name="project-admin",
+    target_dir_prefix="staticwebsiteresults",
     action="put",
     file_white_tuples=(".html"),
 )
@@ -337,7 +356,9 @@ extract_metadata >> assign_to_project >> [validate, skip_if_dcm_is_no_segmetatio
     >> get_input_json_from_input_files
     >> clear_validation_results
     >> save_to_meta
+    >> save_meta_to_admin_index
     >> put_html_to_minio
+    >> put_html_to_minio_admin_bucket
     >> clean
 )
 

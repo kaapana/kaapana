@@ -65,7 +65,7 @@ class ValidationResult2MetaOperator(KaapanaBaseOperator):
         if validator_output_dir is not None:
             env_vars["VALIDATOR_OUTPUT_DIR"] = validator_output_dir
 
-        if opensearch_index is None:
+        if opensearch_index is not None:
             env_vars["OPENSEARCH_INDEX"] = opensearch_index
 
         env_vars["VALIDATION_TAG"] = validation_tag

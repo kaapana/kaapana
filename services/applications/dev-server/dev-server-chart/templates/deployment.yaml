@@ -39,7 +39,7 @@ spec:
             mountPath:  /kaapana/.vscode/launch.json
             subPath: launch.json
           - name: configs
-            mountPath: /root/.local/share/code-server/User/settings.json
+            mountPath: /root/.local/share/code-server/Machine/settings.json
             subPath: settings.json
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
           - name: dshm
@@ -53,7 +53,7 @@ spec:
             path: keybindings.json
           - key: launch.json
             path: launch.json
-          - key: user_settings.json
+          - key: machine_settings.json
             path: settings.json
 {{ include "dynamicVolumes" $ | indent 6 }}
       - name: dshm

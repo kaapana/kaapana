@@ -44,7 +44,7 @@ data:
             "when": "textInputFocus && !editorReadonly"
         }
     ]
-  user_settings.json: |-
+  machine_settings.json: |-
     {
         "workbench.colorTheme": "Default Dark+",
         "python.defaultInterpreterPath": "/opt/venv/bin/python"

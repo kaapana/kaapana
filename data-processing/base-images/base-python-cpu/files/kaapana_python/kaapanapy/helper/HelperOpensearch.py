@@ -1,7 +1,6 @@
 from typing import Dict, List
 
 from kaapanapy.helper import get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
 from kaapanapy.logger import get_logger
 
 logger = get_logger(__name__)
@@ -29,9 +28,13 @@ class HelperOpensearch:
         self.os_client = get_opensearch_client()
 
     def get_query_dataset(
-        query, index=None, only_uids=False, include_custom_tag="", exclude_custom_tag=""
+        self,
+        query,
+        index,
+        only_uids=False,
+        include_custom_tag="",
+        exclude_custom_tag="",
     ):
-        index = index if index is not None else HelperOpensearch.index
         print("Getting dataset for query: {}".format(query))
         print("index: {}".format(index))
         includes = [
@@ -54,11 +57,10 @@ class HelperOpensearch:
         }
 
         try:
-            hits = HelperOpensearch.execute_opensearch_query(**query_dict)
+            hits = self.execute_opensearch_query(os_client=self.os_client, **query_dict)
         except Exception as e:
             print("ERROR in search!")
-            print(e)
-            return None
+            raise e
 
         if only_uids:
             return [hit["_id"] for hit in hits]
@@ -91,10 +93,9 @@ class HelperOpensearch:
         :param scroll: use scrolling or pagination -> scrolling currently not impelmented
         :return: aggregated search results
         """
-        index = index or HelperOpensearch.index
 
         def _execute_opensearch_query(search_after=None, size=10000) -> List:
-            res = HelperOpensearch.os_client.search(
+            res = self.os_client.search(
                 body={
                     "query": query,
                     "size": size,
@@ -115,7 +116,11 @@ class HelperOpensearch:
         return _execute_opensearch_query()
 
     def get_dcm_uid_objects(
-        series_instance_uids, include_custom_tag="", exclude_custom_tag=""
+        self,
+        index,
+        series_instance_uids,
+        include_custom_tag="",
+        exclude_custom_tag="",
     ):
         # default query for fetching via identifiers
         query = {"bool": {"must": [{"ids": {"values": series_instance_uids}}]}}
@@ -139,7 +144,7 @@ class HelperOpensearch:
 
         res = self.execute_opensearch_query(
             query=query,
-            index=HelperOpensearch.index,
+            index=index,
             source={
                 "includes": [
                     DicomTags.study_uid_tag,
@@ -190,5 +195,4 @@ class HelperOpensearch:
 
             print(f"# ERROR deleting from Opensearch: {str(e)}")
             print(f"# query: {query}")
-            traceback.print_exc()
             exit(1)

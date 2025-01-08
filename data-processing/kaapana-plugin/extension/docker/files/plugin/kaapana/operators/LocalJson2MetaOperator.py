@@ -1,10 +1,11 @@
 import glob
 import json
 import os
-import time
-
 import pydicom
+import time
 import requests
+import pydicom
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 from kaapanapy.logger import get_logger

@@ -6,15 +6,14 @@ import os
 import shutil
 import time
 from datetime import timedelta
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from multiprocessing.pool import ThreadPool
 from os.path import dirname, exists, join
 from pathlib import Path
 
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
 from kaapanapy.logger import get_logger
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
 from kaapanapy.settings import OpensearchSettings
@@ -337,7 +336,7 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         if len(download_list) == 0:
             raise Exception("No series to download !!")
         series_download_fail = []
-        self.dcmweb_helper = HelperDcmWeb()
+        self.dcmweb_helper = get_dcmweb_helper()
 
         num_done = 0
         num_total = len(download_list)

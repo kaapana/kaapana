@@ -7,6 +7,7 @@ from pathlib import Path
 import pydicom
 from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG
+from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
@@ -221,15 +222,7 @@ save_to_meta = LocalValidationResult2MetaOperator(
     validator_output_dir=validate.operator_out_dir,
     validation_tag="00111001",
     apply_project_context=True,
-)
-
-save_meta_to_admin_index = LocalValidationResult2MetaOperator(
-    dag=dag,
-    name="results-to-os-admin-index",
-    input_operator=get_input_json_from_input_files,
-    validator_output_dir=validate.operator_out_dir,
-    validation_tag="00111001",
-    apply_project_context=False,
+    index_to_default_project=True,
 )
 
 put_html_to_minio = LocalMinioOperator(
@@ -242,15 +235,62 @@ put_html_to_minio = LocalMinioOperator(
     file_white_tuples=(".html"),
 )
 
-put_html_to_minio_admin_bucket = LocalMinioOperator(
-    dag=dag,
+
+def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
+    # Fetch the Project Bucket name and store the validation results
+    # html file if the project is not a admin project
+    import json
+
+    import requests
+    from kaapanapy.helper import get_minio_client
+    from kaapanapy.settings import KaapanaSettings
+
+    kaapana_settings = KaapanaSettings()
+    minio = get_minio_client()
+
+    target_dir_prefix = "staticwebsiteresults"
+
+    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
+    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
+    for batch_element_dir in batch_folder:
+        json_dir = Path(batch_element_dir) / extract_metadata.operator_out_dir
+        json_files = [f for f in json_dir.glob("*.json")]
+        assert len(json_files) == 1
+        metadata_file = json_files[0]
+        with open(metadata_file, "r") as f:
+            metadata = json.load(f)
+
+        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")[0]
+
+        validator_results_dir = Path(batch_element_dir) / validate.operator_out_dir
+        result_files = [f for f in validator_results_dir.glob("*.html")]
+
+        if len(result_files) > 0 and project_name != "admin":
+            response = requests.get(
+                f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
+            )
+            response.raise_for_status()  # Raise an error if the request fails
+
+            project = response.json()
+
+            root_path = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id
+            for file_path in result_files:
+                object_path = (
+                    f"{target_dir_prefix}/{str(file_path.relative_to(root_path))}"
+                )
+                minio.fput_object(
+                    bucket_name=project.get("s3_bucket"),
+                    object_name=object_path,
+                    file_path=file_path,
+                )
+
+
+# Task to put the validation results in minio admin bucket for non-admin projects
+put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
     name="put-results-html-to-minio-admin-bucket",
-    action_operator_dirs=[validate.operator_out_dir],
-    json_operator=extract_metadata,
-    bucket_name="project-admin",
+    python_callable=fetch_bucket_name_and_put_html_to_minio_admin_bucket,
     target_dir_prefix="staticwebsiteresults",
-    action="put",
-    file_white_tuples=(".html"),
+    dag=dag,
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
@@ -356,9 +396,8 @@ extract_metadata >> assign_to_project >> [validate, skip_if_dcm_is_no_segmetatio
     >> get_input_json_from_input_files
     >> clear_validation_results
     >> save_to_meta
-    >> save_meta_to_admin_index
     >> put_html_to_minio
-    >> put_html_to_minio_admin_bucket
+    >> put_results_html_to_minio_admin_bucket
     >> clean
 )
 

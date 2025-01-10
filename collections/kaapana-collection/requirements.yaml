@@ -88,5 +88,7 @@ dependencies:
     version: 0.0.0
   - name: dev-server-chart
     version: 0.0.0
+  - name: bridgehead-workflow
+    version: 0.0.0
   # - name: desktop-container-chart
   #   version: 0.0.0

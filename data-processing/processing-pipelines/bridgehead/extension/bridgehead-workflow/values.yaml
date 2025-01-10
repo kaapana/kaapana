@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-collect-bridgehead-metadata"
+    action: "copy"

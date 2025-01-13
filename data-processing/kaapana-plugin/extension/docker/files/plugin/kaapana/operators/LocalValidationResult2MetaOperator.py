@@ -10,10 +10,9 @@ from typing import List
 import requests
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.settings import OpensearchSettings
-from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.helper import get_opensearch_client
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.settings import OpensearchSettings
 from pytz import timezone
 
 
@@ -129,17 +128,24 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         project = response.json()
         return project
 
+    def extract_project_name_from_ctp_id(self, meta_json: dict):
+        ctp_value = meta_json.get("00120020 ClinicalTrialProtocolID_keyword")
+        if not ctp_value:
+            return None
+
+        if isinstance(ctp_value, list):
+            clinical_trial_protocol_id = str(ctp_value[0])
+        else:
+            clinical_trial_protocol_id = str(ctp_value)
+
+        return clinical_trial_protocol_id
+
     def get_project_config_from_meta_json(self, json_dict):
         print(f"Applying action to project bucket")
         # id = json_dict["0020000E SeriesInstanceUID_keyword"]
-        ctp_value = json_dict.get("00120020 ClinicalTrialProtocolID_keyword")
+        clinical_trial_protocol_id = self.extract_project_name_from_ctp_id(json_dict)
 
-        if ctp_value:
-            if isinstance(ctp_value, list):
-                clinical_trial_protocol_id = ctp_value[0]
-            else:
-                clinical_trial_protocol_id = str(ctp_value)
-
+        if clinical_trial_protocol_id:
             project = self.get_project_by_name(clinical_trial_protocol_id)
             if project:
                 return project
@@ -153,6 +159,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         series_instance_uid: str,
         validation_tags: List[ValdationResultItem],
         clear_results: bool = False,
+        os_index: str = "",
     ):
         """
         Adds validation tags to a document in OpenSearch.
@@ -161,22 +168,24 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
             series_instance_uid (str): The unique identifier for the series in OpenSearch.
             validation_tags (List[tuple]): A list of tuples containing validation tags to be added.
             clear_results (bool): Whether to clear existing validation results before adding new ones. Defaults to False.
-
+            os_index (str): OpenSearch index name to store the tags in Opensearch. If not provided, Object Opensearch index
+                will be used.
         Returns:
             None
         """
         print(series_instance_uid)
         print(f"Tags 2 add: {validation_tags}")
 
-        doc = self.os_client.get(index=self.opensearch_index, id=series_instance_uid)
+        if os_index == "":
+            os_index = self.opensearch_index
+
+        doc = self.os_client.get(index=os_index, id=series_instance_uid)
         print(doc)
 
         if clear_results:
             # Write Tags back
             body = {"doc": {self.tag_field: None}}
-            self.os_client.update(
-                index=self.opensearch_index, id=series_instance_uid, body=body
-            )
+            self.os_client.update(index=os_index, id=series_instance_uid, body=body)
 
         final_tags = {}
 
@@ -191,9 +200,9 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
 
         # Write validation results to doc
         body = {"doc": {self.tag_field: final_tags}}
-        self.os_client.update(
-            index=self.opensearch_index, id=series_instance_uid, body=body
-        )
+        self.os_client.update(index=os_index, id=series_instance_uid, body=body)
+
+        return
 
     def _extract_validation_results_from_html(self, html_output_path: str):
         """
@@ -218,6 +227,45 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         validation_time = get_file_creation_time(html_output_path)
 
         return n_errors, n_warnings, validation_time
+
+    def add_validation_results_using_uid_from_metadata(
+        self,
+        metadata: dict,
+        validation_result_tags: tuple,
+        apply_project_context: bool = True,
+        os_index: str = "",
+    ):
+        # use object opensearch index if specific OS index not provided
+        if os_index == "":
+            os_index = self.opensearch_index
+
+        # if `apply_project_context` is set to true,
+        # it will look for the project config using the ClinicalTrialProtocolID
+        # from the DICOM metadata JSON and use the project OpenSearch index
+        # to add the results
+        if apply_project_context:
+            project_config = self.get_project_config_from_meta_json(metadata)
+            if project_config:
+                os_index = project_config["opensearch_index"]
+
+        series_uid = metadata[
+            DicomTags.series_uid_tag
+        ]  # "0020000E SeriesInstanceUID_keyword"
+        existing_tags = metadata.get(self.tag_field, None)
+
+        clear_old_results = False
+        if existing_tags:
+            print(
+                f"Warning!! Data found on tag {self.tag_field}. Will be replaced by newer results"
+            )
+            clear_old_results = True
+
+        return self.add_tags_to_opensearch(
+            series_uid,
+            validation_tags=validation_result_tags,
+            clear_results=clear_old_results,
+            os_index=os_index,
+        )
 
     def start(self, ds, **kwargs):
         """
@@ -282,33 +330,29 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
 
-                    # if `apply_project_context` is set to true,
-                    # it will look for the project config using the ClinicalTrialProtocolID
-                    # from the DICOM metadata JSON and use the project OpenSearch index
-                    # to add the results
-                    if self.apply_project_context:
-                        project_config = self.get_project_config_from_meta_json(
-                            metadata
-                        )
-                        if project_config:
-                            self.opensearch_index = project_config["opensearch_index"]
+                self.add_validation_results_using_uid_from_metadata(
+                    metadata=metadata,
+                    validation_result_tags=tags_tuple,
+                    apply_project_context=self.apply_project_context,
+                    os_index=self.opensearch_index,
+                )
 
-                    series_uid = metadata[
-                        DicomTags.series_uid_tag
-                    ]  # "0020000E SeriesInstanceUID_keyword"
-                    existing_tags = metadata.get(self.tag_field, None)
+                default_project_name = "admin"
+                project_name = self.extract_project_name_from_ctp_id(metadata)
+                if not project_name:
+                    project_name = default_project_name
 
-                    clear_old_results = False
-                    if existing_tags:
-                        print(
-                            f"Warning!! Data found on tag {self.tag_field}. Will be replaced by newer results"
-                        )
-                        clear_old_results = True
-
-                    self.add_tags_to_opensearch(
-                        series_uid,
-                        validation_tags=tags_tuple,
-                        clear_results=clear_old_results,
+                # index again to opensearch admin project index if `index_to_default_project`
+                # set to `True` and project name is not `admin`
+                if (
+                    project_name != default_project_name
+                    and self.index_to_default_project
+                ):
+                    self.add_validation_results_using_uid_from_metadata(
+                        metadata=metadata,
+                        validation_result_tags=tags_tuple,
+                        apply_project_context=False,
+                        os_index=OpensearchSettings().default_index,
                     )
 
     def __init__(
@@ -317,8 +361,9 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         validator_output_dir: str,
         validation_tag: str = "00111001",
         name: str = "results-to-open-search",
-        apply_project_context=None,
         opensearch_index=None,
+        apply_project_context: bool = False,
+        index_to_default_project: bool = False,
         *args,
         **kwargs,
     ):
@@ -332,9 +377,11 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                     Multiple items of the validation results will be tagged by incrementing
                     this tag. e.g. 00111002, 00111003, ..
             name (str): Name of the operator (default: "results-to-open-search").
+            opensearch_index (str): Index in OpenSearch where metadata will be stored (default: None).
             apply_project_context (bool): (Additional) If set to true, will look for ClinicalTrialProtocolID in the DICOM metadata and
                 set the opensearch index from the metadata JSON file.
-            opensearch_index (str): Index in OpenSearch where metadata will be stored (default: None).
+            index_to_default_project (bool): (Additional) If set to True, will store the validation result to default admin
+                project alongside with the incoming project, if the incoming project is not the default project `admin`.
             *args: Additional arguments for the parent class.
             **kwargs: Additional keyword arguments for the parent class.
 
@@ -347,6 +394,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         self.tag_field = f"{validation_tag} ValidationResults_object"
         self.opensearch_index = opensearch_index or OpensearchSettings().default_index
         self.apply_project_context = bool(apply_project_context)
+        self.index_to_default_project = bool(index_to_default_project)
         self.os_client = None
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

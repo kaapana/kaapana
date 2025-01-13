@@ -7,6 +7,7 @@ from pathlib import Path
 import pydicom
 from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG
+from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
@@ -14,10 +15,6 @@ from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
-from kaapana.operators.LocalSanitizeProjectAndDatasetOperator import (
-    LocalSanitizeProjectAndDatasetOperator,
-)
-
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
@@ -30,6 +27,9 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.LocalSanitizeProjectAndDatasetOperator import (
+    LocalSanitizeProjectAndDatasetOperator,
+)
 from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
@@ -222,6 +222,7 @@ save_to_meta = LocalValidationResult2MetaOperator(
     validator_output_dir=validate.operator_out_dir,
     validation_tag="00111001",
     apply_project_context=True,
+    index_to_default_project=True,
 )
 
 put_html_to_minio = LocalMinioOperator(
@@ -232,6 +233,63 @@ put_html_to_minio = LocalMinioOperator(
     name="put-results-html-to-minio",
     action="put",
     file_white_tuples=(".html"),
+)
+
+
+def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
+    # Fetch the Project Bucket name and store the validation results
+    # html file if the project is not a admin project
+    import json
+
+    import requests
+    from kaapanapy.helper import get_minio_client
+    from kaapanapy.settings import KaapanaSettings
+
+    kaapana_settings = KaapanaSettings()
+    minio = get_minio_client()
+
+    target_dir_prefix = "staticwebsiteresults"
+
+    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
+    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
+    for batch_element_dir in batch_folder:
+        json_dir = Path(batch_element_dir) / extract_metadata.operator_out_dir
+        json_files = [f for f in json_dir.glob("*.json")]
+        assert len(json_files) == 1
+        metadata_file = json_files[0]
+        with open(metadata_file, "r") as f:
+            metadata = json.load(f)
+
+        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")[0]
+
+        validator_results_dir = Path(batch_element_dir) / validate.operator_out_dir
+        result_files = [f for f in validator_results_dir.glob("*.html")]
+
+        if len(result_files) > 0 and project_name != "admin":
+            response = requests.get(
+                f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
+            )
+            response.raise_for_status()  # Raise an error if the request fails
+
+            project = response.json()
+
+            root_path = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id
+            for file_path in result_files:
+                object_path = (
+                    f"{target_dir_prefix}/{str(file_path.relative_to(root_path))}"
+                )
+                minio.fput_object(
+                    bucket_name=project.get("s3_bucket"),
+                    object_name=object_path,
+                    file_path=file_path,
+                )
+
+
+# Task to put the validation results in minio admin bucket for non-admin projects
+put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
+    name="put-results-html-to-minio-admin-bucket",
+    python_callable=fetch_bucket_name_and_put_html_to_minio_admin_bucket,
+    dag=dag,
 )
 
 get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
@@ -338,6 +396,7 @@ extract_metadata >> assign_to_project >> [validate, skip_if_dcm_is_no_segmetatio
     >> clear_validation_results
     >> save_to_meta
     >> put_html_to_minio
+    >> put_results_html_to_minio_admin_bucket
     >> clean
 )
 

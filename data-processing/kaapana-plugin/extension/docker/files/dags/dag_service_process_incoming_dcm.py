@@ -289,7 +289,6 @@ def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
 put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
     name="put-results-html-to-minio-admin-bucket",
     python_callable=fetch_bucket_name_and_put_html_to_minio_admin_bucket,
-    target_dir_prefix="staticwebsiteresults",
     dag=dag,
 )
 

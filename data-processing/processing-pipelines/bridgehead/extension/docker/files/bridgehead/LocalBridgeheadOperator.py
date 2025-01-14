@@ -17,6 +17,7 @@ class LocalBridgeheadOperator(KaapanaPythonBaseOperator):
     def generate_config(self, run_dir):
         auth_header = {"x-api-key": self.auth_key}
         temp_zip_file = os.path.join(run_dir, self.operator_out_dir, "tempzip.zip")
+        os.makedirs(os.path.dirname(temp_zip_file), exist_ok=True)
         return {
             "auth_header": auth_header,
             "base_url": self.base_url,
@@ -57,6 +58,7 @@ class LocalBridgeheadOperator(KaapanaPythonBaseOperator):
         r = requests.get(
             endpoint, headers=config["auth_header"], stream=True, verify=False
         )
+
         with open(config["temp_zip_file"], "wb") as fd:
             for chunk in r.iter_content(chunk_size=128):
                 fd.write(chunk)
@@ -101,7 +103,7 @@ class LocalBridgeheadOperator(KaapanaPythonBaseOperator):
     def __init__(self, dag, **kwargs):
         # TODO: add base_url to envs and auth_key to e.g. an kubernetes-secret
         self.base_url = "add-here"
-        self.auth_key = "CHANGEME"
+        self.auth_key = "CHANGEME"  #
 
         super().__init__(
             dag=dag, name="bridgehead", python_callable=self.start, **kwargs

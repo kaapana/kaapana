@@ -42,19 +42,19 @@ dag = DAG(
     schedule_interval=None,
 )
 
-get_input = GetInputOperator(dag=dag, data_type='json')
+get_input = GetInputOperator(dag=dag, data_type="json")
 
-bridgehead =LocalBridgeheadOperator(dag=dag, input_operator=get_input)
+bridgehead = LocalBridgeheadOperator(dag=dag, input_operator=get_input)
 
 put_to_minio = MinioOperator(
     dag=dag,
     none_batch_input_operators=[bridgehead],
     action="put",
     minio_prefix="downloads",
-    zip_files=True,
+    zip_files=False,
 )
 
 
-#clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> bridgehead >> put_to_minio #>> clean
+get_input >> bridgehead >> put_to_minio >> clean

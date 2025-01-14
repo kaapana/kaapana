@@ -6,10 +6,10 @@ import traceback
 from typing import Any, Dict, List
 
 import requests
-from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
-from kaapanapy.helper.HelperOpensearch import HelperOpensearch
+from kaapanapy.helper.HelperOpensearch import HelperOpensearch, DicomTags
+from kaapanapy.helper import load_workflow_config, get_opensearch_client
+from kaapanapy.settings import OperatorSettings
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -19,35 +19,43 @@ logging.basicConfig(
 logger = logging.getLogger(__file__)
 
 
-class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
+class ExternalPacsOperator:
     """
-    This operator is used to ADD or DELETE external PACs using multiplexer service (extension)
+    This operator is used to ADD external PACs to the project.
     It creates a kubernetes secret with credentials, adds the endpoint to the database, and download metadata of all instances.
     """
+    
     DICOM_WEB_MULTIPLEXER_SERVICE = (
         "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer"
     )
 
-    def __init__(
-        self,
-        dag,
-        name: str = "external_pacs_operator",
-        action: str = "add",
-        **kwargs,
-    ):
-        """
-        Initializes the LocalExternalPacsOperator.
+    def __init__(self):
+        self.operator_settings = OperatorSettings()
+        self.workflow_config = load_workflow_config()
+        self.project_form: dict = self.workflow_config.get("project_form")
+        self.workflow_form: dict = self.workflow_config.get("workflow_form")
 
-        Parameters:
-            dag: The Airflow DAG this operator is part of.
-            name (str): The name of the operator. Defaults to "external_pacs_operator".
-            action (str): Action to be performed ("add" or "delete"). Defaults to "add".
-            **kwargs: Additional keyword arguments.
+    def start(self):
         """
-        super().__init__(
-            dag=dag, name=name, batch_name=None, python_callable=self.start, **kwargs
-        )
-        self.action = action
+        Starts the ExternalPacsOperator
+        """
+        logger.info("# Starting module ExternalPacsOperator...")
+
+        dcmweb_endpoint = self.workflow_form.get("dcmweb_endpoint")
+        service_account_info = self.workflow_form.get("service_account_info")
+
+        if dcmweb_endpoint and service_account_info:
+            service_account_info = self._decode_service_account_info(
+                service_account_info
+            )
+            self.add_to_multiplexer(
+                endpoint=dcmweb_endpoint, secret_data=service_account_info
+            )
+
+            self.download_external_metadata(
+                dcmweb_endpoint,
+                self.workflow_form.get("dataset_name", "external-data"),
+            )
 
     def _filter_instances_to_import_by_series_uid(
         self, metadata: List[Dict[str, Any]]
@@ -66,11 +74,12 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             return instance.get("0020000E", {"Value": [None]})["Value"][0]
 
         external_series_uids = list(set(map(extract_series_uid, metadata)))
+        opensearch_index = self.project_form.get("opensearch_index")
         local_series_uids = set(
             map(
                 lambda result: result["dcm-uid"]["series-uid"],
-                HelperOpensearch.get_dcm_uid_objects(
-                    series_instance_uids=external_series_uids
+                HelperOpensearch().get_dcm_uid_objects(
+                    series_instance_uids=external_series_uids, index=opensearch_index
                 ),
             )
         )
@@ -146,16 +155,13 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             raise KeyError("Required field missing: Series UID (0020000E)")
 
         target_dir = os.path.join(
-            self.airflow_workflow_dir,
-            self.dag_run_id,
-            "batch",
+            self.operator_settings.workflow_dir,
+            self.operator_settings.batch_name,
             series_uid,
-            self.operator_out_dir,
+            self.operator_settings.operator_out_dir,
         )
         os.makedirs(target_dir, exist_ok=True)
         json_path = os.path.join(target_dir, "metadata.json")
-        
-        
 
         instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
         instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
@@ -177,14 +183,16 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
                     "bool": {
                         "must": {
                             "term": {
-                                f"{HelperOpensearch.dcmweb_endpoint_tag}.keyword": dcmweb_endpoint
+                                f"{DicomTags.dcmweb_endpoint_tag}.keyword": dcmweb_endpoint
                             }
                         }
                     }
                 }
             }
             logger.info(f"Deleting metadata from opensearch using query: {query}")
-            HelperOpensearch.delete_by_query(query)
+            opensearch_index = self.project_form.get("opensearch_index")
+            os_client = get_opensearch_client()
+            os_client.delete_by_query(query, opensearch_index)
 
     def _decode_service_account_info(self, encoded_info: str) -> Dict[str, Any]:
         """
@@ -213,80 +221,23 @@ class LocalExternalPacsOperator(KaapanaPythonBaseOperator):
             bool: True if successfully added, False otherwise.
         """
         try:
-            payload = {"endpoint": endpoint, "secret_data": secret_data}
-
+            payload = {
+                "dcmweb_endpoint": endpoint,
+                "opensearch_index": self.project_form.get("opensearch_index"),
+                "secret_data": secret_data,
+            }
             response = requests.post(
-                url=f"{self.DICOM_WEB_MULTIPLEXER_SERVICE}/endpoints", json=payload
+                url=f"{self.DICOM_WEB_MULTIPLEXER_SERVICE}/datasources", json=payload
             )
             response.raise_for_status()
             logger.info(f"External PACs added to multiplexer successfully")
-            return True
+
         except requests.exceptions.RequestException as e:
             logger.error(f"ERROR: External PACs couldn't be added to multiplexer: {e}")
             logger.error(traceback.format_exc())
-            return False
+            raise e
 
-    def remove_from_multiplexer(self, endpoint: str):
-        """
-        Removes an external PACS endpoint from the multiplexer.
-        Calls multiplexer service.
 
-        Parameters:
-            endpoint (str): The PACS endpoint to remove.
-
-        Returns:
-            bool: True if successfully removed, False otherwise.
-        """
-        try:
-            payload = {"endpoint": endpoint}
-            response = requests.delete(
-                f"{self.DICOM_WEB_MULTIPLEXER_SERVICE}/endpoints",
-                json=payload,
-            )
-            response.raise_for_status()
-            logger.info(f"External PACs {endpoint} successfully removed")
-            return True
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Error creating secret: {e}")
-            logger.error(traceback.format_exc())
-            return False
-
-    @cache_operator_output
-    def start(self, ds, **kwargs):
-        """
-        Starts the LocalExternalPacsOperator based on the action parameter (add or delete).
-        """
-        logger.info("# Starting module LocalExternalPacsOperator...")
-
-        self.dag_run_id = kwargs["dag_run"].run_id
-        self.workflow_config = kwargs["dag_run"].conf
-        self.workflow_form = self.workflow_config["workflow_form"]
-        self.project_form = self.workflow_config["project_form"]
-        
-        dcmweb_endpoint = self.workflow_form.get("dcmweb_endpoint")
-        service_account_info = self.workflow_form.get("service_account_info")
-
-        if self.action == "add" and dcmweb_endpoint and service_account_info:
-            service_account_info = self._decode_service_account_info(
-                service_account_info
-            )
-            if not self.add_to_multiplexer(
-                endpoint=dcmweb_endpoint, secret_data=service_account_info
-            ):
-                exit(1)
-
-            self.download_external_metadata(
-                dcmweb_endpoint,
-                self.workflow_form.get("dataset_name", "external-data"),
-            )
-
-        elif self.action == "delete":
-            logger.info(f"Remove metadata: {dcmweb_endpoint}")
-            self.delete_external_metadata(dcmweb_endpoint)
-            if not self.remove_from_multiplexer(endpoint=dcmweb_endpoint):
-                exit(1)
-
-        else:
-            logger.error(f"Unknown action: {self.action}")
-            exit(1)
+if __name__ == "__main__":
+    operator = ExternalPacsOperator()
+    operator.start()

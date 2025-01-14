@@ -5,7 +5,7 @@ import pydicom
 import time
 import requests
 import pydicom
-from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 from kaapanapy.logger import get_logger
@@ -112,7 +112,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         from kaapanapy.helper import get_opensearch_client
 
         self.os_client = get_opensearch_client()
-        self.dcmweb_helper = get_dcmweb_helper()
+        self.dcmweb_helper = HelperDcmWeb()
         self.opensearch_index = OpensearchSettings().default_index
 
         self.ti = kwargs["ti"]

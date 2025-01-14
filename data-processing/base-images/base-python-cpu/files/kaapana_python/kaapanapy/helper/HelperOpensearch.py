@@ -52,12 +52,13 @@ class HelperOpensearch:
             excludes.append(exclude_custom_tag)
 
         query_dict = {
+            "index": index,
             "query": query,
             "source": {"includes": includes},
         }
 
         try:
-            hits = self.execute_opensearch_query(os_client=self.os_client, **query_dict)
+            hits = self.execute_opensearch_query(**query_dict)
         except Exception as e:
             print("ERROR in search!")
             raise e
@@ -171,28 +172,3 @@ class HelperOpensearch:
             }
             for hit in res
         ]
-
-    @staticmethod
-    def get_series_metadata(series_instance_uid, index=None):
-        index = index if index is not None else HelperOpensearch.index
-
-        try:
-            res = HelperOpensearch.os_client.get(index=index, id=series_instance_uid)
-        except Exception as e:
-            print("ERROR in search!")
-            print(e)
-            return None
-
-        return res["_source"]
-
-    @staticmethod
-    def delete_by_query(query, index=None):
-        index = index if index is not None else HelperOpensearch.index
-        try:
-            res = HelperOpensearch.os_client.delete_by_query(index=index, body=query)
-            print(res)
-        except Exception as e:
-
-            print(f"# ERROR deleting from Opensearch: {str(e)}")
-            print(f"# query: {query}")
-            exit(1)

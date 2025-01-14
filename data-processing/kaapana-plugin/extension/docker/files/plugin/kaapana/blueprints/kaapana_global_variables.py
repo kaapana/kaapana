@@ -18,6 +18,12 @@ ENABLE_NFS = os.getenv("ENABLE_NFS", None)
 OIDC_CLIENT_SECRET = os.getenv("OIDC_CLIENT_SECRET", None)
 SYSTEM_USER_PASSWORD = os.getenv("SYSTEM_USER_PASSWORD")
 
+# Default values
+DICOM_WEB_SERVICE_RS = f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080"
+DICOM_WEB_SERVICE_URI = (
+    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado"
+)
+
 # Deprecated kept for backwards compatibility
 WORKFLOW_DIR = AIRFLOW_WORKFLOW_DIR
 BUILD_VERSION = KAAPANA_BUILD_VERSION

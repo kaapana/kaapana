@@ -35,7 +35,7 @@ class DcmSendOperator(KaapanaBaseOperator):
         :param env_vars: Environment variables
         :param level: 'element' or batch'
             If batch, an operator folder next to the batch folder with .dcm files is expected.
-            If element, \*.dcm are expected in the corresponding operator with .dcm files is expected.
+            If element, \\*.dcm are expected in the corresponding operator with .dcm files is expected.
         :param execution_timeout: timeout for connection requests
         """
 

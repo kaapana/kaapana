@@ -1,0 +1,223 @@
+---
+# Source: dicom-web-multiplexer-chart/templates/persistent_volume.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dicom-web-multiplexer-dev-pv-volume
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: "1Mi"
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/home/ubuntu/kaapana/services/store/external-pacs/dicom-web-multiplexer/docker/files"
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "services"
+    name: dicom-web-multiplexer-dev-pv-claim
+---
+# Source: dicom-web-multiplexer-chart/templates/persistent_volume.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dicom-web-multiplexer-dev-pv-claim
+  namespace: "services"
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: "1Mi"
+  volumeName: dicom-web-multiplexer-dev-pv-volume
+---
+# Source: dicom-web-multiplexer-chart/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: dicom-web-multiplexer-service
+  namespace: "services"
+  labels:
+    app-name: dicom-web-multiplexer
+spec:
+  selector:
+    app-name: dicom-web-multiplexer
+  ports:
+    - name: dicom-web-http
+      port: 8080 
+      targetPort: 8080
+      nodePort: 8080 # only for development!
+  type: NodePort # only for development!
+---
+# Source: dicom-web-multiplexer-chart/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dicom-web-multiplexer
+  namespace: "services"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: dicom-web-multiplexer
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app-name: dicom-web-multiplexer
+    spec:
+      containers:
+        - name: dicom-web-multiplexer
+          image: "/dicom-web-multiplexer:"
+          imagePullPolicy: ""
+          env:
+            - name: PROXY
+              value: ""
+            - name: http_proxy
+              value: 
+            - name: https_proxy
+              value: 
+            - name: no_proxy
+              value: ".svc,.svc.cluster,.svc.cluster.local"
+            - name: OPENSEARCH_HOST
+              value: "opensearch-service.services.svc"
+            - name: OPENSEARCH_PORT
+              value: "9200"
+            - name: DATABASE_URL
+              value: postgresql+asyncpg://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.services.svc:5432
+            - name: PORT
+              value: "8080"
+            - name: WORKERS
+              value: "4"
+            - name: KAAPANA_CLIENT_SECRET
+              value: ""
+            - name: KAAPANA_PROJECT_USER_NAME
+              value: "system"
+            - name: KAAPANA_PROJECT_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: system-user-password
+                  key: system-user-password
+            - name: DICOMWEB_BASE_URL
+              value: "http://dicom-web-filter-service.services.svc:8080/dicom-web-filter"
+            - name: DICOMWEB_BASE_URL_WADO_URI
+              value: "http://dicom-web-filter-service.services.svc:8080/dicom-web-filter/wado-uri"
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              memory: "5Gi"
+            requests:
+              memory: "256Mi"
+          volumeMounts:
+            - name: dicom-web-multiplexer-dev
+              mountPath: /app
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+      imagePullSecrets:
+        - name: registry-secret
+      volumes:
+        - name: dicom-web-multiplexer-dev
+          persistentVolumeClaim:
+            claimName: dicom-web-multiplexer-dev-pv-claim
+      serviceAccountName: kaapana-kube-admin
+---
+# Source: dicom-web-multiplexer-chart/templates/update_airflow_scheduler_variables.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: update-global-variables
+  namespace: "services"
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: busybox
+        image: busybox
+        env:
+        - name: DICOM_WEB_SERVICE_RS
+          value: "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter"
+        - name: DICOM_WEB_SERVICE_URI
+          value: "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter/wado-uri/wado"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Append DICOM_WEB_SERVICE_RS and DICOM_WEB_SERVICE_URI to the config file using env variables
+          echo "DICOM_WEB_SERVICE_RS = \"${DICOM_WEB_SERVICE_RS}\"" >> /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py
+          echo "DICOM_WEB_SERVICE_URI = \"${DICOM_WEB_SERVICE_URI}\"" >> /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py
+          
+          # Verify the changes
+          cat /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py
+        volumeMounts:
+        - name: airflow-plugins
+          mountPath: /kaapana/mounted/workflows/plugins
+      volumes:
+      - name: airflow-plugins
+        persistentVolumeClaim:
+          claimName: af-plugins-pv-claim
+  backoffLimit: 4
+---
+# Source: dicom-web-multiplexer-chart/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dicom-web-multiplexer-ingress
+  namespace: "services"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.priority: "1000"
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /dicom-web-filter
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: dicom-web-multiplexer-service
+            port: 
+              number: 8080
+---
+# Source: dicom-web-multiplexer-chart/templates/persistent_volume.yaml
+# dev-files
+---
+# Source: dicom-web-multiplexer-chart/templates/update_airflow_scheduler_variables.yaml
+# apiVersion: batch/v1
+# kind: Job
+# metadata:
+#   name: revert-global-variables
+#   namespace: "services"
+# spec:
+#   template:
+#     spec:
+#       restartPolicy: Never
+#       containers:
+#       - name: busybox
+#         image: busybox
+#         command:
+#         - /bin/sh
+#         - -c
+#         - |
+#           # Remove DICOM_WEB_SERVICE_RS and DICOM_WEB_SERVICE_URI lines from the config file
+#           sed -i '/DICOM_WEB_SERVICE_RS = "http:\/\/dicom-web-multiplexer-service.*"/d' /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py
+#           sed -i '/DICOM_WEB_SERVICE_URI = "http:\/\/dicom-web-multiplexer-service.*"/d' /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py
+          
+#           # Verify the changes
+#           cat /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py
+#         volumeMounts:
+#         - name: airflow-plugins
+#           mountPath: /kaapana/mounted/workflows/plugins
+#       volumes:
+#       - name: airflow-plugins
+#         persistentVolumeClaim:
+#           claimName: af-plugins-pv-claim
+#   backoffLimit: 4

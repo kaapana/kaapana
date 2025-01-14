@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pydicom
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperDcmWeb import get_dcmweb_helper
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.settings import OpensearchSettings
@@ -200,7 +200,7 @@ class LocalGetRefSeriesOperator(KaapanaPythonBaseOperator):
         """
         self.dag_run = kwargs["dag_run"].run_id
         logger.info("Starting module LocalGetRefSeriesOperator")
-        self.dcmweb_helper = get_dcmweb_helper()
+        self.dcmweb_helper = HelperDcmWeb()
         self.os_client = get_opensearch_client()
         self.opensearch_index = OpensearchSettings().default_index
 

@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import time
-import traceback
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from os.path import join
@@ -12,47 +11,11 @@ from typing import Any, Dict, List
 import pydicom
 import requests
 from kaapanapy.helper import get_project_user_access_token
-from kaapanapy.settings import ProjectSettings
+from kaapanapy.settings import DataSourceSettings
 from requests_toolbelt.multipart import decoder
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-SERVICES_NAMESPACE = ProjectSettings().services_namespace
-
-
-DEFAULT_DICOM_WEB_RS_ENDPOINT = (
-    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080"
-)
-DEFAULT_DICOM_WEB_URI_ENDPOINT = (
-    f"http://dicom-web-filter-service.{SERVICES_NAMESPACE}.svc:8080/wado-uri/wado",
-)
-
-
-def get_default_dicom_web_endpoints() -> str | None:
-    """
-    Check if multiplexer is reachable and give multiplexer endpoints if so, if not return None.
-    This is neccessary when multiplexer extension is used, so processing containers can reach it.
-    """
-    try:
-        import requests
-
-        response = requests.head(
-            "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer/endpoints",
-            timeout=1,
-        )
-        response.raise_for_status()
-        return (
-            "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter",
-            "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-filter/wado-uri/wado",
-        )
-    except Exception as e:
-        logger.info(e)
-        logger.info(traceback.format_exc())
-
-    return None
-
 
 class HelperDcmWeb:
     """
@@ -61,26 +24,17 @@ class HelperDcmWeb:
 
     def __init__(
         self,
-        dcmweb_rs_endpoint: str = DEFAULT_DICOM_WEB_RS_ENDPOINT,
-        dcmweb_uri_endpoint: str = DEFAULT_DICOM_WEB_URI_ENDPOINT,
         access_token: str = None,
     ):
         """Initialize the HelperDcmWeb class.
 
         Args:
-            dcmweb_rs_endpoint (str, optional): Dicomweb RESTful services endpoint. Defaults to DEFAULT_DICOM_WEB_RS_ENDPOINT.
-            dcmweb_uri_endpoint (str, optional): Dicomweb URI endpoint. Defaults to DEFAULT_DICOM_WEB_URI_ENDPOINT.
             username (str, optional): The username of the user who started the dag. Defaults to None.
             access_token (str, optional): The access token of the user. Defaults to None.
         """
-
-        endpoints = get_default_dicom_web_endpoints()
-        if endpoints is None:
-            self.dcmweb_rs_endpoint = dcmweb_rs_endpoint
-            self.dcmweb_uri_endpoint = dcmweb_uri_endpoint
-        else:
-            self.dcmweb_rs_endpoint, self.dcmweb_uri_endpoint = endpoints
-
+        self.dcmweb_rs_endpoint = DataSourceSettings().DICOM_WEB_SERVICE_RS
+        self.dcmweb_uri_endpoint = DataSourceSettings().DICOM_WEB_SERVICE_URI
+        
         self.access_token = access_token or get_project_user_access_token()
         self.auth_headers = {
             "Authorization": f"Bearer {self.access_token}",

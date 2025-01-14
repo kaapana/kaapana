@@ -121,7 +121,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         allfiles = self.get_all_files_from_result_bucket()
 
         # match only the files placed under the subdirectory of serisuid
-        sereismatcher = re.compile(f"\/?{re.escape(seriesuid)}\/")
+        sereismatcher = re.compile(fr"\/?{re.escape(seriesuid)}\/")
         seriesresults = [s for s in allfiles if sereismatcher.search(s)]
 
         if len(seriesresults) == 0:

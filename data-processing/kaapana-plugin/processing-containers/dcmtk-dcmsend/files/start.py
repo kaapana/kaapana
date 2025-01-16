@@ -5,6 +5,7 @@ from subprocess import PIPE, run
 import pydicom
 from pathlib import Path
 from kaapanapy.helper import load_workflow_config
+from kaapanapy.settings import KaapanaSettings
 
 PACS_HOST = os.getenv("PACS_HOST")
 PACS_PORT = os.getenv("PACS_PORT")
@@ -14,8 +15,13 @@ AETITLE = os.getenv("AETITLE", "NONE")
 AETITLE = None if AETITLE == "NONE" else AETITLE
 LEVEL = os.getenv("LEVEL", "element")
 WORKFLOW_CONFIG = load_workflow_config()
+# add TASK_NUM to AETITLE if it exists
+TASK_NUM = WORKFLOW_CONFIG.get("workflow_form").get("task_num")
+if AETITLE is not None and TASK_NUM is not None:
+    AETITLE = AETITLE + str(TASK_NUM)
 PROJECT = WORKFLOW_CONFIG.get("project_form")
 PROJECT_NAME = PROJECT.get("name")
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 print(f"AETITLE: {AETITLE}")
 print(f"LEVEL: {LEVEL}")
@@ -71,6 +77,17 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
 
         print(f"Sending {dicom_dir} to {PACS_HOST} {PACS_PORT} with aetitle {aetitle}")
         # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
+
+        if PACS_HOST == f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc":
+            if aetitle.startswith("kp-"):
+                dataset = aetitle
+            else:
+                dataset = f"kp-{aetitle}"
+            if not project_name.startswith("kp-"):
+                project_name = f"kp-{project_name}"
+        else:
+            dataset = aetitle
+
         env = dict(os.environ)
         command = [
             "dcmsend",
@@ -78,9 +95,9 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
             f"{PACS_HOST}",
             f"{PACS_PORT}",
             "-aet",
-            f"{aetitle}",
+            dataset,
             "-aec",
-            f"{project_name}",
+            project_name,
             "--scan-directories",
             "--no-halt",
             f"{dicom_dir}",

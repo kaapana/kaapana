@@ -7,6 +7,9 @@ from enum import Enum
 from html.parser import HTMLParser
 from typing import List
 
+import requests
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.settings import OpensearchSettings
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.helper import get_opensearch_client
@@ -71,6 +74,8 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         validator_output_dir (str): Directory where validation output files are stored.
         validation_tag (str): Base tag used for validation.
         tag_field (str): Field in the OpenSearch index used for validation results.
+        apply_project_context (bool): (Additional) If set to true, will look for ClinicalTrialProtocolID in the DICOM metadata and
+                set the opensearch index from the metadata JSON file.
         opensearch_index (str): Index in OpenSearch where metadata is stored.
         os_client (OpenSearch): OpenSearch client for interacting with the OpenSearch service.
 
@@ -114,6 +119,34 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         next_tag = f"{first_part}{item_hex}"
 
         return next_tag
+
+    def get_project_by_name(self, project_name: str):
+        response = requests.get(
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
+            params={"name": project_name},
+        )
+        response.raise_for_status()
+        project = response.json()
+        return project
+
+    def get_project_config_from_meta_json(self, json_dict):
+        print(f"Applying action to project bucket")
+        # id = json_dict["0020000E SeriesInstanceUID_keyword"]
+        ctp_value = json_dict.get("00120020 ClinicalTrialProtocolID_keyword")
+
+        if ctp_value:
+            if isinstance(ctp_value, list):
+                clinical_trial_protocol_id = ctp_value[0]
+            else:
+                clinical_trial_protocol_id = str(ctp_value)
+
+            project = self.get_project_by_name(clinical_trial_protocol_id)
+            if project:
+                return project
+        else:
+            print("ClinicalTrialProtocolID not found in the provided Metadata JSON")
+
+        return None
 
     def add_tags_to_opensearch(
         self,
@@ -248,6 +281,18 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                 print(f"Do tagging for file {meta_files}")
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
+
+                    # if `apply_project_context` is set to true,
+                    # it will look for the project config using the ClinicalTrialProtocolID
+                    # from the DICOM metadata JSON and use the project OpenSearch index
+                    # to add the results
+                    if self.apply_project_context:
+                        project_config = self.get_project_config_from_meta_json(
+                            metadata
+                        )
+                        if project_config:
+                            self.opensearch_index = project_config["opensearch_index"]
+
                     series_uid = metadata[
                         DicomTags.series_uid_tag
                     ]  # "0020000E SeriesInstanceUID_keyword"
@@ -272,6 +317,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         validator_output_dir: str,
         validation_tag: str = "00111001",
         name: str = "results-to-open-search",
+        apply_project_context=None,
         opensearch_index=None,
         *args,
         **kwargs,
@@ -286,6 +332,8 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                     Multiple items of the validation results will be tagged by incrementing
                     this tag. e.g. 00111002, 00111003, ..
             name (str): Name of the operator (default: "results-to-open-search").
+            apply_project_context (bool): (Additional) If set to true, will look for ClinicalTrialProtocolID in the DICOM metadata and
+                set the opensearch index from the metadata JSON file.
             opensearch_index (str): Index in OpenSearch where metadata will be stored (default: None).
             *args: Additional arguments for the parent class.
             **kwargs: Additional keyword arguments for the parent class.
@@ -298,6 +346,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
         self.validation_tag = validation_tag
         self.tag_field = f"{validation_tag} ValidationResults_object"
         self.opensearch_index = opensearch_index or OpensearchSettings().default_index
+        self.apply_project_context = bool(apply_project_context)
         self.os_client = None
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

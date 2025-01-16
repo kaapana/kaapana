@@ -20,7 +20,7 @@ COPY files/scripts/ /scripts
 COPY files/bootstrap.sh /kaapana/app/bootstrap.sh
 RUN chmod +x /kaapana/app/bootstrap.sh
 
-COPY files/scheduler_job_runner.py /usr/local/lib/python3.10/dist-packages/airflow/jobs/
-COPY files/task_command.py /usr/local/lib/python3.10/dist-packages/airflow/cli/commands/
+COPY files/scheduler_job_runner_2.10.3_adapted.py /opt/venv/lib/python3.12/site-packages/airflow/jobs/scheduler_job_runner.py
+COPY files/task_command_2.10.3_adapted.py /opt/venv/lib/python3.12/site-packages/airflow/cli/commands/task_command.py
 
 ENTRYPOINT ["/kaapana/app/bootstrap.sh"]

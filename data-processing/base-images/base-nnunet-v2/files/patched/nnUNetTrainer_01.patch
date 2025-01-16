@@ -135,8 +135,8 @@ index decda30..98b2395 100644
 +                "/",
 +                os.getenv("WORKFLOW_DIR"),
 +                os.getenv("OPERATOR_IN_DIR"),
-+                "nnUNet_raw",
-+                os.getenv("TASK").replace("Task", "Dataset"),
++                "nnUNet_raw",                    
++                f'Dataset{int(os.getenv("TASK_NUM")):03}_{os.getenv("TASK_DESCRIPTION")}',
 +                "dataset.json",
 +            )
 +            dataset_info_path = os.path.join(self.output_folder, "dataset.json")

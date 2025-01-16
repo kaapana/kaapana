@@ -10,10 +10,20 @@ spec:
   policyTypes:
   - Ingress
   ingress:
-  - from:
-    - podSelector:
-        matchLabels:
-          app-name: dicom-web-filter
-    ports:
-    - protocol: TCP
-      port: 8080 
+  - ports:
+      - protocol: TCP
+        port: 8080
+    from:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: admin
+      - podSelector:
+          matchLabels:
+            app-name: traefik
+  - ports:
+      - protocol: TCP
+        port: 8080
+    from:
+      - podSelector:
+          matchLabels:
+            app-name: dicom-web-filter

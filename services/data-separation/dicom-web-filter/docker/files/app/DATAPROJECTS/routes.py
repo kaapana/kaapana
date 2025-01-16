@@ -62,7 +62,7 @@ async def get_projects_by_series_instance_uid(
     """
     Get all projects Data belongs to.
     """
-    return await crud.get_projects_of_data(
+    return await crud.get_project_ids_of_series(
         session=session,
         series_instance_uid=series_instance_uid,
     )
@@ -113,3 +113,19 @@ async def create_dicom_data(
         )
     except IntegrityError:
         return Response("Dicom data already exists!", status_code=200)
+
+
+# Debug endpoint
+@router.get(
+    "/data/overview",
+    tags=["DataProjects"],
+)
+async def get_overview(
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get overview of all data.
+    """
+    return await crud.get_overview(
+        session=session,
+    )

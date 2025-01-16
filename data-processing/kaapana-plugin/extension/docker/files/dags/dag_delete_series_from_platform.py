@@ -1,10 +1,10 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
-from airflow.models import DAG
 
+from airflow.models import DAG
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
-from kaapana.operators.LocalDeleteFromPacsOperator import LocalDeleteFromPacsOperator
+from kaapana.operators.DeleteFromPacsOperator import DeleteFromPacsOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -49,7 +49,7 @@ dag = DAG(
 )
 
 get_input = GetInputOperator(dag=dag, data_type="json")
-delete_dcm_pacs = LocalDeleteFromPacsOperator(
+delete_dcm_pacs = DeleteFromPacsOperator(
     dag=dag, input_operator=get_input, delete_complete_study=False, retries=1
 )
 delete_dcm_meta = DeleteFromMetaOperator(

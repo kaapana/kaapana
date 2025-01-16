@@ -89,7 +89,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="classification-inference-workflow",
+    dag_id="classification-inference",
     default_args=args,
     schedule_interval=None,
 )

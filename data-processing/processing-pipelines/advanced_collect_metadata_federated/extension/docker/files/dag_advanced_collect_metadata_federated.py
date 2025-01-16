@@ -1,20 +1,11 @@
-import os
 from datetime import timedelta
-from datetime import datetime
-
 
 from airflow.models import DAG
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
-from airflow.utils.trigger_rule import TriggerRule
 
-from kaapana.blueprints.json_schema_templates import properties_external_federated_form
-from kaapana.blueprints.kaapana_global_variables import (
-    INSTANCE_NAME,
-    SERVICES_NAMESPACE,
-)
+
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 from kaapana.operators.MinioOperator import MinioOperator
 from advanced_collect_metadata_federated.AdvancedCollectMetadataFederatedOperator import (
     AdvancedCollectMetadataFederatedOperator,
@@ -25,10 +16,6 @@ log = LoggingMixin().log
 # FL related
 # name of DAG which should be executed in a federated way
 remote_dag_id = "advanced-collect-metadata"
-
-# skip_operators are operators which are skipped during a round of the remote_dag
-skip_operators = []
-
 # federated_operators are operators which are executed during a round of the remote_dag
 federated_operators = ["merge_branches"]
 
@@ -63,17 +50,6 @@ ui_forms = {
                 "required": True,
                 "readOnly": True,
             },
-            "skip_operators": {
-                "type": "array",
-                "title": "Skip operators",
-                "items": {
-                    "type": "string",
-                    "enum": skip_operators,
-                },
-                "default": skip_operators,
-                "required": True,
-                "readOnly": True,
-            },
         },
     },
     "external_schemas": remote_dag_id,
@@ -98,16 +74,15 @@ dag = DAG(
 
 acmd_federated = AdvancedCollectMetadataFederatedOperator(
     dag=dag,
-    # dev_server="code-server",
     image_pull_policy="Always",
 )
 
 put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    batch_input_operators=[acmd_federated],
-    whitelisted_file_extensions=True,
-    file_white_tuples=(".zip"),
+    none_batch_input_operators=[acmd_federated],
+    zip_files=True,
+    whitelisted_file_extensions=(".json", ".tar"),
 )
 
 clean = LocalWorkflowCleanerOperator(

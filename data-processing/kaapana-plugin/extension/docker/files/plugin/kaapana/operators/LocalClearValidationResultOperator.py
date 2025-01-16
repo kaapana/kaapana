@@ -3,11 +3,13 @@ import json
 import os
 import re
 
+import requests
+from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperMinio import HelperMinio
-from kaapanapy.helper.HelperOpensearch import DicomTags
-from kaapanapy.helper import get_opensearch_client
-from kaapanapy.settings import OpensearchSettings
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.settings import OpensearchSettings
 
 
 class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
@@ -20,7 +22,35 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         validation_field (str): Field in the OpenSearch index used for validation results.
         result_bucket (str): minio bucket which stores the validation results html files.
         opensearch_index (str): Index in OpenSearch where metadata is stored.
+        apply_project_context (bool): (Additional) If set to true, will look for ClinicalTrialProtocolID in the DICOM metadata and
+                set the bucket and opensearch index from the metadata JSON file.
     """
+
+    def get_project_by_name(self, project_name: str):
+        response = requests.get(
+            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
+            params={"name": project_name},
+        )
+        response.raise_for_status()
+        project = response.json()
+        return project
+
+    def get_project_config_from_meta_json(self, json_dict):
+        ctp_value = json_dict.get("00120020 ClinicalTrialProtocolID_keyword")
+
+        if ctp_value:
+            if isinstance(ctp_value, list):
+                clinical_trial_protocol_id = ctp_value[0]
+            else:
+                clinical_trial_protocol_id = str(ctp_value)
+
+            project = self.get_project_by_name(clinical_trial_protocol_id)
+            if project:
+                return project
+        else:
+            print("ClinicalTrialProtocolID not found in the provided Metadata JSON")
+
+        return None
 
     def get_all_files_from_result_bucket(self, prefix=""):
         """
@@ -156,6 +186,16 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
                 with open(metafile) as fs:
                     metadata = json.load(fs)
 
+                # if `apply_project_context` is set to true,
+                # it will look for the project config using the ClinicalTrialProtocolID
+                # from the DICOM metadata JSON and use the project bucket and project OS index
+                # to clear the results
+                if self.apply_project_context:
+                    project_config = self.get_project_config_from_meta_json(metadata)
+                    if project_config:
+                        self.result_bucket = project_config["s3_bucket"]
+                        self.opensearch_index = project_config["opensearch_index"]
+
                 seriesuid = metadata[
                     DicomTags.series_uid_tag
                 ]  # "0020000E SeriesInstanceUID_keyword"
@@ -172,6 +212,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         result_bucket: str = "staticwebsiteresults",
         validation_tag: str = "00111001",
         opensearch_index=None,
+        apply_project_context=None,
         *args,
         **kwargs,
     ):
@@ -184,6 +225,8 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             results_bucket (str): minio bucket which stores the validation results html files. Defaults to "staticwebsiteresults".
             validation_tag (str): Base tag used to store validation results on OpenSearch (default: "00111001").
             opensearch_index (str): Index in OpenSearch where metadata will be stored. Defaults to OpensearchSettings().default_index.
+            apply_project_context (bool): (Additional) If set to true, will look for ClinicalTrialProtocolID in the DICOM metadata and
+                set the bucket and opensearch index from the metadata JSON file.
             *args: Additional arguments for the parent class.
             **kwargs: Additional keyword arguments for the parent class.
 
@@ -195,5 +238,6 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
         self.validation_field = f"{validation_tag} ValidationResults_object"
         self.result_bucket = result_bucket
         self.opensearch_index = opensearch_index or OpensearchSettings().default_index
+        self.apply_project_context = bool(apply_project_context)
 
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)

@@ -1,55 +1,60 @@
 diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
-index e19a24c68..ff0a19dfd 100644
+index 7d64064fe..10abdd4ee 100644
 --- a/extensions/default/src/ViewerLayout/index.tsx
 +++ b/extensions/default/src/ViewerLayout/index.tsx
-@@ -4,8 +4,6 @@ import PropTypes from 'prop-types';
- import { LoadingIndicatorProgress, InvestigationalUseDialog } from '@ohif/ui';
- import { HangingProtocolService, CommandsManager } from '@ohif/core';
- import { useAppConfig } from '@state';
--import ViewerHeader from './ViewerHeader';
--import SidePanelWithServices from '../Components/SidePanelWithServices';
- import { Onboarding } from '@ohif/ui-next';
- 
- function ViewerLayout({
-@@ -111,26 +109,12 @@ function ViewerLayout({
+@@ -218,37 +218,14 @@ function ViewerLayout({
  
    return (
      <div>
--      <ViewerHeader
--        hotkeysManager={hotkeysManager}
--        extensionManager={extensionManager}
--        servicesManager={servicesManager}
--        appConfig={appConfig}
--      />
+-      <Header
+-        menuOptions={menuOptions}
+-        isReturnEnabled={!!appConfig.showStudyList}
+-        onClickReturnButton={onClickReturnButton}
+-        WhiteLabeling={appConfig.whiteLabeling}
+-      >
+-        <ErrorBoundary context="Primary Toolbar">
+-          <div className="relative flex justify-center">
+-            <Toolbar servicesManager={servicesManager} />
+-          </div>
+-        </ErrorBoundary>
+-      </Header>
        <div
-         className="relative flex w-full flex-row flex-nowrap items-stretch overflow-hidden bg-black"
+         className="bg-black flex flex-row items-stretch w-full overflow-hidden flex-nowrap relative"
 -        style={{ height: 'calc(100vh - 52px' }}
 +        style={{ height: '100vh' }}
        >
          <React.Fragment>
-           {showLoadingIndicator && <LoadingIndicatorProgress className="h-full w-full bg-black" />}
+           {showLoadingIndicator && (
+             <LoadingIndicatorProgress className="h-full w-full bg-black" />
+           )}
 -          {/* LEFT SIDEPANELS */}
--          {hasLeftPanels ? (
--            <SidePanelWithServices
--              side="left"
--              activeTabIndex={leftPanelClosedState ? null : 0}
--              servicesManager={servicesManager}
--            />
+-          {leftPanelComponents.length ? (
+-            <ErrorBoundary context="Left Panel">
+-              <SidePanel
+-                side="left"
+-                activeTabIndex={leftPanelDefaultClosed ? null : 0}
+-                tabs={leftPanelComponents}
+-                servicesManager={servicesManager}
+-              />
+-            </ErrorBoundary>
 -          ) : null}
            {/* TOOLBAR + GRID */}
-           <div className="flex h-full flex-1 flex-col">
-             <div className="relative flex h-full flex-1 items-center justify-center overflow-hidden bg-black">
-@@ -141,13 +125,6 @@ function ViewerLayout({
-               />
+           <div className="flex flex-col flex-1 h-full">
+             <div className="flex items-center justify-center flex-1 h-full overflow-hidden bg-black relative">
+@@ -261,16 +238,6 @@ function ViewerLayout({
+               </ErrorBoundary>
              </div>
            </div>
--          {hasRightPanels ? (
--            <SidePanelWithServices
--              side="right"
--              activeTabIndex={rightPanelClosedState ? null : 0}
--              servicesManager={servicesManager}
--            />
+-          {rightPanelComponents.length ? (
+-            <ErrorBoundary context="Right Panel">
+-              <SidePanel
+-                side="right"
+-                activeTabIndex={rightPanelDefaultClosed ? null : 0}
+-                tabs={rightPanelComponents}
+-                servicesManager={servicesManager}
+-              />
+-            </ErrorBoundary>
 -          ) : null}
          </React.Fragment>
        </div>
-       <Onboarding />
+     </div>

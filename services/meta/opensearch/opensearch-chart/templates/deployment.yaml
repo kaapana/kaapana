@@ -90,6 +90,8 @@ spec:
               mountPath: /usr/share/opensearch/data
             - name: oslogs
               mountPath: /usr/share/opensearch/logs
+            - name: ossnapshots
+              mountPath: /usr/share/opensearch/snapshots
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch.yml
               subPath: opensearch.yml
@@ -113,6 +115,9 @@ spec:
       - name: osdata
         persistentVolumeClaim:
           claimName: os-data-pv-claim
+      - name: ossnapshots
+        persistentVolumeClaim:
+          claimName: os-snapshots-pv-claim
       - name: oslogs
         persistentVolumeClaim:
           claimName: os-logs-pv-claim

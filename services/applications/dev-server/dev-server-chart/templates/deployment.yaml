@@ -36,7 +36,7 @@ spec:
             mountPath: /root/.local/share/code-server/User/keybindings.json
             subPath: keybindings.json
           - name: configs
-            mountPath:  /root/.vscode/launch.json
+            mountPath:  /kaapana/.vscode/launch.json
             subPath: launch.json
           - name: configs
             mountPath: /root/.local/share/code-server/User/settings.json

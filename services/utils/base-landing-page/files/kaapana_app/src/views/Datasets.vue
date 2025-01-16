@@ -448,8 +448,6 @@ export default {
     window.addEventListener("keydown", (event) => this.keyDownEventListener(event));
     window.addEventListener("keyup", (event) => this.keyUpEventListener(event));
 
-    this.getStaticWebsiteResults();
-
     // if 'project' is present in queryparams, set it as selected project
     if (this.queryParams.project_name) {
       // load all projects
@@ -487,6 +485,7 @@ export default {
         this.datasetName = this.queryParams.dataset_name;
       }
     }
+    this.getStaticWebsiteResults();
   },
   beforeDestroy() {
     window.removeEventListener("keydown", (event) => this.keyDownEventListener(event));
@@ -596,8 +595,9 @@ export default {
       this.datasetNames = await loadDatasets();
     },
     getStaticWebsiteResults() {
+      var staticWebUrl = "/get-static-website-results"
       kaapanaApiService
-        .kaapanaApiGet("/get-static-website-results")
+        .kaapanaApiGet(staticWebUrl)
         .then((response) => {
           this.staticUrls = response.data;
           this.extractChildPaths(this.staticUrls);

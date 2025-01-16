@@ -9,7 +9,7 @@ import pathlib
 if __name__ == "__main__":
     print("# Starting nnUNet data preparation...")
 
-    task = os.getenv("TASK", None)
+    task = os.getenv("TASK_NUM", None)
     input_dirs = os.getenv("INPUT_MODALITY_DIRS", "").split(",")
     operator_output_dir = os.getenv("OPERATOR_OUT_DIR", None)
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
         exit(1)
 
     if task == None:
-        print("# Env 'TASK' has to be specified!")
+        print("# Env 'TASK_NUM' has to be specified!")
         print("# Abort!")
         exit(1)
 

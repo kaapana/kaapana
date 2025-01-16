@@ -14,9 +14,9 @@ ui_forms = {
         "type": "object",
         "properties": {
             "tag_to_class_mapping_json": {
-                "title": "Tag to class mapping json",
-                "description": "Specify the used tags. E.g.: ['tag0', 'tag1']",
-                "default": "['CT', 'MR']",
+                "title": "Tags for mapping classes",
+                "description": "Specify the labels as tags (e.g. tag0,tag1)",
+                "default": "tag1,tag2",
                 "type": "string",
                 "required": True,
             },
@@ -82,7 +82,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="classification-training-workflow", default_args=args, schedule_interval=None
+    dag_id="classification-training", default_args=args, schedule_interval=None
 )
 
 get_input = GetInputOperator(dag=dag)

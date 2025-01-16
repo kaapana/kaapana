@@ -84,12 +84,18 @@ def wait_for_file_in_opensearch(os_client, index, series_uid):
 
 
 def send_dicom_data(
-    path_to_dicom_files: str, dataset="phantom-example", project="admin"
+    path_to_dicom_files: str, dataset: str = "kp-phantom", project: str = "kp-admin"
 ):
     """
     Send all dicom files in the directory path_to_dicom_files to the kaapana ctp.
     Assign it to the provided project and add it to the provided dataset.
     """
+
+    if not dataset.startswith("kp-"):
+        dataset = "kp-" + dataset
+    if not project.startswith("kp-"):
+        project = "kp-" + project
+
     logger.info("Send example files to ctp server.")
     command = [
         "dcmsend",
@@ -162,7 +168,7 @@ if __name__ == "__main__":
     wait_for_opensearch_index(os_client=os_client, index=project_index)
     send_dicom_data(
         path_to_dicom_files="/dicom_test_data/phantom",
-        dataset="phantom-example",
+        dataset="phantom",
         project=admin_project,
     )
     example_phantom_send = {

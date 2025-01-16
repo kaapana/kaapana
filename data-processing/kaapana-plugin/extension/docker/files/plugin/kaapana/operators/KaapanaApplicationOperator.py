@@ -1,16 +1,21 @@
 import os
 import time
-import requests
 from datetime import timedelta
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+
+import requests
 from kaapana.blueprints.kaapana_global_variables import (
-    PROCESSING_WORKFLOW_DIR,
     ADMIN_NAMESPACE,
+    PROCESSING_WORKFLOW_DIR,
 )
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
 class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
+    """
+    A custom Airflow operator for deploying and managing Helm charts within the Kaapana framework.
+    """
+
     HELM_API = f"http://kube-helm-service.{ADMIN_NAMESPACE}.svc:5000"
     TIMEOUT = 60 * 60 * 12
 
@@ -120,6 +125,16 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
         release_name=None,
         **kwargs,
     ):
+        """
+        :param dag (airflow.models.DAG): The DAG object to which the operator belongs.
+        :param chart_name (str): The name of the Helm chart to be deployed.
+        :param version (str): The version of the Helm chart to be deployed.
+        :param name (str): The name of the operator task (default: "helm-chart").
+        :param data_dir (str, optional): The directory for storing workflow-specific data (default: `DATADIR` environment variable).
+        :param sets (dict, optional): Additional key-value pairs to be included in the Helm chart configuration.
+        :param release_name (str, optional): The release name for the Helm deployment (default: generated dynamically).
+        :param kwargs: Additional arguments passed to the `KaapanaPythonBaseOperator` constructor.
+        """
         self.chart_name = chart_name
         self.version = version
 

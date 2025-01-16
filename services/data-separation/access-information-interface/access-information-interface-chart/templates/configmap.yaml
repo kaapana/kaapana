@@ -7,36 +7,6 @@ data:
   initial_rights.json: | # This is the initial rights that will be created
     [
       {
-        "name": "edit_project",
-        "description": "Add or remove users from project",
-        "claim_key": "kaapana",
-        "claim_value": "edit_project"
-      },
-      {
-        "name": "edit_user",
-        "description": "Edit user rights within project",
-        "claim_key": "kaapana",
-        "claim_value": "edit_user"
-      },
-      {
-        "name": "dev_tools",
-        "description": "Get access to dev tools and APIs",
-        "claim_key": "kaapana",
-        "claim_value": "dev_tools"
-      },
-      {
-        "name": "workflows",
-        "description": "Rights to start a workflow, see workflow status and logs",
-        "claim_key": "kaapana",
-        "claim_value": "workflows"
-      },
-      {
-        "name": "delete_data",
-        "description": "Delete data from platform",
-        "claim_key": "kaapana",
-        "claim_value": "delete_data"
-      },
-      {
         "name": "opensearch_access",
         "description": "User gets full access to OpenSearch",
         "claim_key": "opensearch",
@@ -54,14 +24,6 @@ data:
       {
         "name": "admin",
         "description": "Admin role"
-      },
-      {
-        "name": "project-pi",
-        "description": "Project PI role"
-      },
-      {
-        "name": "project-member",
-        "description": "Project member role"
       }
     ]
   initial_projects.json: | # This is the initial admin project that will be created
@@ -75,15 +37,7 @@ data:
     [
       {
         "role": "admin",
-        "rights": ["edit_project", "edit_user", "dev_tools", "workflows", "opensearch_access", "minio_access", "delete_data"]
-      },
-      {
-        "role": "project-pi",
-        "rights": ["edit_user", "workflows", "opensearch_access", "minio_access", "delete_data"]
-      },
-      {
-        "role": "project-member",
-        "rights": ["workflows", "opensearch_access", "minio_access"]
+        "rights": ["opensearch_access", "minio_access"]
       }
     ]
 

@@ -2,7 +2,7 @@ import logging
 
 import httpx
 from app import crud
-from app.config import DEFAULT_PROJECT_ID, DICOMWEB_BASE_URL
+from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from fastapi import APIRouter, Depends, Path, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -207,9 +207,14 @@ async def get_series(request: Request, session: AsyncSession = Depends(get_sessi
 
     study = request.query_params["StudyInstanceUID"]
 
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
     # Get all series mapped to the project
     series = set(
-        await crud.get_all_series_mapped_to_project(session, DEFAULT_PROJECT_ID)
+        await crud.get_all_series_mapped_to_projects(session, project_ids_of_user)
     )
 
     # Remove SeriesInstanceUID from the query parameters
@@ -242,10 +247,14 @@ async def get_series(request: Request, session: AsyncSession = Depends(get_sessi
 async def get_instances(
     study: str, request: Request, session: AsyncSession = Depends(get_session)
 ):
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
 
     # Get all series mapped to the project
     series = set(
-        await crud.get_all_series_mapped_to_project(session, DEFAULT_PROJECT_ID)
+        await crud.get_all_series_mapped_to_projects(session, project_ids_of_user)
     )
 
     # Remove SeriesInstanceUID from the query parameters
@@ -285,10 +294,14 @@ async def get_bulkdata(
     tag: str = Path(...),
     session: AsyncSession = Depends(get_session),
 ):
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
 
-    if not await crud.check_if_series_in_given_study_is_mapped_to_project(
+    if not await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
-        project_id=DEFAULT_PROJECT_ID,
+        project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
     ) and not request.scope.get("admin"):

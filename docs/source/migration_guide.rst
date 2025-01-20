@@ -89,7 +89,7 @@ Before undeploying your 0.3.x platform, complete the following steps:
 3. Take a Snapshot of the Metadata:
     - Open the OpenSearch index management dashboard at: ``https://<hostname>/meta/app/opensearch_index_management_dashboards#/repositories``.
     - Create a repository with type *Shared file system* and the location: ``/usr/share/opensearch/logs/snapshots``.
-    - Navigate to the *Snapshots* menu, take a snapshot of the `meta-index`, and back up the snapshot files located in ``${SLOW_DATA_DIR}/os/logs/snapshots/`` to a secure location.
+    - Navigate to the *Snapshots* menu, take a snapshot of the `meta-index`, and back up the snapshot files located in ``${FAST_DATA_DIR}/os/logs/snapshots/`` to a secure location.
 
 .. _undeploy_and_uninstall_0.4:
 
@@ -133,11 +133,13 @@ Before deploying the new platform version, migrate the PostgreSQL database:
 
 2. Update the following variables in the script:
 
-    - `CONTAINER_REGISTRY_URL`
-    - `IMAGE_POSTGRES_OLD`
-    - `IMAGE_POSTGRES_NEW`
-    - `IMAGE_POSTGRES_DCM4CHE_OLD`
-    - `IMAGE_POSTGRES_DCM4CHE_NEW`
+    - `CONTAINER_REGISTRY_URL` - Url of the private container registry
+    - `IMAGE_POSTGRES_OLD`  - Kaapana postgres image of the old platform version
+    - `IMAGE_POSTGRES_NEW` - Kaapana postgres image of the new platform version
+    - `IMAGE_POSTGRES_DCM4CHE_OLD` - Kaapana dcm4che image of the old platform version
+    - `IMAGE_POSTGRES_DCM4CHE_NEW` - Kaapana dcm4che image of the old platform version
+    - `TMP_MIGRATION_DIR` - Directory on the server, where database backups and dumps and metadata backups should be stored
+    - `FAST_DATA_DIR` - Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 
 3. Log in to the container registry:
    
@@ -188,9 +190,9 @@ Follow these detailed steps to ensure the metadata is correctly restored and rei
 
         .. code-block:: bash
 
-            cp -r /path/to/backup/snapshots/* ${SLOW_DATA_DIR}/os/snapshots
+            cp -r /path/to/backup/snapshots/* ${FAST_DATA_DIR}/os/snapshots
 
-    - Ensure the files are placed under the directory ``${SLOW_DATA_DIR}/os/snapshots``, as OpenSearch expects them in this location.
+    - Ensure the files are placed under the directory ``${FAST_DATA_DIR}/os/snapshots``, as OpenSearch expects them in this location.
 
 2. Restore the Snapshot in OpenSearch:
     - Open the OpenSearch dashboard in your browser by navigating to: ``https://<hostname>/meta/app/opensearch_index_management_dashboards#/repositories``.

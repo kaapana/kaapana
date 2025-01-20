@@ -9,9 +9,11 @@ Migration Guide
 Upgrade from 0.3.x to 0.4.x
 ****************************
 
-Version 0.4.0 introduces several breaking changes. This guide outlines the steps required to migrate your data, including DICOM files, metadata, user data, and more, from a Kaapana instance based on 0.3.x to 0.4.1.
+Version 0.4.0 introduces several breaking changes.
+This guide outlines the steps required to migrate your data, including DICOM files, metadata, user data, and more, from a Kaapana instance based on 0.3.x to 0.4.1.
+Additionally, we included a section with information about :ref:`breaking changes regarding custom Airflow DAGs<migrating_airflow_dags_0.4>`.
 
-The migration process consists of the following steps, detailed below:
+The data migration process consists of the following steps, detailed below:
 
 #. :ref:`Prepare the migration on the old platform (0.3.x version)<prepare_migration_0.4>`
 #. :ref:`Undeploy the old platform and uninstall the MicroK8s cluster<undeploy_and_uninstall_0.4>`
@@ -256,3 +258,32 @@ Add New Realm-Role in Keycloak
 
 1. Add the new realm-role `project-manager` to the Kaapana realm in Keycloak.
 2. Map the group `kaapana_project_manager` to the role `project-manager`.
+
+.. _migrating_airflow_dags_0.4:
+
+Migrating Airflow DAGs
+-----------------------
+
+In Kaapana version 0.4.0, detailed in the :ref:`Release Notes v0.4.0 <release-0.4.0>`, a new feature introduces data separation for DICOM data, MinIO data, and metadata. 
+This enhancement ensures that workflows and jobs are executed within a dedicated project context, restricting access to data exclusively within the respective project. 
+
+To support this feature, processing containers have been introduced for all operators that interact with the aforementioned data storages. 
+These containers enforce project-level data access restrictions for processes within operators.
+
+If you have developed custom DAGs and want to maintain data separation, it is essential to replace any local operators with their corresponding processing container operators. 
+The table below provides a mapping of local operators to their secure counterparts:
+
+=================================== ===================================
+Local operators                     Operators with processing container
+=================================== ===================================
+LocalDeleteFromMetaOperator         DeleteFromMetaOperator
+LocalDeleteFromPacsOperator         DeleteFromPacsOperator
+LocalGetInputDataOperator           GetInputOperator
+LocalGetRefSeriesOperator           GetRefSeriesOperator
+LocalJson2MetaOperator              Json2MetaOperator
+LocalMinioOperator                  MinioOperator
+=================================== ===================================
+
+    .. warning::
+
+        Local operators and their processing-container counterparts may have distinct arguments and configuration options, requiring careful review and adjustment during migration to ensure compatibility and proper functionality.

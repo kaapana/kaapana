@@ -1,10 +1,11 @@
 #!/bin/bash
 set -eu -o pipefail
 
-IMAGE_POSTGRES_OLD=registry.hzdr.de/kaapana/releases/postgres-15.6-alpine:0.3.5
-IMAGE_POSTGRES_NEW=registry.hzdr.de/kaapana/releases/postgres-17.2-alpine:0.4.0
-IMAGE_POSTGRES_DCM4CHE_OLD=registry.hzdr.de/kaapana/releases/dcm4che-postgres:0.3.5
-IMAGE_POSTGRES_DCM4CHE_NEW=registry.hzdr.de/kaapana/releases/dcm4che-postgres:0.4.0
+CONTAINER_REGISTRY_URL=registry.hzdr.de/kaapana/releases
+IMAGE_POSTGRES_OLD=${CONTAINER_REGISTRY_URL}/postgres-15.6-alpine:0.3.5
+IMAGE_POSTGRES_NEW=${CONTAINER_REGISTRY_URL}/postgres-17.2-alpine:0.4.0
+IMAGE_POSTGRES_DCM4CHE_OLD=${CONTAINER_REGISTRY_URL}/dcm4che-postgres:0.3.5
+IMAGE_POSTGRES_DCM4CHE_NEW=${CONTAINER_REGISTRY_URL}/dcm4che-postgres:0.4.0
 
 docker pull ${IMAGE_POSTGRES_OLD}
 docker pull ${IMAGE_POSTGRES_NEW}

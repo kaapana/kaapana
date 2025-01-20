@@ -7,16 +7,16 @@ IMAGE_POSTGRES_NEW=${CONTAINER_REGISTRY_URL}/postgres-17.2-alpine:0.4.0
 IMAGE_POSTGRES_DCM4CHE_OLD=${CONTAINER_REGISTRY_URL}/dcm4che-postgres:0.3.5
 IMAGE_POSTGRES_DCM4CHE_NEW=${CONTAINER_REGISTRY_URL}/dcm4che-postgres:0.4.0
 
+TMP_MIGRATION_DIR=/home/ubuntu/kaapana-migration
+FAST_DATA_DIR=/home/kaapana
+
+TMP_DATABASE_DUMP_DIR=${TMP_MIGRATION_DIR}/dumps
+mkdir -p ${TMP_DATABASE_DUMP_DIR}
+
 docker pull ${IMAGE_POSTGRES_OLD}
 docker pull ${IMAGE_POSTGRES_NEW}
 docker pull ${IMAGE_POSTGRES_DCM4CHE_OLD}
 docker pull ${IMAGE_POSTGRES_DCM4CHE_NEW}
-
-TMP_MIGRATION_DIR=/home/ubuntu/kaapana-migration
-TMP_DATABASE_DUMP_DIR=${TMP_MIGRATION_DIR}/dumps
-FAST_DATA_DIR=/home/kaapana
-
-mkdir -p ${TMP_DATABASE_DUMP_DIR}
 
 #### Backend
 if [ ! -d ${TMP_MIGRATION_DIR}/backend ]; then

@@ -1,8 +1,13 @@
+.. _migration_guide:
+
+
 ###############
 Migration Guide
 ###############
 
-.. _migration_guide:
+
+
+.. _migration_guide_0.4:
 
 
 Upgrade from 0.3.x to 0.4.x
@@ -10,13 +15,30 @@ Upgrade from 0.3.x to 0.4.x
 
 Version 0.4.0 comes with several breaking changes.
 This guide will lead you through all the steps you have to take to migrate your data like dicom, metadata, userdata and more from a kaapana instance based on 0.3.x to 0.4.1.
+The migration consists of the following steps that will be explained in more details below
+
+#. :ref:`Prepare migration on the old the platform with version 0.3.x<prepare_migration_0.4>`
+#. :ref:`Undeploy the old platform and uninstall the microk8s cluster<undeploy_and_uninstall_0.4>`
+#. :ref:`Migrate postgres databases<database_migration_0.4>`
+#. :ref:`Install the microk8s cluster and deploy the new platform version<install_and_deploy_0.4>`
+#. :ref:`Restore the metadata in opensearch<restore_metadata_0.4>`
+#. :ref:`Migrate thumbnails and staticwebsiteresults<thumbnails_and_staticwebsiteresults_0.4>`
+#. :ref:`Add a new realm-role in Keycloak<new_realm_role_0.4>`
+
+
 
 **Requirements:**
 
-* Login credentials for an admin user
-* Credentials for the Keycloak admin console
-* Access to the Kubernetes dashboard in order to change configuration files and restart pods
+* Login credentials for an admin user.
+* Credentials for the Keycloak admin console.
+* Access to the Kubernetes dashboard in order to change configuration files and restart pods.
 * Root permissions on the host machine, where the platform is deployed.
+* Login credentials for a private registry.
+
+
+
+
+.. _prepare_migration_0.4:
 
 Prepare the migration before you undeploy your platform
 -----------------------------------------------------------
@@ -85,6 +107,7 @@ Backup these files in a directory that is not a subpath of ``FAST_DATA_DIR`` or 
 
 We will need this snapshot later, after we deployed the new platform version.
 
+.. _undeploy_and_uninstall_0.4:
 
 Undeployment and uninstallation
 --------------------------------
@@ -102,6 +125,8 @@ You can download the script by executing
 
 Then uninstall the microk8s cluster via ``sudo ./server_installation_0.3.5.sh --uninstall``
 
+.. _database_migration_0.4:
+
 Database migration
 ----------------------
 Before we can deploy the new platform version we have to migrate the postgres database and remove some old files.
@@ -112,11 +137,24 @@ You can download it via
 
         curl https://raw.githubusercontent.com/kaapana/kaapana/refs/tags/0.4.1/utils/migration_0.3.x-0.4.x.sh -o migration_0.3.x-0.4.x.sh
 
+Open the script and adapt the following variables to your scenario
 
-Execute it via:
+    ::
+
+        CONTAINER_REGISTRY_URL
+        IMAGE_POSTGRES_OLD
+        IMAGE_POSTGRES_NEW
+        IMAGE_POSTGRES_DCM4CHE_OLD
+        IMAGE_POSTGRES_DCM4CHE_NEW
+
+Login to the container registry via ``docker login``.
+
+Execute the migration script with root permissions:
     ::
         
-        sudo ./migration_0.3.x-0.4.x.sh``
+        sudo ./migration_0.3.x-0.4.x.sh
+
+.. _install_and_deploy_0.4:
 
 Install microk8s cluster and deploy new platform version
 ----------------------------------------------------------
@@ -131,25 +169,27 @@ You can the server installation script via
 Finally deploy the platform 
     ::
 
-        ./deploy_platform_0.4.0.sh``
+        ./deploy_platform_0.4.0.sh
 
+.. _restore_metadata_0.4:
 
 Restore old metadata from snapshot
 -----------------------------------
-Now we can restore the metadata we stored in a snapshot in one of the previous steps.
-First copy  all files from the backed up snapshot from into ``${SLOW_DATA_DIR}/os/snapshots``
-Then in your browser navigate to the *https://<hostname>/meta/app/opensearch_index_management_dashboards#/repositories*.
+Now we can restore the metadata that we stored in a snapshot during one of the previous steps.
+First copy  all files from the backed up snapshot into ``${SLOW_DATA_DIR}/os/snapshots``
+Then navigate to *https://<hostname>/meta/app/opensearch_index_management_dashboards#/repositories* in your browser.
 Create a repository with type *Shared file system* and the location ``/usr/share/snapshots``.
 In the opensearch menu navigate to *Snapshots*.
-Select the snapshot you created and click on *Restore*.
+Select the snapshot you created on your previous platform version and click on *Restore*.
 Select *meta-index* as the index you want to restore and the option *Add prefix to restored index names*.
-Next navigate to *Index Management - Indexes* and select *restored_meta-index* and apply the action the *Reindex*.
+Next navigate to *Index Management - Indexes* and select *restored_meta-index* and apply the action *Reindex*.
 As destination click on *Create Index* and set the *Index name* to *project_merged*. 
-Then click on *Create* and afterwards on *Reindex*
-Wait for the reindexing operation to suceed and check in the dashboard, *project_merged* contains all the expected metadata.
+Then click on *Create* and afterwards on *Reindex*.
+Wait for the reindexing operation to suceed and check in the dashboard, that *project_merged* contains all the expected metadata.
 Eventually select in the *Index Managament - Indexes* the index *project_merged* and reindex it to the *project_admin* index.
 
 
+.. _thumbnails_and_staticwebsiteresults_0.4:
 
 Migrate thumbnails and staticwebsiteresults
 ---------------------------------------------
@@ -157,10 +197,10 @@ Data for the static website viewer and thumbnails are now expected at different 
 As soon as kaapana is running with the new version you can simply move this data to its correct place.
 Just follow the steps below:
 
-1. Start a minio-sync application. 
-Which *Host Directoy* is irrelevant, but it must not be empty. 
-*MINIO Path* can also be arbitrary.
-2. Enter into the container via the Kubernetes dashboard.
+1. Start a minio-sync application.
+Which *Host Directoy* you choose does not matter is irrelevant, as long as it is not empty. 
+The *MINIO Path* can also be arbitrary.
+2. Enter into the container via the Kubernetes dashboard or ``kubectl``.
 3. Inside the container execute 
 
     ::
@@ -168,7 +208,9 @@ Which *Host Directoy* is irrelevant, but it must not be empty.
         mc find minio/thumbnails --name "*.png" -print {base} -exec "mc mv {} minio/project-admin/thumbnails/"
         mc mv -r minio/staticwebsiteresults minio/project-admin
 
-New realm role in Keycloak
+.. _new_realm_role_0.4:
+
+New realm-role in Keycloak
 ------------------------------
 You have to add a new realm-role *project-manager* to the kaapana realm in Keycloak
 Then map the group *kaapana_project_manager* to the role *project-manager*.

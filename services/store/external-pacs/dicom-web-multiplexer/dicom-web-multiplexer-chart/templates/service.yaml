@@ -22,4 +22,4 @@ spec:
       protocol: TCP
   type: ClusterIP
 {{- end }}
-    
+

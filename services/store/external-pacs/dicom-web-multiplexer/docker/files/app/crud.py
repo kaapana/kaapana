@@ -1,8 +1,7 @@
-import traceback
 from typing import List
 
 from app.logger import get_logger
-from app.models import DataSource
+from app.models import DataSourceDB
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,29 +9,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = get_logger(__file__)
 
 
-async def add_datasource(datasource: DataSource, session: AsyncSession) -> DataSource | None:
+async def add_datasource(
+    datasource: DataSourceDB, session: AsyncSession
+) -> DataSourceDB | None:
     try:
         session.add(datasource)
         await session.commit()
-        return await session.refresh(datasource)
 
     except IntegrityError:
         await session.rollback()
-        logger.warning(f"Datasource already exists in db: {datasource}")
-
-    except Exception as e:
-        logger.error(
-            f"Couldn't create datasource: {datasource}"
-        )
-        logger.error(e)
-        logger.error(traceback.format_exc())
-        
 
 
-async def remove_datasource(datasource: DataSource, session: AsyncSession):
-    stmt = select(DataSource).where(
-        DataSource.dcmweb_endpoint == datasource.dcmweb_endpoint,
-        DataSource.opensearch_index == datasource.opensearch_index,
+async def remove_datasource(datasource: DataSourceDB, session: AsyncSession):
+    stmt = select(DataSourceDB).where(
+        DataSourceDB.dcmweb_endpoint == datasource.dcmweb_endpoint,
+        DataSourceDB.project_index == datasource.project_index,
     )
     result = await session.execute(stmt)
     endpoint_to_delete = result.scalar()
@@ -43,19 +34,19 @@ async def remove_datasource(datasource: DataSource, session: AsyncSession):
 
 
 async def get_all_datasources(
-    opensearch_index: str, session: AsyncSession
-) -> List[DataSource]:
-    stmt = select(DataSource).where(DataSource.opensearch_index == opensearch_index)
+    project_index: str, session: AsyncSession
+) -> List[DataSourceDB]:
+    stmt = select(DataSourceDB).where(DataSourceDB.project_index == project_index)
     result = await session.execute(stmt)
     return result.scalars().all()
 
 
 async def get_datasource(
-    datasource: DataSource, session: AsyncSession
-) -> List[DataSource]:
-    stmt = select(DataSource).where(
-        DataSource.dcmweb_endpoint == datasource.dcmweb_endpoint,
-        DataSource.opensearch_index == datasource.opensearch_index,
+    datasource: DataSourceDB, session: AsyncSession
+) -> List[DataSourceDB]:
+    stmt = select(DataSourceDB).where(
+        DataSourceDB.dcmweb_endpoint == datasource.dcmweb_endpoint,
+        DataSourceDB.project_index == datasource.project_index,
     )
     result = await session.execute(stmt)
     return result.scalars().all()

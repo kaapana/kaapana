@@ -48,8 +48,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="DICOM Web Multiplexer",
-    docs_url="/docs",
-    openapi_url="/openapi.json",
+    docs_url="/dicom-web-multiplexer/docs",
+    openapi_url="/dicom-web-multiplexer/openapi.json",
     version="0.1.0",
     openapi_tags=tags_metadata,
     lifespan=lifespan,
@@ -59,4 +59,4 @@ app.include_router(qido_router, prefix="/dicom-web-filter")
 app.include_router(supplement_router, prefix="/dicom-web-filter")
 app.include_router(wado_router, prefix="/dicom-web-filter")
 app.include_router(wado_uri_router, prefix="/dicom-web-filter/wado-uri")
-app.include_router(management_router, prefix="/dicom-web-multiplexer")
+app.include_router(management_router, prefix="/dicom-web-filter/management")

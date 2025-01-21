@@ -24,16 +24,14 @@ class ExternalPacsOperator:
     This operator is used to ADD external PACs to the project.
     It creates a kubernetes secret with credentials, adds the endpoint to the database, and download metadata of all instances.
     """
-    
-    DICOM_WEB_MULTIPLEXER_SERVICE = (
-        "http://dicom-web-multiplexer-service.services.svc:8080/dicom-web-multiplexer"
-    )
-
     def __init__(self):
         self.operator_settings = OperatorSettings()
         self.workflow_config = load_workflow_config()
         self.project_form: dict = self.workflow_config.get("project_form")
         self.workflow_form: dict = self.workflow_config.get("workflow_form")
+        self.dcmweb_helper = HelperDcmWeb()
+        logger.info(self.dcmweb_helper.dcmweb_rs_endpoint)
+        logger.info(self.dcmweb_helper.dcmweb_uri_endpoint)
 
     def start(self):
         """
@@ -110,18 +108,17 @@ class ExternalPacsOperator:
             dcmweb_endpoint (str): The DICOMweb endpoint from which to download metadata.
             dataset_name (str): Name of the dataset for identification.
         """
-        dcmweb_helper = HelperDcmWeb()
         metadata = []
 
-        studies = dcmweb_helper.get_studies(dcmweb_endpoint=dcmweb_endpoint)
+        studies = self.dcmweb_helper.get_studies(dcmweb_endpoint=dcmweb_endpoint)
         for study in studies:
             study_uid = study["0020000D"]["Value"][0]
-            series = dcmweb_helper.get_series_of_study(
+            series = self.dcmweb_helper.get_series_of_study(
                 study_uid, dcmweb_endpoint=dcmweb_endpoint
             )
             for single_series in series:
                 series_uid = single_series["0020000E"]["Value"][0]
-                instances = dcmweb_helper.get_instances_of_series(
+                instances = self.dcmweb_helper.get_instances_of_series(
                     study_uid=study_uid,
                     series_uid=series_uid,
                     dcmweb_endpoint=dcmweb_endpoint,
@@ -222,12 +219,15 @@ class ExternalPacsOperator:
         """
         try:
             payload = {
-                "dcmweb_endpoint": endpoint,
-                "opensearch_index": self.project_form.get("opensearch_index"),
+                "datasource": {
+                    "dcmweb_endpoint": endpoint,
+                    "opensearch_index": self.project_form.get("opensearch_index"),
+                },
                 "secret_data": secret_data,
             }
+            logger.info(f"Payload being sent: {payload}")
             response = requests.post(
-                url=f"{self.DICOM_WEB_MULTIPLEXER_SERVICE}/datasources", json=payload
+                url=f"{self.dcmweb_helper.dcmweb_rs_endpoint}/management/datasources", json=payload
             )
             response.raise_for_status()
             logger.info(f"External PACs added to multiplexer successfully")

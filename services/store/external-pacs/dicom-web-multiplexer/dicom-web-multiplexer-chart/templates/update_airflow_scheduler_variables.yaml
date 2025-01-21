@@ -3,22 +3,24 @@ kind: Job
 metadata:
   name: update-global-variables
   namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "1"
 spec:
   template:
     spec:
       restartPolicy: Never
       containers:
       - name: append-variables
-        image: "{{ .Values.global.registry_url }}/update-variables:{{ .Values.global.kaapana_build_version }}"
-        imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
-        env:
-        - name: DICOM_WEB_SERVICE_RS
-          value: "http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter"
-        - name: DICOM_WEB_SERVICE_URI
-          value: "http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter/wado-uri/wado"
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version }}"
         command:
-        - "/app/start.sh"
-        - "append"
+        - "/bin/sh"
+        - "-c"
+        - |
+          echo "Appending variables...";
+          echo "DICOM_WEB_SERVICE_RS=\"http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter\"  # AUTO_ADDED" >> /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;
+          echo "DICOM_WEB_SERVICE_URI=\"http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter/wado-uri/wado\"  # AUTO_ADDED" >> /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;      
+          cat /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;
         volumeMounts:
         - name: airflow-plugins
           mountPath: /kaapana/mounted/workflows/plugins
@@ -27,22 +29,31 @@ spec:
         persistentVolumeClaim:
           claimName: af-plugins-pv-claim
   backoffLimit: 4
+
 ---
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: revert-global-variables
   namespace: "services"
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-weight": "-1"
 spec:
   template:
     spec:
       restartPolicy: Never
       containers:
-      - name: update-variables
-        image: "{{ .Values.global.registry_url }}/update-variables:{{ .Values.global.kaapana_build_version }}"
+      - name: revert-variables
+        image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version }}"
         command:
-        - "/app/start.sh"
-        - "remove"
+        - "/bin/sh"
+        - "-c"
+        - |
+          echo "Reverting variables...";
+          sed -i '/# AUTO_ADDED/d' /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;
+          cat /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;
+        volumeMounts:
         volumeMounts:
         - name: airflow-plugins
           mountPath: /kaapana/mounted/workflows/plugins

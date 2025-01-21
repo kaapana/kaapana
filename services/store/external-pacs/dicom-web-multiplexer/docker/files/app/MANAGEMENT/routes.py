@@ -7,7 +7,13 @@ from app.crud import (
     get_datasource,
     remove_datasource,
 )
-from app.models import DataSource
+from app.models import (
+    DataSourceDB,
+    DataSourceResponse,
+    AuthenticatedDataSourceRequest,
+    AuthenticatedDataSourceResponse,
+    DataSourceRequest,
+)
 from app.database import get_session_non_context_manager as get_session
 from app.kube import (
     create_k8s_secret,
@@ -17,36 +23,10 @@ from app.kube import (
 )
 from app.logger import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 logger = get_logger(__file__)
-
-
-# TODO gcloud specific
-class GcloudSecretData(BaseModel):
-    type: str
-    project_id: str
-    private_key_id: str
-    private_key: str
-    client_email: str
-    client_id: str
-    auth_uri: str
-    token_uri: str
-    auth_provider_x509_cert_url: str
-    client_x509_cert_url: str
-    universe_domain: str
-
-
-class DataSourceRequest(BaseModel):
-    datasource: DataSource
-    secret_data: GcloudSecretData
-
-
-class DataSourceResponse(BaseModel):
-    datasource: DataSource
-    secret_data: GcloudSecretData
 
 
 @router.head("/alive")
@@ -64,7 +44,7 @@ async def read_multiplexer() -> Response:
 async def retrieve_datasources(
     opensearch_index: str = Query(None),
     session: AsyncSession = Depends(get_session),
-) -> List[DataSource]:
+) -> List[DataSourceResponse]:
     """
     Retrieve all datasources, optionally filtered by opensearch_index.
 
@@ -73,15 +53,17 @@ async def retrieve_datasources(
         session (AsyncSession): Database session dependency.
 
     Returns:
-        List[DataSource]: List of datasources.
+        List[DataSourceAPI]: List of transformed datasource objects.
     """
     datasources = await get_all_datasources(opensearch_index, session)
-    return datasources
+
+    return [DataSourceResponse.model_validate(ds) for ds in datasources]
 
 
 @router.post("/datasources")
 async def create_datasource(
-    data: DataSourceRequest, session: AsyncSession = Depends(get_session)
+    datasource: AuthenticatedDataSourceRequest,
+    session: AsyncSession = Depends(get_session),
 ) -> Response:
     """
     Create a datasource in Kubernetes secret and database.
@@ -93,26 +75,32 @@ async def create_datasource(
     Returns:
         Response: Success or error response.
     """
-    dcmweb_endpoint = data.dcmweb_endpoint
-    opensearch_index = data.opensearch_index
-    secret_data = data.secret_data.model_dump()
-    datasource = DataSource(
-        dcmweb_endpoint=dcmweb_endpoint, opensearch_index=opensearch_index
-    )
+    secret_data = datasource.secret_data.model_dump()
+    datasource = datasource.datasource
 
     try:
-        secret_name = hash_secret_name(dcmweb_endpoint)
+        secret_name = hash_secret_name(datasource.dcmweb_endpoint)
         if not create_k8s_secret(secret_name, secret_data):
             return Response(
                 status_code=500,
                 content=f"Unable to create secret for the datasource {datasource}",
             )
 
-        if not await add_datasource(datasource, session):
+        datasource_db = DataSourceDB(
+            dcmweb_endpoint=datasource.dcmweb_endpoint,
+            opensearch_index=datasource.opensearch_index
+        )
+        try:
+            await add_datasource(datasource_db, session)
+        except Exception as e:
+            logger.error(f"Couldn't create datasource: {datasource}")
+            logger.error(e)
+            logger.error(traceback.format_exc())
             return Response(
                 status_code=500,
                 content=f"Unable to create database entry for the datasource: {datasource}",
             )
+            
         return Response(status_code=200)
 
     except Exception as e:
@@ -126,8 +114,7 @@ async def create_datasource(
 
 @router.delete("/datasources")
 async def delete_datasource(
-    dcmweb_endpoint: str,
-    opensearch_index: str,
+    datasource: DataSourceRequest,
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """
@@ -141,10 +128,7 @@ async def delete_datasource(
     Returns:
         Response: Success or error response.
     """
-    datasource = DataSource(
-        dcmweb_endpoint=dcmweb_endpoint, opensearch_index=opensearch_index
-    )
-    secret_name = hash_secret_name(dcmweb_endpoint)
+    secret_name = hash_secret_name(datasource.dcmweb_endpoint)
     try:
         if not delete_k8s_secret(secret_name):
             return Response(
@@ -152,8 +136,11 @@ async def delete_datasource(
                 content=f"Couldn't delete secret for datasource {datasource}.",
             )
         logger.info(f"Deleted secret for datasource {datasource}.")
-
-        if not await remove_datasource(datasource, session):
+        datasource_db = DataSourceDB(
+            dcmweb_endpoint=datasource.dcmweb_endpoint,
+            opensearch_index=datasource.opensearch_index
+        )
+        if not await remove_datasource(datasource_db, session):
             return Response(
                 status_code=500,
                 content=f"Couldn't remove database entry for datasource {datasource}.",
@@ -171,10 +158,9 @@ async def delete_datasource(
 
 @router.get("/datasource")
 async def retrieve_datasource(
-    dcmweb_endpoint: str,
-    opensearch_index: str,
+    datasource: DataSourceRequest,
     session: AsyncSession = Depends(get_session),
-) -> DataSourceResponse:
+):
     """
     Retrieve a specific datasource secret and details by endpoint and opensearch_index.
 
@@ -186,17 +172,15 @@ async def retrieve_datasource(
     Returns:
         dict: Datasource details with associated secret data.
     """
-    datasource = DataSource(
-        dcmweb_endpoint=dcmweb_endpoint, opensearch_index=opensearch_index
-    )
     try:
-        datasource = await get_datasource(datasource, session)
+        datasource_db = await get_datasource(datasource, session)
+        datasource = DataSourceResponse.model_validate(datasource_db)
         if not datasource:
             raise HTTPException(
                 status_code=404, detail=f"Datasource not found: {datasource}."
             )
 
-        secret_name = hash_secret_name(dcmweb_endpoint)
+        secret_name = hash_secret_name(datasource.dcmweb_endpoint)
         secret_data = get_k8s_secret(secret_name)
 
         if not secret_data:
@@ -204,7 +188,9 @@ async def retrieve_datasource(
                 status_code=404, detail=f"Datasource secret not found: {datasource}."
             )
 
-        return DataSourceResponse(datasource=datasource, secret_data=secret_data)
+        return AuthenticatedDataSourceResponse(
+            datasource=datasource, secret_data=secret_data
+        )
 
     except Exception as e:
         logger.error(f"Error retrieving datasource: {e}")

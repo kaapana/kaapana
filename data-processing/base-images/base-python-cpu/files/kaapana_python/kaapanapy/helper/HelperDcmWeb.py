@@ -10,12 +10,13 @@ from typing import Any, Dict, List
 
 import pydicom
 import requests
-from kaapanapy.helper import get_project_user_access_token
-from kaapanapy.settings import DataSourceSettings
+from kaapanapy.helper import get_project_user_access_token, load_workflow_config
+from kaapanapy.settings import ProjectSettings
 from requests_toolbelt.multipart import decoder
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 class HelperDcmWeb:
     """
@@ -29,19 +30,40 @@ class HelperDcmWeb:
         """Initialize the HelperDcmWeb class.
 
         Args:
-            username (str, optional): The username of the user who started the dag. Defaults to None.
             access_token (str, optional): The access token of the user. Defaults to None.
         """
-        self.dcmweb_rs_endpoint = DataSourceSettings().DICOM_WEB_SERVICE_RS
-        self.dcmweb_uri_endpoint = DataSourceSettings().DICOM_WEB_SERVICE_URI
-        
+
+        try:
+            # Local Operators
+            from kaapana.blueprints.kaapana_global_variables import (
+                DICOM_WEB_SERVICE_RS,
+                DICOM_WEB_SERVICE_URI,
+            )
+
+            self.dcmweb_rs_endpoint = DICOM_WEB_SERVICE_RS
+            self.dcmweb_uri_endpoint = DICOM_WEB_SERVICE_URI
+        except:
+            # Processing-Containers
+            self.dcmweb_rs_endpoint = os.getenv("DICOM_WEB_SERVICE_RS")
+            self.dcmweb_uri_endpoint = os.getenv("DICOM_WEB_SERVICE_URI")
+
+        logger.debug(
+            f"HelperDcmWeb initialized with service: {self.dcmweb_rs_endpoint}"
+        )
+
         self.access_token = access_token or get_project_user_access_token()
         self.auth_headers = {
             "Authorization": f"Bearer {self.access_token}",
             "x-forwarded-access-token": self.access_token,
         }
+        
+
         self.session = requests.Session()
         self.session.headers.update(self.auth_headers)
+        
+        # For Multiplexer
+        self.project_headers = {"project_index": ProjectSettings().project_name}
+        self.session.headers.update(self.project_headers)
 
     def check_if_series_in_archive(self, seriesUID: str, studyUID: str) -> bool:
         """This function checks if a series exists in the archive.

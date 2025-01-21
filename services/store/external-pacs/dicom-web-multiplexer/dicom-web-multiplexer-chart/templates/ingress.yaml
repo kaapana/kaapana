@@ -1,4 +1,3 @@
----
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -14,6 +13,13 @@ spec:
     http:
       paths:
       - path: /dicom-web-filter
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: dicom-web-multiplexer-service
+            port: 
+              number: 8080
+      - path: /dicom-web-multiplexer
         pathType: ImplementationSpecific
         backend:
           service:

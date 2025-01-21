@@ -24,6 +24,8 @@ from kaapana.blueprints.kaapana_global_variables import (
     PLATFORM_VERSION,
     PROCESSING_WORKFLOW_DIR,
     PULL_POLICY_IMAGES,
+    DICOM_WEB_SERVICE_RS,
+    DICOM_WEB_SERVICE_URI
 )
 from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
 from kaapana.kubetools import pod_launcher
@@ -654,6 +656,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 "BATCH_NAME": str(self.batch_name),
                 "OPERATOR_OUT_DIR": str(self.operator_out_dir),
                 "BATCHES_INPUT_DIR": f"{PROCESSING_WORKFLOW_DIR}/{context['run_id']}/{self.batch_name}",
+                "DICOM_WEB_SERVICE_RS": DICOM_WEB_SERVICE_RS,
+                "DICOM_WEB_SERVICE_URI": DICOM_WEB_SERVICE_URI,
             }
         )
 

@@ -36,22 +36,22 @@ class ProxyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Specific routes meant for multiplexer management should skip dicom-web-filter
-        if request.url.path.startswith("/dicom-web-multiplexer"):
+        if "management" in request.url.path:
             return await call_next(request)
 
         try:
             # Determine endpoint based on Series UID or proxy request to DICOM Web Filter
             series_uid = get_series_uid_from_request(request)
+            
             # Only check opensearch_index of a current project
-            opensearch_index = json.loads(request.headers["project"])[
-                "opensearch_index"
-            ]
-            logger.info(f"Searching in Opensearch Index: {opensearch_index}")
-
+            project_index = request.headers["project_index"]
+            access_token = request.headers["x-forwarded-access-token"]
+            
+            logger.info(f"Searching in project index: {project_index}")
             if series_uid:
                 logger.info(f"Request has series_uid: {series_uid}")
 
-                endpoint = get_endpoint_from_opensearch(series_uid, opensearch_index)
+                endpoint = get_endpoint_from_opensearch(series_uid, access_token)
                 if endpoint:
                     logger.info(f"Data Source endpoint: {endpoint}")
                     request.state.endpoint = endpoint
@@ -63,9 +63,9 @@ class ProxyMiddleware(BaseHTTPMiddleware):
                 # No Series UID -> requests all project related PACS, merging external and local PACS responses
                 dicom_web_filter_result = await proxy_dicom_web_filter(request=request)
 
-                # TODO Only check opensearch_index of a current project
+                # Only check opensearch_index of a current project
                 dicom_web_multiplexer_result = await dicom_web_multiplexer_responses(
-                    opensearch_index, request, call_next
+                    project_index, request, call_next
                 )
 
                 logger.info("Merge External PACS responses with Local Dicom Web Filter")
@@ -98,12 +98,11 @@ def get_series_uid_from_request(request: URL) -> str | None:
     return match.group(1) if match else None
 
 
-def get_endpoint_from_opensearch(series_uid: str, index: str) -> str:
+def get_endpoint_from_opensearch(series_uid: str, access_token) -> str:
     query = {"bool": {"must": [{"term": {DicomTags.series_uid_tag: series_uid}}]}}
-    os_helper = HelperOpensearch()
+    os_helper = HelperOpensearch(access_token)
     result = os_helper.get_query_dataset(
         query=query,
-        index=index,
         include_custom_tag=DicomTags.dcmweb_endpoint_tag,
     )
     endpoint = result[0]["_source"].get(DicomTags.dcmweb_endpoint_tag)
@@ -253,7 +252,7 @@ async def proxy_dicom_web_filter(request: Request) -> Response:
 
 
 async def dicom_web_multiplexer_responses(
-    opensearch_index: str, request: Request, call_next: callable
+    project_index: str, request: Request, call_next: callable
 ) -> Response | None:
     """
     Aggregates responses from external PACS endpoints and returns a merged result.
@@ -267,7 +266,7 @@ async def dicom_web_multiplexer_responses(
     """
     async with get_session() as session:
         data_sources = await get_all_datasources(
-            opensearch_index=opensearch_index, session=session
+            project_index=project_index, session=session
         )
     endpoint_strings = [ep.dcmweb_endpoint for ep in data_sources]
     logger.info(f"Found endpoints: {endpoint_strings}")

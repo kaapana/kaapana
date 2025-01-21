@@ -50,9 +50,6 @@ class ProjectSettings(KaapanaSettings):
         )
     )
 
-class DataSourceSettings(KaapanaSettings):
-    DICOM_WEB_SERVICE_RS: str
-    DICOM_WEB_SERVICE_URI: str
 
 class OperatorSettings(BaseSettings):
     """

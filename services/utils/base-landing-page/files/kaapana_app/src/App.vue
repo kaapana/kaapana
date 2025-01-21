@@ -157,6 +157,7 @@ import {
   LOAD_COMMON_DATA,
   GET_POLICY_DATA,
   GET_SELECTED_PROJECT,
+  CLEAR_SELECTED_PROJECT,
 } from "@/store/actions.type";
 import { checkAuthR } from "@/utils/utils.js";
 
@@ -177,6 +178,7 @@ export default Vue.extend({
       "commonData",
       "policyData",
       "selectedProject",
+      "availableProjects"
     ]),
   },
   methods: {
@@ -278,6 +280,33 @@ export default Vue.extend({
           location.reload(); // Reload the page
         }
       }
+    );
+
+    this.$store.watch(
+      () => this.$store.getters.availableProjects,
+      (newProjects: [any]) => {
+        let found = false;
+        const selectedProject = this.$store.getters.selectedProject;
+        const currentUser = this.$store.getters.currentUser;
+        
+        // if the user not a kaapana_admin, check if the selected
+        // project is listed in the available project for the user.
+        // if not, clear the selected project from store and localstoraga,
+        // reset the selected project by reloading
+        if (!currentUser.groups.includes("kaapana_admin")) {
+          for(const project of newProjects) {
+            if (project.id == selectedProject.id) {
+              found = true;
+              break;
+            }
+          }
+
+          if (!found) {
+            this.$store.dispatch(CLEAR_SELECTED_PROJECT);
+            location.reload(); // Reload the page
+          }
+        }
+      }    
     );
 
     this.getSettingsFromDb();

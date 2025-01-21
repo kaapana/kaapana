@@ -3,21 +3,16 @@
 Migration from Version v0.2.x to v0.3.x
 ***************************************
 
-The current default way to go, is delete `SLOW_DATA_DIR` and `FAST_DATA_DIR` (e.g. /home/kaapana) and start fresh. 
-If data has to be kept (images in PACs and META) one has to copy the dcm4che data (from SLOW_DATA_DIR) and reimport and or reindex with the corresponding dags.
-This is the safest way and is still a valid option (since we have still 0.x version). 
+The metadata stored in opensearch needs no migration as it works out of the box.
 
-
-So this focuses only on the most important databases (PACs and META). 
-Meta has not to be migrated (works out of the box).   
-
-For dcm4che:   
+Dicom data in dcm4che
+---------------------
 
 **Sources**
 * `Upgrade-on-Docker <https://github.com/dcm4che/dcm4chee-arc-light/wiki/Upgrade-on-Docker>`_
 * `Update general <https://github.com/dcm4che/dcm4chee-arc-light/wiki/Upgrade>`_
 
-1. We start by starting dcm4che-postgres with the 0.2.x version the kaapana instance is running on (the intance can still be running, but do not interact with dcm4che (e.g. send new data):
+#. We start by starting dcm4che-postgres with the 0.2.x version the kaapana instance is running on (the intance can still be running, but do not interact with dcm4che (e.g. send new data):
 
     .. code-block:: shell
 
@@ -32,7 +27,7 @@ For dcm4che:
         
         docker exec -it db bash
 
-2. Start check to current database and note down the COUNTS:
+#. Start check to current database and note down the COUNTS:
 
     .. code-block:: shell
 
@@ -43,7 +38,7 @@ For dcm4che:
         pacsdb=# SELECT COUNT(series_iuid) FROM public.series;
         pacsdb=# SELECT COUNT(sop_iuid) FROM public.instance;
 
-Create an SQL DUMP, create a backup location first (e.g. ``/home/kaapana/backup``)
+#. Create an SQL DUMP, create a backup location first (e.g. ``/home/kaapana/backup``)
 
     .. code-block:: shell
 
@@ -55,16 +50,16 @@ Create an SQL DUMP, create a backup location first (e.g. ``/home/kaapana/backup`
 
 
 
-Next, we need the update folder on dcm4che (clone dcm4che from github or this folder: https://github.com/dcm4che/dcm4chee-arc-light/tree/master/dcm4chee-arc-entity/src/main/resources/sql/psql   
+#. Next, we need the update folder on dcm4che (clone dcm4che from github or this folder: https://github.com/dcm4che/dcm4chee-arc-light/tree/master/dcm4chee-arc-entity/src/main/resources/sql/psql   
 
-Stop and delete the current container first
+#. Stop and delete the current container first
 
     .. code-block::
 
         docker stop db
         docker rm db
 
-Start a new docker **with different volume-mounts**!  
+#. Start a new docker **with different volume-mounts**!  
 
     .. code-block:: shell 
 
@@ -78,7 +73,7 @@ Start a new docker **with different volume-mounts**!
                 -v /home/ubuntu/update-dcm4che/dcm4chee-arc-light/dcm4chee-arc-entity/src/main/resources/sql/psql:/update \
                 -d <image-dcm4che-postgres:0.2.x>
 
-Next, import the sql dump into the new database.
+#. Next, import the sql dump into the new database.
 
     .. code-block:: shell
 
@@ -89,10 +84,12 @@ Next, import the sql dump into the new database.
         \i /pacsdb_9_6.sql
         SET session_replication_role = 'origin';
 
-Make sure to use the set functions: By temporarily disabling foreign key constraints, you can import your data without encountering foreign key violations. 
-Because otherwise, I encountered errors when importing (also with pg_restore).
+    .. note::
 
-Check if the database is complete, e.g. compare:
+        Make sure to use the set functions: By temporarily disabling foreign key constraints, you can import your data without encountering foreign key violations. 
+        Otherwise, you might encounter errors when importing (also with pg_restore).
+
+#. Check if the database is complete, e.g. compare:
 
     .. code-block:: shell
 
@@ -103,7 +100,7 @@ Check if the database is complete, e.g. compare:
         pacsdb=# SELECT COUNT(series_iuid) FROM public.series;
         pacsdb=# SELECT COUNT(sop_iuid) FROM public.instance;
 
-Next, update the database tables, by updating version by version:
+#. Update the database tables, by updating version by version:
 
     .. code-block:: shell
 
@@ -115,13 +112,13 @@ Next, update the database tables, by updating version by version:
         psql $POSTGRES_DB $POSTGRES_USER -a -f /update/update-5.31.1-psql.sql
         psql $POSTGRES_DB $POSTGRES_USER -a -f /update/update-5.32-psql.sql
 
-Next, create a new sql dump (like before)
+#. Create a new sql dump (like before)
 
     .. code-block:: shell
 
         docker exec -t db pg_dump -U pacs -d pacsdb > /home/kaapana/backup/pacsdb_updated.sql
 
-Next, start a new container with the new kaapana dcm4che-postgres image (e.g. <registry.hzdr.de>/<project>/dcm4che-postgres:0.3.x)
+#. Start a new container with the new kaapana dcm4che-postgres image (e.g. <registry.hzdr.de>/<project>/dcm4che-postgres:0.3.x)
 
     .. code-block:: shell
 
@@ -141,28 +138,28 @@ Next, start a new container with the new kaapana dcm4che-postgres image (e.g. <r
         \i /pacsdb_updated.sql
         SET session_replication_role = 'origin';
 
-kill container  undeploy old kaapana version and rename database:
+#. Kill the container, undeploy old kaapana version and rename database:
 
     .. code-block:: shell
 
         sudo mv /home/kaapana/postgres-dcm4che /home/kaapana/postgres-dcm4che-old
         sudo mv /home/kaapana/postgres-dcm4che-new /home/kaapana/postgres-dcm4che
 
-delete intermediate database:
+#. Delete the intermediate database:
 
     .. code-block:: shell
 
         sudo rm -rf /home/kaapana/postgres-dcm4che9.6
 
-Redeploy version with kaapana 0.3.x (the ``SLOW_DATA_DIR`` has to point to the old data dir).
+#. Redeploy version with kaapana 0.3.x (the ``SLOW_DATA_DIR`` has to point to the old data dir).
 
-Go in kubernetes, enter the ldap pod (in the service namespace) or use the terminal 
+#. Go in kubernetes, enter the ldap pod (in the service namespace) or use the terminal 
 
     .. code-block:: shell
 
         kubectl exec -n services --stdin --tty  <ldap-pod-name> -- /bin/sh
 
-Write the following commands:
+#. Execute the following commands:
 
     .. code-block:: shell
 
@@ -187,4 +184,4 @@ Write the following commands:
 
         It is ``unassign-role-from-user`` and not ``unassign-role-to-user``!
 
-Restart dcm4che and ldap pod.
+#. Restart dcm4che and ldap pod.

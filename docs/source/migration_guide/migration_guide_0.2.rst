@@ -17,17 +17,17 @@ What it presevers
 Instructions
 ------------
 
-1. Copy the provided ``server_installation_0.2.2.sh`` as well as the ``deploy_platform_0.2.2.sh`` onto the server.
-2. :ref:`Undeploy the old platform<deployment>` using the old ``install_platform.sh`` script by executing it and choosing option ``2) Uninstall``.
-3. When the platform is undeployed uninstall the older server initialization using the old server_installation.sh script by executing: ``sudo ./server_installation.sh --uninstall``
-4. Reboot the machine
-5. Follow the :ref:`Server Installation Guide<server_installation>` to initialize the server. (The ``server_installation.sh`` is the provided ``server_installation_0.2.2.sh``)
-6. Add the container registry username and password in the according Line 15 & 16 in the ``deploy_platform_0.2.2.sh`` script.
-7. Move data from the old installation to a temporary folder by executing ``mv /home/kaapana /home/kaapana_0.1.3``. Make sure that the directories for the new version (e.g. default ``/home/kaapana``) does not exist when the new version of the platform is booted up for the first time, so that the new platform does not boot using the old data (which would fail and leave an invalid state).
-8. Follow the :ref:`Platform Deployment Guide<deployment>` using the ``deploy_platform_0.2.2.sh`` script with the preconfigured private registry.
-9. Optional: If TLS certificates are installed reinstall them in the updated instance :ref:`by following the FAQ in the KAAPANA<how_to_install_tls_certificates>`
-10. After the new version of the platform is successfully deployed with the initial file structure created in the fresh data directory the platform must be undeployed again by using the ``deploy_plaform_0.2.2.sh`` script and choosing option ``2) Undeploy``. Wait till the platform is undeployed.
-11. Move the data from PACS and MINIO from the old installation over to the new installation be executing the following commands (if the data directories have been customized in the previous installation replace ``/home/kaapana_0.1.3`` with the path of the old installation and ``/home/kaapana`` with the path for the new installation):
+#. Copy the provided ``server_installation_0.2.2.sh`` as well as the ``deploy_platform_0.2.2.sh`` onto the server.
+#. :ref:`Undeploy the old platform<deployment>` using the old ``install_platform.sh`` script by executing it and choosing option ``2) Uninstall``.
+#. When the platform is undeployed uninstall the older server initialization using the old server_installation.sh script by executing: ``sudo ./server_installation.sh --uninstall``
+#. Reboot the machine
+#. Follow the :ref:`Server Installation Guide<server_installation>` to initialize the server. (The ``server_installation.sh`` is the provided ``server_installation_0.2.2.sh``)
+#. Add the container registry username and password in the according Line 15 & 16 in the ``deploy_platform_0.2.2.sh`` script.
+#. Move data from the old installation to a temporary folder by executing ``mv /home/kaapana /home/kaapana_0.1.3``. Make sure that the directories for the new version (e.g. default ``/home/kaapana``) does not exist when the new version of the platform is booted up for the first time, so that the new platform does not boot using the old data (which would fail and leave an invalid state).
+#. Follow the :ref:`Platform Deployment Guide<deployment>` using the ``deploy_platform_0.2.2.sh`` script with the preconfigured private registry.
+#. Optional: If TLS certificates are installed reinstall them in the updated instance :ref:`by following the FAQ in the KAAPANA<how_to_install_tls_certificates>`
+#. After the new version of the platform is successfully deployed with the initial file structure created in the fresh data directory the platform must be undeployed again by using the ``deploy_plaform_0.2.2.sh`` script and choosing option ``2) Undeploy``. Wait till the platform is undeployed.
+#. Move the data from PACS and MINIO from the old installation over to the new installation be executing the following commands (if the data directories have been customized in the previous installation replace ``/home/kaapana_0.1.3`` with the path of the old installation and ``/home/kaapana`` with the path for the new installation):
 
     .. code-block:: shell
 
@@ -38,12 +38,12 @@ Instructions
         sudo cp -r /home/kaapana_0.1.3/postgres-dcm4che /home/kaapana/postgres-dcm4che
         sudo cp -r /home/kaapana_0.1.3/minio /home/kaapana/minio
 
-12. Ensure that the permissions for dcm4chee are correct by executing ``sudo chown -R 1023:1023 /home/kaapana/dcm4che/server_data/``
-13. Deploy the Platform again as done in step 8
-14. Login to the platform and check that Store > Minio lists the files from the previous installation and that Store > OHIF shows the studies of the old version of the platform.
-15. To populate the ``meta-index`` which is used by the Workflows > Datasets View as well as by all Dashboards under Meta, go to System > Airflow and click the play Button next to the ``service-re-index-dicom-data`` DAG. In the Popup menu select the “Trigger DAG” Option.
-16. Await the successful completion of the ``service-re-index-dicom-data`` DAG as well as any service-extract-metadata DAGs. When finished none of this DAGs should have operators in the running or queued state.
-17. Generate the thumbnails (used as preview images in the Datasets view):
+#. Ensure that the permissions for dcm4chee are correct by executing ``sudo chown -R 1023:1023 /home/kaapana/dcm4che/server_data/``
+#. Deploy the Platform again as done in step 8
+#. Login to the platform and check that Store > Minio lists the files from the previous installation and that Store > OHIF shows the studies of the old version of the platform.
+#. To populate the ``meta-index`` which is used by the Workflows > Datasets View as well as by all Dashboards under Meta, go to System > Airflow and click the play Button next to the ``service-re-index-dicom-data`` DAG. In the Popup menu select the “Trigger DAG” Option.
+#. Await the successful completion of the ``service-re-index-dicom-data`` DAG as well as any service-extract-metadata DAGs. When finished none of this DAGs should have operators in the running or queued state.
+#. Generate the thumbnails (used as preview images in the Datasets view):
     
     #. Open the ``code-server`` from the Extensions view.
     
@@ -55,4 +55,4 @@ Instructions
     
     #. After the ``service-segmentation-thumbnail`` is completed and the thumbnails have been generated reset the ``ui_visible`` of the ``service-segmentation-thumbnail`` from ``False`` to ``True`` again.
 
-18. When everything works in the new version the old data can be deleted using: ``sudo rm -rf /home/kaapana_0.1.3``
+#. When everything works in the new version the old data can be deleted using: ``sudo rm -rf /home/kaapana_0.1.3``

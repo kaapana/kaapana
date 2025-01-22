@@ -6,8 +6,19 @@ metadata:
   labels: 
     app-name: dicom-web-filter
 spec:
-  selector: 
+  selector:
     app-name: dicom-web-filter
   ports:
-    - port: 8080
+{{- if .Values.global.dev_files }}
+    - name: dicom-web-http
+      port: 8080 
       targetPort: 8080
+      nodePort: 8080 # only for development!
+  type: NodePort # only for development!
+{{- else }}
+    - name: dicom-web-http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
+{{- end }}

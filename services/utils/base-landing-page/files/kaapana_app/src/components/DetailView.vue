@@ -1,6 +1,6 @@
 <template>
   <v-card>
-    <v-card-title>
+    <v-card-title style="display: block;">
       <v-row no-gutters align="center" justify="center">
         <v-col cols="10">
           <div class="text-truncate">

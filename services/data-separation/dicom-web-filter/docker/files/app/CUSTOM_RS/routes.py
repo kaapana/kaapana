@@ -1,10 +1,14 @@
+import binascii
 import logging
+import os
+import re
 
 import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from fastapi import APIRouter, Depends, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Set logging level
@@ -195,3 +199,130 @@ async def del_series(
             return await delete_series_dcm4chee(study, series, request)
     else:
         return Response(status_code=403)
+
+
+def get_boundary() -> bytes:
+    """Generate a random boundary for the multipart message.
+
+    Returns:
+        bytes: Random boundary
+    """
+    return binascii.hexlify(os.urandom(16))
+
+
+def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) -> bytes:
+    """Replace the boundary in the buffer.
+
+    Args:
+        buffer (bytes): Buffer
+        old_boundary (bytes): Old boundary
+        new_boundary (bytes): New boundary
+
+    Returns:
+        bytes: Buffer with replaced boundary
+    """
+    return buffer.replace(
+        f"--{old_boundary.decode()}".encode(),
+        f"--{new_boundary.decode()}".encode(),
+    ).replace(
+        f"--{old_boundary.decode()}--".encode(),
+        f"--{new_boundary.decode()}--".encode(),
+    )
+
+
+async def stream(
+    method="GET",
+    url: str = None,
+    request_headers: dict = None,
+    new_boundary: bytes = None,
+):
+    """Stream the data to the DICOMWeb server. The boundary in the multipart message is replaced. We use this to set a custom boundary which is then also present in the headers.
+       There was a problem with the original boundary not being present in the headers, which is why we need to replace it.
+       There was a problem with the boundary being split across chunks, which is why we need to buffer the data and replace the boundary in the buffer.
+
+    Args:
+        method (str, optional): _description_. Defaults to "GET".
+        url (str, optional): _description_. Defaults to None.
+        request_headers (dict, optional): _description_. Defaults to None.
+        new_boundary (bytes, optional): _description_. Defaults to None.
+
+    Yields:
+        _type_: _description_
+    """
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method, url, headers=dict(request_headers)
+        ) as response:
+            # Boundary has to be replaced
+            buffer = b""  # We need the buffer, to ensure the boundary is not being split across chunks
+            pattern_size = (
+                len(new_boundary) + 4
+            )  # 2 bytes for "--" at the start and 2 bytes for "--" at the end
+            first_chunk = True
+            response_boundary = None
+            async for chunk in response.aiter_bytes():
+                # Get the boundary which will be replaced from the first chunk
+                if first_chunk:
+                    response_boundary = re.search(
+                        b"boundary=(.*)", response.headers["Content-Type"].encode()
+                    ).group(1)
+                    first_chunk = False
+                buffer += chunk
+                # Replace the boundary in the buffer
+                buffer = replace_boundary(
+                    buffer=buffer,
+                    old_boundary=response_boundary,
+                    new_boundary=new_boundary,
+                )
+                to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                yield to_yield
+                buffer = buffer[-pattern_size:]
+
+            # Yield any remaining buffer after the last chunk
+            if buffer:
+                yield buffer
+
+
+@router.get(
+    "/studies/{study}/series/{series}/instances/{instance}/bulkdata/{dicomTag}/{itemIndex}/{AttributePath}",
+    tags=["Custom"],
+)
+async def retrieve_instance_bulkdata(
+    study: str,
+    series: str,
+    instance: str,
+    dicomTag: str,
+    itemIndex: str,
+    AttributePath: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):    
+    project_ids_of_user = [
+        project["id"] for project in request.scope.get("token")["projects"]
+    ]
+
+    if request.scope.get(
+        "admin"
+    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
+        session=session,
+        project_ids=project_ids_of_user,
+        study_instance_uid=study,
+        series_instance_uid=series,
+    ):
+        boundary = get_boundary()
+
+        return StreamingResponse(
+            stream(
+                method="GET",
+                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/bulkdata/{dicomTag}/{itemIndex}/{AttributePath}",
+                request_headers=request.headers,
+                new_boundary=boundary,
+            ),
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+            },
+        )
+
+    else:
+        return Response(status_code=204)

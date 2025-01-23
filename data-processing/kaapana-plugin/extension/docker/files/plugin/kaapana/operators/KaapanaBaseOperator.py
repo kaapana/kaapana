@@ -525,7 +525,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 }
             )
 
-        project_name = self.project.get("name")
+        # In case of debugging service_dag there is no self.project
+        project_name = self.project.get("name") if self.project else "admin"
+            
         ingress_path = (
             f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
         )

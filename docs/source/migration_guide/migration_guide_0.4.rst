@@ -243,6 +243,17 @@ Follow these detailed steps to ensure the metadata is correctly restored and rei
     - Then click on *Reindex* to begin the operation.
     - Once the reindexing operation completed, verify in the Meta-Dashboard that `project_admin` contains all the expected metadata.
 
+
+Populate dicom-web-filter database
+-----------------------------------
+The new dicom-web-filter ensures that a project only has access to the dicom series assigned to this project.
+Therefore, we will assign all available series to the admin project.
+You can simply do this by executing a DAG via the Airflow Webinterface:
+
+- Open the Airflow Dashboard via the Kaapana menu.
+- Find the DAG service-re-index-dicom-data.
+- Click on the play button on the right side to trigger the DAG.
+
 .. _thumbnails_and_staticwebsiteresults_0.4:
 
 Migrate Thumbnails and Static Website Results

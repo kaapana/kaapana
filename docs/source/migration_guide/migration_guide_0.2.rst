@@ -9,16 +9,27 @@ The platform does not provide any guarantees regarding data integrity especially
 In such a case it would be needed to start with a fresh Kaapana installation and resend all the data. 
 With these words of caution here the necessary steps:
 
-What it presevers
------------------
+What this migration guide presevers
+-----------------------------------
 - Images in PACS
 - Minio Storage
+
+Requirements
+------------
+* Script ``deploy_platform_0.2.2.sh`` to deploy new Kaapana version.
+
 
 Instructions
 ------------
 
-#. Copy the provided ``server_installation_0.2.2.sh`` as well as the ``deploy_platform_0.2.2.sh`` onto the server.
+#. Copy the `server_installation_0.2.2.sh <https://codebase.helmholtz.cloud/kaapana/kaapana/-/raw/0.2.2/server-installation/server_installation.sh?ref_type=tags&inline=false>`_ as well as the ``deploy_platform_0.2.2.sh`` onto the server.
 #. :ref:`Undeploy the old platform<deployment>` using the old ``install_platform.sh`` script by executing it and choosing option ``2) Uninstall``.
+
+    .. image:: https://codebase.helmholtz.cloud/-/project/2521/uploads/8e2116c651e01efd555b589d5aee1df7/image.png
+        :width: 148 
+        :height: 40
+
+
 #. When the platform is undeployed uninstall the older server initialization using the old server_installation.sh script by executing: ``sudo ./server_installation.sh --uninstall``
 #. Reboot the machine
 #. Follow the :ref:`Server Installation Guide<server_installation>` to initialize the server. (The ``server_installation.sh`` is the provided ``server_installation_0.2.2.sh``)
@@ -47,7 +58,11 @@ Instructions
     
     #. Open the ``code-server`` from the Extensions view.
     
-    #. In file ``mounted/workflows/dags/dag_service_segmentation_thumbnail.py`` set ui_visible from False to True. This change may take 2-3 minutes to be visible in the frontend. ![image](/uploads/58bc36bb3215c0efe5856e5155cb242a/image.png){width=295 height=210}
+    #. In file ``mounted/workflows/dags/dag_service_segmentation_thumbnail.py`` set ui_visible from False to True. This change may take 2-3 minutes to be visible in the frontend. 
+        
+        .. image:: https://codebase.helmholtz.cloud/-/project/2521/uploads/58bc36bb3215c0efe5856e5155cb242a/image.png
+            :width: 295 
+            :height: 210
     
     #. In the Workflows > Dataset view click on RTSTRUCT and SEG in the Dashboard on the right side to add both to the filters, then click the SEARCH button so that all RTSTRUCT and SEG objects are selected.
     

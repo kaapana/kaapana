@@ -54,16 +54,18 @@ Before undeploying your 0.3.x platform, complete the following steps:
         1. Open the ``deploy_platform_0.3.5.sh`` script and change ``DEV_MODE="false"`` to ``DEV_MODE="true"``.
         2. Then run ``./deploy_platform_0.3.5.sh`` and select action ``1) Un- and Re-deploy``
         
+        Before you can continue, you have to wait until all pods are in the *Running* or *Completed* state.
         
     - Open the Kubernetes dashboard and locate the `os-config` ConfigMap in the `services` namespace.
-    - Click *Edit Resource* and update the `opensearch.yml` file to the following:
+    - Click *Edit Resource* and exchange the `opensearch.yml` file with the following:
 
         .. code-block:: yaml
-
-            ---
-            cluster.name: docker-cluster
-            path.repo: ["/usr/share/opensearch/logs"]
-            network.host: 0.0.0.0
+            
+            opensearch.yml: |
+                ---
+                cluster.name: docker-cluster
+                path.repo: ["/usr/share/opensearch/logs"]
+                network.host: 0.0.0.0
 
     - Save the ConfigMap.
 
@@ -105,6 +107,10 @@ Before undeploying your 0.3.x platform, complete the following steps:
     - Create a repository with type *Shared file system* and the location: ``/usr/share/opensearch/logs/snapshots``.
     - Navigate to the *Snapshots* menu, take a snapshot of the `meta-index`
     - As soon as the snapshot completed back up the snapshot files located on your server in ``${FAST_DATA_DIR}/os/logs/snapshots/`` to a secure location.
+
+        .. code-block:: shell
+
+            sudo cp -r --preserve `${FAST_DATA_DIR}/os/logs/snapshots/ /path/to/snapshot-backup/
 
 .. _undeploy_and_uninstall_0.4:
 
@@ -215,8 +221,8 @@ Follow these detailed steps to ensure the metadata is correctly restored and rei
     - Copy all snapshot files to the appropriate directory on the new platform:
 
         .. code-block:: bash
-
-            cp -r /path/to/backup/snapshots/* ${FAST_DATA_DIR}/os/snapshots
+            
+            sudo cp -r --preserve /path/to/snapshot-backup ${FAST_DATA_DIR}/os/snapshots
 
     - Ensure the files are placed under the directory ``${FAST_DATA_DIR}/os/snapshots``, as OpenSearch expects them in this location.
 
@@ -226,24 +232,16 @@ Follow these detailed steps to ensure the metadata is correctly restored and rei
         - Click on *Create Repository* and choose the repository type *Shared file system*.
         - Set the location to ``/usr/share/snapshots`` and save the repository.
     - Navigate to the *Snapshots* section in OpenSearch.
-    - Select the snapshot you created on the previous platform (e.g., `meta03`) and click on *Restore*.
+    - Select the snapshot you created on the previous platform and click on *Restore*.
     - In the restore configuration, select the `meta-index` as the index to restore.
     - Enable the option *Add prefix to restored index names* to avoid conflicts with existing indexes. For example, this might rename the restored index to `restored_meta-index`.
 
 3. Reindex the Restored Metadata:
     - Navigate to the *Index Management - Indexes* section in OpenSearch.
     - Select the newly restored index (e.g., `restored_meta-index`) and apply the *Reindex* action.
-    - In the reindex configuration:
-        - Set the destination index name to `project_merged`.
-        - Click on *Create Index* to create the new destination index and then click on *Reindex* to begin the operation.
-    - Once the reindexing operation completes, verify that `project_merged` contains all the expected metadata.
-
-4. Finalize the Metadata Restoration:
-    - Repeat the reindexing process for `project_merged`, this time setting the destination index name to `project_admin`.
-    - Navigate to *Index Management - Indexes*, select the `project_merged` index, and choose the *Reindex* action.
-    - Configure the destination index name as `project_admin` and proceed with the operation.
-    - After the reindexing completes, confirm that `project_admin` now contains all the required metadata.
-
+    - Specify the index `project_admin` as the destination index.
+    - Then click on *Reindex* to begin the operation.
+    - Once the reindexing operation completed, verify in the Meta-Dashboard that `project_admin` contains all the expected metadata.
 
 .. _thumbnails_and_staticwebsiteresults_0.4:
 
@@ -280,8 +278,13 @@ Follow the steps below carefully to ensure a smooth migration:
 Add New Realm-Role in Keycloak
 ------------------------------
 
-1. Add the new realm-role `project-manager` to the Kaapana realm in Keycloak.
-2. Map the group `kaapana_project_manager` to the role `project-manager`.
+#. Login to the Keycloak admin console and make sure the *kaapana* realm is selected in the Keycloak menu.
+#. In the Keycloak Menu navigate to *Realm Roles*.
+#. Click on *Create Role*, set the *Role name* to *project-manager* and click *Save*.
+#. Then navigate to *Groups* and click on the group *kaapana_project_manager*.
+#. Open the tab *Role mapping* and click on *Assign role*.
+#. You might have to change *Filter by clients* to *Filter by realm roles*
+#. Then select the role *project-manager* and click on *Assign*.
 
 .. _migrating_airflow_dags_0.4:
 

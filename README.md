@@ -52,7 +52,7 @@ Check out the [documentation](https://kaapana.readthedocs.io/en/latest/) for fur
 
 ## Where to find us
 * [GitLab](https://gitlab.hzdr.de/kaapana/kaapana/): The main Kaapana repository, mirrored on GitHub.
-* [Slack](https://kaapana.slack.com/): Join the community for discussions and updates.
+* [Slack](https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/): Join the community for discussions and updates.
 * [YouTube](https://www.youtube.com/@KaapanaAI): Tutorials, demos and more in-depth presentations.
 * [Website](https://kaapana.ai/)
 

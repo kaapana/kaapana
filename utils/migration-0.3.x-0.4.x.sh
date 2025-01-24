@@ -19,6 +19,8 @@ docker pull ${IMAGE_POSTGRES_DCM4CHE_OLD}
 docker pull ${IMAGE_POSTGRES_DCM4CHE_NEW}
 
 #### Backend
+echo "Start migration of kaapana-backend database"
+
 if [ ! -d ${TMP_MIGRATION_DIR}/backend ]; then
     mkdir -p ${TMP_MIGRATION_DIR}/backend
     cp -r ${FAST_DATA_DIR}/postgres-backend ${TMP_MIGRATION_DIR}/backend/backup
@@ -38,7 +40,11 @@ docker rm postgres15-backend postgres17-backend
 rm -r ${FAST_DATA_DIR}/postgres-backend
 cp -r ${TMP_MIGRATION_DIR}/backend/data ${FAST_DATA_DIR}/postgres-backend
 
+echo "Completed migration of kaapana-backend database"
+
 #### Keycloak
+echo "Start migration of Keycloak database"
+
 if [ ! -d ${TMP_MIGRATION_DIR}/keycloak ]; then
     mkdir -p ${TMP_MIGRATION_DIR}/keycloak
     cp -r ${FAST_DATA_DIR}/keycloak ${TMP_MIGRATION_DIR}/keycloak/backup
@@ -58,7 +64,11 @@ docker rm postgres15-keycloak postgres17-keycloak
 rm -r ${FAST_DATA_DIR}/keycloak/db-files
 cp -r ${TMP_MIGRATION_DIR}/keycloak/data ${FAST_DATA_DIR}/keycloak/db-files
 
+echo "Completed migration of Keycloak database"
+
 #### Airflow
+echo "Start migration of Airflow database"
+
 if [ ! -d ${TMP_MIGRATION_DIR}/airflow ]; then
     mkdir -p ${TMP_MIGRATION_DIR}/airflow
     cp -r ${FAST_DATA_DIR}/postgres-airflow ${TMP_MIGRATION_DIR}/airflow/backup
@@ -77,7 +87,11 @@ docker rm postgres15-airflow postgres17-airflow
 rm -r ${FAST_DATA_DIR}/postgres-airflow
 cp -r ${TMP_MIGRATION_DIR}/airflow/data ${FAST_DATA_DIR}/postgres-airflow
 
+echo "Completed migration of Airflow database"
+
 #### Dcm4chee 5.32.0 to 5.33.1
+echo "Start migration of dcm4che database"
+
 if [ ! -d ${TMP_MIGRATION_DIR}/dcm4che ]; then
     mkdir -p ${TMP_MIGRATION_DIR}/dcm4che
     cp -r ${FAST_DATA_DIR}/postgres-dcm4che ${TMP_MIGRATION_DIR}/dcm4che/backup
@@ -100,9 +114,15 @@ docker rm postgres15-dcm4che postgres17-dcm4che
 rm -r ${FAST_DATA_DIR}/postgres-dcm4che
 cp -r ${TMP_MIGRATION_DIR}/dcm4che/data ${FAST_DATA_DIR}/postgres-dcm4che
 
+echo "Completed migration of dcm4che database"
+
 #### Opensearch
+echo "Backup opensearch data and remove opensearch directory from FAST_DATA_DIR."
+
 if [ ! -d ${TMP_MIGRATION_DIR}/os ]; then
-    mkdir -p ${TMP_MIGRATION_DIR}/openstack
-    cp -r ${FAST_DATA_DIR}/os ${TMP_MIGRATION_DIR}/openstack/backup
+    mkdir -p ${TMP_MIGRATION_DIR}/opensearch
+    cp -r ${FAST_DATA_DIR}/os ${TMP_MIGRATION_DIR}/opensearch/backup
 fi
 rm -r ${FAST_DATA_DIR}/os
+
+echo "Completed migration script successfully."

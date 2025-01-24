@@ -201,4 +201,8 @@ The instructions are based on the official upgrade guides for dcm4che:
             It is ``unassign-role-from-user`` and not ``unassign-role-to-user``!
 
 #. Restart dcm4che and ldap pods 
-    You can either delete the pods using the Kubernetes dashboard or in the terminal with ``kubectl delete pod``.
+    You can either delete the pods using the Kubernetes dashboard or in the terminal with 
+    
+    .. code-block:: shell 
+        
+        kubectl delete pod -n services <name-of-the-pod>

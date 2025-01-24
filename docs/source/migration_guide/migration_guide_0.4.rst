@@ -1,10 +1,11 @@
 .. _migration_guide_0.4:
 
-Migration from Version 0.3.x to 0.4.x
+Migration from Version 0.3.5 to 0.4.1
 *************************************
 
 Version 0.4.0 introduces several breaking changes.
-This guide outlines the steps required to migrate your data, including DICOM files, metadata, user data, and more, from a Kaapana instance based on 0.3.x to 0.4.1.
+This guide outlines the steps required to migrate your data, including DICOM files, metadata, user data, and more, from a Kaapana instance based on 0.3.5 to 0.4.1.
+Version 0.4.1 comes with some fixes, that eases the migration procedure.
 Additionally, we included a section with information about :ref:`breaking changes regarding custom Airflow DAGs<migrating_airflow_dags_0.4>`.
 
 The data migration process consists of the following steps, detailed below:
@@ -23,6 +24,8 @@ Requirements:
     - Access to the Kubernetes dashboard for editing configurations and restarting pods.
     - Root permissions on the host machine where the platform is deployed.
     - Login credentials for a private registry.
+    - Script ``deploy_platform_0.3.5.sh`` to undeploy old platform.
+    - Script ``deploy:platform_0.4.0.sh`` to deploy the new platform.
 
 .. _prepare_migration_0.4:
 
@@ -37,6 +40,21 @@ Before undeploying your 0.3.x platform, complete the following steps:
     - In the list of users, ensure the *system* user belongs to the *kaapana_admin* group.
 
 2. Prepare OpenSearch Meta-Information:
+
+    .. note::
+
+        Step 2 and 3 are only necessary, when you created additional metadata for dicom series and stored them in Opensearch.
+        If not skip step 2 and 3.
+
+    .. important::
+
+        The following steps only work, when you deployed the current platform in development mode.
+        You can put the platform into development with two steps.
+        
+        1. Open the ``deploy_platform_0.3.5.sh`` script and change ``DEV_MODE="false"`` to ``DEV_MODE="true"``.
+        2. Then run ``./deploy_platform_0.3.5.sh`` and select action ``1) Un- and Re-deploy``
+        
+        
     - Open the Kubernetes dashboard and locate the `os-config` ConfigMap in the `services` namespace.
     - Click *Edit Resource* and update the `opensearch.yml` file to the following:
 
@@ -85,7 +103,8 @@ Before undeploying your 0.3.x platform, complete the following steps:
 3. Take a Snapshot of the Metadata:
     - Open the OpenSearch index management dashboard at: ``https://<hostname>/meta/app/opensearch_index_management_dashboards#/repositories``.
     - Create a repository with type *Shared file system* and the location: ``/usr/share/opensearch/logs/snapshots``.
-    - Navigate to the *Snapshots* menu, take a snapshot of the `meta-index`, and back up the snapshot files located in ``${FAST_DATA_DIR}/os/logs/snapshots/`` to a secure location.
+    - Navigate to the *Snapshots* menu, take a snapshot of the `meta-index`
+    - As soon as the snapshot completed back up the snapshot files located on your server in ``${FAST_DATA_DIR}/os/logs/snapshots/`` to a secure location.
 
 .. _undeploy_and_uninstall_0.4:
 
@@ -99,7 +118,7 @@ To undeploy and uninstall the current platform:
     
         .. code-block:: shell
 
-            ./deploy_platform_0.3.x.sh --quiet --undeploy
+            ./deploy_platform_0.3.5.sh --quiet --undeploy
 
 2. Uninstall the MicroK8s Cluster:
     - Download the `server_installation.sh` script for version 0.3.5:
@@ -121,6 +140,7 @@ Database Migration
 
 Before deploying the new platform version, migrate the PostgreSQL database:
 
+
 1. Download the migration script:
    
    .. code-block:: shell
@@ -137,6 +157,11 @@ Before deploying the new platform version, migrate the PostgreSQL database:
     - `TMP_MIGRATION_DIR` - Directory on the server, where database backups and dumps and metadata backups should be stored
     - `FAST_DATA_DIR` - Directory on the server, where stateful application-data will be stored (databases, processing tmp data etc.)
 
+.. note::
+
+    The provided migration script will backup all database files in ``TMP_MIGRATION_DIR``.
+    It will overwrite all database directories in the ``FAST_DATA_DIR``.
+
 3. Log in to the container registry:
    
    .. code-block:: shell
@@ -147,7 +172,8 @@ Before deploying the new platform version, migrate the PostgreSQL database:
    
    .. code-block:: shell
 
-      sudo ./migration_0.3.x-0.4.x.sh
+        sudo chmod +x ./migration_0.3.x-0.4.x.sh
+        sudo ./migration_0.3.x-0.4.x.sh
 
 .. _install_and_deploy_0.4:
 
@@ -167,6 +193,10 @@ Install MicroK8s Cluster and Deploy New Platform Version
       sudo ./server-installation-0.4.0.sh
 
 3. Deploy the platform:
+
+    .. note::
+        As the migration script overwrote the database files in the ``FAST_DATA_DIR`` you can select the same ``FAST_DATA_DIR`` and ``SLOW_DATA_DIR`` for the new deployment as for the old deployment.
+
    
    .. code-block:: shell
 

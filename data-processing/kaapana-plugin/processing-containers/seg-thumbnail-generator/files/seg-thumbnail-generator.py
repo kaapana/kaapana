@@ -76,6 +76,162 @@ def resample_segmentation_to_reference_image(
     return image, segmentation_resampled
 
 
+def generate_thumbnail(parameters: tuple) -> tuple:
+    global processed_count
+
+    dcm_seg_dir, dcm_dir, target_dir = parameters
+
+    logger.info(f"dcm_seg_dir: {dcm_seg_dir}")
+    logger.info(f"dcm_dir: {dcm_dir}")
+    logger.info(f"target_dir: {target_dir}")
+
+    # Load the DICOM segmentation object or RTSTRUCT file to determine the modality and series UID
+    ds = pydicom.dcmread(os.path.join(dcm_seg_dir, os.listdir(dcm_seg_dir)[0]))
+    modality = ds.Modality
+    seg_series_uid = ds.SeriesInstanceUID
+
+    # Create the target directory if it does not exist
+    os.makedirs(target_dir, exist_ok=True)
+
+    # Load the image and segmentation (and segment colors)
+    if modality == "RTSTRUCT":
+        image_array, seg_arrays, segment_colors = (
+            load_image_and_segmentation_from_rtstruct(dcm_dir, dcm_seg_dir)
+        )
+    elif modality == "SEG":
+        image_array, seg_arrays, segment_colors = (
+            load_image_and_segmentation_from_dicom_segmentation(dcm_dir, dcm_seg_dir)
+        )
+    else:
+        logger.warning(f"Modality {modality} not supported. Skipping.")
+        return False, ""
+
+    # Count the number of classes in each slice
+    classes_per_slice = np.sum(
+        np.any(seg_arrays > 0, axis=(2, 3)), axis=0
+    )  # Shape: (114,)
+
+    # Calculate the total segmentation area for each slice
+    area_per_slice = np.sum(
+        np.sum(seg_arrays, axis=0) > 0, axis=(1, 2)
+    )  # Shape: (114,)
+
+    # Combine the classes and area into a structured array for sorting
+    slice_metrics = np.array(
+        [
+            (i, classes_per_slice[i], area_per_slice[i])
+            for i in range(seg_arrays.shape[1])
+        ],
+        dtype=[("index", int), ("num_classes", int), ("area", int)],
+    )
+
+    # Sort by number of classes (descending) and area (descending)
+    sorted_slices = np.sort(slice_metrics, order=["num_classes", "area"])[::-1]
+
+    # The slice with the most classes and largest area
+    best_slice_index = sorted_slices[0]["index"]
+    best_slice_num_classes = sorted_slices[0]["num_classes"]
+    best_slice_area = sorted_slices[0]["area"]
+
+    best_slice = Slice(
+        slice_index=best_slice_index,
+        segmentation_classes=classes_per_slice[best_slice_index],
+        number_of_classes=best_slice_num_classes,
+        number_of_foreground_pixels=best_slice_area,
+    )
+
+    logger.info(
+        f"Best slice: {best_slice.slice_index} with {best_slice.number_of_classes} classes and {best_slice.number_of_foreground_pixels} foreground pixels"
+    )
+
+    # Select the best image slice
+    base_image_array = image_array[best_slice.slice_index, :, :]
+    del image_array
+
+    # Binary mask to highligh where the segments are
+    seg_array_binary = np.where(np.sum(seg_arrays, axis=0) > 0, 1, 0)
+
+    # Select the corresponding binary mask
+    base_seg_array_binary = seg_array_binary[best_slice.slice_index, :, :]
+    del seg_array_binary
+
+    # Use the binary mask to get the relevant intensities (To see the regions within the mask better)
+    masked_array = base_image_array * base_seg_array_binary
+
+    # Areas with intensity values over 0
+    areas_over_zero = masked_array[masked_array > 0]
+
+    # Calculate the min intensity for the windowing
+    min_intensity = np.min(areas_over_zero)
+
+    # Calculate the max intensity for the windowing. Use the mean intensity plus 2 standard deviations
+    max_intensity = np.mean(areas_over_zero) + 2 * np.std(areas_over_zero)
+
+    # Add a 10% margin to the min and max intensities
+    margin = 0.1 * (max_intensity - min_intensity)
+    window_min = max(0, min_intensity - margin)
+    window_max = min(4095, max_intensity + margin)  # assuming 12-bit DICOM images
+
+    # Apply windowing to the original DICOM image
+    windowed_data = np.clip(base_image_array, window_min, window_max)
+
+    del base_image_array
+
+    # Normalize the windowed pixel values to 0-255
+    normalized_data = (windowed_data - window_min) / (window_max - window_min) * 255
+    normalized_data = normalized_data.astype(np.uint8)
+
+    # Create an RGBA image
+    image = Image.fromarray(normalized_data).convert("RGBA")
+
+    # Combine all binary masks for the best slice to calculate overlap
+    overlap_map = np.sum(
+        seg_arrays[:, best_slice_index], axis=0
+    )  # Shape: (height, width)
+
+    # Avoid division by zero
+    overlap_map = np.clip(overlap_map, 1, None)
+
+    # Apply transparency blending for each segment
+    for seg_class in range(seg_arrays.shape[0]):
+        color = segment_colors[seg_class + 1]["color"]  # RGB tuple (e.g., (255, 0, 0))
+        mask_array = np.uint8(seg_arrays[seg_class, best_slice_index] > 0) * 255
+
+        mask = Image.fromarray(mask_array, mode="L")
+
+        # Draw the border with full opacity
+        border_overlay = Image.new("RGBA", image.size, tuple(color) + (255,))
+        image = Image.composite(
+            border_overlay, image, mask.filter(ImageFilter.FIND_EDGES)
+        )
+
+        # Calculate normalized opacity for this segment
+        normalized_opacity = 128 / overlap_map  # Scale total overlap to 50% max
+        normalized_opacity_map = (mask_array / 255 * normalized_opacity).astype(
+            np.uint8
+        )
+
+        # Convert normalized opacity to a PIL image
+        mask_image = Image.fromarray(normalized_opacity_map, mode="L")
+
+        # Draw the inner part with calculated opacity
+        fill_overlay = Image.new("RGBA", image.size, tuple(color) + (0,))
+        fill_overlay.putalpha(
+            mask_image
+        )  # Use mask_image directly as the alpha channel
+
+        image = Image.alpha_composite(image, fill_overlay)
+
+    # Save the thumbnail
+    target_png = os.path.join(target_dir, f"new_{seg_series_uid}.png")
+    image.save(target_png)
+    logger.info(f"Thumbnail saved to {target_png}")
+
+    processed_count += 1
+
+    return True, target_png
+
+
 def load_image_and_segmentation_from_dicom_segmentation(
     image_dir: str, seg_dir: str
 ) -> tuple:
@@ -245,161 +401,6 @@ def load_image_and_segmentation_from_rtstruct(
 
     return image_array, seg_arrays, segment_colors
 
-
-def generate_thumbnail(parameters: tuple) -> tuple:
-    global processed_count
-
-    dcm_seg_dir, dcm_dir, target_dir = parameters
-
-    logger.info(f"dcm_seg_dir: {dcm_seg_dir}")
-    logger.info(f"dcm_dir: {dcm_dir}")
-    logger.info(f"target_dir: {target_dir}")
-
-    # Load the DICOM segmentation object or RTSTRUCT file to determine the modality and series UID
-    ds = pydicom.dcmread(os.path.join(dcm_seg_dir, os.listdir(dcm_seg_dir)[0]))
-    modality = ds.Modality
-    seg_series_uid = ds.SeriesInstanceUID
-
-    # Create the target directory if it does not exist
-    os.makedirs(target_dir, exist_ok=True)
-
-    # Load the image and segmentation (and segment colors)
-    if modality == "RTSTRUCT":
-        image_array, seg_arrays, segment_colors = (
-            load_image_and_segmentation_from_rtstruct(dcm_dir, dcm_seg_dir)
-        )
-    elif modality == "SEG":
-        image_array, seg_arrays, segment_colors = (
-            load_image_and_segmentation_from_dicom_segmentation(dcm_dir, dcm_seg_dir)
-        )
-    else:
-        logger.warning(f"Modality {modality} not supported. Skipping.")
-        return False, ""
-
-    # Count the number of classes in each slice
-    classes_per_slice = np.sum(
-        np.any(seg_arrays > 0, axis=(2, 3)), axis=0
-    )  # Shape: (114,)
-
-    # Calculate the total segmentation area for each slice
-    area_per_slice = np.sum(
-        np.sum(seg_arrays, axis=0) > 0, axis=(1, 2)
-    )  # Shape: (114,)
-
-    # Combine the classes and area into a structured array for sorting
-    slice_metrics = np.array(
-        [
-            (i, classes_per_slice[i], area_per_slice[i])
-            for i in range(seg_arrays.shape[1])
-        ],
-        dtype=[("index", int), ("num_classes", int), ("area", int)],
-    )
-
-    # Sort by number of classes (descending) and area (descending)
-    sorted_slices = np.sort(slice_metrics, order=["num_classes", "area"])[::-1]
-
-    # The slice with the most classes and largest area
-    best_slice_index = sorted_slices[0]["index"]
-    best_slice_num_classes = sorted_slices[0]["num_classes"]
-    best_slice_area = sorted_slices[0]["area"]
-
-    best_slice = Slice(
-        slice_index=best_slice_index,
-        segmentation_classes=classes_per_slice[best_slice_index],
-        number_of_classes=best_slice_num_classes,
-        number_of_foreground_pixels=best_slice_area,
-    )
-
-    logger.info(
-        f"Best slice: {best_slice.slice_index} with {best_slice.number_of_classes} classes and {best_slice.number_of_foreground_pixels} foreground pixels"
-    )
-
-    # Select the best image slice
-    base_image_array = image_array[best_slice.slice_index, :, :]
-    del image_array
-
-    # Binary mask to highligh where the segments are
-    seg_array_binary = np.where(np.sum(seg_arrays, axis=0) > 0, 1, 0)
-
-    # Select the corresponding binary mask
-    base_seg_array_binary = seg_array_binary[best_slice.slice_index, :, :]
-    del seg_array_binary
-
-    # Use the binary mask to get the relevant intensities (To see the regions within the mask better)
-    masked_array = base_image_array * base_seg_array_binary
-
-    # Areas with intensity values over 0
-    areas_over_zero = masked_array[masked_array > 0]
-
-    # Calculate the min intensity for the windowing
-    min_intensity = np.min(areas_over_zero)
-
-    # Calculate the max intensity for the windowing. Use the mean intensity plus 2 standard deviations
-    max_intensity = np.mean(areas_over_zero) + 2 * np.std(areas_over_zero)
-
-    # Add a 10% margin to the min and max intensities
-    margin = 0.1 * (max_intensity - min_intensity)
-    window_min = max(0, min_intensity - margin)
-    window_max = min(4095, max_intensity + margin)  # assuming 12-bit DICOM images
-
-    # Apply windowing to the original DICOM image
-    windowed_data = np.clip(base_image_array, window_min, window_max)
-
-    del base_image_array
-
-    # Normalize the windowed pixel values to 0-255
-    normalized_data = (windowed_data - window_min) / (window_max - window_min) * 255
-    normalized_data = normalized_data.astype(np.uint8)
-
-    # Create an RGBA image
-    image = Image.fromarray(normalized_data).convert("RGBA")
-
-    # Combine all binary masks for the best slice to calculate overlap
-    overlap_map = np.sum(
-        seg_arrays[:, best_slice_index], axis=0
-    )  # Shape: (height, width)
-
-    # Avoid division by zero
-    overlap_map = np.clip(overlap_map, 1, None)
-
-    # Apply transparency blending for each segment
-    for seg_class in range(seg_arrays.shape[0]):
-        color = segment_colors[seg_class + 1]["color"]  # RGB tuple (e.g., (255, 0, 0))
-        mask_array = np.uint8(seg_arrays[seg_class, best_slice_index] > 0) * 255
-
-        mask = Image.fromarray(mask_array, mode="L")
-
-        # Draw the border with full opacity
-        border_overlay = Image.new("RGBA", image.size, tuple(color) + (255,))
-        image = Image.composite(
-            border_overlay, image, mask.filter(ImageFilter.FIND_EDGES)
-        )
-
-        # Calculate normalized opacity for this segment
-        normalized_opacity = 128 / overlap_map  # Scale total overlap to 50% max
-        normalized_opacity_map = (mask_array / 255 * normalized_opacity).astype(
-            np.uint8
-        )
-
-        # Convert normalized opacity to a PIL image
-        mask_image = Image.fromarray(normalized_opacity_map, mode="L")
-
-        # Draw the inner part with calculated opacity
-        fill_overlay = Image.new("RGBA", image.size, tuple(color) + (0,))
-        fill_overlay.putalpha(
-            mask_image
-        )  # Use mask_image directly as the alpha channel
-
-        image = Image.alpha_composite(image, fill_overlay)
-
-    # Save the thumbnail
-    target_png = os.path.join(target_dir, f"new_{seg_series_uid}.png")
-    image.save(target_png)
-    logger.info(f"Thumbnail saved to {target_png}")
-
-    processed_count += 1
-
-    return True, target_png
 
 if __name__ == "__main__":
     thumbnail_size = int(getenv("SIZE", "300"))

@@ -221,7 +221,7 @@ class ExternalPacsOperator:
             payload = {
                 "datasource": {
                     "dcmweb_endpoint": endpoint,
-                    "opensearch_index": self.project_form.get("opensearch_index"),
+                    "project_index": self.project_form.get("opensearch_index"),
                 },
                 "secret_data": secret_data,
             }

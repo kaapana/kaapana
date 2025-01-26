@@ -10,8 +10,8 @@ from typing import Any, Dict, List
 
 import pydicom
 import requests
-from kaapanapy.helper import get_project_user_access_token, load_workflow_config
-from kaapanapy.settings import ProjectSettings
+from kaapanapy.helper import get_project_user_access_token
+from kaapanapy.settings import OpensearchSettings
 from requests_toolbelt.multipart import decoder
 
 logger = logging.getLogger(__name__)
@@ -57,12 +57,11 @@ class HelperDcmWeb:
             "x-forwarded-access-token": self.access_token,
         }
         
-
         self.session = requests.Session()
         self.session.headers.update(self.auth_headers)
         
         # For Multiplexer
-        self.project_headers = {"project_index": ProjectSettings().project_name}
+        self.project_headers = {"project_index": OpensearchSettings().default_index}
         self.session.headers.update(self.project_headers)
 
     def check_if_series_in_archive(self, seriesUID: str, studyUID: str) -> bool:
@@ -152,14 +151,8 @@ class HelperDcmWeb:
         Returns:
             bool: True if the instance was downloaded successfully, False otherwise.
         """
-        url = f"{self.dcmweb_uri_endpoint}"
-        params = {
-            "requestType": "WADO",
-            "studyUID": study_uid,
-            "seriesUID": series_uid,
-            "objectUID": instance_uid,
-        }
-        response = self.session.get(url, params=params)
+        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}"
+        response = self.session.get(url)
         response.raise_for_status()
 
         with open(join(target_dir, f"{instance_uid}.dcm"), "wb") as f:

@@ -42,20 +42,20 @@ async def read_multiplexer() -> Response:
 
 @router.get("/datasources")
 async def retrieve_datasources(
-    opensearch_index: str = Query(None),
+    project_index: str = Query(None),
     session: AsyncSession = Depends(get_session),
 ) -> List[DataSourceResponse]:
     """
-    Retrieve all datasources, optionally filtered by opensearch_index.
+    Retrieve all datasources, optionally filtered by project_index.
 
     Args:
-        opensearch_index (str): Optional filter for datasources by opensearch_index.
+        project_index (str): Optional filter for datasources by project_index.
         session (AsyncSession): Database session dependency.
 
     Returns:
         List[DataSourceAPI]: List of transformed datasource objects.
     """
-    datasources = await get_all_datasources(opensearch_index, session)
+    datasources = await get_all_datasources(project_index, session)
 
     return [DataSourceResponse.model_validate(ds) for ds in datasources]
 
@@ -88,7 +88,7 @@ async def create_datasource(
 
         datasource_db = DataSourceDB(
             dcmweb_endpoint=datasource.dcmweb_endpoint,
-            opensearch_index=datasource.opensearch_index
+            project_index=datasource.project_index
         )
         try:
             await add_datasource(datasource_db, session)
@@ -122,7 +122,7 @@ async def delete_datasource(
 
     Args:
         endpoint (str): The endpoint of the datasource to delete.
-        opensearch_index (str): The opensearch_index of the datasource to delete.
+        project_index (str): The project_index of the datasource to delete.
         session (AsyncSession): Database session dependency.
 
     Returns:
@@ -138,7 +138,7 @@ async def delete_datasource(
         logger.info(f"Deleted secret for datasource {datasource}.")
         datasource_db = DataSourceDB(
             dcmweb_endpoint=datasource.dcmweb_endpoint,
-            opensearch_index=datasource.opensearch_index
+            project_index=datasource.project_index
         )
         if not await remove_datasource(datasource_db, session):
             return Response(
@@ -162,11 +162,11 @@ async def retrieve_datasource(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Retrieve a specific datasource secret and details by endpoint and opensearch_index.
+    Retrieve a specific datasource secret and details by endpoint and project_index.
 
     Args:
         endpoint (str): The endpoint of the datasource.
-        opensearch_index (str): The opensearch_index of the datasource.
+        project_index (str): The project_index of the datasource.
         session (AsyncSession): Database session dependency.
 
     Returns:

@@ -35,23 +35,30 @@ class ProxyMiddleware(BaseHTTPMiddleware):
             request.state.endpoint = request.headers["X-Endpoint-URL"]
             return await call_next(request)
 
-        # Specific routes meant for multiplexer management should skip dicom-web-filter
+        # Multiplexer - CRUD External Pacs
         if "management" in request.url.path:
             return await call_next(request)
+        
+        # dicom-web-filter
+        if "project" in request.url.path:
+            return await proxy_dicom_web_filter(request=request)
 
-        try:
+        try:    
             # Determine endpoint based on Series UID or proxy request to DICOM Web Filter
             series_uid = get_series_uid_from_request(request)
             
             # Only check opensearch_index of a current project
-            project_index = request.headers["project_index"]
+            if "project" in request.headers.keys():
+                project_index = json.loads(request.headers.get("project"))["opensearch_index"]
+            else: 
+                project_index = request.headers.get("project_index")
             access_token = request.headers["x-forwarded-access-token"]
             
             logger.info(f"Searching in project index: {project_index}")
             if series_uid:
                 logger.info(f"Request has series_uid: {series_uid}")
 
-                endpoint = get_endpoint_from_opensearch(series_uid, access_token)
+                endpoint = get_endpoint_from_opensearch(series_uid, access_token, project_index)
                 if endpoint:
                     logger.info(f"Data Source endpoint: {endpoint}")
                     request.state.endpoint = endpoint
@@ -98,11 +105,12 @@ def get_series_uid_from_request(request: URL) -> str | None:
     return match.group(1) if match else None
 
 
-def get_endpoint_from_opensearch(series_uid: str, access_token) -> str:
+def get_endpoint_from_opensearch(series_uid: str, access_token: str, project_index: str) -> str:
     query = {"bool": {"must": [{"term": {DicomTags.series_uid_tag: series_uid}}]}}
     os_helper = HelperOpensearch(access_token)
     result = os_helper.get_query_dataset(
         query=query,
+        index=project_index,
         include_custom_tag=DicomTags.dcmweb_endpoint_tag,
     )
     endpoint = result[0]["_source"].get(DicomTags.dcmweb_endpoint_tag)

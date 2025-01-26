@@ -1,9 +1,12 @@
+import binascii
+import os
 import traceback
 
 import httpx
 from app.auth import get_external_token
 from app.logger import get_logger
 from app.utils import rs_endpoint_url
+
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
 
@@ -12,6 +15,35 @@ from ..SUPPLEMENTS.routes import fetch_thumbnail_async
 logger = get_logger(__file__)
 
 router = APIRouter()
+
+
+def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) -> bytes:
+    """Replace the boundary in the buffer.
+
+    Args:
+        buffer (bytes): Buffer
+        old_boundary (bytes): Old boundary
+        new_boundary (bytes): New boundary
+
+    Returns:
+        bytes: Buffer with replaced boundary
+    """
+    return buffer.replace(
+        f"--{old_boundary.decode()}".encode(),
+        f"--{new_boundary.decode()}".encode(),
+    ).replace(
+        f"--{old_boundary.decode()}--".encode(),
+        f"--{new_boundary.decode()}--".encode(),
+    )
+
+
+def get_boundary() -> bytes:
+    """Generate a random boundary for the multipart message.
+
+    Returns:
+        bytes: Random boundary
+    """
+    return binascii.hexlify(os.urandom(16))
 
 
 async def stream(method, url, query_params=None, headers=None):
@@ -41,17 +73,21 @@ async def retrieve_studies(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", "Accept": "multipart/related"}
+    headers = {"Authorization": f"Bearer {token}", **request.headers}
+
+    boundary = get_boundary()
 
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}",
             headers=headers,
+            query_params=request.query_params,
+            new_boundary=boundary,
         ),
         headers={
             "Transfer-Encoding": "chunked",
-            "Content-Type": f"multipart/related;",
+            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
         },
     )
 
@@ -73,17 +109,21 @@ async def retrieve_series(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", "Accept": "multipart/related"}
+    headers = {"Authorization": f"Bearer {token}", **request.headers}
+
+    boundary = get_boundary()
 
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}",
             headers=headers,
+            query_params=request.query_params,
+            new_boundary=boundary,
         ),
         headers={
             "Transfer-Encoding": "chunked",
-            "Content-Type": f"multipart/related;",
+            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
         },
     )
 
@@ -107,30 +147,34 @@ async def retrieve_instances(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", "Accept": "multipart/related"}
+    headers = {"Authorization": f"Bearer {token}", **request.headers}
+
+    boundary = get_boundary()
 
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}",
             headers=headers,
+            query_params=request.query_params,
+            new_boundary=boundary,
         ),
         headers={
             "Transfer-Encoding": "chunked",
-            "Content-Type": f"multipart/related;",
+            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
         },
     )
 
 
 @router.get(
-    "/studies/{study}/series/{series}/instances/{instance}/frames/{frames}",
+    "/studies/{study}/series/{series}/instances/{instance}/frames/{frame}",
     tags=["WADO-RS"],
 )
 async def retrieve_frames(
     study: str,
     series: str,
     instance: str,
-    frames: str,
+    frame: str,
     request: Request,
 ):
     """Retrieve the frames from the DICOMWeb server.
@@ -147,17 +191,21 @@ async def retrieve_frames(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", "Accept": "multipart/related"}
+    headers = {"Authorization": f"Bearer {token}", **request.headers}
+
+    boundary = get_boundary()
 
     return StreamingResponse(
         stream(
             method="GET",
-            url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/frames/{frames}",
+            url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/frames/{frame}",
             headers=headers,
+            query_params=request.query_params,
+            new_boundary=boundary,
         ),
         headers={
             "Transfer-Encoding": "chunked",
-            "Content-Type": f"multipart/related;",
+            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
         },
     )
 

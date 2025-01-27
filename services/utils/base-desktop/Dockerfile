@@ -88,7 +88,7 @@ COPY /files/etc /etc
 COPY /files/root /root
 COPY /files/usr /usr
 
-RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r /usr/local/lib/backend/requirements.txt
+RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt -r /usr/local/lib/backend/requirements.txt
 
 EXPOSE 80
 WORKDIR /root

@@ -29,7 +29,7 @@ RUN echo "cc0ba26374932f0ca27452f4ad9bf9db /kaapana/app/BodyPartRegression/src/m
 RUN unzip BodyPartRegression/src/models/public_bpr_model.zip -d /kaapana/app/BodyPartRegression/src/models/
 
 COPY files/requirements.txt /kaapana/app/
-RUN pip3 uninstall -y torch torchtext torchaudio && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r /kaapana/app/requirements.txt
+RUN pip3 uninstall -y torch torchtext torchaudio && pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt -r /kaapana/app/requirements.txt
 
 WORKDIR /kaapana/app/BodyPartRegression
 

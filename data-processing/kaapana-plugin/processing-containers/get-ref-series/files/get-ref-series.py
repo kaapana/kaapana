@@ -357,7 +357,6 @@ class GetRefSeriesOperator:
             workflow_dir,
             batch_name,
             operator_out_dir,
-            reference_series_uid,
         )
 
         os.makedirs(target_dir, exist_ok=True)

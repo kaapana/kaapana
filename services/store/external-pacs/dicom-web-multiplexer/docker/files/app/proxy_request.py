@@ -10,13 +10,12 @@ async def proxy_request(
     request: Request,
     url: str,
     method: str,
-    timeout=10,
 ):
     """
     Forwards an HTTP request to the specified URL, replicating the request method and headers.
     Returns a standard `Response` with the content and headers from the proxied request.
     Used to redirect multiplexer request for local pacs to dicom-web-filter and collect response.
-    
+
     Args:
         request (Request): The incoming request to be proxied.
         url (str): The target URL for the proxied request.
@@ -27,24 +26,28 @@ async def proxy_request(
         Response: A response object with the proxied request's content, status code, and headers.
     """
     headers = dict(request.headers)
+    params = dict(request.query_params)
     logger.info(f"Request URL: {url}")
     logger.debug(f"Request headers: {headers}")
+    logger.debug(f"Request params: {params}")
     logger.debug(f"Request method: {method}")
 
     async with httpx.AsyncClient() as client:
-        client.timeout = timeout  # Set timeout for the client
-
         if method == "GET":
-            response = await client.get(url, headers=headers)
+            client.timeout = 5
+            response = await client.get(url, headers=headers, params=params)
         elif method == "POST":
+            client.timeout = 60
             body = await request.body()
-            response = await client.post(url, headers=headers, content=body)
+            response = await client.post(url, headers=headers, data=body)
         elif method == "OPTIONS":
-            response = await client.options(url, headers=headers)
+            response = await client.options(url, headers=headers, params=params)
         elif method == "PUT":
+            client.timeout = 60
             body = await request.body()
-            response = await client.put(url, headers=headers, content=body)
+            response = await client.put(url, headers=headers, data=body)
         elif method == "DELETE":
+            client.timeout = 5
             response = await client.delete(url, headers=headers)
         else:
             return Response(status_code=405)
@@ -95,7 +98,7 @@ async def stream_proxy_request(
     Returns:
         StreamingResponse: A response object that streams the content from the proxied request.
     """
-    
+
     headers = dict(request.headers)
     logger.info(f"Request URL: {url}")
     logger.debug(f"Request headers: {headers}")

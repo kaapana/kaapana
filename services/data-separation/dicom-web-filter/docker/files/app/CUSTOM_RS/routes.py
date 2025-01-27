@@ -1,12 +1,10 @@
 import logging
 
-from app.WADO_RS.routes import get_boundary, stream
 import httpx
 from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from fastapi import APIRouter, Depends, Request, Response
-from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Set logging level
@@ -198,47 +196,3 @@ async def del_series(
     else:
         return Response(status_code=403)
 
-
-@router.get(
-    "/studies/{study}/series/{series}/instances/{instance}/bulkdata/{dicomTag}/{itemIndex}/{AttributePath}",
-    tags=["Custom"],
-)
-async def retrieve_instance_bulkdata(
-    study: str,
-    series: str,
-    instance: str,
-    dicomTag: str,
-    itemIndex: str,
-    AttributePath: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
-        project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
-        boundary = get_boundary()
-
-        return StreamingResponse(
-            stream(
-                method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/bulkdata/{dicomTag}/{itemIndex}/{AttributePath}",
-                request_headers=request.headers,
-                new_boundary=boundary,
-            ),
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
-            },
-        )
-
-    else:
-        return Response(status_code=204)

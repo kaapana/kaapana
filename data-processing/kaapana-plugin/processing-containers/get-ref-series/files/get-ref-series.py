@@ -201,7 +201,7 @@ class GetRefSeriesOperator:
         # Check if number of instances is equal to number of downloaded files
         if len(instances) != len(os.listdir(series.target_dir)):
             raise ValueError(
-                f"Download of series {series.series_instance_uid} failed! Number of instances does not match number of downloaded files."
+                f"Download of series {series.reference_series_uid} failed! Number of instances does not match number of downloaded files."
             )
 
         logger.info(f"Number of instances in PACS: {len(instances)}")
@@ -210,21 +210,34 @@ class GetRefSeriesOperator:
             f"Downloaded series {series.reference_series_uid} to {series.target_dir}"
         )
 
+    def get_ids_of_series(self, path_to_dicom_slice: str) -> str:
+        """
+        Get all kinds of ids from a dicom file.
+        """
+
+        # Load the dicom file
+        ds = pydicom.dcmread(join(path_to_dicom_slice))
+
+        study_instance_uid = ds.StudyInstanceUID
+        series_instance_uid = ds.SeriesInstanceUID
+        patient_id = ds.PatientID
+
+        return series_instance_uid, study_instance_uid, patient_id
+
     def prepare_download_of_study_series(
         self,
-        path_to_dicom_slice: str,
+        study_instance_uid: str,
         workflow_dir: str,
         batch_name: str,
         operator_out_dir: str,
     ) -> DownloadSeries:
         """Prepare the download of all series of a study. Means:
-        - Load the dicom file and get the study instance uid.
         - Find all series of the given study in OpenSearch.
         - Create the target directories for the download.
         - Return a list of DownloadSeries objects, which contains the information needed for the download.
 
         Args:
-            path_to_dicom_slice (str): The path to the dicom slice.
+            study_instance_uid (str): The study instance uid to download.
             workflow_dir (str): The workflow directory.
             batch_name (str): The batch name.
             operator_out_dir (str): The operator out directory.
@@ -232,12 +245,6 @@ class GetRefSeriesOperator:
         Returns:
             DownloadSeries: Dataclass containing the information needed for the download.
         """
-
-        # Load the dicom file
-        ds = pydicom.dcmread(join(path_to_dicom_slice))
-
-        # get study instance uid
-        study_instance_uid = ds.StudyInstanceUID
 
         logger.info(f"Study instance uid: {study_instance_uid}")
 
@@ -279,8 +286,8 @@ class GetRefSeriesOperator:
             target_dir = join(
                 workflow_dir,
                 batch_name,
-                series_instance_uid,
                 operator_out_dir,
+                series_instance_uid,
             )
 
             os.makedirs(target_dir, exist_ok=True)
@@ -349,8 +356,8 @@ class GetRefSeriesOperator:
         target_dir = join(
             workflow_dir,
             batch_name,
-            series_instance_uid,
             operator_out_dir,
+            reference_series_uid,
         )
 
         os.makedirs(target_dir, exist_ok=True)
@@ -460,29 +467,49 @@ class GetRefSeriesOperator:
                             continue
                         else:
                             raise e
+                        
+                    series_uid = series_dir.split("/")[-1]
                     futures.append(
                         executor.submit(
                             self.prepare_download_of_ref_series,
                             dcm_file,
                             workflow_dir,
                             batch_name,
-                            operator_out_dir,
+                            join(series_uid, operator_out_dir),
                         )
                     )
 
                 for future in as_completed(futures):
                     download_series_list.append(future.result())
         elif self.search_policy == "study_uid":
-            download_series_list = self.prepare_download_of_study_series(
-                join(
-                    series_dirs[0],
-                    operator_in_dir,
-                    os.listdir(join(series_dirs[0], operator_in_dir))[0],
-                ),
-                workflow_dir,
-                batch_name,
-                operator_out_dir,
-            )
+
+            ids = []
+            for series_dir in series_dirs:
+                try:
+                    dcm_file = join(
+                        series_dir,
+                        operator_in_dir,
+                        os.listdir(join(series_dir, operator_in_dir))[0],
+                    )
+                except FileNotFoundError as e:
+                    if getenv("SKIP_EMPTY_REF_DIR", "FALSE").upper() == "TRUE":
+                        print(
+                            f"Skipping empty directory: {join(series_dir, operator_in_dir)}"
+                        )
+                        continue
+                    else:
+                        raise e
+                    
+                id = self.get_ids_of_series(dcm_file)
+                if id not in ids:
+                    ids.append(id)
+
+            download_series_list = []
+            for id in ids:
+                download_series_list += self.prepare_download_of_study_series(
+                    id[1], workflow_dir, batch_name, join(id[0], operator_out_dir)
+                )
+                
         elif self.search_policy == "search_query":
             download_series_list = self.prepare_download_of_search_query_series(
                 self.search_query, workflow_dir, batch_name, operator_out_dir

@@ -100,7 +100,7 @@ async def stream_proxy_request(
     """
 
     headers = dict(request.headers)
-    logger.info(f"Request URL: {url}")
+    logger.debug(f"Request URL: {url}")
     logger.debug(f"Request headers: {headers}")
     logger.debug(f"Request method: {method}")
 

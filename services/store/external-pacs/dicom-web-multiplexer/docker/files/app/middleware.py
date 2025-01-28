@@ -2,6 +2,8 @@ import json
 import re
 import traceback
 
+from httpx import HTTPStatusError
+
 from app.crud import get_all_datasources
 from app.database import get_session
 from app.logger import get_logger
@@ -38,29 +40,33 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         # Multiplexer - CRUD External Pacs
         if "management" in request.url.path:
             return await call_next(request)
-        
+
         # dicom-web-filter
         if "project" in request.url.path:
             return await proxy_dicom_web_filter(request=request)
 
-        try:    
+        try:
             # Determine endpoint based on Series UID or proxy request to DICOM Web Filter
             series_uid = get_series_uid_from_request(request)
-            
+
             # Only check opensearch_index of a current project
             if "project" in request.headers.keys():
-                project_index = json.loads(request.headers.get("project"))["opensearch_index"]
-            else: 
+                project_index = json.loads(request.headers.get("project"))[
+                    "opensearch_index"
+                ]
+            else:
                 project_index = request.headers.get("project_index")
             access_token = request.headers["x-forwarded-access-token"]
-            
-            logger.info(f"Searching in project index: {project_index}")
-            if series_uid:
-                logger.info(f"Request has series_uid: {series_uid}")
 
-                endpoint = get_endpoint_from_opensearch(series_uid, access_token, project_index)
+            logger.debug(f"Searching in project index: {project_index}")
+            if series_uid:
+                logger.debug(f"Request has series_uid: {series_uid}")
+
+                endpoint = get_endpoint_from_opensearch(
+                    series_uid, access_token, project_index
+                )
                 if endpoint:
-                    logger.info(f"Data Source endpoint: {endpoint}")
+                    logger.debug(f"Data Source endpoint: {endpoint}")
                     request.state.endpoint = endpoint
                     return await call_next(request)
 
@@ -74,21 +80,36 @@ class ProxyMiddleware(BaseHTTPMiddleware):
                 dicom_web_multiplexer_result = await dicom_web_multiplexer_responses(
                     project_index, request, call_next
                 )
-
-                logger.info("Merge External PACS responses with Local Dicom Web Filter")
                 return await decide_response(
                     dicom_web_filter_result, dicom_web_multiplexer_result
                 )
 
         except Exception as e:
-            logger.error(f"Error in proxy middleware: {e}")
-            logger.error(traceback.format_exc())
-            logger.error(request.url)
-            return Response(
-                content="Error in proxy middleware",
-                status_code=400,
-                media_type="text/plain",
-            )
+            return await handle_http_error(e, request)
+
+
+async def handle_http_error(e: Exception, request):
+    
+    if isinstance(e, HTTPStatusError):
+        # Extract details from the HTTPStatusError
+        status_code = e.response.status_code
+        detail = str(e)
+        headers = dict(e.response.headers)
+
+        # Create a response that mimics the HTTPStatusError
+        return Response(
+            content=detail,
+            status_code=status_code,
+            headers=headers,
+            media_type="text/plain",
+        )
+    else:
+        # Handle other exceptions
+        return Response(
+            content="Error in proxy middleware",
+            status_code=400,
+            media_type="text/plain",
+        )
 
 
 def get_study_uid_from_request(request: URL) -> str | None:
@@ -105,7 +126,9 @@ def get_series_uid_from_request(request: URL) -> str | None:
     return match.group(1) if match else None
 
 
-def get_endpoint_from_opensearch(series_uid: str, access_token: str, project_index: str) -> str:
+def get_endpoint_from_opensearch(
+    series_uid: str, access_token: str, project_index: str
+) -> str:
     query = {"bool": {"must": [{"term": {DicomTags.series_uid_tag: series_uid}}]}}
     os_helper = HelperOpensearch(access_token)
     result = os_helper.get_query_dataset(
@@ -154,8 +177,6 @@ async def merge_responses(
         )
 
     if response1_media_type in ["application/json", "application/dicom+json"]:
-        logger.info("Merging 2 JSON responses.")
-
         response1_data = await get_json_response_body(response1)
         response2_data = await get_json_response_body(response2)
 
@@ -217,7 +238,7 @@ async def decide_response(
     # Cannot merge binary responses as they have custom multipart/related boundary: hash, from dicom-web-filter
     # We always choose one that has returned successfully, favouring dicom_web_filter.
     if not dicom_web_multiplexer_result:
-        logger.info("No external result, returning dicom-web-filter results")
+        logger.debug("No external result, returning dicom-web-filter results")
         return dicom_web_filter_result
 
     if (
@@ -225,7 +246,7 @@ async def decide_response(
         and "multipart/related"
         in dicom_web_filter_result.headers.get("content-type", "")
     ):
-        logger.info("Binary dicom_web_filter result")
+        logger.debug("Binary dicom_web_filter result")
         return dicom_web_filter_result
 
     elif (
@@ -233,7 +254,7 @@ async def decide_response(
         and "multipart/related"
         in dicom_web_multiplexer_result.headers.get("content-type", "")
     ):
-        logger.info("Binary dicom_web_multiplexer_result")
+        logger.debug("Binary dicom_web_multiplexer_result")
         return dicom_web_filter_result
 
     # If the responses are not multipart/related we can merge (json, text)
@@ -241,7 +262,7 @@ async def decide_response(
         dicom_web_multiplexer_result.status_code == 200
         and dicom_web_filter_result.status_code == 200
     ):
-        logger.info("Merging multiplexer and dicom-web-filter response")
+        logger.debug("Merging multiplexer and dicom-web-filter response")
         return await merge_responses(
             dicom_web_filter_result, dicom_web_multiplexer_result
         )
@@ -277,7 +298,7 @@ async def dicom_web_multiplexer_responses(
             project_index=project_index, session=session
         )
     endpoint_strings = [ep.dcmweb_endpoint for ep in data_sources]
-    logger.info(f"Found endpoints: {endpoint_strings}")
+    logger.debug(f"Found endpoints: {endpoint_strings}")
 
     dicom_web_multiplexer_result = None
     for endpoint in endpoint_strings:
@@ -285,7 +306,7 @@ async def dicom_web_multiplexer_responses(
         new_result = await call_next(request)
 
         if new_result.status_code == 200:
-            logger.info(f"Processing endpoint: {endpoint}")
+            logger.debug(f"Processing endpoint: {endpoint}")
             dicom_web_multiplexer_result = (
                 new_result
                 if dicom_web_multiplexer_result is None

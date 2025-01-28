@@ -48,8 +48,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="DICOM Web Multiplexer",
-    docs_url="/dicom-web-multiplexer/docs",
-    openapi_url="/dicom-web-multiplexer/openapi.json",
+    docs_url="/dicom-web-filter/management/docs",
+    openapi_url="/dicom-web-filter/management/openapi.json",
     version="0.1.0",
     openapi_tags=tags_metadata,
     lifespan=lifespan,

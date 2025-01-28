@@ -35,8 +35,6 @@ class HelperOpensearch:
         include_custom_tag="",
         exclude_custom_tag="",
     ):
-        print("Getting dataset for query: {}".format(query))
-        print("index: {}".format(index))
         includes = [
             DicomTags.study_uid_tag,
             DicomTags.series_uid_tag,

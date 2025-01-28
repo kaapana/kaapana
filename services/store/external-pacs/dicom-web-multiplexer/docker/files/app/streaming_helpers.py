@@ -1,7 +1,6 @@
 from typing import Dict
 
 import httpx
-from fastapi import Request
 
 
 async def metadata_replace_stream(
@@ -10,7 +9,7 @@ async def metadata_replace_stream(
     search: bytes = None,
     replace: bytes = None,
     headers: Dict[str, str] = None,
-    query_params: Dict[str, str] = None
+    query_params: Dict[str, str] = None,
 ):
     """Replace a part of the response stream with another part. Used to replace the boundary used in multipart responses.
 
@@ -34,6 +33,7 @@ async def metadata_replace_stream(
             params=dict(query_params),
             headers=dict(headers),
         ) as response:
+            response.raise_for_status()
             async for chunk in response.aiter_bytes():
                 buffer += chunk
                 # Process the buffer

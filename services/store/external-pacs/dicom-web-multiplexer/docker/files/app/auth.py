@@ -17,6 +17,7 @@ def get_external_session(request: Request) -> str:
     )
     return GoogleAuthorizedSession(credentials=credentials)
 
+
 async def get_external_token(request: Request) -> str:
     secret_name = hash_secret_name(request.state.endpoint)
     service_account_info = get_k8s_secret(secret_name)
@@ -30,3 +31,12 @@ async def get_external_token(request: Request) -> str:
     auth_req = GoogleRequest()
     credentials.refresh(auth_req)
     return credentials.token
+
+
+async def authorize_headers(request: Request) -> dict:
+    token = await get_external_token(request)
+    
+    auth_headers = {"Authorization": f"Bearer {token}", **request.headers}
+    auth_headers.pop("host")    
+    
+    return auth_headers

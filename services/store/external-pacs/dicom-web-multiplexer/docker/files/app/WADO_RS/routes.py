@@ -1,11 +1,13 @@
 import binascii
 import os
+import re
 import traceback
 
 import httpx
-from app.auth import get_external_token
+from app.auth import authorize_headers, get_external_token
 from app.logger import get_logger
 from app.utils import rs_endpoint_url
+from app.streaming_helpers import metadata_replace_stream
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
@@ -46,16 +48,40 @@ def get_boundary() -> bytes:
     return binascii.hexlify(os.urandom(16))
 
 
-async def stream(method, url, query_params=None, headers=None):
-    query_params = query_params or {}
-    headers = headers or {}
-
+async def stream(method, url, request_headers, query_params, new_boundary):
     async with httpx.AsyncClient() as client:
         async with client.stream(
-            method, url, params=dict(query_params), headers=dict(headers), timeout=10
+            method, url, headers=dict(request_headers), params=query_params
         ) as response:
-            async for chunk in response.aiter_bytes():
-                yield chunk
+            # Check if the Content-Type header contains a boundary
+            content_type = response.headers.get("Content-Type", "").encode()
+            boundary_match = re.search(b"boundary=(.*)", content_type)
+
+            if boundary_match:
+                # Boundary found, proceed with boundary replacement logic
+                response_boundary = boundary_match.group(1)
+                buffer = b""  # Buffer to ensure the boundary is not split across chunks
+                pattern_size = len(new_boundary) + 4  # 2 bytes for "--" at the start and 2 bytes for "--" at the end
+
+                async for chunk in response.aiter_bytes():
+                    buffer += chunk
+                    # Replace the boundary in the buffer
+                    buffer = replace_boundary(
+                        buffer=buffer,
+                        old_boundary=response_boundary,
+                        new_boundary=new_boundary,
+                    )
+                    to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                    yield to_yield
+                    buffer = buffer[-pattern_size:]
+
+                # Yield any remaining buffer after the last chunk
+                if buffer:
+                    yield buffer
+            else:
+                # No boundary found, stream the response as-is
+                async for chunk in response.aiter_bytes():
+                    yield chunk
 
 
 @router.get("/studies/{study}", tags=["WADO-RS"])
@@ -71,17 +97,15 @@ async def retrieve_studies(
     Returns:
         StreamingResponse: Response object
     """
-    token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", **request.headers}
-
+    auth_headers = await authorize_headers(request)
     boundary = get_boundary()
-
+    
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}",
-            headers=headers,
+            request_headers=auth_headers,
             query_params=request.query_params,
             new_boundary=boundary,
         ),
@@ -90,7 +114,6 @@ async def retrieve_studies(
             "Content-Type": f"multipart/related; boundary={boundary.decode()}",
         },
     )
-
 
 @router.get("/studies/{study}/series/{series}", tags=["WADO-RS"])
 async def retrieve_series(
@@ -107,17 +130,15 @@ async def retrieve_series(
     Returns:
         StreamingResponse: Response object
     """
-    token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", **request.headers}
-
+    auth_headers = await authorize_headers(request)
     boundary = get_boundary()
-
+    
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}",
-            headers=headers,
+            request_headers=auth_headers,
             query_params=request.query_params,
             new_boundary=boundary,
         ),
@@ -145,17 +166,15 @@ async def retrieve_instances(
     Returns:
         StreamingResponse: Response object
     """
-    token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", **request.headers}
-
+    auth_headers = await authorize_headers(request)
     boundary = get_boundary()
-
+    
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}",
-            headers=headers,
+            request_headers=auth_headers,
             query_params=request.query_params,
             new_boundary=boundary,
         ),
@@ -189,17 +208,15 @@ async def retrieve_frames(
     Returns:
         StreamingResponse: Response object
     """
-    token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", **request.headers}
-
+    auth_headers = await authorize_headers(request)
     boundary = get_boundary()
-
+    
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/frames/{frame}",
-            headers=headers,
+            request_headers=auth_headers,
             query_params=request.query_params,
             new_boundary=boundary,
         ),
@@ -209,8 +226,20 @@ async def retrieve_frames(
         },
     )
 
-
 # Routes for retrieve modifiers
+def stream_metadata(url, request_headers, query_params):
+    dicom_web_base_url = url.split("/studies")[0]
+    return StreamingResponse(
+        metadata_replace_stream(
+            "GET",
+            url,
+            headers=request_headers,
+            query_params=query_params,
+            search="/".join(dicom_web_base_url.split(":")[-1].split("/")[1:]).encode(),
+            replace=b"dicom-web-filter",
+        ),
+        media_type="application/dicom+json",
+    )
 
 
 @router.get("/studies/{study}/metadata", tags=["WADO-RS"])
@@ -230,15 +259,12 @@ async def retrieve_studies_metadata(
 
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/dicom+json"}
+    headers = {"Authorization": f"Bearer {token}", **request.headers}
 
-    return StreamingResponse(
-        stream(
-            method="GET",
-            url=f"{rs_endpoint}/studies/{study}/metadata",
-            headers=headers,
-        ),
-        media_type="application/dicom+json",
+    return stream_metadata(
+        url=f"{rs_endpoint}/studies/{study}/metadata",
+        request_headers=headers,
+        query_params=request.query_params,
     )
 
 
@@ -261,15 +287,12 @@ async def retrieve_series_metadata(
 
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/dicom+json"}
+    headers = {"Authorization": f"Bearer {token}"}
 
-    return StreamingResponse(
-        stream(
-            method="GET",
-            url=f"{rs_endpoint}/studies/{study}/series/{series}/metadata",
-            headers=headers,
-        ),
-        media_type="application/dicom+json",
+    return stream_metadata(
+        url=f"{rs_endpoint}/studies/{study}/series/{series}/metadata",
+        request_headers=headers,
+        query_params=request.query_params,
     )
 
 
@@ -293,20 +316,13 @@ async def retrieve_instances_metadata(
     Returns:
         response: Response object
     """
-
-    token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/dicom+json"}
 
-    return StreamingResponse(
-        stream(
-            method="GET",
-            url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/metadata",
-            headers=headers,
-        ),
-        media_type="application/dicom+json",
+    return stream_metadata(
+        url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/metadata",
+        request_headers=request.headers,
+        query_params=request.query_params,
     )
-
 
 @router.get("/studies/{study}/rendered", tags=["WADO-RS"])
 async def retrieve_series_rendered(

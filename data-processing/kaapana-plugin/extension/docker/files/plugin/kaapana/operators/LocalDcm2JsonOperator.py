@@ -188,7 +188,11 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # Change modality from CT to XR under specific conditions
         metadata = self._process_modality(metadata)
 
-        # TODO Why is this necessary?
+        metadata = self._add_custom_tags(metadata)
+
+        return metadata
+
+    def _add_custom_tags(self, metadata: Dict) -> Dict:
         metadata["predicted_bodypart_string"] = "N/A"
 
         self._sanitize_project_and_dataset(metadata)

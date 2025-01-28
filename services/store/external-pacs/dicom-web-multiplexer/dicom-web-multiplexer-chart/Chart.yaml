@@ -1,7 +1,0 @@
-apiVersion: v1
-appVersion: "0.0.1"
-description: Install dicom-web-multiplexer to access installed external pacs in gallery view and viewers alongisde local pacs.
-name: dicom-web-multiplexer-chart
-version: "0.0.0"
-keywords:
-  - kaapanaapplication

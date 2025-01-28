@@ -1,0 +1,7 @@
+apiVersion: v1
+appVersion: "0.0.1"
+description: Installs service and workflow to add and use external pacs. 
+name: external-pacs-chart
+version: "0.0.0"
+keywords:
+  - kaapanaapplication

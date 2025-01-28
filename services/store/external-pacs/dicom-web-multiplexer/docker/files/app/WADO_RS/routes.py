@@ -12,8 +12,6 @@ from app.streaming_helpers import metadata_replace_stream
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import StreamingResponse
 
-from ..SUPPLEMENTS.routes import fetch_thumbnail_async
-
 logger = get_logger(__file__)
 
 router = APIRouter()
@@ -61,7 +59,9 @@ async def stream(method, url, request_headers, query_params, new_boundary):
                 # Boundary found, proceed with boundary replacement logic
                 response_boundary = boundary_match.group(1)
                 buffer = b""  # Buffer to ensure the boundary is not split across chunks
-                pattern_size = len(new_boundary) + 4  # 2 bytes for "--" at the start and 2 bytes for "--" at the end
+                pattern_size = (
+                    len(new_boundary) + 4
+                )  # 2 bytes for "--" at the start and 2 bytes for "--" at the end
 
                 async for chunk in response.aiter_bytes():
                     buffer += chunk
@@ -71,7 +71,9 @@ async def stream(method, url, request_headers, query_params, new_boundary):
                         old_boundary=response_boundary,
                         new_boundary=new_boundary,
                     )
-                    to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                    to_yield = (
+                        buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                    )
                     yield to_yield
                     buffer = buffer[-pattern_size:]
 
@@ -97,10 +99,10 @@ async def retrieve_studies(
     Returns:
         StreamingResponse: Response object
     """
-    rs_endpoint = rs_endpoint_url(request)
     auth_headers = await authorize_headers(request)
+    rs_endpoint = rs_endpoint_url(request)
     boundary = get_boundary()
-    
+
     return StreamingResponse(
         stream(
             method="GET",
@@ -114,6 +116,7 @@ async def retrieve_studies(
             "Content-Type": f"multipart/related; boundary={boundary.decode()}",
         },
     )
+
 
 @router.get("/studies/{study}/series/{series}", tags=["WADO-RS"])
 async def retrieve_series(
@@ -130,10 +133,10 @@ async def retrieve_series(
     Returns:
         StreamingResponse: Response object
     """
-    rs_endpoint = rs_endpoint_url(request)
     auth_headers = await authorize_headers(request)
+    rs_endpoint = rs_endpoint_url(request)
     boundary = get_boundary()
-    
+
     return StreamingResponse(
         stream(
             method="GET",
@@ -166,10 +169,10 @@ async def retrieve_instances(
     Returns:
         StreamingResponse: Response object
     """
-    rs_endpoint = rs_endpoint_url(request)
     auth_headers = await authorize_headers(request)
+    rs_endpoint = rs_endpoint_url(request)
     boundary = get_boundary()
-    
+
     return StreamingResponse(
         stream(
             method="GET",
@@ -208,10 +211,10 @@ async def retrieve_frames(
     Returns:
         StreamingResponse: Response object
     """
-    rs_endpoint = rs_endpoint_url(request)
     auth_headers = await authorize_headers(request)
+    rs_endpoint = rs_endpoint_url(request)
     boundary = get_boundary()
-    
+
     return StreamingResponse(
         stream(
             method="GET",
@@ -226,7 +229,8 @@ async def retrieve_frames(
         },
     )
 
-# Routes for retrieve modifiers
+
+# METADATA
 def stream_metadata(url, request_headers, query_params):
     dicom_web_base_url = url.split("/studies")[0]
     return StreamingResponse(
@@ -257,13 +261,12 @@ async def retrieve_studies_metadata(
         response: Response object
     """
 
-    token = await get_external_token(request)
+    auth_headers = await authorize_headers(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", **request.headers}
 
     return stream_metadata(
         url=f"{rs_endpoint}/studies/{study}/metadata",
-        request_headers=headers,
+        request_headers=auth_headers,
         query_params=request.query_params,
     )
 
@@ -284,14 +287,12 @@ async def retrieve_series_metadata(
     Returns:
         response: Response object
     """
-
-    token = await get_external_token(request)
+    auth_headers = await authorize_headers(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}"}
 
     return stream_metadata(
         url=f"{rs_endpoint}/studies/{study}/series/{series}/metadata",
-        request_headers=headers,
+        request_headers=auth_headers,
         query_params=request.query_params,
     )
 
@@ -316,13 +317,25 @@ async def retrieve_instances_metadata(
     Returns:
         response: Response object
     """
+    auth_headers = await authorize_headers(request)
     rs_endpoint = rs_endpoint_url(request)
 
     return stream_metadata(
         url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/metadata",
-        request_headers=request.headers,
+        request_headers=auth_headers,
         query_params=request.query_params,
     )
+
+
+# RENDERED
+async def stream_rendered(url: str, headers: dict):
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method="GET", url=url, headers=headers, timeout=10
+        ) as response:
+            async for chunk in response.aiter_bytes():
+                yield chunk
+
 
 @router.get("/studies/{study}/rendered", tags=["WADO-RS"])
 async def retrieve_series_rendered(
@@ -338,27 +351,10 @@ async def retrieve_series_rendered(
     Returns:
         StreamingResponse: Response object
     """
-    try:
-        # Get Google OAuth token
-        token = await get_external_token(request)
-
-        # Construct the URL to the DICOMWeb server
-        rs_endpoint = rs_endpoint_url(
-            request
-        )  # Assuming this function retrieves the DICOMWeb endpoint
-        url = f"{rs_endpoint}/studies/{study}/rendered"
-
-        # Fetch the thumbnail asynchronously
-        return await fetch_thumbnail_async(url, token)
-
-    except Exception as e:
-        logger.error("Error while retrieving instance rendered image")
-        logger.error(e)
-        logger.error(traceback.format_exc())
-        return Response(
-            content="Not implemented by endpoint: {request.state.endpoint}",
-            status_code=500,
-        )
+    auth_headers = await authorize_headers(request)
+    rs_endpoint = rs_endpoint_url(request)
+    url = f"{rs_endpoint}/studies/{study}/rendered"
+    return await StreamingResponse(stream_rendered(url, auth_headers))
 
 
 @router.get("/studies/{study}/series/{series}/rendered", tags=["WADO-RS"])
@@ -377,27 +373,10 @@ async def retrieve_series_rendered(
     Returns:
         StreamingResponse: Response object
     """
-    try:
-        # Get Google OAuth token
-        token = await get_external_token(request)
-
-        # Construct the URL to the DICOMWeb server
-        rs_endpoint = rs_endpoint_url(
-            request
-        )  # Assuming this function retrieves the DICOMWeb endpoint
-        url = f"{rs_endpoint}/studies/{study}/series/{series}/rendered"
-
-        # Fetch the thumbnail asynchronously
-        return await fetch_thumbnail_async(url, token)
-
-    except Exception as e:
-        logger.error("Error while retrieving instance rendered image")
-        logger.error(e)
-        logger.error(traceback.format_exc())
-        return Response(
-            content="Not implemented by endpoint: {request.state.endpoint}",
-            status_code=500,
-        )
+    auth_headers = await authorize_headers(request)
+    rs_endpoint = rs_endpoint_url(request)
+    url = f"{rs_endpoint}/studies/{study}/series/{series}/rendered"
+    return await StreamingResponse(stream_rendered(url, auth_headers))
 
 
 @router.get(
@@ -420,21 +399,7 @@ async def retrieve_instance_rendered(
     Returns:
         StreamingResponse: Response object
     """
-    try:
-        # Get Google OAuth token
-        token = await get_external_token(request)
-
-        # Construct the URL to the DICOMWeb server
-        rs_endpoint = rs_endpoint_url(
-            request
-        )  # Assuming this function retrieves the DICOMWeb endpoint
-        url = f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/rendered"
-
-        # Fetch the thumbnail asynchronously
-        return await fetch_thumbnail_async(url, token)
-
-    except Exception as e:
-        logger.error("Error while retrieving instance rendered image")
-        logger.error(e)
-        logger.error(traceback.format_exc())
-        return Response(content="Internal server error", status_code=500)
+    auth_headers = await authorize_headers(request)
+    rs_endpoint = rs_endpoint_url(request)
+    url = f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/rendered"
+    return await StreamingResponse(stream_rendered(url, auth_headers))

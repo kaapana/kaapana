@@ -188,6 +188,7 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
         # Change modality from CT to XR under specific conditions
         metadata = self._process_modality(metadata)
 
+        # Add custom tags for external PACS
         metadata = self._add_custom_tags(metadata)
 
         return metadata

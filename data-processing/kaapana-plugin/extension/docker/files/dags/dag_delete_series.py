@@ -1,6 +1,6 @@
-from datetime import timedelta
 import glob
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from airflow.models import DAG
@@ -58,12 +58,47 @@ dag = DAG(
 )
 
 get_input = GetInputOperator(dag=dag, data_type="json")
+
+
+def set_skip_if_dcm_is_external(ds, **kwargs):
+    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
+    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
+
+    for batch_element_dir in batch_folder:
+        input_dir = Path(batch_element_dir) / get_input.operator_out_dir
+        json_files = sorted(
+            glob.glob(
+                os.path.join(input_dir, "*.json*"),
+                recursive=True,
+            )
+        )
+        for json_file in json_files:
+            with open(json_file, "r") as f:
+                metadata = json.load(f)
+            if (
+                metadata.get("00020016 SourceApplicationEntityTitle")
+                == "kaapana_external"
+            ):
+                raise AirflowSkipException("DICOM file is comes from external PACS")
+    return
+
+
+skip_if_dcm_is_external = KaapanaPythonBaseOperator(
+    name="skip_if_dcm_is_external",
+    pool="default_pool",
+    pool_slots=1,
+    python_callable=set_skip_if_dcm_is_external,
+    dag=dag,
+)
+
+
 delete_dcm_pacs = DeleteFromPacsOperator(
     dag=dag, input_operator=get_input, delete_complete_study=False, retries=1
 )
 delete_dcm_meta = DeleteFromMetaOperator(
     dag=dag, input_operator=get_input, delete_complete_study=False, retries=1
 )
+
 
 def remove_thumbnail_from_project_bucket(ds, **kwargs):
     """
@@ -85,7 +120,7 @@ def remove_thumbnail_from_project_bucket(ds, **kwargs):
     for batch_element_dir in batch_folder:
         json_dir = Path(batch_element_dir) / get_input.operator_out_dir
         json_files = [f for f in json_dir.glob("*.json")]
-        
+
         assert len(json_files) == 1
         metadata_file = json_files[0]
         with open(metadata_file, "r") as f:
@@ -99,9 +134,9 @@ def remove_thumbnail_from_project_bucket(ds, **kwargs):
         series_uid = metadata.get(DicomTags.series_uid_tag)
         minio_object_path = f"thumbnails/{series_uid}.png"
         minio.remove_object(
-                bucket_name=project.get("s3_bucket"),
-                object_name=minio_object_path,
-            )
+            bucket_name=project.get("s3_bucket"),
+            object_name=minio_object_path,
+        )
 
         if project_name != "admin":
             response = requests.get(
@@ -121,4 +156,10 @@ remove_thumbnail_from_project_bucket = KaapanaPythonBaseOperator(
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> delete_dcm_pacs >> delete_dcm_meta >> remove_thumbnail_from_project_bucket >> clean
+(
+    get_input
+    >> delete_dcm_pacs
+    >> delete_dcm_meta
+    >> remove_thumbnail_from_project_bucket
+    >> clean
+)

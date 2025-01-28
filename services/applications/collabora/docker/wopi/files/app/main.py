@@ -7,9 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from app.model.websockets import ConnectionManager
 from app.dependencies import (
     get_connection_manager,
-    get_document_store,
     get_wopi,
-    get_minio_client,
 )
 from app.config import get_settings
 from app.routers.wopi import router as wopi
@@ -47,13 +45,6 @@ async def startup():
     log.info("Initalization started")
     wopi_srv = get_wopi()
     wopi_srv.fetch_apps()
-    minio = get_minio_client(x_auth_token=None)
-    doc_store = get_document_store()
-    doc_store.find_documents(
-        minio,
-        wopi_srv.supported_extensions(),
-        get_settings().document_path_ignore_regex,
-    )
     con_mgr = get_connection_manager()
     await con_mgr.announce_documents()
     log.info("Initalization complete")
@@ -62,8 +53,6 @@ async def startup():
 @app.on_event("startup")
 async def register_jobs():
     wopi_srv = get_wopi()
-    doc_store = get_document_store()
-    con_mgr = get_connection_manager()
 
     async def wopi_discovery_task() -> None:
         while True:
@@ -72,20 +61,6 @@ async def register_jobs():
             await asyncio.sleep(60)  # Refresh every 1 Minute
 
     asyncio.ensure_future(wopi_discovery_task())
-
-    async def reload_documents_task() -> None:
-        while True:
-            log.info("Automatic document refresh")
-            minio = get_minio_client(x_auth_token=None)
-            doc_store.find_documents(
-                minio,
-                wopi_srv.supported_extensions(),
-                get_settings().document_path_ignore_regex,
-            )
-            await con_mgr.announce_documents()
-            await asyncio.sleep(60)  # Refresh every 1 Minute
-
-    asyncio.ensure_future(reload_documents_task())
 
 
 app.include_router(wopi, prefix="/wopi")

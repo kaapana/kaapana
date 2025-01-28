@@ -74,8 +74,6 @@ dependencies:
     version: 0.0.0
   - name: project-namespace
     version: 0.0.0
-  - name: external-pacs-workflow
-    version: 0.0.0
   - name: dicom-web-multiplexer-chart
     version: 0.0.0
   # - name: custom-registry-chart

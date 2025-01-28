@@ -3,20 +3,15 @@ from datetime import timedelta
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
+
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapana.operators.LocalAssignDataToProjectOperator import (
-    LocalAssignDataToProjectOperator,
-)
 from external_pacs.ExternalPacsOperator import ExternalPacsOperator
-
-log = LoggingMixin().log
 
 dataset_name = "external-data"
 ui_forms = {
@@ -68,6 +63,7 @@ dag = DAG(
 )
 
 init_operator = ExternalPacsOperator(dag=dag, operator_out_dir="get-input-data")
+
 extract_metadata = LocalDcm2JsonOperator(
     dag=dag, input_operator=init_operator, data_type="json"
 )

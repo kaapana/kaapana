@@ -43,7 +43,11 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         clinical_trial_protocol_id = json_dict.get(
             "00120020 ClinicalTrialProtocolID_keyword"
         )[0]
-        project = self.get_project_by_name(clinical_trial_protocol_id)
+        try:
+            project = self.get_project_by_name(clinical_trial_protocol_id)
+        except:
+            logger.warning(f"No project found for {clinical_trial_protocol_id}")
+            return None
         try:
             json_dict = self.produce_inserts(json_dict)
             response = self.os_client.index(

@@ -17,6 +17,7 @@ KAAPANA Documentation
    faq_root
    publication_citation
    releases
+   migration_guide_root
    license
    glossary
    acknowledgments

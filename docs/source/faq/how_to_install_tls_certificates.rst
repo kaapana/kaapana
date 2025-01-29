@@ -1,3 +1,5 @@
+.. _how_to_install_tls_certificates:
+
 How to install TLS certificates
 *******************************
 

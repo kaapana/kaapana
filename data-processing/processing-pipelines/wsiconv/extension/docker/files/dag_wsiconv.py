@@ -72,7 +72,7 @@ unzip_files = ZipUnzipOperator(
 wsi_conv = WSIconvOperator(dag=dag, input_operator=unzip_files)
 
 dicom_send = DcmSendOperator(
-    dag=dag, input_operator=wsi_conv, ae_title="uploaded", level="batch"
+    dag=dag, input_operator=wsi_conv, calling_ae_title_scu="uploaded"
 )
 
 remove_object_from_uploads = LocalVolumeMountOperator(

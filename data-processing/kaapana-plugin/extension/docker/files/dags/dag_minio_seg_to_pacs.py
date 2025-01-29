@@ -32,7 +32,7 @@ pull_object_from_minio = LocalMinioOperator(
     file_white_tuples=".dcm",
 )
 dicom_send = DcmSendOperator(
-    dag=dag, input_operator=pull_object_from_minio, ae_title="mitk-seg", level="batch"
+    dag=dag, input_operator=pull_object_from_minio, calling_ae_title_scu="mitk-seg"
 )
 clean = LocalWorkflowCleanerOperator(dag=dag)
 

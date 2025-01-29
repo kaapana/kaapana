@@ -130,7 +130,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
 dicom_send = DcmSendOperator(
     dag=dag,
     input_operator=nrrd2dcmSeg_multi,
-    ae_title="modify-dcmseg",
+    calling_ae_title_scu="modify-dcmseg",
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=False)

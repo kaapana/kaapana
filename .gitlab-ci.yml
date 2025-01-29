@@ -200,12 +200,11 @@ if_ci_failing:
     - cd $REPO_DIR/ci-code/clean 
     - python3 create_ticket_if_ci_failed.py
   resource_group: $DEPLOYMENT_INSTANCE_NAME-1
-  when: always
   environment: $DEPLOYMENT_INSTANCE_NAME-1
-  # rules:
-  # - if: $CI_COMMIT_BRANCH == "develop"
-  #   when: on_failure
-  # - when: never
+  rules:
+  - if: $CI_COMMIT_BRANCH == "develop"
+    when: on_failure
+  - when: never
   allow_failure: true
 
 logs:

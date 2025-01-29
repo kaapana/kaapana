@@ -45,71 +45,49 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         if "project" in request.url.path:
             return await proxy_dicom_web_filter(request=request)
 
-        try:
-            # Determine endpoint based on Series UID or proxy request to DICOM Web Filter
-            series_uid = get_series_uid_from_request(request)
+        # Determine endpoint based on Series UID or proxy request to DICOM Web Filter
+        series_uid = get_series_uid_from_request(request)
 
-            # Only check opensearch_index of a current project
-            if "project" in request.headers.keys():
-                project_index = json.loads(request.headers.get("project"))[
-                    "opensearch_index"
-                ]
+        # Only check opensearch_index of a current project
+        if "project" in request.headers.keys():
+            project_index = json.loads(request.headers.get("project"))[
+                "opensearch_index"
+            ]
+        else:
+            project_index = request.headers.get("project_index")
+        access_token = request.headers["x-forwarded-access-token"]
+
+        logger.debug(f"Searching in project index: {project_index}")
+        if series_uid:
+            logger.debug(f"Request has series_uid: {series_uid}")
+            endpoint = None
+            
+            endpoint = get_endpoint_from_opensearch(
+                series_uid, access_token, project_index
+            )
+
+            if endpoint:
+                logger.debug(f"Data Source endpoint: {endpoint}")
+                request.state.endpoint = endpoint
+                return await call_next(request)
+            
             else:
-                project_index = request.headers.get("project_index")
-            access_token = request.headers["x-forwarded-access-token"]
-
-            logger.debug(f"Searching in project index: {project_index}")
-            if series_uid:
-                logger.debug(f"Request has series_uid: {series_uid}")
-
-                endpoint = get_endpoint_from_opensearch(
-                    series_uid, access_token, project_index
-                )
-                if endpoint:
-                    logger.debug(f"Data Source endpoint: {endpoint}")
-                    request.state.endpoint = endpoint
-                    return await call_next(request)
-
+                logger.debug(f"Return results only from dicom-web-filter proxy")
                 # No endpoint found in OpenSearch, fall back to dicom-web-filter request
                 return await proxy_dicom_web_filter(request=request)
-            else:
-                # No Series UID -> requests all project related PACS, merging external and local PACS responses
-                dicom_web_filter_result = await proxy_dicom_web_filter(request=request)
 
-                # Only check opensearch_index of a current project
-                dicom_web_multiplexer_result = await dicom_web_multiplexer_responses(
-                    project_index, request, call_next
-                )
-                return await decide_response(
-                    dicom_web_filter_result, dicom_web_multiplexer_result
-                )
+            
+        else:
+            # No Series UID -> requests all project related PACS, merging external and local PACS responses
+            dicom_web_filter_result = await proxy_dicom_web_filter(request=request)
+            # Only check opensearch_index of a current project
 
-        except Exception as e:
-            return await handle_http_error(e, request)
-
-
-async def handle_http_error(e: Exception, request):
-    
-    if isinstance(e, HTTPStatusError):
-        # Extract details from the HTTPStatusError
-        status_code = e.response.status_code
-        detail = str(e)
-        headers = dict(e.response.headers)
-
-        # Create a response that mimics the HTTPStatusError
-        return Response(
-            content=detail,
-            status_code=status_code,
-            headers=headers,
-            media_type="text/plain",
-        )
-    else:
-        # Handle other exceptions
-        return Response(
-            content="Error in proxy middleware",
-            status_code=400,
-            media_type="text/plain",
-        )
+            dicom_web_multiplexer_result = await dicom_web_multiplexer_responses(
+                project_index, request, call_next
+            )
+            return await decide_response(
+                dicom_web_filter_result, dicom_web_multiplexer_result
+            )
 
 
 def get_study_uid_from_request(request: URL) -> str | None:
@@ -136,6 +114,8 @@ def get_endpoint_from_opensearch(
         index=project_index,
         include_custom_tag=DicomTags.dcmweb_endpoint_tag,
     )
+    if len(result ) == 0:
+        return 
     endpoint = result[0]["_source"].get(DicomTags.dcmweb_endpoint_tag)
     return endpoint
 
@@ -273,6 +253,7 @@ async def decide_response(
 
 async def proxy_dicom_web_filter(request: Request) -> Response:
     """Proxies request to DICOM Web Filter."""
+
     return await proxy_request(
         request=request,
         url=dicom_web_filter_url(request),
@@ -303,7 +284,19 @@ async def dicom_web_multiplexer_responses(
     dicom_web_multiplexer_result = None
     for endpoint in endpoint_strings:
         request.state.endpoint = endpoint
-        new_result = await call_next(request)
+        try:
+            new_result = await call_next(request)
+        except HTTPStatusError as e:
+            status_code = e.response.status_code
+            detail = str(e)
+            headers = dict(e.response.headers)
+
+            return Response(
+                content=detail,
+                status_code=status_code,
+                headers=headers,
+                media_type="text/plain",
+            )
 
         if new_result.status_code == 200:
             logger.debug(f"Processing endpoint: {endpoint}")

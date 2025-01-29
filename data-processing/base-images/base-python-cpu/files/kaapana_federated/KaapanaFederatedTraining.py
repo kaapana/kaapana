@@ -209,6 +209,8 @@ class KaapanaFederatedTrainingBase(ABC):
                 self.tmp_federated_site_info = v
             elif k in ["client_job_id", "x_auth_token"]:
                 pass
+            elif k == "project_form":
+                self.remote_conf_data["project_form"] = v
             else:
                 self.local_conf_data[k] = v
 
@@ -294,16 +296,16 @@ class KaapanaFederatedTrainingBase(ABC):
                     "before_previous_dag_run"
                 ] = None
             else:
-                self.remote_conf_data["federated_form"][
-                    "before_previous_dag_run"
-                ] = self.tmp_federated_site_info[site_info["instance_name"]][
-                    "before_previous_dag_run"
-                ]
-                self.remote_conf_data["federated_form"][
-                    "from_previous_dag_run"
-                ] = self.tmp_federated_site_info[site_info["instance_name"]][
-                    "from_previous_dag_run"
-                ]
+                self.remote_conf_data["federated_form"]["before_previous_dag_run"] = (
+                    self.tmp_federated_site_info[site_info["instance_name"]][
+                        "before_previous_dag_run"
+                    ]
+                )
+                self.remote_conf_data["federated_form"]["from_previous_dag_run"] = (
+                    self.tmp_federated_site_info[site_info["instance_name"]][
+                        "from_previous_dag_run"
+                    ]
+                )
 
             # create at local instance jobs for remote sites
             with requests.Session() as s:

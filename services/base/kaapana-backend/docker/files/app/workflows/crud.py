@@ -329,15 +329,6 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
 
-    # if (
-    #     db_kaapana_instance.remote is True
-    #     and "federated_form" in job.conf_data
-    #     and (
-    #         "federated_dir" in job.conf_data["federated_form"]
-    #         and "federated_bucket" in job.conf_data["federated_form"]
-    #         and "federated_operators" in job.conf_data["federated_form"]
-    #     )
-    # ):
     if "federated_form" in job.conf_data and (
         "federated_dir" in job.conf_data["federated_form"]
         and "federated_bucket" in job.conf_data["federated_form"]
@@ -861,14 +852,6 @@ def get_remote_updates(db: Session, periodically=False):
             )
             incoming_job["external_job_id"] = incoming_job["id"]
             incoming_job["status"] = "pending"
-
-            ### Set the project_form of federated jobs according to the admin project
-            aii_response = requests.get(
-                "http://aii-service.services.svc:8080/projects/admin"
-            )
-            aii_response.raise_for_status()
-            project_form = aii_response.json()
-            incoming_job["conf_data"]["project_form"] = project_form
 
             job = schemas.JobCreate(**incoming_job)
             job.automatic_execution = (

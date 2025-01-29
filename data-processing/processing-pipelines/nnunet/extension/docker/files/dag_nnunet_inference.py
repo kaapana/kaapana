@@ -228,7 +228,7 @@ nrrd2dcmSeg_multi = Itk2DcmSegOperator(
 )
 
 dcmseg_send_multi = DcmSendOperator(
-    dag=dag, ae_title=ae_title, input_operator=nrrd2dcmSeg_multi
+    dag=dag, calling_ae_title_scu=ae_title, input_operator=nrrd2dcmSeg_multi
 )
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 

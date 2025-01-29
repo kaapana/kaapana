@@ -453,8 +453,7 @@ pdf2dcm = Pdf2DcmOperator(
 dcmseg_send_pdf = DcmSendOperator(
     dag=dag,
     parallel_id="pdf",
-    level="batch",
-    ae_title="nnUNetPDF",
+    calling_ae_title_scu="nnUNetPDF",
     input_operator=pdf2dcm,
 )
 
@@ -490,8 +489,7 @@ bin2dcm = Bin2DcmOperator(
 
 dcm_send_int = DcmSendOperator(
     dag=dag,
-    level="batch",
-    ae_title="nnUNetTASK",
+    calling_ae_title_scu="nnUNetTASK",
     input_operator=bin2dcm,
 )
 

@@ -70,7 +70,9 @@ launch_app = KaapanaApplicationOperator(
     version=KAAPANA_BUILD_VERSION,
 )
 
-send_dicom = DcmSendOperator(dag=dag, ae_title="MITK-flow", input_operator=mitk)
+send_dicom = DcmSendOperator(
+    dag=dag, calling_ae_title_scu="MITK-flow", input_operator=mitk
+)
 clean = LocalWorkflowCleanerOperator(dag=dag)
 
 get_input >> branch_get_ref_series >> [get_ref_series, mitk]

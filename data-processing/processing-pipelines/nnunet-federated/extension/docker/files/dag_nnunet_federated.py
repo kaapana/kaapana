@@ -154,10 +154,9 @@ bin2dcm = Bin2DcmOperator(
 
 dcm_send_int = DcmSendOperator(
     dag=dag,
-    level="batch",
     pacs_host=f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc",
     pacs_port="11112",
-    ae_title=ae_title,
+    calling_ae_title_scu=ae_title,
     input_operator=bin2dcm,
 )
 

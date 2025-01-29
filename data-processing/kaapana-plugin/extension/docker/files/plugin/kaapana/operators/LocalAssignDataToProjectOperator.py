@@ -71,30 +71,41 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
             metadata = json.load(f)
 
         series_instance_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
+        study_uid = metadata.get("0020000D StudyInstanceUID_keyword")
         clinical_trial_protocol_id = metadata.get(
             "00120020 ClinicalTrialProtocolID_keyword"
         )
-        if type(clinical_trial_protocol_id) == list:
-            assert len(clinical_trial_protocol_id) == 1
-            clinical_trial_protocol_id = clinical_trial_protocol_id[0]
-        try:
-            project = self.get_project_by_name(clinical_trial_protocol_id)
-        except IndexError as e:
-            logger.warning(
-                f"{series_instance_uid=} is not assigned to a project! This does not fail the task. The series will still be assigned to the default admin project, when the data arrives at the Dicom-Web-Filter."
-            )
-            return None
-        project_id = project.get("id")
 
-        url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
-        response = self.dcmweb_helper.session.put(url)
+        ### Create the series as datapoint in the dicom-web-filter
+        payload = {"study_uid": study_uid, "description": "Dicom data"}
+        logger.debug(payload)
+        url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/data/{series_instance_uid}"
+        response = self.dcmweb_helper.session.put(url, params=payload)
         response.raise_for_status()
-        logger.debug(f"Added {series_instance_uid} to project with {project_id=}")
 
+        ### Create the project-data mapping for the admin project
         url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/1/data/{series_instance_uid}"
         response = self.dcmweb_helper.session.put(url)
         response.raise_for_status()
         logger.debug(f"Added {series_instance_uid} to admin project with id 1.")
+
+        if type(clinical_trial_protocol_id) == list:
+            assert len(clinical_trial_protocol_id) == 1
+            clinical_trial_protocol_id = clinical_trial_protocol_id[0]
+
+        ### Create the project-data mapping for the project stored in the dicom tag: ClinicalTrialProtocolID_keyword
+        try:
+            project = self.get_project_by_name(clinical_trial_protocol_id)
+            project_id = project.get("id")
+            url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
+            response = self.dcmweb_helper.session.put(url)
+            response.raise_for_status()
+            logger.debug(f"Added {series_instance_uid} to project with {project_id=}")
+        except (IndexError, requests.exceptions.HTTPError) as e:
+            logger.warning(
+                f"{series_instance_uid=} is not assigned to a project! This does not fail the task. The series will still be assigned to the default admin project, when the data arrives at the Dicom-Web-Filter: {e}"
+            )
+            return None
 
     def get_project_by_name(self, project_name: str):
         """

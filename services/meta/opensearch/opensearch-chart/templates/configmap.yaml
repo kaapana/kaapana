@@ -24,6 +24,7 @@ data:
 
     plugins.security.restapi.roles_enabled: ["admin", "all_access"]
     plugins.security.restapi.admin.enabled: true
+    path.repo: ["/usr/share/opensearch/snapshots"]
   internal_users.yml: |+
     ---
     # This is the internal user database

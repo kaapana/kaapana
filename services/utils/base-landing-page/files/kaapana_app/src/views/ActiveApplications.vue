@@ -37,7 +37,7 @@
         v-card-title Applications installed in project: {{ selectedProject.name }}
         v-data-table.elevation-1(
           :headers="activeHeaders",
-          :items="projectApplications",
+          :items="filteredActiveApplicationInProject",
           :items-per-page="20",
           :loading="loadingProject",
           sort-by='name',
@@ -99,10 +99,33 @@ export default Vue.extend({
       "currentUser",
       "isAuthenticated",
       "commonData",
-      "launchApplicationData",
-      "availableApplications",
-      "selectedProject",
     ]),
+    selectedProject() {
+      return this.$store.getters.selectedProject;
+    },
+    filteredActiveApplicationInProject(){
+      /**
+       * Instead of using projectApplications to show the active projects display a filteredActiveApplicationsinProject
+       *
+       * Filters the list of project applications based on the launched application links.
+       * 
+       * This function checks if there are any launched application links (`launchedAppLinks`).
+       * If there are links, it filters out the project applications (`projectApplications`) 
+       * whose names match the `releaseName` of any launched link. This ensures that only 
+       * applications not in the list of Applications triggered from a workflow.
+       */
+      const newLinks = this.launchedAppLinks;
+      if (newLinks.length > 0) {
+        const filteredProjectApps = this.projectApplications.filter((project: any) => {
+          return newLinks.some((links: any) => {
+            return links.releaseName !== project.name;
+          });
+        });
+        return filteredProjectApps;
+      } else {
+        return this.projectApplications;
+      }
+    },
   },
   methods: {
     getHelmCharts() {
@@ -190,6 +213,11 @@ export default Vue.extend({
           this.loading = false;
           console.log(err);
         });
+      
+      // project needs to be deleted from the already fetched project list after deleteing the chart.
+      // update the project application list by deleting the application with release name.
+      const filteredProjectApps = this.projectApplications.filter((project: any) => project.name !== releaseName);
+      this.projectApplications = filteredProjectApps;
     },
   },
 });

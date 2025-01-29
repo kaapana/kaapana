@@ -10,7 +10,6 @@ from .models import Base
 from .QIDO_RS.routes import router as qido_router
 from .SUPPLEMENTS.routes import router as supplement_router
 from .WADO_RS.routes import router as wado_router
-from .WADO_URI.routes import router as wado_uri_router
 
 tags_metadata = [
     {
@@ -26,8 +25,8 @@ tags_metadata = [
         "description": "Store DICOM objects",
     },
     {
-        "name": "WADO-URI",
-        "description": "Retrieve single DICOM instances",
+        "name": "SUPPLEMENTS",
+        "description": "Supplement routes - Thumbnail",
     },
     {
         "name": "MANAGEMENT",
@@ -58,5 +57,4 @@ app.add_middleware(ProxyMiddleware)
 app.include_router(qido_router, prefix="/dicom-web-filter")
 app.include_router(supplement_router, prefix="/dicom-web-filter")
 app.include_router(wado_router, prefix="/dicom-web-filter")
-app.include_router(wado_uri_router, prefix="/dicom-web-filter/wado-uri")
 app.include_router(management_router, prefix="/dicom-web-filter/management")

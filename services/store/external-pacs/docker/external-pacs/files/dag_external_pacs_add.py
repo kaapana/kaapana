@@ -62,7 +62,7 @@ dag = DAG(
     schedule_interval=None,
 )
 
-init_operator = ExternalPacsOperator(dag=dag, operator_out_dir="get-input-data")
+init_operator = ExternalPacsOperator(dag=dag, action="add", operator_out_dir="get-input-data")
 
 extract_metadata = LocalDcm2JsonOperator(
     dag=dag, input_operator=init_operator, data_type="json"

@@ -1,7 +1,6 @@
 import binascii
 import os
 import re
-import traceback
 
 import httpx
 from app.auth import authorize_headers, get_external_token
@@ -9,7 +8,7 @@ from app.logger import get_logger
 from app.utils import rs_endpoint_url
 from app.streaming_helpers import metadata_replace_stream
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 logger = get_logger(__file__)
@@ -333,6 +332,7 @@ async def stream_rendered(url: str, headers: dict):
         async with client.stream(
             method="GET", url=url, headers=headers, timeout=10
         ) as response:
+            response.raise_for_status()
             async for chunk in response.aiter_bytes():
                 yield chunk
 
@@ -351,10 +351,11 @@ async def retrieve_series_rendered(
     Returns:
         StreamingResponse: Response object
     """
-    auth_headers = await authorize_headers(request)
+    token = await get_external_token(request)
+    auth_headers = {"Authorization": f"Bearer {token}", "Accept": "image/png"}
     rs_endpoint = rs_endpoint_url(request)
     url = f"{rs_endpoint}/studies/{study}/rendered"
-    return await StreamingResponse(stream_rendered(url, auth_headers))
+    return StreamingResponse(stream_rendered(url, auth_headers))
 
 
 @router.get("/studies/{study}/series/{series}/rendered", tags=["WADO-RS"])
@@ -373,10 +374,11 @@ async def retrieve_series_rendered(
     Returns:
         StreamingResponse: Response object
     """
-    auth_headers = await authorize_headers(request)
+    token = await get_external_token(request)
+    auth_headers = {"Authorization": f"Bearer {token}", "Accept": "image/png"}
     rs_endpoint = rs_endpoint_url(request)
     url = f"{rs_endpoint}/studies/{study}/series/{series}/rendered"
-    return await StreamingResponse(stream_rendered(url, auth_headers))
+    return StreamingResponse(stream_rendered(url, auth_headers))
 
 
 @router.get(
@@ -399,7 +401,37 @@ async def retrieve_instance_rendered(
     Returns:
         StreamingResponse: Response object
     """
-    auth_headers = await authorize_headers(request)
+    token = await get_external_token(request)
+    auth_headers = {"Authorization": f"Bearer {token}", "Accept": "image/png"}
     rs_endpoint = rs_endpoint_url(request)
     url = f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/rendered"
-    return await StreamingResponse(stream_rendered(url, auth_headers))
+    return StreamingResponse(stream_rendered(url, auth_headers))
+
+
+@router.get(
+    "/studies/{study}/series/{series}/instances/{instance}/frames/{frame}/rendered",
+    tags=["WADO-RS"],
+)
+async def retrieve_frame_rendered(
+    study: str,
+    series: str,
+    instance: str,
+    frame: str,
+    request: Request,
+):
+    """Retrieve the instance rendered image from the DICOMWeb server.
+
+    Args:
+        study (str): Study Instance UID
+        series (str): Series Instance UID
+        instance (str): SOP Instance UID
+        request (Request): Request object
+
+    Returns:
+        StreamingResponse: Response object
+    """
+    token = await get_external_token(request)
+    auth_headers = {"Authorization": f"Bearer {token}", "Accept": "image/png"}
+    rs_endpoint = rs_endpoint_url(request)
+    url = f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/frames/{frame}/rendered"
+    return StreamingResponse(stream_rendered(url, auth_headers))

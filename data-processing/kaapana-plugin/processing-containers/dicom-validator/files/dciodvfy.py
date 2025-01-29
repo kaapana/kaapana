@@ -82,7 +82,22 @@ class DCIodValidator(DicomValidatorInterface):
 
             return None
 
-        if len(source) > 1:
+        if len(source) == 2:
+            vtype = source[0]
+            tag = "general"                
+            message = source[1]
+            name = ""
+            module = ""
+            return ValidationItem(
+                tag,
+                vtype,
+                message,
+                name,
+                module,
+                index=index,
+            )
+
+        elif len(source) > 2:
             vtype = source[0]
             tag = extract_tag(source[1])
             if tag == "" and ref != -1:

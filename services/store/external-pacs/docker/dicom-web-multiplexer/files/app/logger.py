@@ -2,9 +2,9 @@ import logging
 import sys
 
 
-def get_logger(name):
+def get_logger(name, level=logging.INFO):
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
     stream_handler = logging.StreamHandler(sys.stdout)
     log_formatter = logging.Formatter(
         "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"

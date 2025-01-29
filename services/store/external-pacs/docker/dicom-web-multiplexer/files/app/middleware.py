@@ -1,8 +1,6 @@
 import json
 import re
-import traceback
 
-from httpx import HTTPStatusError
 
 from app.crud import get_all_datasources
 from app.database import get_session
@@ -61,7 +59,7 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         if series_uid:
             logger.debug(f"Request has series_uid: {series_uid}")
             endpoint = None
-            
+
             endpoint = get_endpoint_from_opensearch(
                 series_uid, access_token, project_index
             )
@@ -70,13 +68,12 @@ class ProxyMiddleware(BaseHTTPMiddleware):
                 logger.debug(f"Data Source endpoint: {endpoint}")
                 request.state.endpoint = endpoint
                 return await call_next(request)
-            
+
             else:
                 logger.debug(f"Return results only from dicom-web-filter proxy")
                 # No endpoint found in OpenSearch, fall back to dicom-web-filter request
                 return await proxy_dicom_web_filter(request=request)
 
-            
         else:
             # No Series UID -> requests all project related PACS, merging external and local PACS responses
             dicom_web_filter_result = await proxy_dicom_web_filter(request=request)
@@ -114,8 +111,8 @@ def get_endpoint_from_opensearch(
         index=project_index,
         include_custom_tag=DicomTags.dcmweb_endpoint_tag,
     )
-    if len(result ) == 0:
-        return 
+    if len(result) == 0:
+        return
     endpoint = result[0]["_source"].get(DicomTags.dcmweb_endpoint_tag)
     return endpoint
 
@@ -284,19 +281,7 @@ async def dicom_web_multiplexer_responses(
     dicom_web_multiplexer_result = None
     for endpoint in endpoint_strings:
         request.state.endpoint = endpoint
-        try:
-            new_result = await call_next(request)
-        except HTTPStatusError as e:
-            status_code = e.response.status_code
-            detail = str(e)
-            headers = dict(e.response.headers)
-
-            return Response(
-                content=detail,
-                status_code=status_code,
-                headers=headers,
-                media_type="text/plain",
-            )
+        new_result = await call_next(request)
 
         if new_result.status_code == 200:
             logger.debug(f"Processing endpoint: {endpoint}")

@@ -2,11 +2,10 @@ import base64
 import json
 import logging
 import os
-import traceback
 from typing import Any, Dict, List
 
 import requests
-from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from CustomHelperDcmWeb import CustomHelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch, DicomTags
 from kaapanapy.helper import load_workflow_config, get_opensearch_client
 from kaapanapy.settings import OperatorSettings
@@ -24,14 +23,19 @@ class ExternalPacsOperator:
     This operator is used to ADD external PACs to the project.
     It creates a kubernetes secret with credentials, adds the endpoint to the database, and download metadata of all instances.
     """
+
     def __init__(self):
         self.operator_settings = OperatorSettings()
         self.workflow_config = load_workflow_config()
         self.project_form: dict = self.workflow_config.get("project_form")
         self.workflow_form: dict = self.workflow_config.get("workflow_form")
-        self.dcmweb_helper = HelperDcmWeb()
+        self.dcmweb_helper = CustomHelperDcmWeb()
         logger.info(self.dcmweb_helper.dcmweb_rs_endpoint)
         logger.info(self.dcmweb_helper.dcmweb_uri_endpoint)
+        self.action = os.getenv("ACTION")
+        if not self.action or self.action not in ["add", "remove"]:
+            logger.error("No action")
+            exit(1)
 
     def start(self):
         """
@@ -40,12 +44,18 @@ class ExternalPacsOperator:
         logger.info("# Starting module ExternalPacsOperator...")
 
         dcmweb_endpoint = self.workflow_form.get("dcmweb_endpoint")
-        service_account_info = self.workflow_form.get("service_account_info")
+        assert dcmweb_endpoint, "Dcm web endpoint argument missing. Abort!"
 
-        if dcmweb_endpoint and service_account_info:
+        if self.action == "add":
+            service_account_info = self.workflow_form.get("service_account_info")
+            assert (
+                service_account_info
+            ), "Service Account Information (credentials) missing. Abort!"
+
             service_account_info = self._decode_service_account_info(
                 service_account_info
             )
+
             self.add_to_multiplexer(
                 endpoint=dcmweb_endpoint, secret_data=service_account_info
             )
@@ -54,6 +64,14 @@ class ExternalPacsOperator:
                 dcmweb_endpoint,
                 self.workflow_form.get("dataset_name", "external-data"),
             )
+
+        elif self.action == "remove":
+            self.remove_from_multiplexer(endpoint=dcmweb_endpoint)
+            self.remove_external_metadata(endpoint=dcmweb_endpoint)
+
+        else:
+            logger.info("Unknown action: {self.action}")
+            exit(1)
 
     def _filter_instances_to_import_by_series_uid(
         self, metadata: List[Dict[str, Any]]
@@ -123,8 +141,10 @@ class ExternalPacsOperator:
                     series_uid=series_uid,
                     dcmweb_endpoint=dcmweb_endpoint,
                 )
-
-                metadata.extend(instances)
+                for instance in instances:
+                    instance_uid = instance["00080018"]["Value"][0]
+                    instance = self.dcmweb_helper.get_instance_metadata(study_uid=study_uid, series_uid=series_uid, instance_uid=instance_uid, dcmweb_endpoint=dcmweb_endpoint)
+                    metadata.extend(instance)
 
         if not metadata:
             logger.error("No metadata found.")
@@ -159,17 +179,16 @@ class ExternalPacsOperator:
         )
         os.makedirs(target_dir, exist_ok=True)
         json_path = os.path.join(target_dir, "metadata.json")
-        
+
         instance["00020016"] = {"vr": "UR", "Value": ["kaapana_external"]}
         instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
         instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
         instance["00120020"] = {"vr": "LO", "Value": [self.project_form["name"]]}
-        
 
         with open(json_path, "w", encoding="utf8") as fp:
             json.dump(instance, fp, indent=4, sort_keys=True)
 
-    def delete_external_metadata(self, dcmweb_endpoint: str):
+    def remove_external_metadata(self, dcmweb_endpoint: str):
         """
         Deletes metadata from OpenSearch using a specified DICOMweb endpoint.
 
@@ -208,36 +227,33 @@ class ExternalPacsOperator:
         return json.loads(decoded_string)
 
     def add_to_multiplexer(self, endpoint: str, secret_data: Dict[str, str]):
-        """
-        Adds an external PACS endpoint to the multiplexer with its secret data.
-        Calls multiplexer service.
+        payload = {
+            "datasource": {
+                "dcmweb_endpoint": endpoint,
+                "project_index": self.project_form.get("opensearch_index"),
+            },
+            "secret_data": secret_data,
+        }
+        logger.info(f"Payload being sent: {payload}")
+        response = requests.post(
+            url=f"{self.dcmweb_helper.dcmweb_rs_endpoint}/management/datasources",
+            json=payload,
+        )
+        response.raise_for_status()
+        logger.info(f"External PACs added to multiplexer successfully")
 
-        Parameters:
-            endpoint (str): The PACS endpoint to add.
-            secret_data (Dict[str, str]): Dictionary containing secret data for the endpoint.
-
-        Returns:
-            bool: True if successfully added, False otherwise.
-        """
-        try:
-            payload = {
-                "datasource": {
-                    "dcmweb_endpoint": endpoint,
-                    "project_index": self.project_form.get("opensearch_index"),
-                },
-                "secret_data": secret_data,
-            }
-            logger.info(f"Payload being sent: {payload}")
-            response = requests.post(
-                url=f"{self.dcmweb_helper.dcmweb_rs_endpoint}/management/datasources", json=payload
-            )
-            response.raise_for_status()
-            logger.info(f"External PACs added to multiplexer successfully")
-
-        except requests.exceptions.RequestException as e:
-            logger.error(f"ERROR: External PACs couldn't be added to multiplexer: {e}")
-            logger.error(traceback.format_exc())
-            raise e
+    def remove_from_multiplexer(self, endpoint: str):
+        payload = {
+            "dcmweb_endpoint": endpoint,
+            "project_index": self.project_form.get("opensearch_index"),
+        }
+        logger.info(f"Payload being sent: {payload}")
+        response = requests.delete(
+            url=f"{self.dcmweb_helper.dcmweb_rs_endpoint}/management/datasources",
+            json=payload,
+        )
+        response.raise_for_status()
+        logger.info(f"External PACs remove from multiplexer successfully")
 
 
 if __name__ == "__main__":

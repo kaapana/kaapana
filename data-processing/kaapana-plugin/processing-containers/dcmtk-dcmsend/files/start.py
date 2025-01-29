@@ -1,182 +1,161 @@
 import os
-import glob
-from typing import List
+from glob import glob
 from subprocess import PIPE, run
-import pydicom
-from pathlib import Path
+
 from kaapanapy.helper import load_workflow_config
-from kaapanapy.settings import KaapanaSettings
+from kaapanapy.logger import get_logger
+from kaapanapy.settings import KaapanaSettings, OperatorSettings
 
-PACS_HOST = os.getenv("PACS_HOST")
-PACS_PORT = os.getenv("PACS_PORT")
-HTTP_PORT = os.getenv("HTTP_PORT", "8080")
-### If the environment variable AETITLE is "NONE", then I want to set AETITLE = None
-AETITLE = os.getenv("AETITLE", "NONE")
-AETITLE = None if AETITLE == "NONE" else AETITLE
-LEVEL = os.getenv("LEVEL", "element")
-WORKFLOW_CONFIG = load_workflow_config()
-# add TASK_NUM to AETITLE if it exists
-TASK_NUM = WORKFLOW_CONFIG.get("workflow_form").get("task_num")
-if AETITLE is not None and TASK_NUM is not None:
-    AETITLE = AETITLE + str(TASK_NUM)
-PROJECT = WORKFLOW_CONFIG.get("project_form")
-PROJECT_NAME = PROJECT.get("name")
-SERVICES_NAMESPACE = KaapanaSettings().services_namespace
+logger = get_logger(__name__, level="INFO")
+from os.path import join
 
-print(f"AETITLE: {AETITLE}")
-print(f"LEVEL: {LEVEL}")
-
-dicom_sent_count = 0
+DEFAULT_PACS_HOST = f"ctp-dicom-service.{KaapanaSettings().services_namespace}.svc"
+DEFAULT_PACS_PORT = 11112
 
 
-def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
-    global dicom_sent_count
+class DcmSendOperator:
 
-    dicom_list: List[Path] = sorted(
-        [
-            f
-            for f in Path(send_dir).rglob("*")
-            if f.is_file() and pydicom.misc.is_dicom(f)
-        ]
-    )
+    def __init__(
+        self,
+        pacs_host: str,
+        pacs_port: int,
+        calling_ae_title_scu: str,
+        called_ae_title_scp: str,
+    ):
+        # Load the workflow configuration
+        self.conf = load_workflow_config()
 
-    if len(dicom_list) == 0:
-        print(send_dir)
-        print("############### No dicoms found...! Skipping to next Batch.")
-        # raise FileNotFoundError # Not very elegant, but it still fails if nothing is processed. Maybe would be better if the dag would specify an "allow partial fail" parameter.
-        return
+        logger.info(self.conf)
 
-    for dicom_dir, _, _ in os.walk(send_dir):
-        dicom_list = [
-            f
-            for f in Path(dicom_dir).glob("*")
-            if f.is_file() and pydicom.misc.is_dicom(f)
-        ]
+        # Project information
+        self.project = self.conf.get("project_form")
+        self.project_name = self.project.get("name")
 
-        if len(dicom_list) == 0:
-            continue
+        # Airflow variables
+        operator_settings = OperatorSettings()
 
-        dcm_file = pydicom.dcmread(dicom_list[0])
-        series_uid = str(dcm_file[0x0020, 0x000E].value)
+        self.operator_in_dir = operator_settings.operator_in_dir
+        self.workflow_dir = operator_settings.workflow_dir
+        self.batch_name = operator_settings.batch_name
+        self.run_id = operator_settings.run_id
 
-        print(
-            f"Found {len(dicom_list)} file(s) in {dicom_dir}. Will use series_uuid {series_uid}"
-        )
-        if aetitle is None:
-            if "WORKFLOW_NAME" in os.environ:
-                aetitle = os.environ["WORKFLOW_NAME"]
-                print(f"Using workflow_name as aetitle:    {aetitle}")
-            else:
-                try:
-                    aetitle = str(dcm_file[0x012, 0x020].value)
-                    print(f"Found aetitle    {aetitle}")
-                except Exception as e:
-                    print(f"Could not load aetitle: {e}")
-                    aetitle = "KAAPANA export"
-                    print(f"Using default aetitle {aetitle}")
+        # PACS information
+        self.pacs_host = pacs_host
+        self.pacs_port = pacs_port
 
-        print(f"Sending {dicom_dir} to {PACS_HOST} {PACS_PORT} with aetitle {aetitle}")
-        # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
-
-        if PACS_HOST == f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc":
-            if aetitle.startswith("kp-"):
-                dataset = aetitle
-            else:
-                dataset = f"kp-{aetitle}"
-            if not project_name.startswith("kp-"):
-                project_name = f"kp-{project_name}"
+        # AE Titles
+        # aet -> Dataset -> 0012,0010
+        if calling_ae_title_scu:
+            self.calling_ae_title_scu = calling_ae_title_scu
         else:
-            dataset = aetitle
+            logger.info("No calling AE title (SCU) set.")
+            calling_ae_title_scu = self.conf.get("form_data").get("workflow_id")
 
-        env = dict(os.environ)
-        command = [
-            "dcmsend",
-            "-v",
-            f"{PACS_HOST}",
-            f"{PACS_PORT}",
-            "-aet",
-            dataset,
-            "-aec",
-            project_name,
-            "--scan-directories",
-            "--no-halt",
-            f"{dicom_dir}",
-        ]
-        print(" ".join(command))
-        max_retries = 5
-        try_count = 0
-        while try_count < max_retries:
-            print("Try: {}".format(try_count))
-            try_count += 1
-            try:
-                output = run(
-                    command,
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    universal_newlines=True,
-                    env=env,
-                    timeout=timeout,
-                )
-                if output.returncode != 0 or "with status SUCCESS" not in str(output):
-                    print("############### Something went wrong with dcmsend!")
-                    for line in str(output).split("\\n"):
-                        print(line)
-                    print("##################################################")
-                    # exit(1)
-                else:
-                    print(f"Success! output: {output}")
-                    print("")
-                    break
-            except Exception as e:
-                print(f"Something went wrong: {e}, trying again!")
+            if not calling_ae_title_scu.startswith("kp-"):
+                self.calling_ae_title_scu = f"kp-{calling_ae_title_scu}"
 
-        if try_count >= max_retries:
-            print("------------------------------------")
-            print("Max retries reached!")
-            print("------------------------------------")
-            raise ValueError(f"Something went wrong with dcmsend!")
+        # aec -> Project -> 0012,0020
+        if called_ae_title_scp:
+            self.called_ae_title_scp = called_ae_title_scp
+        else:
+            logger.info("No called AE title (SCP) set!")
+            called_ae_title_scp = self.project_name
+            if not called_ae_title_scp.startswith("kp-"):
+                self.called_ae_title_scp = f"kp-{called_ae_title_scp}"
 
-        dicom_sent_count += 1
+        logger.info(f"Calling AE Title (SCU): {self.calling_ae_title_scu}")
+        logger.info(f"Called AE Title (SCP): {self.called_ae_title_scp}")
+        logger.info(f"PACS Host: {self.pacs_host}")
+        logger.info(f"PACS Port: {self.pacs_port}")
 
+    def start(self):
+        batch_folders = glob(join("/", self.workflow_dir, self.batch_name, "*"))
 
-if LEVEL == "element":
-    batch_folders = sorted(
-        [
-            f
-            for f in glob.glob(
-                os.path.join(
-                    "/", os.environ["WORKFLOW_DIR"], os.environ["BATCH_NAME"], "*"
-                )
+        for batch_element_dir in batch_folders:
+            seg_element_input_dir = join(batch_element_dir, self.operator_in_dir)
+            # Send data using pynetdicom
+            logger.info(
+                f"Sending data from {seg_element_input_dir} from project {self.project_name}"
             )
-            if os.path.isdir(f)
-        ]
+
+            env = dict(os.environ)
+            command = [
+                "dcmsend",
+                "-v",
+                f"{self.pacs_host}",
+                f"{self.pacs_port}",
+                "-aet",
+                self.calling_ae_title_scu,
+                "-aec",
+                self.called_ae_title_scp,
+                "--scan-directories",
+                "--no-halt",
+                f"{seg_element_input_dir}",
+            ]
+
+            max_retries = 5
+            try_count = 0
+            while try_count < max_retries:
+                try:
+
+                    output = run(
+                        command,
+                        stdout=PIPE,
+                        stderr=PIPE,
+                        universal_newlines=True,
+                        env=env,
+                        timeout=3600,
+                    )
+
+                    if output.returncode != 0 or "with status SUCCESS" not in str(
+                        output
+                    ):
+                        logger.error(f"Error sending data: {output.stderr}")
+                        logger.info(f"Retry {try_count + 1}/{max_retries}")
+                        try_count += 1
+                except Exception as e:
+                    logger.error(f"Error sending data: {e}")
+                    logger.info(f"Retry {try_count + 1}/{max_retries}")
+                    try_count += 1
+
+            if try_count >= max_retries:
+                raise ValueError(
+                    f"Error sending data: {output.stderr} after {max_retries} retries"
+                )
+
+
+if __name__ == "__main__":
+
+    pacs_host = (
+        os.getenv("PACS_HOST")
+        if os.getenv("PACS_HOST", "") != ""
+        else DEFAULT_PACS_HOST
     )
 
-    for batch_element_dir in batch_folders:
-        element_input_dir = os.path.join(
-            batch_element_dir, os.environ["OPERATOR_IN_DIR"]
-        )
-        send_dicom_data(element_input_dir, project_name=PROJECT_NAME, timeout=600)
-
-elif LEVEL == "batch":
-    batch_input_dir = os.path.join(
-        "/", os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]
-    )
-    print(f"Sending DICOM data from batch-level: {batch_input_dir}")
-    send_dicom_data(batch_input_dir, project_name=PROJECT_NAME, timeout=3600)
-else:
-    raise NameError(
-        'level must be either "element" or "batch". \
-        If batch, an operator folder next to the batch folder with .dcm files is expected. \
-        If element, *.dcm are expected in the corresponding operator with .dcm files is expected.'
+    pacs_port = (
+        int(os.getenv("PACS_PORT"))
+        if os.getenv("PACS_PORT", "") != ""
+        else DEFAULT_PACS_PORT
     )
 
-if dicom_sent_count == 0:
-    print("##################################################")
-    print("#")
-    print("############### Something went wrong!")
-    print("# --> no DICOM sent !")
-    print("# ABORT")
-    print("#")
-    print("##################################################")
-    exit(1)
+    # aet -> Dataset -> 0012,0010
+    calling_ae_title_scu = (
+        os.getenv("CALLING_AE_TITLE_SCU")
+        if os.getenv("CALLING_AE_TITLE_SCU", "") != ""
+        else None
+    )
+
+    # aec -> Project -> 0012,0020
+    called_ae_title_scp = (
+        os.getenv("OP_CALLED_AE_TITLE_SCP")
+        if os.getenv("OP_CALLED_AE_TITLE_SCP", "") != ""
+        else None
+    )
+
+    operator = DcmSendOperator(
+        pacs_host=pacs_host,
+        pacs_port=pacs_port,
+        calling_ae_title_scu=calling_ae_title_scu,
+        called_ae_title_scp=called_ae_title_scp,
+    )
+    operator.start()

@@ -67,6 +67,34 @@ async def series_middle_slice(
         return object_uid
 
 
+def dicom_to_png(dicom_stream, frame_number=0):
+    """Converts a DICOM image (single instance or specific frame) to PNG."""
+    ds = pydicom.dcmread(dicom_stream)
+
+    # Extract pixel data
+    if hasattr(ds, "NumberOfFrames") and ds.NumberOfFrames > 1:
+        pixel_array = ds.pixel_array[frame_number]  # Extract the specific frame
+    else:
+        pixel_array = ds.pixel_array
+
+    # Normalize pixel values to 8-bit (0-255)
+    pixel_array = pixel_array.astype(np.float32)
+    pixel_array -= pixel_array.min()
+    pixel_array /= pixel_array.max()
+    pixel_array *= 255.0
+    pixel_array = pixel_array.astype(np.uint8)
+
+    # Convert to grayscale image
+    image = Image.fromarray(pixel_array)
+
+    # Save the image into a BytesIO object (in-memory)
+    png_output = io.BytesIO()
+    image.save(png_output, format="PNG")
+    png_output.seek(0)  # Rewind to the start of the BytesIO stream
+
+    return png_output
+
+
 @router.get("/studies/{study}/series/{series}/thumbnail")
 async def retrieve_series_thumbnail(
     study: str,
@@ -105,9 +133,7 @@ async def retrieve_series_thumbnail(
         return Response(content=thumbnail_bytes, media_type="image/png")
 
     except httpx.HTTPStatusError as e:
-        logger.error(f"HTTP error occurred: {e}")
         if e.response.status_code == 406:
-            logger.error("Unsupported media type (406 Not Acceptable)")
             instance_url = (
                 f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}"
             )
@@ -133,31 +159,3 @@ async def retrieve_series_thumbnail(
             status_code=500,
             content=f"An error occurred while processing the request: {e}",
         )
-
-
-def dicom_to_png(dicom_stream, frame_number=0):
-    """Converts a DICOM image (single instance or specific frame) to PNG."""
-    ds = pydicom.dcmread(dicom_stream)
-
-    # Extract pixel data
-    if hasattr(ds, "NumberOfFrames") and ds.NumberOfFrames > 1:
-        pixel_array = ds.pixel_array[frame_number]  # Extract the specific frame
-    else:
-        pixel_array = ds.pixel_array
-
-    # Normalize pixel values to 8-bit (0-255)
-    pixel_array = pixel_array.astype(np.float32)
-    pixel_array -= pixel_array.min()
-    pixel_array /= pixel_array.max()
-    pixel_array *= 255.0
-    pixel_array = pixel_array.astype(np.uint8)
-
-    # Convert to grayscale image
-    image = Image.fromarray(pixel_array)
-
-    # Save the image into a BytesIO object (in-memory)
-    png_output = io.BytesIO()
-    image.save(png_output, format="PNG")
-    png_output.seek(0)  # Rewind to the start of the BytesIO stream
-
-    return png_output

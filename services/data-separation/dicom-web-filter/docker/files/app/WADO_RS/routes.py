@@ -66,38 +66,44 @@ async def stream(
     Yields:
         _type_: _description_
     """
+
     async with httpx.AsyncClient() as client:
         async with client.stream(
             method, url, headers=dict(request_headers)
         ) as response:
-            # Boundary has to be replaced
-            buffer = b""  # We need the buffer, to ensure the boundary is not being split across chunks
-            pattern_size = (
-                len(new_boundary) + 4
-            )  # 2 bytes for "--" at the start and 2 bytes for "--" at the end
-            first_chunk = True
-            response_boundary = None
-            async for chunk in response.aiter_bytes():
-                # Get the boundary which will be replaced from the first chunk
-                if first_chunk:
-                    response_boundary = re.search(
-                        b"boundary=(.*)", response.headers["Content-Type"].encode()
-                    ).group(1)
-                    first_chunk = False
-                buffer += chunk
-                # Replace the boundary in the buffer
-                buffer = replace_boundary(
-                    buffer=buffer,
-                    old_boundary=response_boundary,
-                    new_boundary=new_boundary,
-                )
-                to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
-                yield to_yield
-                buffer = buffer[-pattern_size:]
+            # Check if the Content-Type header contains a boundary
+            content_type = response.headers.get("Content-Type", "").encode()
+            boundary_match = re.search(b"boundary=(.*)", content_type)
 
-            # Yield any remaining buffer after the last chunk
-            if buffer:
-                yield buffer
+            if boundary_match:
+                # Boundary found, proceed with boundary replacement logic
+                response_boundary = boundary_match.group(1)
+                buffer = b""  # Buffer to ensure the boundary is not split across chunks
+                pattern_size = (
+                    len(new_boundary) + 4
+                )  # 2 bytes for "--" at the start and 2 bytes for "--" at the end
+
+                async for chunk in response.aiter_bytes():
+                    buffer += chunk
+                    # Replace the boundary in the buffer
+                    buffer = replace_boundary(
+                        buffer=buffer,
+                        old_boundary=response_boundary,
+                        new_boundary=new_boundary,
+                    )
+                    to_yield = (
+                        buffer[:-pattern_size] if len(buffer) > pattern_size else b""
+                    )
+                    yield to_yield
+                    buffer = buffer[-pattern_size:]
+
+                # Yield any remaining buffer after the last chunk
+                if buffer:
+                    yield buffer
+            else:
+                # No boundary found, stream the response as-is
+                async for chunk in response.aiter_bytes():
+                    yield chunk
 
 
 

@@ -11,7 +11,6 @@ from kaapana.operators.LocalAssignDataToProjectOperator import (
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from external_pacs.ExternalPacsOperator import ExternalPacsOperator
 
 
@@ -26,13 +25,6 @@ ui_forms = {
                 "description": "Specify the URL of the DICOM store. (e.g.: https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/dicomStores?dicomStoreId=DICOM_STORE_ID)",
                 "type": "string",
                 "default": None,
-                "required": True,
-            },
-            "tags": {
-                "title": "Tags",
-                "description": "Specify a , seperated list of tags to add (e.g. tag1,tag2)",
-                "type": "string",
-                "default": "external",
                 "required": True,
             },
             "dataset_name": {
@@ -83,7 +75,6 @@ assign_to_project = LocalAssignDataToProjectOperator(
 push_json = LocalJson2MetaOperator(
     dag=dag, input_operator=get_input, json_operator=extract_metadata
 )
-tagging = LocalTaggingOperator(dag=dag, input_operator=get_input)
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
@@ -91,4 +82,4 @@ clean = LocalWorkflowCleanerOperator(
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 
-(get_input >> extract_metadata >> add_to_dataset >> push_json >> tagging >> clean)
+(get_input >> extract_metadata >> add_to_dataset >> push_json >> clean)

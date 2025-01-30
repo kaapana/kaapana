@@ -14,7 +14,9 @@ from fastapi.responses import StreamingResponse
 from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
 from starlette.middleware.base import BaseHTTPMiddleware
 
-logger = get_logger(__name__)
+
+import logging
+logger = get_logger(__name__, logging.DEBUG)
 
 
 class ProxyMiddleware(BaseHTTPMiddleware):
@@ -77,8 +79,8 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         else:
             # No Series UID -> requests all project related PACS, merging external and local PACS responses
             dicom_web_filter_result = await proxy_dicom_web_filter(request=request)
+            
             # Only check opensearch_index of a current project
-
             dicom_web_multiplexer_result = await dicom_web_multiplexer_responses(
                 project_index, request, call_next
             )
@@ -234,7 +236,6 @@ async def decide_response(
         logger.debug("Binary dicom_web_multiplexer_result")
         return dicom_web_filter_result
 
-    # If the responses are not multipart/related we can merge (json, text)
     elif (
         dicom_web_multiplexer_result.status_code == 200
         and dicom_web_filter_result.status_code == 200

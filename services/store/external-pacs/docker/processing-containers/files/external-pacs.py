@@ -56,9 +56,7 @@ class ExternalPacsOperator:
                 service_account_info
             )
 
-            self.add_to_multiplexer(
-                endpoint=dcmweb_endpoint, secret_data=service_account_info
-            )
+            self.add_to_multiplexer(dcmweb_endpoint, service_account_info)
 
             self.download_external_metadata(
                 dcmweb_endpoint,
@@ -66,8 +64,8 @@ class ExternalPacsOperator:
             )
 
         elif self.action == "remove":
-            self.remove_from_multiplexer(endpoint=dcmweb_endpoint)
-            self.remove_external_metadata(endpoint=dcmweb_endpoint)
+            self.remove_from_multiplexer(dcmweb_endpoint)
+            self.remove_external_metadata(dcmweb_endpoint)
 
         else:
             logger.info("Unknown action: {self.action}")
@@ -143,7 +141,11 @@ class ExternalPacsOperator:
                     series_uid=series_uid,
                     dcmweb_endpoint=dcmweb_endpoint,
                 )
-                metadata.extend(instances)
+                for instance in instances:
+                    instance_dict = dict(instance)
+                    instance_dict["0020000D"]["Value"] = [study_uid]
+                    instance_dict["0020000E"]["Value"] = [series_uid]
+                    metadata.append(instance_dict)
 
         if not metadata:
             logger.error("No metadata found.")
@@ -154,7 +156,10 @@ class ExternalPacsOperator:
         success = 0
         total = len(metadata)
         for instance in metadata:
+            study_uid = instance["0020000D"]["Value"][0]
+            series_uid = instance["0020000E"]["Value"][0]
             instance_uid = instance["00080018"]["Value"][0]
+            
             full_instance_metadata = self.dcmweb_helper.get_instance_metadata(
                 study_uid=study_uid,
                 series_uid=series_uid,
@@ -168,7 +173,7 @@ class ExternalPacsOperator:
                 success += 1
             else:
                 logger.error("Metadata empty")
-                
+
         logger.info(f"Saved instances:[{success}/{total}]")
 
     def _save_instance_metadata(
@@ -241,10 +246,10 @@ class ExternalPacsOperator:
         decoded_string = decoded_bytes.decode("utf-8")
         return json.loads(decoded_string)
 
-    def add_to_multiplexer(self, endpoint: str, secret_data: Dict[str, str]):
+    def add_to_multiplexer(self, dcmweb_endpoint: str, secret_data: Dict[str, str]):
         payload = {
             "datasource": {
-                "dcmweb_endpoint": endpoint,
+                "dcmweb_endpoint": dcmweb_endpoint,
                 "project_index": self.project_form.get("opensearch_index"),
             },
             "secret_data": secret_data,
@@ -257,9 +262,10 @@ class ExternalPacsOperator:
         response.raise_for_status()
         logger.info(f"External PACs added to multiplexer successfully")
 
-    def remove_from_multiplexer(self, endpoint: str):
+    def remove_from_multiplexer(self, dcmweb_endpoint: str):
+
         payload = {
-            "dcmweb_endpoint": endpoint,
+            "dcmweb_endpoint": dcmweb_endpoint,
             "project_index": self.project_form.get("opensearch_index"),
         }
         logger.info(f"Payload being sent: {payload}")

@@ -98,7 +98,11 @@ async def retrieve_studies(
     Returns:
         StreamingResponse: Response object
     """
-    auth_headers = await authorize_headers(request)
+    token = await get_external_token(request)
+    auth_headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": 'multipart/related; type="application/dicom"; transfer-syntax=*',
+    }
     rs_endpoint = rs_endpoint_url(request)
     boundary = get_boundary()
 
@@ -132,7 +136,11 @@ async def retrieve_series(
     Returns:
         StreamingResponse: Response object
     """
-    auth_headers = await authorize_headers(request)
+    token = await get_external_token(request)
+    auth_headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": 'multipart/related; type="application/dicom"; transfer-syntax=*',
+    }
     rs_endpoint = rs_endpoint_url(request)
     boundary = get_boundary()
 
@@ -168,7 +176,11 @@ async def retrieve_instances(
     Returns:
         StreamingResponse: Response object
     """
-    auth_headers = await authorize_headers(request)
+    token = await get_external_token(request)
+    auth_headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/dicom; transfer-syntax=*",
+    }
     rs_endpoint = rs_endpoint_url(request)
     boundary = get_boundary()
 
@@ -214,6 +226,8 @@ async def retrieve_frames(
     rs_endpoint = rs_endpoint_url(request)
     boundary = get_boundary()
 
+    headers = {"Accept": 'multipart/related; type="application/dicom"; transfer-syntax=*'}
+    
     return StreamingResponse(
         stream(
             method="GET",

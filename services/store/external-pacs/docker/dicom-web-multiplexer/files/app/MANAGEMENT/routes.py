@@ -84,7 +84,6 @@ async def create_datasource(
             status_code=500,
             content=f"Unable to create secret for the datasource {datasource}",
         )
-
     datasource_db = DataSourceDB(
         dcmweb_endpoint=datasource.dcmweb_endpoint,
         project_index=datasource.project_index,
@@ -116,17 +115,11 @@ async def delete_datasource(
             status_code=500,
             content=f"Couldn't delete secret for datasource {datasource}.",
         )
-    logger.info(f"Deleted secret for datasource {datasource}.")
     datasource_db = DataSourceDB(
         dcmweb_endpoint=datasource.dcmweb_endpoint,
         project_index=datasource.project_index,
     )
-    if not await remove_datasource(datasource_db, session):
-        return Response(
-            status_code=500,
-            content=f"Couldn't remove database entry for datasource {datasource}.",
-        )
-
+    await remove_datasource(datasource_db, session)
     return Response(status_code=200)
 
 

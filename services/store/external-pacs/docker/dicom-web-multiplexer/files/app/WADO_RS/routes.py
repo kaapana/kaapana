@@ -45,10 +45,10 @@ def get_boundary() -> bytes:
     return binascii.hexlify(os.urandom(16))
 
 
-async def stream(method, url, request_headers, query_params, new_boundary):
+async def stream(method, url, request_headers, new_boundary):
     async with httpx.AsyncClient() as client:
         async with client.stream(
-            method, url, headers=dict(request_headers), params=query_params
+            method, url, headers=dict(request_headers)
         ) as response:
             # Check if the Content-Type header contains a boundary
             content_type = response.headers.get("Content-Type", "").encode()
@@ -85,6 +85,33 @@ async def stream(method, url, request_headers, query_params, new_boundary):
                     yield chunk
 
 
+async def stream_direct(method, url, headers=None):
+    headers = headers or {}
+
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method, url, headers=dict(headers), timeout=10
+        ) as response:
+            async for chunk in response.aiter_bytes():
+                yield chunk
+
+
+def stream_study(url: str, headers: dict) -> StreamingResponse:
+    boundary = get_boundary()
+    return StreamingResponse(
+        stream(
+            method="GET",
+            url=url,
+            request_headers=headers,
+            new_boundary=boundary,
+        ),
+        headers={
+            "Transfer-Encoding": "chunked",
+            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
+        },
+    )
+
+
 @router.get("/studies/{study}", tags=["WADO-RS"])
 async def retrieve_studies(
     study: str,
@@ -99,26 +126,10 @@ async def retrieve_studies(
         StreamingResponse: Response object
     """
     token = await get_external_token(request)
-    auth_headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": 'multipart/related; type="application/dicom"; transfer-syntax=*',
-    }
+    auth_headers = {"Authorization": f"Bearer {token}"}
     rs_endpoint = rs_endpoint_url(request)
-    boundary = get_boundary()
-
-    return StreamingResponse(
-        stream(
-            method="GET",
-            url=f"{rs_endpoint}/studies/{study}",
-            request_headers=auth_headers,
-            query_params=request.query_params,
-            new_boundary=boundary,
-        ),
-        headers={
-            "Transfer-Encoding": "chunked",
-            "Content-Type": f"multipart/related; boundary={boundary.decode()}",
-        },
-    )
+    url = f"{rs_endpoint}/studies/{study}"
+    return stream_study(url, auth_headers)
 
 
 @router.get("/studies/{study}/series/{series}", tags=["WADO-RS"])
@@ -149,7 +160,6 @@ async def retrieve_series(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}",
             request_headers=auth_headers,
-            query_params=request.query_params,
             new_boundary=boundary,
         ),
         headers={
@@ -177,19 +187,15 @@ async def retrieve_instances(
         StreamingResponse: Response object
     """
     token = await get_external_token(request)
-    auth_headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/dicom; transfer-syntax=*",
-    }
     rs_endpoint = rs_endpoint_url(request)
+    headers = {"Authorization": f"Bearer {token}", "Accept": "application/dicom; transfer-syntax=*"}
     boundary = get_boundary()
 
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}",
-            request_headers=auth_headers,
-            query_params=request.query_params,
+            request_headers=headers,
             new_boundary=boundary,
         ),
         headers={
@@ -216,24 +222,23 @@ async def retrieve_frames(
         study (str): Study Instance UID
         series (str): Series Instance UID
         instance (str): SOP Instance UID
-        frames (str): Frame numbers
+        frame (str): Frame numbers
         request (Request): Request object
 
     Returns:
         StreamingResponse: Response object
     """
-    auth_headers = await authorize_headers(request)
+
+    token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
+    headers = {"Authorization": f"Bearer {token}"}
     boundary = get_boundary()
 
-    headers = {"Accept": 'multipart/related; type="application/dicom"; transfer-syntax=*'}
-    
     return StreamingResponse(
         stream(
             method="GET",
             url=f"{rs_endpoint}/studies/{study}/series/{series}/instances/{instance}/frames/{frame}",
-            request_headers=auth_headers,
-            query_params=request.query_params,
+            request_headers=headers,
             new_boundary=boundary,
         ),
         headers={

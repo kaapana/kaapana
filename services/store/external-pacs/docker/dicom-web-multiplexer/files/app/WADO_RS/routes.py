@@ -85,17 +85,6 @@ async def stream(method, url, request_headers, new_boundary):
                     yield chunk
 
 
-async def stream_direct(method, url, headers=None):
-    headers = headers or {}
-
-    async with httpx.AsyncClient() as client:
-        async with client.stream(
-            method, url, headers=dict(headers), timeout=10
-        ) as response:
-            async for chunk in response.aiter_bytes():
-                yield chunk
-
-
 def stream_study(url: str, headers: dict) -> StreamingResponse:
     boundary = get_boundary()
     return StreamingResponse(
@@ -188,7 +177,10 @@ async def retrieve_instances(
     """
     token = await get_external_token(request)
     rs_endpoint = rs_endpoint_url(request)
-    headers = {"Authorization": f"Bearer {token}", "Accept": "application/dicom; transfer-syntax=*"}
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/dicom; transfer-syntax=*",
+    }
     boundary = get_boundary()
 
     return StreamingResponse(

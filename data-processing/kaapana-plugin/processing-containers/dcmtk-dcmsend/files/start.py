@@ -147,8 +147,8 @@ if __name__ == "__main__":
 
     # aec -> Project -> 0012,0020
     called_ae_title_scp = (
-        os.getenv("OP_CALLED_AE_TITLE_SCP")
-        if os.getenv("OP_CALLED_AE_TITLE_SCP", "") != ""
+        os.getenv("CALLED_AE_TITLE_SCP")
+        if os.getenv("CALLED_AE_TITLE_SCP", "") != ""
         else None
     )
 

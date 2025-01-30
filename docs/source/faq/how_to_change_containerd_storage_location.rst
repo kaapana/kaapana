@@ -27,7 +27,7 @@ To move the storage to a different volume (e.g., `/dev/sdc` mounted at `/mnt`), 
 
 2. Modify the `--root` and `--state` parameters to point to the new storage location:
 
-   ```
+   ```text
    --config ${SNAP_DATA}/args/containerd.toml
    --root /mnt/var/lib/containerd
    --state /mnt/run/containerd
@@ -45,23 +45,23 @@ Alternative: Using a Persistent Volume
 ---------------------------------------
 For a single-node MicroK8s setup, an alternative is specifying a host path in the Persistent Volume (PV) YAML definition. This allows pods to store data in a specified location directly:
 
-```yaml
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: my-volume
-spec:
-  capacity:
-    storage: 10Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  storageClassName: manual
-  hostPath:
-    path: "/mnt/k8s-storage"
-```
+.. code-block:: yaml
+
+   apiVersion: v1
+   kind: PersistentVolume
+   metadata:
+       name: my-volume
+   spec:
+       capacity:
+           storage: 10Gi
+       accessModes:
+           - ReadWriteOnce
+       persistentVolumeReclaimPolicy: Retain
+       storageClassName: manual
+       hostPath:
+           path: "/mnt/k8s-storage"
 
 Further Reading
 ---------------
-- [MicroK8s Storage Documentation](https://microk8s.io/docs)
-- [Containerd Configuration Reference](https://containerd.io/docs/)
+- `MicroK8s Storage Documentation <https://microk8s.io/docs>`_
+- `Containerd Configuration Reference <https://containerd.io/docs/>`_

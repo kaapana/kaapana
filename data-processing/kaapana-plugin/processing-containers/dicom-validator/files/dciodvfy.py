@@ -87,6 +87,7 @@ class DCIodValidator(DicomValidatorInterface):
             tag = "general"                
             message = source[1]
             name = ""
+            index = ""
             module = ""
             return ValidationItem(
                 tag,

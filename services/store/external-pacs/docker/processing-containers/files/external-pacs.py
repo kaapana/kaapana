@@ -230,7 +230,7 @@ class ExternalPacsOperator:
             logger.info(f"Deleting metadata from opensearch using query: {query}")
             opensearch_index = self.project_form.get("opensearch_index")
             os_client = get_opensearch_client()
-            os_client.delete_by_query(query, opensearch_index)
+            os_client.delete_by_query(opensearch_index, query)
 
     def _decode_service_account_info(self, encoded_info: str) -> Dict[str, Any]:
         """

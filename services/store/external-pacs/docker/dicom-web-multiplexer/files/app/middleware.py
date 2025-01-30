@@ -15,8 +15,7 @@ from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
-import logging
-logger = get_logger(__name__, logging.DEBUG)
+logger = get_logger(__name__)
 
 
 class ProxyMiddleware(BaseHTTPMiddleware):

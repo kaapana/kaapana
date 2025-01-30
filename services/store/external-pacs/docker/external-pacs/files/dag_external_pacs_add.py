@@ -11,7 +11,9 @@ from kaapana.operators.LocalAssignDataToProjectOperator import (
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.LocalTaggingOperator import LocalTaggingOperator
 from external_pacs.ExternalPacsOperator import ExternalPacsOperator
+
 
 dataset_name = "external-data"
 ui_forms = {
@@ -24,6 +26,13 @@ ui_forms = {
                 "description": "Specify the URL of the DICOM store. (e.g.: https://healthcare.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/dicomStores?dicomStoreId=DICOM_STORE_ID)",
                 "type": "string",
                 "default": None,
+                "required": True,
+            },
+            "tags": {
+                "title": "Tags",
+                "description": "Specify a , seperated list of tags to add (e.g. tag1,tag2)",
+                "type": "string",
+                "default": "external",
                 "required": True,
             },
             "dataset_name": {
@@ -62,18 +71,19 @@ dag = DAG(
     schedule_interval=None,
 )
 
-init_operator = ExternalPacsOperator(dag=dag, action="add", operator_out_dir="get-input-data")
+get_input = ExternalPacsOperator(dag=dag, action="add", operator_out_dir="get-input-data")
 
 extract_metadata = LocalDcm2JsonOperator(
-    dag=dag, input_operator=init_operator, data_type="json"
+    dag=dag, input_operator=get_input, data_type="json"
 )
 add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
 assign_to_project = LocalAssignDataToProjectOperator(
     dag=dag, input_operator=extract_metadata
 )
 push_json = LocalJson2MetaOperator(
-    dag=dag, input_operator=init_operator, json_operator=extract_metadata
+    dag=dag, input_operator=get_input, json_operator=extract_metadata
 )
+tagging = LocalTaggingOperator(dag=dag, input_operator=get_input)
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
@@ -81,4 +91,4 @@ clean = LocalWorkflowCleanerOperator(
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 
-(init_operator >> extract_metadata >> add_to_dataset >> push_json >> clean)
+(get_input >> extract_metadata >> add_to_dataset >> push_json >> tagging >> clean)

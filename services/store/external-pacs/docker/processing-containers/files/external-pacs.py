@@ -43,8 +43,8 @@ class ExternalPacsOperator:
         """
         logger.info("# Starting module ExternalPacsOperator...")
 
-        dcmweb_endpoint = self.workflow_form.get("dcmweb_endpoint")
-        assert dcmweb_endpoint, "Dcm web endpoint argument missing. Abort!"
+        dcmweb_endpoint = self.workflow_form.get("dcmweb_endpoint", "").strip()
+        assert dcmweb_endpoint, "DcmWeb endpoint argument missing. Abort!"
 
         if self.action == "add":
             service_account_info = self.workflow_form.get("service_account_info")
@@ -105,7 +105,9 @@ class ExternalPacsOperator:
                 metadata,
             )
         )
-        added_external_series_uid = list(set(map(extract_series_uid, metadata)))
+        added_external_series_uid = list(
+            set(map(extract_series_uid, filtered_instances))
+        )
         logger.info(
             f"{len(added_external_series_uid)} new series imported from {len(external_series_uids)}"
         )
@@ -141,20 +143,33 @@ class ExternalPacsOperator:
                     series_uid=series_uid,
                     dcmweb_endpoint=dcmweb_endpoint,
                 )
-                for instance in instances:
-                    instance_uid = instance["00080018"]["Value"][0]
-                    instance = self.dcmweb_helper.get_instance_metadata(study_uid=study_uid, series_uid=series_uid, instance_uid=instance_uid, dcmweb_endpoint=dcmweb_endpoint)
-                    metadata.extend(instance)
+                metadata.extend(instances)
 
         if not metadata:
             logger.error("No metadata found.")
             exit(1)
 
         logger.info(f"Found {len(metadata)} instances metadata")
-
         metadata = self._filter_instances_to_import_by_series_uid(metadata)
+        success = 0
+        total = len(metadata)
         for instance in metadata:
-            self._save_instance_metadata(instance, dcmweb_endpoint, dataset_name)
+            instance_uid = instance["00080018"]["Value"][0]
+            full_instance_metadata = self.dcmweb_helper.get_instance_metadata(
+                study_uid=study_uid,
+                series_uid=series_uid,
+                instance_uid=instance_uid,
+                dcmweb_endpoint=dcmweb_endpoint,
+            )
+            if len(metadata) > 1:
+                self._save_instance_metadata(
+                    full_instance_metadata[0], dcmweb_endpoint, dataset_name
+                )
+                success += 1
+            else:
+                logger.error("Metadata empty")
+                
+        logger.info(f"Saved instances:[{success}/{total}]")
 
     def _save_instance_metadata(
         self, instance: Dict[str, Any], dcmweb_endpoint: str, dataset_name: str

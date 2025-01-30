@@ -23,9 +23,10 @@ class DicomTags:
     thumbnail_instance_uid_tag = "00000000 ThumbnailInstanceUID_keyword"
     missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_integer"
 
+
 class HelperOpensearch:
-    def __init__(self):
-        self.os_client = get_opensearch_client()
+    def __init__(self, access_token=None):
+        self.os_client = get_opensearch_client(access_token=access_token)
 
     def get_query_dataset(
         self,
@@ -35,8 +36,6 @@ class HelperOpensearch:
         include_custom_tag="",
         exclude_custom_tag="",
     ):
-        print("Getting dataset for query: {}".format(query))
-        print("index: {}".format(index))
         includes = [
             DicomTags.study_uid_tag,
             DicomTags.series_uid_tag,
@@ -52,12 +51,13 @@ class HelperOpensearch:
             excludes.append(exclude_custom_tag)
 
         query_dict = {
+            "index": index,
             "query": query,
             "source": {"includes": includes},
         }
 
         try:
-            hits = self.execute_opensearch_query(os_client=self.os_client, **query_dict)
+            hits = self.execute_opensearch_query(**query_dict)
         except Exception as e:
             print("ERROR in search!")
             raise e

@@ -302,24 +302,6 @@ class HelperDcmWeb:
             response.raise_for_status()
             return None
 
-    def reject_study(self, study_uid: str) -> requests.Response:
-        """This function rejects a study from the PACS. It sends a POST request to the DICOMWeb server to reject the study.
-
-        Args:
-            study_uid (str): Study Instance UID of the study to reject
-
-        Returns:
-            Response: The response object returned by the DICOMWeb server.
-        """
-        url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/reject/113001^DCM"
-        response = self.session.post(url, verify=False)
-        if response.status_code == 404:
-            if "errorMessage" in response.json():
-                logger.error(f"Some error occurred: {response.json()['errorMessage']}")
-                return response
-        response.raise_for_status()
-        return response
-
     def delete_study(self, project_id: int, study_uid: str) -> requests.Response:
         """This function deletes a study from the PACS. It first rejects the study and then deletes it.
 

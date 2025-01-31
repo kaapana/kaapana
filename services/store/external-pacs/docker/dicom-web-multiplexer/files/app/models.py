@@ -30,7 +30,7 @@ class DataSourceRequest(BaseModel):
     project_index: str
 
 
-class GcloudSecretData(BaseModel):
+class SecretData(BaseModel):
     type: str
     project_id: str
     private_key_id: str

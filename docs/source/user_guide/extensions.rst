@@ -325,14 +325,14 @@ JupyterLab
 The `JupyterLab <https://jupyter.org/>`__ is an excellent tool to swiftly analyse data stored to the MinIO object store.
 It comes preinstalled with a wide array of commonly used Python packages for data analysis.
 You can deploy multiple instances of JupyterLab simultaneously, each with its dedicated MinIO bucket named after the respective JupyterLab instance.
-Data stored within this bucket is available to the JupyterLab application through the `/minio/jupyterlab` directory.
-You can save your `.ipynb` analysis-scripts to the directory `/minio/analysis-scripts`.
-Files in this directory will be automatically transfered to the MinIO bucket named `analysis-scripts` and are available to the `JupyterlabReportingOperator`.
+Data stored within this bucket is available to the JupyterLab application through the `/minio/input` directory.
+You can save your analysis-scripts or results to the directory `/minio/output`.
+Files in this directory will be automatically transfered to and persisted in the MinIO bucket named `output` and are available to the `JupyterlabReportingOperator`.
 While JupyterLab is great for exploratory data analysis, for more complex calculations, consider developing a dedicated Airflow DAG.
 
 | **Mount point:**  
-| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/jupyterlab
-| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/analysis-scripts
+| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/input
+| <slow_data_dir>/applications/jupyterlab/<jupyterlab-instance-name>/output
 
 
 .. _extensions_minio_sync:

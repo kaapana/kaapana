@@ -4,7 +4,7 @@ Prometheus Metrics Are Not Displayed
 Somethime the Home Page does not show any metrics, indicating that Prometheus might not be running properly. This issue often occurs because Prometheus fails to start due to the presence of a lock file.
 
 .. figure:: ../_static/homepagge_prometheus_lock.png
-   :alt: Screenshot of Kaapana Workflow List view with pointer on the restart button in Actions section.
+   :alt: Screenshot of Kaapana homepage with Prometheus metrics not working.
 
 To resolve this issue, follow these steps:
 

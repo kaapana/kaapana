@@ -10,9 +10,9 @@ from os.path import join
 from pathlib import Path
 
 import pydicom
+from kaapanapy.helper import load_workflow_config
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapanapy.helper import load_workflow_config
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +24,18 @@ class DownloadSeries:
     reference_series_uid: str
     study_instance_uid: str
     target_dir: str
+
+
+def flatten(xss: list) -> list:
+    """Flatten a list of lists.
+
+    Args:
+        xss (list): List of lists.
+
+    Returns:
+        list: Flattened list.
+    """
+    return [x for xs in xss for x in xs]
 
 
 def build_opensearch_query(modalities: list = [], custom_tags: list = []) -> dict:
@@ -87,6 +99,7 @@ class GetRefSeriesOperator:
         parallel_downloads: int = 3,
         modalities: list = [],
         custom_tags: list = [],
+        skip_empty_ref_dir: bool = False,
     ):
         """Initialize the GetRefSeriesOperator.
 
@@ -98,9 +111,11 @@ class GetRefSeriesOperator:
             parallel_downloads (int, optional): Number of parallel downloads. Defaults to 3.
             modalities (list, optional): List of modalities to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".
             custom_tags (list, optional): List of custom tags to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".
+            skip_empty_ref_dir (bool, optional): Skip empty reference directories. Defaults to False.
 
         """
         self.opensearch_index = opensearch_index
+        self.skip_empty_ref_dir = skip_empty_ref_dir
         assert data_type in ["dicom", "json"], "Unknown data-type!"
 
         assert search_policy in [
@@ -108,6 +123,11 @@ class GetRefSeriesOperator:
             "study_uid",
             "search_query",
         ], "Unknown search policy!"
+
+        if search_policy == "reference_uid":
+            self.prepare_download_function = self.prepare_download_of_ref_series
+        elif search_policy == "study_uid":
+            self.prepare_download_function = self.prepare_download_of_study_series
 
         assert (
             search_policy != "search_query" or search_query != {}
@@ -226,7 +246,7 @@ class GetRefSeriesOperator:
 
     def prepare_download_of_study_series(
         self,
-        study_instance_uid: str,
+        path_to_dicom_slice: str,
         workflow_dir: str,
         batch_name: str,
         operator_out_dir: str,
@@ -245,6 +265,15 @@ class GetRefSeriesOperator:
         Returns:
             DownloadSeries: Dataclass containing the information needed for the download.
         """
+
+        # Load the dicom file
+        ds = pydicom.dcmread(join(path_to_dicom_slice))
+
+        # get series instance uid of the reference series
+        reference_series_instance_uid = ds.SeriesInstanceUID
+
+        # get study instance uid of the reference series
+        study_instance_uid = ds.StudyInstanceUID
 
         logger.info(f"Study instance uid: {study_instance_uid}")
 
@@ -283,9 +312,15 @@ class GetRefSeriesOperator:
         list_of_series = []
 
         for series_instance_uid in series_instance_uids:
+
+            # Dont download the reference series again
+            if series_instance_uid == reference_series_instance_uid:
+                continue
+
             target_dir = join(
                 workflow_dir,
                 batch_name,
+                reference_series_instance_uid,
                 operator_out_dir,
                 series_instance_uid,
             )
@@ -356,17 +391,20 @@ class GetRefSeriesOperator:
         target_dir = join(
             workflow_dir,
             batch_name,
+            series_instance_uid,
             operator_out_dir,
         )
 
         os.makedirs(target_dir, exist_ok=True)
 
-        return DownloadSeries(
-            series_instance_uid=series_instance_uid,
-            reference_series_uid=reference_series_uid,
-            study_instance_uid=study_instance_uid,
-            target_dir=target_dir,
-        )
+        return [
+            DownloadSeries(
+                series_instance_uid=series_instance_uid,
+                reference_series_uid=reference_series_uid,
+                study_instance_uid=study_instance_uid,
+                target_dir=target_dir,
+            )
+        ]
 
     def prepare_download_of_search_query_series(
         self,
@@ -447,7 +485,7 @@ class GetRefSeriesOperator:
 
         download_series_list = []
 
-        if self.search_policy == "reference_uid":
+        if self.search_policy == "reference_uid" or self.search_policy == "study_uid":
             # Prepare the download
             with ThreadPoolExecutor(max_workers=self.parallel_downloads) as executor:
                 futures = []
@@ -459,60 +497,34 @@ class GetRefSeriesOperator:
                             os.listdir(join(series_dir, operator_in_dir))[0],
                         )
                     except FileNotFoundError as e:
-                        if getenv("SKIP_EMPTY_REF_DIR", "FALSE").upper() == "TRUE":
-                            print(
+                        if self.skip_empty_ref_dir:
+                            logger.info(
                                 f"Skipping empty directory: {join(series_dir, operator_in_dir)}"
                             )
                             continue
                         else:
                             raise e
-                        
-                    series_uid = series_dir.split("/")[-1]
+
                     futures.append(
                         executor.submit(
-                            self.prepare_download_of_ref_series,
+                            self.prepare_download_function,
                             dcm_file,
                             workflow_dir,
                             batch_name,
-                            join(series_uid, operator_out_dir),
+                            operator_out_dir,
                         )
                     )
 
                 for future in as_completed(futures):
                     download_series_list.append(future.result())
-        elif self.search_policy == "study_uid":
 
-            ids = []
-            for series_dir in series_dirs:
-                try:
-                    dcm_file = join(
-                        series_dir,
-                        operator_in_dir,
-                        os.listdir(join(series_dir, operator_in_dir))[0],
-                    )
-                except FileNotFoundError as e:
-                    if getenv("SKIP_EMPTY_REF_DIR", "FALSE").upper() == "TRUE":
-                        print(
-                            f"Skipping empty directory: {join(series_dir, operator_in_dir)}"
-                        )
-                        continue
-                    else:
-                        raise e
-                    
-                id = self.get_ids_of_series(dcm_file)
-                if id not in ids:
-                    ids.append(id)
-
-            download_series_list = []
-            for id in ids:
-                download_series_list += self.prepare_download_of_study_series(
-                    id[1], workflow_dir, batch_name, join(id[0], operator_out_dir)
-                )
-                
-        elif self.search_policy == "search_query":
+        else:  # search_policy == "search_query"
             download_series_list = self.prepare_download_of_search_query_series(
                 self.search_query, workflow_dir, batch_name, operator_out_dir
             )
+
+        # Flatten the list of lists
+        download_series_list = flatten(download_series_list)
 
         # Download the requested data
         logging.info(f"Downloading {len(download_series_list)} series.")
@@ -559,6 +571,8 @@ if __name__ == "__main__":
     search_query = json.loads(getenv("SEARCH_QUERY", "{}"))
     parallel_downloads = int(getenv("PARALLEL_DOWNLOADS", 3))
 
+    skip_empty_ref_dir = getenv("SKIP_EMPTY_REF_DIR", "FALSE").upper() == "TRUE"
+
     logger.info(f"Worflow dir: {workflow_dir}")
     logger.info(f"Batch name: {batch_name}")
     logger.info(f"Operator in dir: {operator_in_dir}")
@@ -569,6 +583,7 @@ if __name__ == "__main__":
     logger.info(f"Parallel downloads: {parallel_downloads}")
     logger.info(f"Modalities: {modalities}")
     logger.info(f"Custom tags: {custom_tags}")
+    logger.info(f"Skip empty reference directories: {skip_empty_ref_dir}")
 
     workflow_config = load_workflow_config()
     project_form = workflow_config.get("project_form")
@@ -583,6 +598,7 @@ if __name__ == "__main__":
         parallel_downloads=parallel_downloads,
         modalities=modalities,
         custom_tags=custom_tags,
+        skip_empty_ref_dir=skip_empty_ref_dir,
     )
 
     get_ref_series_operator.get_files(

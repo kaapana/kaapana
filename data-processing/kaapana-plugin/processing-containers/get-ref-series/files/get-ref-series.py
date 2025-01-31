@@ -558,7 +558,13 @@ if __name__ == "__main__":
     operator_out_dir = getenv("OPERATOR_OUT_DIR", None)
     assert operator_out_dir is not None, "Operator out directory is not set!"
 
-    custom_tags = ast.literal_eval(getenv("CUSTOM_TAGS", "[]"))
+    custom_tags_json_string = getenv("CUSTOM_TAGS", "[]")
+
+    if "&quot;" in custom_tags_json_string:
+        custom_tags_json_string = custom_tags_json_string.replace("&quot;", '"')
+
+    custom_tags = ast.literal_eval(custom_tags_json_string)
+
     modalities = ast.literal_eval(getenv("MODALITIES", "[]"))
 
     search_policy = getenv("SEARCH_POLICY", "reference_uid")

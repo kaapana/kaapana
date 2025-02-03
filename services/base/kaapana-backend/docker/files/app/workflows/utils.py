@@ -1,18 +1,18 @@
+import datetime
 import json
-import os
-import requests
 import logging
+import os
+import xml.etree.ElementTree as ET
+from datetime import timedelta, timezone
+
+import requests
+from app.config import settings
+from fastapi import HTTPException
+from minio import Minio
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from requests_cache import CachedSession
-from datetime import timezone, timedelta
-import datetime
-from fastapi import HTTPException
-from app.config import settings
-
-from minio import Minio
 from urllib3.util import Timeout
-import xml.etree.ElementTree as ET
 
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
@@ -339,14 +339,15 @@ def get_dagruns_airflow(states):
     return dagruns_states
 
 
-def raise_kaapana_connection_error(r):
+def raise_kaapana_connection_error(r: requests.Response):
     if r.history:
         raise HTTPException(
-            "You were redirect to the auth page. Your token is not valid!"
+            status_code=401,
+            detail="You were redirected to the auth page. Your token is not valid!",
         )
     try:
         r.raise_for_status()
-    except:
-        raise HTTPException(
-            f"Something was not okay with your request code {r}: {r.text}!"
-        )
+    except requests.exceptions.HTTPError as e:
+        status_code = r.status_code
+        detail = f"Request failed with status code {status_code}: {r.text}"
+        raise HTTPException(status_code=status_code, detail=detail)

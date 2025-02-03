@@ -120,8 +120,6 @@ spec:
 {{- end }}
         - name: alembic
           mountPath: /kaapana/app/alembic
-        - name: minio-data
-          mountPath: /kaapana/mounted/minio
         - name: uploads
           mountPath: /kaapana/app/uploads
         - name: tmp
@@ -145,9 +143,6 @@ spec:
       - name: alembic
         persistentVolumeClaim:
           claimName: alembic-pv-claim
-      - name: minio-data
-        persistentVolumeClaim:
-          claimName: minio-pv-claim
       - name: uploads
         persistentVolumeClaim:
           claimName: uploads-pv-claim

@@ -130,7 +130,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
 
         for result in seriesresults:
             self.minio_client.remove_object(
-                bucket_name=self.result_bucket, objcet=result
+                bucket_name=self.result_bucket, object_name=result
             )
             print(f"{result} is removed from minio")
 

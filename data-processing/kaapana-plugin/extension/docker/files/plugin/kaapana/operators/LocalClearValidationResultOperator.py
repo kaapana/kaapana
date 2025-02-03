@@ -5,9 +5,8 @@ import re
 
 import requests
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperMinio import HelperMinio
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, get_minio_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.settings import OpensearchSettings
 
@@ -17,7 +16,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
     This Operator delete validation results from minio.
 
     Attributes:
-        minio_client (HelperMinio): MinIO client for interacting with the MinIO service.
+        minio_client (Minio): MinIO client for interacting with the MinIO service.
         os_client (OpenSearch): OpenSearch client for interacting with the OpenSearch service.
         validation_field (str): Field in the OpenSearch index used for validation results.
         result_bucket (str): minio bucket which stores the validation results html files.
@@ -130,7 +129,9 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             return
 
         for result in seriesresults:
-            self.minio_client.remove_file(self.result_bucket, result)
+            self.minio_client.remove_object(
+                bucket_name=self.result_bucket, objcet=result
+            )
             print(f"{result} is removed from minio")
 
         return
@@ -146,7 +147,7 @@ class LocalClearValidationResultOperator(KaapanaPythonBaseOperator):
             None
         """
         # initialize MinIO client
-        self.minio_client = HelperMinio(dag_run=dag_run)
+        self.minio_client = get_minio_client()
         # Point to the already initialized HelperOpensearch client
         self.os_client = get_opensearch_client()
 

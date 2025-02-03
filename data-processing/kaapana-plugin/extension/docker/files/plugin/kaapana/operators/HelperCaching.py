@@ -2,16 +2,13 @@ import os
 import glob
 import functools
 import shutil
-import requests
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
-from kaapana.operators.HelperMinio import HelperMinio
-from kaapana.operators.HelperFederated import raise_kaapana_connection_error
+from kaapana.operators.HelperMinio import apply_action_to_object_dirs
 from kaapana.blueprints.kaapana_utils import (
     get_operator_properties,
-    requests_retry_session,
     clean_previous_dag_run,
-    trying_request_action,
 )
+from kaapanapy.helper import get_minio_client
 from urllib3.util import Timeout
 
 JOB_API_URL = f"http://kaapana-backend-service.{SERVICES_NAMESPACE}.svc:5000/client/job"
@@ -34,11 +31,12 @@ def cache_action(batch_name, cache_operator_dirs, action, dag_run_dir, dag_run):
             rel_dir = os.path.relpath(element_output_dir, local_root_dir)
             rel_dir = "" if rel_dir == "." else rel_dir
             object_dirs = [rel_dir]
-            minioClient = HelperMinio(dag_run=dag_run)
-            minioClient.apply_action_to_object_dirs(
-                action,
-                "cache",
-                local_root_dir,
+            minioClient = get_minio_client()
+            apply_action_to_object_dirs(
+                minio_client=minioClient,
+                action=action,
+                bucket_name="cache",
+                local_root_dir=local_root_dir,
                 object_dirs=object_dirs,
             )
             try:

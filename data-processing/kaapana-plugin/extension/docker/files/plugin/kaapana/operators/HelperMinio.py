@@ -1,12 +1,10 @@
-import logging
 import os
 import pathlib
-
-
 from minio import Minio
 from minio.error import S3Error
+from kaapanapy.logger import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def apply_action_to_file(
@@ -17,11 +15,21 @@ def apply_action_to_file(
     file_path,
     file_white_tuples=None,
 ):
-    print(file_path)
+    """
+    Use this function to get or remove an object from Minio or to put a file to minio.
+
+    :param minio_client: Instance of minio.Minio.
+    :param action: One of ["get","remove","put"].
+    :param bucket_name: The name of the S3 bucket to use for the action.
+    :param object_name: The prefix of the file in Minio.
+    :param file_path: If action=="get": Destination path of the download. If action=="put": Source path of the upload.
+    :param file_white_tuples: List of file extensions - action is only performed if file_path ends with a listed extension. If not set action is always applied.
+    """
+    logger.debug(file_path)
     if file_white_tuples is not None and not file_path.lower().endswith(
         file_white_tuples
     ):
-        print(
+        logger.warning(
             f"Not applying action to object {object_name}, since this action is only allowed for files that end with {file_white_tuples}!"
         )
         return
@@ -44,6 +52,17 @@ def apply_action_to_object_names(
     file_white_tuples=None,
     target_dir_prefix=None,
 ):
+    """
+    Use this function to get or remove objects from Minio or to put files to MinIO.
+
+    :param minio_client: Instance of minio.Minio.
+    :param action: One of ["get","remove","put"].
+    :param bucket_name: The name of the S3 bucket to use for the action.
+    :param local_root_dir: Root directory, where object_names are relative to.
+    :param object_names: If action in ["get", "remove"]: List of object paths in the bucket name. If action=="put": List of file paths relative to local_root_dir.
+    :param file_white_tuples: List of file extensions - action is only performed if file_path ends with a listed extension. If not set action is always applied.
+    :param target_dir_prefix: If action=="put": Minio prefix to put before the prefixes in object_names when uploading files.
+    """
     for object_name in object_names:
         file_path = os.path.join(local_root_dir, object_name)
 
@@ -73,10 +92,21 @@ def apply_action_to_object_dirs(
     file_white_tuples=None,
     target_dir_prefix=None,
 ):
+    """
+    Use this function to get or remove objects from Minio or to put files to MinIO.
+
+    :param minio_client: Instance of minio.Minio.
+    :param action: One of ["get","remove","put"].
+    :param bucket_name: The name of the S3 bucket to use for the action.
+    :param local_root_dir: Root directory, where paths are relative to.
+    :param object_dirs: If action=="put": List of directories relative to local_root_dir from where all files will be uploaded.
+    :param file_white_tuples: List of file extensions - action is only performed if file_path ends with a listed extension. If not set action is always applied.
+    :param target_dir_prefix: If action=="put": Minio prefix to put before the prefixes in object_names when uploading files.
+    """
     object_dirs = object_dirs or []
     if action == "put":
         if not object_dirs:
-            print(f"Uploading everything from {local_root_dir}")
+            logger.info(f"Uploading everything from {local_root_dir}")
             object_dirs = [""]
         for object_dir in object_dirs:
             for path, _, files in os.walk(os.path.join(local_root_dir, object_dir)):
@@ -117,4 +147,4 @@ def apply_action_to_object_dirs(
                         file_white_tuples=file_white_tuples,
                     )
         except S3Error as err:
-            print(f"Skipping since bucket {bucket_name} does not exist")
+            logger.warning(f"Skipping since bucket {bucket_name} does not exist")

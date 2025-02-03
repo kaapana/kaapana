@@ -527,7 +527,11 @@ class KaapanaFederatedTrainingBase(ABC):
             for client_instance_name, net in site_model_weights_dict.items():
                 if client_instance_name == client_instance_names[0]:
                     # network weights of client_instance_names [0] are already in network_weights
-                    pass
+                    # we still need to weight client 0's model params with it's dataset size
+                    network_weights[address_key_dict[a][0]] = (
+                        network_weights[address_key_dict[a][0]]
+                        * num_samples_per_client[client_instance_name]
+                    )
                 else:
                     # weighted sum
                     network_weights[address_key_dict[a][0]] += (

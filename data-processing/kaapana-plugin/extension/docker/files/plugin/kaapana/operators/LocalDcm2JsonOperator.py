@@ -12,6 +12,9 @@ from dateutil import parser
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from pydicom.tag import Tag
+from kaapanapy.settings import KaapanaSettings
+
+TIMEZONE = KaapanaSettings().timezone
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -187,6 +190,31 @@ class LocalDcm2JsonOperator(KaapanaPythonBaseOperator):
 
         # TODO Why is this necessary?
         metadata["predicted_bodypart_string"] = "N/A"
+
+        self._sanitize_project_and_dataset(metadata)
+        return metadata
+
+    def _sanitize_project_and_dataset(
+        self, metadata, default_project: str = "admin", default_dataset: str = None
+    ):
+        """ """
+        sanitized_project_name = default_project
+        sanitized_dataset = default_dataset or datetime.now(
+            pytz.timezone(TIMEZONE)
+        ).strftime("%y-%m-%d-%H:%M:%S%f")
+
+        if (
+            dataset := metadata.get("00120010 ClinicalTrialSponsorName_keyword")
+        ) and dataset.startswith("kp-"):
+            sanitized_dataset = dataset[3:]  # Remove "kp-" prefix
+
+        if (
+            project_name := metadata.get("00120020 ClinicalTrialProtocolID_keyword")
+        ) and project_name[0].startswith("kp-"):
+            sanitized_project_name = project_name[0][3:]  # Remove "kp-" prefix
+
+        metadata["00120010 ClinicalTrialSponsorName_keyword"] = sanitized_dataset
+        metadata["00120020 ClinicalTrialProtocolID_keyword"] = sanitized_project_name
         return metadata
 
     def _process_annotation_tags(self, metadata: Dict) -> Dict:

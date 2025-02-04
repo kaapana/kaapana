@@ -219,7 +219,7 @@ for batch_element_dir in batch_folders:
 
     # creating output dir
     input_files = glob(
-        join(element_input_dir, f"*.{input_file_extension}"), recursive=True
+        join(element_input_dir, f"**/*.{input_file_extension}"), recursive=True
     )
     job_list.append((input_files, element_output_dir))
 

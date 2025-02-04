@@ -30,18 +30,30 @@ def update_query_params(query_params: dict, includefield: str = "") -> Dict:
     return query_params
 
 
-async def stream(url, rs_endpoint, request_headers, query_params) -> Response:
-    return StreamingResponse(
-        metadata_replace_stream(
-            method="GET",
-            url=url,
-            search="/".join(rs_endpoint.split(":")[-1].split("/")[1:]).encode(),
-            replace=b"dicom-web-filter",
-            headers=request_headers,
-            query_params=query_params,
-        ),
-        media_type="application/dicom+json",
+async def stream(url, rs_endpoint, request_headers, query_params):
+    stream_generator = metadata_replace_stream(
+        method="GET",
+        url=url,
+        search="/".join(rs_endpoint.split(":")[-1].split("/")[1:]).encode(),
+        replace=b"dicom-web-filter",
+        headers=request_headers,
+        query_params=query_params,
     )
+
+    first_chunk = None
+    async for chunk in stream_generator:
+        first_chunk = chunk
+        break  # We only check the first chunk, then continue normally.
+
+    if first_chunk is None:
+        return Response(status_code=204)  # Return 204 No Content if nothing was streamed.
+
+    async def wrapped_stream():
+        yield first_chunk  # Yield the first chunk first
+        async for chunk in stream_generator:
+            yield chunk
+
+    return StreamingResponse(wrapped_stream(), media_type="application/dicom+json")
 
 
 @router.get("/studies", tags=["QIDO-RS"])

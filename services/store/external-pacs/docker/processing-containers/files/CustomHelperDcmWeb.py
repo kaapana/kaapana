@@ -38,7 +38,7 @@ class CustomHelperDcmWeb:
             # Processing-Containers
             self.dcmweb_rs_endpoint = os.getenv("DICOM_WEB_SERVICE_RS")
             self.dcmweb_uri_endpoint = os.getenv("DICOM_WEB_SERVICE_URI")
-
+        
         logger.debug(
             f"HelperDcmWeb initialized with service: {self.dcmweb_rs_endpoint}"
         )

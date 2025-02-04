@@ -1,5 +1,6 @@
 from typing import Dict
 
+from fastapi import Response
 import httpx
 
 
@@ -34,6 +35,8 @@ async def metadata_replace_stream(
             headers=dict(headers),
         ) as response:
             response.raise_for_status()
+            if response.status_code == 204:
+                return
             async for chunk in response.aiter_bytes():
                 buffer += chunk
                 # Process the buffer

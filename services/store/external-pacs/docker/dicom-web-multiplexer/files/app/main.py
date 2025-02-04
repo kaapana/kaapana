@@ -5,11 +5,14 @@ from fastapi import FastAPI
 from fastapi.concurrency import asynccontextmanager
 
 from .database import async_engine
-from .MANAGEMENT.routes import router as management_router
+
 from .models import Base
 from .QIDO_RS.routes import router as qido_router
-from .SUPPLEMENTS.routes import router as supplement_router
 from .WADO_RS.routes import router as wado_router
+from .SUPPLEMENTS.routes import router as supplement_router
+from .STOW_RS.routes import router as stow_router
+from .CUSTOM.routes import router as custom_router
+from .MANAGEMENT.routes import router as management_router
 
 tags_metadata = [
     {
@@ -46,15 +49,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
+    root_path="/dicom-web-filter",
     title="DICOM Web Multiplexer",
-    docs_url="/dicom-web-filter/management/docs",
-    openapi_url="/dicom-web-filter/management/openapi.json",
+    docs_url="/management/docs",
+    openapi_url="/management/openapi.json",
     version="0.1.0",
     openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
 app.add_middleware(ProxyMiddleware)
-app.include_router(qido_router, prefix="/dicom-web-filter")
-app.include_router(supplement_router, prefix="/dicom-web-filter")
-app.include_router(wado_router, prefix="/dicom-web-filter")
-app.include_router(management_router, prefix="/dicom-web-filter/management")
+app.include_router(qido_router)
+app.include_router(wado_router)
+app.include_router(supplement_router)
+app.include_router(custom_router)
+app.include_router(stow_router, prefix="/external")
+app.include_router(management_router, prefix="/management")

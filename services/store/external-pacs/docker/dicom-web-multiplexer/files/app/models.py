@@ -46,9 +46,9 @@ class SecretData(BaseModel):
 
 class AuthenticatedDataSourceRequest(BaseModel):
     datasource: DataSourceRequest
-    secret_data: GcloudSecretData
+    secret_data: SecretData
 
 
 class AuthenticatedDataSourceResponse(BaseModel):
     datasource: DataSourceResponse
-    secret_data: GcloudSecretData
+    secret_data: SecretData

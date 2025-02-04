@@ -40,8 +40,8 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         if "management" in request.url.path:
             return await call_next(request)
 
-        # dicom-web-filter
-        if "project" in request.url.path:
+        # dicom-web-filter project paths ("projects" is also used by delete so we use "data")
+        if "data" in request.url.path:
             return await proxy_dicom_web_filter(request=request)
 
         # Determine endpoint based on Series UID or proxy request to DICOM Web Filter

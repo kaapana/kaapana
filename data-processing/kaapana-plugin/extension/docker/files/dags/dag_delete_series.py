@@ -11,7 +11,6 @@ from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BA
 from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
 from kaapana.operators.DeleteFromPacsOperator import DeleteFromPacsOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapanapy.helper.HelperOpensearch import DicomTags
 

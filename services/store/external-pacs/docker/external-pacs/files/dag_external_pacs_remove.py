@@ -41,7 +41,6 @@ dag = DAG(
 external_pacs_operator = ExternalPacsOperator(
     dag=dag, action="remove", operator_out_dir="get-input-data"
 )
-
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 (external_pacs_operator >> clean)

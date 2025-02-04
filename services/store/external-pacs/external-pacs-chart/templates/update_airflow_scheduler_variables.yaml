@@ -18,8 +18,8 @@ spec:
         - "-c"
         - |
           echo "Appending variables...";
-          echo "DICOM_WEB_SERVICE_RS=\"http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter\"  # AUTO_ADDED" >> /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;
-          echo "DICOM_WEB_SERVICE_URI=\"http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter/wado-uri/wado\"  # AUTO_ADDED" >> /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;      
+          echo "DICOM_WEB_SERVICE_RS=\"http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080\"  # AUTO_ADDED" >> /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;
+          echo "DICOM_WEB_SERVICE_URI=\"http://dicom-web-multiplexer-service.{{ .Values.global.services_namespace }}.svc:8080/wado-uri/wado\"  # AUTO_ADDED" >> /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;      
           cat /kaapana/mounted/workflows/plugins/kaapana/blueprints/kaapana_global_variables.py;
         volumeMounts:
         - name: airflow-plugins

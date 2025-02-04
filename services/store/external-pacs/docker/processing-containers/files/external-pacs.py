@@ -9,13 +9,10 @@ from CustomHelperDcmWeb import CustomHelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch, DicomTags
 from kaapanapy.helper import load_workflow_config, get_opensearch_client
 from kaapanapy.settings import OperatorSettings
+from kaapanapy.logger import get_logger
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
-logger = logging.getLogger(__file__)
+
+logger = get_logger(__file__)
 
 
 class ExternalPacsOperator:
@@ -106,11 +103,17 @@ class ExternalPacsOperator:
         added_external_series_uid = list(
             set(map(extract_series_uid, filtered_instances))
         )
+
         logger.info(
-            f"{len(added_external_series_uid)} new series imported from {len(external_series_uids)}"
+            f"External PACS: {len(external_series_uids)} series available\n"
+            f"OpenSearch (local & remote): {len(added_external_series_uid) - len(added_external_series_uid)} series found\n"
+            f"Importing: {len(added_external_series_uid)} new series\n"
         )
+
         logger.info(
-            f"{len(filtered_instances)} new instances imported from {len(metadata)}"
+            f"External PACS: {len(metadata)} instances available\n"
+            f"OpenSearch (local & remote): {len(added_external_series_uid) - len(added_external_series_uid)} instances found\n"
+            f"Importing: {len(filtered_instances)} new instances\n"
         )
         return filtered_instances
 
@@ -159,7 +162,7 @@ class ExternalPacsOperator:
             study_uid = instance["0020000D"]["Value"][0]
             series_uid = instance["0020000E"]["Value"][0]
             instance_uid = instance["00080018"]["Value"][0]
-            
+
             full_instance_metadata = self.dcmweb_helper.get_instance_metadata(
                 study_uid=study_uid,
                 series_uid=series_uid,
@@ -200,13 +203,25 @@ class ExternalPacsOperator:
         os.makedirs(target_dir, exist_ok=True)
         json_path = os.path.join(target_dir, "metadata.json")
 
-        instance["00020016"] = {"vr": "UR", "Value": ["kaapana_external"]}
+        instance["00020016"] = {
+            "vr": "UR",
+            "Value": [self.extract_datasource_name(dcmweb_endpoint)],
+        }
         instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
         instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
         instance["00120020"] = {"vr": "LO", "Value": [self.project_form["name"]]}
 
         with open(json_path, "w", encoding="utf8") as fp:
             json.dump(instance, fp, indent=4, sort_keys=True)
+
+    def extract_datasource_name(self, dcmweb_endpoint: str):
+        # TODO call the basic service to get capabilities and server name
+        if "google" in dcmweb_endpoint:
+            return "gcloud"
+        elif "dcm4chee" in dcmweb_endpoint:
+            return "dcm4chee"
+        elif "orthanc" in dcmweb_endpoint:
+            return "orthanc"
 
     def remove_external_metadata(self, dcmweb_endpoint: str):
         """

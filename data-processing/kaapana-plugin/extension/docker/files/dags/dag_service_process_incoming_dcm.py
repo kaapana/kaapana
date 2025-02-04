@@ -115,15 +115,6 @@ validate = DcmValidatorOperator(
     exit_on_error=False,
 )
 
-
-clear_validation_results = LocalClearValidationResultOperator(
-    dag=dag,
-    name="clear-validation-results",
-    input_operator=extract_metadata,
-    apply_project_context=True,
-    trigger_rule="none_failed_min_one_success",
-)
-
 save_to_meta = LocalValidationResult2MetaOperator(
     dag=dag,
     input_operator=extract_metadata,
@@ -246,7 +237,7 @@ extract_metadata >> [
 
 (remove_tags >> dcm_send)
 
-(validate >> clear_validation_results >> save_to_meta >> put_html_to_minio)
+(validate >> save_to_meta >> put_html_to_minio)
 
 (
     skip_if_dcm_is_no_segmetation

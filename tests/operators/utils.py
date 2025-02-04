@@ -24,7 +24,7 @@ def mock_modules():
     sys.modules["kaapana.operators.HelperFederated"] = MagicMock()
 
     # kaapanapy
-    sys.modules["kaapanapy.settings"] = MagicMock()
+    sys.modules["kaapanapy.settings.KaapanaSettings"] = MagicMock()
     sys.modules["kaapanapy.helper"] = MagicMock()
 
 

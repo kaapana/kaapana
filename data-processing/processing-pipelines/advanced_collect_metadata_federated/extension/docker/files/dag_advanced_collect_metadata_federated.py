@@ -81,6 +81,7 @@ put_to_minio = MinioOperator(
     dag=dag,
     action="put",
     none_batch_input_operators=[acmd_federated],
+    minio_prefix="downloads",
     zip_files=True,
     whitelisted_file_extensions=(".json", ".tar"),
 )

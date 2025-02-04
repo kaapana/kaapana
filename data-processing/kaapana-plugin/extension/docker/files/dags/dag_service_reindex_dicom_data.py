@@ -1,13 +1,17 @@
-from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
 from datetime import timedelta
 import pydicom
 from shutil import copyfile
 from airflow.utils.dates import days_ago
-from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
-from kaapana.operators.LocalDeleteFromMetaOperator import LocalDeleteFromMetaOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
+from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
+from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
+from kaapana.operators.LocalAssignDataToProjectOperator import (
+    LocalAssignDataToProjectOperator,
+)
 
 
 args = {
@@ -31,11 +35,8 @@ dag = DAG(
 def start_reindexing(ds, **kwargs):
     import os
     import glob
-    from airflow.api.common.trigger_dag import trigger_dag as trigger
 
     pacs_data_dir = "/kaapana/mounted/pacsdata"
-    dag_id = "service-extract-metadata"
-
     print("Start re-index")
 
     dcm_dirs = []
@@ -47,10 +48,10 @@ def start_reindexing(ds, **kwargs):
 
     print("Files found: {}".format(len(file_list)))
     print("Dcm dirs found: {}".format(len(dcm_dirs)))
-    for dcm_dir in dcm_dirs:
-        dag_run_id = generate_run_id(dag_id)
-        print("Run-id: {}".format(dag_run_id))
+    dag_run_id = kwargs["dag_run"].run_id
+    print("Run-id: {}".format(dag_run_id))
 
+    for dcm_dir in dcm_dirs:
         dcm_file = os.path.join(dcm_dir, os.listdir(dcm_dir)[0])
         print("DIR: {}".format(dcm_dir))
         print("dcm-file: {}".format(dcm_file))
@@ -62,7 +63,7 @@ def start_reindexing(ds, **kwargs):
             dag_run_id,
             BATCH_NAME,
             "{}".format(seriesUID),
-            "get-input-data",
+            "copy-from-pacs",
         )
         print(target_dir)
 
@@ -73,22 +74,29 @@ def start_reindexing(ds, **kwargs):
             dcm_file, os.path.join(target_dir, os.path.basename(dcm_file) + ".dcm")
         )
 
-        trigger(dag_id=dag_id, run_id=dag_run_id, replace_microseconds=False)
 
-
-clean_meta = LocalDeleteFromMetaOperator(
-    dag=dag, operator_in_dir="get-input-data", delete_all_documents=True
-)
-clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
-
-reindex_pacs = PythonOperator(
-    task_id="reindex-pacs",
-    provide_context=True,
+copy_from_pacs = KaapanaPythonBaseOperator(
+    name="copy-from-pacs",
     pool="default_pool",
-    executor_config={"cpu_millicores": 100, "ram_mem_mb": 50},
+    pool_slots=1,
     python_callable=start_reindexing,
     dag=dag,
 )
 
+extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=copy_from_pacs)
+add_to_dataset = LocalAddToDatasetOperator(dag=dag, input_operator=extract_metadata)
+push_json = LocalJson2MetaOperator(
+    dag=dag, input_operator=copy_from_pacs, json_operator=extract_metadata
+)
+assign_to_project = LocalAssignDataToProjectOperator(
+    dag=dag, input_operator=extract_metadata
+)
 
-clean_meta >> reindex_pacs >> clean
+clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
+
+(
+    copy_from_pacs
+    >> extract_metadata
+    >> (add_to_dataset, assign_to_project, push_json)
+    >> clean
+)

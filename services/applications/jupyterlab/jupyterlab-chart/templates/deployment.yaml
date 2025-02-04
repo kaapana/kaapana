@@ -42,9 +42,9 @@ spec:
         - name: MINIO_SERVICE
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
         - name: LOCAL_PATH
-          value: /kaapana/minio/jupyterlab
+          value: /kaapana/minio/input
         - name: MINIO_PATH
-          value: project-{{ .Values.global.project_name }}/{{ .Release.Name }}/input
+          value: project-{{ .Values.global.project_name }}
         - name: MINIO_USER
           value: {{ .Values.global.credentials_minio_username  | default "" }}
         - name: MINIO_PASSWORD
@@ -65,7 +65,7 @@ spec:
         - name: MINIO_SERVICE
           value: "minio-service.{{ .Values.global.services_namespace }}.svc:9000"
         - name: LOCAL_PATH
-          value: /kaapana/minio/analysis-scripts
+          value: /kaapana/minio/output
         - name: MINIO_PATH
           value: "project-{{ .Values.global.project_name }}/{{ .Release.Name }}/output"
         - name: MINIO_USER

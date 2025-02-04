@@ -14,9 +14,17 @@ logger = get_logger(__file__)
 
 def update_query_params(query_params: dict, includefield: str = "") -> Dict:
     """
-    Update query params with includefield, as DICOMWeb API.
-    Neccessary for Gcloud Dicom Store, as it does not return
-    StudyUID and SeriesUID for instances by default.
+    Updates the query parameters with the `includefield` parameter, as required by DICOMweb APIs.
+
+    This function is necessary for Google Cloud DICOM Store, as it does not return
+    `StudyInstanceUID` and `SeriesInstanceUID` for instances by default.
+
+    Args:
+        query_params (dict): The original query parameters.
+        includefield (str): The `includefield` parameter to add to the query.
+
+    Returns:
+        Dict: The updated query parameters with the `includefield` added.
     """
     query_params = dict(query_params)
     if not includefield:
@@ -30,7 +38,19 @@ def update_query_params(query_params: dict, includefield: str = "") -> Dict:
     return query_params
 
 
-async def stream(url, rs_endpoint, request_headers, query_params):
+async def stream(url: str, rs_endpoint: str, request_headers: dict, query_params: dict):
+    """
+    Streams data from a given URL while replacing metadata in the response.
+
+    Args:
+        url (str): The URL to stream data from.
+        rs_endpoint (str): The resource endpoint URL.
+        request_headers (dict): The headers to include in the request.
+        query_params (dict): The query parameters to include in the request.
+
+    Returns:
+        StreamingResponse: A streaming response object with the streamed data.
+    """
     stream_generator = metadata_replace_stream(
         method="GET",
         url=url,
@@ -46,7 +66,9 @@ async def stream(url, rs_endpoint, request_headers, query_params):
         break  # We only check the first chunk, then continue normally.
 
     if first_chunk is None:
-        return Response(status_code=204)  # Return 204 No Content if nothing was streamed.
+        return Response(
+            status_code=204
+        )  # Return 204 No Content if nothing was streamed.
 
     async def wrapped_stream():
         yield first_chunk  # Yield the first chunk first
@@ -58,14 +80,14 @@ async def stream(url, rs_endpoint, request_headers, query_params):
 
 @router.get("/studies", tags=["QIDO-RS"])
 async def query_studies(request: Request):
-    """This endpoint is used to get all series of a study.
+    """
+    Queries all studies from the DICOMweb endpoint.
 
     Args:
-        study (str): Study Instance UID
-        request (Request): Request object
+        request (Request): The FastAPI request object containing query parameters and headers.
 
     Returns:
-        response: StreamingResponse object
+        StreamingResponse: A streaming response with the list of studies.
     """
     rs_endpoint = rs_endpoint_url(request)
     auth_headers = await authorize_headers(request)
@@ -82,14 +104,15 @@ async def query_studies(request: Request):
 
 @router.get("/studies/{study}/series", tags=["QIDO-RS"])
 async def query_series(study: str, request: Request):
-    """This endpoint is used to get all series of a study.
+    """
+    Queries all series within a given study from the DICOMweb endpoint.
 
     Args:
-        study (str): Study Instance UID
-        request (Request): Request object
+        study (str): The Study Instance UID.
+        request (Request): The FastAPI request object containing query parameters and headers.
 
     Returns:
-        response: StreamingResponse object
+        StreamingResponse: A streaming response with the list of series within the study.
     """
 
     rs_endpoint = rs_endpoint_url(request)
@@ -111,15 +134,16 @@ async def query_instances(
     series: str,
     request: Request,
 ):
-    """This endpoint is used to get all instances of a series.
+    """
+    Queries all instances within a given series from the DICOMweb endpoint.
 
     Args:
-        study (str): Study Instance UID
-        series (str): Series Instance UID
-        request (Request): Request object
+        study (str): The Study Instance UID.
+        series (str): The Series Instance UID.
+        request (Request): The FastAPI request object containing query parameters and headers.
 
     Returns:
-        response: StreamingResponse object
+        StreamingResponse: A streaming response with the list of instances within the series.
     """
     rs_endpoint = rs_endpoint_url(request)
     auth_headers = await authorize_headers(request)

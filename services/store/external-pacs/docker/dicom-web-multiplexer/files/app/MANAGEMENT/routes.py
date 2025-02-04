@@ -46,14 +46,14 @@ async def retrieve_datasources(
     session: AsyncSession = Depends(get_session),
 ) -> List[DataSourceResponse]:
     """
-    Retrieve all datasources, optionally filtered by project_index.
+    Retrieve all datasources, optionally filtered by `project_index`.
 
     Args:
-        project_index (str): Optional filter for datasources by project_index.
+        project_index (str): Optional filter for datasources by `project_index`.
         session (AsyncSession): Database session dependency.
 
     Returns:
-        List[DataSourceAPI]: List of transformed datasource objects.
+        List[DataSourceResponse]: List of transformed datasource objects.
     """
     datasources = await get_all_datasources(project_index, session)
 
@@ -66,14 +66,14 @@ async def create_datasource(
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """
-    Create a datasource in Kubernetes secret and database.
+    Create a datasource in Kubernetes secret and the database.
 
     Args:
-        data (DataSourceRequest): Request data containing datasource and credentials.
+        datasource (AuthenticatedDataSourceRequest): Request data containing datasource and credentials.
         session (AsyncSession): Database session dependency.
 
     Returns:
-        Response: Success or error response.
+        Response: Success (200) or error (500) response.
     """
     secret_data = datasource.secret_data.model_dump()
     datasource = datasource.datasource
@@ -98,15 +98,14 @@ async def delete_datasource(
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """
-    Delete a specific datasource from Kubernetes secret and database.
+    Delete a specific datasource from Kubernetes secret and the database.
 
     Args:
-        endpoint (str): The endpoint of the datasource to delete.
-        project_index (str): The project_index of the datasource to delete.
+        datasource (DataSourceRequest): The datasource object containing endpoint and project_index to delete.
         session (AsyncSession): Database session dependency.
 
     Returns:
-        Response: Success or error response.
+        Response: Success (200) or error (500) response.
     """
     secret_name = hash_secret_name(datasource.dcmweb_endpoint)
 
@@ -129,15 +128,17 @@ async def retrieve_datasource(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Retrieve a specific datasource secret and details by endpoint and project_index.
+    Retrieve a specific datasource and its associated secret data.
 
     Args:
-        endpoint (str): The endpoint of the datasource.
-        project_index (str): The project_index of the datasource.
+        datasource (DataSourceRequest): The datasource object containing endpoint and project_index.
         session (AsyncSession): Database session dependency.
 
     Returns:
-        dict: Datasource details with associated secret data.
+        AuthenticatedDataSourceResponse: Datasource details with associated secret data.
+
+    Raises:
+        HTTPException: If the datasource or its secret data is not found.
     """
 
     datasource_db = await get_datasource(datasource, session)

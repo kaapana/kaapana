@@ -12,17 +12,18 @@ logger.setLevel(logging.INFO)
 
 class CustomHelperDcmWeb:
     """
-    Helper class for making authorized requests against a dicomweb server.
+    Helper class for making authorized requests against a dicom-web-multiplexer.
     """
 
     def __init__(
         self,
         access_token: str = None,
     ):
-        """Initialize the HelperDcmWeb class.
+        """Initialize the `CustomHelperDcmWeb` class.
 
         Args:
-            access_token (str, optional): The access token of the user. Defaults to None.
+            access_token (str, optional): The access token of the user. If not provided,
+                the access token is obtained from the project user access token.
         """
 
         try:
@@ -38,7 +39,7 @@ class CustomHelperDcmWeb:
             # Processing-Containers
             self.dcmweb_rs_endpoint = os.getenv("DICOM_WEB_SERVICE_RS")
             self.dcmweb_uri_endpoint = os.getenv("DICOM_WEB_SERVICE_URI")
-        
+
         logger.debug(
             f"HelperDcmWeb initialized with service: {self.dcmweb_rs_endpoint}"
         )
@@ -57,6 +58,14 @@ class CustomHelperDcmWeb:
         self.session.headers.update(self.project_headers)
 
     def get_studies(self, dcmweb_endpoint: str = None) -> List[dict]:
+        """Retrieve all studies from the DICOMWeb server.
+
+        Args:
+            dcmweb_endpoint (str, optional): An optional endpoint URL for the DICOMWeb server.
+
+        Returns:
+            List[dict]: A list of study information, or an empty list if no studies are found.
+        """
         headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
         url = f"{self.dcmweb_rs_endpoint}/studies"
         r = self.session.get(url, headers=headers)
@@ -71,6 +80,15 @@ class CustomHelperDcmWeb:
     def get_series_of_study(
         self, study_uid: str, dcmweb_endpoint: str = None
     ) -> List[dict]:
+        """Retrieve all series within a given study.
+
+        Args:
+            study_uid (str): The Study Instance UID for the study.
+            dcmweb_endpoint (str, optional): An optional endpoint URL for the DICOMWeb server.
+
+        Returns:
+            List[dict]: A list of series information, or an empty list if no series are found.
+        """
         headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
         r = self.session.get(url, headers=headers)
@@ -85,7 +103,16 @@ class CustomHelperDcmWeb:
     def get_instances_of_series(
         self, study_uid: str, series_uid: str, dcmweb_endpoint: str = None
     ) -> List[dict]:
+        """Retrieve all instances within a specific series.
 
+        Args:
+            study_uid (str): The Study Instance UID for the study.
+            series_uid (str): The Series Instance UID for the series.
+            dcmweb_endpoint (str, optional): An optional endpoint URL for the DICOMWeb server.
+
+        Returns:
+            List[dict]: A list of instance information, or an empty list if no instances are found.
+        """
         headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
 
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
@@ -105,6 +132,17 @@ class CustomHelperDcmWeb:
         instance_uid: str,
         dcmweb_endpoint: str = None,
     ) -> List[dict]:
+        """Retrieve metadata for a specific instance.
+
+        Args:
+            study_uid (str): The Study Instance UID for the study.
+            series_uid (str): The Series Instance UID for the series.
+            instance_uid (str): The SOP Instance UID for the instance.
+            dcmweb_endpoint (str, optional): An optional endpoint URL for the DICOMWeb server.
+
+        Returns:
+            List[dict]: A list containing metadata for the specified instance.
+        """
         headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
 
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}/metadata"

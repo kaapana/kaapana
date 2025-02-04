@@ -17,11 +17,24 @@ logger = get_logger(__file__)
 
 class ExternalPacsOperator:
     """
-    This operator is used to ADD external PACs to the project.
-    It creates a kubernetes secret with credentials, adds the endpoint to the database, and download metadata of all instances.
+    Operator to manage external PACS connections within the project.
+
+    This operator allows the addition and removal of external PACS by interacting with
+    DICOMweb endpoints, updating the project's metadata database, and managing Kubernetes secrets.
     """
 
     def __init__(self):
+        """
+        Initializes the `ExternalPacsOperator` instance.
+
+        Attributes:
+            operator_settings (OperatorSettings): Settings for the operator.
+            workflow_config (dict): Configuration data for the workflow.
+            project_form (dict): Project-specific configuration.
+            workflow_form (dict): Workflow-specific configuration.
+            dcmweb_helper (CustomHelperDcmWeb): Helper instance for interacting with DICOMweb endpoints.
+            action (str): The operation to perform ("add" or "remove").
+        """
         self.operator_settings = OperatorSettings()
         self.workflow_config = load_workflow_config()
         self.project_form: dict = self.workflow_config.get("project_form")
@@ -36,7 +49,9 @@ class ExternalPacsOperator:
 
     def start(self):
         """
-        Starts the ExternalPacsOperator
+        Starts the `ExternalPacsOperator`.
+
+        This method executes the appropriate action (`add` or `remove`) based on the configured action.
         """
         logger.info("# Starting module ExternalPacsOperator...")
 
@@ -72,13 +87,13 @@ class ExternalPacsOperator:
         self, metadata: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """
-        Filters DICOM instances by series UID to exclude those already imported locally.
+        Filters DICOM instances by Series UID to exclude those already imported locally.
 
-        Parameters:
+        Args:
             metadata (List[Dict[str, Any]]): List of DICOM metadata dictionaries.
 
         Returns:
-            List[Dict[str, Any]]: Filtered list of DICOM metadata.
+            List[Dict[str, Any]]: Filtered list of DICOM instances.
         """
 
         def extract_series_uid(instance: Dict[str, Any]) -> str | None:
@@ -123,11 +138,11 @@ class ExternalPacsOperator:
         dataset_name: str,
     ):
         """
-        Downloads metadata from the specified DICOMweb endpoint, filtering and saving it locally.
+        Downloads metadata from an external DICOMweb endpoint.
 
-        Parameters:
-            dcmweb_endpoint (str): The DICOMweb endpoint from which to download metadata.
-            dataset_name (str): Name of the dataset for identification.
+        Args:
+            dcmweb_endpoint (str): URL of the DICOMweb endpoint to download metadata from.
+            dataset_name (str): Name of the dataset being imported.
         """
         metadata = []
 
@@ -183,12 +198,12 @@ class ExternalPacsOperator:
         self, instance: Dict[str, Any], dcmweb_endpoint: str, dataset_name: str
     ) -> None:
         """
-        Saves metadata for a single DICOM instance to a JSON file.
+        Saves metadata of a single DICOM instance to a local JSON file.
 
-        Parameters:
-            instance (Dict[str, Any]): DICOM metadata dictionary for a single instance.
-            dcmweb_endpoint (str): The DICOMweb endpoint from which metadata was downloaded.
-            dataset_name (str): Name of the dataset for identification.
+        Args:
+            instance (Dict[str, Any]): Metadata dictionary of the DICOM instance.
+            dcmweb_endpoint (str): DICOMweb endpoint URL.
+            dataset_name (str): Name of the dataset being imported.
         """
         series_uid = instance.get("0020000E", {"Value": [None]})["Value"][0]
         if not series_uid:
@@ -215,7 +230,15 @@ class ExternalPacsOperator:
             json.dump(instance, fp, indent=4, sort_keys=True)
 
     def extract_datasource_name(self, dcmweb_endpoint: str):
-        # TODO call the basic service to get capabilities and server name
+        """
+        Extracts the data source name based on the DICOMweb endpoint.
+
+        Args:
+            dcmweb_endpoint (str): DICOMweb endpoint URL.
+
+        Returns:
+            str: Name of the data source (e.g., "gcloud", "dcm4chee", "orthanc").
+        """
         if "google" in dcmweb_endpoint:
             return "gcloud"
         elif "dcm4chee" in dcmweb_endpoint:
@@ -225,10 +248,10 @@ class ExternalPacsOperator:
 
     def remove_external_metadata(self, dcmweb_endpoint: str):
         """
-        Deletes metadata from OpenSearch using a specified DICOMweb endpoint.
+        Removes metadata associated with a specified DICOMweb endpoint from OpenSearch.
 
-        Parameters:
-            dcmweb_endpoint (str): The DICOMweb endpoint to query for deletion.
+        Args:
+            dcmweb_endpoint (str): DICOMweb endpoint URL.
         """
         if dcmweb_endpoint:
             query = {
@@ -249,19 +272,26 @@ class ExternalPacsOperator:
 
     def _decode_service_account_info(self, encoded_info: str) -> Dict[str, Any]:
         """
-        Decodes a base64-encoded service account JSON string.
+        Decodes base64-encoded service account information.
 
-        Parameters:
-            encoded_info (str): Base64-encoded service account JSON string.
+        Args:
+            encoded_info (str): Base64-encoded JSON string containing service account details.
 
         Returns:
-            Dict[str, Any]: Decoded JSON dictionary.
+            Dict[str, Any]: Decoded service account information.
         """
         decoded_bytes = base64.b64decode(encoded_info)
         decoded_string = decoded_bytes.decode("utf-8")
         return json.loads(decoded_string)
 
     def add_to_multiplexer(self, dcmweb_endpoint: str, secret_data: Dict[str, str]):
+        """
+        Adds an external PACS to the multiplexer.
+
+        Args:
+            dcmweb_endpoint (str): DICOMweb endpoint URL.
+            secret_data (Dict[str, str]): Dictionary containing credentials for accessing the PACS.
+        """
         payload = {
             "datasource": {
                 "dcmweb_endpoint": dcmweb_endpoint,
@@ -278,7 +308,12 @@ class ExternalPacsOperator:
         logger.info(f"External PACs added to multiplexer successfully")
 
     def remove_from_multiplexer(self, dcmweb_endpoint: str):
+        """
+        Removes an external PACS from the multiplexer.
 
+        Args:
+            dcmweb_endpoint (str): DICOMweb endpoint URL.
+        """
         payload = {
             "dcmweb_endpoint": dcmweb_endpoint,
             "project_index": self.project_form.get("opensearch_index"),

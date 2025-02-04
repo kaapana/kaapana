@@ -30,16 +30,16 @@ dependencies:
     version: 0.0.0
   - name: total-segmentator-workflow
     version: 0.0.0
-  - name: nnunet-federated-workflow
-    version: 0.0.0
-  - name: radiomics-workflow
-    version: 0.0.0
-  - name: radiomics-federated-workflow
-    version: 0.0.0
-  - name: shapemodel-workflow
-    version: 0.0.0
-  - name: tfda-spe-orchestrator-workflow
-    version: 0.0.0
+  # - name: nnunet-federated-workflow
+  #   version: 0.0.0
+  # - name: radiomics-workflow
+  #   version: 0.0.0
+  # - name: radiomics-federated-workflow
+  #   version: 0.0.0
+  # - name: shapemodel-workflow
+  #   version: 0.0.0
+  # - name: tfda-spe-orchestrator-workflow
+  #   version: 0.0.0
   # - name: rateme-workflow
   #   version: 0.0.0
   # - name: rateme-chart
@@ -52,13 +52,17 @@ dependencies:
   #   version: 0.0.0
   - name: debug-container-chart
     version: 0.0.0
-  - name: advanced-collect-metadata-workflow
-    version: 0.0.0
-  - name: advanced-collect-metadata-federated-workflow
-    version: 0.0.0
+  # - name: advanced-collect-metadata-workflow
+  #   version: 0.0.0
+  # - name: advanced-collect-metadata-federated-workflow
+  #   version: 0.0.0
   - name: slim-chart
     version: 0.0.0
-  # - name: openedc-chart
+  - name: openedc-chart
+    version: 0.0.0
+  # - name: hello-backend-chart
+  #   version: 0.0.0
+  # - name: hello-world-chart
   #   version: 0.0.0
   # - name: doccano
   #   version: 0.0.0

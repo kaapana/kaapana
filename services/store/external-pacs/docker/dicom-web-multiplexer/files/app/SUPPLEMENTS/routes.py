@@ -22,10 +22,13 @@ async def fetch_thumbnail(url: str, headers: dict) -> bytes:
 
     Args:
         url (str): The URL to fetch the thumbnail from.
-        headers (dict): Headers for the request.
+        headers (Dict[str, str]): Headers for the request.
 
     Returns:
         bytes: The thumbnail image as bytes.
+
+    Raises:
+        httpx.HTTPStatusError: If the request fails with a non-2xx status code.
     """
     async with httpx.AsyncClient() as client:
         response = await client.get(url, headers=headers, timeout=10)
@@ -47,6 +50,9 @@ async def series_middle_slice(
 
     Returns:
         str: The SOP Instance UID of the middle instance.
+
+    Raises:
+        httpx.HTTPStatusError: If the request fails with a non-2xx status code.
     """
     headers = {
         "Authorization": f"Bearer {token}",
@@ -67,8 +73,17 @@ async def series_middle_slice(
         return object_uid
 
 
-def dicom_to_png(dicom_stream, frame_number=0):
-    """Converts a DICOM image (single instance or specific frame) to PNG."""
+def dicom_to_png(dicom_stream: io.BytesIO, frame_number: int = 0) -> io.BytesIO:
+    """
+    Converts a DICOM image (single instance or specific frame) to PNG.
+
+    Args:
+        dicom_stream (io.BytesIO): The DICOM image stream.
+        frame_number (int): The frame number to extract (default: 0).
+
+    Returns:
+        io.BytesIO: A BytesIO object containing the PNG image.
+    """
     ds = pydicom.dcmread(dicom_stream)
 
     # Extract pixel data

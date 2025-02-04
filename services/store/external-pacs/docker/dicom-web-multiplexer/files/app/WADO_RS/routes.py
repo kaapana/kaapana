@@ -17,15 +17,15 @@ router = APIRouter()
 
 
 def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) -> bytes:
-    """Replace the boundary in the buffer.
+    """Replaces the boundary in the given buffer.
 
     Args:
-        buffer (bytes): Buffer
-        old_boundary (bytes): Old boundary
-        new_boundary (bytes): New boundary
+        buffer (bytes): The buffer containing the multipart content.
+        old_boundary (bytes): The existing boundary to replace.
+        new_boundary (bytes): The new boundary to use.
 
     Returns:
-        bytes: Buffer with replaced boundary
+        bytes: The buffer with the updated boundary.
     """
     return buffer.replace(
         f"--{old_boundary.decode()}".encode(),
@@ -46,6 +46,17 @@ def get_boundary() -> bytes:
 
 
 async def stream(method, url, request_headers, new_boundary):
+    """Streams data from the DICOMWeb server, replacing boundaries when necessary.
+
+    Args:
+        method (str): The HTTP method to use (e.g., 'GET').
+        url (str): The target URL for the request.
+        request_headers (dict): Headers to include in the request.
+        new_boundary (bytes): The new boundary to use in the multipart message.
+
+    Yields:
+        bytes: Chunks of data from the response.
+    """
     async with httpx.AsyncClient() as client:
         async with client.stream(
             method, url, headers=dict(request_headers)
@@ -86,6 +97,15 @@ async def stream(method, url, request_headers, new_boundary):
 
 
 def stream_study(url: str, headers: dict) -> StreamingResponse:
+    """Streams study data from the DICOMWeb server.
+
+    Args:
+        url (str): The URL of the study resource.
+        headers (dict): Headers to include in the request.
+
+    Returns:
+        StreamingResponse: A FastAPI StreamingResponse for the client.
+    """
     boundary = get_boundary()
     return StreamingResponse(
         stream(
@@ -106,13 +126,14 @@ async def retrieve_studies(
     study: str,
     request: Request,
 ):
-    """Retrieve the series from the DICOMWeb server.
+    """Retrieves study data from the DICOMWeb server.
 
     Args:
-        study (str): Study Instance UID
-        request (Request): Request object
+        study (str): Study Instance UID.
+        request (Request): The HTTP request object.
+
     Returns:
-        StreamingResponse: Response object
+        StreamingResponse: A streaming response containing the study data.
     """
     token = await get_external_token(request)
     auth_headers = {"Authorization": f"Bearer {token}"}

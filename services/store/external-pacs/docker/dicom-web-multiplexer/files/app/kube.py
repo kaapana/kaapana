@@ -16,14 +16,18 @@
 # under the License.
 import base64
 import hashlib
+import os
 import traceback
-from typing import Dict, List
+from typing import Dict
 
 from app.logger import get_logger
 from kubernetes import client
 from six import PY2
 
 logger = get_logger(__name__)
+
+
+SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE")
 
 
 def _load_kube_config(in_cluster, cluster_context, config_file):
@@ -50,7 +54,7 @@ def get_kube_client(in_cluster=True, cluster_context=None, config_file=None):
 def create_k8s_secret(
     secret_name: str,
     secret_data: Dict[str, str],
-    namespace: str = "services",
+    namespace: str = SERVICES_NAMESPACE,
 ) -> bool:
     api_instance, _, _ = get_kube_client()
 
@@ -81,7 +85,7 @@ def create_k8s_secret(
             return False
 
 
-def delete_k8s_secret(secret_name: str, namespace: str = "services") -> bool:
+def delete_k8s_secret(secret_name: str, namespace: str = SERVICES_NAMESPACE) -> bool:
     api_instance, _, _ = get_kube_client()
 
     try:
@@ -100,7 +104,7 @@ def delete_k8s_secret(secret_name: str, namespace: str = "services") -> bool:
             return False
 
 
-def get_k8s_secret(secret_name: str, namespace: str = "services"):
+def get_k8s_secret(secret_name: str, namespace: str = SERVICES_NAMESPACE):
     api_instance, _, _ = get_kube_client()
 
     try:
@@ -116,7 +120,7 @@ def get_k8s_secret(secret_name: str, namespace: str = "services"):
         if e.status == 404:
             logger.warning(f"Secret not found in namespace")
         else:
-            logger.error(f"Secret cannot be retrieved from the namespace")            
+            logger.error(f"Secret cannot be retrieved from the namespace")
         return None
 
 

@@ -72,6 +72,7 @@ def remove_tags(
 
     command = [
         "/usr/bin/dcmodify",
+        "--no-backup",
         "-e",
         f"{cli_sponsor_name_tag}",
         "-e",

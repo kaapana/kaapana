@@ -44,10 +44,10 @@ dependencies:
   #   version: 0.0.0
   # - name: rateme-chart
   #   version: 0.0.0
-  - name: tensorboard-chart
-    version: 0.0.0
-  - name: kaapana-persistence-chart
-    version: 0.0.0
+  # - name: tensorboard-chart
+  #   version: 0.0.0
+  # - name: kaapana-persistence-chart
+  #   version: 0.0.0
   # - name: mhub-models-workflow
   #   version: 0.0.0
   - name: debug-container-chart
@@ -58,8 +58,8 @@ dependencies:
   #   version: 0.0.0
   - name: slim-chart
     version: 0.0.0
-  - name: openedc-chart
-    version: 0.0.0
+  # - name: openedc-chart
+  #   version: 0.0.0
   # - name: hello-backend-chart
   #   version: 0.0.0
   # - name: hello-world-chart
@@ -78,8 +78,8 @@ dependencies:
     version: 0.0.0
   - name: project-namespace
     version: 0.0.0
-  - name: custom-registry-chart
-    version: 0.0.0
+  # - name: custom-registry-chart
+    # version: 0.0.0
   - name: dev-server-chart
     version: 0.0.0
   - name: external-pacs-chart

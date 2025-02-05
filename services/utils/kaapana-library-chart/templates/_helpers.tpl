@@ -43,7 +43,15 @@ metadata:
   name: "{{ $volumeClaimName }}"
   namespace: "{{ $namespace  }}"
 spec:
+{{- if $.Values.global.enable_nfs }}
   storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+{{- end }}
   accessModes:
     - ReadWriteMany
   resources:
@@ -150,9 +158,15 @@ metadata:
   name: {{ $volume.name }}{{ $postfix }}-pv-claim
   namespace: "{{ $namespace  }}"
 spec:
+{{- if $.Values.global.enable_nfs }}
   storageClassName: nfs
   accessModes:
     - ReadWriteMany
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+{{- end }}
   resources:
     requests:
       storage: {{ $volume.storage | default "1Mi" }}

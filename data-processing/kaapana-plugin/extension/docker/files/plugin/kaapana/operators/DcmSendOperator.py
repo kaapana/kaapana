@@ -47,6 +47,8 @@ class DcmSendOperator(KaapanaBaseOperator):
         if env_vars is None:
             env_vars = {}
 
+        # be aware, if the same keys are used in the workflow_form of the dag,
+        # these defined values will be overwritten by the workflow_form
         envs = {
             "PACS_HOST": str(pacs_host),
             "PACS_PORT": str(pacs_port),

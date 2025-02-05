@@ -9,32 +9,34 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 log = LoggingMixin().log
 
-ae_title = "NONE"
-pacs_port = 11112
-
 ui_forms = {
     "workflow_form": {
         "type": "object",
         "properties": {
             "pacs_host": {
                 "title": "Receiver host",
-                "description": "Specify the url/IP of the DICOM receiver.",
+                "description": "Specify the url/IP of the DICOM receiver. If not specified will send to the platform itself.",
                 "type": "string",
-                "default": pacs_host,
-                "required": True,
+                "default": "",
             },
             "pacs_port": {
                 "title": "Receiver port",
                 "description": "Specify the port of the DICOM receiver.",
                 "type": "integer",
-                "default": pacs_port,
+                "required": True,
+                "default": 11112,
             },
             "aetitle": {
-                "title": "Receiver AE-title",
-                "description": "Specify the port of the DICOM receiver.",
+                "title": "Calling AE Title (SCU) / Dataset Name in Kaapana",
+                "description": "Specify the Local Calling AET. Kaapana interprets this as the dataset name.",
                 "type": "string",
-                "default": ae_title,
-                "required": True,
+                "default": "NONE",
+            },
+            "called_ae_title_scp": {
+                "title": "Called AE Title (SCP) / Project Name in Kaapana",
+                "description": "Specify the Remote Called AET. Kaapana interprets this as the project name.",
+                "type": "string",
+                "default": "",
             },
             "single_execution": {
                 "title": "single execution",
@@ -68,9 +70,6 @@ get_input = GetInputOperator(dag=dag)
 dcm_send = DcmSendOperator(
     dag=dag,
     input_operator=get_input,
-    ae_title=ae_title,
-    pacs_host=pacs_host,
-    pacs_port=pacs_port,
     level="element",
     enable_proxy=True,
     no_proxy=".svc,.svc.cluster,.svc.cluster.local",

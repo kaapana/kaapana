@@ -51,5 +51,5 @@ Stay tuned for updates, and thank you for your patience! 🙌
 
 ### 💬 Need Help?
 
-If you have any questions or need assistance, feel free to reach out via GitLab issues or our community channels. 
+If you have any questions or need assistance, feel free to reach out via GitLab issues or our [Slack](https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/) channel. 
 We appreciate your support and interest in Kaapana! 🚀

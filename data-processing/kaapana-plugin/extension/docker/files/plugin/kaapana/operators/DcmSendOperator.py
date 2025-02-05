@@ -1,11 +1,11 @@
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
-    SERVICES_NAMESPACE,
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
+    SERVICES_NAMESPACE,
 )
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class DcmSendOperator(KaapanaBaseOperator):
@@ -56,11 +56,10 @@ class DcmSendOperator(KaapanaBaseOperator):
 
         env_vars.update(envs)
 
-        if not kwargs.get("labels"):
-            kwargs["labels"] = {"network-access": "ctp"}
-        else:
-            if not kwargs.get("labels").get("network-access"):
-                kwargs["labels"]["network-access"] = "ctp"
+        if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
+            kwargs["labels"] = {}
+
+        kwargs["labels"]["network-access-ctp"] = "true"
 
         super().__init__(
             dag=dag,

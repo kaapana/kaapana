@@ -28,20 +28,19 @@ ui_forms = {
             },
             "aetitle": {
                 "title": "Calling AE Title (SCU) / Dataset Name in Kaapana",
-                "description": "Specify the Local Calling AET. Kaapana interprets this as the dataset name. If not set, the workflow name will be used.",
+                "description": "Specify the local Calling AE Title (AET). Kaapana interprets this as the dataset name. If not set, the workflow name will be used. When sending data to external Kaapana instances, add 'kp-' as a prefix.",
                 "type": "string",
             },
             "called_ae_title_scp": {
                 "title": "Called AE Title (SCP) / Project Name in Kaapana",
-                "description": "Specify the Remote Called AET. Kaapana interprets this as the project name.",
+                "description": "Specify the remote Called AE Title (AET). Kaapana interprets this as the project name. When sending data to external Kaapana instances, add 'kp-' as a prefix.",
                 "type": "string",
-                "default": "",
             },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
         },

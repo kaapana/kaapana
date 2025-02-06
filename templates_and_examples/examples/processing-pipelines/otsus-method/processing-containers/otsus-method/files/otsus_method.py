@@ -8,7 +8,7 @@ import glob
 # os.environ["OPERATOR_IN_DIR"] = "get-input-data"
 # os.environ["OPERATOR_OUT_DIR"] = "output"
 
-### From the template
+### Get data from <workflow-dir>/batch folder
 batch_folders = sorted(
     [
         f

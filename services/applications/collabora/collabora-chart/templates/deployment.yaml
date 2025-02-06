@@ -29,7 +29,7 @@ spec:
             cpu: 200m
             memory: 256Mi
         volumeMounts:
-        - mountPath: /etc/nginx/conf.d
+        - mountPath: /etc/nginx/conf.d/default.conf
           name: config
           subPath: nginx.conf
       - name: collabora

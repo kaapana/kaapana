@@ -28,9 +28,8 @@ ui_forms = {
             },
             "aetitle": {
                 "title": "Calling AE Title (SCU) / Dataset Name in Kaapana",
-                "description": "Specify the Local Calling AET. Kaapana interprets this as the dataset name.",
+                "description": "Specify the Local Calling AET. Kaapana interprets this as the dataset name. If not set, the workflow name will be used.",
                 "type": "string",
-                "default": "NONE",
             },
             "called_ae_title_scp": {
                 "title": "Called AE Title (SCP) / Project Name in Kaapana",

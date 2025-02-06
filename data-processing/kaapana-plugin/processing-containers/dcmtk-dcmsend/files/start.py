@@ -8,6 +8,7 @@ import pydicom
 from kaapanapy.helper import load_workflow_config
 from kaapanapy.settings import KaapanaSettings
 
+DEFAULT_SCP = "ANY-SCP"
 SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 ### If the environment variable AETITLE is "NONE", then I want to set AETITLE = None
 AETITLE = os.getenv("AETITLE", "NONE")
@@ -24,12 +25,11 @@ PROJECT_NAME = PROJECT.get("name")
 # if PACS_HOST is "", it will send to the platform itself
 PACS_HOST = os.getenv("PACS_HOST") or f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc"
 PACS_PORT = os.getenv("PACS_PORT", "11112")
-CALLED_AE_TITLE_SCP = os.getenv("CALLED_AE_TITLE_SCP", "ANY-SCP")
+CALLED_AE_TITLE_SCP = os.getenv("CALLED_AE_TITLE_SCP", DEFAULT_SCP)
 
 print(f"AETITLE: {AETITLE}")
 print(f"PACS_HOST: {PACS_HOST}")
 print(f"PACS_PORT: {PACS_PORT}")
-print(f"CALLING_AE_TITLE_SCU: {AETITLE}")
 print(f"CALLED_AE_TITLE_SCP: {CALLED_AE_TITLE_SCP}")
 print(f"LEVEL: {LEVEL}")
 
@@ -83,19 +83,17 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
                     print(f"Using default aetitle {aetitle}")
 
         print(f"Sending {dicom_dir} to {PACS_HOST} {PACS_PORT} with aetitle {aetitle}")
-        # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
         aec = CALLED_AE_TITLE_SCP
         if PACS_HOST == f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc":
             dataset = aetitle if aetitle.startswith("kp-") else f"kp-{aetitle}"
-            project_name = (
-                project_name if project_name.startswith("kp-") else f"kp-{project_name}"
-            )
-            if CALLED_AE_TITLE_SCP == "ANY-SCP":
+            if CALLED_AE_TITLE_SCP == DEFAULT_SCP:
                 aec = project_name
+            aec = aec if aec.startswith("kp-") else f"kp-{aec}"
         else:
             dataset = aetitle
 
         env = dict(os.environ)
+        # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
         command = [
             "dcmsend",
             "-v",

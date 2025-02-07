@@ -31,7 +31,7 @@ class DocumentStore:
         self,
     ):
         self.doc_lookup = {}
-        self.docs: list[MinioDocument] = []
+        self.docs: list(MinioDocument) = []
 
     def _file_id_to_path(func):
         """

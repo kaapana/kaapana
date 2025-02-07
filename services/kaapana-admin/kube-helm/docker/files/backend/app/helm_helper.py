@@ -467,7 +467,8 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
                     )
                     # add to cache if a new extension is uploaded
                     if ind >= len(global_extensions_list):
-                        name = global_extensions_dict[extension_dict["name"]]
+                        extension = global_extensions_dict[extension_dict["name"]]
+                        name = extension.chart_name
                         if name in global_extensions_release_names:
                             logger.info(
                                 f"{name} already in the list, avoiding duplicate entries"

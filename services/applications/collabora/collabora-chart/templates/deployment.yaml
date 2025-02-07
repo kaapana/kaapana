@@ -16,6 +16,22 @@ spec:
         app-name: {{ .Release.Name }}
     spec:
       containers:
+      - image: "{{ .Values.global.registry_url }}/nginx:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy_images }}
+        name: nginx
+        ports:
+          - containerPort: 9981
+        resources:
+          limits:
+            cpu: 300m
+            memory: 512Mi
+          requests:
+            cpu: 200m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /etc/nginx/conf.d/default.conf
+          name: config
+          subPath: nginx.conf
       - name: collabora
         image: "{{ .Values.global.registry_url }}/collabora:{{ .Values.global.kaapana_build_version }}"
         imagePullPolicy: {{ .Values.global.pull_policy_images }}

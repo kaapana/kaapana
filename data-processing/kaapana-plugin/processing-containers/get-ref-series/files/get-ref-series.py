@@ -10,9 +10,9 @@ from os.path import join
 from pathlib import Path
 
 import pydicom
+from kaapanapy.helper import load_workflow_config
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.helper.HelperOpensearch import HelperOpensearch
-from kaapanapy.helper import load_workflow_config
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -56,14 +56,7 @@ def build_opensearch_query(modalities: list = [], custom_tags: list = []) -> dic
 
     # If 'custom_tags' is filled, we add a 'terms_set' query to check "00000000 Tags_keyword" contains all tags
     if custom_tags:
-        tags_query = {
-            "terms_set": {
-                "00000000 Tags_keyword": {
-                    "terms": custom_tags,
-                    "minimum_should_match_script": {"source": "params.num_terms"},
-                }
-            }
-        }
+        tags_query = {"terms": {"00000000 Tags_keyword.keyword": custom_tags}}
         query["bool"]["must"].append(tags_query)
 
     # Return the final query structure

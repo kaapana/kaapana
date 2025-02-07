@@ -13,7 +13,7 @@ enable_linting: true # should be true - checks deployment validity
 skip_push_no_changes: false # Advanced feature - should be false usually
 platform_filter: "kaapana-admin-chart" # comma seperated platform-chart-names
 external_source_dirs: "" # comma seperated paths
-build_ignore_patterns: "templates_and_examples" # comma seperated list of directory paths or files that should be ignored
+build_ignore_patterns: "templates_and_examples,ci" # comma seperated list of directory paths or files that should be ignored
 parallel_processes: 2 # parallel process count for container build + push 
 include_credentials: false # Whether to include the used registry credentials into the deploy-platform script
 enable_image_stats: false # Whether to enable container image size statistics (build/image_stats.json)

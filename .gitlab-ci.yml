@@ -67,7 +67,7 @@ variables:
   # GIT_CLONE_PATH: $CI_BUILDS_DIR/$CI_PIPELINE_ID
   GIT_CLONE_PATH: /home/ubuntu/builds/$CI_COMMIT_SHORT_SHA
   KAAPANA_DIR: $GIT_CLONE_PATH
-  REPO_URL: codebase.helmholtz.cloud/kaapana/kaapana-ci ### Url to the repository with the ci-code
+  REPO_DIR: $GIT_CLONE_PATH/ci
   ANSIBLE_VERBOSITY: 0
 
 #############################################
@@ -94,15 +94,6 @@ prepare_pipeline: ### This is the only job, where I clone the project repo
   - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
   - rm -rf $ARTIFACTS_DIR
   - mkdir -p $ARTIFACTS_DIR
-  - export REPO_DIR=/home/$USER/ci-repo/
-  - echo "REPO_DIR=$REPO_DIR" >> prepare.env
-  - echo clone repository $REPO_URL into $REPO_DIR
-  - |-
-    if [ ! -d $REPO_DIR ]; then
-      git clone https://$CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD@$REPO_URL.git $REPO_DIR
-    else
-      cd $REPO_DIR && git pull https://$CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD@$REPO_URL.git
-    fi
   artifacts:
     reports:
       dotenv: prepare.env
@@ -177,9 +168,7 @@ deploy_and_test:
   - build_packages
   trigger:
     include:
-    - project: kaapana/kaapana-ci
-      file: '/templates/.deploy_stage.yaml'
-      ref: main
+      - local: 'ci/templates/.deploy_stage.yaml'
     strategy: depend
     forward:
       pipeline_variables: true

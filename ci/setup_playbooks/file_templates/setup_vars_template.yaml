@@ -1,0 +1,23 @@
+### Uncomment and specify the ci_instance_ip value, if you already have a server that you want to setup as your CI-instance.
+### Otherwise the setup_ci.yaml playbook will create an openstack with the os_* variables specified below.
+# ci_instance_ip:
+
+ssh_key_file: /path/to/ssh.pem file # Path to ssh file used to access the ci instance and also the deployment server.
+
+os_instance_name:
+os_instance_flavor:
+os_instance_image:
+os_instance_volume_size:
+os_username:
+os_key_name:
+os_auth_url:
+os_project_name:
+os_tenant_id:
+os_instance_floating_ip_pool:
+
+gitlab_url:
+gitlab_project_id: 
+
+http_proxy:
+https_proxy:
+ci_settings_file: file_templates/ci-settings.yaml

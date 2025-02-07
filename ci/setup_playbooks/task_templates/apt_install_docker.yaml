@@ -1,0 +1,54 @@
+- name: tasks info
+  debug:
+    msg: "INSTALL DOCKER"
+
+- name: Upgrade system
+  apt:
+    update_cache: yes
+    upgrade: yes
+  become: yes
+
+- name: Install Docker
+  become: yes
+  ansible.builtin.apt:
+    state: latest
+    pkg:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose-plugin
+
+- name: Start docker
+  become: yes
+  command: systemctl restart docker
+  ignore_errors: no
+
+- name: install python requirements
+  become: yes
+  pip:
+    name: ['docker', 'docker-compose']
+    state: present
+
+- name: groupadd
+  command: groupadd docker
+  become: yes
+  ignore_errors: yes
+
+- name: usermod
+  command: usermod -aG docker ubuntu
+  become: yes
+  ignore_errors: yes
+
+- name: Change ownership of docker directory recursively
+  become: yes
+  command: chown "{{ ansible_ssh_user }}:{{ ansible_ssh_user }}" /home/{{ ansible_ssh_user }}/.docker -R
+
+- name: Change access rights of docker directory recursively
+  become: yes
+  command: chmod g+rwx /home/{{ ansible_ssh_user }}/.docker -R
+
+- name: Reboot machine...
+  become: yes
+  reboot:
+    reboot_timeout: 120

@@ -1,0 +1,68 @@
+- hosts: "{{ ansible_groupname | default('kaapana_depl_server') }}"
+  become: no
+  gather_facts: true
+  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+  environment:
+    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
+
+  vars:
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+
+  tasks:
+
+  - name: Increase inotify watchers
+    become: yes
+    ansible.builtin.command: 
+      cmd: sysctl -w fs.inotify.max_user_watches=10000
+
+  - name: Increase inotify watchers
+    become: yes
+    ansible.builtin.command: 
+      cmd: sysctl -w fs.inotify.max_user_instances=10000
+
+  - name: Copy install server script from ci-server instance
+    become: yes
+    template:
+      src: "{{ kaapana_dir }}/server-installation/server_installation.sh"
+      dest: "{{ ansible_env.HOME }}/server_installation.sh"
+      mode: "+x"
+
+  - name: Set packages with dependecy grub-eif-amd-signed to hold
+    become: yes
+    ansible.builtin.command:
+      cmd: apt-mark hold grub-efi-amd64-signed shim-signed openssh-server
+
+  - name: execute server installation script
+    become: yes
+    environment:
+      TERM: xterm
+    ansible.builtin.command:
+    args:
+      cmd: ./server_installation.sh
+      chdir: "{{ ansible_env.HOME }}/"
+    register: server_installation_output
+    ignore_errors: yes
+
+  - name: Copy STDOUT from server installation to ci-server
+    become: yes
+    ansible.builtin.copy:
+      content: "{{ server_installation_output.stdout }} {{server_installation_output.stderr}}"
+      dest: "{{ artifacts_dir }}/server_installation.log"
+    delegate_to: 127.0.0.1
+
+  - name: Fail playbook and job if server installation failed
+    ansible.builtin.command: /bin/false
+    when: server_installation_output.rc != 0
+
+  - name: Add user to new group
+    become: yes
+    ansible.builtin.user:
+      name: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+      groups: microk8s
+      append: true
+
+  - name: Reset ssh connection to allow user changes to affect ansible user
+    ansible.builtin.meta:
+      reset_connection

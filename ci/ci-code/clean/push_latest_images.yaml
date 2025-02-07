@@ -1,0 +1,44 @@
+- hosts: localhost
+  become: no
+  vars:
+    gitlab_registry_url: "{{ lookup('ansible.builtin.env', 'registry_url') }}"
+    version_tag: "{{ lookup('ansible.builtin.env', 'VERSION_TAG') }}"
+
+  tasks:
+
+  - name: Check if the registry_url ends with a slash
+    set_fact: 
+      regex_registry: "{{ gitlab_registry_url | regex_search('.*[^/]$') }}"
+
+  - name: Set the registry to the registry url and append it with a slash
+    set_fact:
+      registry: "{{ gitlab_registry_url }}/"
+    when: regex_registry != ''
+
+  - name: Set the registry to the registry_url without appending a slash
+    set_fact:
+      registry: "{{ gitlab_registry_url }}"
+    when: regex_registry == ''
+
+  - debug:
+      msg: "{{ registry }}"
+
+  - name: Get all images 
+    ansible.builtin.command:
+      cmd: "docker images '{{ registry }}*:{{ version_tag }}' --format='{{ '{{.Repository}}:{{.Tag}}' }}'"
+    register: all_images
+
+  - name: Apply tag latest to found images
+    ansible.builtin.command:
+      cmd: "docker tag {{ item }} {{ item | regex_search('.*:') }}latest"
+    loop: "{{ all_images.stdout_lines }}"
+    loop_control: 
+      label: "{{ item }} {{ item | regex_search('.*:') }}latest"
+
+
+  - name: Push latest docker images
+    ansible.builtin.command:
+      cmd: "docker push {{ item | regex_search('.*:') }}latest"
+    loop: "{{ all_images.stdout_lines }}"
+    loop_control: 
+      label: "{{ item }} {{ item | regex_search('.*:') }}latest"

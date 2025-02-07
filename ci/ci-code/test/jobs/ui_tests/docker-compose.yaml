@@ -1,0 +1,40 @@
+version: "3.9"
+#version: "3.3"
+services:
+  selenium:
+    image: selenium/standalone-chrome:108.0
+    environment:
+      - SE_SESSION_REQUEST_TIMEOUT=600
+    hostname: selenium
+    ports:
+      - 4444:4444
+      - 7900:7900
+    shm_size: 10gb
+    privileged: true
+    restart: always
+    networks:
+      - default
+
+  tests:
+    build:
+      context: .
+    image: kaapana-ui-tests:0.1.0
+    environment:
+      - HTTP_PROXY
+      - HTTPS_PROXY
+      - HUB_HOST="selenium"
+      - KAAPANA_URL
+      - TEST_FILE
+    command: /bin/sh -c "python3 -m unittest -v $TEST_FILE &> first_login.log"
+    depends_on:
+      - selenium
+    volumes:
+      - $LOG_FILE:/first_login.log
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450

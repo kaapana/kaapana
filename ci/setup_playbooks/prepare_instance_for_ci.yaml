@@ -1,0 +1,111 @@
+- name: Store os password
+  become: yes
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.os_password"
+    line: "{{ os_password }}"
+    create: true
+    owner: root
+    group: root 
+    mode: '0400'
+  no_log: true
+
+- name: install proxy
+  import_tasks: task_templates/proxy_ubuntu.yaml
+
+- name: Upgrade system
+  apt:
+    update_cache: yes
+    upgrade: yes
+  become: yes
+
+- name: Install required system packages
+  become: yes
+  ansible.builtin.apt:
+    state: latest
+    pkg:
+    - "apt-transport-https"
+    - "wget"
+    - "gnupg"
+    - "lsb-release"
+    - "ca-certificates"
+    - "curl"
+    - "git"
+    - "software-properties-common"
+    - "python3"
+    - "python3-pip"
+    - "python3-setuptools"
+    - "unzip"
+    - "virtualenv"
+    - "nano"
+    - "dcmtk"
+    - "nmap"
+    - "jq"
+
+- name: Install trivy
+  become: yes
+  block:
+  - name: download public key of trivy repository
+    ansible.builtin.shell:
+      cmd: "wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null"
+  - name: Get the short codename of the used distribution
+    ansible.builtin.command:
+      cmd: lsb_release -sc
+    register: distribution
+  - name: add trivy repository to apt sources
+    ansible.builtin.lineinfile:
+      path: "/etc/apt/sources.list.d/trivy.list"
+      line: "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb {{ distribution.stdout }} main"
+      state: present
+      create: true
+  - name: update apt
+    ansible.builtin.apt:
+      update_cache: yes
+      name: trivy
+      state: latest
+
+- name: install python user requirements
+  become: no
+  pip:
+    name:
+      - openstacksdk==0.61.0
+      - ansible-core==2.12.10
+      - requests==2.28.0
+      - python3-nmap==1.6.0
+      - python-gitlab==5.5.0
+    state: present
+    extra_args: --user
+    executable: pip3
+
+- name: Add user path
+  become: yes
+  ansible.builtin.copy:
+    dest: /etc/profile.d/custom-path.sh
+    content: "PATH=$PATH:{{ ansible_env.HOME }}/.local/bin:/usr/bin:/bin:/snap/bin:/usr/local/bin"
+
+- name: Install ansible collections
+  become: no
+  ansible.builtin.command: 
+    cmd: "{{ ansible_env.HOME }}/.local/bin/ansible-galaxy collection install {{ item }}"
+  loop:
+    - "openstack.cloud:==1.10.0"
+    - "kubernetes.core:==2.4.0"
+    - "ansible.posix:==1.5.1"
+
+- name: add ci ssh key
+  become: no
+  ansible.builtin.copy:
+    src: "{{ ssh_key_file }}"
+    dest: "{{ ansible_env.HOME }}/.ssh/kaapana.pem"
+    owner: ubuntu
+    group: ubuntu
+    mode: 0600
+
+- name: Install and register gitlab-runner
+  import_tasks: task_templates/add_gitlab_runner.yaml
+
+- name: Add directory for ansible
+  become: yes
+  ansible.builtin.file:
+    path: /etc/ansible
+    state: directory
+    mode: '0755'

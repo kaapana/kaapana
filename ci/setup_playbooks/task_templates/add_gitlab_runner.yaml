@@ -1,0 +1,55 @@
+---    
+- name: Download file to add gitlab repository
+  command: curl -LJO "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh"
+  
+- name: Add gitlab apt repository
+  become: yes
+  command: bash script.deb.sh
+
+- name: Install gitlab-runner with apt
+  become: yes
+  ansible.builtin.apt: 
+    name: gitlab-runner
+    state: latest
+    update_cache: yes
+
+- name: Register shell gitlab-runner 
+  command: | 
+    gitlab-runner register \
+    --non-interactive \
+    --url "{{ gitlab_url }}" \
+    --registration-token "{{ gitlab_registration_token }}" \
+    --executor "shell" \
+    --description "shell-runner" \
+
+
+- name: Change concurrent in $HOME/gitlab-runner/config.toml
+  ansible.builtin.replace:
+    path: "{{ ansible_env.HOME }}/.gitlab-runner/config.toml"
+    regexp: 'concurrent\s*=\s*[0-9]*'
+    replace: 'concurrent = 4'
+
+- name: Insert the section for [runners.custom_build_dir] in the gitlab-runner config
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.gitlab-runner/config.toml"
+    insertafter: '^\s*\[runners.custom_build_dir\]'
+    line: '  [runners.custom_build_dir]'
+    state: present
+
+- name: Enable costum build dir in config.toml
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/.gitlab-runner/config.toml"
+    insertafter: '^\s*\[runners.custom_build_dir\]'
+    line: '    enabled = true'
+
+- name: Check if a .bash_logout exists
+  ansible.builtin.stat: 
+    path: "{{ ansible_env.HOME }}/.bash_logout"
+  register: bash_logout
+
+- name: Remove .bash_logout file which might conflict with the gitlab-runner
+  become: yes
+  ansible.builtin.file:
+    state: absent
+    path: "{{ ansible_env.HOME }}/.bash_logout"
+  when: bash_logout.stat.exists is defined and bash_logout.stat.exists

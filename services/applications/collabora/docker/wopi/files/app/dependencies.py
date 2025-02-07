@@ -7,10 +7,6 @@ from app.model.wopi import WOPI
 from app.config import get_settings
 from fastapi import Request, Depends
 from minio import Minio
-import jwt
-from kaapanapy.logger import get_logger
-
-logger = get_logger(name=__name__)
 
 
 @functools.lru_cache()
@@ -19,11 +15,7 @@ def get_connection_manager() -> ConnectionManager:
 
 
 def get_access_token(request: Request):
-    if "x-forwarded-access-token" in request.headers:
-        return request.headers.get("x-forwarded-access-token")
-    elif "authorization" in request.headers:
-        bearer = request.headers.get("authorization")
-        return bearer.split()[-1]
+    return request.headers.get("x-forwarded-access-token")
 
 
 def get_minio_client(x_auth_token: str = Depends(get_access_token)) -> Minio:
@@ -51,7 +43,10 @@ def get_minio_client(x_auth_token: str = Depends(get_access_token)) -> Minio:
         ).text
         return access_key_id, secret_access_key, session_token
 
-    access_key, secret_key, session_token = minio_credentials()
+    if x_auth_token:
+        access_key, secret_key, session_token = minio_credentials()
+    else:
+        access_key, secret_key, session_token = "kaapanaminio", "Kaapana2020", None
 
     minio_url = f"minio-service.services.svc:9000"
     return Minio(
@@ -68,28 +63,6 @@ def get_wopi() -> WOPI:
     return WOPI(get_settings().collabora_url + "/hosting/discovery")
 
 
-def get_username(request: Request):
-    """
-    Return the username as in the header x-forwarded-preferred-username.
-    If this header does not exist, get the preferred_username from the access-token given in the authorization header.
-    """
-    if "x-forwarded-preferred-username" in request.headers:
-        username = request.headers.get("x-forwarded-preferred-username")
-    elif "authorization" in request.headers:
-        bearer = request.headers.get("authorization")
-        access_token = bearer.split()[-1]
-        decoded_token = jwt.decode(
-            access_token, algorithms=["RS256"], options={"verify_signature": False}
-        )
-        username = decoded_token.get("preferred_username")
-    else:
-        logger.warning("Username could not be determined")
-        return None
-
-    return username
-
-
 @functools.lru_cache()
-def get_document_store(username: str = Depends(get_username)) -> DocumentStore:
-    # def get_document_store() -> DocumentStore:
+def get_document_store() -> DocumentStore:
     return DocumentStore()

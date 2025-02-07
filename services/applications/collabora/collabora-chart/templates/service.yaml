@@ -11,7 +11,7 @@ spec:
     app-name: {{ .Release.Name }}
   ports:
     - protocol: TCP
-      port: 9981
+      port: 9980
       name: http
   type: ClusterIP
 ---

@@ -40,10 +40,6 @@ allowed_user_endpoints := [
     {"path": "^/aii/.*", "methods": ["GET"]},
     {"path": "^/projects-ui.*", "methods": ["GET"]},
     {"path": "^/kaapana-backend/client/file", "methods": ["POST", "HEAD", "PATCH","DELETE"]},
-    {"path": "^/collabora-wopi/", "methods": ["GET"]},
-    {"path": "^/collabora-wopi/documents.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
-    {"path": "^/collabora/.*", "methods": ["GET","PUT" ,"POST", "HEAD", "PATCH","DELETE"]},
-
 ]
 
 allowed_project_manager_endpoints := [

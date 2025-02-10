@@ -14,10 +14,7 @@ def dicom_web_filter_url(request: URL) -> str:
     Returns:
         str: The filtered DICOMWeb URL, derived from the base URL and the request path.
     """
-    logger.info(DICOMWEB_BASE_URL)
-    logger.info(str(request.url))
-    logger.info(str(request.url))
-    return DICOMWEB_BASE_URL + str(request.url).split("dicom-web-filter")[-1]
+    return DICOMWEB_BASE_URL + "/".join(str(request.url).split("/")[2:])
 
 
 def wado_endpoint_url(request: URL) -> str:

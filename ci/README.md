@@ -39,7 +39,7 @@ A deployment-instance is used to deploy a Kaapana platform.
 
 #### Steps to setup the CI
 
-1. Clone the repository from [https://codebase.helmholtz.cloud/kaapana/kaapana-ci](https://codebase.helmholtz.cloud/kaapana/kaapana-ci)
+1. Clone the repository from [https://codebase.helmholtz.cloud/kaapana/kaapana](https://codebase.helmholtz.cloud/kaapana/kaapana)
 2. Install the dependencies:
 
     * **Install Ansible**
@@ -63,17 +63,18 @@ A deployment-instance is used to deploy a Kaapana platform.
         ansible-galaxy collection install openstack.cloud
         ```
 
-3. Create `setup_vars.yaml` from `setup_vars_template.yaml` in `file_templates/` and specify all variables according to your setup.
+3. Create `setup_vars.yaml` from `setup_vars_template.yaml` in `ci/setup_playbooks/file_templates/` and specify all variables according to your setup.
     This file contains parameters required to create and setup the ci-instance
     ```bash
+    cd ci/setup_playbooks/
     cp file_templates/setup_vars_template.yaml file_templates/setup_vars.yaml
     ```
-4. Create `ci-settings.yaml` from `ci-settings-template.yaml` in `file_templates/` and specify all variables according to your setup.
+4. Create `ci-settings.yaml` from `ci-settings-template.yaml` in `ci/setup_playbooks/file_templates/` and specify all variables according to your setup.
     This file should contain the default values for the CI variables in your project.
     ```bash
     cp file_templates/ci-settings-template.yaml file_templates/ci-settings.yaml
     ```
-5. Run the `ci-code/setup_playbooks/setup_ci.yaml`.
+5. Run the `ci/setup_playbooks/setup_ci.yaml`.
 6. SSH to the kaapana-ci instance
 7. On the ci-instance, there should be a file `$HOME/.gitlab-runner/config.toml`
 8. This file should contain a section similar to the one below. 
@@ -96,7 +97,7 @@ A deployment-instance is used to deploy a Kaapana platform.
 9. Start the gitlab-runner service in the background `nohup gitlab-runner run </dev/null &>/dev/null &`
 10. Check if everything works, by triggering a web-pipeline in your GitLab project.
 
-The playbook at `ci-code/setup_playbooks/setup_ci.yaml` automates the following steps to get your ci instance up and running:
+The playbook at `ci/setup_playbooks/setup_ci.yaml` automates the following steps to get your ci instance up and running:
 
 1. Launch an openstack instance
 2. Upload default CI variables into the project settings
@@ -112,7 +113,7 @@ The playbook at `ci-code/setup_playbooks/setup_ci.yaml` automates the following 
 12. Install and register gitlab-runner
 13. Create directory in `/etc/` for ansible
 
-## Directory structure
+## Directory structure ci/
 
 ```bash
 .

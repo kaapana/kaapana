@@ -8,10 +8,14 @@ from zipfile import ZipFile
 import requests
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.HelperCaching import cache_operator_output
-from kaapana.operators.HelperMinio import HelperMinio
+from kaapana.operators.HelperMinio import (
+    apply_action_to_file,
+    apply_action_to_object_dirs,
+    apply_action_to_object_names,
+)
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.logger import get_logger
-from minio import Minio
+from kaapanapy.helper import get_minio_client
 
 logger = get_logger(__name__)
 
@@ -101,7 +105,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         else:
             object_names = []
 
-        minioClient = HelperMinio(dag_run=dag_run)
+        minioClient = get_minio_client()
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         local_root_dir = self.local_root_dir.format(run_dir=run_dir)
@@ -198,23 +202,25 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             if self.target_dir_prefix and self.target_dir_prefix != "":
                 zip_object_name = os.path.join(self.target_dir_prefix, zip_object_name)
 
-            minioClient.apply_action_to_file(
-                "put",
-                self.bucket_name,
-                zip_object_name,
-                zip_file_path,
-                self.file_white_tuples,
+            apply_action_to_file(
+                minio_client=minioClient,
+                action="put",
+                bucket_name=self.bucket_name,
+                object_name=zip_object_name,
+                file_path=zip_file_path,
+                file_white_tuples=self.file_white_tuples,
             )
             return
 
         if object_names:
             print(f'Applying action "{self.action}" to files {object_names}')
-            minioClient.apply_action_to_object_names(
-                self.action,
-                self.bucket_name,
-                local_root_dir,
-                object_names,
-                self.file_white_tuples,
+            apply_action_to_object_names(
+                minio_client=minioClient,
+                action=self.action,
+                bucket_name=self.bucket_name,
+                local_root_dir=local_root_dir,
+                object_names=object_names,
+                file_white_tuples=self.file_white_tuples,
                 target_dir_prefix=self.target_dir_prefix,
             )
         else:
@@ -223,12 +229,13 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
             else:
                 print(f'Applying action "{self.action}" to ' f"files in: {object_dirs}")
 
-            minioClient.apply_action_to_object_dirs(
-                self.action,
-                self.bucket_name,
-                local_root_dir,
-                object_dirs,
-                self.file_white_tuples,
+            apply_action_to_object_dirs(
+                minio_client=minioClient,
+                action=self.action,
+                bucket_name=self.bucket_name,
+                local_root_dir=local_root_dir,
+                object_dirs=object_dirs,
+                file_white_tuples=self.file_white_tuples,
                 target_dir_prefix=self.target_dir_prefix,
             )
 

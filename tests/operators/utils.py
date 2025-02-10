@@ -23,6 +23,9 @@ def mock_modules():
     sys.modules["kaapana.operators.HelperMinio"] = MagicMock()
     sys.modules["kaapana.operators.HelperFederated"] = MagicMock()
 
+    # kaapanapy
+    sys.modules["kaapanapy.helper"] = MagicMock()
+
 
 KAAPANA_DIR = Path(__file__).resolve().parents[2]
 PLUGIN_DIR = (

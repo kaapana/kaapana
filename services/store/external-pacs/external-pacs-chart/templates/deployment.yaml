@@ -59,8 +59,10 @@ spec:
             limits:
               memory: "5Gi"
             requests:
-              memory: "256Mi"
+              memory: "256Mi"          
           volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
             {{- if .Values.global.dev_files }}
             - name: dicom-web-multiplexer-dev
               mountPath: /app
@@ -71,9 +73,11 @@ spec:
       imagePullSecrets:
         - name: registry-secret
       volumes:
+        - name: tmp-volume
+          emptyDir: {}
         {{- if .Values.global.dev_files }}
         - name: dicom-web-multiplexer-dev
           persistentVolumeClaim:
             claimName: dicom-web-multiplexer-dev-pv-claim
-        {{- end }}
+        {{- end }}      
       serviceAccountName: kaapana-kube-admin

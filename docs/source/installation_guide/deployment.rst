@@ -244,6 +244,9 @@ Credentials
   **Grafana**                  admin          admin      
  ============================ ============== ============
 
+.. note::
+   In **production mode**, the default Kaapana Login is **Kaapana2020!**
+
 .. hint::
     | Most likely you will not need the Minio admin password. Use the ``Login with OpenID`` instead.  
 

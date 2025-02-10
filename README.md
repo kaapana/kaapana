@@ -91,6 +91,9 @@ You can use Kaapana to build any product you like, including commercial closed-s
 
 Kaapana is built upon the great work of many other open-source projects, see the documentation for details. For now, we only release source code we created ourselves since providing pre-built docker containers and licensing for highly modular container-based systems is [a complex task](https://www.linuxfoundation.org/blog/2020/04/docker-containers-what-are-the-open-source-licensing-considerations/). We have done our very best to fulfill all requirements, and the choice of AGPL was motivated mainly to make sure we can improve and advance Kaapana in the best way for the whole community. If you have thoughts about this or if you disagree with our way of using a particular third-party toolkit or miss something please let us know and get in touch. We are open to any feedback and advice on this challenging topic.
 
+## Contribution guide
+If you want to contribute to Kaapana by submitting an issue or code please have a look at our [contribution guide](https://codebase.helmholtz.cloud/kaapana/kaapana/-/blob/develop/CONTRIBUTION.md).
+
 ## Acknowledgments
 
 ### Supporting projects

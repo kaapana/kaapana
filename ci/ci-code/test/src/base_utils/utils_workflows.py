@@ -15,7 +15,7 @@ import json
 logger = get_logger(__name__, logging.INFO)
 
 
-class CostumTestCase(unittest.TestCase):
+class CustomTestCase(unittest.TestCase):
     """
     This Testcase contains a single test method which dependes on the parameter given at initialization.
     """

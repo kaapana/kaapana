@@ -1,6 +1,6 @@
 import unittest
 from base_utils.utils_workflows import (
-    CostumTestCase,
+    CustomTestCase,
     collect_all_testcases,
     read_payload_from_yaml,
 )
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     testsuite = unittest.TestSuite()
     for testcase in testcases:
         if not testcase.get("ci_ignore_testcase", False):
-            testsuite.addTest(CostumTestCase(testcase, host, client_secret))
+            testsuite.addTest(CustomTestCase(testcase, host, client_secret))
 
     runner = unittest.TextTestRunner()
     runner.run(testsuite)

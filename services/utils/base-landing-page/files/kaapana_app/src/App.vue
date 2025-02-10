@@ -261,6 +261,12 @@ export default Vue.extend({
     if (!localStorage["settings"]) {
       localStorage["settings"] = JSON.stringify(defaultSettings);
     }
+
+    const projectCookies = Vue.$cookies.get("Project-Name");
+    if (!projectCookies && this.$store.getters.selectedProject) {
+      const projectVal = this.$store.getters.selectedProject;
+      Vue.$cookies.set("Project-Name", projectVal.name);
+    }
   },
   created() {
     this.$store.watch(

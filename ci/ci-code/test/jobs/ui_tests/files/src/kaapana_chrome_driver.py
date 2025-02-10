@@ -73,32 +73,6 @@ class BaseDriver:
     def menu_bar(self):
         return self.find_element(By.CLASS_NAME, "v-list")
 
-    def open_meta_dashboard_url(self):
-        # meta_dashboard_url = urljoin(self.url, "#/web/meta/kibana0")
-        meta_dashboard_url = urljoin(self.url, "#/web/meta/osdashboard0")
-        self.get(meta_dashboard_url)
-
-    def open_minio_url(self):
-        meta_dashboard_url = urljoin(self.url, "#/web/store/minio")
-        self.get(meta_dashboard_url)
-
-    def open_airflow_url(self):
-        meta_dashboard_url = urljoin(self.url, "#/web/flow/airflow")
-        self.get(meta_dashboard_url)
-
-    def open_segmentations_url(self):
-        # segmentations = urljoin(self.url, "#/web/meta/kibana1")
-        segmentations = urljoin(self.url, "#/web/meta/osdashboard1")
-        self.get(segmentations)
-
-    def open_extensions_url(self):
-        extensions = urljoin(self.url, "#/extensions")
-        self.get(extensions)
-
-    def open_pending_applications_url(self):
-        pending_applications = urljoin(self.url, "#/pending-applications")
-        self.get(pending_applications)
-
     def switch_tab(self):
         for window_handle in self.window_handles:
             if window_handle != self.kaapana_tab:
@@ -142,7 +116,6 @@ class KaapanaRemoteDriver(webdriver.Remote, BaseDriver):
             except MaxRetryError as e:
                 time.sleep(2)
                 logger.info(f"Retry super.__init__ due to {str(e)}")
-
 
     @staticmethod
     def init_options():

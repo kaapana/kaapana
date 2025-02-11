@@ -168,6 +168,7 @@ export default Vue.extend({
     drawer: true,
     federatedBackendAvailable: false,
     settings: defaultSettings,
+    failedToFetchTraefik: false,
   }),
   computed: {
     ...mapGetters([
@@ -261,12 +262,6 @@ export default Vue.extend({
     if (!localStorage["settings"]) {
       localStorage["settings"] = JSON.stringify(defaultSettings);
     }
-
-    const projectCookies = Vue.$cookies.get("Project-Name");
-    if (!projectCookies && this.$store.getters.selectedProject) {
-      const projectVal = this.$store.getters.selectedProject;
-      Vue.$cookies.set("Project-Name", projectVal.name);
-    }
   },
   created() {
     this.$store.watch(
@@ -282,37 +277,18 @@ export default Vue.extend({
       () => this.$store.getters.selectedProject,
       (newValue, oldValue) => {
         if (newValue !== oldValue) {
-          Vue.$cookies.set("Project-Name", newValue.name);
-          location.reload(); // Reload the page
-        }
-      }
-    );
-
-    this.$store.watch(
-      () => this.$store.getters.availableProjects,
-      (newProjects: [any]) => {
-        let found = false;
-        const selectedProject = this.$store.getters.selectedProject;
-        const currentUser = this.$store.getters.currentUser;
-        
-        // if the user not a kaapana_admin, check if the selected
-        // project is listed in the available project for the user.
-        // if not, clear the selected project from store and localstoraga,
-        // reset the selected project by reloading
-        if (!currentUser.groups.includes("kaapana_admin")) {
-          for(const project of newProjects) {
-            if (project.id == selectedProject.id) {
-              found = true;
-              break;
-            }
-          }
-
-          if (!found) {
-            this.$store.dispatch(CLEAR_SELECTED_PROJECT);
+          const projectCookies = Vue.$cookies.get("Project-Name");
+          if (newValue && projectCookies != newValue.name) {
+            Vue.$cookies.set("Project-Name", newValue.name);
+            location.reload(); // Reload the page
+          } else if(this.failedToFetchTraefik) {
+            // for some cases selectedProject as well as Project-Name cookie sets 
+            // after already made request to traefik and failed to Fetch Traefic.
+            // In such cases, a reload is required after setting the Project-Name cookie.
             location.reload(); // Reload the page
           }
         }
-      }    
+      }
     );
 
     this.getSettingsFromDb();
@@ -328,6 +304,7 @@ export default Vue.extend({
         );
       })
       .catch((error: any) => {
+        this.failedToFetchTraefik = true;
         console.log("Something went wrong with traefik", error);
       });
   },

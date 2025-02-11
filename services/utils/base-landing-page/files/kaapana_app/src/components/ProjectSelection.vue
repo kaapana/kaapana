@@ -3,7 +3,10 @@
     <v-list>
       <v-list-item-group v-model="selectedProject" color="primary">
         <v-list-item v-for="project in projects" :key="project.id" :value="project">
-          <v-list-item-title>{{ project.name }}</v-list-item-title>
+          <v-list-item-title 
+            active = "{{ project.name == selectedProject }}"
+            disabled="{{ project.name == selectedProject }}"
+          >{{ project.name }}</v-list-item-title>
         </v-list-item>
       </v-list-item-group>
     </v-list>
@@ -26,7 +29,9 @@ export default {
   },
   watch: {
     selectedProject(newProject) {
-      this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
+      if (newProject) {
+        this.$store.dispatch(UPDATE_SELECTED_PROJECT, newProject);
+      }
     },
   },
 };

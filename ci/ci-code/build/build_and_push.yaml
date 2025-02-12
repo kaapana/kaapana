@@ -1,0 +1,116 @@
+- hosts: localhost
+  become: yes
+  environment:
+    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
+  vars:
+    registry_user: "{{ lookup('ansible.builtin.env', 'REGISTRY_USER') }}"
+    registry_token: "{{ lookup('ansible.builtin.env', 'REGISTRY_TOKEN') }}"
+    registry_url: "{{ lookup('ansible.builtin.env', 'REGISTRY_URL') }}"
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+    build_arguments: "{{ lookup('ansible.builtin.env', 'BUILD_ARGUMENTS') }}"
+    dockerio_user: "{{ lookup('ansible.builtin.env', 'DOCKER_IO_USER') }}"
+    dockerio_password: "{{ lookup('ansible.builtin.env', 'DOCKER_IO_PASSWORD') }}"
+  tasks:
+  - name: Set some facts
+    ansible.builtin.set_fact:
+      build_config_file: "{{ kaapana_dir }}/build-config-ci.yaml"
+
+  - debug:
+      msg: " build command line flags: {{ build_arguments }}"
+
+  - name: Install python packages
+    become: no
+    ansible.builtin.pip:
+      requirements: "{{ kaapana_dir }}/build-scripts/requirements.txt"
+
+  - name: Create build config from template in git repo
+    become: no
+    ansible.builtin.copy:
+      src: "{{ kaapana_dir }}/build-scripts/build-config-template.yaml"
+      dest: "{{ build_config_file }}"
+
+  - name: Set registry url in build-config.yaml
+    become: no
+    ansible.builtin.replace:
+      path: "{{ build_config_file }}"
+      regexp: '^default_registry[:][\s]*"[a-zA-Z./\-_<>]*"'
+      replace: 'default_registry: "{{ registry_url }}"'
+
+  - name: Set exit_on_error to false if vulnerability scans flag or configuration check flag is set
+    when: build_arguments is search("-vs") or build_arguments is search("--vulnerability-scan") or build_arguments is search("-cc") or build_arguments is search("--configuration-check")
+    become: no
+    ansible.builtin.replace:
+      path: "{{ build_config_file }}"
+      regexp: '^exit_on_error[:][\s]*[a-zA-Z]*'
+      replace: 'exit_on_error: false'
+
+  - name: Docker login to project container registry
+    ansible.builtin.command: "/usr/bin/docker login {{ registry_url }} -u {{ registry_user }} -p {{ registry_token }}"
+    become: no
+    ignore_errors: no
+    no_log: true
+
+  - name: Docker login to docker.io to circumvent image pull limit from docker hub
+    ansible.builtin.command: "/usr/bin/docker login docker.io -u {{ dockerio_user }} -p {{ dockerio_password }}"
+    become: no
+    ignore_errors: no
+    no_log: true
+
+  # - name: Pre-pull nvidia image
+  #   register: pull_nvidia_result
+  #   ansible.builtin.command:
+  #     cmd: docker pull nvcr.io/nvidia/pytorch:22.12-py3
+  #   until: pull_nvidia_result.rc == 0
+  #   retries: 10
+  #   delay: 5
+
+  - name: Start build process
+    become: no
+    ansible.builtin.command:
+      cmd: "python3 {{ kaapana_dir }}/build-scripts/start_build.py -c {{ build_config_file }} --username {{ registry_user }} --password {{ registry_token }} {{ build_arguments }}"
+    ignore_errors: yes
+    register: build_output
+    no_log: true
+
+  - name: Copy build.log to artifacts_dir
+    ansible.builtin.copy:
+      src: "{{ kaapana_dir }}/build/build.log"
+      dest: "{{ artifacts_dir }}"
+
+  - name: Save vulnerability reports as artifacts
+    block:
+    - name: set additional build arguments
+      ansible.builtin.set_fact:
+        security_artifacts_path: "{{ artifacts_dir }}/security-scan"
+    - name: Create additional directory in the artifacts dir for results of security scans
+      ansible.builtin.file:
+        path: "{{ security_artifacts_path }}"
+        state: directory
+        mode: '0755'
+    - name: Create list with information about desired files
+      register: file_stats
+      ansible.builtin.stat:
+        path: "{{ kaapana_dir }}/build/{{ item }}"
+      loop:
+      - "chart_report.json"
+      - "commpressed_chart_report.json"
+      - "commpressed_vulnerability_reports.json"
+      - "dockerfile_report.json"
+      - "sboms.json"
+      - "vulnerability_report.json"
+    - name: Copy results of security scan to subdirectory of the artifacts directory
+      loop: "{{ file_stats.results }}"
+      loop_control:
+        label: "{{ item.item }} exists: {{ item.stat.exists }}"
+      when: item.stat.exists == true
+      ansible.builtin.copy:
+        src: "{{ item.stat.path }}"
+        dest: "{{ security_artifacts_path }}/{{ item.item | basename }}"
+
+
+  - name: Fail playbook and job if build failed
+    ansible.builtin.command:
+      cmd: /bin/false
+    when: build_output.rc != 0

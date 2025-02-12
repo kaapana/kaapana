@@ -1,0 +1,61 @@
+---
+- name: Get information about all tasks
+  async_status:
+    jid: "{{ item }}"
+  register: task_results
+  loop: "{{ ansible_job_ids }}"
+  ignore_errors: true
+
+- name: Create empty list
+  ansible.builtin.set_fact:
+    new_ansible_job_ids: []
+
+- name: Create new list of ansible_job_ids with ids of unfinished tasks
+  loop: "{{ task_results.results }}"
+  when: not item.finished
+  ansible.builtin.set_fact:
+    new_ansible_job_ids: "{{ new_ansible_job_ids + [ item.ansible_job_id ] }}"
+
+- name: Save logs from finished task
+  ansible.builtin.lineinfile:
+    line: "{{ item.msg }} {{ item.stdout }} {{ item.stderr }}"
+    path: "{{ log_file }}"
+    insertafter: EOF
+    create: True
+  with_items: "{{ task_results.results }}"
+  loop_control:
+    label: "{{ item.finished }}"
+  when: (item.skipped is not defined or item.skipped is false) and item.finished
+  no_log: true
+
+- name: Fail playbook if a taks is timedout
+  ansible.builtin.fail:
+    msg: "Timeout reached for synchronously triggered ansible tasks"
+  loop: "{{ task_results.results }}"
+  when: item.msg is defined and item.msg == "Timeout exceeded"
+
+- name: Set the retry count
+  ansible.builtin.set_fact:
+    retries: "{{ 0 if retries is undefined else retries | int + 1 }}"
+- debug:
+    msg: "Recursion: {{ retries }}/{{ max_recursion_depth }}"
+- name: Fail playbook if retries exceeds the maximum
+  when: retries | int >= max_recursion_depth
+  ansible.builtin.fail:
+    msg: Maximum custom recursion depth reached -> Adjust max_recursion_depth in integration_tests.yaml
+
+- name: Get number of not finished ansible jobs
+  ansible.builtin.set_fact:
+    num_unfinished_tasks: "{{ new_ansible_job_ids | length }}"
+
+- name: Enter another recursion
+  when: num_unfinished_tasks | int > 0
+  block:
+  - name: Wait for some seconds.
+    ansible.builtin.command: "/usr/bin/sleep {{ sleep_between_recursions }}"
+  - name: Set ansible_job_ids to new list
+    ansible.builtin.set_fact:
+      ansible_job_ids: "{{ new_ansible_job_ids }}"
+  - name: Enter the recursion
+    ansible.builtin.include_tasks: "wait_for_tasks.yaml"
+  

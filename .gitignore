@@ -1,5 +1,6 @@
 node_modules
-build
+/build/
+/docs/build/
 venv
 security-reports/*.json
 security-reports/*/

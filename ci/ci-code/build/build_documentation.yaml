@@ -1,0 +1,64 @@
+---
+- name: Build documentation
+  hosts: localhost
+  
+  vars:
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+
+  tasks:
+    - name: install python user requirements
+      become: no
+      pip:
+        requirements: requirements.txt
+        state: present
+        extra_args: --user
+        executable: pip3
+      args:
+        chdir: "{{ kaapana_dir }}/docs"
+
+    - name: build documentation with sphinx
+      ignore_errors: true
+      register: build_doc_html
+      ansible.builtin.command:
+        cmd: make html
+      args:
+        chdir: "{{ kaapana_dir }}/docs"
+
+    # - name: build documentation with sphinx
+    #   ignore_errors: true
+    #   register: build_doc_pdf
+    #   ansible.builtin.command:
+    #     cmd: make pdf
+    #   args:
+    #     chdir: "{{ kaapana_dir }}/docs"
+
+    - name: save output of building documentation
+      ansible.builtin.copy:
+        content: "{{ build_doc_html.stdout }} {{ build_doc_html.stderr }}"
+        dest: "{{ artifacts_dir }}/build_documentation_html.log"
+    # - name: save output of building documentation
+    #   ansible.builtin.copy:
+    #     content: "{{ build_doc_pdf.stdout }} {{ build_doc_pdf.stderr }}"
+    #     dest: "{{ artifacts_dir }}/build_documentation_pdf.log"
+    
+    - name: Fail if build failed
+      when: build_doc_html.rc != 0
+      ansible.builtin.fail:
+        msg: "Building the documentation failed"
+    # - name: Fail if build failed
+    #   when: build_doc_html.rc != 0
+    #   ansible.builtin.fail:
+    #     msg: "Building the documentation failed"
+
+    - name: Check if ERROR in logs of building the html documentation -> build_html_error.changed = True if "ERROR" found in the file
+      register: build_html_error
+      check_mode: true
+      ansible.builtin.lineinfile:
+        path: "{{ artifacts_dir }}/build_documentation_html.log"
+        regexp: "ERROR"
+        state: absent
+    - name: Fail playbook if ERROR found in build output
+      ansible.builtin.fail:
+        msg: "ERROR in build_documentation_html.log"
+      when: build_html_error.changed

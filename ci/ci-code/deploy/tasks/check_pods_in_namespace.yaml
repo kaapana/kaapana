@@ -1,0 +1,27 @@
+---
+- name: Get all pods 
+  become: false
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: "{{ k8s_namespace }}"
+  register: pods
+
+- name: Assume all pods succeeded
+  ansible.builtin.set_fact:
+    all_pods_succeeded: true
+
+- name: Fail if a pod is in state Failed
+  ansible.builtin.set_fact:
+    all_pods_succeeded: false
+  loop: "{{ pods.resources }}"
+  loop_control:
+    label: "{{ item.metadata.name }}, {{ item.status.phase }}"
+  when: item.status.phase in ("Failed")
+
+- debug:
+    msg: "All pods in namespace {{ k8s_namespace }} succeeded: {{ all_pods_succeeded }}"
+
+- name: Fail CI job, if a pod exists, that failed
+  ansible.builtin.command: /usr/bin/false
+  when: all_pods_succeeded is false
+      

@@ -1,0 +1,103 @@
+---
+- name: launch a compute instance
+  hosts: localhost
+  gather_facts: false
+  remote_user: ubuntu
+  vars_prompt:
+    - name: os_password
+      prompt: "What is the openstack ci password?"
+      private: yes
+
+    - name: gitlab_registration_token
+      prompt: "Gitlab registration token?"
+      private: yes
+
+    - name: gitlab_api_token
+      prompt: "Gitlab api token?"
+      private: yes
+  vars_files:
+    - file_templates/setup_vars.yaml
+  
+  tasks:
+
+  - name: Use existing instance as CI-instance
+    when: ci_instance_ip is defined
+    block:
+      - name: Check ssh connection to instance
+        register: result
+        until: result.rc == 0
+        retries: 30
+        delay: 10
+        ansible.builtin.command: 
+          cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ ci_instance_ip  }} true"
+
+
+  - name: Use openstack instance as CI-instance
+    when: ci_instance_ip is not defined
+    environment:
+      OS_IDENTITY_API_VERSION: 2
+      OS_ENDPOINT_TYPE: publicURL
+      OS_TENANT_ID: "{{ os_tenant_id }}"
+    vars:
+      - os_action: present
+    block:
+      - name: launch an instance
+        ansible.builtin.import_tasks:
+          task_templates/manage_openstack.yaml
+      - name: Set ip-address corresponding to openstack instance
+        ansible.builtin.set_fact:
+          ci_instance_ip: "{{ openstack_result.openstack.accessIPv4 }}"
+
+  - debug:
+      msg: "{{ ci_instance_ip }}"
+
+
+  - name: Upload CI-settings in gitlab project
+    ansible.builtin.command: 
+      cmd: "python3 set_ci_variables.py {{ ci_settings_file }} --api-token {{ gitlab_api_token }} --project-id {{ gitlab_project_id }} --gitlab-host {{ gitlab_url }}"
+
+  - name: Add host of ci-server to the playbook
+    add_host: 
+      name: kaapana_ci_server
+      groups: kaapana_ci_servers
+      ansible_ssh_private_key_file: "{{ ssh_key_file }}"
+      ssh_key_file: "{{ ssh_key_file }}"
+      ansible_ssh_host: "{{ ci_instance_ip }}"
+      os_password: "{{ os_password }}"
+      gitlab_url: "{{ gitlab_url }}"
+      gitlab_registration_token: "{{ gitlab_registration_token }}"
+      gitlab_api_token: "{{ gitlab_api_token }}"
+      http_proxy: "{{ http_proxy }}"
+      https_proxy: "{{ https_proxy }}"
+
+
+- hosts: kaapana_ci_server
+  remote_user: ubuntu
+  become: no
+  environment:
+    http_proxy: "{{ hostvars['kaapana_ci_server']['http_proxy'] }}"
+    https_proxy: "{{ hostvars['kaapana_ci_server']['https_proxy'] }}"
+  vars:
+    ssh_key_file: "{{ hostvars['kaapana_ci_server']['ssh_key_file'] }}"
+    os_password: "{{ hostvars['kaapana_ci_server']['os_password'] }}"
+    gitlab_url: "{{ hostvars['kaapana_ci_server']['gitlab_url'] }}"
+    gitlab_registration_token: "{{ hostvars['kaapana_ci_server']['gitlab_registration_token'] }}"
+    gitlab_api_token: "{{ hostvars['kaapana_ci_server']['gitlab_api_token'] }}"
+    http_proxy: "{{ hostvars['kaapana_ci_server']['http_proxy'] }}"
+
+  tasks:
+  - name: Prepare instance 
+    ansible.builtin.import_tasks: prepare_instance_for_ci.yaml
+
+  - name: install docker
+    import_tasks: task_templates/apt_install_docker.yaml
+
+  - name: install helm
+    import_tasks: task_templates/snap_install_helm.yaml
+
+  - name: Start the gitlab-runner detached from the shell
+    become: no
+    ansible.builtin.shell:
+      cmd: nohup gitlab-runner run </dev/null >/dev/null 2>&1 &
+  
+

@@ -1,0 +1,58 @@
+- hosts: "{{ ansible_groupname | default('kaapana_depl_server') }}"
+  gather_facts: true
+  become: no
+  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANE_USER') }}"
+  
+  tasks:
+  - name: Install required system packages
+    become: yes
+    ansible.builtin.apt: name={{ item }} state=latest update_cache=yes
+    loop:
+      [
+        "python3-pip"
+      ]
+
+  - name: install python user requirements
+    become: no
+    ansible.builtin.pip:
+      name:
+        - kubernetes==25.3.0
+      state: present
+      extra_args: --user
+      executable: pip3
+
+  - debug: 
+      msg: "Wait for deployments"
+  - name: namespace admin
+    vars:
+      k8s_namespace: "admin"
+      retry_count: 0
+    ansible.builtin.import_tasks: tasks/wait_for_deployments.yaml
+  - name: namespace services
+    vars:
+      k8s_namespace: "services"
+      retry_count: 0
+    ansible.builtin.import_tasks: tasks/wait_for_deployments.yaml
+  - name: namespace jobs
+    vars:
+      k8s_namespace: "jobs"
+      retry_count: 0
+    ansible.builtin.import_tasks: tasks/wait_for_deployments.yaml
+
+  - debug: 
+      msg: "Wait for jobs"
+  - name: namespace admin
+    vars:
+      k8s_namespace: "admin"
+      retry_count: 0
+    ansible.builtin.import_tasks: tasks/wait_for_jobs.yaml
+  - name: namespace services
+    vars:
+      k8s_namespace: "services"
+      retry_count: 0
+    ansible.builtin.import_tasks: tasks/wait_for_jobs.yaml
+  - name: namespace jobs
+    vars:
+      k8s_namespace: "jobs"
+      retry_count: 0
+    ansible.builtin.import_tasks: tasks/wait_for_jobs.yaml

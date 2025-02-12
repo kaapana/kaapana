@@ -1,0 +1,128 @@
+---
+- name: Prepare deployment instance
+  hosts: localhost
+  gather_facts: true
+  vars: 
+    repo_dir: "{{ lookup('ansible.builtin.env', 'REPO_DIR') }}"
+    deployment_instance_name: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_NAME') | map('trim') | join('') }}"
+    deployment_instance_ip: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_IP') }}"
+    deployment_instance_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+    os_create: "{{ lookup('ansible.builtin.env', 'OS_CREATE') }}"
+    os_delete: "{{ lookup('ansible.builtin.env', 'OS_DELETE') }}"
+    ci_project_dir: "{{ lookup('ansible.builtin.env', 'CI_PROJECT_DIR') }}"
+    ssh_key_file: "{{ lookup('ansible.builtin.env', 'SSH_FILE') }}"
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+  tasks:
+
+  - name: Fail playbook when OS_CREATE is not true and DEPLOYMENT_INSTANCE_IP is none
+    when: deployment_instance_ip | lower == "none" and os_create | lower != "true"
+    block:
+      - debug:
+          msg: You must set OS_CREATE==true or DEPLOYMENT_INSTANCE_IP to the ip of an existing instance
+      - name: Fail playbook because OS_CREATE is not true and DEPLOYMENT_INSTANCE_IP is none
+        ansible.builtin.command: /bin/false
+
+  - name: Delete openstack Instance
+    when: os_delete | lower == "true"
+    vars:
+      os_username: "{{ lookup('ansible.builtin.env', 'OS_USERNAME') }}"
+      os_project_name: "{{ lookup('ansible.builtin.env', 'OS_PROJECT_NAME') }}"
+      os_instance_name: "{{ deployment_instance_name }}"
+      os_auth_url: "{{ lookup('ansible.builtin.env', 'OS_AUTH_URL') }}"
+      os_tenant_id: "{{ lookup('ansible.builtin.env', 'OS_TENANT_ID') }}"  
+    block:
+    - name: 
+      become: yes
+      ansible.builtin.slurp:
+        src: "{{ ansible_env.HOME }}/.os_password"
+      register: result_slurp
+      no_log: true
+    - name: delete instance
+      no_log: true
+      vars:
+        os_action: absent
+        os_password: "{{ result_slurp.content | b64decode | regex_replace('[\\r\\n\\t]+','') }}"
+      ansible.builtin.import_tasks: "{{ repo_dir }}/setup_playbooks/task_templates/manage_openstack.yaml"
+
+  - name: Create a new openstack instance
+    when: os_create | lower == "true"
+    block: 
+    - name: 
+      become: yes
+      register: result_slurp
+      no_log: true
+      ansible.builtin.slurp:
+        src: "{{ ansible_env.HOME }}/.os_password"
+    - name: Set facts required to create a new openstack instance
+      no_log: true
+      ansible.builtin.set_fact:
+        os_action: present
+        os_username: "{{ lookup('ansible.builtin.env', 'OS_USERNAME') }}"
+        os_password: "{{ result_slurp.content | b64decode | regex_replace('[\\r\\n\\t]+','') }}"
+        os_tenant_id: "{{ lookup('ansible.builtin.env', 'OS_TENANT_ID') }}"
+        os_auth_url: "{{ lookup('ansible.builtin.env', 'OS_AUTH_URL') }}"
+        os_project_name: "{{ lookup('ansible.builtin.env', 'OS_PROJECT_NAME') }}"
+        os_instance_name: "{{ deployment_instance_name }}"
+        os_instance_image: "{{ lookup('ansible.builtin.env', 'OS_IMAGE') }}"
+        os_instance_flavor: "{{ lookup('ansible.builtin.env', 'OS_INSTANCE_FLAVOR') }}"
+        os_instance_floating_ip_pool: "{{ lookup('ansible.builtin.env', 'OS_FLOATING_IP_POOLS') }}"
+        os_instance_volume_size: "{{ lookup('ansible.builtin.env', 'OS_INSTANCE_VOLUME_SIZE') }}"
+        os_key_name: "{{ lookup('ansible.builtin.env', 'OS_KEY_NAME') }}"
+    - name: create instance
+      ansible.builtin.import_tasks: "{{ repo_dir }}/setup_playbooks/task_templates/manage_openstack.yaml"
+    - name: Set ip address for the next task
+      set_fact: 
+        ip_address: "{{ openstack_result.openstack.accessIPv4 }}"
+
+  - name: Use an existing instance with the ip address specified as DEPLOYMENT_INSTANCE_IP
+    when: deployment_instance_ip | lower != "none" and deployment_instance_ip | lower != ""
+    block:
+    - name: Set the ip address for future tasks
+      ansible.builtin.set_fact:
+        ip_address: "{{ deployment_instance_ip }}"
+    - name: Remove keys belonging to the deployment server
+      when: deployment_instance_ip | lower != "localhost"
+      ansible.builtin.command: 
+        cmd: ssh-keygen -R {{ ip_address }}
+        removes: "{{ ansible_env.HOME }}/.ssh/known_hosts"
+    - name: Wait for SSH on the Instance
+      when: deployment_instance_ip | lower != "localhost"
+      register: ssh_result
+      until: ssh_result.rc == 0
+      retries: 30
+      delay: 10
+      ansible.builtin.command: 
+        cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} {{ deployment_instance_user }}@{{ ip_address }} true"
+
+  - name: Save ip_address to prepare.env
+    ansible.builtin.lineinfile:
+      create: yes
+      path: "{{ ci_project_dir }}/prepare.env"
+      line: "ip_address={{ ip_address }}"
+
+  - name: Define new group in ansible inventory
+    when: deployment_instance_ip | lower != "localhost"
+    block:
+    - name: Check if deployment_instance_name already used in inventory file
+      become: yes
+      ansible.builtin.lineinfile:
+        path: /etc/ansible/hosts
+        search_string: "[{{ deployment_instance_name }}]"
+        state: absent
+      check_mode: yes
+      register: ansible_inventory
+    - name: Add server to inventory file if deployment_instance_name does not exist in the inventory
+      become: yes
+      when: not ansible_inventory.changed
+      ansible.builtin.lineinfile:
+        path: /etc/ansible/hosts
+        line: "[{{ deployment_instance_name }}]\n{{ ip_address }} ansible_become_password=\"\" ansible_private_key_file={{ ssh_key_file }}"
+        create: yes
+    - name: Change server address if deployment_instance_name does already exist
+      become: yes
+      when: ansible_inventory.changed
+      ansible.builtin.replace:
+        path: /etc/ansible/hosts
+        replace: "[{{ deployment_instance_name }}]\n{{ ip_address }} ansible_become_password=\"\" ansible_private_key_file={{ ssh_key_file }}"
+        regexp: '^\[{{ deployment_instance_name }}\]\s*\n[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}.*'

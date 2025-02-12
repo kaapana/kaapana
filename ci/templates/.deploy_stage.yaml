@@ -1,0 +1,98 @@
+default:
+  tags:
+    - shell
+    - ci
+    - kaapana
+  interruptible: true
+
+stages:
+  - deploy
+  - wait
+  - check
+  - test
+
+workflow:
+  rules:
+    - when: always
+
+platform_deployment:
+  stage: deploy
+  script:
+    - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+    - ansible-playbook $REPO_DIR/ci-code/deploy/wait_for_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+    - ansible-playbook $REPO_DIR/ci-code/deploy/check_pods.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+  artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
+    reports:
+      dotenv: prepare.env
+  retry: 1
+
+#############################################
+############## TESTS ########################
+#############################################
+first_login:
+  stage: test
+  script:
+    - ansible-playbook $REPO_DIR/ci-code/test/get_client_secret.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+    - ansible-playbook $REPO_DIR/ci-code/test/jobs/ui_tests/first_login.yaml
+  artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
+    reports:
+      dotenv: prepare.env
+  rules:
+    - if: $TEST_STAGE == "true"
+      when: on_success
+    - when: never
+
+send_testdata:
+  stage: test
+  script: ansible-playbook $REPO_DIR/ci-code/test/jobs/testdata/prepare_data.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+  needs:
+    - first_login
+  allow_failure: false
+  rules:
+    - if: $TEST_STAGE == "true"
+      when: on_success
+    - when: never
+
+install_extensions:
+  stage: test
+  script:
+    - cd $REPO_DIR/ci-code/test/src
+    - python3 install_extensions.py --host $ip_address --install-all --log-file $ARTIFACTS_DIR/install_extensions.log --timeout 600
+  needs:
+    - first_login
+  allow_failure: false
+  rules:
+    - if: $TEST_STAGE == "true"
+      when: on_success
+    - when: never
+
+download_models:
+  stage: test
+  script:
+    - ansible-playbook ${REPO_DIR}/ci-code/test/jobs/integration_tests/download_models.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+  allow_failure: true
+  rules:
+    # - if: $TEST_STAGE == "true"
+    #   when: on_success
+    - when: never
+
+integration_tests:
+  stage: test
+  script:
+    - ansible-playbook $REPO_DIR/ci-code/test/jobs/integration_tests/integration_tests.yaml
+  needs:
+    - first_login
+    - send_testdata
+    - install_extensions
+    # - download_models
+  allow_failure: true
+  rules:
+    - if: $TEST_STAGE == "true"
+      when: on_success
+    - when: never
+
+port_scan:
+  stage: test
+  script: python3 $REPO_DIR/ci-code/test/src/scan_ports.py
+  variables:
+    ALLOWED_PORTS: "22,80,443"

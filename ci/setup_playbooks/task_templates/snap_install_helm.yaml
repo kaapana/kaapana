@@ -1,0 +1,28 @@
+---
+- name: tasks info
+  debug:
+    msg: "INSTALL HELM"
+
+- name: Install Helm
+  become: yes
+  snap:
+    classic: yes
+    channel: 3.7/stable
+    name:
+      - helm
+
+# - name: install helm push
+#   become: no
+#   command: /snap/bin/helm plugin install https://github.com/chartmuseum/helm-push
+#   ignore_errors: yes
+
+- name: Check helm push installed
+  become: no
+  command: /snap/bin/helm push --help
+  ignore_errors: no
+
+- name: install helm kubeval
+  become: no
+  command: /snap/bin/helm plugin install https://github.com/instrumenta/helm-kubeval
+  ignore_errors: yes
+  

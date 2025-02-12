@@ -1,0 +1,61 @@
+- name: Running kaapana tests
+  hosts: localhost
+  vars:
+    ### (max_recursion_depth * sleep_between_recursions) should match the async timeout in task "Start workflow tests asynchronously"
+    max_recursion_depth: 180 ### Maximum number of recursive calls of wait_for_tasks.yaml
+    sleep_between_recursions: 20 ### Time to wait before starting the next recursion of wait_for_tasks.yaml 
+    repo_dir: "{{ lookup('ansible.builtin.env', 'REPO_DIR') }}"
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    ip_address: "{{ lookup('ansible.builtin.env', 'ip_address') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+    testcase_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}/data-processing"
+
+  tasks:
+  - name: set log file
+    ansible.builtin.set_fact:
+      log_file: "{{ artifacts_dir }}/integration_tests.log"
+
+  - name: Find ci-config files in build repository
+    ansible.builtin.command:
+      cmd: find -regex ".*ci-config/.*\.yaml"
+    args:
+      chdir: "{{ testcase_dir }}"
+    register: ci_configs
+
+  - name: Start workflow tests asynchronously
+    ansible.builtin.command:
+      cmd: "python3 integration_tests.py --files {{ testcase_dir }}/{{ item }} --host {{ ip_address }}"
+    register: testcases
+    args:
+      chdir: "{{ repo_dir }}/ci-code/test/src/"
+    ignore_errors: true
+    loop: "{{ ci_configs.stdout_lines }}"
+    loop_control:
+      label: "{{ item }}"
+    async: 3600 ### Jobs will time out after this amount of seconds
+    poll: 0
+
+  - name: Remove test file if already existing
+    ansible.builtin.file:
+      path: "{{ log_file }}"
+      state: absent
+
+  - name:
+    loop: "{{ testcases.results }}"
+    ansible.builtin.set_fact:
+      ansible_job_ids: "{{ ansible_job_ids | default([]) + [ item.ansible_job_id ] }}"
+
+  - name: Wait for all tasks to finish or timeout
+    ansible.builtin.include_tasks: wait_for_tasks.yaml
+
+  - name: Check if log file contains FAILED testcases
+    register: logs
+    ignore_errors: true
+    ansible.builtin.command:
+      cmd: 'grep -e "^FAIL" {{ log_file }}'
+
+
+  - name: Fail playbook if testcase failed
+    when: logs.stdout_lines | length > 0
+    ansible.builtin.fail:
+      msg: "{{ logs.stdout_lines }}"

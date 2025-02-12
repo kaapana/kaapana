@@ -1,0 +1,159 @@
+- hosts: "{{ ansible_groupname | default('kaapana_depl_server') }}"
+  gather_facts: true
+  become: no
+  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
+  environment:
+    http_proxy: "{{ lookup('ansible.builtin.env', 'HTTP_PROXY') }}"
+    https_proxy: "{{ lookup('ansible.builtin.env', 'HTTPS_PROXY') }}"
+  vars:
+    registry_user: "{{ lookup('ansible.builtin.env', 'REGISTRY_USER') }}"
+    registry_token: "{{ lookup('ansible.builtin.env', 'REGISTRY_TOKEN') }}"
+    artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
+    kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
+    ip_address: "{{ lookup('ansible.builtin.env', 'ip_address') }}"
+
+  tasks:
+  - name: Search for deployment script in KAAPANA_DIR
+    ansible.builtin.command:
+      cmd: find -name deploy_platform.sh
+      chdir: "{{ kaapana_dir }}/build"
+    register: find_deploy_script
+    delegate_to: 127.0.0.1
+
+  - name: concatenate KAAPANA_DIR and relative path to deploy_platform.sh
+    set_fact:
+      deployment_script: "{{ kaapana_dir }}/build/{{ find_deploy_script.stdout }}"
+
+  - name: Copy deployment script to deployment server
+    template:
+      src: "{{ deployment_script }}"
+      dest: "{{ ansible_env.HOME }}/deploy_platform.sh"
+      mode: "+x"
+
+  - name: Increase maximum number of fs.inotify watchers
+    ansible.builtin.command:
+      cmd: sysctl -w fs.inotify.max_user_watches=100000
+    become: true
+
+  - name: Increase maximum number of fs.inotify instances
+    ansible.builtin.command:
+      cmd: sysctl -w fs.inotify.max_user_instances=100000
+    become: true
+
+  - name: Check that microk8s status
+    ansible.builtin.command: microk8s status
+    register: microk8s_status
+    until: microk8s_status.stdout.find("microk8s is running") != -1
+    retries: 60
+    delay: 5
+
+  - name: Check that microk8s api is available
+    ansible.builtin.command: curl --insecure --fail https://127.0.0.1:16443/livez?verbose
+    register: kube_api_health_check
+    until: kube_api_health_check.rc == 0
+    retries: 60
+    delay: 5
+
+  - debug:
+      msg: "{{ kube_api_health_check }}"
+    when: kube_api_health_check.rc != 0
+
+  - name: Check that microk8s api is available
+    ansible.builtin.command: curl --insecure --fail https://127.0.0.1:16443/readyz?verbose
+    register: kube_api_ready
+    until: kube_api_ready.rc == 0
+    retries: 60
+    delay: 5
+
+  - debug:
+      msg: "{{ kube_api_ready }}"
+    when: kube_api_ready.rc != 0
+
+  - name: Check that microk8s api is available
+    ansible.builtin.command: curl --insecure --fail https://127.0.0.1:16443/version
+    register: kube_version
+    until: kube_version.rc == 0
+    retries: 60
+    delay: 5
+
+  - debug:
+      msg: "{{ kube_version }}"
+    when: kube_version.rc != 0
+
+  - name: Check helm can access kubernetes
+    ansible.builtin.command: helm ls -a -A
+    register: helm
+    until: helm.rc == 0
+    retries: 60
+    delay: 5
+
+  - debug:
+      msg: "{{ helm }}"
+    when: helm.rc != 0
+
+  - name: Copy deployment script to ci-server artifacts directory
+    become: yes
+    ansible.builtin.copy:
+      src: "{{ deployment_script }}"
+      dest: "{{ artifacts_dir }}/"
+    delegate_to: 127.0.0.1
+
+
+  - name: Undeploy current platform
+    block:
+    - name: Run platform deployment script to undeploy the platform
+      become: no
+      environment:
+        TERM: xterm
+      ansible.builtin.command:
+        cmd: ./deploy_platform.sh --quiet --no-hooks
+        chdir: "{{ ansible_env.HOME }}/"
+      register: undeploy_result
+      ignore_errors: yes
+    - name: Copy STDOUT from undeployment script to ci-server
+      become: yes
+      ansible.builtin.copy:
+        content: "{{ undeploy_result.stdout }} {{ undeploy_result.stderr }}"
+        dest: "{{ artifacts_dir }}/undeploy.log"
+      delegate_to: 127.0.0.1
+    - name: Fail playbook and job if undeployment failed
+      ansible.builtin.command: /bin/false
+      when: undeploy_result.rc != 0
+
+  - name: Delete kaapana file system
+    vars:
+      fast_data_dir: "/home/kaapana/"
+      slow_data_dir: "/home/kaapana/"
+    become: yes
+    file:
+      path: "{{ item }}"
+      state: absent
+    loop:
+    - "{{ fast_data_dir }}"
+    - "{{ slow_data_dir }}"
+
+  - name: RESULT
+    debug:
+      msg: "PURGED FILESYSTEM SUCCESSFULLY"
+
+  - name: Deploy the platform
+    block:
+    - name: Run platform deployment script
+      register: deploy_result
+      ignore_errors: yes
+      no_log: true
+      become: no
+      environment:
+        TERM: xterm
+      ansible.builtin.command:
+        cmd: ./deploy_platform.sh --quiet --username {{ registry_user }} --password {{ registry_token }} --domain {{ ip_address }}
+        chdir: "{{ ansible_env.HOME }}/"
+    - name: Copy STDOUT from deployment script to ci-server
+      become: yes
+      ansible.builtin.copy:
+        content: "{{ deploy_result.stdout }} {{ deploy_result.stderr }}"
+        dest: "{{ artifacts_dir }}/deployment.log"
+      delegate_to: 127.0.0.1
+    - name: Fail playbook and job if deployment failed
+      ansible.builtin.command: /bin/false
+      when: deploy_result.rc != 0

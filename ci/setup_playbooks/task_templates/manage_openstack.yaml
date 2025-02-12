@@ -1,0 +1,164 @@
+---
+- name: Set variables
+  no_log: true
+  ansible.builtin.set_fact:
+    os_action: "{{ os_action | default(lookup('ansible.builtin.env', 'os_action')) }}"
+    os_auth_url: "{{ os_auth_url | default(lookup('ansible.builtin.env', 'os_auth_url')) }}"
+    os_username: "{{ os_username | default(lookup('ansible.builtin.env', 'os_username')) }}"
+    os_password: "{{ os_password | default(lookup('ansible.builtin.env', 'os_password')) }}"
+    os_project_name: "{{ os_project_name | default(lookup('ansible.builtin.env', 'os_project_name')) }}"
+    os_tenant_id: "{{ os_tenant_id | default(lookup('ansible.builtin.env', 'os_tenant_id')) }}"
+    os_key_name: "{{ os_key_name | default(lookup('ansible.builtin.env', 'os_key_name')) }}"
+    os_instance_name: "{{ os_instance_name | default(lookup('ansible.builtin.env', 'os_instance_name')) }}"
+    os_instance_image: "{{ os_instance_image | default(lookup('ansible.builtin.env', 'os_instance_image')) }}"
+    os_instance_volume_size: "{{ os_instance_volume_size | default(lookup('ansible.builtin.env', 'os_instance_volume_size')) }}"
+    os_instance_flavor: "{{ os_instance_flavor | default(lookup('ansible.builtin.env', 'os_instance_flavor')) }}"
+    os_instance_floating_ip_pool: "{{ os_instance_floating_ip_pool | default(lookup('ansible.builtin.env', 'os_instance_floating_ip_pool')) }}"
+    ssh_key_file: "{{ ssh_key_file | default(lookup('ansible.builtin.env', 'ssh_key_file')) }}"
+
+
+- name: Check that an openstack password is specified
+  when: os_password is not defined or os_password == ""
+  no_log: true
+  block:
+    - debug:
+        msg: "No openstack password specified!"
+    - name: Fail the task
+      ansible.builtin.command:
+        cmd: /bin/false
+
+- name: Check that all variables are defined
+  ansible.builtin.command:
+    cmd: /bin/false
+  loop:
+    - "{{ os_action }}"
+    - "{{ os_auth_url }}"
+    - "{{ os_username }}"
+    - "{{ os_project_name }}"
+    - "{{ os_tenant_id }}"
+  when: item is not defined or item == ""
+
+- name: Create keypair on an openstack platform
+  when: os_action == "key-pair"
+  environment:
+    OS_IDENTITY_API_VERSION: 2
+    OS_ENDPOINT_TYPE: publicURL
+    OS_TENANT_ID: "{{ os_tenant_id }}"
+  block:
+    - name: Check that all variables are defined
+      ansible.builtin.command:
+        cmd: /bin/false
+      loop:
+        - "{{ os_key_name }}"
+        - "{{ ssh_key_file }}"
+      when: item is not defined or item == ""
+    - name: Create key-pair
+      openstack.cloud.keypair:
+        auth:
+          auth_url: "{{ os_auth_url }}" 
+          username: "{{ os_username }}"
+          password: "{{ os_password }}"
+          user_domain_name: "AD"
+          project_name: "{{ os_project_name }}"
+        state: present
+        name: "{{ os_key_name }}"
+        public_key_file: "{{ ssh_key_file }}"
+
+
+- name: Delete instance by instance name if it exists
+  when: os_action == "absent"
+  environment:
+    OS_IDENTITY_API_VERSION: 2
+    OS_ENDPOINT_TYPE: publicURL
+    OS_TENANT_ID: "{{ os_tenant_id }}"
+  block:
+    - name: check if instance exists
+      register: instance_info
+      openstack.cloud.server_info:
+        auth:
+          auth_url: "{{ os_auth_url }}"
+          username: "{{ os_username }}"
+          password: "{{ os_password }}"
+          user_domain_name: "AD"
+          project_name: "{{ os_project_name }}"
+        server: "{{ os_instance_name }}"
+        api_timeout: 120
+    - name: delete the instance
+      when: instance_info.openstack_servers | length > 0
+      register: del_instance
+      openstack.cloud.server:
+        state: absent
+        auth:
+          auth_url: "{{ os_auth_url }}"
+          username: "{{ os_username }}"
+          password: "{{ os_password }}"
+          user_domain_name: "AD"
+          project_name: "{{ os_project_name }}"
+        name: "{{ os_instance_name }}"
+        timeout: 120
+    - name: if instance deleted
+      when: instance_info.openstack_servers | length != 0
+      debug:
+        msg: "INSTANCE DELETED SUCCESSFULLY"
+    - name: if instance not found
+      when: instance_info.openstack_servers | length == 0
+      debug: 
+        msg: "Instance not found!"
+      
+
+- name: Launch an instance
+  when: os_action == "present"
+  environment:
+    OS_IDENTITY_API_VERSION: 2
+    OS_ENDPOINT_TYPE: publicURL
+    OS_TENANT_ID: "{{ os_tenant_id }}"
+  block: 
+    - name: Check that all variables are defined
+      when: item is not defined or item == ""
+      ansible.builtin.command:
+        cmd: /bin/false
+      loop:
+        - "{{ os_key_name }}"
+        - "{{ os_instance_name }}"
+        - "{{ os_instance_image }}"
+        - "{{ os_instance_volume_size }}"
+        - "{{ os_instance_flavor }}"
+        - "{{ os_instance_floating_ip_pool }}"
+        - "{{ ssh_key_file }}"
+    - name: Launch a new instance
+      register: openstack_result
+      openstack.cloud.server:
+        state: present
+        auth:
+          auth_url: "{{ os_auth_url }}"
+          username: "{{ os_username }}"
+          password: "{{ os_password }}"
+          user_domain_name: "AD"
+          project_name: "{{ os_project_name}}"
+        name: "{{ os_instance_name }}"
+        key_name: "{{ os_key_name }}"
+        image: "{{ os_instance_image }}"
+        volume_size: "{{ os_instance_volume_size }}"
+        flavor: "{{ os_instance_flavor }}"
+        region_name: regionOne
+        terminate_volume: True
+        boot_from_volume: True
+        security_groups: default
+        floating_ip_pools:
+          - "{{ os_instance_floating_ip_pool }}"
+        wait: yes
+        timeout: 300
+        meta:
+          hostname: openstack_result.localdomain
+    - name: Reset ssh key for ip address
+      ignore_errors: yes
+      ansible.builtin.command: 
+        cmd: "ssh-keygen -R {{ openstack_result.openstack.accessIPv4 }}"   
+    - name: Wait for SSH on the Instance
+      register: result
+      until: result.rc == 0
+      retries: 30
+      delay: 10
+      ansible.builtin.command: 
+        cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ openstack_result.openstack.accessIPv4 }} true"
+      

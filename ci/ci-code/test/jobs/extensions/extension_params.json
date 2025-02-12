@@ -1,0 +1,20 @@
+{
+    "minio-sync-chart": {
+            "host_directory": "/extensions",
+            "minio_path": "uploads/minio-sync",
+            "sync_strategy": "Bidirectional",
+            "uid": "1000",
+            "gid": "1000"
+    },
+    "custom-registry-chart": {
+            "custom_registry_name": "test",
+            "custom_registry_url": "myregistry/test",
+            "credentials_custom_registry_username": "test-uname",
+            "credentials_custom_registry_password": "test-pwd",
+            "test_pull_image": "-"
+    },
+    "mitk-workbench-chart": {
+        "service_type": "ClusterIP",
+        "gpu_container": false
+    }
+}

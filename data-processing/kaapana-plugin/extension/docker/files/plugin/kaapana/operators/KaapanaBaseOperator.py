@@ -477,8 +477,11 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             {"WORKSPACE": "/kaapana", **self.env_vars}.items()
         ):
             if k.lower() in form_data:
+                ### Values in form_data are converted with str() before storing them in self.env_vars
+                ### In order to load them with json.loads later, we use the original value and convert it to a stringified json.
                 v = json.dumps(form_data[k.lower()])
             try:
+                ### Json objects should be send as json-object, not stringified json. Especially needed, when environment variables represent lists, e.g. RUNNER_INSTANCES=["<ip-address>"]
                 json_decoded_value = json.loads(v)
             except json.decoder.JSONDecodeError as e:
                 json_decoded_value = v

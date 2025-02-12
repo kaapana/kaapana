@@ -1,9 +1,15 @@
 ---
-apiVersion: v1
-appVersion: "0.1.0"
-description: thresholding segmentation workflow for Otsus method
+apiVersion: v2
+description: Example Workflow Extension that does thresholding using Otsu's Method
+deprecated: False
+appVersion: "0.4.0"
 name: otsus-method-workflow
 version: "0.0.0"
+type: application
 keywords:
 - kaapanaworkflow
 - kaapanaexperimental
+maintainers:
+  - name: Kaapana Team
+    email: kaapana-dev@dkfz-heidelberg.de
+    url: https://www.kaapana.ai

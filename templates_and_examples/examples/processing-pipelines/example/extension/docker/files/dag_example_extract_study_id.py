@@ -3,8 +3,8 @@ from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
 
-from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
-from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from example.ExtractStudyIdOperator import ExtractStudyIdOperator
 
@@ -40,11 +40,11 @@ dag = DAG(
 )
 
 
-get_input = LocalGetInputDataOperator(dag=dag)
+get_input = GetInputOperator(dag=dag)
 extract = ExtractStudyIdOperator(
-    dag=dag, input_operator=get_input, dev_server="code-server"
+    dag=dag, input_operator=get_input
 )
-put_to_minio = LocalMinioOperator(dag=dag, action="put", action_operators=[extract])
+put_to_minio = MinioOperator(dag=dag, action="put", batch_input_operators=[extract])
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> extract >> put_to_minio >> clean

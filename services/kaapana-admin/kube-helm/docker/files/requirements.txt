@@ -5,7 +5,7 @@ gunicorn==23.0.0
 Jinja2==3.1.4
 python-dotenv==1.0.1
 uvicorn==0.32.0
-python-multipart==0.0.17
+python-multipart==0.0.20
 pydantic-settings==2.6.1
 PyYAML==6.0.2
 prometheus-fastapi-instrumentator==7.0.0

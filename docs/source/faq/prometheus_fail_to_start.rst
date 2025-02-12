@@ -1,7 +1,7 @@
 Prometheus Metrics Are Not Displayed
 *************************************
 
-Sometime the Home Page does not show any metrics, indicating that Prometheus might not be running properly. This issue often occurs because Prometheus fails to start due to the presence of a lock file.
+Sometimes the Home Page does not show any metrics, indicating that Prometheus might not be running properly. This issue often occurs because Prometheus fails to start due to the presence of a lock file.
 
 .. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/homepage_prometheus_lock.png
    :alt: Screenshot of Kaapana homepage with Prometheus metrics not working.
@@ -14,7 +14,7 @@ To resolve this issue, follow these steps:
 
    .. code-block:: bash
 
-      kubectl exec -n kaapana -it <prometheus-pod-name> -- rm -f /prometheus/lock
+      kubectl exec -n services -it <prometheus-pod-name> -- rm -f /prometheus/lock
 
 2. **Restart or delete the Prometheus pod**  
 
@@ -22,7 +22,7 @@ To resolve this issue, follow these steps:
 
    .. code-block:: bash
 
-      kubectl delete pod -n kaapana <prometheus-pod-name>
+      kubectl delete pod -n services <prometheus-pod-name>
 
 **Verification:**  
 - After the pod restarts, refresh the Home Page and check if the metrics are displayed.  
@@ -30,5 +30,5 @@ To resolve this issue, follow these steps:
 
   .. code-block:: bash
 
-     kubectl logs -n kaapana <prometheus-pod-name>
+     kubectl logs -n services <prometheus-pod-name>
 

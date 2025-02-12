@@ -1,21 +1,23 @@
 import json
 import re
+from typing import List
 
 
-from app.crud import get_all_datasources
-from app.database import get_session
 from app.logger import get_logger
 from app.proxy_request import proxy_request
 from app.utils import dicom_web_filter_url
+
 from fastapi import Request, Response
 from fastapi.concurrency import iterate_in_threadpool
 from fastapi.datastructures import URL
 from fastapi.responses import StreamingResponse
 from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
+from kaapanapy.helper import get_opensearch_client
 from starlette.middleware.base import BaseHTTPMiddleware
 
+import logging
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, level=logging.DEBUG)
 
 
 class ProxyMiddleware(BaseHTTPMiddleware):
@@ -31,7 +33,7 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         Returns:
             Response: The HTTP response after handling the request.
         """
-        # Triggered by LocalExternalPACSOperator on first import of external dags (So it does not include any local dicom-web-filter results.)
+        # Triggered by LocalExternalPACSOperator on first import of external PACS (So it does not include any local dicom-web-filter results.)
         if "X-Endpoint-URL" in request.headers:
             request.state.endpoint = request.headers["X-Endpoint-URL"]
             return await call_next(request)
@@ -40,28 +42,17 @@ class ProxyMiddleware(BaseHTTPMiddleware):
         if "management" in request.url.path:
             return await call_next(request)
 
-        # dicom-web-filter project paths ("projects" is also used by delete so we use "data")
-        if "data" in request.url.path:
+        # docs or dicom-web-filter project paths ("projects" is also used by delete so we use "data")
+        if "docs" in request.url.path or "data" in request.url.path:
             return await proxy_dicom_web_filter(request=request)
 
         # Determine endpoint based on Series UID or proxy request to DICOM Web Filter
         series_uid = get_series_uid_from_request(request)
-
-        # Only check opensearch_index of a current project
-        if "project" in request.headers.keys():
-            project_index = json.loads(request.headers.get("project"))[
-                "opensearch_index"
-            ]
-        else:
-            project_index = request.headers.get("project_index")
-        logger.debug(f"Project index: {project_index}")
         access_token = request.headers["x-forwarded-access-token"]
 
         if series_uid:
             logger.debug(f"Request has series_uid: {series_uid}")
-            endpoint = get_endpoint_from_opensearch(
-                series_uid, access_token, project_index
-            )
+            endpoint = get_endpoint_from_opensearch(series_uid, access_token)
 
             if endpoint:
                 logger.debug(f"Data Source endpoint: {endpoint}")
@@ -72,18 +63,20 @@ class ProxyMiddleware(BaseHTTPMiddleware):
                 f"No data source endpoint found in OpenSearch, request dicom-web-filter"
             )
             return await proxy_dicom_web_filter(request=request)
+        else:
+            logger.debug(
+                "No Series UID -> requests all PACS found in meta, merging external and local PACS responses"
+            )
+            endpoints = get_unique_dcmweb_endpoints(access_token=access_token)
+            logger.debug(f"Found endpoints: {endpoints}")
 
-        logger.debug(
-            "No Series UID -> requests all project related PACS, merging external and local PACS responses"
-        )
-
-        dicom_web_filter_result = await proxy_dicom_web_filter(request=request)
-        dicom_web_multiplexer_result = await dicom_web_multiplexer_responses(
-            project_index, request, call_next
-        )
-        return await decide_response(
-            dicom_web_filter_result, dicom_web_multiplexer_result
-        )
+            dicom_web_filter_result = await proxy_dicom_web_filter(request=request)
+            dicom_web_multiplexer_result = await dicom_web_multiplexer_responses(
+                endpoints, request, call_next
+            )
+            return await decide_response(
+                dicom_web_filter_result, dicom_web_multiplexer_result
+            )
 
 
 def get_study_uid_from_request(request: URL) -> str | None:
@@ -114,30 +107,57 @@ def get_series_uid_from_request(request: URL) -> str | None:
     return match.group(1) if match else None
 
 
-def get_endpoint_from_opensearch(
-    series_uid: str, access_token: str, project_index: str
-) -> str:
+def get_endpoint_from_opensearch(series_uid: str, access_token: str) -> str:
     """
     Queries OpenSearch to find the DICOM Web endpoint for a given Series UID.
 
     Args:
         series_uid (str): The Series UID to search for.
         access_token (str): The access token for authentication.
-        project_index (str): The OpenSearch project index.
 
     Returns:
         Optional[str]: The DICOM Web endpoint if found, else None.
     """
     query = {"bool": {"must": [{"term": {DicomTags.series_uid_tag: series_uid}}]}}
-    os_helper = HelperOpensearch(access_token)
+    os_helper = HelperOpensearch(access_token=access_token)
+    # No index specified, querying across all accessible indices
     result = os_helper.get_query_dataset(
         query=query,
-        index=project_index,
         include_custom_tag=DicomTags.dcmweb_endpoint_tag,
     )
     if not result:
         return None
     return result[0]["_source"].get(DicomTags.dcmweb_endpoint_tag)
+
+
+def get_unique_dcmweb_endpoints(access_token: str) -> List[str]:
+    os_client = get_opensearch_client(access_token=access_token)
+    # Define the aggregation query for unique DICOMweb endpoints
+
+    query = {
+        "size": 0,  # No document hits, only aggregations
+        "aggs": {
+            "unique_dcmweb_endpoints": {
+                "terms": {
+                    "field": f"{DicomTags.dcmweb_endpoint_tag}.keyword",  # Aggregate on the endpoint tag
+                    "size": 100,  # Increase this size if expecting more unique endpoints
+                }
+            }
+        },
+    }
+
+    try:
+        # No index specified, querying across all accessible indices
+        response = os_client.search(body=query)
+        # Extract unique DICOMweb endpoints from the aggregation results
+        unique_endpoints = [
+            bucket["key"]
+            for bucket in response["aggregations"]["unique_dcmweb_endpoints"]["buckets"]
+        ]
+        return unique_endpoints
+    except Exception as e:
+        logger.error(f"Error retrieving unique DICOMweb endpoints: {e}")
+        raise e
 
 
 async def merge_responses(
@@ -247,6 +267,7 @@ async def decide_response(
     """
     # Cannot merge binary responses as they have custom multipart/related boundary: hash, from dicom-web-filter
     # We always choose one that has returned successfully, favouring dicom_web_filter.
+
     if not dicom_web_multiplexer_result:
         logger.debug("No external result, returning dicom-web-filter results")
         return dicom_web_filter_result
@@ -299,26 +320,22 @@ async def proxy_dicom_web_filter(request: Request) -> Response:
 
 
 async def dicom_web_multiplexer_responses(
-    project_index: str, request: Request, call_next: callable
+    endpoints: List[str], request: Request, call_next: callable
 ) -> Response | None:
     """
-    Aggregates responses from external PACS endpoints.
+    Aggregates responses from multiple external PACS endpoints.
 
     Args:
-        project_index (str): The project index to query datasources.
-        request (Request): The incoming request.
-        call_next (Callable): The next middleware or route handler.
+        endpoints (List[str]): A list of DICOM Web endpoint URLs to query for data.
+        request (Request): The incoming request, typically a DICOM web request.
+        call_next (Callable): A function that passes the request to the next middleware
+                               or route handler and returns the response.
 
     Returns:
-        Optional[Response]: The merged response or None if no endpoints respond successfully.
+        Optional[Response]: The merged response if at least one endpoint responds successfully,
+                             or None if no successful responses are received.
     """
-    async with get_session() as session:
-        data_sources = await get_all_datasources(
-            project_index=project_index, session=session
-        )
-    endpoints = [ep.dcmweb_endpoint for ep in data_sources]
-    logger.debug(f"Found endpoints: {endpoints}")
-
+    
     merged_result = None
     for endpoint in endpoints:
         request.state.endpoint = endpoint

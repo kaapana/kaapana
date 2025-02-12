@@ -77,7 +77,7 @@ spec:
           subPath: tls.crt
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          readOnlyRootFilesystem: {{ if .Values.global.dev_files }}false{{ else }}true{{ end }}
       priorityClassName: kaapana-high-priority
       imagePullSecrets:
         - name: registry-secret

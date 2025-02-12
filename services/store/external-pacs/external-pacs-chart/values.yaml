@@ -1,4 +1,4 @@
 global:
-  dev_files: false
+  dev_files: /home/ubuntu/kaapana/services/store/external-pacs/docker/dicom-web-multiplexer/files
   image: "dag-external-pacs"
   action: "copy"

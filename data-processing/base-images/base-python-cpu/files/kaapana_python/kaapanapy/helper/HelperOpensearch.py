@@ -31,7 +31,7 @@ class HelperOpensearch:
     def get_query_dataset(
         self,
         query,
-        index,
+        index=None,  # Index is now optional
         only_uids=False,
         include_custom_tag="",
         exclude_custom_tag="",
@@ -44,6 +44,7 @@ class HelperOpensearch:
             DicomTags.protocol_name,
             DicomTags.curated_modality_tag,
         ]
+
         if include_custom_tag != "":
             includes.append(include_custom_tag)
         excludes = []
@@ -51,10 +52,11 @@ class HelperOpensearch:
             excludes.append(exclude_custom_tag)
 
         query_dict = {
-            "index": index,
             "query": query,
             "source": {"includes": includes},
         }
+        if index:
+            query_dict["index"] = index
 
         try:
             hits = self.execute_opensearch_query(**query_dict)
@@ -69,11 +71,10 @@ class HelperOpensearch:
 
     def execute_opensearch_query(
         self,
-        index,
+        index = None,
         query: Dict = dict(),
         source=dict(),
         sort=[{"0020000E SeriesInstanceUID_keyword.keyword": "desc"}],
-        scroll=False,
     ) -> List:
         """
         TODO: This is currently a duplicate to kaapana-backend/docker/files/app/datasets/utils.py
@@ -95,16 +96,18 @@ class HelperOpensearch:
         """
 
         def _execute_opensearch_query(search_after=None, size=10000) -> List:
-            res = self.os_client.search(
-                body={
-                    "query": query,
-                    "size": size,
-                    "_source": source,
-                    "sort": sort,
-                    **({"search_after": search_after} if search_after else {}),
-                },
-                index=index,
-            )
+            query_body = {
+                "query": query,
+                "size": size,
+                "_source": source,
+                "sort": sort,
+                **({"search_after": search_after} if search_after else {}),
+            }
+            if index is None:
+                res = self.os_client.search(body=query_body)
+            else:
+                res = self.os_client.search(body=query_body, index=index)
+
             if len(res["hits"]["hits"]) > 0:
                 return [
                     *res["hits"]["hits"],
@@ -117,8 +120,8 @@ class HelperOpensearch:
 
     def get_dcm_uid_objects(
         self,
-        index,
         series_instance_uids,
+        index=None,
         include_custom_tag="",
         exclude_custom_tag="",
     ):

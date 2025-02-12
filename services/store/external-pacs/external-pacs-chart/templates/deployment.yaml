@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: dicom-web-multiplexer
-          image: "{{ .Values.global.registry_url }}/dicom-web-multiplexer:{{ .Values.global.kaapana_build_version }}"
+          image: "{{ .Values.global.registry_url }}/dicom-web-multiplexer:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
           env:
             - name: PROXY
@@ -40,6 +40,11 @@ spec:
               value: "8080"
             - name: WORKERS
               value: "4"
+            - name: DICOMWEB_BASE_URL
+              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter"
+            - name: DICOMWEB_BASE_URL_WADO_URI
+              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter/wado-uri"
+            
             - name: KAAPANA_CLIENT_SECRET
               value: "{{ .Values.global.oidc_client_secret }}"
             - name: KAAPANA_PROJECT_USER_NAME
@@ -49,10 +54,11 @@ spec:
                 secretKeyRef:
                   name: system-user-password
                   key: system-user-password
-            - name: DICOMWEB_BASE_URL
-              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter"
-            - name: DICOMWEB_BASE_URL_WADO_URI
-              value: "http://dicom-web-filter-service.{{ .Values.global.services_namespace }}.svc:8080/dicom-web-filter/wado-uri"
+            
+            - name: DWF_IDENTITY_OPENID_CONFIG_URL
+              value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
+            - name: DWF_IDENTITY_OPENID_CLIENT_ID
+              value: "kaapana"
           ports:
             - containerPort: 8080
           resources:
@@ -61,23 +67,30 @@ spec:
             requests:
               memory: "256Mi"          
           volumeMounts:
-            - name: tmp-volume
-              mountPath: /tmp
             {{- if .Values.global.dev_files }}
             - name: dicom-web-multiplexer-dev
               mountPath: /app
             {{- end }}
+            - name: tmp
+              mountPath: /tmp
+            - name: kaapana-cert
+              mountPath: /etc/certs/kaapana.pem
+              subPath: tls.crt
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: {{ if .Values.global.dev_files }}false{{ else }}true{{ end }}
       imagePullSecrets:
         - name: registry-secret
       volumes:
-        - name: tmp-volume
-          emptyDir: {}
-        {{- if .Values.global.dev_files }}
+      {{- if .Values.global.dev_files }}
         - name: dicom-web-multiplexer-dev
           persistentVolumeClaim:
             claimName: dicom-web-multiplexer-dev-pv-claim
-        {{- end }}      
+        {{- end }}
+        - name: kaapana-cert
+          secret:
+            secretName: certificate
+            defaultMode: 420
+        - name: tmp
+          emptyDir: {}
       serviceAccountName: kaapana-kube-admin

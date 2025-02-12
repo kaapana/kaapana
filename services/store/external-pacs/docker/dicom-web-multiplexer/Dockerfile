@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="dicom-web-multiplexer"
-LABEL VERSION="0.1.0"
+LABEL VERSION="0.4.0"
 LABEL BUILD_IGNORE="False"
 
 WORKDIR /app

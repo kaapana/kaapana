@@ -10,11 +10,6 @@ class DataSourceDB(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     dcmweb_endpoint = Column(String(255), nullable=False)
-    project_index = Column(String(255), nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint("dcmweb_endpoint", "project_index", name="uq_endpoint_project"),
-    )
 
 
 class DataSourceResponse(BaseModel):
@@ -22,12 +17,10 @@ class DataSourceResponse(BaseModel):
 
     id: int
     dcmweb_endpoint: str
-    project_index: str
 
 
 class DataSourceRequest(BaseModel):
     dcmweb_endpoint: str
-    project_index: str
 
 
 class SecretData(BaseModel):

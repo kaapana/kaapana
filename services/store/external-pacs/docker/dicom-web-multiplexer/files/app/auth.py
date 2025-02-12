@@ -37,6 +37,6 @@ async def authorize_headers(request: Request) -> dict:
     token = await get_external_token(request)
     
     auth_headers = {"Authorization": f"Bearer {token}", **request.headers}
-    auth_headers.pop("host")    
+    auth_headers.pop("host")
     
     return auth_headers

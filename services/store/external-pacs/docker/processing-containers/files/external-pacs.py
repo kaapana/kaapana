@@ -39,9 +39,6 @@ class ExternalPacsOperator:
         self.workflow_config = load_workflow_config()
         self.project_form: dict = self.workflow_config.get("project_form")
         self.workflow_form: dict = self.workflow_config.get("workflow_form")
-        self.dcmweb_helper = CustomHelperDcmWeb()
-        logger.info(self.dcmweb_helper.dcmweb_rs_endpoint)
-        logger.info(self.dcmweb_helper.dcmweb_uri_endpoint)
         self.action = os.getenv("ACTION")
         if not self.action or self.action not in ["add", "remove"]:
             logger.error("No action")
@@ -54,10 +51,13 @@ class ExternalPacsOperator:
         This method executes the appropriate action (`add` or `remove`) based on the configured action.
         """
         logger.info("# Starting module ExternalPacsOperator...")
-
-        dcmweb_endpoint = self.workflow_form.get("dcmweb_endpoint", "").strip()
-        assert dcmweb_endpoint, "DcmWeb endpoint argument missing. Abort!"
-
+        
+        dcmweb_endpoint = self.workflow_form["dcmweb_endpoint"].strip()
+        self.dcmweb_helper = CustomHelperDcmWeb(dcmweb_endpoint=dcmweb_endpoint)
+        
+        logger.info(self.dcmweb_helper.dcmweb_rs_endpoint)
+        logger.info(self.dcmweb_helper.dcmweb_uri_endpoint)
+        
         if self.action == "add":
             service_account_info = self.workflow_form.get("service_account_info")
             assert (
@@ -67,11 +67,8 @@ class ExternalPacsOperator:
             service_account_info = self._decode_service_account_info(
                 service_account_info
             )
-
             self.add_to_multiplexer(dcmweb_endpoint, service_account_info)
-
             self.download_external_metadata(
-                dcmweb_endpoint,
                 self.workflow_form.get("dataset_name", "external-data"),
             )
 
@@ -134,36 +131,35 @@ class ExternalPacsOperator:
 
     def download_external_metadata(
         self,
-        dcmweb_endpoint: str,
         dataset_name: str,
     ):
         """
         Downloads metadata from an external DICOMweb endpoint.
 
         Args:
-            dcmweb_endpoint (str): URL of the DICOMweb endpoint to download metadata from.
             dataset_name (str): Name of the dataset being imported.
         """
         metadata = []
 
-        studies = self.dcmweb_helper.get_studies(dcmweb_endpoint=dcmweb_endpoint)
+        studies = self.dcmweb_helper.get_studies()
         for study in studies:
             study_uid = study["0020000D"]["Value"][0]
-            series = self.dcmweb_helper.get_series_of_study(
-                study_uid, dcmweb_endpoint=dcmweb_endpoint
-            )
+            series = self.dcmweb_helper.get_series_of_study(study_uid)
             for single_series in series:
                 series_uid = single_series["0020000E"]["Value"][0]
                 instances = self.dcmweb_helper.get_instances_of_series(
                     study_uid=study_uid,
                     series_uid=series_uid,
-                    dcmweb_endpoint=dcmweb_endpoint,
                 )
                 for instance in instances:
                     instance_dict = dict(instance)
                     instance_dict["0020000D"]["Value"] = [study_uid]
                     instance_dict["0020000E"]["Value"] = [series_uid]
                     metadata.append(instance_dict)
+
+        del instances
+        del series
+        del studies
 
         if not metadata:
             logger.error("No metadata found.")
@@ -177,25 +173,25 @@ class ExternalPacsOperator:
             study_uid = instance["0020000D"]["Value"][0]
             series_uid = instance["0020000E"]["Value"][0]
             instance_uid = instance["00080018"]["Value"][0]
+            logger.info(f"Downloading instance metadata: {series_uid}")
 
             full_instance_metadata = self.dcmweb_helper.get_instance_metadata(
                 study_uid=study_uid,
                 series_uid=series_uid,
                 instance_uid=instance_uid,
-                dcmweb_endpoint=dcmweb_endpoint,
             )
-            if len(metadata) > 1:
+            if len(full_instance_metadata) == 1:
                 self._save_instance_metadata(
-                    full_instance_metadata[0], dcmweb_endpoint, dataset_name
+                    full_instance_metadata[0], dataset_name
                 )
                 success += 1
             else:
-                logger.error("Metadata empty")
+                logger.error(f"Series metadata failed: {series_uid}")
 
         logger.info(f"Saved instances:[{success}/{total}]")
 
     def _save_instance_metadata(
-        self, instance: Dict[str, Any], dcmweb_endpoint: str, dataset_name: str
+        self, instance: Dict[str, Any], dataset_name: str
     ) -> None:
         """
         Saves metadata of a single DICOM instance to a local JSON file.
@@ -220,9 +216,9 @@ class ExternalPacsOperator:
 
         instance["00020016"] = {
             "vr": "UR",
-            "Value": [self.extract_datasource_name(dcmweb_endpoint)],
+            "Value": [self.extract_datasource_name(self.dcmweb_helper.dcmweb_endpoint)],
         }
-        instance["00020026"] = {"vr": "UR", "Value": [dcmweb_endpoint]}
+        instance["00020026"] = {"vr": "UR", "Value": [self.dcmweb_helper.dcmweb_endpoint]}
         instance["00120010"] = {"vr": "LO", "Value": [dataset_name]}
         instance["00120020"] = {"vr": "LO", "Value": [self.project_form["name"]]}
 
@@ -266,9 +262,8 @@ class ExternalPacsOperator:
                 }
             }
             logger.info(f"Deleting metadata from opensearch using query: {query}")
-            opensearch_index = self.project_form.get("opensearch_index")
             os_client = get_opensearch_client()
-            os_client.delete_by_query(opensearch_index, query)
+            os_client.delete_by_query(query)
 
     def _decode_service_account_info(self, encoded_info: str) -> Dict[str, Any]:
         """
@@ -295,11 +290,10 @@ class ExternalPacsOperator:
         payload = {
             "datasource": {
                 "dcmweb_endpoint": dcmweb_endpoint,
-                "project_index": self.project_form.get("opensearch_index"),
             },
             "secret_data": secret_data,
         }
-        logger.info(f"Payload being sent: {payload}")
+        logger.debug(f"Payload being sent: {payload}")
         response = requests.post(
             url=f"{self.dcmweb_helper.dcmweb_rs_endpoint}/management/datasources",
             json=payload,
@@ -316,9 +310,8 @@ class ExternalPacsOperator:
         """
         payload = {
             "dcmweb_endpoint": dcmweb_endpoint,
-            "project_index": self.project_form.get("opensearch_index"),
         }
-        logger.info(f"Payload being sent: {payload}")
+        logger.debug(f"Payload being sent: {payload}")
         response = requests.delete(
             url=f"{self.dcmweb_helper.dcmweb_rs_endpoint}/management/datasources",
             json=payload,

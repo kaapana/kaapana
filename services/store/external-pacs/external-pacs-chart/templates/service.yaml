@@ -9,17 +9,9 @@ spec:
   selector:
     app-name: dicom-web-multiplexer
   ports:
-{{- if .Values.global.dev_files }}
-    - name: dicom-web-http
-      port: 8080 
-      targetPort: 8080
-      nodePort: 8080 # only for development!
-  type: NodePort # only for development!
-{{- else }}
     - name: dicom-web-http
       port: 8080
       targetPort: 8080
       protocol: TCP
   type: ClusterIP
-{{- end }}
 

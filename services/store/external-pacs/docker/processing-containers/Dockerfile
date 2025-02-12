@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="external-pacs"
-LABEL VERSION="0.0.0"
+LABEL VERSION="0.4.0"
 LABEL BUILD_IGNORE="False"
 
 COPY files/external-pacs.py /kaapana/app/

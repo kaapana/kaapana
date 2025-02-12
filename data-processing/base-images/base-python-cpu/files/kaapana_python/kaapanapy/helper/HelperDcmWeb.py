@@ -10,8 +10,7 @@ from typing import Any, Dict, List
 
 import pydicom
 import requests
-from kaapanapy.helper import get_project_user_access_token
-from kaapanapy.settings import OpensearchSettings
+from kaapanapy.helper import get_project_user_access_token, load_workflow_config
 from requests_toolbelt.multipart import decoder
 
 logger = logging.getLogger(__name__)
@@ -56,13 +55,9 @@ class HelperDcmWeb:
             "Authorization": f"Bearer {self.access_token}",
             "x-forwarded-access-token": self.access_token,
         }
-        
+
         self.session = requests.Session()
         self.session.headers.update(self.auth_headers)
-        
-        # For Multiplexer
-        self.project_headers = {"project_index": OpensearchSettings().default_index}
-        self.session.headers.update(self.project_headers)
 
     def check_if_series_in_archive(self, seriesUID: str, studyUID: str) -> bool:
         """This function checks if a series exists in the archive.
@@ -420,18 +415,18 @@ class HelperDcmWeb:
                                             Only used during ExternalPACS import.
 
         Returns:
-            List[dict]: List of series of the study. Each series is represented as a dictionary containing the series metadata
+            List[dict]: A list containing metadata for the specified instance.
         """
         headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
         r = self.session.get(url, headers=headers)
         if r.status_code == 204:
             return []
-        elif r.status_code == 404:
+        elif response.status_code == 404:
             return None
         else:
-            r.raise_for_status()
-            return r.json()
+            response.raise_for_status()
+            return response.json()
 
     def __encode_multipart_message_part(self, boundary: str, payload: bytes) -> bytes:
         """This function encodes the DICOM file as a part of the multipart message.

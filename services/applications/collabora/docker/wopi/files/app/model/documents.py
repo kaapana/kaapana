@@ -47,7 +47,7 @@ class DocumentStore:
         """
         Return the base64 encoded file_path as the id
         """
-        path_bytes = file_path.encode("ascii")
+        path_bytes = file_path.encode("utf-8")
         base64_bytes = base64.b64encode(path_bytes)
         return base64_bytes.decode("ascii")
 

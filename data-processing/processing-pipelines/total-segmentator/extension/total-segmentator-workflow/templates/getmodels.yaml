@@ -9,7 +9,7 @@ spec:
     metadata:
       name: total-get-zenodo-models
       labels:
-        network-access: external-ips
+        network-access-external-ips: "true"
     spec:
       # hostNetwork: true
       containers:

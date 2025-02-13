@@ -5,24 +5,19 @@ from os import getenv
 from os.path import exists, join
 
 import pydicom
-import requests
 from opensearchpy.exceptions import NotFoundError
-from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import KaapanaSettings
-from kaapanapy.settings import OpensearchSettings
 
 logger = get_logger(__name__, level="INFO")
-
-SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 
 
 class Json2MetaOperator:
     """
     This operater pushes JSON data to OpenSearch.
 
-    Pushes JSON data to the specified OpenSearch instance.
-    If meta-data already exists, it can either be updated or replaced, depending on the no_update parameter.
+    Pushes JSON data to the specified OpenSearch index.
+    If the document already exists, it can either be updated or replaced, depending on parameter the no_update.
     If the operator fails, some or no data is pushed to OpenSearch.
     Further information about OpenSearch can be found here: https://opensearch.org/docs/latest/
 
@@ -39,6 +34,7 @@ class Json2MetaOperator:
 
     def __init__(
         self,
+        opensearch_index: str,
         dicom_operator_out_dir: str = None,
         json_operator_out_dir: str = None,
         jsonl_operator_out_dir: str = None,
@@ -54,6 +50,7 @@ class Json2MetaOperator:
         """Initializes the Json2MetaOperator
 
         Args:
+            opensearch_index (str): Opensearch index to push the data to.
             dicom_operator_out_dir (str, optional): Output directory of the dicom operator. Defaults to None.
             json_operator_out_dir (str, optional): Output directory of the json operator. Defaults to None.
             jsonl_operator_out_dir (str, optional): Output directory of the jsonl operator. Defaults to None.
@@ -67,6 +64,7 @@ class Json2MetaOperator:
             run_id (str, optional): _description_. Defaults to None.
         """
 
+        self.opensearch_index = opensearch_index
         self.dicom_operator_out_dir = dicom_operator_out_dir
         self.json_operator_out_dir = json_operator_out_dir
         self.jsonl_operator_out_dir = jsonl_operator_out_dir
@@ -83,15 +81,7 @@ class Json2MetaOperator:
         self.series_instance_uid = None
         self.study_instance_uid = None
         self.patient_id = None
-        self.clinical_trial_protocol_id = None
 
-        config_path = os.path.join(self.workflow_dir, "conf", "conf.json")
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                self.workflow_config = json.load(f)
-
-        self.project_id = self.workflow_config.get("project_form", {}).get("id", None)
-        self.opensearch_settings = OpensearchSettings()
         self.os_client = get_opensearch_client()
 
     def push_to_project_index(self, json_dict: dict):
@@ -101,50 +91,12 @@ class Json2MetaOperator:
             json_dict (dict): JSON data to push
         """
         logger.info(f"Pushing JSON to project index")
-
-        if self.project_id:
-            project_id = self.project_id
-            logger.info(f"Project ID taken from workflow config: {project_id}")
-        else:
-            project = self.get_project_by_name(self.clinical_trial_protocol_id)
-            project_id = project.get("id")
-            logger.info(f"Project ID taken from ClinicalTrialProtocolID: {project_id}")
-
-        json_dict = self.produce_inserts(json_dict, project.get("opensearch_index"))
+        json_dict = self.produce_inserts(json_dict, self.opensearch_index)
         try:
             _ = self.os_client.index(
-                index=project.get("opensearch_index"),
+                index=self.opensearch_index,
                 body=json_dict,
                 id=self.series_instance_uid,
-                refresh=True,
-            )
-        except Exception as e:
-            logger.error("Error while pushing JSON ...")
-            raise (e)
-
-    def push_json(self, json_dict: dict):
-        """Pushes JSON data to admin project index in OpenSearch
-
-        Args:
-            json_dict (dict): JSON data to push
-        """
-        logger.info("Pushing JSON admin project index")
-        if "0020000E SeriesInstanceUID_keyword" in json_dict:
-            id = json_dict["0020000E SeriesInstanceUID_keyword"]
-        elif self.series_instance_uid is not None:
-            id = self.series_instance_uid
-        else:
-            logger.error("No ID found! - exit")
-            exit(1)
-
-        json_dict = self.produce_inserts(
-            json_dict, self.opensearch_settings.default_index
-        )
-        try:
-            _ = self.os_client.index(
-                index=self.opensearch_settings.default_index,
-                body=json_dict,
-                id=id,
                 refresh=True,
             )
         except Exception as e:
@@ -205,7 +157,6 @@ class Json2MetaOperator:
         self.series_instance_uid = ds[0x0020, 0x000E].value
         self.study_instance_uid = ds[0x0020, 0x000D].value
         self.patient_id = ds[0x0010, 0x0020].value
-        self.clinical_trial_protocol_id = ds[0x0012, 0x0020].value
 
     def start(self):
         """Starts the Json2MetaOperator"""
@@ -234,7 +185,6 @@ class Json2MetaOperator:
                     with open(json_file, encoding="utf-8") as f:
                         for line in f:
                             obj = json.loads(line)
-                            self.push_json(obj)
                             self.push_to_project_index(obj)
             else:
                 json_dir = os.path.join(batch_element_dir, self.json_operator_out_dir)
@@ -246,24 +196,7 @@ class Json2MetaOperator:
                     logger.info(f"Pushing file: {json_file} to META!")
                     with open(json_file, encoding="utf-8") as f:
                         new_json = json.load(f)
-                    self.push_json(new_json)
                     self.push_to_project_index(new_json)
-
-    def get_project_by_name(self, project_name: str) -> dict:
-        """Gets a project by name
-
-        Args:
-            project_name (str): Name of the project
-
-        Returns:
-            dict: Project data
-        """
-        response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
-        )
-        response.raise_for_status()
-        project = response.json()
-        return project
 
 
 if __name__ == "__main__":
@@ -303,7 +236,11 @@ if __name__ == "__main__":
     run_id = getenv("RUN_ID", None)
     assert run_id, "Run ID is not set!"
 
+    workflow_config = load_workflow_config()
+    project_form = workflow_config.get("project_form")
+
     operator = Json2MetaOperator(
+        opensearch_index=project_form.get("opensearch_index"),
         dicom_operator_out_dir=dicom_operator_out_dir,
         json_operator_out_dir=json_operator_out_dir,
         jsonl_operator_out_dir=jsonl_operator_out_dir,

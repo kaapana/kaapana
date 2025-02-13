@@ -42,7 +42,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         id = json_dict["0020000E SeriesInstanceUID_keyword"]
         clinical_trial_protocol_id = json_dict.get(
             "00120020 ClinicalTrialProtocolID_keyword"
-        )[0]
+        )
         try:
             project = self.get_project_by_name(clinical_trial_protocol_id)
         except:

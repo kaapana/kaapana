@@ -14,10 +14,9 @@ from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
-from kaapana.operators.LocalSanitizeProjectAndDatasetOperator import (
-    LocalSanitizeProjectAndDatasetOperator,
+from kaapana.operators.LocalRemoveDicomTagsOperator import (
+    LocalRemoveDicomTagsOperator,
 )
-
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
@@ -34,7 +33,6 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapanapy.helper.HelperOpensearch import DicomTags
 
 args = {
     "ui_visible": False,
@@ -90,92 +88,9 @@ def set_skip_if_dcm_is_no_segmetation(ds, **kwargs):
     return
 
 
-def get_series_metadata(dcmfile: pydicom.Dataset):
-    target_tags = [
-        DicomTags.study_uid_tag,
-        DicomTags.series_uid_tag,
-        DicomTags.SOPInstanceUID_tag,
-        DicomTags.modality_tag,
-        DicomTags.protocol_name,
-        DicomTags.curated_modality_tag,
-        "00080016 SOPClassUID_keyword",
-        "00080020 StudyDate_date",
-        "00080030 StudyTime_time",
-        "00080050 AccessionNumber_keyword",
-        "00080064 ConversionType_keyword",
-        "00100010 PatientName_keyword_alphabetic",
-        "00100020 PatientID_keyword",
-        "00100040 PatientSex_keyword",
-        "00102180 Occupation_keyword",
-        "00104000 PatientComments_keyword",
-        "00120020 ClinicalTrialProtocolID_keyword",
-    ]
-    ds = pydicom.dcmread(dcmfile)
-    series_metadata = {}
-
-    for tag in target_tags:
-        dicomtag = tag.split(" ")[1]
-        dicomtag = dicomtag.split("_")[0]
-        tagvalue = ds.get(dicomtag, "")
-        if tagvalue != "":
-            series_metadata[tag] = str(tagvalue)
-
-    return series_metadata
-
-
-def create_input_json_from_input(ds, **kwargs):
-    """
-    Creates a metadata JSON file for each batch of DICOM files in the specified batch directory.
-
-    For each batch element, the function looks for DICOM files in the input directory. If found,
-    it extracts the series metadata from the first DICOM file and saves it as a `metadata.json`
-    file in the output directory. If no DICOM files are found, the process is skipped for that batch.
-
-    Args:
-        ds: Unused argument (can be ignored).
-        **kwargs: Additional keyword arguments, including the `dag_run` containing the run ID.
-
-    Returns:
-        None
-    """
-    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
-
-    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
-
-    for batch_element_dir in batch_folder:
-        input_dir = Path(batch_element_dir) / get_input.operator_out_dir
-        output_dir = (
-            Path(batch_element_dir) / get_input_json_from_input_files.operator_out_dir
-        )
-        dcms = sorted(
-            glob.glob(
-                os.path.join(input_dir, "*.dcm*"),
-                recursive=True,
-            )
-        )
-
-        if len(dcms) == 0:
-            print(
-                f"No dicom files found to create metadada {input_dir}. Skipping naive metadata creation."
-            )
-            continue
-
-        metadata = get_series_metadata(dcms[0])
-
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        json_path = os.path.join(output_dir, "metadata.json")
-        with open(json_path, "w") as fp:
-            json.dump(metadata, fp, indent=4, sort_keys=True)
-        print("Mendatory metadata file created one series metadata only")
-    return
-
-
 get_input = LocalGetInputDataOperator(dag=dag, delete_input_on_success=True)
 
-sanitize_project_and_dataset = LocalSanitizeProjectAndDatasetOperator(
-    dag=dag, input_operator=get_input
-)
+remove_tags = LocalRemoveDicomTagsOperator(dag=dag, input_operator=get_input)
 
 dcm_send = LocalDicomSendOperator(
     dag=dag,
@@ -200,25 +115,9 @@ validate = DcmValidatorOperator(
     exit_on_error=False,
 )
 
-get_input_json_from_input_files = KaapanaPythonBaseOperator(
-    name="get-json-input-data-from-input",
-    pool="default_pool",
-    pool_slots=1,
-    python_callable=create_input_json_from_input,
-    dag=dag,
-)
-
-clear_validation_results = LocalClearValidationResultOperator(
-    dag=dag,
-    name="clear-validation-results",
-    input_operator=get_input_json_from_input_files,
-    apply_project_context=True,
-    trigger_rule="none_failed_min_one_success",
-)
-
 save_to_meta = LocalValidationResult2MetaOperator(
     dag=dag,
-    input_operator=get_input_json_from_input_files,
+    input_operator=extract_metadata,
     validator_output_dir=validate.operator_out_dir,
     validation_tag="00111001",
     apply_project_context=True,
@@ -279,7 +178,7 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
         with open(metadata_file, "r") as f:
             metadata = json.load(f)
 
-        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")[0]
+        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
         response = requests.get(
             f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_name}"
         )
@@ -327,24 +226,31 @@ clean = LocalWorkflowCleanerOperator(
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 
-get_input >> sanitize_project_and_dataset >> dcm_send >> extract_metadata
-extract_metadata >> push_json >> [validate, skip_if_dcm_is_no_segmetation]
-extract_metadata >> add_to_dataset >> [validate, skip_if_dcm_is_no_segmetation]
-extract_metadata >> assign_to_project >> [validate, skip_if_dcm_is_no_segmetation]
+get_input >> [extract_metadata, skip_if_dcm_is_no_segmetation]
+extract_metadata >> [
+    push_json,
+    add_to_dataset,
+    assign_to_project,
+    validate,
+    remove_tags,
+]
 
-(
-    validate
-    >> get_input_json_from_input_files
-    >> clear_validation_results
-    >> save_to_meta
-    >> put_html_to_minio
-    >> clean
-)
+(remove_tags >> dcm_send)
+
+(validate >> save_to_meta >> put_html_to_minio)
 
 (
     skip_if_dcm_is_no_segmetation
     >> get_ref_ct_series_from_seg
     >> generate_segmentation_thumbnail
     >> put_thumbnail_to_project_bucket
-    >> clean
 )
+
+[
+    push_json,
+    add_to_dataset,
+    assign_to_project,
+    dcm_send,
+    put_html_to_minio,
+    put_thumbnail_to_project_bucket,
+] >> clean

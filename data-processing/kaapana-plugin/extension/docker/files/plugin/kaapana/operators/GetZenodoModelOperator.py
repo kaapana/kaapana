@@ -1,13 +1,14 @@
-from kaapana.kubetools.volume_mount import VolumeMount
-from kaapana.kubetools.volume import Volume
-from kaapana.kubetools.resources import Resources as PodResources
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
+import os
+from datetime import timedelta
+
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
 )
-from datetime import timedelta
-import os
+from kaapana.kubetools.resources import Resources as PodResources
+from kaapana.kubetools.volume import Volume
+from kaapana.kubetools.volume_mount import VolumeMount
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class GetZenodoModelOperator(KaapanaBaseOperator):
@@ -57,11 +58,10 @@ class GetZenodoModelOperator(KaapanaBaseOperator):
         if task_ids is not None:
             env_vars["TASK_IDS"] = task_ids
 
-        if not kwargs.get("labels"):
-            kwargs["labels"] = {"network-access": "external-ips"}
-        else:
-            if not kwargs.get("labels").get("network-access"):
-                kwargs["labels"]["network-access"] = "external-ips"
+        if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
+            kwargs["labels"] = {}
+
+        kwargs["labels"]["network-access-external-ips"] = "true"
 
         super().__init__(
             dag=dag,

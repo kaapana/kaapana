@@ -26,4 +26,4 @@ Network policies
 To ensure a more encapsulated setup, all pods initiated by user actions operate within the `jobs` namespace of Kubernetes. 
 We've implemented network policies to confine communication between pods within this namespace, restricting access to other containers in the platform. 
 By default, these network policies prevent pods in this namespace from communicating with any other pod. 
-For pods requiring external communication, we've introduced the :code:`network-access` label, offering options such as :code:`external-ips`, :code:`ctp`, and :code:`opensearch`.
+For pods requiring external communication, we've introduced the :code:`network-access-<type>` labels, offering type options such as :code:`external-ips`, :code:`ctp`, and :code:`opensearch`.

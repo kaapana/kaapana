@@ -36,7 +36,7 @@ class GetRefSeriesOperator(KaapanaBaseOperator):
             name (str, optional): The name of the operator. Defaults to "get-ref-series".
             search_policy (str, optional): The search policy to filter the series. Can be "reference_uid", "study_uid" or "search_query". Defaults to "reference_uid". "reference_uid" downloads the reference series of a SEG or RTSTRUCT, "study_uid" downloads all series of a study, "search_query" downloads all series based on a search query.
             data_type (str, optional): The type of data to download. Can be "dicom" or "json". Defaults to "dicom".
-            search_query (list, optional): The search query for opensearch. Syntax must be the same as for opensearch. Defaults to {}. Must be a bool query (https://opensearch.org/docs/latest/query-dsl/compound/bool).
+            search_query (dict, optional): The search query for opensearch. Syntax must be the same as for opensearch. Defaults to {}. Must be a bool query (https://opensearch.org/docs/latest/query-dsl/compound/bool).
             parallel_downloads (int, optional): Number of parallel downloads. Defaults to 3.
             modalities (list, optional): List of modalities to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".
             custom_tags (list, optional): List of custom tags to filter the series. Defaults to []. Cant be used together with search_query. Only makes sense in conjunction with search_policy="study_uid".

@@ -33,7 +33,7 @@ const actions = {
 
         // set the project fetch url for normal user and admin user
         let get_users_projects_url = "/aii/users/" + current_user.id + "/projects"
-        if (current_user.roles.includes("admin")) {
+        if (current_user.realm_roles.includes("admin")) {
           get_users_projects_url = "/aii/projects"
         }
 

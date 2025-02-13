@@ -38,7 +38,7 @@ class LocalMinioOperator(KaapanaPythonBaseOperator):
         logger.info(f"Applying action to project bucket")
         clinical_trial_protocol_id = json_dict.get(
             "00120020 ClinicalTrialProtocolID_keyword"
-        )[0]
+        )
 
         project = self.get_project_by_name(clinical_trial_protocol_id)
 

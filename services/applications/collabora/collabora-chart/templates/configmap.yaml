@@ -6,68 +6,6 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ .Release.Name }}
 data:
-  nginx.conf: |
-    server {
-        listen 9981 default_server;
-        listen [::]:9981 default_server;
-    
-        # static files
-        location ^~ /collabora/browser {
-            
-            # Extract the header value
-            set $access_token "";
-            if ($http_x_forwarded_access_token) {
-               set $access_token $http_x_forwarded_access_token;
-            }
-    
-            # Rewrite the URL to include the token as a query parameter
-            rewrite ^(.*)$ $1?access_token=$access_token break;
-
-            proxy_pass http://127.0.0.1:9980;
-            proxy_set_header Host $host;
-        }
-    
-    
-        # WOPI discovery URL
-        location ^~ /collabora/hosting/discovery {
-            proxy_pass http://127.0.0.1:9980;
-            proxy_set_header Host $host;
-        }
-    
-    
-        # Capabilities
-        location ^~ /collabora/hosting/capabilities {
-            proxy_pass http://127.0.0.1:9980;
-            proxy_set_header Host $host;
-        }
-    
-    
-        # main websocket
-        location ~ ^/collabora/cool/(.*)/ws$ {
-            proxy_pass http://127.0.0.1:9980;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection \"Upgrade\";
-            proxy_set_header Host $host;
-            proxy_read_timeout 36000s;
-        }
-    
-    
-        # download, presentation and image upload
-        location ~ ^/collabora/(c|l)ool {
-            proxy_pass http://127.0.0.1:9980;
-            proxy_set_header Host $host;
-        }
-    
-    
-        # Admin Console websocket
-        location ^~ /collabora/cool/adminws {
-            proxy_pass http://127.0.0.1:9980;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection \"Upgrade\";
-            proxy_set_header Host $host;
-            proxy_read_timeout 36000s;
-        }
-        }
   coolwsd.xml: |-
     <!-- -*- nxml-child-indent: 4; tab-width: 4; indent-tabs-mode: nil -*- -->
     <config>

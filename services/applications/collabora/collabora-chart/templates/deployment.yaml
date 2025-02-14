@@ -47,7 +47,7 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /etc/coolwsd/coolwsd.xml
-          subPath: coolwsd.xml 
+          subPath: coolwsd.xml
         env:
         - name: username
           value: {{ .Values.global.collabora_username }}
@@ -69,7 +69,7 @@ spec:
         - name: APPLICATION_ROOT
           value: /collabora-wopi
         - name: COLLABORA_URL
-          value: http://collabora-chart.services:9981/collabora
+          value: http://collabora-chart.services:9980/collabora
         - name: DOCUMENT_ROOT
           value:  /minio
         - name: WOPI_API_ENDPOINT
@@ -90,5 +90,3 @@ spec:
           items:
           - key: coolwsd.xml
             path: coolwsd.xml
-          - key: nginx.conf
-            path: nginx.conf

@@ -17,10 +17,8 @@ from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperato
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
 from kaapana.operators.LocalRemoveDicomTagsOperator import (
     LocalRemoveDicomTagsOperator,
-from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
-from kaapana.operators.LocalSanitizeProjectAndDatasetOperator import (
-    LocalSanitizeProjectAndDatasetOperator,
 )
+from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
@@ -99,10 +97,6 @@ get_input = LocalGetInputDataOperator(dag=dag, delete_input_on_success=True)
 
 remove_tags = LocalRemoveDicomTagsOperator(dag=dag, input_operator=get_input)
 auto_trigger_operator = LocalAutoTriggerOperator(dag=dag, input_operator=get_input)
-
-sanitize_project_and_dataset = LocalSanitizeProjectAndDatasetOperator(
-    dag=dag, input_operator=get_input
-)
 
 dcm_send = LocalDicomSendOperator(
     dag=dag,

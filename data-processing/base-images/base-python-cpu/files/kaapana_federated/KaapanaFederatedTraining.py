@@ -1,20 +1,19 @@
-from cryptography.fernet import Fernet
-import requests
-import time
-import numpy as np
+import collections
+import functools
 import json
 import os
-import uuid
-import shutil
-import collections
-import torch
 import random
+import shutil
 import tarfile
-import functools
+import time
+import uuid
+from abc import ABC, abstractmethod
+
+import numpy as np
+import requests
+import torch
+from cryptography.fernet import Fernet
 from minio import Minio
-from abc import ABC, abstractmethod
-from requests.adapters import HTTPAdapter
-from abc import ABC, abstractmethod
 from minio.deleteobjects import DeleteObject
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -296,16 +295,16 @@ class KaapanaFederatedTrainingBase(ABC):
                     "before_previous_dag_run"
                 ] = None
             else:
-                self.remote_conf_data["federated_form"]["before_previous_dag_run"] = (
-                    self.tmp_federated_site_info[site_info["instance_name"]][
-                        "before_previous_dag_run"
-                    ]
-                )
-                self.remote_conf_data["federated_form"]["from_previous_dag_run"] = (
-                    self.tmp_federated_site_info[site_info["instance_name"]][
-                        "from_previous_dag_run"
-                    ]
-                )
+                self.remote_conf_data["federated_form"][
+                    "before_previous_dag_run"
+                ] = self.tmp_federated_site_info[site_info["instance_name"]][
+                    "before_previous_dag_run"
+                ]
+                self.remote_conf_data["federated_form"][
+                    "from_previous_dag_run"
+                ] = self.tmp_federated_site_info[site_info["instance_name"]][
+                    "from_previous_dag_run"
+                ]
 
             # create at local instance jobs for remote sites
             with requests.Session() as s:
@@ -494,16 +493,31 @@ class KaapanaFederatedTrainingBase(ABC):
         # for sample-weighted aggregation, get number of samples per client and list of client_instance_names
         num_samples_per_client = dict()
         client_instance_names = []
+
+        dataset_limit = self.remote_conf_data.get("data_form", {}).get(
+            "dataset_limit", None
+        )
         for site_idx, _ in enumerate(self.remote_sites):
             client_instance_names.append(self.remote_sites[site_idx]["instance_name"])
+            dataset_name = self.remote_conf_data["data_form"]["dataset_name"]
+            allowed_datasets = self.remote_sites[site_idx]["allowed_datasets"]
+            identifiers = next(
+                (
+                    dataset["identifiers"]
+                    for dataset in allowed_datasets
+                    if dataset["name"] == dataset_name
+                ),
+                [],
+            )
+            num_identifiers_in_dataset = len(identifiers)
             num_samples_per_client[self.remote_sites[site_idx]["instance_name"]] = (
-                len(
-                    self.remote_sites[site_idx]["allowed_datasets"][
-                        self.remote_conf_data["data_form"]["dataset_name"]
-                    ]["identifiers"]
+                num_identifiers_in_dataset
+                if dataset_limit is None
+                else (
+                    num_identifiers_in_dataset
+                    if num_identifiers_in_dataset < dataset_limit
+                    else dataset_limit
                 )
-                if self.remote_conf_data["data_form"]["dataset_limit"] is None
-                else self.remote_conf_data["data_form"]["dataset_limit"]
             )
         num_all_samples = sum(num_samples_per_client.values())
         print(

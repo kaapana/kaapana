@@ -1,25 +1,22 @@
 import os
-from datetime import timedelta
-from datetime import datetime
-
+from datetime import datetime, timedelta
 
 from airflow.models import DAG
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.trigger_rule import TriggerRule
-
 from kaapana.blueprints.json_schema_templates import properties_external_federated_form
 from kaapana.blueprints.kaapana_global_variables import (
     INSTANCE_NAME,
     SERVICES_NAMESPACE,
 )
-from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
-from kaapana.operators.MinioOperator import MinioOperator
 from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.DcmSendOperator import DcmSendOperator
-from nnunet_federated.nnUNetFederatedOperator import nnUNetFederatedOperator
+from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapana.operators.MinioOperator import MinioOperator
+from kaapana.operators.ZipUnzipOperator import ZipUnzipOperator
 
+from nnunet_federated.nnUNetFederatedOperator import nnUNetFederatedOperator
 
 log = LoggingMixin().log
 ## nnUnet related
@@ -164,9 +161,8 @@ dcm_send_int = DcmSendOperator(
 put_to_minio = MinioOperator(
     dag=dag,
     action="put",
-    batch_input_operators=[nnunet_federated],
+    none_batch_input_operators=[nnunet_federated],
     zip_files=True,
-    whitelisted_file_extensions=[".zip"],
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

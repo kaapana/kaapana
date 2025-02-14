@@ -40,7 +40,6 @@ async def auth_check(request: Request, response: Response):
     requested_prefix = request.headers.get("x-forwarded-prefix")
     if requested_prefix is None:
         requested_prefix = request.headers.get("x-forwarded-uri")
-
     access_token = request.headers.get("x-forwarded-access-token", None)
     if access_token is None:
         decoded_access_token = {}
@@ -50,26 +49,30 @@ async def auth_check(request: Request, response: Response):
         )
 
     method = request.headers.get("x-forwarded-method")
-    project_name = request.cookies.get("Project-Name", None)
-    logger.debug(f"{project_name=}")
-    aii_response = requests.get(
-        f"http://aii-service.services.svc:8080/projects/{project_name}"
-    )
-    project = aii_response.json()
-
     input = {
         "input": {
             "access_token": decoded_access_token,
             "requested_prefix": requested_prefix,
             "method": method,
-            "project": project,
         }
     }
+    try:
+        project_name = request.cookies.get("Project-Name", None)
+        logger.debug(f"{project_name=}")
+        aii_response = requests.get(
+            f"http://aii-service.services.svc:8080/projects/{project_name}"
+        )
+        project = aii_response.json()
+        input["input"]["project"] = project
+    except requests.exceptions.ConnectionError as e:
+        logger.debug(f"Could not fetch the project information from aii: {e}")
+
     if check_endpoint(input):
         message = f"Policies satisfied for {method} {requested_prefix} -> ok"
         logger.debug(message)
         response.status_code = status.HTTP_200_OK
-        response.headers["Project"] = json.dumps(project)
+        if input["input"].get("project"):
+            response.headers["Project"] = json.dumps(project)
         return message
     else:
         message = f"No policy satisfied -> restricting access to {requested_prefix}"

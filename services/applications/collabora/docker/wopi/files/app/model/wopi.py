@@ -29,7 +29,7 @@ class WOPIApp:
 class WOPI:
     def __init__(self, wopi_discovery_url):
         self.wopi_discovery_url = wopi_discovery_url
-        self.apps: list(WOPIApp) = []  # initialized by fetch_apps
+        self.apps: list[WOPIApp] = []  # initialized by fetch_apps
 
     def supported_extensions(self):
         for app in self.apps:

@@ -1,0 +1,5 @@
+FROM nginx:1.25.3
+
+LABEL IMAGE="nginx"
+LABEL VERSION="1.25.3"
+LABEL BUILD_IGNORE="False"

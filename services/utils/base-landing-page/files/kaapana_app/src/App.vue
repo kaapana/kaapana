@@ -168,6 +168,7 @@ export default Vue.extend({
     drawer: true,
     federatedBackendAvailable: false,
     settings: defaultSettings,
+    failedToFetchTraefik: false,
   }),
   computed: {
     ...mapGetters([
@@ -276,8 +277,16 @@ export default Vue.extend({
       () => this.$store.getters.selectedProject,
       (newValue, oldValue) => {
         if (newValue !== oldValue) {
-          Vue.$cookies.set("Project-Name", newValue.name);
-          location.reload(); // Reload the page
+          const projectCookies = Vue.$cookies.get("Project-Name");
+          if (newValue && projectCookies != newValue.name) {
+            Vue.$cookies.set("Project-Name", newValue.name);
+            location.reload(); // Reload the page
+          } else if(this.failedToFetchTraefik) {
+            // for some cases selectedProject as well as Project-Name cookie sets 
+            // after already made request to traefik and failed to Fetch Traefic.
+            // In such cases, a reload is required after setting the Project-Name cookie.
+            location.reload(); // Reload the page
+          }
         }
       }
     );
@@ -322,6 +331,7 @@ export default Vue.extend({
         );
       })
       .catch((error: any) => {
+        this.failedToFetchTraefik = true;
         console.log("Something went wrong with traefik", error);
       });
   },

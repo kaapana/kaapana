@@ -42,9 +42,10 @@ if [ -z "$isort_formatter" ]; then
 fi
 # Format staged files
 ISSUE_FOUND=false
-for file in $(git diff --cached --name-only --diff-filter=ACMR | grep $exts); do
-  if ! $isort_formatter --check $file --profile="black"; then
-    echo 1>&2 "Reformatting neeeded: $file"
+for file in $(git diff --cached --name-only --diff-filter=ACMR | grep -E "$exts"); do
+  echo "Checking file: $file"  # Debugging line to confirm files being checked
+  if ! $isort_formatter --check --diff "$file" --profile="black"; then
+    echo 1>&2 "Reformatting needed: $file"
     ISSUE_FOUND=true
   fi
 done

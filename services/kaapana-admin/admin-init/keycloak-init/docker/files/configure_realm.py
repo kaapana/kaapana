@@ -87,7 +87,6 @@ if __name__ == "__main__":
         hostname = os.getenv("HOSTNAME")
         https_port = os.getenv("HTTPS_PORT")
         redirect_uris.append(f"https://{hostname}:{https_port}/oauth2/callback")
-        redirect_uris.append(f"https://{hostname}/oauth2/callback")
         redirect_uris.append(
             f"https://{hostname}:{https_port}/minio-console/oauth_callback/"
         )

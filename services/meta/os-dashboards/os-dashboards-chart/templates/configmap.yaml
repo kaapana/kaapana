@@ -13,7 +13,7 @@ data:
     opensearch_security.openid.connect_url:  "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
     opensearch_security.openid.client_id: "kaapana"
     opensearch_security.openid.client_secret: "{{ .Values.global.oidc_client_secret }}"
-    opensearch_security.openid.base_redirect_url: "https://{{  .Values.global.hostname  }}/meta"
+    opensearch_security.openid.base_redirect_url: "https://{{  .Values.global.hostname  }}:{{ .Values.global.https_port }}/meta"
     opensearch_security.openid.verify_hostnames: false
     opensearch_security.openid.root_ca: "/etc/certs/kaapana.pem"
     opensearch.requestHeadersWhitelist: ["Authorization","securitytenant","x-forwarded-access-token"]

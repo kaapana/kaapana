@@ -91,5 +91,5 @@ if __name__ == "__main__":
         redirect_uris.append(
             f"https://{hostname}:{https_port}/minio-console/oauth_callback/"
         )
-        redirect_uris.append(f"https://{hostname}/meta/auth/openid/login")
+        redirect_uris.append(f"https://{hostname}:{https_port}/meta/auth/openid/login")
         keycloak.post_client(payload, redirectUris=redirect_uris)

@@ -39,7 +39,7 @@ class GenerateThumbnailOperator(KaapanaBaseOperator):
 
         super().__init__(
             dag=dag,
-            image=f"{DEFAULT_REGISTRY}/seg-thumbnail-generator:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/thumbnail-generator:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=timedelta(minutes=15),

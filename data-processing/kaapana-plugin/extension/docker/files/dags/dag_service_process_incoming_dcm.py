@@ -15,6 +15,7 @@ from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
+from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
 from kaapana.operators.LocalRemoveDicomTagsOperator import (
     LocalRemoveDicomTagsOperator,
 )
@@ -55,7 +56,7 @@ dag = DAG(
 )
 
 
-def set_skip_if_dcm_is_no_segmetation(ds, **kwargs):
+def set_skip_if_not_custom_thumbnail_modality(ds, **kwargs):
     """
     Skip the DAG if the incoming DICOM file is not a segmentation.
 
@@ -85,7 +86,7 @@ def set_skip_if_dcm_is_no_segmetation(ds, **kwargs):
             raise AirflowSkipException("No DICOM files found")
 
         ds = pydicom.dcmread(dcms[0])
-        if ds.Modality not in ["SEG", "RTSTRUCT"]:
+        if ds.Modality not in ["SEG", "RTSTRUCT", "CT", "MR"]:
             raise AirflowSkipException("No segmentation found in DICOM file")
     return
 
@@ -135,6 +136,17 @@ put_html_to_minio = LocalMinioOperator(
     name="put-results-html-to-minio",
     action="put",
     file_white_tuples=(".html"),
+)
+def has_ref_series(ds) -> bool:
+    return ds.Modality in ["SEG", "RTSTRUCT"]
+
+
+branch_by_has_ref_series = LocalDcmBranchingOperator(
+    dag=dag,
+    input_operator=get_input,
+    condition=has_ref_series,
+    branch_true_operator="get-ref-series-ct",
+    branch_false_operator="generate-segmentation-thumbnail",
 )
 
 
@@ -194,7 +206,7 @@ put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
     dag=dag,
 )
 
-get_ref_ct_series_from_seg = LocalGetRefSeriesOperator(
+get_ref_ct_series = LocalGetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
     search_policy="reference_uid",
@@ -206,7 +218,8 @@ generate_segmentation_thumbnail = GenerateThumbnailOperator(
     dag=dag,
     name="generate-segmentation-thumbnail",
     input_operator=get_input,
-    orig_image_operator=get_ref_ct_series_from_seg,
+    orig_image_operator=get_ref_ct_series,
+    trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 
 
@@ -273,11 +286,11 @@ put_thumbnail_to_project_bucket = KaapanaPythonBaseOperator(
     dag=dag,
 )
 
-skip_if_dcm_is_no_segmetation = KaapanaPythonBaseOperator(
-    name="skip-if-dcm-is-no-segmentation",
+set_skip_if_not_custom_thumbnail_modality = KaapanaPythonBaseOperator(
+    name="set-skip-if-not-custom-thumbnail-modality",
     pool="default_pool",
     pool_slots=1,
-    python_callable=set_skip_if_dcm_is_no_segmetation,
+    python_callable=set_skip_if_not_custom_thumbnail_modality,
     dag=dag,
 )
 
@@ -288,7 +301,7 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 get_input >> auto_trigger_operator
-get_input >> [extract_metadata, skip_if_dcm_is_no_segmetation]
+get_input >> [extract_metadata, set_skip_if_not_custom_thumbnail_modality]
 extract_metadata >> [
     push_json,
     add_to_dataset,
@@ -307,10 +320,8 @@ extract_metadata >> [
 (remove_tags >> dcm_send)
 
 (
-    skip_if_dcm_is_no_segmetation
-    >> get_ref_ct_series_from_seg
-    >> generate_segmentation_thumbnail
-    >> put_thumbnail_to_project_bucket
+    set_skip_if_not_custom_thumbnail_modality
+    >> branch_by_has_ref_series
 )
 
 [
@@ -321,3 +332,10 @@ extract_metadata >> [
     put_html_to_minio,
     put_thumbnail_to_project_bucket,
 ] >> clean
+
+branch_by_has_ref_series >> [
+    get_ref_ct_series,
+    generate_segmentation_thumbnail,
+]
+get_ref_ct_series >> generate_segmentation_thumbnail
+generate_segmentation_thumbnail >> put_thumbnail_to_project_bucket >> clean

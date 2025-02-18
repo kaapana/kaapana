@@ -1,4 +1,5 @@
 import os
+import subprocess
 from dataclasses import dataclass
 from glob import glob
 from multiprocessing.pool import ThreadPool
@@ -15,7 +16,7 @@ import SimpleITK as sitk
 from colormath.color_conversions import convert_color
 from colormath.color_objects import LabColor, sRGBColor
 from kaapanapy.logger import get_logger
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageFilter
 
 logger = get_logger(__name__)
 
@@ -76,17 +77,179 @@ def resample_segmentation_to_reference_image(
     return image, segmentation_resampled
 
 
+def load_dicom_series(dicom_dir: str):
+    """
+    Load a DICOM series from a directory and return a 3D numpy array (slices, height, width),
+    the list of DICOM metadata, and the list of filenames.
+    """
+    dicom_files = []
+    filenames = []
+
+    for f in os.listdir(dicom_dir):
+        if f.endswith(".dcm"):
+            filepath = os.path.join(dicom_dir, f)
+            dicom_files.append(pydicom.dcmread(filepath))
+            filenames.append(filepath)
+
+    # Sort the files based on InstanceNumber to maintain slice order
+    dicom_files, filenames = zip(
+        *sorted(zip(dicom_files, filenames), key=lambda x: float(x[0].InstanceNumber))
+    )
+
+    slices = []
+    for ds in dicom_files:
+        # Read pixel data and convert to float
+        pixel_array = ds.pixel_array.astype(np.float32)
+        # Apply modality LUT if available (i.e., rescale slope and intercept)
+        if hasattr(ds, "RescaleSlope") and hasattr(ds, "RescaleIntercept"):
+            pixel_array = pixel_array * ds.RescaleSlope + ds.RescaleIntercept
+        slices.append(pixel_array)
+
+    array = np.stack(slices)
+    return array, dicom_files, filenames
+
+
+def select_slice_with_patient(pixel_array: np.ndarray, threshold: float = -300) -> int:
+    """
+    Select the slice that contains the most patient tissue.
+
+    Args:
+        pixel_array: 3D numpy array with shape (num_slices, height, width)
+                      and pixel values in Hounsfield units.
+        threshold: A pixel value threshold above which we consider the pixel to be tissue.
+                   (For example, -300 HU; adjust if needed.)
+
+    Returns:
+        The index of the slice with the largest area of tissue.
+    """
+    best_index = 0
+    best_count = 0
+
+    for i in range(pixel_array.shape[0]):
+        # Count the number of pixels above the threshold.
+        tissue_count = np.sum(pixel_array[i] > threshold)
+        if tissue_count > best_count:
+            best_count = tissue_count
+            best_index = i
+
+    return best_index
+
+
+def dcm2png(dcm_file: str, output_file: str, size=(300, 300)):
+    """
+    Convert a DICOM file to a PNG using the dcm2pnm tool from DCMTK.
+
+    Args:
+        dcm_file: Path to the input DICOM file.
+        output_file: Path to the output PNG file.
+
+    Returns:
+        None
+    """
+    # Command to generate thumbnail using dcm2pnm
+    dcm2pnm_command = [
+        "dcm2pnm",
+        "--scale-y-size",
+        str(size[0]),
+        "+Wm",
+        "--write-png",  # Write 8-bit PNG
+        dcm_file,
+        output_file,
+    ]
+    try:
+        subprocess.run(dcm2pnm_command, check=True, stderr=subprocess.PIPE, text=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(e.stderr)
+        raise RuntimeError(f"dcm2pnm failed: {e}")
+
+
+def center_thumbnail(image: Image, size: int = 256) -> Image:
+    """
+    Centers and resizes an image to fit within a square canvas while maintaining its aspect ratio.
+
+    Args:
+        image (Image): The input PIL image.
+        size (int): The size of the square canvas (default is 256).
+
+    Returns:
+        Image: A new PIL image centered on a square canvas.
+    """
+    # Ensure the image is in RGBA mode
+    image = image.convert("RGBA")
+
+    # Resize the image to fit within the square canvas while maintaining the aspect ratio
+    image.thumbnail((size, size))
+
+    # Create a blank square canvas with a transparent background
+    canvas = Image.new("RGBA", (size, size), (255, 255, 255, 0))
+
+    # Calculate the position to center the image on the canvas
+    x_offset = (size - image.width) // 2
+    y_offset = (size - image.height) // 2
+
+    # Paste the resized image onto the canvas
+    canvas.paste(image, (x_offset, y_offset), image)
+
+    return canvas
+
+
+def generate_base_thumbnail(dcm_dir: str) -> Image:
+    """
+    Generate a thumbnail image for the DICOM series by selecting the slice with the most tissue.
+
+    Args:
+        dcm_dir: Path to the directory containing the DICOM files.
+
+    Returns:
+        A PIL Image object representing the thumbnail.
+    """
+    pixel_array, dicom_files, filenames = load_dicom_series(dcm_dir)
+    best_slice_index = select_slice_with_patient(pixel_array=pixel_array)
+
+    # Use the filename of the selected slice directly
+    best_dicom_file = filenames[best_slice_index]
+
+    # Convert the DICOM file to PNG
+    output_png_file = os.path.join(dcm_dir, "thumbnail.png")
+    dcm2png(best_dicom_file, output_png_file)
+
+    # Load the PNG file as a PIL image
+    thumbnail = Image.open(output_png_file)
+
+    return thumbnail
+
+
+def generate_RTSTRUCT_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Image:
+    image_array, seg_arrays, segment_colors = load_image_and_segmentation_from_rtstruct(
+        dcm_ref_dir, dcm_incoming_dir
+    )
+    thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
+    return thumbnail
+
+
+def generate_SEG_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Image:
+    image_array, seg_arrays, segment_colors = (
+        load_image_and_segmentation_from_dicom_segmentation(
+            dcm_ref_dir, dcm_incoming_dir
+        )
+    )
+    thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
+    return thumbnail
+
+
 def generate_thumbnail(parameters: tuple) -> tuple:
     global processed_count
 
-    dcm_seg_dir, dcm_dir, target_dir = parameters
+    dcm_incoming_dir, dcm_ref_dir, target_dir = parameters
 
-    logger.info(f"dcm_seg_dir: {dcm_seg_dir}")
-    logger.info(f"dcm_dir: {dcm_dir}")
+    logger.info(f"dcm_seg_dir: {dcm_incoming_dir}")
+    logger.info(f"dcm_dir: {dcm_ref_dir}")
     logger.info(f"target_dir: {target_dir}")
 
     # Load the DICOM segmentation object or RTSTRUCT file to determine the modality and series UID
-    ds = pydicom.dcmread(os.path.join(dcm_seg_dir, os.listdir(dcm_seg_dir)[0]))
+    ds = pydicom.dcmread(
+        os.path.join(dcm_incoming_dir, os.listdir(dcm_incoming_dir)[0])
+    )
     modality = ds.Modality
     seg_series_uid = ds.SeriesInstanceUID
 
@@ -94,18 +257,26 @@ def generate_thumbnail(parameters: tuple) -> tuple:
     os.makedirs(target_dir, exist_ok=True)
 
     # Load the image and segmentation (and segment colors)
-    if modality == "RTSTRUCT":
-        image_array, seg_arrays, segment_colors = (
-            load_image_and_segmentation_from_rtstruct(dcm_dir, dcm_seg_dir)
-        )
+    if modality == "CT" or modality == "MR":
+        thumbnail = generate_base_thumbnail(dcm_incoming_dir)
+    elif modality == "RTSTRUCT":
+        thumbnail = generate_RTSTRUCT_thumbnail(dcm_incoming_dir, dcm_ref_dir)
     elif modality == "SEG":
-        image_array, seg_arrays, segment_colors = (
-            load_image_and_segmentation_from_dicom_segmentation(dcm_dir, dcm_seg_dir)
-        )
+        thumbnail = generate_SEG_thumbnail(dcm_incoming_dir, dcm_ref_dir)
     else:
         logger.warning(f"Modality {modality} not supported. Skipping.")
         return False, ""
 
+    thumbnail = center_thumbnail(thumbnail)
+    target_png = os.path.join(target_dir, f"new_{seg_series_uid}.png")
+    thumbnail.save(target_png)
+    logger.info(f"Thumbnail saved to {target_png}")
+
+    processed_count += 1
+    return True, target_png
+
+
+def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image:
     # Count the number of classes in each slice
     classes_per_slice = np.sum(
         np.any(seg_arrays > 0, axis=(2, 3)), axis=0
@@ -222,14 +393,7 @@ def generate_thumbnail(parameters: tuple) -> tuple:
 
         image = Image.alpha_composite(image, fill_overlay)
 
-    # Save the thumbnail
-    target_png = os.path.join(target_dir, f"new_{seg_series_uid}.png")
-    image.save(target_png)
-    logger.info(f"Thumbnail saved to {target_png}")
-
-    processed_count += 1
-
-    return True, target_png
+    return image
 
 
 def load_image_and_segmentation_from_dicom_segmentation(

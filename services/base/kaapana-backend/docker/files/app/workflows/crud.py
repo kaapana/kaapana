@@ -333,9 +333,9 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
         and "federated_dir" in job.conf_data["federated_form"]
         and "federated_folder" in job.conf_data["federated_form"]
         and "federated_operators" in job.conf_data["federated_form"]
+        and "minio_urls" not in job.conf_data["federated_form"]
     ):
         minioClient = HelperMinio()
-
         minio_urls = minioClient.add_minio_urls(
             job.conf_data["project_form"]["s3_bucket"],
             job.conf_data["federated_form"],

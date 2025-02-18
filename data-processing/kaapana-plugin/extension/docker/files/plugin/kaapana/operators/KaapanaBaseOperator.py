@@ -464,7 +464,8 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         Launch a dev-server as pending application.
         """
         url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
-
+                
+        form_data = {}
         if (
             context["dag_run"].conf is not None
             and "form_data" in context["dag_run"].conf

@@ -140,7 +140,7 @@ async def del_study(
             # Delete in PACS
             response = await delete_series_dcm4chee(study, series, request)
 
-    return response
+    return Response(status_code=200)
 
 
 @router.delete(

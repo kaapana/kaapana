@@ -1,4 +1,5 @@
 import os
+import tempfile
 import subprocess
 from dataclasses import dataclass
 from glob import glob
@@ -108,8 +109,21 @@ def load_dicom_series(dicom_dir: str):
     array = np.stack(slices)
     return array, dicom_files, filenames
 
+def get_slice_position(ds):
+    """
+    Get position of the slice from the DicomTags
+    """
+    try:
+        return int(ds.InstanceNumber)
+    except AttributeError:
+        print("DICOM file is missing 'InstanceNumber'")
+        
+    try:
+        return ds.ImagePositionPatient[2]
+    except AttributeError:
+        print("DICOM file is missing both 'InstanceNumber' and 'ImagePositionPatient'.")
 
-def select_slice_with_patient(pixel_array: np.ndarray, threshold: float = -300) -> int:
+def select_slice_with_patient(pixel_array: np.ndarray, dicom_files) -> int:
     """
     Select the slice that contains the most patient tissue.
 
@@ -122,17 +136,20 @@ def select_slice_with_patient(pixel_array: np.ndarray, threshold: float = -300) 
     Returns:
         The index of the slice with the largest area of tissue.
     """
-    best_index = 0
-    best_count = 0
+    
+    # Get original indices before sorting
+    indexed_dicoms = list(enumerate(dicom_files))  # [(original_index, dataset), ...]
+    
+    # Sort based on slice position
+    indexed_dicoms.sort(key=lambda x: get_slice_position(x[1]))  # Sort by DICOM slice position
+    
+    # Find middle index in the sorted list
+    middle_index = len(indexed_dicoms) // 2
+    
+    # Get the original index of the middle slice
+    original_index = indexed_dicoms[middle_index][0]
 
-    for i in range(pixel_array.shape[0]):
-        # Count the number of pixels above the threshold.
-        tissue_count = np.sum(pixel_array[i] > threshold)
-        if tissue_count > best_count:
-            best_count = tissue_count
-            best_index = i
-
-    return best_index
+    return original_index
 
 
 def dcm2png(dcm_file: str, output_file: str, size=(300, 300)):
@@ -151,8 +168,7 @@ def dcm2png(dcm_file: str, output_file: str, size=(300, 300)):
         "dcm2pnm",
         "--scale-y-size",
         str(size[0]),
-        "+M",
-        "+Ww", "45", "320", # OHIF default for phantom CT
+        "+Wm",
         "--write-png",  # Write 8-bit PNG
         dcm_file,
         output_file,
@@ -205,17 +221,22 @@ def generate_base_thumbnail(dcm_dir: str) -> Image:
         A PIL Image object representing the thumbnail.
     """
     pixel_array, dicom_files, filenames = load_dicom_series(dcm_dir)
-    best_slice_index = select_slice_with_patient(pixel_array=pixel_array)
+    slice_index = select_slice_with_patient(pixel_array=pixel_array, dicom_files=dicom_files)
 
     # Use the filename of the selected slice directly
-    best_dicom_file = filenames[best_slice_index]
+    selected_dicom_file = filenames[slice_index]
 
-    # Convert the DICOM file to PNG
-    output_png_file = os.path.join(dcm_dir, "thumbnail.png")
-    dcm2png(best_dicom_file, output_png_file)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        output_png_file = os.path.join(tmp_dir, "thumbnail.png")
+    
+        # Convert DICOM to PNG
+        dcm2png(selected_dicom_file, output_png_file)
 
-    # Load the PNG file as a PIL image
-    thumbnail = Image.open(output_png_file)
+        # Convert the DICOM file to PNG
+        dcm2png(selected_dicom_file, output_png_file)
+
+        # Load the PNG file as a PIL image
+        thumbnail = Image.open(output_png_file)
 
     return thumbnail
 

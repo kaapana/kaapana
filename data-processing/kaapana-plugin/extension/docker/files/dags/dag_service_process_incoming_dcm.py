@@ -31,9 +31,6 @@ from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperato
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
-from kaapana.operators.LocalSanitizeProjectAndDatasetOperator import (
-    LocalSanitizeProjectAndDatasetOperator,
-)
 from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
@@ -302,8 +299,6 @@ extract_metadata >> [
 
 (
     validate
-    >> get_input_json_from_input_files
-    >> clear_validation_results
     >> save_to_meta
     >> put_html_to_minio
     >> put_results_html_to_minio_admin_bucket

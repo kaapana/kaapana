@@ -109,6 +109,7 @@ def load_dicom_series(dicom_dir: str):
     array = np.stack(slices)
     return array, dicom_files, filenames
 
+
 def get_slice_position(ds):
     """
     Get position of the slice from the DicomTags
@@ -168,7 +169,8 @@ def dcm2png(dcm_file: str, output_file: str, size=(300, 300)):
         "dcm2pnm",
         "--scale-y-size",
         str(size[0]),
-        "+Wm",
+        "+M",
+        "+Ww", "45", "320", # OHIF default for phantom CT
         "--write-png",  # Write 8-bit PNG
         dcm_file,
         output_file,

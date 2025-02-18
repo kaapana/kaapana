@@ -1,18 +1,18 @@
+import datetime
 import json
-import os
-import requests
 import logging
+import os
+import xml.etree.ElementTree as ET
+from datetime import timedelta, timezone
+
+import requests
+from app.config import settings
+from fastapi import HTTPException
+from minio import Minio
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from requests_cache import CachedSession
-from datetime import timezone, timedelta
-import datetime
-from fastapi import HTTPException
-from app.config import settings
-
-from minio import Minio
 from urllib3.util import Timeout
-import xml.etree.ElementTree as ET
 
 logging.getLogger().setLevel(logging.INFO)
 logger = logging.getLogger(__name__)
@@ -88,24 +88,25 @@ class HelperMinio(Minio):
             ),
         }
 
-    def add_minio_urls(self, federated, instance_name):
+    def add_minio_urls(self, project_bucket, federated, instance_name):
         federated_dir = federated["federated_dir"]
-        federated_bucket = federated["federated_bucket"]
+        federated_folder = federated["federated_folder"]
         if "federated_round" in federated:
             federated_round = str(federated["federated_round"])
         else:
             federated_round = ""
 
-        if not self.bucket_exists(federated_bucket):
-            self.make_bucket(federated_bucket)
+        if not self.bucket_exists(federated_folder):
+            self.make_bucket(federated_folder)
 
         minio_urls = {}
         for federated_operator in federated["federated_operators"]:
             minio_urls[federated_operator] = {
                 "get": self.get_custom_presigend_url(
                     "GET",
-                    federated_bucket,
+                    project_bucket,
                     os.path.join(
+                        federated_folder,
                         federated_dir,
                         federated_round,
                         instance_name,
@@ -115,8 +116,9 @@ class HelperMinio(Minio):
                 ),
                 "put": self.get_custom_presigend_url(
                     "PUT",
-                    federated_bucket,
+                    project_bucket,
                     os.path.join(
+                        federated_folder,
                         federated_dir,
                         federated_round,
                         instance_name,

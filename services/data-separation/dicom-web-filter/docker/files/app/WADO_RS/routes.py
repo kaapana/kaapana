@@ -47,17 +47,6 @@ def get_boundary() -> bytes:
     """
     return binascii.hexlify(os.urandom(16))
 
-
-async def stream_rendered(method="GET", url: str = None, request_headers: dict = None, new_boundary = None):
-    async with httpx.AsyncClient() as client:
-        async with client.stream(
-            method="GET", url=url, headers=request_headers, timeout=10
-        ) as response:
-            response.raise_for_status()
-            async for chunk in response.aiter_bytes():
-                yield chunk
-
-
 async def stream(
     method="GET",
     url: str = None,
@@ -111,7 +100,23 @@ async def stream(
                 yield buffer
 
 
+
 def stream_study(study: str, request: Request) -> StreamingResponse:
+    """
+    Streams a DICOM study from a remote DICOMweb server.
+
+    This function sends a GET request to retrieve a study from the DICOMweb server
+    and returns a streaming response to the client. The response is sent using 
+    chunked transfer encoding with a multipart/related content type.
+
+    Args:
+        study (str): The unique identifier (Study Instance UID) of the DICOM study to retrieve.
+        request (Request): The incoming HTTP request, used to pass headers.
+
+    Returns:
+        StreamingResponse: A streaming response containing the DICOM study data.
+    """
+
     boundary = get_boundary()
     return StreamingResponse(
         stream(
@@ -128,6 +133,16 @@ def stream_study(study: str, request: Request) -> StreamingResponse:
 
 
 def stream_study_metadata(study: str, request: Request) -> StreamingResponse:
+    """
+    Streams the metadata of a DICOM study from the DICOMWeb server.
+
+    Args:
+        study (str): The unique identifier (Study Instance UID) of the DICOM study.
+        request (Request): The incoming HTTP request.
+
+    Returns:
+        StreamingResponse: A streaming response containing the study metadata in JSON format.
+    """
     return StreamingResponse(
         metadata_replace_stream(
             method="GET",
@@ -141,6 +156,17 @@ def stream_study_metadata(study: str, request: Request) -> StreamingResponse:
 
 
 def stream_study_rendered(study: str, request: Request) -> StreamingResponse:
+    """
+    Streams a rendered representation of a DICOM study from the DICOMWeb server.
+
+    Args:
+        study (str): The unique identifier (Study Instance UID) of the DICOM study.
+        request (Request): The incoming HTTP request.
+
+    Returns:
+        StreamingResponse: A streaming response containing the rendered study data.
+    """
+
     boundary = get_boundary()
     return StreamingResponse(
         stream(
@@ -154,6 +180,30 @@ def stream_study_rendered(study: str, request: Request) -> StreamingResponse:
             "Content-Type": f"multipart/related; boundary={boundary.decode()}",
         },
     )
+
+async def stream_rendered(
+    method="GET", url: str = None, request_headers: dict = None, new_boundary=None
+):
+    """
+    Asynchronously streams a rendered DICOM series or instance from the DICOMWeb server.
+
+    Args:
+        method (str, optional): The HTTP method to use (default is "GET").
+        url (str, optional): The target URL for the request.
+        request_headers (dict, optional): The request headers.
+        new_boundary (optional): Custom boundary for multipart response.
+
+    Yields:
+        bytes: Chunks of the streamed response.
+    """
+
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method=method, url=url, headers=request_headers, timeout=10
+        ) as response:
+            response.raise_for_status()
+            async for chunk in response.aiter_bytes():
+                yield chunk
 
 
 # WADO-RS routes

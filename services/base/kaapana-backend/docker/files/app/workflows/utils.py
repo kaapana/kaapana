@@ -90,14 +90,13 @@ class HelperMinio(Minio):
 
     def add_minio_urls(self, project_bucket, federated, instance_name):
         federated_dir = federated["federated_dir"]
-        federated_folder = federated["federated_folder"]
         if "federated_round" in federated:
             federated_round = str(federated["federated_round"])
         else:
             federated_round = ""
 
-        if not self.bucket_exists(federated_folder):
-            self.make_bucket(federated_folder)
+        if not self.bucket_exists(project_bucket):
+            self.make_bucket(project_bucket)
 
         minio_urls = {}
         for federated_operator in federated["federated_operators"]:
@@ -106,7 +105,6 @@ class HelperMinio(Minio):
                     "GET",
                     project_bucket,
                     os.path.join(
-                        federated_folder,
                         federated_dir,
                         federated_round,
                         instance_name,
@@ -118,7 +116,6 @@ class HelperMinio(Minio):
                     "PUT",
                     project_bucket,
                     os.path.join(
-                        federated_folder,
                         federated_dir,
                         federated_round,
                         instance_name,

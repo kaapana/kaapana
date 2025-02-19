@@ -173,14 +173,20 @@ class KaapanaFederatedTrainingBase(ABC):
             conf_data = json.load(f)
         if "external_schema_federated_form" not in conf_data:
             conf_data["external_schema_federated_form"] = {}
-        if "federated_folder" not in conf_data["external_schema_federated_form"]:
-            conf_data["external_schema_federated_form"]["federated_folder"] = conf_data[
-                "external_schema_federated_form"
-            ]["remote_dag_id"]
-        if "federated_dir" not in conf_data["external_schema_federated_form"]:
-            conf_data["external_schema_federated_form"][
-                "federated_dir"
-            ] = self.federated_dir
+        # Get federated_folder, defaulting to remote_dag_id if not present, and remove it from conf_data
+        federated_folder = conf_data["external_schema_federated_form"].pop(
+            "federated_folder",
+            conf_data["external_schema_federated_form"]["remote_dag_id"],
+        )
+
+        federated_dir = conf_data["external_schema_federated_form"].get(
+            "federated_dir", self.federated_dir
+        )
+        # Store the combined path back in federated_dir
+        conf_data["external_schema_federated_form"]["federated_dir"] = os.path.join(
+            federated_folder, federated_dir
+        )
+
         return conf_data
 
     def __init__(
@@ -374,7 +380,6 @@ class KaapanaFederatedTrainingBase(ABC):
         self, federated_round, tmp_central_site_info
     ):
         project_bucket = self.remote_conf_data["project_form"]["s3_bucket"]
-        federated_folder = self.remote_conf_data["federated_form"]["federated_folder"]
         if federated_round > 0:
             previous_federated_round_dir = os.path.join(
                 self.remote_conf_data["federated_form"]["federated_dir"],
@@ -398,9 +403,7 @@ class KaapanaFederatedTrainingBase(ABC):
             print(current_federated_round_dir)
             objects = self.minioClient.list_objects(
                 project_bucket,
-                os.path.join(
-                    federated_folder, current_federated_round_dir, instance_name
-                ),
+                os.path.join(current_federated_round_dir, instance_name),
                 recursive=True,
             )
             for obj in objects:
@@ -444,9 +447,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 minio_rmtree(
                     self.minioClient,
                     project_bucket,
-                    os.path.join(
-                        federated_folder, previous_federated_round_dir, instance_name
-                    ),
+                    os.path.join(previous_federated_round_dir, instance_name),
                 )
 
     @abstractmethod
@@ -743,7 +744,6 @@ class KaapanaFederatedTrainingBase(ABC):
             )
 
         minio_recovery_path = os.path.join(
-            self.remote_conf_data["federated_form"]["federated_folder"],
             self.federated_dir,
             str(federated_round),
             "recovery_conf.json",
@@ -776,8 +776,5 @@ class KaapanaFederatedTrainingBase(ABC):
         minio_rmtree(
             self.minioClient,
             self.remote_conf_data["project_form"]["s3_bucket"],
-            os.path.join(
-                self.remote_conf_data["federated_form"]["federated_folder"],
-                self.remote_conf_data["federated_form"]["federated_dir"],
-            ),
+            self.remote_conf_data["federated_form"]["federated_dir"],
         )

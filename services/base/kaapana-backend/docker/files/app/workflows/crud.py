@@ -331,7 +331,6 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
     if (
         "federated_form" in job.conf_data
         and "federated_dir" in job.conf_data["federated_form"]
-        and "federated_folder" in job.conf_data["federated_form"]
         and "federated_operators" in job.conf_data["federated_form"]
         and "minio_urls" not in job.conf_data["federated_form"]
     ):

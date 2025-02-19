@@ -48,6 +48,16 @@ def get_boundary() -> bytes:
     return binascii.hexlify(os.urandom(16))
 
 
+async def stream_rendered(method="GET", url: str = None, request_headers: dict = None, new_boundary = None):
+    async with httpx.AsyncClient() as client:
+        async with client.stream(
+            method="GET", url=url, headers=request_headers, timeout=10
+        ) as response:
+            response.raise_for_status()
+            async for chunk in response.aiter_bytes():
+                yield chunk
+
+
 async def stream(
     method="GET",
     url: str = None,
@@ -726,7 +736,7 @@ async def retrieve_series_rendered(
         boundary = get_boundary()
 
         return StreamingResponse(
-            stream(
+            stream_rendered(
                 method="GET",
                 url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/rendered",
                 request_headers=request.headers,
@@ -780,7 +790,7 @@ async def retrieve_instance_rendered(
     ):
         boundary = get_boundary()
         return StreamingResponse(
-            stream(
+            stream_rendered(
                 method="GET",
                 url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/rendered",
                 request_headers=request.headers,

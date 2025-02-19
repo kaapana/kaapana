@@ -35,7 +35,7 @@
     async: 3600 ### Jobs will time out after this amount of seconds
     poll: 0
 
-  - name: Remove test file if already existing
+  - name: Remove log file if already existing
     ansible.builtin.file:
       path: "{{ log_file }}"
       state: absent

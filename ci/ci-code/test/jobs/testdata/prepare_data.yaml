@@ -1,7 +1,6 @@
-- hosts: "{{ ansible_groupname | default('kaapana_depl_server') }}"
+- hosts: localhost
   gather_facts: true
   become: no
-  remote_user: "{{ lookup('ansible.builtin.env', 'DEPLOYMENT_INSTANCE_USER') }}"
   vars:
     repo_dir: "{{ lookup('ansible.builtin.env', 'REPO_DIR') }}"
     artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
@@ -10,77 +9,103 @@
     CLIENT_SECRET: "{{ lookup('ansible.builtin.env', 'CLIENT_SECRET') }}"
 
   tasks:
-  - name: Install dcmtk
-    become: yes
-    ansible.builtin.apt:
-      state: latest
-      pkg:
-      - "dcmtk"
+  # - name: Install dcmtk
+  #   become: yes
+  #   ansible.builtin.apt:
+  #     state: latest
+  #     pkg:
+  #     - "dcmtk"
 
   - name: set variables
     ansible.builtin.set_fact:
-      test_dir_remote: "{{ ansible_env.HOME }}/data_upload"
-  - name: set variables
-    ansible.builtin.set_fact:
-      series_uids_local: "{{ repo_dir }}/ci-code/test/jobs/testdata/series_uids.txt"
-      series_uids_remote: "{{ test_dir_remote }}/testdata/series_uids.txt"
-
+      test_data_directory: "{{ ansible_env.HOME }}/test_data"
+      test_data_info:
+        - {dataset: "test-CT", input: "{{ repo_dir }}/ci-code/test/jobs/testdata/download-info/ct-manifest.tcia"}
+        - {dataset: "test-DELETE", input: "{{ repo_dir }}/ci-code/test/jobs/testdata/download-info/deletion-manifest.tcia"}
+        - {dataset: "test-SEG", input: "{{ repo_dir }}/ci-code/test/jobs/testdata/download-info/seg-url.url"}
+        - {dataset: "test-MRT", input: "{{ repo_dir }}/ci-code/test/jobs/testdata/download-info/mrt-manifest.tcia"}
+        - {dataset: "test-MODELS", input: "{{ repo_dir }}/ci-code/test/jobs/testdata/download-info/models-url.url"}
+      
   - name: Download data
-    command: "python3 download_data.py --series-file {{ series_uids_local }}"
-    register: download
+    ansible.builtin.command: "python3 download_data.py --output {{ test_data_directory }}/{{ item.dataset }} --input {{ item.input }}"
+    register: download_logs
     args:
       chdir: "{{ repo_dir }}/ci-code/test/src"
-    delegate_to: 127.0.0.1
+    loop: "{{ test_data_info }}"
 
-  - name: Copy src directory from ci-instance with rsync module
-    ansible.posix.synchronize:
-      src: "{{ repo_dir  }}/ci-code/test/src"
-      dest: "{{ test_dir_remote }}"
-      recursive: true
-      mode: "push"
+  - name: Remove log file if already existing
+    ansible.builtin.file:
+      path: "{{ artifacts_dir }}/download-data.log"
+      state: absent
 
-  - name: Copy testdata directory from ci-instance with rsync module
-    ansible.posix.synchronize:
-      src: "{{ repo_dir  }}/ci-code/test/jobs/testdata"
-      dest: "{{ test_dir_remote }}/jobs"
-      recursive: true
-      mode: "push"
+  - name: Save logs from download_data.py
+    ansible.builtin.lineinfile:
+      line: "{{ item.stdout }} {{ item.stderr }}"
+      dest: "{{ artifacts_dir }}/download-data.log"
+      create: true
+    loop: "{{ download_logs.results }}"
+    loop_control:
+      label: "{{ item.cmd }}"
+
 
   - name: Send testdata to platform
     ignore_errors: true
     register: send_data_log
     ansible.builtin.command: 
-      cmd: "python3 send_testdata.py --host {{ ip_address }}"
+      cmd: "python3 send_testdata.py --host {{ ip_address }} --source {{ test_data_directory }}/{{ item.dataset }} --dataset {{ item.dataset }}"
     args:
-      chdir: "{{ test_dir_remote }}/src"
+      chdir: "{{ repo_dir }}/ci-code/test/src"
+    loop: "{{ test_data_info }}"
+
+  - name: Remove log file if already existing
+    ansible.builtin.file:
+      path: "{{ artifacts_dir }}/send-data.log"
+      state: absent
 
   - name: Save logs from send_testdata.py
-    ansible.builtin.copy:
-      content: "{{ send_data_log.stdout }} {{ send_data_log.stderr }}"
+    ansible.builtin.lineinfile:
+      line: "{{ item.stdout }} {{ item.stderr }}"
       dest: "{{ artifacts_dir }}/send-data.log"
-    delegate_to: 127.0.0.1
+      create: true
+    loop: "{{ send_data_log.results }}"
+    loop_control:
+      label: "{{ item.cmd }}"
 
   - name: fail playbook if sending data failed
-    when: send_data_log.rc != 0
+    when: item.rc != 0
     ansible.builtin.command:
       cmd: /bin/false
+    loop: "{{ send_data_log.results }}"
+    loop_control:
+      label: "{{ item.cmd }}"
 
   - name: Wait until data is sent
     register: wait_for_data_log
     ignore_errors: true
     ansible.builtin.command:
-      cmd: "python3 wait_for_data.py --host {{ ip_address }} --series-file {{ series_uids_local }} --max-time 300"
+      cmd: "python3 wait_for_data.py --host {{ ip_address }} --data-dir {{ test_data_directory }}/{{ item.dataset }} --dataset {{ item.dataset }} --max-time 300"
     args:
       chdir: "{{ repo_dir }}/ci-code/test/src"
-    delegate_to: 127.0.0.1
+    loop: "{{ test_data_info }}"
 
-  - name: Save logs from wait_for_data.py
-    ansible.builtin.copy:
-      content: "{{ wait_for_data_log.stdout }} {{ wait_for_data_log.stderr }}"
+  - name: Remove log file if already existing
+    ansible.builtin.file:
+      path: "{{ artifacts_dir }}/wait-for-data.log"
+      state: absent
+
+  - name: Save logs from wait-for-data.py
+    ansible.builtin.lineinfile:
+      line: "{{ item.stdout }} {{ item.stderr }}"
       dest: "{{ artifacts_dir }}/wait-for-data.log"
-    delegate_to: 127.0.0.1
+      create: true
+    loop: "{{ wait_for_data_log.results }}"
+    loop_control:
+      label: "{{ item.cmd }}"
 
-  - name: fail playbook if data does not arrive at the platform
-    when: wait_for_data_log.rc != 0
+  - name: Fail playbook if data does not arrive at the platform
+    when: item.rc != 0
     ansible.builtin.command:
       cmd: /bin/false
+    loop: "{{ wait_for_data_log.results }}"
+    loop_control: 
+      label: "{{ item.cmd }}"

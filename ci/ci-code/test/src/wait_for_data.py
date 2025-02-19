@@ -1,4 +1,4 @@
-from base_utils.utils_data import DataEndpoints
+from base_utils.utils_data import DataEndpoints, list_of_series_in_dir
 from argparse import ArgumentParser
 from base_utils.logger import get_logger
 import os, sys, logging
@@ -21,6 +21,12 @@ def parser():
         default=None,
         help="The client secret of the kaapana client in keycloak.",
     )
+    p.add_argument(
+        "--data-dir", help="Path to directory, where the dicom data is stored."
+    )
+    p.add_argument(
+        "--dataset", help="Name of the dataset that should consists of the dicom data."
+    )
     return p.parse_args()
 
 
@@ -34,7 +40,10 @@ def main():
         )
         sys.exit(1)
     kaapana = DataEndpoints(host=host, client_secret=client_secret)
-    kaapana.check_all_datasets_in_backend()
+    dataset = args.dataset
+    data_dir = args.data_dir
+    series_uids = list_of_series_in_dir(data_dir)
+    kaapana.wait_for_dataset(dataset=dataset, series_uids=series_uids)
 
 
 if __name__ == "__main__":

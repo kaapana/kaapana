@@ -170,7 +170,7 @@ def dcm2png(dcm_file: str, output_file: str, size=(300, 300)):
         "--scale-y-size",
         str(size[0]),
         "+M",
-        "+Ww", "45", "320", # OHIF default for phantom CT
+        "+Wm",
         "--write-png",  # Write 8-bit PNG
         dcm_file,
         output_file,

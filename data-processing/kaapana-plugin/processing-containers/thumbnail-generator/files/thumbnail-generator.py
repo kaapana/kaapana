@@ -1,6 +1,4 @@
 import os
-import tempfile
-import subprocess
 from dataclasses import dataclass
 from glob import glob
 from multiprocessing.pool import ThreadPool
@@ -8,6 +6,7 @@ from os import getenv
 from os.path import exists, join
 from pathlib import Path
 from random import randint
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -78,10 +77,28 @@ def resample_segmentation_to_reference_image(
     return image, segmentation_resampled
 
 
-def load_dicom_series(dicom_dir: str):
+def load_dicom_series(
+    dicom_dir: str,
+) -> Tuple[List[pydicom.FileDataset], List[str]]:
     """
-    Load a DICOM series from a directory and return a 3D numpy array (slices, height, width),
-    the list of DICOM metadata, and the list of filenames.
+    Load a DICOM series from a directory and return a sorted list of DICOM metadata objects
+    along with their corresponding filenames.
+
+    The function:
+      - Reads all `.dcm` files in the given directory.
+      - Sorts them by `InstanceNumber` if available, otherwise falls back to `ImagePositionPatient[2]`.
+      - Preserves the original file order in case of sorting ties.
+
+    Args:
+        dicom_dir (str): Path to the directory containing DICOM files.
+
+    Returns:
+        Tuple[List[pydicom.FileDataset], List[str]]:
+            - List of DICOM metadata objects (one per slice).
+            - List of corresponding filenames.
+
+    Raises:
+        ValueError: If no DICOM files are found in the directory.
     """
     dicom_files = []
     filenames = []
@@ -92,94 +109,221 @@ def load_dicom_series(dicom_dir: str):
             dicom_files.append(pydicom.dcmread(filepath))
             filenames.append(filepath)
 
-    # Sort the files based on InstanceNumber to maintain slice order
-    dicom_files, filenames = zip(
-        *sorted(zip(dicom_files, filenames), key=lambda x: float(x[0].InstanceNumber))
+    sorted_files = sorted(
+        zip(dicom_files, filenames), key=lambda pair: get_slice_position(pair[0])
     )
-
-    slices = []
-    for ds in dicom_files:
-        # Read pixel data and convert to float
-        pixel_array = ds.pixel_array.astype(np.float32)
-        # Apply modality LUT if available (i.e., rescale slope and intercept)
-        if hasattr(ds, "RescaleSlope") and hasattr(ds, "RescaleIntercept"):
-            pixel_array = pixel_array * ds.RescaleSlope + ds.RescaleIntercept
-        slices.append(pixel_array)
-
-    array = np.stack(slices)
-    return array, dicom_files, filenames
+    return list(zip(*sorted_files))
 
 
-def get_slice_position(ds):
+def get_slice_position(ds: pydicom.FileDataset) -> int:
     """
-    Get position of the slice from the DicomTags
+    Get the position of a DICOM slice using available metadata tags.
+
+    The function prioritizes:
+      1. `InstanceNumber` (if available).
+      2. `ImagePositionPatient[2]` (Z-coordinate in patient space).
+      3. Returns a default value if both are missing.
+
+    Args:
+        ds (pydicom.FileDataset): The DICOM dataset object.
+        default (int, optional): The fallback position if no valid metadata is found (default is 0).
+
+    Returns:
+        int: The determined slice position. Defaults to `0` if no metadata is available.
     """
     try:
         return int(ds.InstanceNumber)
     except AttributeError:
         print("DICOM file is missing 'InstanceNumber'")
-        
+
     try:
-        return ds.ImagePositionPatient[2]
+        return int(ds.ImagePositionPatient[2])
     except AttributeError:
         print("DICOM file is missing both 'InstanceNumber' and 'ImagePositionPatient'.")
 
-def select_slice_with_patient(pixel_array: np.ndarray, dicom_files) -> int:
+    return None
+
+
+def apply_windowing(
+    pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset
+) -> np.ndarray:
     """
-    Select the slice that contains the most patient tissue.
+    Apply windowing (VOI LUT or default) to the pixel data.
+
+    This function adjusts the pixel intensity values based on DICOM windowing parameters.
+    If a `VOILUTFunction` is present and set to `"SIGMOID"`, it applies a sigmoid transformation.
+    Otherwise, it applies default linear windowing using `WindowCenter` and `WindowWidth`.
 
     Args:
-        pixel_array: 3D numpy array with shape (num_slices, height, width)
-                      and pixel values in Hounsfield units.
-        threshold: A pixel value threshold above which we consider the pixel to be tissue.
-                   (For example, -300 HU; adjust if needed.)
+        pixel_array (np.ndarray): A NumPy array representing the raw pixel data.
+        dicom_ds (pydicom.dataset.FileDataset): The DICOM dataset containing metadata.
 
     Returns:
-        The index of the slice with the largest area of tissue.
+        np.ndarray: The windowed pixel array.
+
     """
-    
-    # Get original indices before sorting
-    indexed_dicoms = list(enumerate(dicom_files))  # [(original_index, dataset), ...]
-    
-    # Sort based on slice position
-    indexed_dicoms.sort(key=lambda x: get_slice_position(x[1]))  # Sort by DICOM slice position
-    
-    # Find middle index in the sorted list
-    middle_index = len(indexed_dicoms) // 2
-    
-    # Get the original index of the middle slice
-    original_index = indexed_dicoms[middle_index][0]
+    if "VOILUTFunction" in dicom_ds:
+        logger.info("Applying VOI LUT function")
+        voi_lut = dicom_ds.voi_lut_function
+        if voi_lut == "SIGMOID":
+            # Apply sigmoid transformation
+            center = dicom_ds.WindowCenter
+            width = dicom_ds.WindowWidth
+            return 1 / (1 + np.exp(-((pixel_array - center) / width)))
 
-    return original_index
+    if "WindowCenter" in dicom_ds and "WindowWidth" in dicom_ds:
+        # logger.info("Applying default windowing")
+        center = dicom_ds.WindowCenter
+        width = dicom_ds.WindowWidth
+
+        if isinstance(center, pydicom.multival.MultiValue):
+            center = center[0]
+        if isinstance(width, pydicom.multival.MultiValue):
+            width = width[0]
+
+        min_value = center - width / 2
+        max_value = center + width / 2
+        pixel_array = np.clip(pixel_array, min_value, max_value)
+
+    return pixel_array
 
 
-def dcm2png(dcm_file: str, output_file: str, size=(300, 300)):
+def apply_rescale(pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset) -> np.ndarray:
     """
-    Convert a DICOM file to a PNG using the dcm2pnm tool from DCMTK.
+    Apply rescale slope and intercept to the DICOM pixel data.
+
+    Some DICOM images store pixel values that need to be adjusted using a linear transformation:
+        output_value = (pixel_value * RescaleSlope) + RescaleIntercept
 
     Args:
-        dcm_file: Path to the input DICOM file.
-        output_file: Path to the output PNG file.
+        pixel_array (np.ndarray): The raw pixel data from the DICOM file.
+        dicom_ds (pydicom.dataset.FileDataset): The DICOM dataset containing metadata.
 
     Returns:
-        None
+        np.ndarray: The rescaled pixel array.
     """
-    # Command to generate thumbnail using dcm2pnm
-    dcm2pnm_command = [
-        "dcm2pnm",
-        "--scale-y-size",
-        str(size[0]),
-        "+M",
-        "+Wm",
-        "--write-png",  # Write 8-bit PNG
-        dcm_file,
-        output_file,
-    ]
-    try:
-        subprocess.run(dcm2pnm_command, check=True, stderr=subprocess.PIPE, text=True)
-    except subprocess.CalledProcessError as e:
-        logger.error(e.stderr)
-        raise RuntimeError(f"dcm2pnm failed: {e}")
+    slope = dicom_ds.RescaleSlope if "RescaleSlope" in dicom_ds else 1
+    intercept = dicom_ds.RescaleIntercept if "RescaleIntercept" in dicom_ds else 0
+
+    # logger.info(f"Applying rescale slope {slope}, intercept {intercept}")
+    return pixel_array * slope + intercept
+
+
+def normalize_pixels(pixel_array: np.ndarray) -> np.ndarray:
+    """
+    Normalize pixel values to the 0-255 range for PNG saving.
+
+    Args:
+        pixel_array (np.ndarray): The pixel data after windowing and rescaling.
+
+    Returns:
+        np.ndarray: The normalized pixel data as an 8-bit unsigned integer array.
+    """
+    pixel_array = pixel_array - np.min(pixel_array)
+    pixel_array = pixel_array / np.max(pixel_array) * 255.0
+    return pixel_array.astype(np.uint8)
+
+
+def dcm2png(dcm_file: str, size=(300, 300)) -> Image:
+    """
+    Convert a DICOM file to a PNG image, applying windowing, VOI LUT, and rescaling.
+
+    Args:
+        dcm_file (str): Path to the input DICOM file.
+        size (tuple[int, int]): Desired output image size (width, height).
+
+    Returns:
+        Image: A PIL Image object representing the processed DICOM slice.
+    """
+    logger.debug(f"Processing DICOM file: {dcm_file}")
+
+    # Read DICOM file
+    dicom_ds = pydicom.dcmread(dcm_file)
+
+    # Get pixel data
+    pixel_array = dicom_ds.pixel_array.astype(np.float32)
+
+    # Apply rescale slope & intercept
+    pixel_array = apply_rescale(pixel_array, dicom_ds)
+
+    # Apply windowing
+    pixel_array = apply_windowing(pixel_array, dicom_ds)
+
+    # Normalize to 0-255
+    pixel_array = normalize_pixels(pixel_array)
+
+    # Resize image
+    pixel_array = cv2.resize(pixel_array, size, interpolation=cv2.INTER_AREA)
+
+    # Convert to PIL Image (L mode for grayscale)
+    image = Image.fromarray(pixel_array).convert("L")
+
+    return image
+
+
+def generate_base_thumbnail(dcm_dir: str) -> Image:
+    """
+    Generate a thumbnail image for the DICOM series by selecting the slice with the most tissue.
+
+    Args:
+        dcm_dir: Path to the directory containing the DICOM files.
+
+    Returns:
+        A PIL Image object representing the thumbnail.
+    """
+    dicom_files, filenames = load_dicom_series(dcm_dir)
+    middle_slice_index = len(dicom_files) // 2
+    selected_dicom_file = filenames[middle_slice_index]
+
+    thumbnail = dcm2png(selected_dicom_file)
+
+    return thumbnail
+
+
+def generate_RTSTRUCT_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Image:
+    """
+    Generate a thumbnail image for an RTSTRUCT-based DICOM segmentation.
+
+    This function loads the reference DICOM series and RTSTRUCT segmentation, identifies the 
+    most relevant slice, and overlays the segmentation on the selected slice to generate a 
+    visually informative thumbnail.
+
+    Args:
+        dcm_incoming_dir (str): Path to the directory containing the RTSTRUCT DICOM file.
+        dcm_ref_dir (str): Path to the directory containing the reference DICOM series.
+
+    Returns:
+        Image: A PIL Image object representing the thumbnail with segmentation overlay.
+    """
+    image_array, seg_arrays, segment_colors = load_image_and_segmentation_from_rtstruct(
+        dcm_ref_dir, dcm_incoming_dir
+    )
+    thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
+    return thumbnail
+
+
+def generate_SEG_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Image:
+    """
+    Generate a thumbnail image for a DICOM SEG-based segmentation.
+
+    This function loads the reference DICOM series and the corresponding DICOM SEG segmentation, 
+    identifies the most relevant slice, and overlays the segmentation on the selected slice 
+    to generate a visually informative thumbnail.
+
+    Args:
+        dcm_incoming_dir (str): Path to the directory containing the DICOM SEG file.
+        dcm_ref_dir (str): Path to the directory containing the reference DICOM series.
+
+    Returns:
+        Image: A PIL Image object representing the thumbnail with segmentation overlay.
+    """
+    image_array, seg_arrays, segment_colors = (
+        load_image_and_segmentation_from_dicom_segmentation(
+            dcm_ref_dir, dcm_incoming_dir
+        )
+    )
+    thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
+    return thumbnail
 
 
 def center_thumbnail(image: Image, size: int = 256) -> Image:
@@ -210,55 +354,6 @@ def center_thumbnail(image: Image, size: int = 256) -> Image:
     canvas.paste(image, (x_offset, y_offset), image)
 
     return canvas
-
-
-def generate_base_thumbnail(dcm_dir: str) -> Image:
-    """
-    Generate a thumbnail image for the DICOM series by selecting the slice with the most tissue.
-
-    Args:
-        dcm_dir: Path to the directory containing the DICOM files.
-
-    Returns:
-        A PIL Image object representing the thumbnail.
-    """
-    pixel_array, dicom_files, filenames = load_dicom_series(dcm_dir)
-    slice_index = select_slice_with_patient(pixel_array=pixel_array, dicom_files=dicom_files)
-
-    # Use the filename of the selected slice directly
-    selected_dicom_file = filenames[slice_index]
-
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        output_png_file = os.path.join(tmp_dir, "thumbnail.png")
-    
-        # Convert DICOM to PNG
-        dcm2png(selected_dicom_file, output_png_file)
-
-        # Convert the DICOM file to PNG
-        dcm2png(selected_dicom_file, output_png_file)
-
-        # Load the PNG file as a PIL image
-        thumbnail = Image.open(output_png_file)
-
-    return thumbnail
-
-
-def generate_RTSTRUCT_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Image:
-    image_array, seg_arrays, segment_colors = load_image_and_segmentation_from_rtstruct(
-        dcm_ref_dir, dcm_incoming_dir
-    )
-    thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
-    return thumbnail
-
-
-def generate_SEG_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Image:
-    image_array, seg_arrays, segment_colors = (
-        load_image_and_segmentation_from_dicom_segmentation(
-            dcm_ref_dir, dcm_incoming_dir
-        )
-    )
-    thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
-    return thumbnail
 
 
 def generate_thumbnail(parameters: tuple) -> tuple:
@@ -301,6 +396,22 @@ def generate_thumbnail(parameters: tuple) -> tuple:
 
 
 def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image:
+    """
+    Create a thumbnail by overlaying a DICOM segmentation on the most representative slice.
+
+    The function identifies the best slice based on segmentation characteristics (number of 
+    classes and foreground pixel area), applies windowing and normalization, and blends the 
+    segmentation mask with transparency into the image.
+
+    Args:
+        image_array (numpy.ndarray): 3D array representing the DICOM image series.
+        seg_arrays (numpy.ndarray): 4D array containing segmentation masks for different 
+                                    segment classes.
+        segment_colors (dict): Dictionary mapping segment classes to RGB color values.
+
+    Returns:
+        Image: A PIL Image object with the overlaid segmentation.
+    """
     # Count the number of classes in each slice
     classes_per_slice = np.sum(
         np.any(seg_arrays > 0, axis=(2, 3)), axis=0
@@ -423,6 +534,28 @@ def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image:
 def load_image_and_segmentation_from_dicom_segmentation(
     image_dir: str, seg_dir: str
 ) -> tuple:
+    """
+    Load a DICOM image series and its corresponding segmentation from a DICOM SEG file.
+
+    This function reads a series of DICOM images (3D volume) from `image_dir` and a DICOM SEG 
+    segmentation file from `seg_dir`. It extracts segmentation masks for each segment class 
+    and assigns colors to each segment.
+
+    - Uses `pydicom_seg` to parse segmentation masks directly from the DICOM SEG file.
+    - Ensures segmentation masks align with the reference DICOM image by resampling if needed.
+    - Extracts recommended colors from the segmentation metadata (CIELab or RGB), 
+      falling back to random colors if unavailable.
+
+    Args:
+        image_dir (str): Directory containing the DICOM image series.
+        seg_dir (str): Directory containing the DICOM SEG file.
+
+    Returns:
+        tuple:
+            - image_array (numpy.ndarray): 3D array representing the DICOM image series.
+            - seg_arrays (numpy.ndarray): 4D array containing segmentation masks for different segment classes.
+            - segment_colors (dict): Dictionary mapping segment classes to RGB color values.
+    """
 
     # Load the image
     image_reader = sitk.ImageSeriesReader()
@@ -479,7 +612,6 @@ def load_image_and_segmentation_from_dicom_segmentation(
                     color = segment.RecommendedDisplayRGBValue
                     color_type = "RGB"
                 else:
-                    print("Tada")
                     # If no color information is available, generate a random color
                     color = [randint(0, 255), randint(0, 255), randint(0, 255)]
                     color_type = "Random"
@@ -496,14 +628,30 @@ def load_image_and_segmentation_from_dicom_segmentation(
 def load_image_and_segmentation_from_rtstruct(
     image_dir: str, rt_struct_dir: str
 ) -> tuple:
-    """Load the image and segmentation from an RTSTRUCT file
+    """
+    Load a DICOM image series and its corresponding segmentation from an RTSTRUCT file.
+
+    RTSTRUCT segmentation stores contours rather than pixel-based segmentation. 
+    This function extracts the contours, rasterizes them into a 3D segmentation 
+    mask, and assigns unique labels to each ROI.
+
+    Key Differences & Specifics:
+    - RTSTRUCT files contain **contour-based** segmentation instead of voxel-based masks.
+    - Each ROI (Region of Interest) is assigned a **unique integer label** to differentiate 
+      segment classes.
+    - Converts contour data into a **binary mask** by rasterizing each slice using OpenCV.
+    - Uses the DICOM image's **spacing, origin, and direction** for proper alignment.
+    - Assigns **random colors** to each segment since RTSTRUCT files do not contain color metadata.
 
     Args:
-        image_dir (str): Directory containing the DICOM image files
-        rt_struct_dir (str): Directory containing the RTSTRUCT file
+        image_dir (str): Directory containing the DICOM image series.
+        rt_struct_dir (str): Directory containing the RTSTRUCT file.
 
     Returns:
-        tuple: Tuple containing the image array, segmentation array, and segment colors
+        tuple:
+            - image_array (numpy.ndarray): 3D array representing the DICOM image series.
+            - seg_arrays (numpy.ndarray): 4D array where each slice contains rasterized segment contours.
+            - segment_colors (dict): Dictionary mapping segment classes to randomly generated colors.
     """
 
     # Load the RTSTRUCT

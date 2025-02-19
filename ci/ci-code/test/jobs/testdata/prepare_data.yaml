@@ -9,15 +9,18 @@
     CLIENT_SECRET: "{{ lookup('ansible.builtin.env', 'CLIENT_SECRET') }}"
 
   tasks:
-  # - name: Install dcmtk
-  #   become: yes
-  #   ansible.builtin.apt:
-  #     state: latest
-  #     pkg:
-  #     - "dcmtk"
+  - name: Install dcmtk
+    become: yes
+    ansible.builtin.apt:
+      state: latest
+      pkg:
+      - "dcmtk"
 
   - name: set variables
     ansible.builtin.set_fact:
+      max_recursion_depth: 150
+      sleep_between_recursions: 2
+      async_timeout: 300
       test_data_directory: "{{ ansible_env.HOME }}/test_data"
       test_data_info:
         - {dataset: "test-CT", input: "{{ repo_dir }}/ci-code/test/jobs/testdata/download-info/ct-manifest.tcia"}
@@ -27,85 +30,128 @@
         - {dataset: "test-MODELS", input: "{{ repo_dir }}/ci-code/test/jobs/testdata/download-info/models-url.url"}
       
   - name: Download data
-    ansible.builtin.command: "python3 download_data.py --output {{ test_data_directory }}/{{ item.dataset }} --input {{ item.input }}"
-    register: download_logs
-    args:
-      chdir: "{{ repo_dir }}/ci-code/test/src"
-    loop: "{{ test_data_info }}"
+    block: 
+    - name: Start script to download test data
+      ansible.builtin.command: "python3 download_data.py --output {{ test_data_directory }}/{{ item.dataset }} --input {{ item.input }}"
+      register: download_logs
+      args:
+        chdir: "{{ repo_dir }}/ci-code/test/src"
+      loop: "{{ test_data_info }}"
+      async: "{{ async_timeout | int }}"
+      poll: 0
 
-  - name: Remove log file if already existing
-    ansible.builtin.file:
-      path: "{{ artifacts_dir }}/download-data.log"
-      state: absent
+    - name: set variables
+      ansible.builtin.set_fact:
+        log_file: "{{ artifacts_dir }}/download-data.log"
+        ansible_job_ids: []
 
-  - name: Save logs from download_data.py
-    ansible.builtin.lineinfile:
-      line: "{{ item.stdout }} {{ item.stderr }}"
-      dest: "{{ artifacts_dir }}/download-data.log"
-      create: true
-    loop: "{{ download_logs.results }}"
-    loop_control:
-      label: "{{ item.cmd }}"
+    - name: Remove log file if already existing
+      ansible.builtin.file:
+        path: "{{ log_file }}"
+        state: absent
 
+    - name:
+      loop: "{{ download_logs.results }}"
+      loop_control:
+        label: "{{ item.ansible_job_id }}"
+      ansible.builtin.set_fact:
+        ansible_job_ids: "{{ ansible_job_ids | default([]) + [ item.ansible_job_id ] }}"
+
+    - name: Wait for all tasks to finish or timeout
+      ansible.builtin.include_tasks: ../integration_tests/wait_for_tasks.yaml
 
   - name: Send testdata to platform
-    ignore_errors: true
-    register: send_data_log
-    ansible.builtin.command: 
-      cmd: "python3 send_testdata.py --host {{ ip_address }} --source {{ test_data_directory }}/{{ item.dataset }} --dataset {{ item.dataset }}"
-    args:
-      chdir: "{{ repo_dir }}/ci-code/test/src"
-    loop: "{{ test_data_info }}"
+    block: 
+    - name: Start script to send testdata to the platform
+      ignore_errors: true
+      register: send_data_log
+      ansible.builtin.command: 
+        cmd: "python3 send_testdata.py --host {{ ip_address }} --source {{ test_data_directory }}/{{ item.dataset }} --dataset {{ item.dataset }}"
+      args:
+        chdir: "{{ repo_dir }}/ci-code/test/src"
+      loop: "{{ test_data_info }}"
+      async: "{{ async_timeout | int }}"
+      poll: 0
+    
+    - name: set variables
+      ansible.builtin.set_fact:
+        log_file: "{{ artifacts_dir }}/send-data.log"
+        ansible_job_ids: []
 
-  - name: Remove log file if already existing
-    ansible.builtin.file:
-      path: "{{ artifacts_dir }}/send-data.log"
-      state: absent
+    - name: Remove log file if already existing
+      ansible.builtin.file:
+        path: "{{ log_file }}"
+        state: absent
 
-  - name: Save logs from send_testdata.py
-    ansible.builtin.lineinfile:
-      line: "{{ item.stdout }} {{ item.stderr }}"
-      dest: "{{ artifacts_dir }}/send-data.log"
-      create: true
-    loop: "{{ send_data_log.results }}"
-    loop_control:
-      label: "{{ item.cmd }}"
+    - name:
+      loop: "{{ send_data_log.results }}"
+      loop_control:
+        label: "{{ item.ansible_job_id }}"
+      ansible.builtin.set_fact:
+        ansible_job_ids: "{{ ansible_job_ids | default([]) + [ item.ansible_job_id ] }}"
 
-  - name: fail playbook if sending data failed
-    when: item.rc != 0
-    ansible.builtin.command:
-      cmd: /bin/false
-    loop: "{{ send_data_log.results }}"
-    loop_control:
-      label: "{{ item.cmd }}"
+    - name: Wait for all tasks to finish or timeout
+      ansible.builtin.include_tasks: ../integration_tests/wait_for_tasks.yaml
+
+    - name: Get information about all tasks
+      async_status:
+        jid: "{{ item }}"
+      register: task_results
+      loop: "{{ ansible_job_ids }}"
+      ignore_errors: true
+
+    - name: Fail playbook if data does not arrive at the platform
+      when: item.rc != 0
+      ansible.builtin.command:
+        cmd: /bin/false
+      with_items: "{{ task_results.results }}"
+      loop_control:
+        label: "{{ item.cmd }} return-code: {{ item.rc }}"
 
   - name: Wait until data is sent
-    register: wait_for_data_log
-    ignore_errors: true
-    ansible.builtin.command:
-      cmd: "python3 wait_for_data.py --host {{ ip_address }} --data-dir {{ test_data_directory }}/{{ item.dataset }} --dataset {{ item.dataset }} --max-time 300"
-    args:
-      chdir: "{{ repo_dir }}/ci-code/test/src"
-    loop: "{{ test_data_info }}"
+    block: 
+    - name: Start python scripts that check if data arrived
+      register: wait_for_data_log
+      ignore_errors: true
+      ansible.builtin.command:
+        cmd: "python3 wait_for_data.py --host {{ ip_address }} --data-dir {{ test_data_directory }}/{{ item.dataset }} --dataset {{ item.dataset }} --max-time 300"
+      args:
+        chdir: "{{ repo_dir }}/ci-code/test/src"
+      loop: "{{ test_data_info }}"
+      async: "{{ async_timeout | int }}"
+      poll: 0
 
-  - name: Remove log file if already existing
-    ansible.builtin.file:
-      path: "{{ artifacts_dir }}/wait-for-data.log"
-      state: absent
+    - name: Set variables for subtask wait_for_tasks.yaml
+      ansible.builtin.set_fact:
+        log_file: "{{ artifacts_dir }}/wait-for-data.log"
+        ansible_job_ids: []
 
-  - name: Save logs from wait-for-data.py
-    ansible.builtin.lineinfile:
-      line: "{{ item.stdout }} {{ item.stderr }}"
-      dest: "{{ artifacts_dir }}/wait-for-data.log"
-      create: true
-    loop: "{{ wait_for_data_log.results }}"
-    loop_control:
-      label: "{{ item.cmd }}"
+    - name: Remove log file if already existing
+      ansible.builtin.file:
+        path: "{{ log_file }}"
+        state: absent
 
-  - name: Fail playbook if data does not arrive at the platform
-    when: item.rc != 0
-    ansible.builtin.command:
-      cmd: /bin/false
-    loop: "{{ wait_for_data_log.results }}"
-    loop_control: 
-      label: "{{ item.cmd }}"
+    - name:
+      loop: "{{ wait_for_data_log.results }}"
+      loop_control:
+        label: "{{ item.ansible_job_id }}"
+      ansible.builtin.set_fact:
+        ansible_job_ids: "{{ ansible_job_ids | default([]) + [ item.ansible_job_id ] }}"
+      
+    - name: Wait for all tasks to finish or timeout
+      ansible.builtin.include_tasks: ../integration_tests/wait_for_tasks.yaml
+
+    - name: Get information about all tasks
+      async_status:
+        jid: "{{ item }}"
+      register: task_results
+      loop: "{{ ansible_job_ids }}"
+      ignore_errors: true
+
+    - name: Fail playbook if data does not arrive at the platform
+      when: item.rc != 0
+      ansible.builtin.command:
+        cmd: /bin/false
+      with_items: "{{ task_results.results }}"
+      loop_control:
+        label: "{{ item.cmd }} return-code: {{ item.rc }}"

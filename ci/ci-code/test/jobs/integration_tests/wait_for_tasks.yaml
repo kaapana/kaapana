@@ -12,6 +12,8 @@
 
 - name: Create new list of ansible_job_ids with ids of unfinished tasks
   loop: "{{ task_results.results }}"
+  loop_control:
+    label: "{{ item.ansible_job_id }}"
   when: not item.finished
   ansible.builtin.set_fact:
     new_ansible_job_ids: "{{ new_ansible_job_ids + [ item.ansible_job_id ] }}"
@@ -32,6 +34,8 @@
   ansible.builtin.fail:
     msg: "Timeout reached for synchronously triggered ansible tasks"
   loop: "{{ task_results.results }}"
+  loop_control:
+    label: "{{ item.ansible_job_id }}"
   when: item.msg is defined and item.msg == "Timeout exceeded"
 
 - name: Set the retry count

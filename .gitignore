@@ -37,4 +37,5 @@ request_config.yaml
 .venv/
 tests/airflow_workflow_dir/*
 tests/venv/*
+data-processing/base-images/base-python-cpu/files/kaapana_python/build
 .mypy_cache

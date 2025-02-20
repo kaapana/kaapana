@@ -65,6 +65,9 @@ spec:
             value: >
               -Xms{{ div .Values.global.opensearch_memory_request 2 }}m
               -Xmx{{ div .Values.global.opensearch_memory_request 2 }}m
+              -Djavax.net.ssl.keyStore=/usr/share/opensearch/config/truststore.jks
+              -Djavax.net.ssl.trustStorePassword=keystorepassword
+  
               {{- if .Values.global.http_proxy }}
               -Dhttp.proxyHost={{ (regexFind "^(https?://)?([^:/]+)" .Values.global.http_proxy) | default "" | trimPrefix "http://" | trimPrefix "https://" }}
               -Dhttp.proxyPort={{ (regexFind ":([0-9]+)" .Values.global.http_proxy | trimPrefix ":") | default "80" }}
@@ -101,6 +104,9 @@ spec:
             - name: oscerts
               mountPath: /usr/share/opensearch/config/node1-key.pem
               subPath: node1-key.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/truststore.jks
+              subPath: truststore.jks
             - name: osdata
               mountPath: /usr/share/opensearch/data
             - name: oslogs

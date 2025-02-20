@@ -26,6 +26,15 @@ openssl pkcs8 -inform PEM -outform PEM -in client-key-temp.pem -topk8 -nocrypt -
 openssl req -new -key client-key.pem -subj "/C=CA/ST=ONTARIO/L=TORONTO/O=ORG/OU=UNIT/CN=client.dns.a-record" -out client.csr
 echo 'subjectAltName=DNS:client.dns.a-record' > client.ext
 openssl x509 -req -in client.csr -CA root-ca.pem -CAkey root-ca-key.pem -CAcreateserial -sha256 -out client.pem -days 730 -extfile client.ext
+
+# Generate Trsustore
+KEYSTORE_PASSWORD="keystorepassword"
+keytool -importcert -noprompt -alias root-ca \
+  -keystore truststore.jks \
+  -file root-ca.pem \
+  -storepass "${KEYSTORE_PASSWORD}" \
+  -trustcacerts -deststoretype pkcs12
+
 # Cleanup
 rm admin-key-temp.pem
 rm admin.csr

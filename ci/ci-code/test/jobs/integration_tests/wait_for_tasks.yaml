@@ -1,4 +1,48 @@
 ---
+### Use this list of tasks to wait for a list of jobs, that where started asynchronously
+### and append the stdout and stderr to a logfile.
+### The tasks in this file are included recursively until either the maximum recursion depth is reached
+### or all asynchronously started jobs succeeded. 
+###
+### Provide the following variables to use the script:
+### * ansible_job_ids
+### * log_file
+### * max_recursion_depth
+### * sleep_between_recursions
+
+### Include the following commented in your playbook when you want to use this list of tasks.
+#
+#   - name: set variables
+#     ansible.builtin.set_fact:
+#       log_file: <>
+#       ansible_job_ids: []
+#       max_recursion_depth: 
+#       sleep_between_recursions: 
+#
+# - name: List of jobs to run asynchrounous
+#   block: 
+#   - name: Start script to download test data
+#     ansible.builtin.command:
+#     register: async_tasks
+#     loop: 
+#     async: <timeout of each job>
+#     poll: 0
+#
+#   - name: Remove log file if already existing
+#     ansible.builtin.file:
+#       path: "{{ log_file }}"
+#       state: absent
+#
+#   - name:
+#     loop: "{{ async_tasks.results }}"
+#     loop_control:
+#       label: "{{ item.ansible_job_id }}"
+#     ansible.builtin.set_fact:
+#       ansible_job_ids: "{{ ansible_job_ids | default([]) + [ item.ansible_job_id ] }}"
+#
+#   - name: Wait for all tasks to finish or timeout
+#     ansible.builtin.include_tasks: ../integration_tests/wait_for_tasks.yaml
+
 - name: Get information about all tasks
   async_status:
     jid: "{{ item }}"

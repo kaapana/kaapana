@@ -62,7 +62,7 @@ class DataEndpoints(KaapanaAuth):
                 logger.info(
                     f"All series uids found as identifiers in dataset {dataset}"
                 )
-            return
+                return
 
         logger.error(f"Waiting for {dataset=} exceeds {max_time=}")
         raise TimeoutError(f"Waiting for {dataset=} exceeds {max_time=}")

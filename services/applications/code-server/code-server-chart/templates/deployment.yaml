@@ -43,10 +43,6 @@ spec:
 {{ include "dynamicVolumeMounts" $ | indent 10 }}
           - name: dshm
             mountPath: /dev/shm
-        {{- if contains (tpl .Values.global.complete_image .) "podman" }}
-        securityContext:
-          privileged: true
-        {{- end }}
       volumes:
       - name: configs
         configMap:

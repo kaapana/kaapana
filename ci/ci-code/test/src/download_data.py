@@ -32,15 +32,15 @@ def parser():
     return p.parse_args()
 
 
-def donwload_data(file, target_dir, force=False):
+def donwload_data(source_file, target_dir, force=False):
     """
     Download data either from tcia or from from an url.
     File contains either a tcia manifest or a download url.
     The data is downloaded into target_dir.
     Parameter force determines, whether to force download, even if the directories per series already exist.
     """
-    if file.endswith(".tcia"):
-        series_uids = get_series_to_download_from_manifest(file)
+    if source_file.endswith(".tcia"):
+        series_uids = get_series_to_download_from_manifest(source_file)
         logger.info("Starting to download and extract .dcm files from TCIA.")
         for series_uid in series_uids:
             series_outdir = os.path.join(target_dir, series_uid)
@@ -53,10 +53,10 @@ def donwload_data(file, target_dir, force=False):
             logger.info("Downloadding files ...")
         logger.info("Downloading files from TCIA completed.")
 
-    elif os.path.isfile(file):
+    elif os.path.isfile(source_file):
         if force or len([f for f in Path(target_dir).glob("**/*.dcm")]) == 0:
             logger.info("Downloading files from specified urls")
-            download_from_url(target_dir, input_file=file)
+            download_from_url(target_dir, input_file=source_file)
             logger.info("Downloading and extracting files completed.")
         else:
             logger.info(

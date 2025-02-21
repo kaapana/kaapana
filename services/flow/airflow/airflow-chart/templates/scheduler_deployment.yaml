@@ -131,7 +131,7 @@ spec:
         - name: https_proxy
           value: {{ .Values.global.http_proxy }}
         - name: no_proxy
-          value: ".svc,.svc.cluster,.svc.cluster.local"
+          value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
         - name: PULL_POLICY_IMAGES
           value: "{{ .Values.global.pull_policy_images }}"
         - name: SERVICES_NAMESPACE
@@ -241,7 +241,7 @@ spec:
       - name: dicomdir
         persistentVolumeClaim:
           claimName: dcm4chee-dicom-pv-claim
-      - name: tmp 
+      - name: tmp
         emptyDir: {}
       - name: tmpfs
         emptyDir: {}

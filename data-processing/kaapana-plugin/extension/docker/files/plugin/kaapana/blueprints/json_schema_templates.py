@@ -1,7 +1,9 @@
 import functools
 from pathlib import Path
+
 import requests
 from kaapanapy.helper import get_minio_client
+
 
 
 def properties_filter(func):
@@ -223,16 +225,16 @@ def schema_minio_form(
 @properties_filter
 def properties_external_federated_form(filter_keys: list = None):
     return {
-        "federated_bucket": {
+        "federated_folder": {
             "type": "string",
-            "title": "Federated bucket",
-            "description": "Bucket to which the files should be saved to",
+            "title": "Federated folder",
+            "description": "Folder in project bucket to which the files should be saved to",
             "readOnly": True,
         },
         "federated_dir": {
             "type": "string",
-            "title": "Federated directory",
-            "description": "Directory to which the files should be saved to",
+            "title": "Federated subdirectory",
+            "description": "Subdirectory to which the files should be saved to",
             "readOnly": True,
         },
         "federated_operators": {

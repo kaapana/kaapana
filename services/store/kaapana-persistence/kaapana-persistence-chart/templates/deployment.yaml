@@ -46,7 +46,7 @@ spec:
         - name: https_proxy
           value: "{{ .Values.global.http_proxy }}"
         - name: no_proxy
-          value: "kaapana-persistence-mongodb-service.{{  .Values.global.services_namespace  }}.svc,opensearch-service.{{  .Values.global.services_namespace  }}.svc,dicom-web-filter-service.{{  .Values.global.services_namespace  }}.svc"
+          value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
         - name: MONGODB_URL
           value: "mongodb://kaapanauser:kaapanapassword@kaapana-persistence-mongodb-service.{{  .Values.global.services_namespace  }}.svc:27017"
         # - name: COUCH_DB_URL

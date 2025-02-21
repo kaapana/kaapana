@@ -41,7 +41,7 @@ args = {
 }
 
 dag = DAG(
-    dag_id="delete-series-from-platform",
+    dag_id="delete-series",
     default_args=args,
     concurrency=30,
     max_active_runs=1,

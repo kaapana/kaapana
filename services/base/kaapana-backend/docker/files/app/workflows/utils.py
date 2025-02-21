@@ -88,23 +88,22 @@ class HelperMinio(Minio):
             ),
         }
 
-    def add_minio_urls(self, federated, instance_name):
+    def add_minio_urls(self, project_bucket, federated, instance_name):
         federated_dir = federated["federated_dir"]
-        federated_bucket = federated["federated_bucket"]
         if "federated_round" in federated:
             federated_round = str(federated["federated_round"])
         else:
             federated_round = ""
 
-        if not self.bucket_exists(federated_bucket):
-            self.make_bucket(federated_bucket)
+        if not self.bucket_exists(project_bucket):
+            self.make_bucket(project_bucket)
 
         minio_urls = {}
         for federated_operator in federated["federated_operators"]:
             minio_urls[federated_operator] = {
                 "get": self.get_custom_presigend_url(
                     "GET",
-                    federated_bucket,
+                    project_bucket,
                     os.path.join(
                         federated_dir,
                         federated_round,
@@ -115,7 +114,7 @@ class HelperMinio(Minio):
                 ),
                 "put": self.get_custom_presigend_url(
                     "PUT",
-                    federated_bucket,
+                    project_bucket,
                     os.path.join(
                         federated_dir,
                         federated_round,

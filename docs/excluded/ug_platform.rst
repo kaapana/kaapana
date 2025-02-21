@@ -56,11 +56,11 @@ Manual Workflow Triggering
 
 
 
-You can also select a dataset within the 'Meta' dashboard and trigger a workflow.
+You can also select a dataset within the 'Meta' dashboard.
 Every visualisation within Meta dashboard can be used to set filter based on the entries.
 If you hover over the corresponding entry, two magnifying glasses should appear (+ and -).
 If you click on the '+' the data will be filtered for data with the same tag content.
-If you select the '-', data with this condition will be excuded.
+If you select the '-', data with this condition will be excluded.
 
 You can also simply click on a modality in the 'Modality Donut' to reduce all data to that modality.
 

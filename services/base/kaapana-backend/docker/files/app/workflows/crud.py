@@ -16,7 +16,6 @@ from psycopg2.errors import UniqueViolation
 from sqlalchemy import String, cast, desc, func
 from sqlalchemy.exc import IntegrityError, NoResultFound
 from sqlalchemy.orm import Session, aliased
-
 from urllib3.util import Timeout
 
 from . import models, schemas
@@ -329,14 +328,17 @@ def create_job(db: Session, job: schemas.JobCreate, service_job: str = False):
     if not db_kaapana_instance:
         raise HTTPException(status_code=404, detail="Kaapana instance not found")
 
-    if "federated_form" in job.conf_data and (
-        "federated_dir" in job.conf_data["federated_form"]
-        and "federated_bucket" in job.conf_data["federated_form"]
+    if (
+        "federated_form" in job.conf_data
+        and "federated_dir" in job.conf_data["federated_form"]
         and "federated_operators" in job.conf_data["federated_form"]
+        and "minio_urls" not in job.conf_data["federated_form"]
     ):
         minioClient = HelperMinio()
         minio_urls = minioClient.add_minio_urls(
-            job.conf_data["federated_form"], db_kaapana_instance.instance_name
+            job.conf_data["project_form"]["s3_bucket"],
+            job.conf_data["federated_form"],
+            db_kaapana_instance.instance_name,
         )
         job.conf_data["federated_form"]["minio_urls"] = minio_urls
 
@@ -453,7 +455,6 @@ def get_jobs(
     limit=None,
 ):
     if instance_name is not None and status is not None:
-
         return (
             db.query(models.Job)
             .filter_by(status=status)
@@ -847,9 +848,9 @@ def get_remote_updates(db: Session, periodically=False):
                 ]
 
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
-            incoming_job["owner_kaapana_instance_name"] = (
-                db_remote_kaapana_instance.instance_name
-            )
+            incoming_job[
+                "owner_kaapana_instance_name"
+            ] = db_remote_kaapana_instance.instance_name
             incoming_job["external_job_id"] = incoming_job["id"]
             incoming_job["status"] = "pending"
 
@@ -1507,7 +1508,6 @@ def get_workflows(
     offset: int = 0,
     search: Optional[str] = None,
 ):
-
     if limit == -1:
         limit = None
     base_query = db.query(models.Workflow)

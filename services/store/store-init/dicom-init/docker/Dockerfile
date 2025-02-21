@@ -6,7 +6,7 @@ LABEL BUILD_IGNORE="False"
 
 WORKDIR /kaapana/app
 
-RUN curl --output /test-dicoms.zip "https://www.kaapana.ai/kaapana-downloads/kaapana-build-files/init-dicoms/0.4.0/init-dicoms.zip" \
+RUN curl --output /test-dicoms.zip "https://www.kaapana.ai/kaapana-downloads/kaapana-build-files/init-dicoms/0.0.5/init-dicoms.zip" \
     && mkdir -p /dicom_test_data && unzip /test-dicoms.zip -d /dicom_test_data && rm -rf test-dicoms.zip
 
 COPY files/requirements.txt /kaapana/app/

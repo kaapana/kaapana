@@ -1,6 +1,8 @@
 import functools
 from pathlib import Path
+
 import requests
+
 
 def properties_filter(func):
     @functools.wraps(func)
@@ -60,7 +62,9 @@ def schema_dataset_form(filter_keys: list = None):
     }
 
 
-def schema_upload_form(whitelisted_file_formats: tuple = (), ):
+def schema_upload_form(
+    whitelisted_file_formats: tuple = (),
+):
     """
     Schema that lists files in FAST_DATA_DIR/uploads
     """
@@ -73,19 +77,19 @@ def schema_upload_form(whitelisted_file_formats: tuple = (), ):
                 filtered_files.append(f)
 
     return {
-            "data_form": {
-                "type": "object",
-                "properties": {
-                    "action_files": {
-                        "title": "Objects from uploads directory",
-                        "description": "Relative paths to object in upload directory",
-                        "type": "array",
-                        "items": {"type": "string", "enum": filtered_files},
-                        "readOnly": False,
-                    },
+        "data_form": {
+            "type": "object",
+            "properties": {
+                "action_files": {
+                    "title": "Objects from uploads directory",
+                    "description": "Relative paths to object in upload directory",
+                    "type": "array",
+                    "items": {"type": "string", "enum": filtered_files},
+                    "readOnly": False,
                 },
-            }
+            },
         }
+    }
 
 
 def schema_minio_form(
@@ -221,16 +225,16 @@ def schema_minio_form(
 @properties_filter
 def properties_external_federated_form(filter_keys: list = None):
     return {
-        "federated_bucket": {
+        "federated_folder": {
             "type": "string",
-            "title": "Federated bucket",
-            "description": "Bucket to which the files should be saved to",
+            "title": "Federated folder",
+            "description": "Folder in project bucket to which the files should be saved to",
             "readOnly": True,
         },
         "federated_dir": {
             "type": "string",
-            "title": "Federated directory",
-            "description": "Directory to which the files should be saved to",
+            "title": "Federated subdirectory",
+            "description": "Subdirectory to which the files should be saved to",
             "readOnly": True,
         },
         "federated_operators": {

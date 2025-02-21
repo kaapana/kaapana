@@ -1,11 +1,11 @@
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
-from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 from kaapana.blueprints.kaapana_global_variables import (
-    SERVICES_NAMESPACE,
     DEFAULT_REGISTRY,
     KAAPANA_BUILD_VERSION,
+    SERVICES_NAMESPACE,
 )
+from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
 class DcmSendOperator(KaapanaBaseOperator):
@@ -47,6 +47,8 @@ class DcmSendOperator(KaapanaBaseOperator):
         if env_vars is None:
             env_vars = {}
 
+        # be aware, if the same keys are used in the workflow_form of the dag,
+        # these defined values will be overwritten by the workflow_form
         envs = {
             "PACS_HOST": str(pacs_host),
             "PACS_PORT": str(pacs_port),
@@ -56,11 +58,10 @@ class DcmSendOperator(KaapanaBaseOperator):
 
         env_vars.update(envs)
 
-        if not kwargs.get("labels"):
-            kwargs["labels"] = {"network-access": "ctp"}
-        else:
-            if not kwargs.get("labels").get("network-access"):
-                kwargs["labels"]["network-access"] = "ctp"
+        if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
+            kwargs["labels"] = {}
+
+        kwargs["labels"]["network-access-ctp"] = "true"
 
         super().__init__(
             dag=dag,
@@ -69,5 +70,7 @@ class DcmSendOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             env_vars=env_vars,
             execution_timeout=execution_timeout,
+            ram_mem_mb=50,
+            ram_mem_mb_lmt=4000,
             **kwargs,
         )

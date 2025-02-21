@@ -15,6 +15,7 @@ from minio import Minio
 from abc import ABC, abstractmethod
 from requests.adapters import HTTPAdapter
 from abc import ABC, abstractmethod
+from kaapanapy.helper import get_minio_client
 from minio.deleteobjects import DeleteObject
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -172,23 +173,25 @@ class KaapanaFederatedTrainingBase(ABC):
             conf_data = json.load(f)
         if "external_schema_federated_form" not in conf_data:
             conf_data["external_schema_federated_form"] = {}
-        if "federated_bucket" not in conf_data["external_schema_federated_form"]:
-            conf_data["external_schema_federated_form"]["federated_bucket"] = conf_data[
-                "external_schema_federated_form"
-            ]["remote_dag_id"]
-        if "federated_dir" not in conf_data["external_schema_federated_form"]:
-            conf_data["external_schema_federated_form"][
-                "federated_dir"
-            ] = self.federated_dir
+        # Get federated_folder, defaulting to remote_dag_id if not present, and remove it from conf_data
+        federated_folder = conf_data["external_schema_federated_form"].pop(
+            "federated_folder",
+            conf_data["external_schema_federated_form"]["remote_dag_id"],
+        )
+
+        federated_dir = conf_data["external_schema_federated_form"].get(
+            "federated_dir", self.federated_dir
+        )
+        # Store the combined path back in federated_dir
+        conf_data["external_schema_federated_form"]["federated_dir"] = os.path.join(
+            federated_folder, federated_dir
+        )
+
         return conf_data
 
     def __init__(
         self,
         workflow_dir=None,
-        access_key="kaapanaminio",
-        secret_key="Kaapana2020",
-        minio_host=f"minio-service.{SERVICES_NAMESPACE}.svc",
-        minio_port="9000",
     ):
         self.run_in_parallel = False
         self.federated_dir = os.getenv("RUN_ID", str(uuid.uuid4()))
@@ -209,6 +212,8 @@ class KaapanaFederatedTrainingBase(ABC):
                 self.tmp_federated_site_info = v
             elif k in ["client_job_id", "x_auth_token"]:
                 pass
+            elif k == "project_form":
+                self.remote_conf_data["project_form"] = v
             else:
                 self.local_conf_data[k] = v
 
@@ -258,12 +263,7 @@ class KaapanaFederatedTrainingBase(ABC):
         self.remote_sites = r.json()
 
         # instantiate Minio client
-        self.minioClient = Minio(
-            minio_host + ":" + minio_port,
-            access_key=access_key,
-            secret_key=secret_key,
-            secure=False,
-        )
+        self.minioClient: Minio = get_minio_client()
 
         # FL aggregation strategy
         if "aggregation_strategy" in self.remote_conf_data["federated_form"]:
@@ -379,7 +379,7 @@ class KaapanaFederatedTrainingBase(ABC):
     def download_minio_objects_to_workflow_dir(
         self, federated_round, tmp_central_site_info
     ):
-        federated_bucket = self.remote_conf_data["federated_form"]["federated_bucket"]
+        project_bucket = self.remote_conf_data["project_form"]["s3_bucket"]
         if federated_round > 0:
             previous_federated_round_dir = os.path.join(
                 self.remote_conf_data["federated_form"]["federated_dir"],
@@ -402,7 +402,7 @@ class KaapanaFederatedTrainingBase(ABC):
 
             print(current_federated_round_dir)
             objects = self.minioClient.list_objects(
-                federated_bucket,
+                project_bucket,
                 os.path.join(current_federated_round_dir, instance_name),
                 recursive=True,
             )
@@ -429,7 +429,7 @@ class KaapanaFederatedTrainingBase(ABC):
                     file_dir = os.path.dirname(file_path)  # file_path.rsplit('/', 2)[0]
                     os.makedirs(file_dir, exist_ok=True)
                     self.minioClient.fget_object(
-                        federated_bucket, obj.object_name, file_path
+                        project_bucket, obj.object_name, file_path
                     )
                     KaapanaFederatedTrainingBase.fernet_decryptfile(
                         file_path, tmp_site_info["fernet_key"]
@@ -446,7 +446,7 @@ class KaapanaFederatedTrainingBase(ABC):
             if previous_federated_round_dir is not None:
                 minio_rmtree(
                     self.minioClient,
-                    federated_bucket,
+                    project_bucket,
                     os.path.join(previous_federated_round_dir, instance_name),
                 )
 
@@ -492,16 +492,31 @@ class KaapanaFederatedTrainingBase(ABC):
         # for sample-weighted aggregation, get number of samples per client and list of client_instance_names
         num_samples_per_client = dict()
         client_instance_names = []
+
+        dataset_limit = self.remote_conf_data.get("data_form", {}).get(
+            "dataset_limit", None
+        )
         for site_idx, _ in enumerate(self.remote_sites):
             client_instance_names.append(self.remote_sites[site_idx]["instance_name"])
+            dataset_name = self.remote_conf_data["data_form"]["dataset_name"]
+            allowed_datasets = self.remote_sites[site_idx]["allowed_datasets"]
+            identifiers = next(
+                (
+                    dataset["identifiers"]
+                    for dataset in allowed_datasets
+                    if dataset["name"] == dataset_name
+                ),
+                [],
+            )
+            num_identifiers_in_dataset = len(identifiers)
             num_samples_per_client[self.remote_sites[site_idx]["instance_name"]] = (
-                len(
-                    self.remote_sites[site_idx]["allowed_datasets"][
-                        self.remote_conf_data["data_form"]["dataset_name"]
-                    ]["identifiers"]
+                num_identifiers_in_dataset
+                if dataset_limit is None
+                else (
+                    num_identifiers_in_dataset
+                    if num_identifiers_in_dataset < dataset_limit
+                    else dataset_limit
                 )
-                if self.remote_conf_data["data_form"]["dataset_limit"] is None
-                else self.remote_conf_data["data_form"]["dataset_limit"]
             )
         num_all_samples = sum(num_samples_per_client.values())
         print(
@@ -527,7 +542,11 @@ class KaapanaFederatedTrainingBase(ABC):
             for client_instance_name, net in site_model_weights_dict.items():
                 if client_instance_name == client_instance_names[0]:
                     # network weights of client_instance_names [0] are already in network_weights
-                    pass
+                    # we still need to weight client 0's model params with it's dataset size
+                    network_weights[address_key_dict[a][0]] = (
+                        network_weights[address_key_dict[a][0]]
+                        * num_samples_per_client[client_instance_name]
+                    )
                 else:
                     # weighted sum
                     network_weights[address_key_dict[a][0]] += (
@@ -642,9 +661,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 )
                 print(f"Uploading {file_path } to {next_object_name}")
                 self.minioClient.fput_object(
-                    self.remote_conf_data["federated_form"][
-                        "federated_bucket"
-                    ],  # minio bucket
+                    self.remote_conf_data["project_form"]["s3_bucket"],  # minio bucket
                     next_object_name,  # path in minio bucket
                     file_path,  # file in current workflow dir
                 )
@@ -727,13 +744,15 @@ class KaapanaFederatedTrainingBase(ABC):
             )
 
         minio_recovery_path = os.path.join(
-            self.federated_dir, str(federated_round), "recovery_conf.json"
+            self.federated_dir,
+            str(federated_round),
+            "recovery_conf.json",
         )
         print(
-            f"Uploading recovery_conf to MinIO: {self.remote_conf_data['federated_form']['federated_bucket']}/{minio_recovery_path}"
+            f"Uploading recovery_conf to MinIO: {self.remote_conf_data['project_form']['s3_bucket']}/{minio_recovery_path}"
         )
         self.minioClient.fput_object(
-            self.remote_conf_data["federated_form"]["federated_bucket"],  # minio bucket
+            self.remote_conf_data["project_form"]["s3_bucket"],  # minio bucket
             minio_recovery_path,  # path in minio bucket
             recovery_path,  # path of file in current workflow dir
         )
@@ -756,6 +775,6 @@ class KaapanaFederatedTrainingBase(ABC):
     def clean_up_minio(self):
         minio_rmtree(
             self.minioClient,
-            self.remote_conf_data["federated_form"]["federated_bucket"],
+            self.remote_conf_data["project_form"]["s3_bucket"],
             self.remote_conf_data["federated_form"]["federated_dir"],
         )

@@ -14,7 +14,7 @@
   </a>
 </p>
 
-Kaapana (from the hawaiian word kaʻāpana, meaning "distributor" or "part") is an open-source toolkit for state-of-the-art platform provisioning in the field of medical data analysis. The applications comprise  AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. 
+Kaapana is an open-source toolkit for state-of-the-art platform provisioning in the field of medical data analysis. The applications comprise  AI-based workflows and federated learning scenarios with a focus on radiological and radiotherapeutic imaging. The name Kaapana comes from the Hawaiian word kaʻāpana, meaning "distributor" or "part".
 
 Obtaining large amounts of medical data necessary for developing and training modern machine learning methods is an extremely challenging effort that often fails in a multi-center setting, e.g. due to technical, organizational and legal hurdles. A federated approach where the data remains under the authority of the individual institutions and is only processed on-site is, in contrast, a promising approach ideally suited to overcome these difficulties.
 
@@ -110,4 +110,4 @@ Kaapana is built upon the great work of many other open-source projects, see the
 **Trustworthy Federated Data Analysis - TFDA**: This work is partially funded by the Helmholtz Association within the project "Trustworthy Federated Data Analytics” (TFDA) (funding number
 ZT-I-OO1 4). Website: <https://tfda.hmsp.center/>
 
-Copyright (C) 2024  German Cancer Research Center (DKFZ)
+Copyright (C) 2025  German Cancer Research Center (DKFZ)

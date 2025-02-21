@@ -27,7 +27,7 @@ collect-metadata
 convert-niftis-to-dicom-and-import-to-pacs
 """"""""""""""""""""""""""""""""""""""""""""
 
-delete-series-from-platform
+delete-series
 """"""""""""""""""""""""""""""
 
 download-selected-files

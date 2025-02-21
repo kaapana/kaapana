@@ -50,6 +50,12 @@ spec:
           value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/oauth_callback/"
         - name:  MINIO_BROWSER_REDIRECT_URL
           value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/minio-console/"
+        - name: http_proxy
+          value: "{{ .Values.global.http_proxy }}"
+        - name: https_proxy
+          value: "{{ .Values.global.http_proxy }}"
+        - name: no_proxy
+          value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
         ports:
         - containerPort: 9000
         - containerPort: 9090

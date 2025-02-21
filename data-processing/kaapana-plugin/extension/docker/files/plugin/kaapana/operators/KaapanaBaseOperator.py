@@ -464,14 +464,36 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         Launch a dev-server as pending application.
         """
         url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
+                
+        form_data = {}
+        if (
+            context["dag_run"].conf is not None
+            and "form_data" in context["dag_run"].conf
+            and context["dag_run"].conf["form_data"] is not None
+        ):
+            form_data = context["dag_run"].conf["form_data"]
+            print(f"{form_data=}")
         env_vars_sets = {}
         for idx, (k, v) in enumerate(
             {"WORKSPACE": "/kaapana", **self.env_vars}.items()
         ):
+            if k.lower() in form_data:
+                ### Values in form_data are converted with str() before storing them in self.env_vars
+                ### In order to load them with json.loads later, we use the original value and convert it to a stringified json.
+                v = json.dumps(form_data[k.lower()])
+            try:
+                ### Json objects should be send as json-object, not stringified json. Especially needed, when environment variables represent lists, e.g. RUNNER_INSTANCES=["<ip-address>"]
+                json_decoded_value = json.loads(v)
+            except json.decoder.JSONDecodeError as e:
+                json_decoded_value = v
+            if type(json_decoded_value) == dict:
+                ### kube-helm will use --set-string instead of --set to install the chart when the value is a string
+                ### As helm interpretes {} as array/list, we want to use --set-string for enviroment variables that are dictionaries.
+                json_decoded_value = str(json_decoded_value)
             env_vars_sets.update(
                 {
                     f"global.envVars[{idx}].name": f"{k}",
-                    f"global.envVars[{idx}].value": f"{v}",
+                    f"global.envVars[{idx}].value": json_decoded_value,
                 }
             )
 
@@ -482,6 +504,15 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                     f"global.envVarsFromSecretRef[{idx}].name": secret.deploy_target,
                     f"global.envVarsFromSecretRef[{idx}].secretName": secret.secret,
                     f"global.envVarsFromSecretRef[{idx}].secretKey": secret.key,
+                }
+            )
+
+        dynamic_label_sets = {}
+        for idx, (labelName, labelValue) in enumerate(self.labels.items()):
+            dynamic_label_sets.update(
+                {
+                    f"global.labels[{idx}].name": str(labelName),
+                    f"global.labels[{idx}].value": str(labelValue),
                 }
             )
 
@@ -525,7 +556,9 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
                 }
             )
 
-        project_name = self.project.get("name")
+        # In case of debugging service_dag there is no self.project
+        project_name = self.project.get("name") if self.project else "admin"
+            
         ingress_path = (
             f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
         )
@@ -537,6 +570,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             **env_vars_sets,
             **dynamic_volumes,
             **env_vars_from_secret_key_refs,
+            **dynamic_label_sets,
         }
         logging.info(helm_sets)
         # kaapanaint is there, so that it is recognized as a pending application!

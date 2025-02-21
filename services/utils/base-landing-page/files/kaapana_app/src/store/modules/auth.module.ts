@@ -52,9 +52,11 @@ const mutations = {
   },
   [SET_AUTH](state: any, jwt: any) {
     state.isAuthenticated = true
+    const startWithBackSlashRgx = /^\//i;
     state.user = {
         username: jwt.preferredUsername,
         roles: jwt.groups.filter((group: string) => group.startsWith('role:')).map((role: string) => role.slice('role:'.length)),
+        groups: jwt.groups.filter((group: string) => !group.startsWith('role:')).map((groupname: string) => groupname.replace(startWithBackSlashRgx, '')),
         id: jwt.user
       }
     state.errors = {}

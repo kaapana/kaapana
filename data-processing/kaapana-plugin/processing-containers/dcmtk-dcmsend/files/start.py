@@ -1,15 +1,15 @@
-import os
 import glob
-from typing import List
-from subprocess import PIPE, run
-import pydicom
+import os
 from pathlib import Path
+from subprocess import PIPE, run
+from typing import List
+
+import pydicom
 from kaapanapy.helper import load_workflow_config
 from kaapanapy.settings import KaapanaSettings
 
-PACS_HOST = os.getenv("PACS_HOST")
-PACS_PORT = os.getenv("PACS_PORT")
-HTTP_PORT = os.getenv("HTTP_PORT", "8080")
+DEFAULT_SCP = "ANY-SCP"
+SERVICES_NAMESPACE = KaapanaSettings().services_namespace
 ### If the environment variable AETITLE is "NONE", then I want to set AETITLE = None
 AETITLE = os.getenv("AETITLE", "NONE")
 AETITLE = None if AETITLE == "NONE" else AETITLE
@@ -21,9 +21,16 @@ if AETITLE is not None and TASK_NUM is not None:
     AETITLE = AETITLE + str(TASK_NUM)
 PROJECT = WORKFLOW_CONFIG.get("project_form")
 PROJECT_NAME = PROJECT.get("name")
-SERVICES_NAMESPACE = KaapanaSettings().services_namespace
+
+# if PACS_HOST is "", it will send to the platform itself
+PACS_HOST = os.getenv("PACS_HOST") or f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc"
+PACS_PORT = os.getenv("PACS_PORT", "11112")
+CALLED_AE_TITLE_SCP = os.getenv("CALLED_AE_TITLE_SCP", DEFAULT_SCP)
 
 print(f"AETITLE: {AETITLE}")
+print(f"PACS_HOST: {PACS_HOST}")
+print(f"PACS_PORT: {PACS_PORT}")
+print(f"CALLED_AE_TITLE_SCP: {CALLED_AE_TITLE_SCP}")
 print(f"LEVEL: {LEVEL}")
 
 dicom_sent_count = 0
@@ -76,19 +83,17 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
                     print(f"Using default aetitle {aetitle}")
 
         print(f"Sending {dicom_dir} to {PACS_HOST} {PACS_PORT} with aetitle {aetitle}")
-        # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
-
+        aec = CALLED_AE_TITLE_SCP
         if PACS_HOST == f"ctp-dicom-service.{SERVICES_NAMESPACE}.svc":
-            if aetitle.startswith("kp-"):
-                dataset = aetitle
-            else:
-                dataset = f"kp-{aetitle}"
-            if not project_name.startswith("kp-"):
-                project_name = f"kp-{project_name}"
+            dataset = aetitle if aetitle.startswith("kp-") else f"kp-{aetitle}"
+            if CALLED_AE_TITLE_SCP == DEFAULT_SCP:
+                aec = project_name
+            aec = aec if aec.startswith("kp-") else f"kp-{aec}"
         else:
             dataset = aetitle
 
         env = dict(os.environ)
+        # To process even if the input contains non-DICOM files the --no-halt option is needed (e.g. zip-upload functionality)
         command = [
             "dcmsend",
             "-v",
@@ -97,7 +102,7 @@ def send_dicom_data(send_dir, project_name, aetitle=AETITLE, timeout=60):
             "-aet",
             dataset,
             "-aec",
-            project_name,
+            aec,
             "--scan-directories",
             "--no-halt",
             f"{dicom_dir}",

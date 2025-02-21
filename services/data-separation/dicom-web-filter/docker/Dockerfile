@@ -6,12 +6,12 @@ LABEL BUILD_IGNORE="False"
 
 RUN apt-get update
 
-WORKDIR /kaapana/app
+WORKDIR /app
 
-COPY files/requirements.txt /kaapana/app/
-RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt
+COPY files/requirements.txt /app/
+RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt --no-cache-dir -r /app/requirements.txt
 
-COPY files/ /kaapana/app
-RUN chmod +x /kaapana/app/boot.sh
+COPY files/ /app
+RUN chmod +x /app/boot.sh
 
-CMD ["/bin/sh", "/kaapana/app/boot.sh"]
+CMD ["/bin/sh", "/app/boot.sh"]

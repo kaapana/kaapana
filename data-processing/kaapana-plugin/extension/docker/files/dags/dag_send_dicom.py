@@ -1,16 +1,13 @@
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.dates import days_ago
 from datetime import timedelta
+
 from airflow.models import DAG
-from kaapana.operators.GetInputOperator import GetInputOperator
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.DcmSendOperator import DcmSendOperator
+from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 log = LoggingMixin().log
-
-ae_title = "NONE"
-pacs_host = ""
-pacs_port = 11112
 
 ui_forms = {
     "workflow_form": {
@@ -18,30 +15,32 @@ ui_forms = {
         "properties": {
             "pacs_host": {
                 "title": "Receiver host",
-                "description": "Specify the url/IP of the DICOM receiver.",
+                "description": "Specify the url/IP of the DICOM receiver. If not specified will send to the platform itself.",
                 "type": "string",
-                "default": pacs_host,
-                "required": True,
+                "default": "",
             },
             "pacs_port": {
                 "title": "Receiver port",
                 "description": "Specify the port of the DICOM receiver.",
                 "type": "integer",
-                "default": pacs_port,
                 "required": True,
+                "default": 11112,
             },
             "aetitle": {
-                "title": "Receiver AE-title",
-                "description": "Specify the port of the DICOM receiver.",
+                "title": "Calling AE Title (SCU) / Dataset Name in Kaapana",
+                "description": "Specify the local Calling AE Title (AET). Kaapana interprets this as the dataset name. If not set, the workflow name will be used. When sending data to external Kaapana instances, add 'kp-' as a prefix.",
                 "type": "string",
-                "default": ae_title,
-                "required": True,
+            },
+            "called_ae_title_scp": {
+                "title": "Called AE Title (SCP) / Project Name in Kaapana",
+                "description": "Specify the remote Called AE Title (AET). Kaapana interprets this as the project name. When sending data to external Kaapana instances, add 'kp-' as a prefix.",
+                "type": "string",
             },
             "single_execution": {
                 "title": "single execution",
                 "description": "Should each series be processed separately?",
                 "type": "boolean",
-                "default": True,
+                "default": False,
                 "readOnly": False,
             },
         },
@@ -69,13 +68,10 @@ get_input = GetInputOperator(dag=dag)
 dcm_send = DcmSendOperator(
     dag=dag,
     input_operator=get_input,
-    ae_title=ae_title,
-    pacs_host=pacs_host,
-    pacs_port=pacs_port,
     level="element",
     enable_proxy=True,
     no_proxy=".svc,.svc.cluster,.svc.cluster.local",
-    labels={"network-access": "external-ips"},
+    labels={"network-access-external-ips": "true"},
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

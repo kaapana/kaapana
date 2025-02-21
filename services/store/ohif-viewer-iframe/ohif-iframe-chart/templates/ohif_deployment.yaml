@@ -18,6 +18,13 @@ spec:
         - name: ohif-container-iframe
           image: "{{ .Values.global.registry_url }}/ohififrame:{{ .Values.global.kaapana_build_version  }}"
           imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+          env:
+          - name: http_proxy
+            value: "{{ .Values.global.http_proxy }}"
+          - name: https_proxy
+            value: "{{ .Values.global.http_proxy }}"
+          - name: no_proxy
+            value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
           ports:
             - containerPort: 80
           resources:

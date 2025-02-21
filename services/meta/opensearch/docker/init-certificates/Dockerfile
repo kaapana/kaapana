@@ -4,7 +4,7 @@ LABEL IMAGE="opensearch-certs"
 LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
 
-RUN apk add --no-cache openssl bash jq curl
+RUN apk add --no-cache openssl bash jq curl openjdk11
 WORKDIR /certs
 
 COPY files/generate-certificates.sh .

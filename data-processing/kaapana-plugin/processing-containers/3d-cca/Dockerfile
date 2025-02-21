@@ -7,7 +7,7 @@ LABEL BUILD_IGNORE="False"
 WORKDIR /kaapana/app
 
 COPY files/requirements.txt /
-RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /requirements.txt
+RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt --no-cache-dir -r /requirements.txt
 
 COPY files/* /kaapana/app/
 

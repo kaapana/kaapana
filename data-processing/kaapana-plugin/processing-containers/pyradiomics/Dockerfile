@@ -41,12 +41,12 @@ RUN apt-get update && apt-get install -y python-dev-is-python3 \
     && git clone https://github.com/AIM-Harvard/pyradiomics.git pyradiomics \
     && cd pyradiomics \
     # && git checkout v3.1.0 \
-    && python3.10 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt -r requirements.txt \
+    && python3.10 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt -r requirements.txt \
     && python3.10 setup.py install
 
 
 COPY files/requirements.txt /kaapana/app/
-RUN python3.10 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.3.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
+RUN python3.10 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt --no-cache-dir -r /kaapana/app/requirements.txt && rm /kaapana/app/requirements.txt 
 
 COPY files/pyradiomics.py /kaapana/app/
 

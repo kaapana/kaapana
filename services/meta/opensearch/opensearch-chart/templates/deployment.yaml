@@ -62,9 +62,27 @@ spec:
           - name: http.host
             value: "0.0.0.0"
           - name: OPENSEARCH_JAVA_OPTS
-            value: '-Xms{{ div .Values.global.opensearch_memory_request 2 }}m -Xmx{{ div .Values.global.opensearch_memory_request 2 }}m'
+            value: >
+              -Xms{{ div .Values.global.opensearch_memory_request 2 }}m
+              -Xmx{{ div .Values.global.opensearch_memory_request 2 }}m
+              -Djavax.net.ssl.keyStore=/usr/share/opensearch/config/truststore.jks
+              -Djavax.net.ssl.trustStorePassword=keystorepassword
+  
+              {{- if .Values.global.http_proxy }}
+              -Dhttp.proxyHost={{ (regexFind "^(https?://)?([^:/]+)" .Values.global.http_proxy) | default "" | trimPrefix "http://" | trimPrefix "https://" }}
+              -Dhttp.proxyPort={{ (regexFind ":([0-9]+)" .Values.global.http_proxy | trimPrefix ":") | default "80" }}
+              -Dhttps.proxyHost={{ (regexFind "^(https?://)?([^:/]+)" .Values.global.http_proxy) | default "" | trimPrefix "http://" | trimPrefix "https://" }}
+              -Dhttps.proxyPort={{ (regexFind ":([0-9]+)" .Values.global.http_proxy | trimPrefix ":") | default "80" }}
+              -Dhttp.nonProxyHosts=*.svc|*.svc.cluster|*.svc.cluster.local|{{ .Values.global.hostname }}
+              {{- end }}
           - name: SERVICES_NAMESPACE
             value: "{{ .Values.global.services_namespace }}"
+          - name: http_proxy
+            value: "{{ .Values.global.http_proxy }}"
+          - name: https_proxy
+            value: "{{ .Values.global.http_proxy }}"
+          - name: no_proxy
+            value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
           resources:
             requests:
               memory: "{{ .Values.global.opensearch_memory_request }}Mi"
@@ -86,10 +104,15 @@ spec:
             - name: oscerts
               mountPath: /usr/share/opensearch/config/node1-key.pem
               subPath: node1-key.pem
+            - name: oscerts
+              mountPath: /usr/share/opensearch/config/truststore.jks
+              subPath: truststore.jks
             - name: osdata
               mountPath: /usr/share/opensearch/data
             - name: oslogs
               mountPath: /usr/share/opensearch/logs
+            - name: ossnapshots
+              mountPath: /usr/share/opensearch/snapshots
             - name: sec-config
               mountPath: /usr/share/opensearch/config/opensearch.yml
               subPath: opensearch.yml
@@ -113,6 +136,9 @@ spec:
       - name: osdata
         persistentVolumeClaim:
           claimName: os-data-pv-claim
+      - name: ossnapshots
+        persistentVolumeClaim:
+          claimName: os-snapshots-pv-claim
       - name: oslogs
         persistentVolumeClaim:
           claimName: os-logs-pv-claim

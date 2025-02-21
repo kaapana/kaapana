@@ -506,7 +506,7 @@ function deploy_chart {
     fi
 
     print_deployment_done
-    
+    update_coredns_rewrite
     CONTAINER_REGISTRY_USERNAME=""
     CONTAINER_REGISTRY_PASSWORD=""
 }
@@ -799,6 +799,59 @@ function preflight_checks {
 
     echo -e "${GREEN}################################  PREFLIGHT CHECKS COMPLETED  #########################################${NC}"
 }
+
+function update_coredns_rewrite() {
+    # Get the hostname from helm values
+    local hostname=$DOMAIN # $(helm get values kaapana-platform-chart -o json | jq -r ".global.hostname")
+    if [ -z "$hostname" ]; then
+        echo "Error: hostname not"
+        return 1
+    fi
+
+    # Build the new rewrite rule.
+    # Ensure both hostname and target are FQDNs (with trailing dots).
+    local new_rule="rewrite name exact ${hostname}. oauth2-proxy-service.$ADMIN_NAMESPACE.svc.cluster.local."
+
+    echo "Updating CoreDNS rewrite rule for hostname ${hostname}"
+
+    # Retrieve the current CoreDNS ConfigMap and update the Corefile:
+    # - Split the Corefile into lines.
+    # - If a rewrite rule for our hostname exists, update it.
+    # - Otherwise, insert the new rule before the first line starting with "kubernetes"
+    microk8s.kubectl get configmap coredns -n kube-system -o json | jq --arg new_rule "$new_rule" --arg ns "$ADMIN_NAMESPACE"  '
+    .data.Corefile = (
+        .data.Corefile | split("\n") as $lines |
+        if ($lines | map(select(test("^[[:space:]]*rewrite name exact .* oauth2-proxy-service\\.$ns\\.svc\\.cluster\\.local\\.$"))) | length) > 0 then
+        $lines | map(if test("^[[:space:]]*rewrite name exact .* oauth2-proxy-service\\.$ns\\.svc\\.cluster\\.local\\.$") then $new_rule else . end)
+        else
+        ($lines | to_entries) as $entries |
+        ( $entries | map(select(.value | test("^[[:space:]]*kubernetes "))) | .[0].key // ($lines | length) ) as $kube_index |
+        ($lines[0:$kube_index] + [$new_rule] + $lines[$kube_index:])
+        end | join("\n")
+    )
+    | del(.metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"])
+    | del(.metadata.managedFields)
+    ' > /tmp/coredns.json
+
+    # Replace the ConfigMap entirely.
+    microk8s.kubectl replace -f /tmp/coredns.json
+    if [ $? -eq 0 ]; then
+        echo "CoreDNS ConfigMap updated successfully."
+    else
+        echo "Failed to update CoreDNS ConfigMap."
+        return 1
+    fi
+
+    # Restart the CoreDNS deployment to load the new configuration.
+    microk8s.kubectl rollout restart deployment coredns -n kube-system
+    if [ $? -eq 0 ]; then
+        echo "CoreDNS deployment restarted successfully."
+    else
+        echo "Failed to restart CoreDNS deployment."
+        return 1
+    fi
+}
+
 
 function create_report {
     # Dont abort report generation on error

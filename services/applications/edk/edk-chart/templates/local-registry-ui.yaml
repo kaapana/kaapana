@@ -31,8 +31,8 @@ spec:
               value: {{ .Values.global.http_proxy }}
             - name: HTTPS_PROXY
               value: {{ .Values.global.https_proxy }}
-            - name: NO_PROXY
-              value: "localhost,127.0.0.1,.svc,.cluster.local"
+            - name: no_proxy
+              value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
       imagePullSecrets:
       - name: registry-secret
 ---

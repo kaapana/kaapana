@@ -1,0 +1,33 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix-notifications-api
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  stripPrefix:
+    prefixes:
+    - /notifications-api
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: notifications-api-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: {{  .Values.global.services_namespace  }}-strip-prefix-notifications-api@kubernetescrd
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /notifications-api
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: notifications-api-service
+            port: 
+              number: 8080
+

@@ -1,4 +1,4 @@
-dag_id: "delete-series-from-platform"
+dag_id: "delete-series"
 instance_names:
   - central
 conf_data:

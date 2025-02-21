@@ -7,7 +7,7 @@ LABEL BUILD_IGNORE="False"
 COPY files/dags/dag_clear_validation_results.py /kaapana/tmp/dags/
 COPY files/dags/dag_collect_metadata.py /kaapana/tmp/dags/
 COPY files/dags/dag_convert_niftis_to_dicoms_and_import_to_pacs.py /kaapana/tmp/dags/
-COPY files/dags/dag_delete_series_from_platform.py /kaapana/tmp/dags/
+COPY files/dags/dag_delete_series.py /kaapana/tmp/dags/
 COPY files/dags/dag_download_selected_files.py /kaapana/tmp/dags/
 COPY files/dags/dag_import_dicoms_in_zip_to_internal_pacs.py /kaapana/tmp/dags/
 COPY files/dags/dag_segmentation_evaluation.py /kaapana/tmp/dags/

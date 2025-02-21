@@ -389,40 +389,43 @@ class PodLauncher(LoggingMixin):
         if event.status.container_statuses is not None:
             for container_state in event.status.container_statuses:
                 container_name = container_state.name
-                container_image = container_state.image
-                container_ready = container_state.ready
+                # container_image = container_state.image # not used
+                # container_ready = container_state.ready # not used
                 container_restart_count = container_state.restart_count
                 state_running = container_state.state.running
                 state_terminated = container_state.state.terminated
                 state_waiting = container_state.state.waiting
 
                 if state_terminated is not None:
-                    container_id = state_terminated.container_id
+                    # container_id = state_terminated.container_id # not used
                     exit_code = state_terminated.exit_code
                     message = state_terminated.message
                     reason = state_terminated.reason
-                    signal = state_terminated.signal
-                    if exit_code == 126:
-                        self.log.warn("")
-                        self.log.warn("######## Container Skip !!")
-                        self.log.warn("")
-
-                        af_status = State.SKIPPED
-                        kube_status = "SKIPPED"
-
-                    elif exit_code != 0:
-                        self.log.warn("")
-                        self.log.warn("######## Container Error !!")
-                        self.log.warn("")
-
+                    # signal = state_terminated.signal # not used
+                    if reason == "OOMKilled":
+                        self.log.error(
+                            f"Container {container_name} was terminated due to OutOfMemory (OOMKilled)"
+                        )
                         af_status = State.FAILED
                         kube_status = "FAILED"
-
+                    elif exit_code == 126:
+                        self.log.warn(
+                            f"Container {container_name} was skipped, {reason=}, {message=}"
+                        )
+                        af_status = State.SKIPPED
+                        kube_status = "SKIPPED"
+                    elif exit_code != 0:
+                        self.log.error(
+                            f"Container failed with exit code {exit_code}, {reason=}, {message=}"
+                        )
+                        af_status = State.FAILED
+                        kube_status = "FAILED"
                     else:
-                        self.log.info("Container finished successfully.")
+                        self.log.info(
+                            f"Container {container_name} finished successfully."
+                        )
                         af_status = State.SUCCESS
                         kube_status = "SUCCESS"
-
                 elif state_waiting is not None:
                     if (
                         state_waiting.reason == "ErrImagePull"
@@ -430,31 +433,22 @@ class PodLauncher(LoggingMixin):
                     ):
                         af_status = State.QUEUED
                         kube_status = "ErrImagePull"
-
                     elif state_waiting.reason == "ContainerCreating":
                         kube_status = "ContainerCreating"
                         af_status = State.QUEUED
-
                     else:
                         self.log.info(
                             "#################### Container not running - reason: {}".format(
                                 state_waiting.reason
                             )
                         )
-
                 elif state_running is not None:
                     af_status = State.RUNNING
                     kube_status = "RUNNING"
-
                 else:
-                    self.log.warning("")
-                    self.log.warning("######## Container unknown state !!")
-                    self.log.warning(event.status)
-                    self.log.warning("")
-                    self.log.warning("Container_state: ")
-                    self.log.warning("container_name: {}".format(container_name))
-                    self.log.warning("container_image: {}".format(container_image))
-                    self.log.warning("container_ready: {}".format(container_ready))
+                    self.log.warning(
+                        f"Container {container_name} in unknown state, {event.status=}, "
+                    )
                     self.log.warning(
                         "container_restart_count: {}".format(container_restart_count)
                     )
@@ -463,7 +457,6 @@ class PodLauncher(LoggingMixin):
                     self.log.warning("state_waiting: {}".format(state_waiting))
                     af_status = State.FAILED
                     kube_status = "UNKNOWN"
-
         elif event.status.phase == "Pending":
             if (
                 event.status.conditions != None
@@ -472,19 +465,15 @@ class PodLauncher(LoggingMixin):
             ):
                 if pod.last_kube_status != "UNSCHEDULABLE":
                     self.log.warning(
-                        "Insufficient quota: {}".format(
-                            event.status.conditions[0].message
-                        )
+                        f"Insufficient quota: {event.status.conditions[0].message}"
                     )
                 af_status = State.SCHEDULED
                 kube_status = "UNSCHEDULABLE"
             else:
                 af_status = State.QUEUED
                 kube_status = "PENDING"
-
         else:
             self.log.info("No container status available yet.")
-            self.log.info(event.status)
             af_status = State.QUEUED
             kube_status = "NONE"
 

@@ -96,14 +96,13 @@ def file_is_whitelisted(path: Path, whitelisted_file_extensions: list[str]):
     """
     if type(path) is str:
         path = Path(path)
-
     for extension in whitelisted_file_extensions:
         num_extensions = extension.count(".")
-
         ### Take whitelisted_file_extensions like .nii.gz into account
-        if "".join(path.suffixes[-num_extensions:]):
+        if "".join(path.suffixes[-num_extensions:]) in whitelisted_file_extensions:
+            logger.debug(f"File at {path=} whitelisted: {extension=}")
             return True
-
+    logger.debug(f"File at {path=} not whitelisted!")
     return False
 
 
@@ -159,7 +158,7 @@ def get_absolute_batch_operator_source_directories(
     )
     if not workflow_batch_directory.is_dir():
         logger.warning(f"{workflow_batch_directory=} does not exist!")
-        return [] # dir.iterdir() raises FileNotFoundError if dir doesn't exist
+        return []  # dir.iterdir() raises FileNotFoundError if dir doesn't exist
     absolute_batch_operator_source_directories = []
     for series_directory in workflow_batch_directory.iterdir():
         for operator_in_dir in batch_operator_source_directories:
@@ -240,7 +239,9 @@ def upload_objects(
     for file_path in source_files:
         if not file_is_whitelisted(Path(file_path), whitelisted_file_extensions):
             continue
-        logger.info(f"Collect {file_path=} for upload!")
+        absoulute_file_path = Path(OPERATOR_SETTINGS.workflow_dir, file_path)
+        files_to_upload.append(absoulute_file_path)
+        logger.info(f"Collect {absoulute_file_path=} for upload!")
 
     if len(files_to_upload) == 0:
         logger.error(

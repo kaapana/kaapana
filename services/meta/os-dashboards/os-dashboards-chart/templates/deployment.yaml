@@ -43,7 +43,7 @@ spec:
           - name: https_proxy
             value: "{{ .Values.global.http_proxy }}"
           - name: no_proxy
-            value: ".svc,.svc.cluster,.svc.cluster.local"
+            value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
       containers:
         - name: os-dashboards-container
           image: "{{ .Values.global.registry_url }}/os-dashboards:{{ .Values.global.kaapana_build_version  }}"
@@ -59,7 +59,7 @@ spec:
           - name: https_proxy
             value: "{{ .Values.global.http_proxy }}"
           - name: no_proxy
-            value: ".svc,.svc.cluster,.svc.cluster.local"
+            value: ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }}"
           ports:
             - containerPort: 5601
           resources:

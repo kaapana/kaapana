@@ -10,7 +10,7 @@ spec:
   type: NodePort
   ports:
     - protocol: TCP
-      port: 8443
+      port: 443
       nodePort: {{ .Values.global.https_port }}
       targetPort: https
       name: https-port

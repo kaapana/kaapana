@@ -3,6 +3,45 @@
 Changelog
 #########
 
+.. _release-0.4.1:
+
+------------------------
+
+********************
+Release Notes v0.4.1
+********************
+
+February 21, 2025
+
+-------------------------
+
+* Fix cluster internal access to OIDC provider staying internal by rewriting DNS
+* Fix thumbnail generation for overlapping segmentations
+* Fix Collabora extension not working for non-admin users
+* Fix :code:`wsiconv` build
+* Fix custom routes for :code:`slim-viewer` in :code:`dicom-web-filter`
+* Fix :code:`/rendered` endpoint of :code:`dicom-web-filter`
+* Fix specifying calling and called AE titles in :code:`send-dicom``
+* Fix :code:`GetRefSeriesOperator` output folder structure
+* Fix Federated Averaging issues in KaapanaFed
+* Fix federated communication being dependent on remote instance's Minio username
+* Fix running federated jobs in local instance within project context
+* Fix custom_tags parameter in :code:`GetRefSeriesOperator`
+* Fix graph of :code:`service-process-incoming-dicom` and remove dicom tags associated with project and dataset
+* Fix inconsistent environment variables in :code:`dev-server` with dynamic labels
+* Fix WSI imaging by reverting OHIF to v3.7
+* Fix persistence of project name setting in frontend
+* Fix duplicate view of applications triggered from a workflow inside Active Applications view
+* Fix Airflow failing to show logs for pods terminated with :code:`OOMKilled`
+* Fix :code:`auth-backend` requiring :code:`access-information-interface`, enables :code:`kaapana-admin-chart` to run without :code:`kaapana-platform-chart`
+* Reintroduce autotrigger operator in :code:`process-incoming-dicom`
+* Add migration guide from 0.3.x to 0.4.x
+* Update/fix versions of libraries that causin version mismatch
+* Use the new python library constraints file for :code:`>= 0.4.0` while building images
+* Improve Datasets UI
+* Improve documentation
+
+
 .. _release-0.4.0:
 
 ------------------------

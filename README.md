@@ -110,4 +110,4 @@ Kaapana is built upon the great work of many other open-source projects, see the
 **Trustworthy Federated Data Analysis - TFDA**: This work is partially funded by the Helmholtz Association within the project "Trustworthy Federated Data Analytics” (TFDA) (funding number
 ZT-I-OO1 4). Website: <https://tfda.hmsp.center/>
 
-Copyright (C) 2024  German Cancer Research Center (DKFZ)
+Copyright (C) 2025  German Cancer Research Center (DKFZ)

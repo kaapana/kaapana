@@ -1,5 +1,4 @@
 import glob
-import json
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -22,9 +21,6 @@ from kaapana.operators.LocalRemoveDicomTagsOperator import (
 from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
-)
-from kaapana.operators.LocalClearValidationResultOperator import (
-    LocalClearValidationResultOperator,
 )
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
@@ -54,42 +50,6 @@ dag = DAG(
     max_active_runs=20,
     tags=["service"],
 )
-
-
-def set_skip_if_not_custom_thumbnail_modality(ds, **kwargs):
-    """
-    Skip the DAG if the incoming DICOM file is not a segmentation.
-
-    Args:
-        ds: Unused argument (can be ignored).
-        **kwargs: Additional keyword arguments, including the `dag_run` containing the run ID.
-
-    Returns:
-        None
-    """
-    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
-    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
-
-    for batch_element_dir in batch_folder:
-        input_dir = Path(batch_element_dir) / get_input.operator_out_dir
-        dcms = sorted(
-            glob.glob(
-                os.path.join(input_dir, "*.dcm*"),
-                recursive=True,
-            )
-        )
-
-        if len(dcms) == 0:
-            print(
-                f"No dicom files found to create metadada {input_dir}. Skipping naive metadata creation."
-            )
-            raise AirflowSkipException("No DICOM files found")
-
-        ds = pydicom.dcmread(dcms[0])
-        if ds.Modality not in ["SEG", "RTSTRUCT", "CT", "MR"]:
-            raise AirflowSkipException("No segmentation found in DICOM file")
-    return
-
 
 get_input = LocalGetInputDataOperator(dag=dag, delete_input_on_success=True)
 
@@ -286,14 +246,6 @@ put_thumbnail_to_project_bucket = KaapanaPythonBaseOperator(
     dag=dag,
 )
 
-set_skip_if_not_custom_thumbnail_modality = KaapanaPythonBaseOperator(
-    name="set-skip-if-not-custom-thumbnail-modality",
-    pool="default_pool",
-    pool_slots=1,
-    python_callable=set_skip_if_not_custom_thumbnail_modality,
-    dag=dag,
-)
-
 clean = LocalWorkflowCleanerOperator(
     dag=dag,
     clean_workflow_dir=True,
@@ -301,7 +253,7 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 get_input >> auto_trigger_operator
-get_input >> [extract_metadata, set_skip_if_not_custom_thumbnail_modality]
+get_input >> [extract_metadata, branch_by_has_ref_series]
 extract_metadata >> [
     push_json,
     add_to_dataset,
@@ -320,8 +272,7 @@ extract_metadata >> [
 (remove_tags >> dcm_send)
 
 (
-    set_skip_if_not_custom_thumbnail_modality
-    >> branch_by_has_ref_series
+    branch_by_has_ref_series
     >> get_ref_ct_series
     >> generate_thumbnail
     >> put_thumbnail_to_project_bucket

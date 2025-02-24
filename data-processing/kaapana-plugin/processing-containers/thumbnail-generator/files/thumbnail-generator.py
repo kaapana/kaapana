@@ -6,6 +6,9 @@ from os import getenv
 from os.path import exists, join
 from pathlib import Path
 from random import randint
+import subprocess
+import tempfile
+import traceback
 from typing import List, Tuple
 
 import cv2
@@ -21,7 +24,6 @@ from PIL import Image, ImageFilter
 logger = get_logger(__name__)
 
 processed_count = 0
-
 
 @dataclass
 class Slice:
@@ -110,23 +112,26 @@ def load_dicom_series(
             filenames.append(filepath)
 
     sorted_files = sorted(
-        zip(dicom_files, filenames), key=lambda pair: get_slice_position(pair[0])
-    )
+    enumerate(zip(dicom_files, filenames)),  # Preserve original index
+    key=lambda pair: (get_slice_position(pair[1][0]), pair[0])  # Sort by position, fallback to original index
+)
+
     return list(zip(*sorted_files))
 
 
-def get_slice_position(ds: pydicom.FileDataset) -> int:
+def get_slice_position(ds: pydicom.FileDataset, original_position: int) -> int:
     """
     Get the position of a DICOM slice using available metadata tags.
 
     The function prioritizes:
       1. `InstanceNumber` (if available).
       2. `ImagePositionPatient[2]` (Z-coordinate in patient space).
-      3. Returns a default value if both are missing.
+      3. `original_position` (Position instances are ordered in get-input-operator).
+      4. Returns a original position if both are missing, that gives original order.
 
     Args:
         ds (pydicom.FileDataset): The DICOM dataset object.
-        default (int, optional): The fallback position if no valid metadata is found (default is 0).
+        original_position (int): The fallback position if no valid metadata is found.
 
     Returns:
         int: The determined slice position. Defaults to `0` if no metadata is available.
@@ -134,14 +139,14 @@ def get_slice_position(ds: pydicom.FileDataset) -> int:
     try:
         return int(ds.InstanceNumber)
     except AttributeError:
-        print("DICOM file is missing 'InstanceNumber'")
+        logger.warning("DICOM file is missing 'InstanceNumber'")
 
     try:
         return int(ds.ImagePositionPatient[2])
     except AttributeError:
-        print("DICOM file is missing both 'InstanceNumber' and 'ImagePositionPatient'.")
+        logger.warning("DICOM file is missing both 'InstanceNumber' and 'ImagePositionPatient'.")
 
-    return None
+    return original_position
 
 
 def apply_windowing(
@@ -172,7 +177,7 @@ def apply_windowing(
             return 1 / (1 + np.exp(-((pixel_array - center) / width)))
 
     if "WindowCenter" in dicom_ds and "WindowWidth" in dicom_ds:
-        # logger.info("Applying default windowing")
+        logger.info("Applying default windowing")
         center = dicom_ds.WindowCenter
         width = dicom_ds.WindowWidth
 
@@ -205,7 +210,7 @@ def apply_rescale(pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset) -> np.
     slope = dicom_ds.RescaleSlope if "RescaleSlope" in dicom_ds else 1
     intercept = dicom_ds.RescaleIntercept if "RescaleIntercept" in dicom_ds else 0
 
-    # logger.info(f"Applying rescale slope {slope}, intercept {intercept}")
+    logger.debug(f"Applying rescale slope {slope}, intercept {intercept}")
     return pixel_array * slope + intercept
 
 
@@ -355,6 +360,40 @@ def center_thumbnail(image: Image, size: int = 256) -> Image:
 
     return canvas
 
+def dcm2pnm(dcm_file: str, output_file: str, size:int=300) -> Image:
+    dcm2pnm_command = [
+        "dcm2pnm",
+        "--scale-y-size",
+        str(size),
+        "+M",        
+        "+Wn",
+        "--write-png",  # Write 8-bit PNG
+        dcm_file,
+        output_file,
+    ]
+    try:
+        subprocess.run(dcm2pnm_command, check=True, stderr=subprocess.PIPE, text=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(e.stderr)
+        raise RuntimeError(f"dcm2pnm failed: {e}")
+        
+
+def select_dcm(dcms: List[str]):
+    return dcms[0]
+
+def generate_generic_thumbnail(dcm_incoming_dir: str):
+    dcms = os.listdir(dcm_incoming_dir)
+    selected_dcm = dcms[0] if len(dcms) == 1 else selected_dcm = select_dcm(dcms)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        output_png_file = os.path.join(tmp_dir, "thumbnail.png")
+    
+        # Convert the DICOM file to PNG using dcm2pnm tool (dcmtk)
+        dcm2pnm(selected_dcm, output_png_file)
+
+        # Load the PNG file as a PIL image
+        thumbnail = Image.open(output_png_file)
+
+    return thumbnail
 
 def generate_thumbnail(parameters: tuple) -> tuple:
     global processed_count
@@ -376,15 +415,20 @@ def generate_thumbnail(parameters: tuple) -> tuple:
     os.makedirs(target_dir, exist_ok=True)
 
     # Load the image and segmentation (and segment colors)
-    if modality == "CT" or modality == "MR":
+    if modality in ["CT", "MR"]:
         thumbnail = generate_base_thumbnail(dcm_incoming_dir)
     elif modality == "RTSTRUCT":
         thumbnail = generate_RTSTRUCT_thumbnail(dcm_incoming_dir, dcm_ref_dir)
     elif modality == "SEG":
         thumbnail = generate_SEG_thumbnail(dcm_incoming_dir, dcm_ref_dir)
     else:
-        logger.warning(f"Modality {modality} not supported. Skipping.")
-        return False, ""
+        try:
+            thumbnail = generate_generic_thumbnail(dcm_incoming_dir)
+        except Exception as e:
+            logger.error(e)
+            logger.error(traceback.format_ext())
+            logger.warning(f"Modality {modality} not supported for custom thumbnail. Thumbnail will be fetched dynamically.")
+            return False, ""
 
     thumbnail = center_thumbnail(thumbnail)
     target_png = os.path.join(target_dir, f"new_{seg_series_uid}.png")

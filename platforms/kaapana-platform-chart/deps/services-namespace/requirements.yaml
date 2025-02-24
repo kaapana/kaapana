@@ -7,6 +7,8 @@ dependencies:
     version: 0.0.0
   - name: notifications-api
     version: 0.0.0
+  - name: notifications-postgres-chart
+    version: 0.0.0
 # MONITORING
   - name: prometheus-chart
     version: 0.0.0

@@ -1,0 +1,51 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications-postgres
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app-name: notifications-postgres
+  strategy:
+    type: Recreate
+  template: 
+    metadata:
+      labels:
+        app-name: notifications-postgres
+    spec:
+      containers:
+      - name: notifications-postgres
+        image: "{{ .Values.global.registry_url }}/postgres-17.2-alpine:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        env: 
+        - name: POSTGRES_USER
+          value: kaapanauser
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: notifications-postgres-password
+              key: notifications-postgres-password
+        ports: 
+          - containerPort: 5432
+        resources:
+          limits:
+            memory: "5Gi"
+          requests:
+            memory: "100Mi"
+        volumeMounts:
+{{ include "dynamicVolumeMounts" $ | indent 10 }}
+          - name:  unix-socket-dir
+            mountPath: /var/run/postgresql
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+      volumes:
+{{ include "dynamicVolumes" $ | indent 6 }}
+      - name: unix-socket-dir
+        emptyDir: {}
+      priorityClassName: kaapana-high-priority
+      imagePullSecrets:
+        - name: registry-secret

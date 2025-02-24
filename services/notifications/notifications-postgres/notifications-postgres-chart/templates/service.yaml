@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifications-postgres-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels: 
+    app-name: notifications-postgres
+spec:
+  selector: 
+    app-name: notifications-postgres 
+  ports:
+    - port: 5432
+      targetPort: 5432

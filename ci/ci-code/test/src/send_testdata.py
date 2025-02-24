@@ -1,4 +1,4 @@
-from base_utils.utils_data import send_data_to_platform, TEST_DATA
+from base_utils.utils_data import send_data_to_platform
 from base_utils.logger import get_logger
 from argparse import ArgumentParser
 import os, sys, logging
@@ -16,10 +16,9 @@ def main():
         )
         sys.exit(1)
 
-    for testdata in TEST_DATA:
-        directory = testdata["destination"]
-        aetitle = testdata["aet"]
-        send_data_to_platform(directory, host, aetitle)
+    directory = args.source
+    aetitle = args.dataset
+    send_data_to_platform(directory, host, aetitle)
 
 
 def parser():
@@ -32,6 +31,8 @@ def parser():
         default=None,
         help="The client secret of the kaapana client in keycloak.",
     )
+    p.add_argument("--source", help="Directory containing dicom data.")
+    p.add_argument("--dataset", help="Name of the dataset to store the series.")
     return p.parse_args()
 
 

@@ -11,6 +11,6 @@ async def verify_postgres_conn(debug_outputs=False):
             ).fetchall()
             if debug_outputs:
                 print(available_db)
-        return True
+        return True, ""
     except OperationalError as e:
-        raise False
+        return False, str(e)

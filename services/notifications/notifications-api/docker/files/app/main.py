@@ -1,7 +1,10 @@
 import logging
+import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from app.database.queries import verify_postgres_conn
+from app.notifications.schemas import Notification, NotificationDispatch
 from fastapi import FastAPI, HTTPException
 
 logger = logging.getLogger(__name__)
@@ -16,10 +19,32 @@ app = FastAPI(
 )
 
 
-@app.get("/check-db-connection")
+@app.get("/v1/health/check-db-connection", tags=["Health"])
 async def check_db_connection():
-    verified = await verify_postgres_conn()
+    verified, err = await verify_postgres_conn()
     if verified:
         return {"status": "Database connection successful"}
     else:
-        raise HTTPException(status_code=500, detail=f"Database connection failed")
+        raise HTTPException(
+            status_code=500, detail=f"Database connection failed, {err}"
+        )
+
+
+@app.post(
+    "/v1/dispatch/project/{project_id}",
+    response_model=NotificationDispatch,
+    tags=["Dispatch"],
+)
+async def get_keycloak_user_by_id(
+    project_id: str,
+    notification_item: Notification,
+):
+    dispatch = NotificationDispatch(
+        id=uuid.uuid4(),
+        user_id="",
+        project=project_id,
+        timestamp=datetime.now(),
+        **notification_item.dict(),  # Unpack the remaining fields from Notification
+    )
+
+    return dispatch

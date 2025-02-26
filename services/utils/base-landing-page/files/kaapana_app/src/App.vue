@@ -2,7 +2,7 @@
   <div id="app">
     <v-app id="inspire">
       <notifications position="bottom right" width="20%" :duration="5000" />
-      <v-navigation-drawer 
+      <v-navigation-drawer
           v-model="drawer" app mobile-breakpoint="0"
           :mini-variant.sync="mini"
           permanent
@@ -54,23 +54,23 @@
             </v-menu>
           </v-list-item>
 
-          <v-btn 
-            text block 
+          <v-btn
+            text block
             class="mb-n2"
-            @click.stop="mini = !mini" title="Collapse Sidebar" 
+            @click.stop="mini = !mini" title="Collapse Sidebar"
             v-if="mini"
           >
             <v-icon>mdi-dock-left</v-icon>
           </v-btn>
 
           <v-container v-if="!mini">
-            <v-row>              
+            <v-row>
             <v-col class="px-2 py-0">
-              <Settings></Settings>             
+              <Settings></Settings>
             </v-col>
             <v-col class="px-0 py-0">
-              <v-btn 
-                block depressed 
+              <v-btn
+                block depressed
                 color="primary" class="blue darken-1"
                 @click.stop="toggleDarkMode"
                 :title="settings.darkMode ? 'Dark Mode: Off' : 'Dark Mode: On'"
@@ -79,8 +79,8 @@
               </v-btn>
             </v-col>
             <v-col class="px-2 py-0">
-              <v-btn 
-                block depressed 
+              <v-btn
+                block depressed
                 color="primary" class="blue darken-1"
                 href="/docs/" target="_blank"
                 title="Documentation"
@@ -95,7 +95,7 @@
           <v-list-item class="px-2" v-if="!mini">
             <v-menu offset-y v-if="isAuthenticated" :close-on-content-click="false">
               <template v-slot:activator="{ on }">
-                <v-btn v-on="on" 
+                <v-btn v-on="on"
                   block depressed
                   title="Select Project"
                   color="primary"
@@ -137,18 +137,15 @@
               </v-list-item-icon>
             </v-list-item>
           </v-list-group>
-          <v-list-group
-            :prepend-icon="section.icon"
+          <v-list-group :prepend-icon="section.icon"
             v-if="isAuthenticated && checkAuthSection(policyData, section, currentUser)"
-            v-for="(section, sectionKey) in externalWebpages"
-            :key="section.id"
-          >
+            v-for="(section, sectionKey) in externalWebpages" :key="section.id">
             <template v-slot:activator>
               <v-list-item-title>{{ section.label }}</v-list-item-title>
             </template>
             <v-list-item dense
               v-if="
-                !mini && 
+                !mini &&
                 section.subSections &&
                 _checkAuthR(policyData, subSection.linkTo, currentUser)
               "
@@ -157,17 +154,14 @@
               :to="{
                 name: 'ew-section-view',
                 params: { ewSection: sectionKey, ewSubSection: subSectionKey },
-              }"
-            >
+              }">
               <v-list-item-action></v-list-item-action>
               <v-list-item-title v-text="subSection.label"></v-list-item-title>
             </v-list-item>
           </v-list-group>
           <!-- EXTENSIONS -->
-          <v-list-item
-            :to="'/extensions'"
-            v-if="isAuthenticated && _checkAuthR(policyData, '/extensions', currentUser)"
-          >
+          <v-list-item :to="'/extensions'"
+            v-if="isAuthenticated && _checkAuthR(policyData, '/extensions', currentUser)">
             <v-list-item-action>
               <!-- <v-icon>mdi-view-comfy</v-icon> -->
               <!-- <v-icon>mdi-toy-brick-plus</v-icon> -->
@@ -201,7 +195,7 @@
                 <v-icon >mdi-help-circle</v-icon>
               </v-btn>
             </v-row>
-          </v-container>    
+          </v-container>
         </template>
 
       </v-navigation-drawer>
@@ -216,7 +210,7 @@
 <script lang="ts">
 import Vue from "vue";
 import VueCookies from 'vue-cookies';
-Vue.use(VueCookies, { expires: '1d'})
+Vue.use(VueCookies, { expires: '1d' })
 import { mapGetters } from "vuex";
 import httpClient from "@/common/httpClient.js";
 import kaapanaApiService from "@/common/kaapanaApi.service";
@@ -360,8 +354,8 @@ export default Vue.extend({
           if (newValue && projectCookies != newValue.name) {
             Vue.$cookies.set("Project-Name", newValue.name);
             location.reload(); // Reload the page
-          } else if(this.failedToFetchTraefik) {
-            // for some cases selectedProject as well as Project-Name cookie sets 
+          } else if (this.failedToFetchTraefik) {
+            // for some cases selectedProject as well as Project-Name cookie sets
             // after already made request to traefik and failed to Fetch Traefic.
             // In such cases, a reload is required after setting the Project-Name cookie.
             location.reload(); // Reload the page
@@ -376,13 +370,13 @@ export default Vue.extend({
         let found = false;
         const selectedProject = this.$store.getters.selectedProject;
         const currentUser = this.$store.getters.currentUser;
-        
+
         // if the user not a kaapana_admin, check if the selected
         // project is listed in the available project for the user.
         // if not, clear the selected project from store and localstoraga,
         // reset the selected project by reloading
         if (!currentUser.groups.includes("kaapana_admin")) {
-          for(const project of newProjects) {
+          for (const project of newProjects) {
             if (project.id == selectedProject.id) {
               found = true;
               break;
@@ -394,11 +388,39 @@ export default Vue.extend({
             location.reload(); // Reload the page
           }
         }
-      }    
+      }
     );
 
     this.getSettingsFromDb();
     this.updateSettings();
+
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.host;
+    const notifcations_endpoint = process.env.VUE_APP_NOTIFICATIONS_API_ENDPOINT;
+    const wsPath = `${notifcations_endpoint}/ws`;
+
+    console.log("Starting connection to WebSocket Server")
+    this.connection = new WebSocket(`${wsProtocol}//${wsHost}${wsPath}`);
+
+    this.connection.onmessage = (event: MessageEvent) => {
+      let parsed = JSON.parse(event.data);
+      console.log(parsed);
+
+      this.$notify({
+        title: "Notification",
+        text: parsed['message'],
+        type: "success",
+        duration: 10000,
+      });
+    }
+
+    this.connection.onopen = function (event: Event) {
+      console.log(event)
+      console.log("Successfully connected to the echo websocket server...")
+    }
+
+
   },
   mounted() {
     httpClient

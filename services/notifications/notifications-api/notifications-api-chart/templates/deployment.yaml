@@ -22,7 +22,7 @@ spec:
             imagePullPolicy:  {{ .Values.global.pull_policy_images }}
             env:
               - name: WAIT
-                value: "notifications-postgres,notifications-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;"
+                value: "notifications-postgres,notifications-postgres-service.{{  .Values.global.services_namespace  }}.svc,5432;aii-service,aii-service.{{ .Values.global.services_namespace }}.svc,8080"
               - name: DELAY
                 value: "2"
               - name: TIMEOUT
@@ -43,6 +43,8 @@ spec:
           value: "8080"
         - name: WORKERS
           value: "2"
+        - name: SERVICES_NAMESPACE
+          value: "{{ .Values.global.services_namespace }}"
         ports:
           - containerPort: 8080
         resources:

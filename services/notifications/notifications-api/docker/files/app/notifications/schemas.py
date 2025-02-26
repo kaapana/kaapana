@@ -27,3 +27,11 @@ class NotificationDispatch(Notification):
     project: Optional[str]
     user_id: Optional[str]
     timestamp: datetime
+
+
+class NotificationDispatchResponse(BaseModel):
+    notification_id: uuid.UUID
+    success: bool
+    active_connections: int
+    total_dispatched: int
+    timestamp: datetime

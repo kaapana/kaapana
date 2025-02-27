@@ -67,6 +67,40 @@ async def send_notification_to_project(
 
 
 @router.post(
+    "/project/{project_name}/user/{user_id}",
+    response_model=NotificationDispatchResponse,
+    tags=["Dispatch"],
+)
+@version(1)
+async def send_notification_to_user_in_project(
+    project_name: str,
+    user_id: str,
+    notification_item: Notification,
+    con_mgr: ConnectionManager = Depends(get_connection_manager),
+    aii_helper: AiiHelper = Depends(get_aii_helper),
+):
+    dispatch = notification_to_dispatch(notification_item, project_name=project_name)
+    try:
+        users = await aii_helper.fetch_project_users(project_name)
+    except requests.exceptions.HTTPError as errh:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to Fetch users. {errh.args[0]}"
+        )
+
+    if user_id in users:
+        n_dispatched, n_total = await con_mgr.send_notifications_to_users(
+            dispatch, users
+        )
+        response = dispatch_to_response(dispatch, n_total, n_dispatched)
+        return response
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No user found with the provided user id in the project {project_name}",
+        )
+
+
+@router.post(
     "/user/{user_id}",
     response_model=NotificationDispatchResponse,
     tags=["Dispatch"],

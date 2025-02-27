@@ -47,8 +47,8 @@ data:
     ssl_upstream_insecure_skip_verify = true
 
     # Cookie settings
-    cookie_expire = "20m"
-    cookie_refresh = "1m"
+    cookie_expire = "6h"
+    cookie_refresh = "5m"
 
     # Additional flags
     custom_templates_dir = "/usr/share/oauth2-proxy"

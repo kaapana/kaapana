@@ -49,6 +49,8 @@ variables:
   ### CONFIGURABLE
   DOCKER_IO_USER: $DOCKER_IO_USER ### username for docker.io
   DOCKER_IO_PASSWORD: $DOCKER_IO_PASSWORD ### password for docker.io
+  SLACK_BOT_TOKEN: $SLACK_BOT_TOKEN ### Oauth bot token of the slack app
+  SLACK_CHANNEL_ID: $SLACK_CHANNEL_ID ### Channel ID to inform about failing pipelines
   USER: $USER ### username on the CI instance
   DEPLOYMENT_INSTANCE_NAME: $DEPLOYMENT_INSTANCE_NAME
   DEPLOYMENT_INSTANCE_IP: $DEPLOYMENT_INSTANCE_IP ### Set in order to reuse an instance
@@ -188,10 +190,13 @@ if_ci_failing:
   script:
     - cd $REPO_DIR/ci-code/clean 
     - python3 create_ticket_if_ci_failed.py
+    - python3 notify_slack.py
   resource_group: $DEPLOYMENT_INSTANCE_NAME-1
   environment: $DEPLOYMENT_INSTANCE_NAME-1
   rules:
   - if: $CI_COMMIT_BRANCH == "develop"
+    when: on_failure
+  - if: $CI_COMMIT_BRANCH == "master"
     when: on_failure
   - when: never
   allow_failure: true

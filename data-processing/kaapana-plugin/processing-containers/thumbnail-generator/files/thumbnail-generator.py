@@ -1,15 +1,11 @@
 import os
 from dataclasses import dataclass
-from glob import glob
-from multiprocessing.pool import ThreadPool
-from os import getenv
-from os.path import exists, join
 from pathlib import Path
 from random import randint
 import subprocess
 import tempfile
 import traceback
-from typing import List, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import cv2
 import numpy as np
@@ -18,12 +14,26 @@ import pydicom_seg
 import SimpleITK as sitk
 from colormath.color_conversions import convert_color
 from colormath.color_objects import LabColor, sRGBColor
+from kaapanapy.helper import get_opensearch_client, load_workflow_config
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.logger import get_logger
 from PIL import Image, ImageFilter
+
+from kaapanapy.settings import OpensearchSettings, OperatorSettings
+from kaapanapy.utils import (
+    ConfigError,
+    get_required_env_var,
+    is_batch_mode,
+    process_batches,
+    process_single,
+    validate_directory,
+)
 
 logger = get_logger(__name__)
 
 processed_count = 0
+
 
 @dataclass
 class Slice:
@@ -31,6 +41,40 @@ class Slice:
     segmentation_classes: list
     number_of_classes: int
     number_of_foreground_pixels: int
+
+
+@dataclass
+class SeriesMetadata:
+    min_slice_index: int
+    max_slice_index: int
+    is_series_complete: bool
+    instance_mapping: Optional[Dict[int, str]] = None
+
+
+def get_opensearch_series_metadata(series_uid: str) -> SeriesMetadata | None:
+    client = get_opensearch_client()
+    workflow_config = load_workflow_config()
+    project_form = workflow_config.get("project_form")
+    if not project_form:
+        opensearch_index = OpensearchSettings().default_index
+    else:
+        opensearch_index = project_form.get("opensearch_index")
+    response = client.search(
+        index=opensearch_index,
+        body={"query": {"match": {DicomTags.series_uid_tag: series_uid}}},
+    )
+
+    hits = response.get("hits", {}).get("hits", [])
+    if hits:
+        source = hits[0].get("_source", {})
+        return SeriesMetadata(
+            min_slice_index=source.get(DicomTags.min_slice_index_tag),
+            max_slice_index=source.get(DicomTags.max_slice_index_tag),
+            is_series_complete=source.get(DicomTags.is_series_complete_tag),
+            instance_mapping=source.get(DicomTags.missing_slices_tag),
+        )
+
+    return None
 
 
 def dicomlab2LAB(dicomlab: list) -> list:
@@ -77,77 +121,6 @@ def resample_segmentation_to_reference_image(
     ), f"Image and segmentation have different sizes: Image: {image.GetSize()}, Segmentation: {segmentation_resampled.GetSize()}"
 
     return image, segmentation_resampled
-
-
-def load_dicom_series(
-    dicom_dir: str,
-) -> Tuple[List[pydicom.FileDataset], List[str]]:
-    """
-    Load a DICOM series from a directory and return a sorted list of DICOM metadata objects
-    along with their corresponding filenames.
-
-    The function:
-      - Reads all `.dcm` files in the given directory.
-      - Sorts them by `InstanceNumber` if available, otherwise falls back to `ImagePositionPatient[2]`.
-      - Preserves the original file order in case of sorting ties.
-
-    Args:
-        dicom_dir (str): Path to the directory containing DICOM files.
-
-    Returns:
-        Tuple[List[pydicom.FileDataset], List[str]]:
-            - List of DICOM metadata objects (one per slice).
-            - List of corresponding filenames.
-
-    Raises:
-        ValueError: If no DICOM files are found in the directory.
-    """
-    dicom_files = []
-    filenames = []
-
-    for f in os.listdir(dicom_dir):
-        if f.endswith(".dcm"):
-            filepath = os.path.join(dicom_dir, f)
-            dicom_files.append(pydicom.dcmread(filepath))
-            filenames.append(filepath)
-
-    sorted_files = sorted(
-    enumerate(zip(dicom_files, filenames)),  # Preserve original index
-    key=lambda pair: (get_slice_position(pair[1][0]), pair[0])  # Sort by position, fallback to original index
-)
-
-    return list(zip(*sorted_files))
-
-
-def get_slice_position(ds: pydicom.FileDataset, original_position: int) -> int:
-    """
-    Get the position of a DICOM slice using available metadata tags.
-
-    The function prioritizes:
-      1. `InstanceNumber` (if available).
-      2. `ImagePositionPatient[2]` (Z-coordinate in patient space).
-      3. `original_position` (Position instances are ordered in get-input-operator).
-      4. Returns a original position if both are missing, that gives original order.
-
-    Args:
-        ds (pydicom.FileDataset): The DICOM dataset object.
-        original_position (int): The fallback position if no valid metadata is found.
-
-    Returns:
-        int: The determined slice position. Defaults to `0` if no metadata is available.
-    """
-    try:
-        return int(ds.InstanceNumber)
-    except AttributeError:
-        logger.warning("DICOM file is missing 'InstanceNumber'")
-
-    try:
-        return int(ds.ImagePositionPatient[2])
-    except AttributeError:
-        logger.warning("DICOM file is missing both 'InstanceNumber' and 'ImagePositionPatient'.")
-
-    return original_position
-
 
 def apply_windowing(
     pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset
@@ -229,7 +202,7 @@ def normalize_pixels(pixel_array: np.ndarray) -> np.ndarray:
     return pixel_array.astype(np.uint8)
 
 
-def dcm2png(dcm_file: str, size=(300, 300)) -> Image:
+def dcm2png(dcm_file: str, thumbnail_size: int) -> Image:
     """
     Convert a DICOM file to a PNG image, applying windowing, VOI LUT, and rescaling.
 
@@ -258,7 +231,7 @@ def dcm2png(dcm_file: str, size=(300, 300)) -> Image:
     pixel_array = normalize_pixels(pixel_array)
 
     # Resize image
-    pixel_array = cv2.resize(pixel_array, size, interpolation=cv2.INTER_AREA)
+    pixel_array = cv2.resize(pixel_array, (thumbnail_size, thumbnail_size), interpolation=cv2.INTER_AREA)
 
     # Convert to PIL Image (L mode for grayscale)
     image = Image.fromarray(pixel_array).convert("L")
@@ -266,9 +239,26 @@ def dcm2png(dcm_file: str, size=(300, 300)) -> Image:
     return image
 
 
-def generate_base_thumbnail(dcm_dir: str) -> Image:
+def fetch_middle_slice_from_pacs(
+    study_uid: str,
+    series_uid: str,
+    instance_uid: str,
+    dcm_dir: Path,
+):
+    dcmweb_helper = HelperDcmWeb()
+    dcmweb_helper.download_instance(
+        study_uid=study_uid,
+        series_uid=series_uid,
+        instance_uid=instance_uid,
+        target_dir=dcm_dir,
+    )
+
+
+def generate_base_thumbnail(
+    dcm_dir: Path, study_uid: str, series_uid: str, thumbnail_size: int
+) -> Image:
     """
-    Generate a thumbnail image for the DICOM series by selecting the slice with the most tissue.
+    Generate a thumbnail image for the DICOM series by selecting the middle slice.
 
     Args:
         dcm_dir: Path to the directory containing the DICOM files.
@@ -276,21 +266,40 @@ def generate_base_thumbnail(dcm_dir: str) -> Image:
     Returns:
         A PIL Image object representing the thumbnail.
     """
-    dicom_files, filenames = load_dicom_series(dcm_dir)
-    middle_slice_index = len(dicom_files) // 2
-    selected_dicom_file = filenames[middle_slice_index]
+    series_metadata = get_opensearch_series_metadata(series_uid=series_uid)
+    
+    if not series_metadata.is_series_complete:
+        logger.info("Series is not complete -> Not generating a thumbnail")
+        return None
+    else:
+        middle_slice_index = (
+            series_metadata.min_slice_index + series_metadata.max_slice_index
+        ) // 2
+        instance_uid = series_metadata.instance_mapping[str(middle_slice_index)]
+        middle_slice_dicom_filename = dcm_dir / f"{instance_uid}.dcm"
 
-    thumbnail = dcm2png(selected_dicom_file)
+        if not middle_slice_dicom_filename.exists():
+            # Try fetch middle slice from Dcm4chee
+            fetch_middle_slice_from_pacs(study_uid, series_uid, instance_uid, dcm_dir)
+        
+        if not middle_slice_dicom_filename.exists():
+            # This should never happen
+            logger.error("Series is not complete -> Not generating a thumbnail")
+            return None
+        thumbnail = dcm2png(middle_slice_dicom_filename, thumbnail_size)
+        return thumbnail
 
-    return thumbnail
+    
 
 
-def generate_RTSTRUCT_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Image:
+def generate_RTSTRUCT_thumbnail(
+    dcm_incoming_dir: str, dcm_ref_dir: str, thumbnail_size: int
+) -> Image:
     """
     Generate a thumbnail image for an RTSTRUCT-based DICOM segmentation.
 
-    This function loads the reference DICOM series and RTSTRUCT segmentation, identifies the 
-    most relevant slice, and overlays the segmentation on the selected slice to generate a 
+    This function loads the reference DICOM series and RTSTRUCT segmentation, identifies the
+    most relevant slice, and overlays the segmentation on the selected slice to generate a
     visually informative thumbnail.
 
     Args:
@@ -307,12 +316,14 @@ def generate_RTSTRUCT_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Imag
     return thumbnail
 
 
-def generate_SEG_thumbnail(dcm_incoming_dir: str, dcm_ref_dir: str) -> Image:
+def generate_SEG_thumbnail(
+    dcm_incoming_dir: str, dcm_ref_dir: str, thumbnail_size: int
+) -> Image:
     """
     Generate a thumbnail image for a DICOM SEG-based segmentation.
 
-    This function loads the reference DICOM series and the corresponding DICOM SEG segmentation, 
-    identifies the most relevant slice, and overlays the segmentation on the selected slice 
+    This function loads the reference DICOM series and the corresponding DICOM SEG segmentation,
+    identifies the most relevant slice, and overlays the segmentation on the selected slice
     to generate a visually informative thumbnail.
 
     Args:
@@ -360,82 +371,108 @@ def center_thumbnail(image: Image, size: int = 256) -> Image:
 
     return canvas
 
-def dcm2pnm(dcm_file: str, output_file: str, size:int=300) -> Image:
+
+def dcm2pnm(dcm_file: Path, output_file: Path, thumbnail_size: int) -> Image:
     dcm2pnm_command = [
         "dcm2pnm",
         "--scale-y-size",
-        str(size),
-        "+M",        
+        str(thumbnail_size),
+        "+M",
         "+Wn",
         "--write-png",  # Write 8-bit PNG
-        dcm_file,
-        output_file,
+        str(dcm_file),
+        str(output_file),
     ]
     try:
         subprocess.run(dcm2pnm_command, check=True, stderr=subprocess.PIPE, text=True)
     except subprocess.CalledProcessError as e:
         logger.error(e.stderr)
         raise RuntimeError(f"dcm2pnm failed: {e}")
-        
 
-def select_dcm(dcms: List[str]):
-    return dcms[0]
 
-def generate_generic_thumbnail(dcm_incoming_dir: str):
+def generate_generic_thumbnail(dcm_incoming_dir: Path, thumbnail_size: int):
     dcms = os.listdir(dcm_incoming_dir)
-    selected_dcm = dcms[0] if len(dcms) == 1 else selected_dcm = select_dcm(dcms)
+
+    selected_dcm = dcms[0]
     with tempfile.TemporaryDirectory() as tmp_dir:
         output_png_file = os.path.join(tmp_dir, "thumbnail.png")
-    
+
         # Convert the DICOM file to PNG using dcm2pnm tool (dcmtk)
-        dcm2pnm(selected_dcm, output_png_file)
+        dcm2pnm(selected_dcm, output_png_file, thumbnail_size)
 
         # Load the PNG file as a PIL image
         thumbnail = Image.open(output_png_file)
 
     return thumbnail
 
-def generate_thumbnail(parameters: tuple) -> tuple:
+
+def generate_thumbnail(
+    operator_input_dir: Path,
+    operator_out_dir: Path,
+    operator_get_ref_series_dir: Path,
+    thumbnail_size: int,
+) -> tuple:
     global processed_count
 
-    dcm_incoming_dir, dcm_ref_dir, target_dir = parameters
-
-    logger.info(f"dcm_seg_dir: {dcm_incoming_dir}")
-    logger.info(f"dcm_dir: {dcm_ref_dir}")
-    logger.info(f"target_dir: {target_dir}")
+    logger.info(f"operator_input_dir: {operator_input_dir}")
+    logger.info(f"operator_out_dir: {operator_get_ref_series_dir}")
+    logger.info(f"operator_get_ref_series_dir: {operator_out_dir}")
 
     # Load the DICOM segmentation object or RTSTRUCT file to determine the modality and series UID
     ds = pydicom.dcmread(
-        os.path.join(dcm_incoming_dir, os.listdir(dcm_incoming_dir)[0])
+        os.path.join(operator_input_dir, os.listdir(operator_input_dir)[0])
     )
     modality = ds.Modality
-    seg_series_uid = ds.SeriesInstanceUID
+    study_uid = ds.StudyInstanceUID
+    series_uid = ds.SeriesInstanceUID
 
-    # Create the target directory if it does not exist
-    os.makedirs(target_dir, exist_ok=True)
+    # ModalityStrategy for Best Instance
+
+    # CT / MRI	Middle slice (InstanceNumber or SliceLocation)
+    # PET / Nuclear Medicine (NM)	Middle slice, similar to CT
+
+    # Ultrasound (US)	First or key frame (Cine Rate, Frame Number)
+    # Histopathology (SM, VL, DX)	Highest resolution or overview image
+
+    # Angiography (XA, XRF)	Select a key frame (FrameReferenceTime)
+
+    # Easy Modality:
+    # XR (X-ray)	Single frame (use the only image available)
+
+    # Segmentation
 
     # Load the image and segmentation (and segment colors)
     if modality in ["CT", "MR"]:
-        thumbnail = generate_base_thumbnail(dcm_incoming_dir)
+        thumbnail = generate_base_thumbnail(
+            operator_input_dir, study_uid, series_uid, thumbnail_size
+        )
+
     elif modality == "RTSTRUCT":
-        thumbnail = generate_RTSTRUCT_thumbnail(dcm_incoming_dir, dcm_ref_dir)
+        thumbnail = generate_RTSTRUCT_thumbnail(
+            operator_input_dir, operator_get_ref_series_dir, thumbnail_size
+        )
     elif modality == "SEG":
-        thumbnail = generate_SEG_thumbnail(dcm_incoming_dir, dcm_ref_dir)
+        thumbnail = generate_SEG_thumbnail(
+            operator_input_dir, operator_get_ref_series_dir, thumbnail_size
+        )
     else:
         try:
-            thumbnail = generate_generic_thumbnail(dcm_incoming_dir)
+            thumbnail = generate_generic_thumbnail(operator_input_dir, thumbnail_size)
         except Exception as e:
             logger.error(e)
             logger.error(traceback.format_ext())
-            logger.warning(f"Modality {modality} not supported for custom thumbnail. Thumbnail will be fetched dynamically.")
-            return False, ""
+            logger.error(f"Thumbnail for modality: {modality} not supported.")
+            return False, f"Thumbnail for modality: {modality} not supported."
+
+    processed_count += 1
+    if not thumbnail:
+        return False, "No thumbnail generated"
 
     thumbnail = center_thumbnail(thumbnail)
-    target_png = os.path.join(target_dir, f"new_{seg_series_uid}.png")
+    target_png = os.path.join(operator_out_dir, f"new_{series_uid}.png")
     thumbnail.save(target_png)
     logger.info(f"Thumbnail saved to {target_png}")
 
-    processed_count += 1
     return True, target_png
 
 
@@ -443,13 +480,13 @@ def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image:
     """
     Create a thumbnail by overlaying a DICOM segmentation on the most representative slice.
 
-    The function identifies the best slice based on segmentation characteristics (number of 
-    classes and foreground pixel area), applies windowing and normalization, and blends the 
+    The function identifies the best slice based on segmentation characteristics (number of
+    classes and foreground pixel area), applies windowing and normalization, and blends the
     segmentation mask with transparency into the image.
 
     Args:
         image_array (numpy.ndarray): 3D array representing the DICOM image series.
-        seg_arrays (numpy.ndarray): 4D array containing segmentation masks for different 
+        seg_arrays (numpy.ndarray): 4D array containing segmentation masks for different
                                     segment classes.
         segment_colors (dict): Dictionary mapping segment classes to RGB color values.
 
@@ -581,13 +618,13 @@ def load_image_and_segmentation_from_dicom_segmentation(
     """
     Load a DICOM image series and its corresponding segmentation from a DICOM SEG file.
 
-    This function reads a series of DICOM images (3D volume) from `image_dir` and a DICOM SEG 
-    segmentation file from `seg_dir`. It extracts segmentation masks for each segment class 
+    This function reads a series of DICOM images (3D volume) from `image_dir` and a DICOM SEG
+    segmentation file from `seg_dir`. It extracts segmentation masks for each segment class
     and assigns colors to each segment.
 
     - Uses `pydicom_seg` to parse segmentation masks directly from the DICOM SEG file.
     - Ensures segmentation masks align with the reference DICOM image by resampling if needed.
-    - Extracts recommended colors from the segmentation metadata (CIELab or RGB), 
+    - Extracts recommended colors from the segmentation metadata (CIELab or RGB),
       falling back to random colors if unavailable.
 
     Args:
@@ -675,13 +712,13 @@ def load_image_and_segmentation_from_rtstruct(
     """
     Load a DICOM image series and its corresponding segmentation from an RTSTRUCT file.
 
-    RTSTRUCT segmentation stores contours rather than pixel-based segmentation. 
-    This function extracts the contours, rasterizes them into a 3D segmentation 
+    RTSTRUCT segmentation stores contours rather than pixel-based segmentation.
+    This function extracts the contours, rasterizes them into a 3D segmentation
     mask, and assigns unique labels to each ROI.
 
     Key Differences & Specifics:
     - RTSTRUCT files contain **contour-based** segmentation instead of voxel-based masks.
-    - Each ROI (Region of Interest) is assigned a **unique integer label** to differentiate 
+    - Each ROI (Region of Interest) is assigned a **unique integer label** to differentiate
       segment classes.
     - Converts contour data into a **binary mask** by rasterizing each slice using OpenCV.
     - Uses the DICOM image's **spacing, origin, and direction** for proper alignment.
@@ -782,37 +819,34 @@ def load_image_and_segmentation_from_rtstruct(
     return image_array, seg_arrays, segment_colors
 
 
-if __name__ == "__main__":
-    thumbnail_size = int(getenv("SIZE", "300"))
-    thread_count = int(getenv("THREADS", "3"))
+def main():
+    try:
+        # Airflow variables
+        operator_settings = OperatorSettings()
 
-    workflow_dir = getenv("WORKFLOW_DIR", None)
-    if not exists(workflow_dir):
-        # Workaround if this is being run in dev-server
-        workflow_dir_dev = workflow_dir.split("/")
-        workflow_dir_dev.insert(3, "workflows")
-        workflow_dir_dev = "/".join(workflow_dir_dev)
+        # Load required environment variables
+        thumbnail_size = int(get_required_env_var("SIZE", "300"))
+        thread_count = int(get_required_env_var("THREADS", "3"))
+        operator_get_ref_series_dir = Path(
+            get_required_env_var("GET_REF_SERIES_OPERATOR_DIR")
+        )
 
-        if not exists(workflow_dir_dev):
-            raise Exception(f"Workflow directory {workflow_dir} does not exist!")
+        workflow_dir = Path(operator_settings.workflow_dir)
+        batch_name = operator_settings.batch_name
+        operator_in_dir = Path(operator_settings.operator_in_dir)
+        operator_out_dir = Path(operator_settings.operator_out_dir)
 
-        workflow_dir = workflow_dir_dev
+        # Validate required directories
+        workflow_dir = validate_directory(workflow_dir, "Workflow")
+        batch_dir = validate_directory(os.path.join(workflow_dir, batch_name), "Batch")
 
-    batch_name = getenv("BATCH_NAME", "batch")
-    assert exists(
-        join(workflow_dir, batch_name)
-    ), f"Batch directory {join(workflow_dir, batch_name)} does not exist!"
+        logger.info(
+            "All required directories and environment variables are validated successfully."
+        )
 
-    operator_in_dir = getenv("OPERATOR_IN_DIR", None)
-    assert operator_in_dir is not None, "Operator input directory not specified!"
-
-    org_image_input_dir = getenv("ORIG_IMAGE_OPERATOR_DIR", None)
-    assert (
-        org_image_input_dir is not None
-    ), "Original image input directory not specified!"
-
-    operator_out_dir = getenv("OPERATOR_OUT_DIR", None)
-    assert operator_out_dir is not None, "Operator output directory not specified!"
+    except ConfigError as e:
+        logger.critical(f"Configuration error: {e}")
+        raise SystemExit(1)  # Gracefully exit the program
 
     logger.info("Starting thumbnail generation")
 
@@ -822,68 +856,43 @@ if __name__ == "__main__":
     logger.info(f"batch_name: {batch_name}")
     logger.info(f"operator_in_dir: {operator_in_dir}")
     logger.info(f"operator_out_dir: {operator_out_dir}")
-    logger.info(f"org_image_input_dir: {org_image_input_dir}")
+    logger.info(f"get_ref_series_dir: {operator_get_ref_series_dir}")
 
-    logger.info("Starting processing on BATCH-ELEMENT-level ...")
+    batch_mode = is_batch_mode(workflow_dir=workflow_dir, batch_name=batch_name)
 
-    queue = []
-    batch_folders = sorted([f for f in glob(join("/", workflow_dir, batch_name, "*"))])
-    for batch_element_dir in batch_folders:
-
-        logger.info(f"Processing batch-element {batch_element_dir}")
-
-        seg_element_input_dir = join(batch_element_dir, operator_in_dir)
-        orig_element_input_dir = join(batch_element_dir, org_image_input_dir)
-        element_output_dir = join(batch_element_dir, operator_out_dir)
-
-        # check if input dir present
-        if not exists(seg_element_input_dir):
-            logger.warning(f"Input-dir: {seg_element_input_dir} does not exists!")
-            logger.warning("-> skipping")
-            continue
-
-        queue.append(
-            (seg_element_input_dir, orig_element_input_dir, element_output_dir)
+    if batch_mode:
+        process_batches(
+            # Extra parameters for the processing_function
+            thumbnail_size=thumbnail_size,
+            # Required
+            batch_dir=batch_dir,
+            operator_input_dir=operator_in_dir,
+            operator_out_dir=operator_out_dir,
+            processing_function=generate_thumbnail,
+            thread_count=thread_count,
+            # Optional
+            operator_get_ref_series_dir=operator_get_ref_series_dir,
         )
-
-    with ThreadPool(thread_count) as threadpool:
-        results = threadpool.imap_unordered(generate_thumbnail, queue)
-        for result, input_file in results:
-            if result:
-                logger.info(f"Done: {input_file}")
-
-    logger.info("BATCH-ELEMENT-level processing done.")
-
-    if processed_count == 0:
-        queue = []
-
-        logger.warning("No files have been processed so far!")
-        logger.warning("Starting processing on BATCH-LEVEL ...")
-
-        batch_input_dir = join("/", workflow_dir, operator_in_dir)
-        batch_org_image_input = join("/", workflow_dir, org_image_input_dir)
-        batch_output_dir = join("/", workflow_dir, operator_in_dir)
-
-        # check if input dir present
-        if not exists(batch_input_dir):
-            logger.warning(f"Input-dir: {batch_input_dir} does not exists!")
-            logger.warning("# -> skipping")
-        else:
-            # creating output dir
-            Path(batch_output_dir).mkdir(parents=True, exist_ok=True)
-
-        queue.append((batch_input_dir, batch_org_image_input, batch_output_dir))
-
-        with ThreadPool(thread_count) as threadpool:
-            results = threadpool.imap_unordered(generate_thumbnail, queue)
-            for result, input_file in results:
-                if result:
-                    logger.info(f"Done: {input_file}")
-
-        logger.info("BATCH-LEVEL-level processing done.")
+    else:
+        process_single(
+            # Extra parameters for the processing_function
+            thumbnail_size=thumbnail_size,
+            # Required
+            base_dir=workflow_dir,
+            operator_input_dir=operator_in_dir,
+            operator_out_dir=operator_out_dir,
+            processing_function=generate_thumbnail,
+            thread_count=thread_count,
+            # Optional
+            operator_get_ref_series_dir=operator_get_ref_series_dir,
+        )
 
     if processed_count == 0:
         logger.error("No files have been processed!")
         raise Exception("No files have been processed!")
     else:
         logger.info(f"{processed_count} files have been processed!")
+
+
+if __name__ == "__main__":
+    main()

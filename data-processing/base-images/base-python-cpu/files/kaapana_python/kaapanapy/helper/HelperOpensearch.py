@@ -17,6 +17,12 @@ class DicomTags:
     custom_tag = "00000000 Tags_keyword"
 
 
+    instance_number_tag = "00000000 MinSliceIndex_integer"
+    min_slice_index_tag = "00000000 MinSliceIndex_integer"
+    max_slice_index_tag = "00000000 MaxSliceIndex_integer"
+    is_series_complete_tag = "00000000 IsSeriesComplete_boolean"
+
+
 class HelperOpensearch:
     def __init__(self):
         self.os_client = get_opensearch_client()

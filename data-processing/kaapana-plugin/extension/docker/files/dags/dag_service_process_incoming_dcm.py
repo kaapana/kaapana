@@ -3,13 +3,12 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-import pydicom
-from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
+from kaapana.operators.CheckCompletnessOperator import CheckCompletenessOperator
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -103,71 +102,19 @@ def has_ref_series(ds) -> bool:
     return ds.Modality in ["SEG", "RTSTRUCT"]
 
 
+check_completeness = CheckCompletenessOperator(
+    dag=dag,
+    name="check-completeness",
+    input_operator=get_input,
+)
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
+    name="branch-has-ref",
     input_operator=get_input,
     condition=has_ref_series,
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
 )
-
-
-def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
-    # Fetch the Project Bucket name and store the validation results
-    # html file if the project is not a admin project
-    import json
-
-    import requests
-    from kaapanapy.helper import get_minio_client
-    from kaapanapy.settings import KaapanaSettings
-
-    kaapana_settings = KaapanaSettings()
-    minio = get_minio_client()
-
-    target_dir_prefix = "staticwebsiteresults"
-
-    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
-    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
-    for batch_element_dir in batch_folder:
-        json_dir = Path(batch_element_dir) / extract_metadata.operator_out_dir
-        json_files = [f for f in json_dir.glob("*.json")]
-        assert len(json_files) == 1
-        metadata_file = json_files[0]
-        with open(metadata_file, "r") as f:
-            metadata = json.load(f)
-
-        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")[0]
-
-        validator_results_dir = Path(batch_element_dir) / validate.operator_out_dir
-        result_files = [f for f in validator_results_dir.glob("*.html")]
-
-        if len(result_files) > 0 and project_name != "admin":
-            response = requests.get(
-                f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
-            )
-            response.raise_for_status()  # Raise an error if the request fails
-
-            project = response.json()
-
-            root_path = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id
-            for file_path in result_files:
-                object_path = (
-                    f"{target_dir_prefix}/{str(file_path.relative_to(root_path))}"
-                )
-                minio.fput_object(
-                    bucket_name=project.get("s3_bucket"),
-                    object_name=object_path,
-                    file_path=file_path,
-                )
-
-
-# Task to put the validation results in minio admin bucket for non-admin projects
-put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
-    name="put-results-html-to-minio-admin-bucket",
-    python_callable=fetch_bucket_name_and_put_html_to_minio_admin_bucket,
-    dag=dag,
-)
-
 get_ref_ct_series = LocalGetRefSeriesOperator(
     dag=dag,
     input_operator=get_input,
@@ -175,12 +122,11 @@ get_ref_ct_series = LocalGetRefSeriesOperator(
     parallel_downloads=5,
     parallel_id="ct",
 )
-
 generate_thumbnail = GenerateThumbnailOperator(
     dag=dag,
     name="generate-thumbnail",
     input_operator=get_input,
-    orig_image_operator=get_ref_ct_series,
+    get_ref_series_operator=get_ref_ct_series,
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
 )
 
@@ -196,6 +142,9 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
     import requests
     from kaapanapy.helper import get_minio_client
     from kaapanapy.settings import KaapanaSettings
+    from kaapanapy.logger import get_logger
+    
+    logger = get_logger(__name__)
 
     kaapana_settings = KaapanaSettings()
     minio = get_minio_client()
@@ -218,6 +167,11 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
         )
         project = response.json()
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
+        
+        if len(thumbnails) == 0:
+            logger.info("No thumbnail generated -> Skipping")
+            continue 
+        
         assert len(thumbnails) == 1
         thumbnail_path = thumbnails[0]
         series_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
@@ -253,7 +207,7 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 get_input >> auto_trigger_operator
-get_input >> [extract_metadata, branch_by_has_ref_series]
+get_input >> [extract_metadata, check_completeness]
 extract_metadata >> [
     push_json,
     add_to_dataset,
@@ -272,7 +226,9 @@ extract_metadata >> [
 (remove_tags >> dcm_send)
 
 (
-    branch_by_has_ref_series
+    push_json 
+    >> check_completeness
+    >> branch_by_has_ref_series
     >> get_ref_ct_series
     >> generate_thumbnail
     >> put_thumbnail_to_project_bucket

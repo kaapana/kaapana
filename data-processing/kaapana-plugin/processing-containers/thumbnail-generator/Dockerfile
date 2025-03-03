@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
 LABEL IMAGE="thumbnail-generator"
-LABEL VERSION="0.1.0"
+LABEL VERSION="0.4.0"
 LABEL BUILD_IGNORE="False"
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \

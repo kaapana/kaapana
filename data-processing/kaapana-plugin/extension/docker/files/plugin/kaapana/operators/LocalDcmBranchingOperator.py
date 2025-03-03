@@ -29,6 +29,7 @@ class LocalDcmBranchingOperator(KaapanaBranchPythonBaseOperator):
         condition: Callable[[pydicom.FileDataset], bool],
         branch_true_operator: str,
         branch_false_operator: str,
+        name: str = "branch-on-condition",
         **kwargs,
     ):
         self.condition = condition
@@ -37,7 +38,7 @@ class LocalDcmBranchingOperator(KaapanaBranchPythonBaseOperator):
 
         super().__init__(
             dag=dag,
-            name="branch-on-condition",
+            name=name,
             python_callable=self.start,
             ram_mem_mb=10,
             **kwargs,
@@ -58,11 +59,7 @@ class LocalDcmBranchingOperator(KaapanaBranchPythonBaseOperator):
 
         for batch_element_dir in batch_folders:
             dcm_files: List[Path] = sorted(
-                list(
-                    (batch_element_dir / self.operator_in_dir).rglob(
-                        f"*.dcm"
-                    )
-                )
+                list((batch_element_dir / self.operator_in_dir).rglob(f"*.dcm"))
             )
             for dcm_file in dcm_files:
                 ds = pydicom.dcmread(dcm_file)

@@ -123,10 +123,5 @@ class Role(OrmBaseModel):
     name: str
 
 
-class SoftwareMapping(OrmBaseModel):
-    software_uuid: str
-    project_id: int
-
-
 class Software(OrmBaseModel):
-    uuid: str
+    software_uuid: str

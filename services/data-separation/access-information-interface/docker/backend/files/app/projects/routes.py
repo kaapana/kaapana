@@ -228,19 +228,19 @@ async def delete_user_project_role_mapping(
 
 @router.get(
     "/{project_name}/software-mappings",
-    response_model=List[schemas.SoftwareMapping],
+    response_model=List[schemas.Software],
     tags=["Projects"],
 )
 async def get_software_mappings(
     project_name: str, session: AsyncSession = Depends(get_session)
-) -> List[schemas.SoftwareMapping]:
+) -> List[schemas.Software]:
     project: schemas.Project = await get_project_by_name(project_name, session)
-    return await crud.get_software_mapping_by_project_id(session, project.id)
+    return await crud.get_software_mappings_by_project_id(session, project.id)
 
 
 @router.post(
     "/{project_name}/software-mappings",
-    response_model=List[schemas.SoftwareMapping],
+    response_model=List[schemas.Software],
     tags=["Projects"],
 )
 async def create_software_mappings(
@@ -249,9 +249,10 @@ async def create_software_mappings(
     session: AsyncSession = Depends(get_session),
 ):
     project: schemas.Project = await get_project_by_name(project_name, session)
+
     return [
         await crud.create_software_mapping(
-            session, software_uuid=software.uuid, project_id=project.id
+            session, project_id=project.id, software_uuid=software.software_uuid
         )
         for software in softwares
     ]
@@ -269,7 +270,7 @@ async def delete_software_mappings(
     project: schemas.Project = await get_project_by_name(project_name, session)
     for software in softwares:
         await crud.delete_software_mapping(
-            session, project_id=project.id, software_uuid=software.uuid
+            session, project_id=project.id, software_uuid=software.software_uuid
         )
 
     return Response(status_code=204)

@@ -202,7 +202,7 @@ async def get_user_rights_in_project(
     return await get_rights_by_role_id(session, role_map.role_id)
 
 
-async def get_software_mapping_by_project_id(session: AsyncSession, project_id: int):
+async def get_software_mappings_by_project_id(session: AsyncSession, project_id: int):
     stmt = select(SoftwareMappings).where(SoftwareMappings.project_id == project_id)
     result = await session.execute(stmt)
     software_mappings = result.scalars().all()

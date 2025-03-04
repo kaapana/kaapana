@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from .monitoring.services import MonitoringService
 from .users.services import UserService
 import json
+import httpx
 
 # from .workflows.services import WorkflowService
 from .workflows.models import KaapanaInstance
@@ -70,3 +71,14 @@ def get_project_index(request: Request):
     project_header = request.headers.get("Project")
     project = json.loads(project_header)
     return project.get("opensearch_index")
+
+
+def get_allowed_software(request:Request) -> list:
+    project_header = request.headers.get("Project")
+    project = json.loads(project_header)
+    enabled_software_in_project = httpx.get(
+        f"http://aii-service.services.svc:8080/projects/{project.get("name")}/software-mappings"
+    ).json()
+    return [
+        software.get("software_uuid") for software in enabled_software_in_project
+    ]

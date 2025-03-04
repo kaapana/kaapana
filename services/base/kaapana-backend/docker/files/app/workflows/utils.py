@@ -222,14 +222,16 @@ def get_dag_list(
                 dags[dag] = dag_data
 
     if only_dag_names is True:
-        return sorted(list(dags.keys()))
-    else:
-        if filter_allowed_dags is None:
-            return dags
-        elif filter_allowed_dags:
-            return {dag: dags[dag] for dag in filter_allowed_dags if dag in dags}
+        sorted_dag_names = sorted(list(dags.keys()))
+        if filter_allowed_dags:
+            return [dag for dag in sorted_dag_names if dag in filter_allowed_dags]
         else:
-            return {}
+            return sorted_dag_names
+    else:
+        if filter_allowed_dags:
+            return {dag: dags[dag] for dag in dags if dag in filter_allowed_dags}
+        else:
+            return dags
 
 
 def check_dag_id_and_dataset(

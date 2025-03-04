@@ -1,4 +1,11 @@
-from app.models import Projects, Rights, Roles, RolesRights, UsersProjectsRoles
+from app.models import (
+    Projects,
+    Rights,
+    Roles,
+    RolesRights,
+    UsersProjectsRoles,
+    SoftwareMappings,
+)
 from app.projects import schemas
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -193,3 +200,33 @@ async def get_user_rights_in_project(
     result = await session.execute(stmt)
     role_map = result.scalars().first()
     return await get_rights_by_role_id(session, role_map.role_id)
+
+
+async def get_software_mapping_by_project_id(session: AsyncSession, project_id: int):
+    stmt = select(SoftwareMappings).where(SoftwareMappings.project_id == project_id)
+    result = await session.execute(stmt)
+    software_mappings = result.scalars().all()
+    return software_mappings
+
+
+async def create_software_mapping(
+    session: AsyncSession, project_id: int, software_uuid: str
+):
+    new_software_mapping = SoftwareMappings(
+        software_uuid=software_uuid, project_id=project_id
+    )
+    session.add(new_software_mapping)
+    await session.commit()
+    return new_software_mapping
+
+
+async def delete_software_mapping(
+    session: AsyncSession, project_id: int, software_uuid: str
+):
+    stmt = delete(SoftwareMappings).where(
+        SoftwareMappings.project_id == project_id,
+        SoftwareMappings.software_uuid == software_uuid,
+    )
+    await session.execute(stmt)
+    await session.commit()
+    return True

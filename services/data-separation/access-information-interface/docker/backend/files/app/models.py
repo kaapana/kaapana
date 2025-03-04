@@ -14,7 +14,6 @@ class Projects(Base):
     kubernetes_namespace = Column(String, unique=True)
     s3_bucket = Column(String, unique=True)
     opensearch_index = Column(String, unique=True)
-    data = relationship("Data", secondary="data_projects")
 
 
 class Roles(Base):
@@ -33,20 +32,6 @@ class Rights(Base):
     claim_key = Column(String, nullable=False)
     claim_value = Column(String, nullable=False)
     roles = relationship("Roles", secondary="roles_rights")
-
-
-class Data(
-    Base
-):  # TODO: Actually we lied, this is not generic and just DICOM data specific
-    __tablename__ = "data"
-    id = Column(
-        Integer, primary_key=True, autoincrement=True
-    )  # For faster querying (Int vs String)
-    description = Column(String)
-    data_type = Column(String)
-    series_instance_uid = Column(String, nullable=False, unique=True)
-    study_instance_uid = Column(String)
-    projects = relationship("Projects", secondary="data_projects")
 
 
 # Relationship tables
@@ -71,13 +56,14 @@ class RolesRights(Base):
     __table_args__ = (UniqueConstraint("role_id", "right_id"),)
 
 
-# Data is bound to a project
-class DataProjects(Base):
-    __tablename__ = "data_projects"
+# Software is bound to a project
+class SoftwareMappings(Base):
+    __tablename__ = "software_mappings"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    data_id = Column(Integer, ForeignKey("data.id"))
+    # software_uuid = Column(Integer, ForeignKey("software.id"))
+    software_uuid = Column(String(length=72), nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id"))
-    __table_args__ = (UniqueConstraint("project_id", "data_id"),)
+    __table_args__ = (UniqueConstraint("project_id", "software_uuid"),)
 
 
 ### TODO We might need indices to avoid duplicated rows in the relationship tables

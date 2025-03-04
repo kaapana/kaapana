@@ -1,5 +1,4 @@
 import logging
-import re
 from typing import List
 
 from app.database import get_session
@@ -7,6 +6,7 @@ from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.projects import crud, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -221,3 +221,55 @@ async def delete_user_project_role_mapping(
         )
     else:
         raise HTTPException(status_code=404, detail="Mapping not found")
+
+
+### Software separation
+
+
+@router.get(
+    "/{project_name}/software-mappings",
+    response_model=List[schemas.SoftwareMapping],
+    tags=["Projects"],
+)
+async def get_software_mappings(
+    project_name: str, session: AsyncSession = Depends(get_session)
+) -> List[schemas.SoftwareMapping]:
+    project: schemas.Project = await get_project_by_name(project_name, session)
+    return await crud.get_software_mapping_by_project_id(session, project.id)
+
+
+@router.post(
+    "/{project_name}/software-mappings",
+    response_model=List[schemas.SoftwareMapping],
+    tags=["Projects"],
+)
+async def create_software_mappings(
+    project_name: str,
+    softwares: List[schemas.Software],
+    session: AsyncSession = Depends(get_session),
+):
+    project: schemas.Project = await get_project_by_name(project_name, session)
+    return [
+        await crud.create_software_mapping(
+            session, software_uuid=software.uuid, project_id=project.id
+        )
+        for software in softwares
+    ]
+
+
+@router.delete(
+    "/{project_name}/software-mappings",
+    tags=["Projects"],
+)
+async def delete_software_mappings(
+    project_name: str,
+    softwares: List[schemas.Software],
+    session: AsyncSession = Depends(get_session),
+):
+    project: schemas.Project = await get_project_by_name(project_name, session)
+    for software in softwares:
+        await crud.delete_software_mapping(
+            session, project_id=project.id, software_uuid=software.uuid
+        )
+
+    return Response(status_code=204)

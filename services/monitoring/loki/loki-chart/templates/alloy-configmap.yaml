@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: services
+data:
+  config.alloy: |
+    logging {
+      level  = "info"
+      format = "logfmt"
+    }
+
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    discovery.kubernetes "nodes" {
+      role = "node"
+    }
+
+    discovery.kubernetes "services" {
+      role = "service"
+    }
+
+    discovery.kubernetes "endpoints" {
+      role = "endpoints"
+    }
+
+    discovery.kubernetes "endpointslices" {
+      role = "endpointslice"
+    }
+
+    discovery.kubernetes "ingresses" {
+      role = "ingress"
+    }
+  
+    loki.write "grafana_loki" {
+    endpoint {
+      url = "http://{{ .Values.loki.name }}:{{ .Values.loki.port }}/loki/api/v1/push"
+      }
+    }

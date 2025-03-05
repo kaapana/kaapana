@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.loki.name }}
+  namespace: services
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.loki.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.loki.name }}
+    spec:
+      containers:
+      - name: {{ .Values.loki.container_name }}
+        image: "{{ .Values.global.registry_url }}/loki:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy }}
+        ports:
+        - containerPort: {{ .Values.loki.port }}
+          name: http-metrics
+        volumeMounts:
+        - name: loki-config
+          mountPath: /etc/loki
+        - name: loki-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: {{ .Values.loki.resources.requests.memory }}
+            cpu: {{ .Values.loki.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.loki.resources.limits.memory }}
+            cpu: {{ .Values.loki.resources.limits.cpu }}
+      volumes:
+      - name: loki-config
+        configMap:
+          name: loki-config
+          items:
+            - key: loki-config.yaml
+              path: loki-config.yaml
+      - name: loki-data
+        persistentVolumeClaim:
+          claimName: loki-pv-claim
+      imagePullSecrets:
+        - name: registry-secret
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: loki-pv-claim
+  namespace: services
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.loki.storage_size }}
+  storageClassName: nfs
+  volumeName: loki-pv-volume
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: loki-pv-volume
+spec:
+  capacity:
+    storage: {{ .Values.loki.storage_size }}
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+{{- if .Values.global.enable_nfs }}
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: "10.152.183.15"
+    path: "/loki"
+{{- else }}
+  storageClassName: host-dir
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: {{ .Values.global.slow_data_dir }}/loki
+{{- end }}
+  persistentVolumeReclaimPolicy: Retain
+  claimRef:
+    namespace: "{{ .Values.global.services_namespace }}"
+    name: loki-pv-claim
+---

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.alloy.name }}
+  namespace: services
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.alloy.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.alloy.name }}
+    spec:
+      containers:
+      - name: {{ .Values.alloy.container_name }}
+        image: "{{ .Values.global.registry_url }}/alloy:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy: {{ .Values.global.pull_policy }}
+        ports:
+        - containerPort: {{ .Values.alloy.port }}
+          name: http
+        volumeMounts:
+        - name: alloy-config
+          mountPath: /etc/alloy
+        resources:
+          requests:
+            memory: {{ .Values.alloy.resources.requests.memory }}
+            cpu: {{ .Values.alloy.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.alloy.resources.limits.memory }}
+            cpu: {{ .Values.alloy.resources.limits.cpu }}
+      volumes:
+      - name: alloy-config
+        configMap:
+          name: alloy-config
+          items:
+            - key: config.alloy
+              path: config.alloy
+      imagePullSecrets:
+        - name: registry-secret

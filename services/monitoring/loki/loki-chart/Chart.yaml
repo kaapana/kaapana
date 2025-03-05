@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: loki-alloy-chart
+description: Loki log aggregator and Grafana Alloy for Kaapana
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.loki.name }}
+  namespace: services
+spec:
+  ports:
+  - port: {{ .Values.loki.port }}
+    targetPort: http-metrics
+    name: http-metrics
+  selector:
+    app: {{ .Values.loki.name }}

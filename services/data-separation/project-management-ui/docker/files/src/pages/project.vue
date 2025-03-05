@@ -115,7 +115,7 @@
                 </v-row>
     </v-container>
     <v-dialog v-model="softwareDialog" max-width="1000">
-        <AddSoftwareToProject :project-name="projectId" :current-software="allowedSoftware"/>
+        <AddSoftwareToProject :project-name="projectId" :current-software="allowedSoftware" :oncancel="resetSoftwareFormValues" :onsuccess="handleSoftwareSubmit"/>
     </v-dialog>
     <v-dialog v-model="userDialog" max-width="1000">
         <AddUserToProject :project-name="projectId" :current-user-ids="userIds" :onsuccess="handleUserSubmit"
@@ -284,6 +284,15 @@ export default defineComponent({
                     console.log(error);
                 }
             }
+        },
+        resetSoftwareFormValues() {
+            this.softwareDialog = false;
+        },
+        handleSoftwareSubmit(success: boolean = true) {
+            if (success) {
+                this.fetchProjectSoftware();
+            }
+            this.resetSoftwareFormValues();
         },
     }
 })

@@ -107,7 +107,6 @@ const fetchAvailableSoftware = async () => {
         software_uuid: uuid,
       };
     });
-    console.log(software.value);
   } catch (error: unknown) {
     fetching.value = false;
   }

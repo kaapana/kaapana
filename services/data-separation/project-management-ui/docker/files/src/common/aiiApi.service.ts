@@ -101,16 +101,21 @@ const aiiApiPut = async function (suburl: string, params: Object, data: Object =
       }
 }
 
-const aiiApiDelete = async function (suburl: string) {
+const aiiApiDelete = async function (suburl: string, params: Object= {}, data:Object={}) {
+    const config: AxiosRequestConfig = {
+        headers: header_with_auth_token({}),
+        data: data,
+        params: params
+    };
     try {
         const response: AxiosResponse = await client.delete(
             suburl,
-            {
-                headers: header_with_auth_token({})
-            }
+            config,
         );
         if (response.status === 200) {
             return response.data;
+        } else if (response.status === 204) {
+            return response;
         } else {
             throw new Error(response.status + " Error, Error Message: " + response.statusText);
         }

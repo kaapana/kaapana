@@ -89,7 +89,7 @@
                     <v-col cols="6">
                         <h5 class="text-h5 py-4">Project Software</h5>
                     </v-col>
-                    <v-col cols="3" class="d-flex justify-end align-center">
+                    <v-col cols="4" class="d-flex justify-end align-center">
                         <v-btn  block @click="softwareDialog = true" size="large" prepend-icon="mdi-gamepad-variant" v-if="userHasAdminAccess">
                             Add software to Project
                         </v-btn>
@@ -102,12 +102,19 @@
                                     <th class="text-left">
                                         Software Identifier
                                     </th>
+                                    <th class="text-center" v-if="userHasAdminAccess">
+                                        Actions
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr v-for="item in allowedSoftware" :key="item.software_uuid">
                                     <td><v-icon>mdi-gamepad-variant</v-icon></td>
                                     <td>{{ item.software_uuid }}</td>
+                                    <td class="text-right" v-if="userHasAdminAccess">
+                                        <v-btn @click="confirmSoftwareMappingDeletion(item.software_uuid)" density="default"
+                                            icon="mdi-trash-can"></v-btn>
+                                    </td>
                                 </tr>
                             </tbody>
                         </v-table>
@@ -283,6 +290,30 @@ export default defineComponent({
                 } catch (error: unknown) {
                     console.log(error);
                 }
+            }
+        },
+        deleteSoftwareMapping(softwareUuid: string) {
+            const data = [
+                {
+                software_uuid: softwareUuid,
+                },
+            ];
+            if (this.projectId) {
+                try {
+                    aiiApiDelete(`projects/${this.projectId}/software-mappings`, {},data).then((success: boolean) => {
+                        if (success) {
+                            this.fetchProjectSoftware();
+                        }
+                    })
+                } catch (error: unknown) {
+                    console.log(error);
+                }
+            }
+        },
+        async confirmSoftwareMappingDeletion(softwareUuid: string) {
+            // @ts-ignore
+            if (await this.$refs.confirm.open('Delete Software from project', 'Are you sure?', { color: 'red' })) {
+                this.deleteSoftwareMapping(softwareUuid);
             }
         },
         resetSoftwareFormValues() {

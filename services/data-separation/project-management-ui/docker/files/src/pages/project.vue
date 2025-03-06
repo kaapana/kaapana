@@ -118,7 +118,7 @@
                                 </tr>
                             </tbody>
                         </v-table>
-                        <v-sheet rounded v-else-if="allowedSoftware.length = 0">
+                        <v-sheet rounded v-if="allowedSoftware.length == 0">
                             <v-container>
                                 <v-row align="center" justify="center" no-gutters>
                                     <v-icon icon="mdi-information" size="x-large" class="large-font"</v-icon>

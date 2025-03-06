@@ -223,12 +223,12 @@ def get_dag_list(
 
     if only_dag_names is True:
         sorted_dag_names = sorted(list(dags.keys()))
-        if filter_allowed_dags:
+        if filter_allowed_dags is not None:
             return [dag for dag in sorted_dag_names if dag in filter_allowed_dags]
         else:
             return sorted_dag_names
     else:
-        if filter_allowed_dags:
+        if filter_allowed_dags is not None:
             return {dag: dags[dag] for dag in dags if dag in filter_allowed_dags}
         else:
             return dags

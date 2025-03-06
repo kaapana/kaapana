@@ -726,6 +726,7 @@ def create_workflow(
                 "involved_instances"
             ],
             "federated": json_schema_data.federated,
+            "project_id": project.get("id"),
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)
@@ -789,6 +790,9 @@ def get_workflows(
     search: str = None,
     db: Session = Depends(get_db),
 ):
+    
+    project = request.headers.get("Project")
+    project = json.loads(project)
     workflows, total_items = crud.get_workflows(
         db,
         instance_name,
@@ -797,6 +801,7 @@ def get_workflows(
         limit=limit,
         offset=offset,
         search=search,
+        project_id=project.get("id")
     )
     for workflow in workflows:
         if workflow.kaapana_instance:

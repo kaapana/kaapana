@@ -109,6 +109,7 @@ class Workflow(Base):
     automatic_execution = Column(Boolean(), default=False, index=True)
     service_workflow = Column(Boolean(), default=False, index=True)
     federated = Column(Boolean(), default=False, index=True)
+    project_id = Column(Integer, default=1)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))

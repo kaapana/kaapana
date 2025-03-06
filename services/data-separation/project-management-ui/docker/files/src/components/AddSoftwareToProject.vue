@@ -102,7 +102,11 @@ const fetchAvailableSoftware = async () => {
     let filteredSoftwareUuids = fetchedSoftwareUids.filter(
       (uuid: string) => !currentSoftwareUuids.includes(uuid)
     );
-    software.value = filteredSoftwareUuids.map((uuid: any) => {
+    let sortedSoftwareUuids = filteredSoftwareUuids.sort((a, b) => {
+      return a.localeCompare(b);
+    });
+
+    software.value = sortedSoftwareUuids.map((uuid: any) => {
       return {
         software_uuid: uuid,
       };

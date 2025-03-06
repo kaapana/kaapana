@@ -111,15 +111,33 @@
                                 <tr v-for="item in allowedSoftware" :key="item.software_uuid">
                                     <td><v-icon>mdi-gamepad-variant</v-icon></td>
                                     <td>{{ item.software_uuid }}</td>
-                                    <td class="text-right" v-if="userHasAdminAccess">
+                                    <td class="text-center" v-if="userHasAdminAccess">
                                         <v-btn @click="confirmSoftwareMappingDeletion(item.software_uuid)" density="default"
                                             icon="mdi-trash-can"></v-btn>
                                     </td>
                                 </tr>
                             </tbody>
                         </v-table>
+                        <v-sheet rounded v-else-if="allowedSoftware.length = 0">
+                            <v-container>
+                                <v-row align="center" justify="center" no-gutters>
+                                    <v-icon icon="mdi-information" size="x-large" class="large-font"</v-icon>
+                                </v-row>
+                                <v-row align="center" justify="center" no-gutters class="py-6">                            
+                                    <div class="text-subtitle-1 font-weight-light text-center">
+                                        No DAG allowed for this Project. Click the following button to allow a DAG.
+                                    </div>
+                                </v-row>
+                                <v-row align="center" justify="center" no-gutters>
+                                    <v-btn @click="softwareDialog = true" size="large" variant="outlined" prepend-icon="mdi-gamepad-variant">
+                                        Add DAG to project
+                                    </v-btn>
+                                </v-row>
+                            </v-container>
+                        </v-sheet>
                     </v-col>
                 </v-row>
+                
     </v-container>
     <v-dialog v-model="softwareDialog" max-width="1000">
         <AddSoftwareToProject :project-name="projectId" :current-software="allowedSoftware" :oncancel="resetSoftwareFormValues" :onsuccess="handleSoftwareSubmit"/>
@@ -285,7 +303,9 @@ export default defineComponent({
                 try {
                     aiiApiGet(`projects/${this.projectId}/software-mappings`).then((software: any) => {
                         console.log(software)
-                        this.allowedSoftware = software;
+                        this.allowedSoftware = software.sort((a: Software, b: Software) => {
+                            return a.software_uuid.localeCompare(b.software_uuid);
+                        }); 
                     })
                 } catch (error: unknown) {
                     console.log(error);

@@ -17,7 +17,7 @@ import jsonschema
 import jsonschema.exceptions
 from app.datasets.routers import get_aggregatedSeriesNum
 from app.datasets.utils import MAX_RETURN_LIMIT, execute_initial_search
-from app.dependencies import get_db, get_opensearch, get_allowed_software
+from app.dependencies import get_db, get_opensearch, get_allowed_software, get_access_token
 from app.workflows import crud, schemas
 from app.workflows.utils import get_dag_list
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -635,6 +635,7 @@ def delete_datasets(db: Session = Depends(get_db)):
 def create_workflow(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
+    access_token = Depends(get_access_token),
     db: Session = Depends(get_db),
 ):
     # exception handling for admin requests via fastapi's kaapana-backend/docs
@@ -642,18 +643,22 @@ def create_workflow(
     project = request.headers.get("Project")
     project = json.loads(project)
     json_schema_data.conf_data["project_form"] = project
-    # Get all software-mappings for the project
-    # and verify that the current user is allowed to create the workflow
-    aii_response = httpx.get(
-        f"http://aii-service.services.svc:8080/projects/{project.get("name")}/software-mappings"
-    )
-    software_mappings = aii_response.json()
-    dag_id = json_schema_data.dag_id
-    if dag_id not in [mapping.get("software_uuid") for mapping in software_mappings]:
-        raise HTTPException(
-            status_code=403,
-            detail="Unauthorized to start this workflow."
+    
+    if "admin" in access_token.get("realm_access",{}).get("roles",[]):
+        pass
+    else:
+        # Get all software-mappings for the project
+        # and verify that the current user is allowed to create the workflow
+        aii_response = httpx.get(
+            f"http://aii-service.services.svc:8080/projects/{project.get("name")}/software-mappings"
         )
+        software_mappings = aii_response.json()
+        dag_id = json_schema_data.dag_id
+        if dag_id not in [mapping.get("software_uuid") for mapping in software_mappings]:
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to start this workflow."
+            )
 
 
     # validate incoming json_schema_data

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from .monitoring.services import MonitoringService
 from .users.services import UserService
 import json
+import jwt
 import httpx
 
 # from .workflows.services import WorkflowService
@@ -82,3 +83,13 @@ def get_allowed_software(request:Request) -> list:
     return [
         software.get("software_uuid") for software in enabled_software_in_project
     ]
+
+def get_access_token(request: Request):
+    access_token = request.headers.get("x-forwarded-access-token", None)
+    if access_token is None:
+        decoded_access_token = {}
+    else:
+        decoded_access_token = jwt.decode(
+            access_token, options={"verify_signature": False}
+        )
+    return decoded_access_token

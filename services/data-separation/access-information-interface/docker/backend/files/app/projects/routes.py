@@ -7,6 +7,7 @@ from app.projects import crud, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
+import json
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +27,14 @@ async def projects(
     ),
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
+    """
+    Create a new Kaapana project:
+    - Create a new project in the database
+    - Create a project index in OpenSearch as well as the necessary roles and role-mappings
+    - Create a project bucket in Minio as well as the necessary policies
+    - Install the project-namespace Helm chart
+    - Add default software mappings to the project.
+    """
     try:
         await opensearch_helper.check_project_template_exists()
     except Exception as e:
@@ -40,6 +49,14 @@ async def projects(
     await opensearch_helper.setup_new_project(project=created_project, session=session)
     await minio_helper.setup_new_project(project=created_project, session=session)
     kubehelm.install_project_helm_chart(created_project)
+
+    with open("/app/config/default_software.json") as f:
+        default_software = json.load(f)
+    for mapping in default_software:
+        await crud.create_software_mapping(
+            session, created_project.id, mapping.get("software_uuid")
+        )
+
     return created_project
 
 

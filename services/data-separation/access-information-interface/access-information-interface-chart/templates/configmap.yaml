@@ -40,5 +40,46 @@ data:
         "rights": ["opensearch_access", "minio_access"]
       }
     ]
+  default_software.json: | # These are the default software that a project should be mapped to.
+    [
+      { "software_uuid": "advanced-collect-metadata"},
+      { "software_uuid": "advanced-collect-metadata-federated"},
+      { "software_uuid": "bodypart-regression"},
+      { "software_uuid": "classification-inference"},
+      { "software_uuid": "classification-training"},
+      { "software_uuid": "clear-validation-results"},
+      { "software_uuid": "collect-metadata"},
+      { "software_uuid": "convert-nifitis-to-dicoms-and-import-to-pacs"},
+      { "software_uuid": "delete-series"},
+      { "software_uuid": "download-selected-files"},
+      { "software_uuid": "evaluate-segmentations"},
+      { "software_uuid": "federated-setup-central-test"},
+      { "software_uuid": "federated-setup-node-test"},
+      { "software_uuid": "import-WSI"},
+      { "software_uuid": "import-dicoms-in-zip-to-internal-pacs"},
+      { "software_uuid": "isolated-container-workflow"},
+      { "software_uuid": "mitk-flow"},
+      { "software_uuid": "modify_segmentations"},
+      { "software_uuid": "nnunet-ensemble"},
+      { "software_uuid": "nnunet-federated"},
+      { "software_uuid": "nnunet-install-model"},
+      { "software_uuid": "nnunet-predict"},
+      { "software_uuid": "nnunet-training"},
+      { "software_uuid": "nnunet-uninstall-models"},
+      { "software_uuid": "radiomics-dcmseg"},
+      { "software_uuid": "radiomics-federated-central"},
+      { "software_uuid": "send-dicom"},
+      { "software_uuid": "service-daily-cleanup-jobs"},
+      { "software_uuid": "service-email-send"},
+      { "software_uuid": "service-process-incoming-dcm"},
+      { "software_uuid": "service-re-index-dicom-data"},
+      { "software_uuid": "shapemodel-organ-seg"},
+      { "software_uuid": "tag-dataset"},
+      { "software_uuid": "tag-seg-ct-tuples"},
+      { "software_uuid": "tag-train-test-split-dataset"},
+      { "software_uuid": "tfda-spe-orchestrator"},
+      { "software_uuid": "total-segmentator"},
+      { "software_uuid": "validate-dicoms"}
+    ]
 
   # Init User, Project and Role mapping will be done at a later stage (FastAPI lifespan init function) to dynamically incorporate the keycloak id.

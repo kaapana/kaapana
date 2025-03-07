@@ -265,7 +265,7 @@ class WorkflowCreate(WorkflowBase):
     kaapana_instance_id: int
     workflow_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
-    project_id: int
+    project_id: int = 1
 
 
 class WorkflowUpdate(WorkflowBase):

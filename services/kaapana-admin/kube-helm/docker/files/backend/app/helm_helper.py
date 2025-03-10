@@ -38,12 +38,12 @@ global_extensions_list = []
 global_platforms_list = []
 global_collected_tgz_charts = {}
 global_collected_tgz_charts_platforms = {}
-global_extension_states: Dict[str, schemas.ExtensionState] = (
-    {}
-)  # keys are in form <name>__<version>
-global_recently_updated: Set[str] = (
-    set()
-)  # list of keys for recently updated ( < refresh_delay) extensions
+global_extension_states: Dict[
+    str, schemas.ExtensionState
+] = {}  # keys are in form <name>__<version>
+global_recently_updated: Set[
+    str
+] = set()  # list of keys for recently updated ( < refresh_delay) extensions
 global_extensions_release_names: Set[str] = set()
 
 
@@ -833,12 +833,12 @@ def get_kube_objects(
             elif kind == "Deployment" or kind == "Job":
                 obj_kube_status = None
                 if kind == "Deployment":
-                    # TODO: only traefik lacks app-name in matchLabels
+                    # TODO: only traefik lacks app.kubernetes.io/name in matchLabels
                     match_labels = config["spec"]["selector"]["matchLabels"]
-                    # There are different conventions for app name
+                    # There are two conventions for app name
                     app_name = match_labels.get(
                         "app.kubernetes.io/name",
-                        match_labels.get("app", match_labels.get("app-name")),
+                        match_labels.get("app"),
                     )
                     if not app_name:
                         app_name = "-- UNKNOWN APP --"

@@ -5,10 +5,10 @@ metadata:
   name: opensearch-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: opensearch
+    app.kubernetes.io/name: opensearch
 spec:
   selector:
-    app-name: opensearch
+    app.kubernetes.io/name: opensearch
   type: ClusterIP
   ports:
   - name: os-api

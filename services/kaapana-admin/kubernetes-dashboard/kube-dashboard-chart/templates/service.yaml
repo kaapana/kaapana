@@ -9,7 +9,7 @@ metadata:
   namespace: "{{  .Values.global.admin_namespace  }}"
 spec:
   selector:
-    app-name: kubernetes-dashboard
+    app.kubernetes.io/name: kubernetes-dashboard
   type: ClusterIP
   ports:
     - port: 9090

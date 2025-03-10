@@ -5,10 +5,10 @@ metadata:
   name: ctp-internal-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: ctp
+    app.kubernetes.io/name: ctp
 spec:
   selector:
-    app-name: ctp
+    app.kubernetes.io/name: ctp
   type: ClusterIP
   ports:
   - name: ctp-port
@@ -25,10 +25,10 @@ metadata:
   name: ctp-dicom-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: ctp
+    app.kubernetes.io/name: ctp
 spec:
   selector:
-    app-name: ctp
+    app.kubernetes.io/name: ctp
 {{- if ne (.Values.global.dicom_port | default "11112") "0" }}
   type: NodePort
   externalTrafficPolicy: Local

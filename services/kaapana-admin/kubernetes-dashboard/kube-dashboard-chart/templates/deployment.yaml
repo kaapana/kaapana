@@ -21,11 +21,11 @@ spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app-name: kubernetes-dashboard
+      app.kubernetes.io/name: kubernetes-dashboard
   template:
     metadata:
       labels:
-        app-name: kubernetes-dashboard
+        app.kubernetes.io/name: kubernetes-dashboard
     spec:
       containers:
         - name: kubernetes-dashboard

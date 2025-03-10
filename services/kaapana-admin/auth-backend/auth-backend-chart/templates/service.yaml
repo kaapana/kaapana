@@ -5,10 +5,10 @@ metadata:
   name: auth-backend-service
   namespace: "{{ .Values.global.helm_namespace }}"
   labels:
-    app-name: auth-backend
+    app.kubernetes.io/name: auth-backend
 spec:
   selector:
-    app-name: auth-backend
+    app.kubernetes.io/name: auth-backend
   ports:
     - name: auth-check-http
       port: 5000 

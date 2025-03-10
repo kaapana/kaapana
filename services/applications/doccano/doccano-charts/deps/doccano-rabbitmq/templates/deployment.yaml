@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: doccano-rabbitmq
+      app.kubernetes.io/name: doccano-rabbitmq
   template:
     metadata:
       labels:
-        app-name: doccano-rabbitmq
+        app.kubernetes.io/name: doccano-rabbitmq
     spec:
       restartPolicy: Always
       containers:

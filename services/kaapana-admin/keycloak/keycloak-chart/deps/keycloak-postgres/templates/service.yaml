@@ -5,10 +5,10 @@ metadata:
   name: postgres-keycloak-service
   namespace: "{{  .Values.global.admin_namespace  }}"
   labels:
-    app-name: postgres-keycloak
+    app.kubernetes.io/name: postgres-keycloak
 spec:
   selector:
-    app-name: postgres-keycloak
+    app.kubernetes.io/name: postgres-keycloak
   ports:
   - name: postgres-keycloak-port
     port: 5432

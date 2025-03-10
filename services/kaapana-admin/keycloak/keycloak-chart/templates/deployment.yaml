@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: keycloak
+      app.kubernetes.io/name: keycloak
   template:
     metadata:
       labels:
-        app-name: keycloak
+        app.kubernetes.io/name: keycloak
     spec:
       initContainers:
       - name: init

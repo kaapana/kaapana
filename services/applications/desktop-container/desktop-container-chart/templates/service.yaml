@@ -17,7 +17,7 @@ spec:
       nodePort: {{ .Values.global.nodePortDesktopWorkbench }}
 {{- end }}
   selector:
-    app-name: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
 ---
 {{- if eq .Values.global.service_type "ClusterIP" }}
 apiVersion: traefik.io/v1alpha1

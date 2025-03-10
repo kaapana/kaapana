@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: postgres-keycloak
+      app.kubernetes.io/name: postgres-keycloak
   template:
     metadata:
       labels:
-        app-name: postgres-keycloak
+        app.kubernetes.io/name: postgres-keycloak
     spec:
       securityContext:
         runAsUser: 70

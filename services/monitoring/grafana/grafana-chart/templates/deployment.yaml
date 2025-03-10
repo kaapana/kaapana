@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: grafana
+      app.kubernetes.io/name: grafana
   template:
     metadata:
       labels:
-        app-name: grafana
+        app.kubernetes.io/name: grafana
     spec:
       containers:
       - name: grafana

@@ -5,13 +5,13 @@ metadata:
   name: "create-project-user"
   namespace: "{{ .Values.global.project_namespace }}"
   labels:
-    app-name: create-project-user
+    app.kubernetes.io/name: create-project-user
 spec:
   template:
     metadata:
       name: create-project-user
       labels:
-        app-name: create-project-user
+        app.kubernetes.io/name: create-project-user
     spec:
         initContainers:
         - name: init

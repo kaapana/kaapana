@@ -10,11 +10,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: landingpage
+      app.kubernetes.io/name: landingpage
   template:
     metadata:
       labels:
-        app-name: landingpage
+        app.kubernetes.io/name: landingpage
     spec:
       securityContext:
         runAsUser: 1000

@@ -6,7 +6,7 @@ metadata:
   namespace: "{{  .Values.global.helm_namespace  }}"
 spec:
   selector:
-    app-name: oauth2-proxy
+    app.kubernetes.io/name: oauth2-proxy
   type: NodePort
   ports:
     - protocol: TCP

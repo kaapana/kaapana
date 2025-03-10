@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: access-information-interface
+      app.kubernetes.io/name: access-information-interface
   strategy:
     type: Recreate
   template: 
     metadata:
       labels:
-        app-name: access-information-interface
+        app.kubernetes.io/name: access-information-interface
     spec:
       initContainers:
           - name: init-access-information-interface

@@ -9,11 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: {{ .Release.Name }}
+      app.kubernetes.io/name: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app-name: {{ .Release.Name }}
+        app.kubernetes.io/name: {{ .Release.Name }}
         pod-type: "processing-container"
 {{ include "dynamicLabels" $ | indent 8 }}
     spec:

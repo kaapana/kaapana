@@ -6,7 +6,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app-name: 'kubernetes-dashboard'
+      app.kubernetes.io/name: 'kubernetes-dashboard'
   policyTypes:
   - Ingress
   - Egress

@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: ohif-iframe
+      app.kubernetes.io/name: ohif-iframe
   template:
     metadata:
       labels:
-        app-name: ohif-iframe
+        app.kubernetes.io/name: ohif-iframe
     spec:
       containers:
         - name: ohif-container-iframe

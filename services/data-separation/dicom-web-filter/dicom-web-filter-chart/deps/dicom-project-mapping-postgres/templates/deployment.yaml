@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: dicom-project-mapping-postgres
+      app.kubernetes.io/name: dicom-project-mapping-postgres
   strategy:
     type: Recreate
   template: 
     metadata:
       labels:
-        app-name: dicom-project-mapping-postgres
+        app.kubernetes.io/name: dicom-project-mapping-postgres
     spec:
       containers:
       - name: dicom-project-mapping-postgres

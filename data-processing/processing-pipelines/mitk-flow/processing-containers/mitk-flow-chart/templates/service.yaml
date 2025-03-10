@@ -14,7 +14,7 @@ spec:
       name: pt-mitk-http
   type: ClusterIP
   selector:
-    app-name: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

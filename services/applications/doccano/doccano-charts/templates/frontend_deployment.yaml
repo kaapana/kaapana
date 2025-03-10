@@ -9,11 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: doccano-frontend
+      app.kubernetes.io/name: doccano-frontend
   template:
     metadata:
       labels:
-        app-name: doccano-frontend
+        app.kubernetes.io/name: doccano-frontend
     spec:
       containers:
       - name: doccano-frontend

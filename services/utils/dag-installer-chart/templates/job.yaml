@@ -8,11 +8,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app-name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
+      app.kubernetes.io/name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
   template:
     metadata:
       labels:
-        app-name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
+        app.kubernetes.io/name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
     spec:
       initContainers:
         - name: init

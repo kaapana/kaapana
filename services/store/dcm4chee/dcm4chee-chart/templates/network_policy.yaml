@@ -6,7 +6,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app-name: dcm4chee 
+      app.kubernetes.io/name: dcm4chee 
   policyTypes:
   - Ingress
   ingress:
@@ -19,11 +19,11 @@ spec:
             kubernetes.io/metadata.name: admin
       - podSelector:
           matchLabels:
-            app-name: traefik
+            app.kubernetes.io/name: traefik
   - ports:
       - protocol: TCP
         port: 8080
     from:
       - podSelector:
           matchLabels:
-            app-name: dicom-web-filter
+            app.kubernetes.io/name: dicom-web-filter

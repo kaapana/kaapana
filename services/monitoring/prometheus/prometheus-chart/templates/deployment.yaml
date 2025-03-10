@@ -9,11 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: prometheus-server
+      app.kubernetes.io/name: prometheus-server
   template:
     metadata:
       labels:
-        app-name: prometheus-server
+        app.kubernetes.io/name: prometheus-server
     spec:
       initContainers:
       - name: volume-permissions

@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: access-information-point
+      app.kubernetes.io/name: access-information-point
   strategy:
     type: Recreate
   template: 
     metadata:
       labels:
-        app-name: access-information-point
+        app.kubernetes.io/name: access-information-point
     spec:
       containers:
       - name: access-information-point

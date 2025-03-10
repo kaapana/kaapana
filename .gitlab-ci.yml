@@ -130,7 +130,7 @@ build_packages:
   artifacts:
     name: build
     paths:
-      - $ARTIFACTS_DIR/build.log
+      - $CI_PROJECT_DIR/artifacts/build.log
     when: on_failure
 
 build_documentation:
@@ -150,7 +150,7 @@ build_documentation:
   artifacts:
     name: build_documentation
     paths:
-      - $ARTIFACTS_DIR/build_documentation_html.log
+      - $CI_PROJECT_DIR/artifacts/build_documentation_html.log
     when: on_failure
 
 #############################################

@@ -96,6 +96,7 @@ prepare_pipeline: ### This is the only job, where I clone the project repo
     - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
     - rm -rf $ARTIFACTS_DIR
     - mkdir -p $ARTIFACTS_DIR
+    - mkdir -p $CI_PROJECT_DIR/artifacts/
   artifacts:
     reports:
       dotenv: prepare.env

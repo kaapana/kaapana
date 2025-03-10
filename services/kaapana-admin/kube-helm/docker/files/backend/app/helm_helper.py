@@ -758,8 +758,16 @@ def get_kube_objects(
         """
         states = None
         # TODO: might be replaced by json or yaml output in the future with the flag -o json!
+        if kind == "job":
+            pod_label = "batch.kubernetes.io/job-name"
+        elif kind == "app":
+            pod_label = "app.kubernetes.io/name"
+        else:
+            logger.error(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
+            raise ValueError(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
+
         success, stdout = execute_shell_command(
-            f"{settings.kubectl_path} -n {namespace} get pod -l=app.kubernetes.io/name={name}"
+            f"{settings.kubectl_path} -n {namespace} get pod -l={pod_label}={name}"
         )
         if success:
             states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[])

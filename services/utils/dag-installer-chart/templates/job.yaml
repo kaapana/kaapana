@@ -5,6 +5,8 @@ apiVersion: apps/v1
 metadata:
   name: get-{{ .Values.global.image }}
   namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: get-{{ .Values.global.image }}
 spec:
   selector:
     matchLabels:

@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: doccano-celery
+      app.kubernetes.io/name: doccano-celery
   template:
     metadata:
       labels:
-        app-name: doccano-celery
+        app.kubernetes.io/name: doccano-celery
     spec:
       restartPolicy: Always
       containers:

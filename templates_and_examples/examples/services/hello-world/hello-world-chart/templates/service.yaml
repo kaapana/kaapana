@@ -6,10 +6,10 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   #namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: hello-world
+    app.kubernetes.io/name: hello-world
 spec:
   selector:
-    app-name: hello-world
+    app.kubernetes.io/name: hello-world
   ports:
     - name: hw-http
       port: 5000 

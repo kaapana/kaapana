@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}
   namespace: "{{ tpl .Values.global.namespace . }}"
   labels:
-    app: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
 spec:
   ports:
     - protocol: TCP
@@ -13,7 +13,7 @@ spec:
       name: pt-slicer-http
   type: ClusterIP
   selector:
-    app-name: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

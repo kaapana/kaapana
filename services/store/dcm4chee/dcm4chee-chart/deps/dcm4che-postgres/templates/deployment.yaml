@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: postgres-dcm4che
+      app.kubernetes.io/name: postgres-dcm4che
   template:
     metadata:
       labels:
-        app-name: postgres-dcm4che
+        app.kubernetes.io/name: postgres-dcm4che
     spec:
       securityContext:
         runAsUser: 70

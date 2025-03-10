@@ -25,11 +25,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: airflow-scheduler
+      app.kubernetes.io/name: airflow-scheduler
   template:
     metadata:
       labels:
-        app-name: airflow-scheduler
+        app.kubernetes.io/name: airflow-scheduler
     spec:
       initContainers:
       - name: airflow-services-ready-check

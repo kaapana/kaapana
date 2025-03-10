@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: ctp
+      app.kubernetes.io/name: ctp
   template:
     metadata:
       labels:
-        app-name: ctp
+        app.kubernetes.io/name: ctp
     spec:
       containers:
         - name: ctp-container

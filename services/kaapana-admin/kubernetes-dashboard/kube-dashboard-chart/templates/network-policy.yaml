@@ -6,7 +6,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app-name: 'kubernetes-dashboard'
+      app.kubernetes.io/name: 'kubernetes-dashboard'
   policyTypes:
   - Ingress
   - Egress
@@ -14,7 +14,7 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          app: 'traefik'
+          app.kubernetes.io/name: 'traefik'
     ports:
     - protocol: TCP
       port: 9090

@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: kaapana-backend
+      app.kubernetes.io/name: kaapana-backend
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: kaapana-backend
+        app.kubernetes.io/name: kaapana-backend
     spec:
       initContainers:
         - name: init-kaapana-backend

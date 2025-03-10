@@ -10,13 +10,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: hello-world
+      app.kubernetes.io/name: hello-world
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: hello-world
+        app.kubernetes.io/name: hello-world
     spec:
       containers:
       - name: hello-world

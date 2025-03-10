@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: opensearch
+      app.kubernetes.io/name: opensearch
   template:
     metadata:
       labels:
-        app-name: opensearch
+        app.kubernetes.io/name: opensearch
     spec:
       initContainers:
       - name: init-opensearch-certs

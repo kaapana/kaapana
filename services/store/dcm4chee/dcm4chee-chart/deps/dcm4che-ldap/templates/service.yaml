@@ -5,10 +5,10 @@ metadata:
   name: ldap-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: ldap
+    app.kubernetes.io/name: ldap
 spec:
   selector:
-    app-name: ldap
+    app.kubernetes.io/name: ldap
   ports:
   - name: ldap-port
     port: 389

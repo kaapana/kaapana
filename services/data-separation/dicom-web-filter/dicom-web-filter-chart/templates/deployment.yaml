@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: dicom-web-filter
+      app.kubernetes.io/name: dicom-web-filter
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: dicom-web-filter
+        app.kubernetes.io/name: dicom-web-filter
     spec:
       initContainers:
           - name: init-dicom-web-filter

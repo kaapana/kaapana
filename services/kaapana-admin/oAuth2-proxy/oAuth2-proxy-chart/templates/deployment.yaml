@@ -7,11 +7,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: oauth2-proxy
+      app.kubernetes.io/name: oauth2-proxy
   template:
     metadata:
       labels:
-        app-name: oauth2-proxy
+        app.kubernetes.io/name: oauth2-proxy
     spec:
       initContainers:
       - name: init

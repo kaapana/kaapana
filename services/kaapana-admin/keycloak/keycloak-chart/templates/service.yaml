@@ -5,10 +5,10 @@ metadata:
   name: keycloak-external-service
   namespace: "{{  .Values.global.admin_namespace  }}"
   labels:
-    app-name: keycloak
+    app.kubernetes.io/name: keycloak
 spec:
   selector:
-    app-name: keycloak
+    app.kubernetes.io/name: keycloak
   type: ClusterIP
   ports:
   - name: kc-http-port
@@ -22,10 +22,10 @@ metadata:
   name: keycloak-internal-service
   namespace: "{{  .Values.global.admin_namespace  }}"
   labels:
-    app-name: keycloak
+    app.kubernetes.io/name: keycloak
 spec:
   selector:
-    app-name: keycloak
+    app.kubernetes.io/name: keycloak
   type: ClusterIP
   ports:
   - name: kc-https-port

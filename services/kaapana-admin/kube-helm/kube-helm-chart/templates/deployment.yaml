@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: kube-helm
+      app.kubernetes.io/name: kube-helm
   template:
     metadata:
       labels:
-        app-name: kube-helm
+        app.kubernetes.io/name: kube-helm
     spec:
       containers:
       - name: kube-helm

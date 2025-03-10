@@ -5,7 +5,7 @@ metadata:
   name: {{ .Release.Name }}
   namespace: "{{ tpl .Values.global.namespace .  }}"
   labels:
-    app: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
 spec:
   type: {{ .Values.global.service_type }}
   ports:
@@ -17,7 +17,7 @@ spec:
       nodePort: {{ .Values.global.nodePortMITKWorkbench }}
 {{- end }}
   selector:
-    app-name: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Release.Name }}
 ---
 {{- if eq .Values.global.service_type "ClusterIP" }}
 apiVersion: traefik.io/v1alpha1

@@ -5,14 +5,16 @@ apiVersion: apps/v1
 metadata:
   name: get-{{ .Values.global.image }}
   namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: get-{{ .Values.global.image }}
 spec:
   selector:
     matchLabels:
-      app-name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
+      app.kubernetes.io/name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
   template:
     metadata:
       labels:
-        app-name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
+        app.kubernetes.io/name: get-{{ .Values.global.image }}-{{ .Values.global.version }}
     spec:
       initContainers:
         - name: init

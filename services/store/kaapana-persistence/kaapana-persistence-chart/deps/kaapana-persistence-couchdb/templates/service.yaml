@@ -4,10 +4,10 @@ metadata:
   name: kaapana-persistence-couchdb-service
   namespace: "services" # "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: kaapana-persistence-couchdb
+    app.kubernetes.io/name: kaapana-persistence-couchdb
 spec:
   selector:
-    app-name: kaapana-persistence-couchdb
+    app.kubernetes.io/name: kaapana-persistence-couchdb
   ports:
     - port: 5984
       targetPort: 5984

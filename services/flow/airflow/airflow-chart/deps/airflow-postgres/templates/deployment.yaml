@@ -24,11 +24,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: postgres-airflow
+      app.kubernetes.io/name: postgres-airflow
   template:
     metadata:
       labels:
-        app-name: postgres-airflow
+        app.kubernetes.io/name: postgres-airflow
     spec:
       securityContext:
         runAsUser: 70

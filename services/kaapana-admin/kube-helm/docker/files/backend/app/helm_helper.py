@@ -759,7 +759,7 @@ def get_kube_objects(
         states = None
         # TODO: might be replaced by json or yaml output in the future with the flag -o json!
         success, stdout = execute_shell_command(
-            f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}"
+            f"{settings.kubectl_path} -n {namespace} get pod -l=app.kubernetes.io/name={name}"
         )
         if success:
             states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[])

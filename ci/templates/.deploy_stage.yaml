@@ -63,8 +63,8 @@ send_testdata:
     - when: never
   artifacts:
     name: send_data
-      paths:
-        - $ARTIFACTS_DIR/send-data.log
+    paths:
+      - $ARTIFACTS_DIR/send-data.log
 
 install_extensions:
   stage: test
@@ -80,8 +80,8 @@ install_extensions:
     - when: never
   artifacts:
     name: install_extensions
-      paths:
-        - $ARTIFACTS_DIR/install_extensions.log
+    paths:
+      - $ARTIFACTS_DIR/install_extensions.log
 
 download_models:
   stage: test
@@ -109,8 +109,8 @@ integration_tests:
     - when: never
   artifacts:
     name: integration_tests
-      paths:
-        - $ARTIFACTS_DIR/integration_tests.log
+    paths:
+      - $ARTIFACTS_DIR/integration_tests.log
 port_scan:
   stage: test
   script: python3 $REPO_DIR/ci-code/test/src/scan_ports.py

@@ -87,7 +87,7 @@ spec:
           kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
     - podSelector:
         matchLabels:
-          app: 'traefik'
+          app.kubernetes.io/name: 'traefik'
 ---
 ### Allow access to opensearch from jobs with label {"network-access-opensearch": "true"}
 apiVersion: networking.k8s.io/v1

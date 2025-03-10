@@ -7,11 +7,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: local-registry-ui
+      app.kubernetes.io/name: local-registry-ui
   template:
     metadata:
       labels:
-        app: local-registry-ui
+        app.kubernetes.io/name: local-registry-ui
     spec:
       containers:
         - name: local-registry-ui
@@ -79,5 +79,5 @@ spec:
     - port: 80
       targetPort: 80
   selector:
-    app: local-registry-ui
+    app.kubernetes.io/name: local-registry-ui
 ---

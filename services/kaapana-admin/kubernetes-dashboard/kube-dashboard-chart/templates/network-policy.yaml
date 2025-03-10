@@ -14,7 +14,7 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          app: 'traefik'
+          app.kubernetes.io/name: 'traefik'
     ports:
     - protocol: TCP
       port: 9090

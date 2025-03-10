@@ -5,7 +5,7 @@ metadata:
   name: landingpage
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    k8s-app: landingpage
+    app.kubernetes.io/name: landingpage
 spec:
   replicas: 1
   selector:

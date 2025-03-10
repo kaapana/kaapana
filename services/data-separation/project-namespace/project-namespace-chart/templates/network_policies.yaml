@@ -27,7 +27,7 @@ spec:
           kubernetes.io/metadata.name: kube-system
     - podSelector:
         matchLabels:
-          k8s-app: kube-dns
+          app.kubernetes.io/name: kube-dns
 ---
 ## Allow access to external IPs
 kind: NetworkPolicy

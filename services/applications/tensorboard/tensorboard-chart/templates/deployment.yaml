@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}
   namespace: "{{ tpl .Values.global.namespace . }}"
   labels:
-    k8s-app: tensorboard
+    app.kubernetes.io/name: tensorboard
 spec:
   replicas: 1
   selector:

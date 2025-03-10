@@ -118,11 +118,10 @@ def collect_errors_in_artifacts(job: gitlab.v4.objects.ProjectPipelineJob):
     :return: Formatted string with errors from the artifacts
     """
     error_summary = []
-    # Iterate over each artifact
-    if len(job.artifacts) > 1:
-        print("TADA")
-    else:
-        return "EMPTY"
+    
+    
+
+
     for artifact in job.artifacts:
         artifact_name = artifact["file_name"]
         artifact_data = job.artifacts.get(artifact_name)
@@ -159,7 +158,7 @@ def analyze_logs(
     # failed_jobs = project.pipelines.get(ci_pipeline_id).jobs.list(scope="failed")
     failed_jobs = project.pipelines.get(ci_pipeline_id).jobs.list(search="logs")
     failed_jobs_str = "\n".join(
-        [f"- Job {job.id}: {job.name} (Failed)" for job in failed_jobs]
+        [f"- Job {job.id}: {job.name} (Failed)" for job in failed_jobs if job.status != "success"]
     )
 
     for job in failed_jobs:
@@ -173,7 +172,7 @@ def main():
     project_id = os.getenv("CI_PROJECT_ID")
     ci_pipeline_url = os.getenv("CI_PIPELINE_URL")
     ci_pipeline_id = os.getenv("CI_PIPELINE_ID")
-    commit_sha = os.getenv("CI_COMMIT_SHA_SHORT")
+    commit_sha = os.getenv("CI_COMMIT_SHA")
     
     gl = gitlab.Gitlab(
         url="https://codebase.helmholtz.cloud",

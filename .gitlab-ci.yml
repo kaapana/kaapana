@@ -120,8 +120,10 @@ build_packages:
   needs:
     - prepare_pipeline
   script:
-    - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
-    - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml; fi
+    - |
+      trap 'cp $ARTIFACTS_DIR/build.log $CI_PROJECT_DIR/artifacts/build.log' ERR
+      if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
+      if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml; fi
   retry: 1
   resource_group: build-1
   environment: build-1
@@ -129,15 +131,18 @@ build_packages:
     name: build
     paths:
       - $ARTIFACTS_DIR/build.log
+    when: on_failure
 
 build_documentation:
   stage: build
   needs:
     - prepare_pipeline
   script:
-    - cd $REPO_DIR/ci-code/build
-    - ansible-playbook build_documentation.yaml
-    - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
+    - |
+      trap 'cp $ARTIFACTS_DIR/build.log $CI_PROJECT_DIR/artifacts/build.log' ERR
+      cd $REPO_DIR/ci-code/build
+      ansible-playbook build_documentation.yaml
+      if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
   rules:
     - if: $EXECUTE_BUILD == "false"
       when: never
@@ -146,6 +151,7 @@ build_documentation:
     name: build_documentation
     paths:
       - $ARTIFACTS_DIR/build_documentation_html.log
+    when: on_failure
 
 #############################################
 ############## DEPLOY AND TEST ##############

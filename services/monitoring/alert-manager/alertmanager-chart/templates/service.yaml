@@ -6,10 +6,10 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
 
   labels:
-    app-name: alertmanager
+    app.kubernetes.io/name: alertmanager
 spec:
   selector:
-    app-name: alertmanager
+    app.kubernetes.io/name: alertmanager
   ports:
     - port: 9093
       protocol: TCP

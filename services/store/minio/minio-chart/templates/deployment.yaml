@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: minio
+      app.kubernetes.io/name: minio
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: minio
+        app.kubernetes.io/name: minio
     spec:
       initContainers:
         - name: init

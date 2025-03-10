@@ -5,7 +5,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
-    app-name: doccano-rabbitmq
+    app.kubernetes.io/name: doccano-rabbitmq
   ports:
     - port: 5672
       targetPort: 5672

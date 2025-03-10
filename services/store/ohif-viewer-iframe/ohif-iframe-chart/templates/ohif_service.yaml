@@ -6,7 +6,7 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
-    app-name: ohif-iframe
+    app.kubernetes.io/name: ohif-iframe
   ports:
   - name: ohif-p-iframe
     port: 80

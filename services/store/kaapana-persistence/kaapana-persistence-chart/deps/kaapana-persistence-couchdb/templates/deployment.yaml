@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: kaapana-persistence-couchdb 
+      app.kubernetes.io/name: kaapana-persistence-couchdb 
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: kaapana-persistence-couchdb
+        app.kubernetes.io/name: kaapana-persistence-couchdb
     spec:
       containers:
       - name: kaapana-persistence-couchdb

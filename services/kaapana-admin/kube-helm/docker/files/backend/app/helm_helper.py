@@ -38,12 +38,12 @@ global_extensions_list = []
 global_platforms_list = []
 global_collected_tgz_charts = {}
 global_collected_tgz_charts_platforms = {}
-global_extension_states: Dict[str, schemas.ExtensionState] = (
-    {}
-)  # keys are in form <name>__<version>
-global_recently_updated: Set[str] = (
-    set()
-)  # list of keys for recently updated ( < refresh_delay) extensions
+global_extension_states: Dict[
+    str, schemas.ExtensionState
+] = {}  # keys are in form <name>__<version>
+global_recently_updated: Set[
+    str
+] = set()  # list of keys for recently updated ( < refresh_delay) extensions
 global_extensions_release_names: Set[str] = set()
 
 
@@ -758,8 +758,16 @@ def get_kube_objects(
         """
         states = None
         # TODO: might be replaced by json or yaml output in the future with the flag -o json!
+        if kind == "job":
+            pod_label = "batch.kubernetes.io/job-name"
+        elif kind == "app":
+            pod_label = "app.kubernetes.io/name"
+        else:
+            logger.error(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
+            raise ValueError(f"Unknown kind: {kind}. Must be one of ['job', 'app'].")
+
         success, stdout = execute_shell_command(
-            f"{settings.kubectl_path} -n {namespace} get pod -l={kind}-name={name}"
+            f"{settings.kubectl_path} -n {namespace} get pod -l={pod_label}={name}"
         )
         if success:
             states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[])
@@ -833,13 +841,9 @@ def get_kube_objects(
             elif kind == "Deployment" or kind == "Job":
                 obj_kube_status = None
                 if kind == "Deployment":
-                    # TODO: only traefik lacks app-name in matchLabels
+                    # TODO: only traefik lacks app.kubernetes.io/name in matchLabels
                     match_labels = config["spec"]["selector"]["matchLabels"]
-                    # There are different conventions for app name
-                    app_name = match_labels.get(
-                        "app.kubernetes.io/name",
-                        match_labels.get("app", match_labels.get("app-name")),
-                    )
+                    app_name = match_labels.get("app.kubernetes.io/name")
                     if not app_name:
                         app_name = "-- UNKNOWN APP --"
                     obj_kube_status = get_pod_status(

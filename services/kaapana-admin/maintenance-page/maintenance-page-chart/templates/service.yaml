@@ -6,7 +6,7 @@ metadata:
   namespace: "{{ .Values.global.admin_namespace }}"
 spec:
   selector:
-    app-name: maintenancepage
+    app.kubernetes.io/name: maintenancepage
   ports:
     - protocol: TCP
       port: 5000

@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: openedc
+      app.kubernetes.io/name: openedc
   template:
     metadata:
       labels:
-        app-name: openedc
+        app.kubernetes.io/name: openedc
     spec:
       containers:
       - name: openedc-container

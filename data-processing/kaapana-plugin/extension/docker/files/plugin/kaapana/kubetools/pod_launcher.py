@@ -334,8 +334,9 @@ class PodLauncher(LoggingMixin):
                 pod_list = self._client.list_namespaced_pod(namespace=pod.namespace)
                 for pod_running in pod_list.items:
                     if (
-                        "job-name" in pod_running.metadata._labels
-                        and pod_running.metadata._labels["job-name"] == job_name
+                        "batch.kubernetes.io/job-name" in pod_running.metadata._labels
+                        and pod_running.metadata._labels["batch.kubernetes.io/job-name"]
+                        == job_name
                     ):
                         return pod_running
             return self._client.read_namespaced_pod(pod.name, pod.namespace)

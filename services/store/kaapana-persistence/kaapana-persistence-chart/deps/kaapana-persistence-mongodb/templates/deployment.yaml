@@ -8,13 +8,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: kaapana-persistence-mongodb 
+      app.kubernetes.io/name: kaapana-persistence-mongodb 
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app-name: kaapana-persistence-mongodb
+        app.kubernetes.io/name: kaapana-persistence-mongodb
     spec:
       containers:
       - name: kaapana-persistence-mongodb

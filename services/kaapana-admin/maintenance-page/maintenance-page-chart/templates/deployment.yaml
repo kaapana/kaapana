@@ -5,16 +5,16 @@ metadata:
   name: maintenancepage
   namespace: "{{ .Values.global.admin_namespace }}"
   labels:
-    k8s-app: maintenancepage
+    app.kubernetes.io/name: maintenancepage
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: maintenancepage
+      app.kubernetes.io/name: maintenancepage
   template:
     metadata:
       labels:
-        app-name: maintenancepage
+        app.kubernetes.io/name: maintenancepage
     spec:
       containers:
       - name: maintenancepage

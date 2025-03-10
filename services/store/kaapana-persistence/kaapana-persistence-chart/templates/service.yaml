@@ -25,10 +25,10 @@ metadata:
   name: kaapana-persistence-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: kaapana-persistence
+    app.kubernetes.io/name: kaapana-persistence
 spec:
   selector:
-    app-name: kaapana-persistence
+    app.kubernetes.io/name: kaapana-persistence
   ports:
     - name: persistence-backend-service
       port: 8080
@@ -41,10 +41,10 @@ metadata:
   name: kaapana-persistence-frontend-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels:
-    app-name: kaapana-persistence
+    app.kubernetes.io/name: kaapana-persistence
 spec:
   selector:
-    app-name: kaapana-persistence
+    app.kubernetes.io/name: kaapana-persistence
   ports:
     - name: persistence-frontend-service
       port: 80

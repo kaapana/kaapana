@@ -8,11 +8,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app-name: ohif
+      app.kubernetes.io/name: ohif
   template:
     metadata:
       labels:
-        app-name: ohif
+        app.kubernetes.io/name: ohif
     spec:
       containers:
         - name: ohif-container

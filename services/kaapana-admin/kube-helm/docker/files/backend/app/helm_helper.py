@@ -835,11 +835,7 @@ def get_kube_objects(
                 if kind == "Deployment":
                     # TODO: only traefik lacks app.kubernetes.io/name in matchLabels
                     match_labels = config["spec"]["selector"]["matchLabels"]
-                    # There are two conventions for app name
-                    app_name = match_labels.get(
-                        "app.kubernetes.io/name",
-                        match_labels.get("app"),
-                    )
+                    app_name = match_labels.get("app.kubernetes.io/name")
                     if not app_name:
                         app_name = "-- UNKNOWN APP --"
                     obj_kube_status = get_pod_status(

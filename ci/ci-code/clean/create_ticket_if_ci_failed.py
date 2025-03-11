@@ -3,13 +3,10 @@ This script implements functions that make requests to the Gitlab REST API.
 The functions in this module are used to create an issue in the current sprint with a link to the failed pipeline.
 """
 
-from collections import defaultdict
-import io
-import json
 import os
+import json
 from pathlib import Path
 from typing import Dict, List
-import zipfile
 import gitlab
 from datetime import datetime, timezone
 
@@ -20,7 +17,14 @@ import requests
 
 def create_title(project: gitlab.v4.objects.Project, commit_sha: str) -> str:
     """
-    Creates a title string for the issue. String consists of short commit hash and count of how many days since the issue was created.
+    Creates a title string for the issue.
+
+    Args:
+        project (gitlab.v4.objects.Project): The Gitlab project object.
+        commit_sha (str): The SHA hash of the commit.
+
+    Returns:
+        str: A title string consisting of short commit hash and count of how many days since the issue was created.
     """
     days_since_commit = get_days_since_commit(project, commit_sha)
     return f"CI failed for commit {commit_sha} - Issue happening since {days_since_commit} Days"
@@ -44,6 +48,15 @@ def get_days_since_commit(project: gitlab.v4.objects.Project, commit_sha: str) -
 
 
 def get_artifacts_dict(artifacts_dir: str) -> Dict[str, str]:
+    """
+    Returns a dictionary mapping artifact names to their corresponding file paths.
+
+    Args:
+        artifacts_dir (str): The directory containing the artifacts.
+
+    Returns:
+        Dict[str, str]: A dictionary where each key is an artifact name and each value is the file path of that artifact.
+    """
     artifacts_dict = {}
     for filename in Path(artifacts_dir).glob("*.log"):
         with open(filename, "r") as f:
@@ -55,6 +68,18 @@ def get_artifacts_dict(artifacts_dir: str) -> Dict[str, str]:
 def filter_logs_by_keywords(
     logs: List[str], error_keywords: List[str], whitelist: List[str], context_lines: int
 ) -> str:
+    """
+    Filters log entries by a list of error keywords.
+
+    Args:
+        logs (List[str]): The list of log entries to filter.
+        error_keywords (List[str]): The list of error keywords to match.
+        whitelist (List[str]): The list of whitelisted log entries to exclude from filtering.
+        context_lines (int): The number of surrounding lines to include with each matched log entry.
+
+    Returns:
+        str: The filtered log entries, with surrounding context lines.
+    """
     seen_lines = set()
     filtered_logs = []
     for i, line in enumerate(logs):
@@ -75,14 +100,35 @@ def filter_logs_by_keywords(
     return filtered_logs_str
 
 
-def get_ai_model_data(api_key):
+def get_ai_model_data(api_key: str) -> List[Dict]:
+    """
+    Retrieve AI model data from an BlaBlaDor API.
+
+    Args:
+        api_key (str): The API key to use when making the request.
+
+    Returns:
+        The response from the API, containing the AI model data.
+    """
     headers = {"accept": "application/json", "Authorization": f"Bearer {api_key}"}
     url = "https://helmholtz-blablador.fz-juelich.de:8000/v1/models"
     response = requests.get(url=url, headers=headers)
+    response.raise_for_status()
     return response.json()["data"]
 
 
-def submit_ai_request(messages: List[Dict[str, str]], model: str, token: str):
+def submit_ai_request(messages: List[Dict[str, str]], model: str, token: str) -> requests.Response:
+    """
+    Submits a message request to the AI model for processing.
+
+    Args:
+        messages (List[Dict[str, str]]): The list of messages to be processed.
+        model (str): The name of the AI model to use for processing.
+        token (str): The authentication token to use for the request.
+
+    Returns:
+        Response object
+    """
     headers = {
         "accept": "application/json",
         "Authorization": f"Bearer {token}",
@@ -113,6 +159,16 @@ def create_ai_report(
     error_logs_report: str,
     token: str,
 ) -> str:
+    """
+    Creates an AI report using BlaBlaDor and error logs.
+
+    Args:
+        error_logs_report (str): The filtered log report.
+        token (str): The token for the BlaBlaDor API.
+
+    Returns:
+        str: The AI report of the error logs.
+    """
     try:
         model = get_ai_model_data(token)[0]["id"]
 
@@ -142,7 +198,7 @@ def create_ai_report(
     return "AI report failed"
 
 
-def create_failed_jobs_report(failed_jobs: List[gitlab.v4.objects.ProjectPipelineJob]):
+def create_failed_jobs_report(failed_jobs: List[gitlab.v4.objects.ProjectPipelineJob]) -> str:
     """
     Retrieves failed jobs from a pipeline.
 
@@ -151,7 +207,7 @@ def create_failed_jobs_report(failed_jobs: List[gitlab.v4.objects.ProjectPipelin
         ci_pipeline_id (int): The ID of the pipeline to retrieve failed jobs from.
 
     Returns:
-        Tuple[str, str]: A tuple containing the failed jobs string and an empty string.
+        str: A tuple containing the failed jobs string and an empty string.
     """
     if not failed_jobs:
         return ("No failed jobs found in the pipeline.",)
@@ -160,9 +216,17 @@ def create_failed_jobs_report(failed_jobs: List[gitlab.v4.objects.ProjectPipelin
     return "\n".join(failed_jobs_strs)
 
 
-def extract_error_logs(
-    artifacts_dir: str,
-) -> Dict[str, Dict[str, str]]:
+def extract_error_logs(artifacts_dir: str) -> Dict[str, str]:
+    """
+    Extracts error logs from artifacts in the artifacts directory.
+
+    Args:
+        artifacts_dir (str): The directory containing the artifacts.
+
+    Returns:
+        Dict[str, str]: A dictionary with service names as keys and a dictionary with error type as key and error messages as values.
+
+    """
     artifacts_dict = get_artifacts_dict(artifacts_dir)
     error_logs = {}
     for filename, content in artifacts_dict.items():
@@ -173,7 +237,7 @@ def extract_error_logs(
         whitelist = [
             "exit_on_error",
             "vulnerability_severity_level='CRITICAL,HIGH'",
-            "faq"
+            "faq",
         ]
 
         context_lines = 3  # Number of surrounding lines to include
@@ -186,13 +250,13 @@ def extract_error_logs(
     return error_logs
 
 
-def create_error_logs_report(error_logs: Dict[str, Dict[str, str]]) -> str:
+def create_error_logs_report(error_logs: Dict[str, str]) -> str:
     """
     Generates a formatted report of extracted error logs.
 
     Args:
-        error_logs (Dict[str, Dict[str, str]]): A dictionary where keys are job names,
-        and values are dictionaries mapping filenames to filtered log contents.
+        error_logs (Dict[str, str]): A dictionary where keys are log files,
+        and values are filtered log contents.
 
     Returns:
         str: A formatted string containing the error logs report.
@@ -206,9 +270,7 @@ def create_error_logs_report(error_logs: Dict[str, Dict[str, str]]) -> str:
         report_lines.append(f"### File: {filename}\n")
         report_lines.append("```log")
         report_lines.append(
-            content.strip()
-            if content
-            else "_No relevant log entries found._"
+            content.strip() if content else "_No relevant log entries found._"
         )
         report_lines.append("```\n")
 
@@ -222,6 +284,22 @@ def create_description(
     registry_token: str,
     artifacts_dir: str,
 ):
+    """
+    Creates a description for the issue. Description consists of
+        - List of failed jobs
+        - Errorneous logs (using error keywords, whitelisted phrases and context window) found in log files
+        - AI Report using BlaBlaDor and Error log files
+        
+    Args:
+        project (gitlab.v4.objects.Project): The project object from the GitLab API.
+        ci_pipeline_url (str): The URL for the CI pipeline.
+        ci_pipeline_id (str): The ID for the CI pipeline.
+        registry_token (str): The token to access the Docker registry.
+        artifacts_dir (str): The directory containing the artifacts.
+
+    Returns:
+        str: The formatted description for the issue.
+    """
     failed_jobs = project.pipelines.get(ci_pipeline_id).jobs.list(scope="failed")
     failed_jobs_report = create_failed_jobs_report(failed_jobs)
 
@@ -271,7 +349,7 @@ def create_issue_for_commit(
         commit_sha (str): The commit SHA associated with the failed pipeline.
 
     Returns:
-        gitlab.v4.objects.ProjectIssue: The created issue object.
+        None
     """
 
     issue_title = create_title(project, commit_sha)
@@ -291,7 +369,7 @@ def create_issue_for_commit(
         "labels": ["CI", "Sprint"],
         "description": issue_description,
     }
-    # return project.issues.create(issue)
+    return project.issues.create(issue)
 
 
 def update_issue_title(
@@ -333,7 +411,7 @@ def main():
         state="opened", labels=["CI", "Sprint"], search=commit_sha
     )
     if not existing_issues:
-        issue = create_issue_for_commit(
+        create_issue_for_commit(
             project=project_kaapana,
             ci_pipeline_url=ci_pipeline_url,
             ci_pipeline_id=ci_pipeline_id,
@@ -343,8 +421,7 @@ def main():
         )
 
     else:
-        issue = update_issue_title(project_kaapana, existing_issues[0], commit_sha)
-    # issue.save()
+        update_issue_title(project_kaapana, existing_issues[0], commit_sha)
 
 
 if __name__ == "__main__":

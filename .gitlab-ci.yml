@@ -1,36 +1,36 @@
 default:
   tags:
-    - shell
-    - ci
-    - kaapana
+  - shell
+  - ci
+  - kaapana
   interruptible: true
 
 stages:
-  - prepare
-  - build
-  - deploy_and_test
-  - clean
+- prepare
+- build
+- deploy_and_test
+- clean
 
 workflow:
   rules:
-    - if: $CI_PIPELINE_SOURCE == "web"
-      when: always
-    - if: $CI_PIPELINE_SOURCE == "trigger"
-      when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
-      when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
-      when: always
-    - when: never
+  - if: $CI_PIPELINE_SOURCE == "web"
+    when: always
+  - if: $CI_PIPELINE_SOURCE == "trigger"
+    when: always
+  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == "develop"
+    when: always
+  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "schedule"
+    when: always
+  - if: $MAINTENANCE != "true" && $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TITLE !~ /^Draft:/
+    when: always
+  - when: never
 
 variables:
   ### OPENSTACK
   OS_CREATE: $OS_CREATE
   OS_DELETE: $OS_DELETE
   OS_AUTH_URL: $OS_AUTH_URL
-  OS_PROJECT_NAME: $OS_PROJECT_NAME ### Name of the openstack project for the deployment instance
+  OS_PROJECT_NAME: $OS_PROJECT_NAME ### Name of the openstack project for the deployment instance 
   OS_INSTANCE_FLAVOR: $OS_INSTANCE_FLAVOR
   OS_KEY_NAME: $OS_KEY_NAME
   OS_IMAGE: $OS_IMAGE
@@ -64,7 +64,7 @@ variables:
   REGISTRY_USER: $GITLAB_USER_LOGIN
 
   ### FIXED VARIABLES
-  #REGISTRY_TOKEN: $CI_REGISTRY_PASSWORD
+  #REGISTRY_TOKEN: $CI_REGISTRY_PASSWORD                        
   GIT_STRATEGY: "none" ### Predefined Gitlab CI variable; Has to be one of ["clone", "fetch", "none"]
   # GIT_CLONE_PATH: $CI_BUILDS_DIR/$CI_PIPELINE_ID
   GIT_CLONE_PATH: /home/ubuntu/builds/$CI_COMMIT_SHORT_SHA
@@ -78,25 +78,24 @@ variables:
 prepare_pipeline: ### This is the only job, where I clone the project repo
   stage: prepare
   before_script: # Necessary because otherwise HEAD is detached and the build fails
-    - |-
-      if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
-        git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
-      else
-        git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
-      fi
-    - git status
-    - git fetch --tags
+  - |-
+    if [[ $CI_PIPELINE_SOURCE == "merge_request_event" ]]; then
+      git checkout -B $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME $CI_COMMIT_SHA
+    else
+      git checkout -B $CI_COMMIT_BRANCH $CI_COMMIT_SHA
+    fi
+  - git status
+  - git fetch --tags
   variables:
     GIT_STRATEGY: clone
   script:
-    - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
-    - export VERSION_TAG=$( if [[ $BUILD_ARGUMENTS == *"--latest"* ]]; then echo "0.0.0-latest"; else echo $( git describe ); fi)
-    - echo VERSION_TAG=$VERSION_TAG >> prepare.env
-    - export ARTIFACTS_DIR="/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
-    - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
-    - rm -rf $ARTIFACTS_DIR
-    - mkdir -p $ARTIFACTS_DIR
-
+  - find $CI_BUILDS_DIR/ -maxdepth 1 -mtime +7 -exec rm -rf -- {} \;
+  - export VERSION_TAG=$( if [[ $BUILD_ARGUMENTS == *"--latest"* ]]; then echo "0.0.0-latest"; else echo $( git describe ); fi)
+  - echo VERSION_TAG=$VERSION_TAG >> prepare.env
+  - export ARTIFACTS_DIR="/home/$USER/artifacts/$CI_COMMIT_SHORT_SHA/"
+  - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
+  - rm -rf $ARTIFACTS_DIR
+  - mkdir -p $ARTIFACTS_DIR
   artifacts:
     reports:
       dotenv: prepare.env
@@ -104,14 +103,17 @@ prepare_pipeline: ### This is the only job, where I clone the project repo
 unit_tests:
   stage: prepare
   needs:
-    - prepare_pipeline
+  - prepare_pipeline
   script:
-    - pip install -r $KAAPANA_DIR/tests/requirements.txt
-    - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
+  - pip install -r $KAAPANA_DIR/tests/requirements.txt
+  - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
   artifacts:
     when: always
+    paths:
+    - unittest_report.xml
     reports:
       junit: unittest_report.xml
+
 
 #############################################
 ############## BUILD ########################
@@ -119,7 +121,7 @@ unit_tests:
 build_packages:
   stage: build
   needs:
-    - prepare_pipeline
+  - prepare_pipeline
   script:
   - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
   - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml; fi
@@ -130,16 +132,15 @@ build_packages:
 build_documentation:
   stage: build
   needs:
-    - prepare_pipeline
+  - prepare_pipeline
   script:
-    - 
-      cd $REPO_DIR/ci-code/build
-      ansible-playbook build_documentation.yaml
-      if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
+  - cd $REPO_DIR/ci-code/build
+  - ansible-playbook build_documentation.yaml
+  - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
   rules:
-    - if: $EXECUTE_BUILD == "false"
-      when: never
-    - when: on_success
+  - if: $EXECUTE_BUILD == "false"
+    when: never
+  - when: on_success
 
 #############################################
 ############## DEPLOY AND TEST ##############
@@ -147,17 +148,17 @@ build_documentation:
 prepare_deployment_instance:
   stage: deploy_and_test
   needs:
-    - prepare_pipeline
+  - prepare_pipeline
   script:
-    - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml
-    - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+  - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml
+  - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
   artifacts:
     reports:
       dotenv: prepare.env
   rules:
-    - if: $DEPLOY_PLATFORM == "false"
-      when: never
-    - when: on_success
+  - if: $DEPLOY_PLATFORM == "false"
+    when: never
+  - when: on_success
   resource_group: $DEPLOYMENT_INSTANCE_NAME-1
   environment: $DEPLOYMENT_INSTANCE_NAME-1
   retry: 1
@@ -165,19 +166,19 @@ prepare_deployment_instance:
 deploy_and_test:
   stage: deploy_and_test
   needs:
-    - prepare_deployment_instance
-    - build_packages
+  - prepare_deployment_instance
+  - build_packages
   trigger:
     include:
-      - local: "ci/templates/.deploy_stage.yaml"
+      - local: 'ci/templates/.deploy_stage.yaml'
     strategy: depend
     forward:
       pipeline_variables: true
       yaml_variables: true
   rules:
-    - if: $DEPLOY_PLATFORM == "false"
-      when: never
-    - when: on_success
+  - if: $DEPLOY_PLATFORM == "false"
+    when: never
+  - when: on_success
   resource_group: $DEPLOYMENT_INSTANCE_NAME-1
   environment: $DEPLOYMENT_INSTANCE_NAME-1
 
@@ -187,17 +188,17 @@ deploy_and_test:
 if_ci_failing:
   stage: clean
   script:
-    - cd $REPO_DIR/ci-code/clean
+    - cd $REPO_DIR/ci-code/clean 
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py
   resource_group: $DEPLOYMENT_INSTANCE_NAME-1
   environment: $DEPLOYMENT_INSTANCE_NAME-1
   rules:
-    - if: $CI_COMMIT_BRANCH == "develop"
-      when: on_failure
-    - if: $CI_COMMIT_BRANCH == "master"
-      when: on_failure
-    - when: never
+  - if: $CI_COMMIT_BRANCH == "develop"
+    when: on_failure
+  - if: $CI_COMMIT_BRANCH == "master"
+    when: on_failure
+  - when: never
   allow_failure: true
 
 logs:
@@ -206,5 +207,5 @@ logs:
   artifacts:
     name: pipeline
     paths:
-      - artifacts/
+    - artifacts/
   when: always

@@ -24,10 +24,6 @@ platform_deployment:
   artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
     reports:
       dotenv: prepare.env
-    name: deploy
-    paths:
-      - $ARTIFACTS_DIR/deployment.log
-      - $ARTIFACTS_DIR/deploy_platform.sh
   retry: 1
 
 #############################################
@@ -41,11 +37,6 @@ first_login:
   artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
     reports:
       dotenv: prepare.env
-    name: first_login
-    paths:
-      - $ARTIFACTS_DIR/first_login.log
-      - $ARTIFACTS_DIR/ui-tests.log
-    
   rules:
     - if: $TEST_STAGE == "true"
       when: on_success
@@ -61,10 +52,6 @@ send_testdata:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
-  artifacts:
-    name: send_data
-    paths:
-      - $ARTIFACTS_DIR/send-data.log
 
 install_extensions:
   stage: test
@@ -78,10 +65,6 @@ install_extensions:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
-  artifacts:
-    name: install_extensions
-    paths:
-      - $ARTIFACTS_DIR/install_extensions.log
 
 download_models:
   stage: test
@@ -107,10 +90,7 @@ integration_tests:
     - if: $TEST_STAGE == "true"
       when: on_success
     - when: never
-  artifacts:
-    name: integration_tests
-    paths:
-      - $ARTIFACTS_DIR/integration_tests.log
+
 port_scan:
   stage: test
   script: python3 $REPO_DIR/ci-code/test/src/scan_ports.py

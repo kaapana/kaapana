@@ -369,7 +369,9 @@ def create_issue_for_commit(
         "labels": ["CI", "Sprint"],
         "description": issue_description,
     }
-    return project.issues.create(issue)
+    issue = project.issues.create(issue)
+    issue.save()
+    
 
 
 def update_issue_title(

@@ -96,7 +96,7 @@ prepare_pipeline: ### This is the only job, where I clone the project repo
     - echo "ARTIFACTS_DIR=$ARTIFACTS_DIR" >> prepare.env
     - rm -rf $ARTIFACTS_DIR
     - mkdir -p $ARTIFACTS_DIR
-    - mkdir -p $CI_PROJECT_DIR/artifacts/
+
   artifacts:
     reports:
       dotenv: prepare.env
@@ -121,26 +121,18 @@ build_packages:
   needs:
     - prepare_pipeline
   script:
-    - |
-      trap 'cp $ARTIFACTS_DIR/build.log $CI_PROJECT_DIR/artifacts/build.log' ERR
-      if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
-      if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml; fi
+  - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
+  - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml; fi
   retry: 1
   resource_group: build-1
   environment: build-1
-  artifacts:
-    name: build
-    paths:
-      - $CI_PROJECT_DIR/artifacts/build.log
-    when: on_failure
 
 build_documentation:
   stage: build
   needs:
     - prepare_pipeline
   script:
-    - |
-      trap 'cp $ARTIFACTS_DIR/build.log $CI_PROJECT_DIR/artifacts/build.log' ERR
+    - 
       cd $REPO_DIR/ci-code/build
       ansible-playbook build_documentation.yaml
       if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
@@ -148,11 +140,6 @@ build_documentation:
     - if: $EXECUTE_BUILD == "false"
       when: never
     - when: on_success
-  artifacts:
-    name: build_documentation
-    paths:
-      - $CI_PROJECT_DIR/artifacts/build_documentation_html.log
-    when: on_failure
 
 #############################################
 ############## DEPLOY AND TEST ##############

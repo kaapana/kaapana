@@ -1,8 +1,6 @@
 import json
-from enum import Enum
 from pathlib import Path
 from typing import List
-
 import requests
 
 from kaapana.blueprints.kaapana_global_variables import (
@@ -23,7 +21,6 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
 
     def start(self, ds, **kwargs):
         print("Start assigning series to dataset")
-
         run_dir = Path(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = list(Path(run_dir, self.batch_name).glob("*"))
 
@@ -37,6 +34,13 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
                     series_uid = metadata["0020000E SeriesInstanceUID_keyword"]
+                    try:
+                        project = get_project_by_name(
+                            metadata.get("00120020 ClinicalTrialProtocolID_keyword")
+                        )
+                    except:
+                        project = get_project_by_name("admin")
+                    project_header = {"Project": json.dumps(project)}
 
                     # extract datasets from dicom tags
                     datasets = [
@@ -54,6 +58,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                                     name=dataset,
                                     identifiers=[series_uid],
                                 ),
+                                headers=project_header,
                             )
                             if res.status_code != 200:
                                 raise Exception(
@@ -79,3 +84,17 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
 
         self.tags_to_add_from_file = tags_to_add_from_file
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)
+
+
+def get_project_by_name(project_name: str):
+    """
+    Return the project object from the access-information-point database with name project_name
+
+    Raises:
+        HttpException: If the response from the access-information code has status code >= 400.
+    """
+    response = requests.get(
+        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}"
+    )
+    response.raise_for_status()
+    return response.json()

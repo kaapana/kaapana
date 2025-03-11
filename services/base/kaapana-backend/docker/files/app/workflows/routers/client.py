@@ -511,8 +511,10 @@ def create_dataset(
     dataset: Union[schemas.DatasetCreate, None] = None,
     db: Session = Depends(get_db),
 ):
+    project = request.headers.get("Project")
+    project = json.loads(project)
     dataset.username = request.headers["x-forwarded-preferred-username"]
-    db_obj = crud.create_dataset(db=db, dataset=dataset)
+    db_obj = crud.create_dataset(db=db, dataset=dataset, project_id=project.get("id"))
 
     return schemas.Dataset(
         name=db_obj.name,
@@ -570,8 +572,11 @@ async def create_dataset_from_query(
 
 
 @router.get("/dataset", response_model=schemas.Dataset)
-def get_dataset(name: str, db: Session = Depends(get_db)):
-    db_obj = crud.get_dataset(db, name)
+def get_dataset(request: Request, name: str, db: Session = Depends(get_db)):
+    project = request.headers.get("Project")
+    project = json.loads(project)
+
+    db_obj = crud.get_dataset(db, name, project_id=project.get("id"))
     return schemas.Dataset(
         name=db_obj.name,
         time_created=db_obj.time_created,
@@ -588,10 +593,13 @@ def get_datasets(
     limit: int = None,
     db: Session = Depends(get_db),
 ):
+    project = request.headers.get("Project")
+    project = json.loads(project)
     db_objs = crud.get_datasets(
         db,
         limit=limit,
         username=request.headers["x-forwarded-preferred-username"],
+        project_id=project.get("id"),
     )
 
     return [
@@ -607,8 +615,12 @@ def get_datasets(
 
 
 @router.put("/dataset", response_model=schemas.Dataset)
-def put_dataset(dataset: schemas.DatasetUpdate, db: Session = Depends(get_db)):
-    db_obj = crud.update_dataset(db, dataset)
+def put_dataset(
+    request: Request, dataset: schemas.DatasetUpdate, db: Session = Depends(get_db)
+):
+    project = request.headers.get("Project")
+    project = json.loads(project)
+    db_obj = crud.update_dataset(db, dataset, project_id=project.get("id"))
     return schemas.Dataset(
         name=db_obj.name,
         time_created=db_obj.time_created,

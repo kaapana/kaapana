@@ -49,6 +49,8 @@ class Dataset(Base):
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
+    project_id = Column(Integer, default=1)
+    # __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
 class KaapanaInstance(Base):

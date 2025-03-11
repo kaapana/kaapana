@@ -1183,7 +1183,7 @@ def create_or_get_identifier(db: Session, identifier: string) -> models.Identifi
             return db.query(models.Identifier).filter_by(id=identifier).one()
 
 
-def create_dataset(db: Session, dataset: schemas.DatasetCreate):
+def create_dataset(db: Session, dataset: schemas.DatasetCreate, project_id: int = 1):
     logging.debug(f"Creating Dataset: {dataset.name}")
 
     if dataset.kaapana_instance_id is None:
@@ -1213,6 +1213,7 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate):
         identifiers=db_identifiers,
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
+        project_id=project_id,
     )
 
     db_kaapana_instance.datasets.append(db_dataset)
@@ -1224,26 +1225,31 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate):
     return db_dataset
 
 
-def get_dataset(db: Session, name: str, raise_if_not_existing=True):
-    db_dataset = db.query(models.Dataset).filter_by(name=name).first()
+def get_dataset(
+    db: Session, name: str, raise_if_not_existing=True, project_id: int = None
+):
+    db_query = db.query(models.Dataset).filter_by(name=name)
+    if project_id:
+        db_query = db_query.filter(models.Dataset.project_id == project_id)
+    db_dataset = db_query.first()
     if not db_dataset and raise_if_not_existing:
         raise HTTPException(status_code=404, detail="Dataset not found")
     return db_dataset
 
 
 def get_datasets(
-    db: Session,
-    limit=None,
-    username: str = None,
+    db: Session, limit=None, username: str = None, project_id: int = None
 ) -> List[models.Dataset]:
     logging.debug(username)
-    db_datasets = (
+    db_query = (
         db.query(models.Dataset)
         .order_by(desc(models.Dataset.time_updated))
         .limit(limit)
-        .all()
     )
 
+    if project_id:
+        db_query = db_query.filter(models.Dataset.project_id == project_id)
+    db_datasets = db_query.all()
     return db_datasets
 
 
@@ -1261,7 +1267,7 @@ def delete_datasets(db: Session):
     return {"ok": True}
 
 
-def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
+def update_dataset(db: Session, dataset: schemas.DatasetUpdate, project_id: int):
     logging.debug(f"Updating dataset {dataset.name}")
     db_dataset = get_dataset(db, dataset.name, raise_if_not_existing=False)
 
@@ -1270,6 +1276,7 @@ def update_dataset(db: Session, dataset=schemas.DatasetUpdate):
         db_dataset = create_dataset(
             db,
             DatasetCreate(name=dataset.name),
+            project_id=project_id,
         )
         logging.debug(f"Dataset {dataset.name} created.")
 

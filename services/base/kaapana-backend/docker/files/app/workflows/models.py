@@ -23,7 +23,7 @@ identifiers2dataset = Table(
     "identifier2dataset",
     Base.metadata,
     Column("identifier", ForeignKey("identifiers.id"), primary_key=True),
-    Column("dataset", ForeignKey("dataset.name"), primary_key=True),
+    Column("dataset", ForeignKey("dataset.id"), primary_key=True),
 )
 
 
@@ -37,8 +37,8 @@ class Identifier(Base):
 
 class Dataset(Base):
     __tablename__ = "dataset"
-    # id = Column(Integer, primary_key=True)
-    name = Column(String(64), index=True, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(64), index=True)
     username = Column(String(64))
     time_created = Column(DateTime(timezone=True))
     time_updated = Column(DateTime(timezone=True))
@@ -50,7 +50,7 @@ class Dataset(Base):
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
     project_id = Column(Integer, default=1)
-    # __table_args__ = (UniqueConstraint("project_id", "name"),)
+    __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
 class KaapanaInstance(Base):

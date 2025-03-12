@@ -156,6 +156,7 @@ def get_kaapana_instances(
 def create_and_update_client_kaapana_instance(
     db: Session,
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
+    project_id: int,
     action="create",
 ):
     def _get_fernet_key(fernet_encrypted):
@@ -199,7 +200,12 @@ def create_and_update_client_kaapana_instance(
         fernet = Fernet(db_client_kaapana_instance.encryption_key)
         allowed_datasets = []
         for dataset_name in client_kaapana_instance.allowed_datasets:
-            db_dataset = get_dataset(db, name=dataset_name, raise_if_not_existing=False)
+            db_dataset = get_dataset(
+                db,
+                name=dataset_name,
+                raise_if_not_existing=False,
+                project_id=project_id,
+            )
             if db_dataset:
                 dataset = dict(**(db_dataset).__dict__)
                 dataset["identifiers"] = [
@@ -1197,7 +1203,12 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate, project_id: int 
             .first()
         )
 
-    if db.query(models.Dataset).filter_by(name=dataset.name).first():
+    if (
+        db.query(models.Dataset)
+        .filter(models.Dataset.name == dataset.name)
+        .filter(models.Dataset.project_id == project_id)
+        .first()
+    ):
         raise HTTPException(status_code=409, detail="Dataset already exists!")
 
     if not db_kaapana_instance:
@@ -1225,12 +1236,9 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate, project_id: int 
     return db_dataset
 
 
-def get_dataset(
-    db: Session, name: str, raise_if_not_existing=True, project_id: int = None
-):
+def get_dataset(db: Session, name: str, project_id: int, raise_if_not_existing=True):
     db_query = db.query(models.Dataset).filter_by(name=name)
-    if project_id:
-        db_query = db_query.filter(models.Dataset.project_id == project_id)
+    db_query = db_query.filter(models.Dataset.project_id == project_id)
     db_dataset = db_query.first()
     if not db_dataset and raise_if_not_existing:
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -1238,7 +1246,7 @@ def get_dataset(
 
 
 def get_datasets(
-    db: Session, limit=None, username: str = None, project_id: int = None
+    db: Session, project_id: int, limit=None, username: str = None
 ) -> List[models.Dataset]:
     logging.debug(username)
     db_query = (
@@ -1246,15 +1254,13 @@ def get_datasets(
         .order_by(desc(models.Dataset.time_updated))
         .limit(limit)
     )
-
-    if project_id:
-        db_query = db_query.filter(models.Dataset.project_id == project_id)
+    db_query = db_query.filter(models.Dataset.project_id == project_id)
     db_datasets = db_query.all()
     return db_datasets
 
 
-def delete_dataset(db: Session, name: str):
-    db_dataset = get_dataset(db, name)
+def delete_dataset(db: Session, name: str, project_id: int):
+    db_dataset = get_dataset(db, name, project_id=project_id)
     db.delete(db_dataset)
     db.commit()
     return {"ok": True}
@@ -1269,7 +1275,9 @@ def delete_datasets(db: Session):
 
 def update_dataset(db: Session, dataset: schemas.DatasetUpdate, project_id: int):
     logging.debug(f"Updating dataset {dataset.name}")
-    db_dataset = get_dataset(db, dataset.name, raise_if_not_existing=False)
+    db_dataset = get_dataset(
+        db, dataset.name, raise_if_not_existing=False, project_id=project_id
+    )
 
     if not db_dataset:
         logging.debug(f"Dataset {dataset.name} doesn't exist. Creating it.")
@@ -1420,9 +1428,10 @@ def queue_generate_jobs_and_add_to_workflow(
     for db_kaapana_instance in db_kaapana_instances:
         identifiers = []
         if "data_form" in conf_data and "dataset_name" in conf_data["data_form"]:
+            project = conf_data["project_form"]
             dataset_name = conf_data["data_form"]["dataset_name"]
             if not db_kaapana_instance.remote:
-                db_dataset = get_dataset(db, dataset_name)
+                db_dataset = get_dataset(db, dataset_name, project_id=project.get("id"))
                 identifiers = [idx.id for idx in db_dataset.identifiers]
             else:
                 for dataset_info in db_kaapana_instance.allowed_datasets:

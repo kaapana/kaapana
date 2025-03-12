@@ -198,12 +198,18 @@ def put_remote_kaapana_instance(
 
 @router.put("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
 def put_client_kaapana_instance(
+    request: Request,
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
     db: Session = Depends(get_db),
 ):
+    project = request.headers.get("Project")
+    project = json.loads(project)
     return schemas.KaapanaInstance.clean_return(
         crud.create_and_update_client_kaapana_instance(
-            db=db, client_kaapana_instance=client_kaapana_instance, action="update"
+            db=db,
+            client_kaapana_instance=client_kaapana_instance,
+            action="update",
+            project_id=project.get("id"),
         )
     )
 
@@ -379,6 +385,8 @@ def ui_form_schemas(
     db: Session = Depends(get_db),
     allowed_software=Depends(get_allowed_software),
 ):
+    project = request.headers.get("Project")
+    project = json.loads(project)
     username = request.headers["x-forwarded-preferred-username"]
     dags = {}
     just_all_dags = {}
@@ -431,7 +439,7 @@ def ui_form_schemas(
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if not db_kaapana_instance.remote:
             # or rather get allowed_datasets of db_client_kaapana, but also a little bit unnecessary to restrict local datasets
-            client_datasets = crud.get_datasets(db, username=username)
+            client_datasets = crud.get_datasets(db, username=username, project_id=project.get("id"))
             allowed_dataset = [ds.name for ds in client_datasets]
             dataset_size = {ds.name: len(ds.identifiers) for ds in client_datasets}
         else:
@@ -631,8 +639,10 @@ def put_dataset(
 
 
 @router.delete("/dataset")
-def delete_dataset(name: str, db: Session = Depends(get_db)):
-    return crud.delete_dataset(db, name)
+def delete_dataset(request: Request, name: str, db: Session = Depends(get_db)):
+    project = request.headers.get("Project")
+    project = json.loads(project)
+    return crud.delete_dataset(db, name, project_id=project.get("id"))
 
 
 @router.delete("/datasets")

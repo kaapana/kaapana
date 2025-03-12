@@ -360,10 +360,6 @@ def create_issue_for_commit(
         ci_pipeline_url=ci_pipeline_url,
         artifacts_dir=artifacts_dir,
     )
-
-    with open("test.md", "w+") as f:
-        f.writelines(issue_description)
-
     issue = {
         "title": issue_title,
         "labels": ["CI", "Sprint"],
@@ -409,9 +405,10 @@ def main():
     )
 
     project_kaapana = gl.projects.get(id=project_id)
-    existing_issues = project_kaapana.issues.list(
-        state="opened", labels=["CI", "Sprint"], search=commit_sha
-    )
+
+    # We won't create a new issue if the there is already open ticket.
+    # New ticket however, can be created if one issue is already closed, but different error persists
+    existing_issues = project_kaapana.issues.list(state="opened", labels=["CI"], search=commit_sha)
     if not existing_issues:
         create_issue_for_commit(
             project=project_kaapana,
@@ -423,7 +420,7 @@ def main():
         )
 
     else:
-        update_issue_title(project_kaapana, existing_issues[0], commit_sha)
+        update_issue_title(project_kaapana, existing_issues[0], commit_sha)   
 
 
 if __name__ == "__main__":

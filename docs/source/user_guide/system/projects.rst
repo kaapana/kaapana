@@ -7,3 +7,4 @@ The Projects page shows a list of all projects a user with the keycloak role *us
 
 Users with the keycloak role *project-manager* or *admin* see all existing projects.
 They can add and delete projects, add users to existing projects or change the project role of a user.
+Additionally, they can enable or disable the execution of workflows for a project.

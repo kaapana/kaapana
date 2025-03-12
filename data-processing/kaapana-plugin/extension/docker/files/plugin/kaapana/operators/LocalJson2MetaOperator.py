@@ -79,7 +79,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             **kwargs,
         )
 
-    def push_to_opensearch(self, meta_information: dict):
+    def push_to_project_and_admin_index(self, meta_information: dict):
         """
         Upload the meta-information in meta_information to following indices in OpenSearch:
         - project index: Derived from the field "00120020 ClinicalTrialProtocolID_keyword"
@@ -90,7 +90,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             clinical_trial_protocol_id = meta_information.get(
                 "00120020 ClinicalTrialProtocolID_keyword"
             )
-            project = self.get_project_by_name(clinical_trial_protocol_id)
+            project = get_project_by_name(clinical_trial_protocol_id)
             self.push_to_opensearch_index(
                 new_document=meta_information,
                 opensearch_index=project.get("opensearch_index"),
@@ -189,7 +189,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     with open(json_file, encoding="utf-8") as f:
                         for line in f:
                             obj = json.loads(line)
-                            self.push_to_opensearch(obj)
+                            self.push_to_project_and_admin_index(obj)
             else:
                 json_dir = os.path.join(
                     batch_element_dir, self.json_operator.operator_out_dir
@@ -202,13 +202,17 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     logger.info(f"Pushing file: {json_file} to META!")
                     with open(json_file, encoding="utf-8") as f:
                         new_json = json.load(f)
-                    self.push_to_opensearch(new_json)
+                    self.push_to_project_and_admin_index(new_json)
 
-    def get_project_by_name(self, project_name: str):
-        response = requests.get(
-            f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
-            params={"name": project_name},
-        )
-        response.raise_for_status()
-        project = response.json()
-        return project
+
+def get_project_by_name(project_name: str):
+    """
+    Return the project with the given name from the access-information-interface.
+    """
+    response = requests.get(
+        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}",
+        params={"name": project_name},
+    )
+    response.raise_for_status()
+    project = response.json()
+    return project

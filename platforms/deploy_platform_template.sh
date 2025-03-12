@@ -927,8 +927,8 @@ echo "Report created on $(date +'%Y-%m-%d')"
 uptime
 free
 
---- "Last Boot Log"
-journalctl -b
+--- "Last 2H Log"
+journalctl --since "2 hours ago"
 
 --- "Pod Status"
 microk8s.kubectl get pods -A

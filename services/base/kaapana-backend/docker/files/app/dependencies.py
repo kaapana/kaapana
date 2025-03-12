@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from .monitoring.services import MonitoringService
 from .users.services import UserService
 import json
+import jwt
+import httpx
 
 # from .workflows.services import WorkflowService
 from .workflows.models import KaapanaInstance
@@ -65,8 +67,29 @@ def get_opensearch(request: Request):
     x_auth_token = request.headers.get("x-forwarded-access-token")
     yield get_opensearch_client(access_token=x_auth_token)
 
+def get_project(request:Request):
+    project = request.headers.get("Project")
+    return json.loads(project)
 
-def get_project_index(request: Request):
-    project_header = request.headers.get("Project")
-    project = json.loads(project_header)
+def get_project_index(project=Depends(get_project)):
     return project.get("opensearch_index")
+
+
+def get_allowed_software(project=Depends(get_project)) -> list:
+    enabled_software_in_project = httpx.get(
+        f"http://aii-service.services.svc:8080/projects/{project.get("name")}/software-mappings"
+    ).json()
+    return [
+        software.get("software_uuid") for software in enabled_software_in_project
+    ]
+
+def get_access_token(request: Request):
+    access_token = request.headers.get("x-forwarded-access-token", None)
+    if access_token is None:
+        decoded_access_token = {}
+    else:
+        decoded_access_token = jwt.decode(
+            access_token, options={"verify_signature": False}
+        )
+    return decoded_access_token
+

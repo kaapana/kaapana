@@ -1,5 +1,4 @@
 import logging
-import re
 from typing import List
 
 from app.database import get_session
@@ -7,6 +6,8 @@ from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.projects import crud, kubehelm, minio, opensearch, schemas
 from app.schemas import KeycloakUser
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
+import json
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +27,14 @@ async def projects(
     ),
     minio_helper: minio.MinioHelper = Depends(minio.get_minio_helper),
 ):
+    """
+    Create a new Kaapana project:
+    - Create a new project in the database
+    - Create a project index in OpenSearch as well as the necessary roles and role-mappings
+    - Create a project bucket in Minio as well as the necessary policies
+    - Install the project-namespace Helm chart
+    - Add default software mappings to the project.
+    """
     try:
         await opensearch_helper.check_project_template_exists()
     except Exception as e:
@@ -40,6 +49,14 @@ async def projects(
     await opensearch_helper.setup_new_project(project=created_project, session=session)
     await minio_helper.setup_new_project(project=created_project, session=session)
     kubehelm.install_project_helm_chart(created_project)
+
+    with open("/app/config/default_software.json") as f:
+        default_software = json.load(f)
+    for mapping in default_software:
+        await crud.create_software_mapping(
+            session, created_project.id, mapping.get("software_uuid")
+        )
+
     return created_project
 
 
@@ -221,3 +238,56 @@ async def delete_user_project_role_mapping(
         )
     else:
         raise HTTPException(status_code=404, detail="Mapping not found")
+
+
+### Software separation
+
+
+@router.get(
+    "/{project_name}/software-mappings",
+    response_model=List[schemas.Software],
+    tags=["Projects"],
+)
+async def get_software_mappings(
+    project_name: str, session: AsyncSession = Depends(get_session)
+) -> List[schemas.Software]:
+    project: schemas.Project = await get_project_by_name(project_name, session)
+    return await crud.get_software_mappings_by_project_id(session, project.id)
+
+
+@router.post(
+    "/{project_name}/software-mappings",
+    response_model=List[schemas.Software],
+    tags=["Projects"],
+)
+async def create_software_mappings(
+    project_name: str,
+    softwares: List[schemas.Software],
+    session: AsyncSession = Depends(get_session),
+):
+    project: schemas.Project = await get_project_by_name(project_name, session)
+
+    return [
+        await crud.create_software_mapping(
+            session, project_id=project.id, software_uuid=software.software_uuid
+        )
+        for software in softwares
+    ]
+
+
+@router.delete(
+    "/{project_name}/software-mappings",
+    tags=["Projects"],
+)
+async def delete_software_mappings(
+    project_name: str,
+    softwares: List[schemas.Software],
+    session: AsyncSession = Depends(get_session),
+):
+    project: schemas.Project = await get_project_by_name(project_name, session)
+    for software in softwares:
+        await crud.delete_software_mapping(
+            session, project_id=project.id, software_uuid=software.software_uuid
+        )
+
+    return Response(status_code=204)

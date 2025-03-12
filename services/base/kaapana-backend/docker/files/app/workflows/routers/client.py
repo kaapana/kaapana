@@ -4,6 +4,7 @@ import logging
 import math
 import os
 import random
+import httpx
 import shutil
 import string
 import uuid
@@ -16,7 +17,7 @@ import jsonschema
 import jsonschema.exceptions
 from app.datasets.routers import get_aggregatedSeriesNum
 from app.datasets.utils import MAX_RETURN_LIMIT, execute_initial_search
-from app.dependencies import get_db, get_opensearch, get_project_index
+from app.dependencies import get_db, get_opensearch, get_allowed_software, get_access_token, get_project
 from app.workflows import crud, schemas
 from app.workflows.utils import get_dag_list
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -320,8 +321,12 @@ def delete_job_force(job_id: int, db: Session = Depends(get_db)):
 
 # needed?
 @router.get("/dags")
-async def dags(only_dag_names: bool = True):
-    return get_dag_list(only_dag_names=only_dag_names)
+async def dags(
+    only_dag_names: bool = True, allowed_software=Depends(get_allowed_software)
+):
+    return get_dag_list(
+        only_dag_names=only_dag_names, filter_allowed_dags=allowed_software
+    )
 
 
 @router.get("/get-job-taskinstances")
@@ -333,11 +338,8 @@ def get_job_taskinstances(job_id: int, db: Session = Depends(get_db)):
 def get_dags(
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
+    allowed_software=Depends(get_allowed_software),
 ):
-    # if (filter_kaapana_instances.remote is False):  # necessary from old implementation to get dags in client instance view
-    #     dags = get_dag_list(only_dag_names=True)
-    #     return JSONResponse(content=dags)
-
     dags = {}
     for instance_name in filter_kaapana_instances.instance_names:
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
@@ -348,6 +350,7 @@ def get_dags(
             dags[db_kaapana_instance.instance_name] = get_dag_list(
                 only_dag_names=filter_kaapana_instances.only_dag_names,
                 kind_of_dags=filter_kaapana_instances.kind_of_dags,
+                filter_allowed_dags=allowed_software,
             )
 
     if (
@@ -374,6 +377,7 @@ def ui_form_schemas(
     request: Request,
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
+    allowed_software=Depends(get_allowed_software),
 ):
     username = request.headers["x-forwarded-preferred-username"]
     dags = {}
@@ -382,7 +386,8 @@ def ui_form_schemas(
         db_kaapana_instance = crud.get_kaapana_instance(db, instance_name)
         if not db_kaapana_instance.remote:
             allowed_dags = get_dag_list(
-                only_dag_names=False
+                only_dag_names=False,
+                filter_allowed_dags=allowed_software,
             )  # get dags incl. its meta information (not only dag_name)
         else:
             allowed_dags = db_kaapana_instance.allowed_dags
@@ -630,15 +635,30 @@ def delete_datasets(db: Session = Depends(get_db)):
 def create_workflow(
     request: Request,
     json_schema_data: schemas.JsonSchemaData,
+    access_token = Depends(get_access_token),
     db: Session = Depends(get_db),
+    project=Depends(get_project)
 ):
     # exception handling for admin requests via fastapi's kaapana-backend/docs
     # necessary for maually restarting federated workflows via recovery_conf
-    try:
-        project = request.headers.get("Project")
-        json_schema_data.conf_data["project_form"] = json.loads(project)
-    except:
+    json_schema_data.conf_data["project_form"] = project
+    
+    if "admin" in access_token.get("realm_access",{}).get("roles",[]):
         pass
+    else:
+        # Get all software-mappings for the project
+        # and verify that the current user is allowed to create the workflow
+        aii_response = httpx.get(
+            f"http://aii-service.services.svc:8080/projects/{project.get("name")}/software-mappings"
+        )
+        software_mappings = aii_response.json()
+        dag_id = json_schema_data.dag_id
+        if dag_id not in [mapping.get("software_uuid") for mapping in software_mappings]:
+            raise HTTPException(
+                status_code=403,
+                detail="Unauthorized to start this workflow."
+            )
+
 
     # validate incoming json_schema_data
     try:
@@ -710,6 +730,7 @@ def create_workflow(
                 "involved_instances"
             ],
             "federated": json_schema_data.federated,
+            "project_id": project.get("id"),
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)
@@ -764,7 +785,6 @@ def get_workflow(
 )
 # also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
 def get_workflows(
-    request: Request,
     instance_name: str = None,
     involved_instance_name: str = None,
     workflow_job_id: int = None,
@@ -772,7 +792,9 @@ def get_workflows(
     offset: int = 0,
     search: str = None,
     db: Session = Depends(get_db),
+    project = Depends(get_project)
 ):
+    
     workflows, total_items = crud.get_workflows(
         db,
         instance_name,
@@ -781,6 +803,7 @@ def get_workflows(
         limit=limit,
         offset=offset,
         search=search,
+        project_id=project.get("id")
     )
     for workflow in workflows:
         if workflow.kaapana_instance:

@@ -20,3 +20,7 @@ export type UserRole = {
     description: string,
     name: string,
 }
+
+export type Software = {
+    software_uuid: string
+}

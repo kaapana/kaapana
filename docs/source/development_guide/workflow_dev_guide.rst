@@ -13,6 +13,11 @@ The platform's data (provided by Kaapana's :ref:`storage stack<store>`) can be e
 or further inspected via the Meta-Dashboard.
 In order to integrate your custom workflow, we will use the python API for Apache Airflow to create Directed Acyclic Graphs (DAGs).
 
+.. important::
+    As of version 0.5.0 worklow execution is controlled on project level.
+    Before you can execute a new workflow, you have to add it to the list of enabled software for your project in the :ref:`Project Management <projects>` view.
+    
+
 .. _write your first own dag:
 
 Write your first own DAG

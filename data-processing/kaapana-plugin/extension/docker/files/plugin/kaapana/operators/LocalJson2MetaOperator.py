@@ -152,12 +152,11 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         try:
             old_document = self.os_client.get(index=opensearch_index, id=id)["_source"]
             logger.debug("Series already exists. Update the corresponding document.")
+            old_document.update(new_document)
+            return old_document
         except NotFoundError as e:
             logger.debug("Series not found in opensearch. Push new document.")
             return new_document
-
-        old_document.update(new_document)
-        return old_document
 
     def start(self, ds, **kwargs):
         self.os_client = get_opensearch_client()

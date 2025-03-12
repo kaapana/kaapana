@@ -848,9 +848,9 @@ def get_remote_updates(db: Session, periodically=False):
                 ]
 
             incoming_job["kaapana_instance_id"] = db_client_kaapana.id
-            incoming_job[
-                "owner_kaapana_instance_name"
-            ] = db_remote_kaapana_instance.instance_name
+            incoming_job["owner_kaapana_instance_name"] = (
+                db_remote_kaapana_instance.instance_name
+            )
             incoming_job["external_job_id"] = incoming_job["id"]
             incoming_job["status"] = "pending"
 
@@ -1339,6 +1339,7 @@ def create_workflow(
         time_created=utc_timestamp,
         time_updated=utc_timestamp,
         federated=workflow.federated,
+        project_id=workflow.project_id,
     )
     if db_kaapana_instance.remote is False:
         # db_kaapana_instance.remote is False aka. db_kaapana_instance == db_local_kaapana_instance
@@ -1507,6 +1508,7 @@ def get_workflows(
     limit: Optional[int] = -1,  # v-data-table return -1 for option `all
     offset: int = 0,
     search: Optional[str] = None,
+    project_id: Optional[int] = None,
 ):
     if limit == -1:
         limit = None
@@ -1532,6 +1534,9 @@ def get_workflows(
         )
     if search is not None:
         query = query.filter(models.Workflow.workflow_name.ilike(f"%{search}%"))
+
+    if project_id:
+        query = query.filter(models.Workflow.project_id == project_id)
 
     workflows = (
         query.order_by(desc(models.Workflow.time_updated))

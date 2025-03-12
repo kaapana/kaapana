@@ -121,3 +121,7 @@ class Role(OrmBaseModel):
     id: int
     description: str
     name: str
+
+
+class Software(OrmBaseModel):
+    software_uuid: str

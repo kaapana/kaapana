@@ -83,7 +83,65 @@
                 </v-sheet>
             </v-col>
         </v-row>
+        <v-row justify="space-between">
+            <v-col>
+                    <v-row justify="space-between">
+                    <v-col cols="6">
+                        <h5 class="text-h5 py-4">Project Software</h5>
+                    </v-col>
+                    <v-col cols="4" class="d-flex justify-end align-center">
+                        <v-btn  block @click="softwareDialog = true" size="large" prepend-icon="mdi-gamepad-variant" v-if="userHasAdminAccess">
+                            Add software to Project
+                        </v-btn>
+                    </v-col>
+                </v-row>
+                        <v-table v-if="allowedSoftware.length > 0">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th class="text-left">
+                                        Software Identifier
+                                    </th>
+                                    <th class="text-center" v-if="userHasAdminAccess">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in allowedSoftware" :key="item.software_uuid">
+                                    <td><v-icon>mdi-gamepad-variant</v-icon></td>
+                                    <td>{{ item.software_uuid }}</td>
+                                    <td class="text-center" v-if="userHasAdminAccess">
+                                        <v-btn @click="confirmSoftwareMappingDeletion(item.software_uuid)" density="default"
+                                            icon="mdi-trash-can"></v-btn>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </v-table>
+                        <v-sheet rounded v-if="allowedSoftware.length == 0">
+                            <v-container>
+                                <v-row align="center" justify="center" no-gutters>
+                                    <v-icon icon="mdi-information" size="x-large" class="large-font"</v-icon>
+                                </v-row>
+                                <v-row align="center" justify="center" no-gutters class="py-6">                            
+                                    <div class="text-subtitle-1 font-weight-light text-center">
+                                        No DAG allowed for this Project. Click the following button to allow a DAG.
+                                    </div>
+                                </v-row>
+                                <v-row align="center" justify="center" no-gutters>
+                                    <v-btn @click="softwareDialog = true" size="large" variant="outlined" prepend-icon="mdi-gamepad-variant">
+                                        Add DAG to project
+                                    </v-btn>
+                                </v-row>
+                            </v-container>
+                        </v-sheet>
+                    </v-col>
+                </v-row>
+                
     </v-container>
+    <v-dialog v-model="softwareDialog" max-width="1000">
+        <AddSoftwareToProject :project-name="projectId" :current-software="allowedSoftware" :oncancel="resetSoftwareFormValues" :onsuccess="handleSoftwareSubmit"/>
+    </v-dialog>
     <v-dialog v-model="userDialog" max-width="1000">
         <AddUserToProject :project-name="projectId" :current-user-ids="userIds" :onsuccess="handleUserSubmit"
             :oncancel="resetUserFormValues" />
@@ -98,8 +156,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import { aiiApiGet, aiiApiDelete } from '@/common/aiiApi.service'
-import { ProjectItem, UserItem, UserRole } from '@/common/types'
+import { ProjectItem, UserItem, UserRole, Software } from '@/common/types'
 import AddUserToProject from '@/components/AddUserToProject.vue'
+import AddSoftwareToProject from '@/components/AddSoftwareToProject.vue'
 import store from "@/common/store";
 
 // const route = useRoute()
@@ -125,11 +184,14 @@ export default defineComponent({
             userEditDialog: false,
             selectedUser: undefined as User | undefined,
             userHasAdminAccess: false,
+            allowedSoftware: [] as Software[],
+            softwareDialog: false,          
         };
     },
     mounted() {
         this.fetchProjectDetails();
         this.fetchProjectUsers();
+        this.fetchProjectSoftware();
         
         // set the userAdminAccess by watching the changes in store user
         const setAdminAccessRef = this.setUserAdminAccess;
@@ -235,6 +297,53 @@ export default defineComponent({
                     console.log(error);
                 }
             }
+        },
+        fetchProjectSoftware() {
+            if (this.projectId) {
+                try {
+                    aiiApiGet(`projects/${this.projectId}/software-mappings`).then((software: any) => {
+                        console.log(software)
+                        this.allowedSoftware = software.sort((a: Software, b: Software) => {
+                            return a.software_uuid.localeCompare(b.software_uuid);
+                        }); 
+                    })
+                } catch (error: unknown) {
+                    console.log(error);
+                }
+            }
+        },
+        deleteSoftwareMapping(softwareUuid: string) {
+            const data = [
+                {
+                software_uuid: softwareUuid,
+                },
+            ];
+            if (this.projectId) {
+                try {
+                    aiiApiDelete(`projects/${this.projectId}/software-mappings`, {},data).then((success: boolean) => {
+                        if (success) {
+                            this.fetchProjectSoftware();
+                        }
+                    })
+                } catch (error: unknown) {
+                    console.log(error);
+                }
+            }
+        },
+        async confirmSoftwareMappingDeletion(softwareUuid: string) {
+            // @ts-ignore
+            if (await this.$refs.confirm.open('Delete Software from project', 'Are you sure?', { color: 'red' })) {
+                this.deleteSoftwareMapping(softwareUuid);
+            }
+        },
+        resetSoftwareFormValues() {
+            this.softwareDialog = false;
+        },
+        handleSoftwareSubmit(success: boolean = true) {
+            if (success) {
+                this.fetchProjectSoftware();
+            }
+            this.resetSoftwareFormValues();
         },
     }
 })

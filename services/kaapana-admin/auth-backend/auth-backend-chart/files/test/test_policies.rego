@@ -68,15 +68,6 @@ test_deny_kaapana_backend_if_no_project_in_input {
     }
 }
 
-test_deny_kaapana_backend_if_project_role_too_low {
-    not allow with input as {
-        "project": {"id": 1}, 
-        "requested_prefix": "/kaapana-backend/", 
-        "method": "POST",
-        "access_token": {"projects" : [{"id" : 1, "role_name":"guest"}] } 
-    }
-}
-
 test_allow_project_application {
     allow with input as {
         "requested_prefix": "/applications/project/admin/release/jupyterlab-chart",

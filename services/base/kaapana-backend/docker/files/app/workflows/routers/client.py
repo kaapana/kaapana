@@ -198,12 +198,10 @@ def put_remote_kaapana_instance(
 
 @router.put("/client-kaapana-instance", response_model=schemas.KaapanaInstance)
 def put_client_kaapana_instance(
-    request: Request,
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
     db: Session = Depends(get_db),
+    project=Depends(get_project)
 ):
-    project = request.headers.get("Project")
-    project = json.loads(project)
     return schemas.KaapanaInstance.clean_return(
         crud.create_and_update_client_kaapana_instance(
             db=db,
@@ -384,9 +382,8 @@ def ui_form_schemas(
     filter_kaapana_instances: schemas.FilterKaapanaInstances = None,
     db: Session = Depends(get_db),
     allowed_software=Depends(get_allowed_software),
+    project=Depends(get_project)
 ):
-    project = request.headers.get("Project")
-    project = json.loads(project)
     username = request.headers["x-forwarded-preferred-username"]
     dags = {}
     just_all_dags = {}
@@ -518,9 +515,8 @@ def create_dataset(
     request: Request,
     dataset: Union[schemas.DatasetCreate, None] = None,
     db: Session = Depends(get_db),
+    project=Depends(get_project)
 ):
-    project = request.headers.get("Project")
-    project = json.loads(project)
     dataset.username = request.headers["x-forwarded-preferred-username"]
     db_obj = crud.create_dataset(db=db, dataset=dataset, project_id=project.get("id"))
 
@@ -580,10 +576,11 @@ async def create_dataset_from_query(
 
 
 @router.get("/dataset", response_model=schemas.Dataset)
-def get_dataset(request: Request, name: str, db: Session = Depends(get_db)):
-    project = request.headers.get("Project")
-    project = json.loads(project)
-
+def get_dataset(
+    name: str, 
+    db: Session = Depends(get_db),
+    project=Depends(get_project)
+):
     db_obj = crud.get_dataset(db, name, project_id=project.get("id"))
     return schemas.Dataset(
         name=db_obj.name,
@@ -600,9 +597,8 @@ def get_datasets(
     instance_name: str = None,
     limit: int = None,
     db: Session = Depends(get_db),
+    project=Depends(get_project)
 ):
-    project = request.headers.get("Project")
-    project = json.loads(project)
     db_objs = crud.get_datasets(
         db,
         limit=limit,
@@ -624,10 +620,10 @@ def get_datasets(
 
 @router.put("/dataset", response_model=schemas.Dataset)
 def put_dataset(
-    request: Request, dataset: schemas.DatasetUpdate, db: Session = Depends(get_db)
+    dataset: schemas.DatasetUpdate, 
+    db: Session = Depends(get_db),
+    project=Depends(get_project)
 ):
-    project = request.headers.get("Project")
-    project = json.loads(project)
     db_obj = crud.update_dataset(db, dataset, project_id=project.get("id"))
     return schemas.Dataset(
         name=db_obj.name,
@@ -639,9 +635,11 @@ def put_dataset(
 
 
 @router.delete("/dataset")
-def delete_dataset(request: Request, name: str, db: Session = Depends(get_db)):
-    project = request.headers.get("Project")
-    project = json.loads(project)
+def delete_dataset(
+    name: str, 
+    db: Session = Depends(get_db),
+    project=Depends(get_project)
+):
     return crud.delete_dataset(db, name, project_id=project.get("id"))
 
 

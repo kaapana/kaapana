@@ -17,7 +17,7 @@ import jsonschema
 import jsonschema.exceptions
 from app.datasets.routers import get_aggregatedSeriesNum
 from app.datasets.utils import MAX_RETURN_LIMIT, execute_initial_search
-from app.dependencies import get_db, get_opensearch, get_allowed_software, get_access_token
+from app.dependencies import get_db, get_opensearch, get_allowed_software, get_access_token, get_project
 from app.workflows import crud, schemas
 from app.workflows.utils import get_dag_list
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
@@ -637,11 +637,10 @@ def create_workflow(
     json_schema_data: schemas.JsonSchemaData,
     access_token = Depends(get_access_token),
     db: Session = Depends(get_db),
+    project=Depends(get_project)
 ):
     # exception handling for admin requests via fastapi's kaapana-backend/docs
     # necessary for maually restarting federated workflows via recovery_conf
-    project = request.headers.get("Project")
-    project = json.loads(project)
     json_schema_data.conf_data["project_form"] = project
     
     if "admin" in access_token.get("realm_access",{}).get("roles",[]):
@@ -786,7 +785,6 @@ def get_workflow(
 )
 # also okay: response_model=List[schemas.Workflow] ; List[schemas.WorkflowWithKaapanaInstance]
 def get_workflows(
-    request: Request,
     instance_name: str = None,
     involved_instance_name: str = None,
     workflow_job_id: int = None,
@@ -794,10 +792,9 @@ def get_workflows(
     offset: int = 0,
     search: str = None,
     db: Session = Depends(get_db),
+    project = Depends(get_project)
 ):
     
-    project = request.headers.get("Project")
-    project = json.loads(project)
     workflows, total_items = crud.get_workflows(
         db,
         instance_name,

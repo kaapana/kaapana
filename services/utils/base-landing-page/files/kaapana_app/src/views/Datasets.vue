@@ -164,6 +164,22 @@
                         </template>
                         <span>Start Workflow</span>
                       </v-tooltip>
+                      <v-tooltip bottom>
+                        <template v-slot:activator="{ on }">
+                          <span v-on="on">
+                            <v-btn :disabled="identifiersOfInterest.length == 0" icon>
+                              <v-icon
+                                v-on="on"
+                                color="primary"
+                                @click="() => console.log('clicked')"
+                              >
+                                mdi-download-circle
+                              </v-icon>
+                            </v-btn>
+                          </span>
+                        </template>
+                        <span>Download {{ this.$store.getters.downloadDagId }}</span>
+                      </v-tooltip>
                     </v-col>
                   </v-row>
                 </v-card-title>

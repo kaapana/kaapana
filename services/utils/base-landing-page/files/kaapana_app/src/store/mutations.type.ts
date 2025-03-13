@@ -6,3 +6,5 @@ export const SET_COMMON_DATA = 'set_common_data'
 export const SET_POLICY_DATA = 'set_policy_data'
 export const SET_SELECTED_PROJECT = 'set_selected_project'
 export const SET_AVAILABLE_PROJECTS = 'set_available_project'
+// Download modules mutations
+export const SET_DOWNLOAD_DAG_ID = 'set_download_dag_id'

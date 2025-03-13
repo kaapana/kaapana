@@ -23,7 +23,7 @@ with SessionLocal() as db:
                 }
             )
             db_client_kaapana_instance = create_and_update_client_kaapana_instance(
-                db, client_kaapana_instance=client_kaapana_instance
+                db, client_kaapana_instance=client_kaapana_instance, project_id=1
             )
             logging.info("Client instance created!")
         for db_kaapana_instance in db_kaapana_instances:

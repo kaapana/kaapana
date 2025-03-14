@@ -80,17 +80,5 @@ dependencies:
     version: 0.0.0
   # - name: desktop-container-chart
   #   version: 0.0.0
-  #### EXAMPLE WORKFLOWS ####
-  # - name: otsus-method-workflow
-  #   version: 0.0.0
-  # - name: example-workflow
-  #   version: 0.0.0
-  # - name: pyradiomics-feature-extractor-workflow
-  #   version: 0.0.0
-  #### EXAMPLE APPLICATIONS ####
-  # - name: hello-backend-chart
-  #   version: 0.0.0
-  # - name: hello-world-chart
-  #   version: 0.0.0
-  - name: body-and-organ-analysis-workflow
+  - name: faiss-workflow
     version: 0.0.0

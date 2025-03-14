@@ -1,0 +1,6 @@
+pydicom
+Pillow
+torch
+open_clip_torch==2.23.0
+numpy
+transformers==4.48.0

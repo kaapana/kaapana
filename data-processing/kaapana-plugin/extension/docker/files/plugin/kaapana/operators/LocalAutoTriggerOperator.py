@@ -13,6 +13,7 @@ from airflow.models import DagBag
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.blueprints.kaapana_utils import generate_run_id
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 
 
 # Define a function to convert a string to camel case
@@ -29,6 +30,14 @@ def camel_case(s: str):
 # from the backend
 def ignore_service_prefix(dagname: str):
     return dagname.replace("service-", "")
+
+
+def _get_project_by_name(project_name):
+    response = requests.get(
+        f"http://aii-service.{SERVICES_NAMESPACE}.svc:8080/projects/{project_name}"
+    )
+    response.raise_for_status()
+    return response.json()
 
 
 class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
@@ -85,9 +94,12 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                 if dag.dag_id == dag_id:
                     print(f"# found dag_id: {dag.dag_id}")
                     for task in dag.tasks:
-                        if "LocalGetInputDataOperator" == task.__class__.__name__:
+                        if (
+                            LocalGetInputDataOperator.__name__
+                            == task.__class__.__name__
+                        ):
                             print(
-                                f"# found LocalGetInputDataOperator task: {task.name}"
+                                f"# found {LocalGetInputDataOperator.__name__} task: {task.name}"
                             )
                             get_input_dir_name = task.operator_out_dir
                             target = os.path.join(
@@ -288,7 +300,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                         print(f"# Match for tag {dicom_tag}! -> triggering")
                     print(f"#")
 
-                if fullfills_all_search_tags is True:
+                if fullfills_all_search_tags:
                     for (
                         dag_id,
                         conf,
@@ -320,6 +332,9 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
                                 dag_run_id=dag_run_id,
                                 series_uid=series_uid,
                                 conf=conf,
+                            )
+                            conf["project_form"] = _get_project_by_name(
+                                dcm_dataset.removeprefix("kp-")
                             )
                             if not single_execution:
                                 for i in range(len(triggering_list)):

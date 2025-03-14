@@ -15,6 +15,7 @@ index_template_body = {
             "index.number_of_shards": "4",
             "index.number_of_replicas": "0",
             "index.max_docvalue_fields_search": "150",
+            "index.knn": True,  # Enable k-NN for the index
         },
         "mappings": {
             "numeric_detection": False,
@@ -98,7 +99,24 @@ index_template_body = {
                 },
             ],
             "date_detection": False,
-            "properties": {},
+            "properties": {
+                "instances": {
+                    "type": "nested",
+                    "properties": {
+                        "sopInstanceUID": {"type": "keyword"},
+                        "image_embedding": {
+                            "type": "knn_vector",
+                            "dimension": 512,
+                            "method": {
+                                "name": "hnsw",
+                                "engine": "faiss",
+                                "space_type": "l2",
+                                "parameters": {"ef_construction": 128, "m": 24},
+                            },
+                        },
+                    },
+                }
+            },
         },
     },
     "composed_of": [],
@@ -114,6 +132,7 @@ index_body = {
             "number_of_shards": 4,
             "mapping.total_fields.limit": 6000,
             "max_docvalue_fields_search": 150,
+            "index.knn": True,  # Enable k-NN for the index
         }
     },
     "mappings": {
@@ -198,6 +217,24 @@ index_body = {
                 }
             },
         ],
+        "properties": {
+            "instances": {
+                "type": "nested",
+                "properties": {
+                    "sopInstanceUID": {"type": "keyword"},
+                    "image_embedding": {
+                        "type": "knn_vector",
+                        "dimension": 512,
+                        "method": {
+                            "name": "hnsw",
+                            "engine": "faiss",
+                            "space_type": "l2",
+                            "parameters": {"ef_construction": 128, "m": 24},
+                        },
+                    },
+                },
+            }
+        },
     },
 }
 

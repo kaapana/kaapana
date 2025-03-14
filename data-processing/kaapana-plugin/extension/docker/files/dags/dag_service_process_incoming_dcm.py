@@ -106,6 +106,7 @@ check_completeness = CheckCompletenessOperator(
     dag=dag,
     name="check-completeness",
     input_operator=get_input,
+    dev_server="code-server",
 )
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
@@ -128,6 +129,7 @@ generate_thumbnail = GenerateThumbnailOperator(
     input_operator=get_input,
     get_ref_series_operator=get_ref_ct_series,
     trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
+    dev_server="code-server",
 )
 
 

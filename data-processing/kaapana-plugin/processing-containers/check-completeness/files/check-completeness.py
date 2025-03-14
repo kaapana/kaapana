@@ -1,10 +1,12 @@
-from dataclasses import dataclass
 import os
+import pydicom
+from dataclasses import dataclass
+
 from pathlib import Path
 from typing import List, Optional
-
+from dataclasses import dataclass
 from opensearchpy import OpenSearch
-import pydicom
+
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
@@ -26,10 +28,10 @@ processed_count = 0
 class SeriesMetadata:
     """Represents metadata about a DICOM series retrieved from OpenSearch."""
 
-    min_slice_index: int
-    max_slice_index: int
+    min_instance_number: int
+    max_instance_number: int
     is_series_complete: bool
-    missing_slices: Optional[List[int]] = None
+    missing_instance_numbers: Optional[List[int]] = None
 
 
 def get_opensearch_series_metadata(
@@ -37,17 +39,17 @@ def get_opensearch_series_metadata(
 ) -> SeriesMetadata | None:
     response = client.search(
         index=index,
-        body={"query": {"match": {"SeriesInstanceUID": series_uid}}},
+        body={"query": {"match": {DicomTags.series_uid_tag: series_uid}}},
     )
 
     hits = response.get("hits", {}).get("hits", [])
     if hits:
         source = hits[0].get("_source", {})
         return SeriesMetadata(
-            min_slice_index=source.get(DicomTags.min_slice_index_tag),
-            max_slice_index=source.get(DicomTags.max_slice_index_tag),
+            min_instance_number=source.get(DicomTags.min_instance_number_tag),
+            max_instance_number=source.get(DicomTags.max_instance_number_tag),
             is_series_complete=source.get(DicomTags.is_series_complete_tag),
-            missing_slices=source.get(DicomTags.missing_slices_tag),
+            missing_instance_numbers=source.get(DicomTags.missing_instance_numbers_tag),
         )
 
     return None
@@ -61,56 +63,28 @@ def update_opensearch(
         id=series_uid,
         body={
             "doc": {
-                DicomTags.min_slice_index_tag: series_metadata.min_slice_index,
-                DicomTags.max_slice_index_tag: series_metadata.max_slice_index,
+                DicomTags.min_instance_number_tag: series_metadata.min_instance_number,
+                DicomTags.max_instance_number_tag: series_metadata.max_instance_number,
                 DicomTags.is_series_complete_tag: series_metadata.is_series_complete,
+                DicomTags.missing_instance_numbers_tag: series_metadata.missing_instance_numbers,
             },
             "doc_as_upsert": False,  # Do not insert if not exist and fail instead
         },
         refresh=True,
     )
     logger.info(f"Updated OpenSearch for Series {series_uid}")
-    logger.info(f"min={series_metadata.min_slice_index}")
-    logger.info(f"max={series_metadata.max_slice_index}")
+    logger.info(f"min={series_metadata.min_instance_number}")
+    logger.info(f"max={series_metadata.max_instance_number}")
     logger.info(f"is_series_complete={series_metadata.is_series_complete}")
-    logger.info(f"present_slices={series_metadata.missing_slices}")
-
-
-def merge_metadata(
-    old_series_metadata: SeriesMetadata, new_series_metadata: SeriesMetadata
-) -> SeriesMetadata:
-    min_slice_index = min(
-        old_series_metadata.min_slice_index, new_series_metadata.min_slice_index
-    )
-
-    max_slice_index = min(
-        old_series_metadata.max_slice_index, new_series_metadata.max_slice_index
-    )
-
-    merged_instance_mapping = {
-        **old_series_metadata.missing_slices,
-        **new_series_metadata.missing_slices,
-    }
-    # Determine expected slices based on the merged instance mapping
-    expected_slices = set(range(min_slice_index, max_slice_index + 1))
-    present_slices = set(merged_instance_mapping.keys())  # Keys are instance numbers
-
-    missing_slices = expected_slices - present_slices
-    is_series_complete = len(missing_slices) == 0
-
-    # Return a new merged SeriesMetadata
-    return SeriesMetadata(
-        min_slice_index=min_slice_index,
-        max_slice_index=max_slice_index,
-        is_series_complete=is_series_complete,
-        missing_slices=merged_instance_mapping,
-    )
+    logger.info(f"missing={series_metadata.missing_instance_numbers}")
 
 
 def check_completeness(operator_input_dir: Path, operator_out_dir: Path):
     """
     Checks if a DICOM series in `operator_input_dir` is complete by comparing
     the expected number of instances with the actual number of files present.
+
+    Push updated metadata to OpenSearch
 
     Args:
         operator_input_dir (Path): The directory containing DICOM files.
@@ -126,72 +100,117 @@ def check_completeness(operator_input_dir: Path, operator_out_dir: Path):
     else:
         opensearch_index = project_form.get("opensearch_index")
 
-    dicom_files = sorted(list(operator_input_dir.glob("*.dcm")))
-    if not dicom_files:
+    dicom_filenames = sorted(list(operator_input_dir.glob("*.dcm")))
+    if not dicom_filenames:
         return False, "No DICOM files found in the directory."
 
-    # Read metadata from the first DICOM file
-    first_dcm = pydicom.dcmread(dicom_files[0])
-    series_uid = first_dcm.SeriesInstanceUID
-    modality = first_dcm.Modality
+    dicom_files = [
+        pydicom.dcmread(dicom_filename) for dicom_filename in dicom_filenames
+    ]
+    series_uid = dicom_files[0].SeriesInstanceUID
+    modality = dicom_files[0].Modality
 
-    if hasattr(first_dcm, "InstanceNumber"):
-        pass
+    if all([hasattr(ds, "InstanceNumber") for ds in dicom_files]):
+        instance_numbers = [ds.InstanceNumber for ds in dicom_files]
+        min_instance_number = min(instance_numbers)
+        max_instance_number = max(instance_numbers)
+        expected_instance_numbers = set(
+            range(min_instance_number, max_instance_number + 1)
+        )
 
-    if hasattr(first_dcm, "PatientPosition"):
-        pass
+        missing_instance_numbers = expected_instance_numbers - set(instance_numbers)
+        is_series_complete = len(missing_instance_numbers) == 0
+        new_series_metadata = SeriesMetadata(
+            min_instance_number=min_instance_number,
+            max_instance_number=max_instance_number,
+            is_series_complete=is_series_complete,
+            missing_instance_numbers=sorted(list(missing_instance_numbers)),
+        )
+        old_series_metadata = get_opensearch_series_metadata(
+            client, opensearch_index, series_uid
+        )
+        if not old_series_metadata:
+            updated_series_metadata = new_series_metadata
+        else:
+            updated_series_metadata = update_metadata(
+                old_series_metadata=old_series_metadata,
+                new_series_metadata=new_series_metadata,
+            )
 
-    if hasattr(first_dcm, "FrameNumber"):
-        pass
-
-    if hasattr(first_dcm, "FrameReferenceTime"):
-        pass
-
-    
-
-    # Handle slice-based modalities
-    if not modality in ["CT", "MR", "PET", "PT", "SM"]:
+        update_opensearch(client, opensearch_index, series_uid, updated_series_metadata)
         processed_count += 1
-        return True, f"Completeness check not support for modality {modality}"
+        return True, f"Successfully updated series: {series_uid}"
 
-    if not hasattr(first_dcm, "InstanceNumber"):
-        logger.error("InstanceNumber missing!")
+    else:
+        logger.error(
+            "Required Dicom Tag InstanceNumber must be present in all instances"
+        )
+        processed_count += 1
         return (
             False,
-            f"InstanceNumber tag missing in series: {series_uid} for modality {modality}.",
+            f"Required Dicom Tag missing in series: {series_uid} for modality {modality}.",
         )
 
-    dicom_files = [pydicom.dcmread(f) for f in dicom_files]
-    instance_mapping = {ds.InstanceNumber: ds.SOPInstanceUID for ds in dicom_files}
 
-    # Determine min/max slice index
-    min_slice = min(instance_mapping.keys())
-    max_slice = max(instance_mapping.keys())
+def get_available_instance_numbers(metadata: SeriesMetadata) -> set:
+    """
+    Returns a set of available instance numbers for a given DICOM series metadata.
+    Calculated as complement of missing instance numbers to range (min, max).
 
-    expected_slices = set(range(min_slice, max_slice + 1))
-    actual_slices = set(instance_mapping.keys())
-    missing_slices = expected_slices - actual_slices
-    is_series_complete = len(missing_slices) == 0
+    Args:
+        metadata (SeriesMetadata): The metadata of the DICOM series.
 
-    old_series_metadata = get_opensearch_series_metadata(
-        client, opensearch_index, series_uid
+    Returns:
+        set: A set of available instance numbers.
+    """
+    full_range = set(
+        range(metadata.min_instance_number, metadata.max_instance_number + 1)
     )
-    new_series_metadata = SeriesMetadata(
-        min_slice_index=min_slice,
-        max_slice_index=max_slice,
+    return full_range - set(metadata.missing_instance_numbers)
+
+
+def update_metadata(
+    old_series_metadata: SeriesMetadata, new_series_metadata: SeriesMetadata
+) -> SeriesMetadata:
+    """
+    Merges two series metadata objects, updating the instance numbers and completeness.
+
+    The function calculates the updated `min_instance_number` and `max_instance_number`
+    based on the existing and new series metadata. It then computes `missing_instance_numbers`
+    as the instance numbers that are expected but not available in either of the metadata.
+    Finally, it sets `is_series_complete` to `True` if there are no missing instance numbers,
+    otherwise `False`.
+
+    Args:
+        old_series_metadata: The existing series metadata.
+        new_series_metadata: The new series metadata to update with.
+
+    Returns:
+        The updated series metadata.
+    """
+    min_instance_number = min(
+        old_series_metadata.min_instance_number, new_series_metadata.min_instance_number
+    )
+
+    max_instance_number = min(
+        old_series_metadata.max_instance_number, new_series_metadata.max_instance_number
+    )
+    expected_instance_numbers = set(range(min_instance_number, max_instance_number + 1))
+    old_available_instance_numbers = get_available_instance_numbers(old_series_metadata)
+    new_available_instance_numbers = get_available_instance_numbers(new_series_metadata)
+    missing_instance_numbers = (
+        expected_instance_numbers
+        - old_available_instance_numbers
+        - new_available_instance_numbers
+    )
+    is_series_complete = len(missing_instance_numbers) == 0
+
+    return SeriesMetadata(
+        min_instance_number=min_instance_number,
+        max_instance_number=max_instance_number,
         is_series_complete=is_series_complete,
-        missing_slices=instance_mapping,
+        missing_instance_numbers=sorted(list(missing_instance_numbers)),
     )
-    if old_series_metadata:
-        new_series_metadata = merge_metadata(
-            old_series_metadata=old_series_metadata,
-            new_series_metadata=new_series_metadata,
-        )
-
-    # if not old_series_metadata or new_series_metadata != old_series_metadata:
-    update_opensearch(client, opensearch_index, series_uid, new_series_metadata)
-    processed_count += 1
-    return True, f"Successfully updated series: {series_uid}"
 
 
 def main():

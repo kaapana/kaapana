@@ -16,11 +16,10 @@ class DicomTags:
     dcmweb_endpoint_tag = "00020026 SourcePresentationAddress_keyword"
     custom_tag = "00000000 Tags_keyword"
 
-
-    instance_number_tag = "00000000 MinSliceIndex_integer"
-    min_slice_index_tag = "00000000 MinSliceIndex_integer"
-    max_slice_index_tag = "00000000 MaxSliceIndex_integer"
+    min_instance_number_tag = "00000000 MinInstanceNumber_integer"
+    max_instance_number_tag = "00000000 MaxInstanceNumber_integer"
     is_series_complete_tag = "00000000 IsSeriesComplete_boolean"
+    missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_object"
 
 
 class HelperOpensearch:

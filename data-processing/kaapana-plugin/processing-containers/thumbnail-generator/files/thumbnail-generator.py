@@ -5,10 +5,11 @@ from random import randint
 import subprocess
 import tempfile
 import traceback
-from typing import Dict, List, Optional, Set, Tuple
+from typing import List, Optional
 
 import cv2
 import numpy as np
+from opensearchpy import OpenSearch
 import pydicom
 import pydicom_seg
 import SimpleITK as sitk
@@ -45,22 +46,19 @@ class Slice:
 
 @dataclass
 class SeriesMetadata:
-    min_slice_index: int
-    max_slice_index: int
+    """Represents metadata about a DICOM series retrieved from OpenSearch."""
+
+    min_instance_number: int
+    max_instance_number: int
     is_series_complete: bool
-    instance_mapping: Optional[Dict[int, str]] = None
+    missing_instance_numbers: Optional[List[int]] = None
 
 
-def get_opensearch_series_metadata(series_uid: str) -> SeriesMetadata | None:
-    client = get_opensearch_client()
-    workflow_config = load_workflow_config()
-    project_form = workflow_config.get("project_form")
-    if not project_form:
-        opensearch_index = OpensearchSettings().default_index
-    else:
-        opensearch_index = project_form.get("opensearch_index")
+def get_opensearch_series_metadata(
+    client: OpenSearch, index: str, series_uid: str
+) -> SeriesMetadata | None:
     response = client.search(
-        index=opensearch_index,
+        index=index,
         body={"query": {"match": {DicomTags.series_uid_tag: series_uid}}},
     )
 
@@ -68,10 +66,10 @@ def get_opensearch_series_metadata(series_uid: str) -> SeriesMetadata | None:
     if hits:
         source = hits[0].get("_source", {})
         return SeriesMetadata(
-            min_slice_index=source.get(DicomTags.min_slice_index_tag),
-            max_slice_index=source.get(DicomTags.max_slice_index_tag),
+            min_instance_number=source.get(DicomTags.min_instance_number_tag),
+            max_instance_number=source.get(DicomTags.max_instance_number_tag),
             is_series_complete=source.get(DicomTags.is_series_complete_tag),
-            instance_mapping=source.get(DicomTags.missing_slices_tag),
+            missing_instance_numbers=source.get(DicomTags.missing_instance_numbers_tag),
         )
 
     return None
@@ -121,6 +119,7 @@ def resample_segmentation_to_reference_image(
     ), f"Image and segmentation have different sizes: Image: {image.GetSize()}, Segmentation: {segmentation_resampled.GetSize()}"
 
     return image, segmentation_resampled
+
 
 def apply_windowing(
     pixel_array: np.ndarray, dicom_ds: pydicom.FileDataset
@@ -231,7 +230,9 @@ def dcm2png(dcm_file: str, thumbnail_size: int) -> Image:
     pixel_array = normalize_pixels(pixel_array)
 
     # Resize image
-    pixel_array = cv2.resize(pixel_array, (thumbnail_size, thumbnail_size), interpolation=cv2.INTER_AREA)
+    pixel_array = cv2.resize(
+        pixel_array, (thumbnail_size, thumbnail_size), interpolation=cv2.INTER_AREA
+    )
 
     # Convert to PIL Image (L mode for grayscale)
     image = Image.fromarray(pixel_array).convert("L")
@@ -239,19 +240,47 @@ def dcm2png(dcm_file: str, thumbnail_size: int) -> Image:
     return image
 
 
-def fetch_middle_slice_from_pacs(
-    study_uid: str,
-    series_uid: str,
-    instance_uid: str,
-    dcm_dir: Path,
-):
+def get_workflow_data_instance_uid(
+    dcm_dir: Path, middle_instance_number: int
+) -> str:
+    for filename in dcm_dir.iterdir():
+        dcm_file = pydicom.dcmread(filename)
+        if dcm_file.InstanceNumber == middle_instance_number:
+            return dcm_file.SOPInstanceUID
+
+
+def get_pacs_instance_uid(dcm_dir: Path, middle_instance_number: int, study_uid: str, series_uid: str):
+    """
+    Finds the SOPInstanceUID of the middle DICOM slice in a PACS. 
+    If found, also download the file into a local workflow data directory
+
+    Args:
+        dcm_dir (Path): Path to the directory containing the workflow DICOM files.
+        middle_instance_number (int): The middle instance number of the DICOM series.
+        study_uid (str): The StudyInstanceUID of the DICOM series.
+        series_uid (str): The SeriesInstanceUID of the DICOM series.
+
+    Returns:
+        str: The SOPInstanceUID of the middle DICOM slice.
+    """
     dcmweb_helper = HelperDcmWeb()
-    dcmweb_helper.download_instance(
+    instances = dcmweb_helper.get_instances_of_series(
         study_uid=study_uid,
         series_uid=series_uid,
-        instance_uid=instance_uid,
-        target_dir=dcm_dir,
+        params={"InstanceNumber": middle_instance_number},
     )
+    
+    if len(instances) == 1:
+        instance = instances[0]
+        instance_uid = instance["00080018"]
+        
+        dcmweb_helper.download_instance(
+            study_uid=study_uid,
+            series_uid=series_uid,
+            instance_uid=instance_uid,
+            target_dir=dcm_dir,
+        )
+        return instance_uid
 
 
 def generate_base_thumbnail(
@@ -266,30 +295,46 @@ def generate_base_thumbnail(
     Returns:
         A PIL Image object representing the thumbnail.
     """
-    series_metadata = get_opensearch_series_metadata(series_uid=series_uid)
-    
-    if not series_metadata.is_series_complete:
+    workflow_config = load_workflow_config()
+    client = get_opensearch_client()
+
+    project_form = workflow_config.get("project_form")
+    if not project_form:
+        opensearch_index = OpensearchSettings().default_index
+    else:
+        opensearch_index = project_form.get("opensearch_index")
+
+    series_metadata = get_opensearch_series_metadata(
+        client, opensearch_index, series_uid
+    )
+
+    if not series_metadata:
         logger.info("Series is not complete -> Not generating a thumbnail")
         return None
-    else:
-        middle_slice_index = (
-            series_metadata.min_slice_index + series_metadata.max_slice_index
-        ) // 2
-        instance_uid = series_metadata.instance_mapping[str(middle_slice_index)]
-        middle_slice_dicom_filename = dcm_dir / f"{instance_uid}.dcm"
 
-        if not middle_slice_dicom_filename.exists():
-            # Try fetch middle slice from Dcm4chee
-            fetch_middle_slice_from_pacs(study_uid, series_uid, instance_uid, dcm_dir)
-        
-        if not middle_slice_dicom_filename.exists():
-            # This should never happen
-            logger.error("Series is not complete -> Not generating a thumbnail")
-            return None
-        thumbnail = dcm2png(middle_slice_dicom_filename, thumbnail_size)
-        return thumbnail
+    middle_instance_number = (
+        series_metadata.min_instance_number + series_metadata.max_instance_number
+    ) // 2
 
+    instance_uid = get_workflow_data_instance_uid(dcm_dir=dcm_dir, middle_instance_number=middle_instance_number)
     
+    # Search and retrieve instance from PACS
+    if not instance_uid:
+        instance_uid = get_pacs_instance_uid(dcm_dir=dcm_dir, middle_instance_number=middle_instance_number, study_uid=study_uid, series_uid=series_uid)
+
+    if not instance_uid:
+        logger.error(f"Couldn't find SOPInstanceUID for InstanceNumber: {middle_instance_number}")
+        return None
+        
+    middle_slice_dicom_filename = dcm_dir / f"{instance_uid}.dcm"
+
+    if not middle_slice_dicom_filename.exists():
+        # This should never happen
+        logger.error("Series is not complete and missing middle slice -> Not generating a thumbnail")
+        return None
+    
+    thumbnail = dcm2png(middle_slice_dicom_filename, thumbnail_size)
+    return thumbnail
 
 
 def generate_RTSTRUCT_thumbnail(
@@ -442,9 +487,12 @@ def generate_thumbnail(
     # Segmentation
 
     # Load the image and segmentation (and segment colors)
-    if modality in ["CT", "MR"]:
+    if modality in ["CT", "MR", "PET"]:
         thumbnail = generate_base_thumbnail(
-            operator_input_dir, study_uid, series_uid, thumbnail_size
+            dcm_dir=operator_input_dir,
+            study_uid=study_uid,
+            series_uid=series_uid,
+            thumbnail_size=thumbnail_size,
         )
 
     elif modality == "RTSTRUCT":

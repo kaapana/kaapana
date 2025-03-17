@@ -1,0 +1,6 @@
+---
+admin: false
+postgres_user: kaapanauser
+postgres_password: kaapanapassword
+appName: myApp
+storage: "1Mi"

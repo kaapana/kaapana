@@ -1,10 +1,9 @@
 import os
+from pydantic import BaseModel, Field, ValidationError
 import pydicom
-from dataclasses import dataclass
 
 from pathlib import Path
-from typing import List, Optional
-from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 from opensearchpy import OpenSearch
 
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
@@ -24,19 +23,18 @@ logger = get_logger(__name__)
 processed_count = 0
 
 
-@dataclass
-class SeriesMetadata:
-    """Represents metadata about a DICOM series retrieved from OpenSearch."""
+class SeriesCompletenessMetadata(BaseModel):
+    """Represents metadata about a DICOM series completeness retrieved from OpenSearch."""
 
     min_instance_number: int
     max_instance_number: int
     is_series_complete: bool
-    missing_instance_numbers: Optional[List[int]] = None
+    missing_instance_numbers: List[int]
 
 
 def get_opensearch_series_metadata(
     client: OpenSearch, index: str, series_uid: str
-) -> SeriesMetadata | None:
+) -> SeriesCompletenessMetadata | None:
     response = client.search(
         index=index,
         body={"query": {"match": {DicomTags.series_uid_tag: series_uid}}},
@@ -45,18 +43,28 @@ def get_opensearch_series_metadata(
     hits = response.get("hits", {}).get("hits", [])
     if hits:
         source = hits[0].get("_source", {})
-        return SeriesMetadata(
-            min_instance_number=source.get(DicomTags.min_instance_number_tag),
-            max_instance_number=source.get(DicomTags.max_instance_number_tag),
-            is_series_complete=source.get(DicomTags.is_series_complete_tag),
-            missing_instance_numbers=source.get(DicomTags.missing_instance_numbers_tag),
-        )
-
-    return None
+        try:
+            series_metadata = SeriesCompletenessMetadata(
+                min_instance_number=source.get(DicomTags.min_instance_number_tag),
+                max_instance_number=source.get(DicomTags.max_instance_number_tag),
+                is_series_complete=source.get(DicomTags.is_series_complete_tag),
+                missing_instance_numbers=source.get(
+                    DicomTags.missing_instance_numbers_tag
+                ),
+            )
+            return series_metadata
+        except ValidationError as e:
+            logger.error(
+                "Series found in OpenSearch, but series completeness metadata are missing."
+            )
+            logger.error(e)
 
 
 def update_opensearch(
-    client: OpenSearch, index: str, series_uid: str, series_metadata: SeriesMetadata
+    client: OpenSearch,
+    index: str,
+    series_uid: str,
+    series_metadata: SeriesCompletenessMetadata,
 ):
     client.update(
         index=index,
@@ -120,7 +128,7 @@ def check_completeness(operator_input_dir: Path, operator_out_dir: Path):
 
         missing_instance_numbers = expected_instance_numbers - set(instance_numbers)
         is_series_complete = len(missing_instance_numbers) == 0
-        new_series_metadata = SeriesMetadata(
+        new_series_metadata = SeriesCompletenessMetadata(
             min_instance_number=min_instance_number,
             max_instance_number=max_instance_number,
             is_series_complete=is_series_complete,
@@ -152,7 +160,7 @@ def check_completeness(operator_input_dir: Path, operator_out_dir: Path):
         )
 
 
-def get_available_instance_numbers(metadata: SeriesMetadata) -> set:
+def get_available_instance_numbers(metadata: SeriesCompletenessMetadata) -> set:
     """
     Returns a set of available instance numbers for a given DICOM series metadata.
     Calculated as complement of missing instance numbers to range (min, max).
@@ -170,8 +178,9 @@ def get_available_instance_numbers(metadata: SeriesMetadata) -> set:
 
 
 def update_metadata(
-    old_series_metadata: SeriesMetadata, new_series_metadata: SeriesMetadata
-) -> SeriesMetadata:
+    old_series_metadata: SeriesCompletenessMetadata,
+    new_series_metadata: SeriesCompletenessMetadata,
+) -> SeriesCompletenessMetadata:
     """
     Merges two series metadata objects, updating the instance numbers and completeness.
 
@@ -192,7 +201,7 @@ def update_metadata(
         old_series_metadata.min_instance_number, new_series_metadata.min_instance_number
     )
 
-    max_instance_number = min(
+    max_instance_number = max(
         old_series_metadata.max_instance_number, new_series_metadata.max_instance_number
     )
     expected_instance_numbers = set(range(min_instance_number, max_instance_number + 1))
@@ -205,7 +214,7 @@ def update_metadata(
     )
     is_series_complete = len(missing_instance_numbers) == 0
 
-    return SeriesMetadata(
+    return SeriesCompletenessMetadata(
         min_instance_number=min_instance_number,
         max_instance_number=max_instance_number,
         is_series_complete=is_series_complete,

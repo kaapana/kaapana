@@ -10,6 +10,7 @@ from typing import List, Optional
 import cv2
 import numpy as np
 from opensearchpy import OpenSearch
+from pydantic import BaseModel
 import pydicom
 import pydicom_seg
 import SimpleITK as sitk
@@ -36,27 +37,24 @@ logger = get_logger(__name__)
 processed_count = 0
 
 
-@dataclass
-class Slice:
+
+class Slice(BaseModel):
     slice_index: int
     segmentation_classes: list
     number_of_classes: int
     number_of_foreground_pixels: int
 
 
-@dataclass
-class SeriesMetadata:
-    """Represents metadata about a DICOM series retrieved from OpenSearch."""
-
+class SeriesCompletenessMetadata(BaseModel):
     min_instance_number: int
     max_instance_number: int
     is_series_complete: bool
-    missing_instance_numbers: Optional[List[int]] = None
+    missing_instance_numbers: List[int]
 
 
 def get_opensearch_series_metadata(
     client: OpenSearch, index: str, series_uid: str
-) -> SeriesMetadata | None:
+) -> SeriesCompletenessMetadata | None:
     response = client.search(
         index=index,
         body={"query": {"match": {DicomTags.series_uid_tag: series_uid}}},
@@ -65,7 +63,7 @@ def get_opensearch_series_metadata(
     hits = response.get("hits", {}).get("hits", [])
     if hits:
         source = hits[0].get("_source", {})
-        return SeriesMetadata(
+        return SeriesCompletenessMetadata(
             min_instance_number=source.get(DicomTags.min_instance_number_tag),
             max_instance_number=source.get(DicomTags.max_instance_number_tag),
             is_series_complete=source.get(DicomTags.is_series_complete_tag),

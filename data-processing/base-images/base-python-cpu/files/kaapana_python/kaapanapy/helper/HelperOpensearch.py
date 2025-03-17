@@ -15,6 +15,8 @@ class DicomTags:
     curated_modality_tag = "00000000 CuratedModality_keyword"
     dcmweb_endpoint_tag = "00020026 SourcePresentationAddress_keyword"
     custom_tag = "00000000 Tags_keyword"
+    clinical_trial_protocol_id_tag = "00120020 ClinicalTrialProtocolID_keyword"
+    
 
     min_instance_number_tag = "00000000 MinInstanceNumber_integer"
     max_instance_number_tag = "00000000 MaxInstanceNumber_integer"

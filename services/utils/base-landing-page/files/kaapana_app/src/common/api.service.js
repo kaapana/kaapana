@@ -99,6 +99,24 @@ const loadSeriesData = async (seriesInstanceUID) => {
   }
 };
 
+const loadSeriesEmbeddings = async (seriesInstanceUID) => {
+  try {
+    const response = await httpClient.get(
+      KAAPANA_BACKEND_ENDPOINT + `dataset/series/${seriesInstanceUID}/embeddings`
+    );
+    return response.data;
+  } catch (error) {
+    Vue.notify({
+      title: "Error",
+      text:
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : error,
+      type: "error",
+    });
+    throw error;
+  }
+};   
 
 const loadPatients = async (data) => {
   try {
@@ -279,6 +297,7 @@ export {
   updateTags,
   loadPatients,
   loadSeriesData,
+  loadSeriesEmbeddings,
   createDataset,
   updateDataset,
   deleteDataset,

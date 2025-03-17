@@ -6,7 +6,7 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 from SendToFaissOperator import SendToFaissOperator
 
 
-max_active_runs = 5
+max_active_runs = 10
 
 ui_forms = {
     "workflow_form": {
@@ -28,7 +28,7 @@ args = {
     "ui_forms": ui_forms,
     "owner": "kaapana",
     "start_date": days_ago(0),
-    "retries": 0,
+    "retries": 3,
     "retry_delay": timedelta(seconds=60),
 }
 

@@ -22,8 +22,7 @@ class SendToFaissOperator(KaapanaBaseOperator):
             image=f"{DEFAULT_REGISTRY}/send-to-faiss:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
-            ram_mem_mb=16000,
-            gpu_mem_mb=11000,
+            ram_mem_mb=2000,
             *args,
             **kwargs,
         )

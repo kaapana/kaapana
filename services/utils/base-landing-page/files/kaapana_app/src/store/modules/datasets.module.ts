@@ -2,6 +2,7 @@ const defaults = {
   activeTags: [],
   multiSelectKeyPressed: false,
   selectedItems: [],
+  queryItem: null,
   detailViewItem: null,
   validationResultItem: null,
   showValidationResults: false,
@@ -13,6 +14,7 @@ const getters = {
   activeTags: (state: any) => state.activeTags,
   multiSelectKeyPressed: (state: any) => state.multiSelectKeyPressed,
   selectedItems: (state: any) => state.selectedItems,
+  queryItem: (state: any) => state.queryItem,
   detailViewItem: (state: any) => state.detailViewItem,
   validationResultItem: (state: any) => state.validationResultItem,
   showValidationResults: (state: any) => state.showValidationResults,
@@ -28,6 +30,9 @@ const mutations = {
   setSelectedItems(state: any, selectedItems: any) {
     state.selectedItems = selectedItems;
   },
+  setQueryItem(state:any, queryItem: any) {
+    state.queryItem = queryItem;
+  },
   setDetailViewItem(state: any, detailViewItem: any) {
     state.detailViewItem = detailViewItem;
   },
@@ -36,7 +41,7 @@ const mutations = {
   },
   setShowValidationResults(state: any, showValidationResults: boolean) {
     state.showValidationResults = showValidationResults;
-  }
+  },
 };
 
 const actions = {

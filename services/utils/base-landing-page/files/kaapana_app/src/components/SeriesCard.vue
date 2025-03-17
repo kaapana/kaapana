@@ -18,30 +18,30 @@
           <v-app-bar flat dense color="rgba(0, 0, 0, 0)">
             <Chip :items="[modality]" />
             <v-spacer></v-spacer>
+            <v-tooltip v-if="'instances' in seriesData" bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <v-btn icon small @click.stop="() => findSimilarImages()" color="white" v-bind="attrs" v-on="on">
+                  <v-icon>mdi-auto-fix</v-icon>
+                </v-btn>
+              </template>
+              <span>Find similar images</span>
+            </v-tooltip>
             <v-btn icon @click.stop="() => showDetails()" color="white">
               <v-icon>mdi-eye</v-icon>
             </v-btn>
           </v-app-bar>
-          <v-bottom-navigation 
-            v-if="Object.keys(validationResults).length > 0"
-            absolute height="30" 
-            background-color="transparent" 
-            horizontal class="result-container"
-          >
-              <v-btn 
-                small class="v-btn--error-rslt pa-0" 
-                v-if="'errors' in validationResults && validationResults['errors'] != 0"
-                @click="triggerValidationResultDetails"
-              >
-                {{ validationResults['errors'] }} <v-icon left class="mr-1" color="error">mdi-close-circle</v-icon>
-              </v-btn>
-              <v-btn 
-                small class="v-btn--error-rslt pa-0" 
-                v-if="'warnings' in validationResults && validationResults['warnings'] != 0"
-                @click="triggerValidationResultDetails"
-              >
-                {{ validationResults['warnings'] }} <v-icon left class="mr-1" color="warning">mdi-alert-circle</v-icon>
-              </v-btn>
+          <v-bottom-navigation v-if="Object.keys(validationResults).length > 0" absolute height="30"
+            background-color="transparent" horizontal class="result-container">
+            <v-btn small class="v-btn--error-rslt pa-0"
+              v-if="'errors' in validationResults && validationResults['errors'] != 0"
+              @click="triggerValidationResultDetails">
+              {{ validationResults['errors'] }} <v-icon left class="mr-1" color="error">mdi-close-circle</v-icon>
+            </v-btn>
+            <v-btn small class="v-btn--error-rslt pa-0"
+              v-if="'warnings' in validationResults && validationResults['warnings'] != 0"
+              @click="triggerValidationResultDetails">
+              {{ validationResults['warnings'] }} <v-icon left class="mr-1" color="warning">mdi-alert-circle</v-icon>
+            </v-btn>
           </v-bottom-navigation>
         </v-row>
       </v-img>
@@ -149,12 +149,12 @@ export default {
         let tagvalue = 0;
         if (tagtype == "integer") {
           tagvalue = parseInt(results[key]);
-          if(isNaN(tagvalue)) {
+          if (isNaN(tagvalue)) {
             tagvalue = 0;
           }
         } else if (tagtype == "datetime") {
           tagvalue = Date.parse(results[key]);
-        }else {
+        } else {
           tagvalue = results[key];
         }
         this.validationResults[tagname] = tagvalue
@@ -234,7 +234,10 @@ export default {
     },
     showValidationResults() {
       this.$store.commit("setShowValidationResults", true);
-    }
+    },
+    findSimilarImages() {
+      this.$store.commit("setQueryItem", this.seriesInstanceUID);
+    },
   },
 };
 </script>
@@ -245,13 +248,16 @@ export default {
   color: #fff !important;
   background: #4af !important;
 }
+
 .v-card__text {
   padding: 8px;
 }
-.v-btn--error-rslt{
+
+.v-btn--error-rslt {
   min-width: 50px !important;
 }
-.result-container{
+
+.result-container {
   justify-content: right !important;
 }
 </style>

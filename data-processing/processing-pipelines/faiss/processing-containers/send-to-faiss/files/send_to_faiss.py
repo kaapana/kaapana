@@ -1,3 +1,4 @@
+from time import sleep
 import os
 from pathlib import Path
 import pydicom
@@ -15,8 +16,6 @@ from pydantic_settings import BaseSettings
 
 import torch
 import os
-
-os.environ["TORCH_HOME"] = "/models"
 
 logger = get_logger(__name__)
 
@@ -37,6 +36,7 @@ class GetInputArguments(BaseSettings):
 
 class Img2Vec2MetaOperator:
     def __init__(self):
+        self.max_retries = 10
         self.workflow_config = load_workflow_config()
         self.dcmweb_helper = HelperDcmWeb()
         self.os_helper = HelperOpensearch()
@@ -48,7 +48,7 @@ class Img2Vec2MetaOperator:
         logger.debug(f"{self.workflow_config=}")
 
         self.model, self.processor = create_model_from_pretrained(
-            self.operator_arguments.MODEL_NAME
+            self.operator_arguments.MODEL_NAME, cache_dir="/models"
         )
         self.model.to(self.operator_arguments.DEVICE).eval()
         self.tokenizer = get_tokenizer(self.operator_arguments.MODEL_NAME)
@@ -106,7 +106,7 @@ class Img2Vec2MetaOperator:
     def start(self):
         batch_folder = list(Path(os.environ["BATCHES_INPUT_DIR"]).glob("*"))
 
-        for batch_element_dir in batch_folder:
+        for b_i, batch_element_dir in enumerate(batch_folder):
             files = [
                 p
                 for p in Path(batch_element_dir, os.environ["OPERATOR_IN_DIR"]).rglob(
@@ -115,28 +115,40 @@ class Img2Vec2MetaOperator:
                 if pydicom.misc.is_dicom(p)
             ]
 
-            for _file in files:
-                try:
-                    logger.info(f"Send to Faiss: {_file}")
-                    ds = pydicom.dcmread(_file)
-                    seriesInstanceUID = ds.SeriesInstanceUID
-                    sopInstanceUID = ds.SOPInstanceUID
-                    image = dicom_to_image_bytes(_file)
+            for i, _file in enumerate(files):
+                retry = 0
+                while retry < self.max_retries:
+                    try:
+                        ds = pydicom.dcmread(_file)
+                        seriesInstanceUID = ds.SeriesInstanceUID
+                        sopInstanceUID = ds.SOPInstanceUID
+                        image = dicom_to_image_bytes(_file)
 
-                    image_features = self.encode_image(image)
-                    response = self.storeInMeta(
-                        self.os_helper.os_client,
-                        seriesInstanceUID,
-                        sopInstanceUID,
-                        image_features,
-                    )
+                        image_features = self.encode_image(image)
+                        response = self.storeInMeta(
+                            self.os_helper.os_client,
+                            seriesInstanceUID,
+                            sopInstanceUID,
+                            image_features,
+                        )
+                        # Success: break out of retry loop
+                        break
 
-                    logger.info(response)
-                    logger.info(f"Response for {_file}: {response}")
-
-                except Exception as e:
-                    logger.error(f"Processing of {_file} threw an error.", e)
-                    exit(1)
+                    except Exception as e:
+                        retry += 1
+                        logger.info(
+                            f"Processing threw an error on attempt {retry}/{self.max_retries} for {_file}: {e}"
+                        )
+                        if retry >= self.max_retries:
+                            logger.error(
+                                f"Failed processing {_file} after {self.max_retries} retries. Aborting."
+                            )
+                            exit(1)
+                        # sleep for 1 sec
+                        sleep(1)
+                logger.info(
+                    f"{f'Batch {b_i+1}/{len(batch_folder)}: ' if len(batch_folder) > 1 else ''} ({i+1}/{len(files)}) Successfully processed {_file}"
+                )
 
 
 if __name__ == "__main__":

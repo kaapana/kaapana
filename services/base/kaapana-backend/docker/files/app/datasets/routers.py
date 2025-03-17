@@ -238,7 +238,23 @@ async def get_data(
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
         return thumbnail_src
 
+    # if metadata contains values contains instances replace by an empty list
+    if "instances" in metadata:
+        metadata["instances"] = []
+
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))
+
+
+@router.get("/series/{series_instance_uid}/embeddings")
+async def get_data(
+    series_instance_uid,
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+):
+    metadata = await utils.get_metadata(os_client, project_index, series_instance_uid)
+    # trim down to only returning the embeddings
+    metadata = metadata.get("instances", [])
+    return JSONResponse(metadata)
 
 
 # This should actually be a get request but since the body is too large for a get request

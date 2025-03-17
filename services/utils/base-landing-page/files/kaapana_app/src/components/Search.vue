@@ -5,15 +5,8 @@
         <v-icon>mdi-magnify</v-icon>
       </v-col>
       <v-col cols="6">
-        <v-text-field
-          label="Search"
-          v-model="query_string"
-          dense
-          single-line
-          clearable
-          hide-details
-          @keydown.enter="search"
-        />
+        <v-text-field label="Search" v-model="query_string" dense single-line clearable hide-details
+          @keydown.enter="search" />
       </v-col>
       <v-col cols="1" align="center">
         <v-btn @click="addEmptyFilter" icon>
@@ -21,19 +14,11 @@
         </v-btn>
       </v-col>
       <v-col cols="1" align="center">
-        <v-btn
-          v-if="!display_filters && filters.length > 0"
-          @click="display_filters = !display_filters"
-          icon
-        >
+        <v-btn v-if="!display_filters && filters.length > 0" @click="display_filters = !display_filters" icon>
           <v-icon> mdi-filter-menu </v-icon>
           ({{ filters.length }})
         </v-btn>
-        <v-btn
-          v-if="display_filters && filters.length > 0"
-          @click="display_filters = !display_filters"
-          icon
-        >
+        <v-btn v-if="display_filters && filters.length > 0" @click="display_filters = !display_filters" icon>
           <v-icon> mdi-filter-menu-outline </v-icon>
           ({{ filters.length }})
         </v-btn>
@@ -60,33 +45,15 @@
       <v-row dense align="center" justify="center">
         <v-col cols="1" />
         <v-col cols="2">
-          <v-autocomplete
-            v-model="filter.key_select"
-            :items="fieldNames"
-            :key="filter.key_select"
-            dense
-            hide-details
-            @change="updateMapping(filter)"
-          ></v-autocomplete>
+          <v-autocomplete v-model="filter.key_select" :items="fieldNames" :key="filter.key_select" dense hide-details
+            @change="updateMapping(filter)"></v-autocomplete>
         </v-col>
         <v-col cols="5">
-          <v-autocomplete
-            :disabled="filter.key_select == null"
-            v-model="filter.item_select"
-            :items="
-              mapping[filter.key_select] != null
-                ? mapping[filter.key_select]['items']
-                : null
-            "
-            auto-select-first
-            chips
-            clearable
-            deletable-chips
-            multiple
-            small-chips
-            dense
-            hide-details
-          ></v-autocomplete>
+          <v-autocomplete :disabled="filter.key_select == null" v-model="filter.item_select" :items="mapping[filter.key_select] != null
+              ? mapping[filter.key_select]['items']
+              : null
+            " auto-select-first chips clearable deletable-chips multiple small-chips dense
+            hide-details></v-autocomplete>
         </v-col>
         <v-col cols="1" align="center">
           <v-btn @click="deleteFilter(filter.id)" small icon>
@@ -105,6 +72,7 @@ import {
   loadDatasetByName,
   loadFieldNames,
   loadValues,
+  loadSeriesEmbeddings,
 } from "../common/api.service";
 import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import { mapGetters } from "vuex";
@@ -130,6 +98,22 @@ export default {
   components: { SaveDatasetDialog },
   computed: {
     ...mapGetters(["selectedProject"]),
+    // Computed property for the query item from the store
+    queryItem() {
+      return this.$store.getters.queryItem;
+    }
+  },
+  watch: {
+    async datasetName(newVal) {
+      this.datasetNameLocal = newVal;
+      await this.initSearch();
+    },
+    // Watch for changes to queryItem; when it changes, run the knn-enhanced query.
+    queryItem(newVal, oldVal) {
+      if (newVal && newVal !== oldVal) {
+        this.searchWithQueryItem();
+      }
+    }
   },
   methods: {
     async addFilterItem(key, value) {
@@ -171,7 +155,7 @@ export default {
           key_select: key,
           item_select:
             this.mapping[key]["key"].endsWith("_integer") ||
-            this.mapping[key]["key"].endsWith("_float")
+              this.mapping[key]["key"].endsWith("_float")
               ? [parseFloat(value)]
               : [value],
         });
@@ -187,25 +171,81 @@ export default {
     deleteFilter(id) {
       this.filters = this.filters.filter((filter) => filter.id !== id);
     },
+    async getEmbeddingsForSeries(seriesInstanceUID) {
+      try {
+        const res = await loadSeriesEmbeddings(seriesInstanceUID);
+        if (res) {
+          // Return an array of embedding arrays.
+          return res.map(instance => instance.image_embedding);
+        }
+        return [];
+      } catch (error) {
+        console.error("Failed to retrieve embeddings for series", error);
+        return [];
+      }
+    },
     async composeQuery() {
-      const query = {
-        bool: {
-          must: [
-            this.constructDatasetQuery() || "",
-            ...this.filters
-              .map((filter) => this.queryFromFilter(filter))
-              .filter((query) => query !== null),
-            {
-              query_string: {
-                query: this.query_string || "*",
-              },
-            },
-          ],
-        },
-      };
-      return query;
+      const mustClauses = [];
+
+      // Add dataset query if present.
+      const datasetQuery = this.constructDatasetQuery();
+      if (datasetQuery) {
+        mustClauses.push(datasetQuery);
+      }
+
+      // Add filter queries.
+      this.filters.forEach(filter => {
+        const q = this.queryFromFilter(filter);
+        if (q) {
+          mustClauses.push(q);
+        }
+      });
+
+      // Always add the text query.
+      mustClauses.push({
+        query_string: {
+          query: this.query_string || "*"
+        }
+      });
+
+      // Retrieve embeddings for the seriesInstanceUID stored in queryItem.
+      if (this.queryItem) {
+        const embeddings = await this.getEmbeddingsForSeries(this.queryItem);
+        if (embeddings.length > 0) {
+          // Build a knn clause for each embedding.
+          const knnQueries = embeddings.map(embedding => ({
+            nested: {
+              path: "instances",
+              score_mode: "max",
+              query: {
+                knn: {
+                  "instances.image_embedding": {
+                    vector: embedding,
+                    k: 1
+                  }
+                }
+              }
+            }
+          }));
+          // Wrap all knn queries in a bool should clause.
+          mustClauses.push({
+            bool: {
+              should: knnQueries,
+              minimum_should_match: 1
+            }
+          });
+        }
+      }
+
+      return { bool: { must: mustClauses } };
     },
     async search() {
+      // this is a manual search, reset the queryItem in store, in case it was set before
+      this.$store.commit('setQueryItem', null);
+      this.$emit("search", await this.composeQuery());
+    },
+    async searchWithQueryItem() {
+      // this is triggered by the similarity search
       this.$emit("search", await this.composeQuery());
     },
     queryFromFilter(filter) {
@@ -360,12 +400,6 @@ export default {
   async created() {
     // here we should parse the query string and set the filters accordingly
     await this.processQueryParams();
-  },
-  watch: {
-    async datasetName(newVal) {
-      this.datasetNameLocal = newVal;
-      await this.initSearch();
-    },
   },
 };
 </script>

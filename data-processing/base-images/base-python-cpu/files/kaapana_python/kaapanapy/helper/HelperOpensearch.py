@@ -16,12 +16,11 @@ class DicomTags:
     dcmweb_endpoint_tag = "00020026 SourcePresentationAddress_keyword"
     custom_tag = "00000000 Tags_keyword"
     clinical_trial_protocol_id_tag = "00120020 ClinicalTrialProtocolID_keyword"
-    
 
     min_instance_number_tag = "00000000 MinInstanceNumber_integer"
     max_instance_number_tag = "00000000 MaxInstanceNumber_integer"
     is_series_complete_tag = "00000000 IsSeriesComplete_boolean"
-    missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_object"
+    missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_array"
 
 
 class HelperOpensearch:

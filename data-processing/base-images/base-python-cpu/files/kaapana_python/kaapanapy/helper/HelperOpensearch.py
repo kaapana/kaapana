@@ -20,7 +20,7 @@ class DicomTags:
     is_series_complete_tag = "00000000 IsSeriesComplete_boolean"
     min_instance_number_tag = "00000000 MinInstanceNumber_integer"
     max_instance_number_tag = "00000000 MaxInstanceNumber_integer"
-    thumbnail_instance_uid_tag = "00000000 thumbnail_instance_uid_keyword"
+    thumbnail_instance_uid_tag = "00000000 ThumbnailInstanceUID_keyword"
     missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_integer"
 
 class HelperOpensearch:

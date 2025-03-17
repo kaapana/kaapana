@@ -7,12 +7,14 @@ from sqlalchemy import engine_from_config, pool
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 SERVICES_NAMESPACE = os.getenv("SERVICES_NAMESPACE", None)
+DATABASE_URL = os.environ["DATABASE_URL"]
+
 assert SERVICES_NAMESPACE
 
 config = context.config
 config.set_main_option(
     "sqlalchemy.url",
-    f"postgresql://kaapanauser:kaapanapassword@kaapana-backend-postgres-service.{SERVICES_NAMESPACE}.svc:5432",
+    f"{DATABASE_URL}",
 )
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

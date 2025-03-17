@@ -1,9 +1,9 @@
 import os
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ValidationError
 import pydicom
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List
 from opensearchpy import OpenSearch
 
 from kaapanapy.helper import get_opensearch_client, load_workflow_config

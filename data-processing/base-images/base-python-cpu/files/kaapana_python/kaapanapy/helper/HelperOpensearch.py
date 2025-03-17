@@ -17,11 +17,11 @@ class DicomTags:
     custom_tag = "00000000 Tags_keyword"
     clinical_trial_protocol_id_tag = "00120020 ClinicalTrialProtocolID_keyword"
 
+    is_series_complete_tag = "00000000 IsSeriesComplete_boolean"
     min_instance_number_tag = "00000000 MinInstanceNumber_integer"
     max_instance_number_tag = "00000000 MaxInstanceNumber_integer"
-    is_series_complete_tag = "00000000 IsSeriesComplete_boolean"
-    missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_array"
-
+    thumbnail_instance_uid_tag = "00000000 thumbnail_instance_uid_keyword"
+    missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_integer"
 
 class HelperOpensearch:
     def __init__(self):

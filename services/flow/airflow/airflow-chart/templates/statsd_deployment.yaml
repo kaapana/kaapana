@@ -25,11 +25,13 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: airflow-statsd
+      app.kubernetes.io/name: airflow
+      app.kubernetes.io/component: statsd
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: airflow-statsd
+        app.kubernetes.io/name: airflow
+        app.kubernetes.io/component: statsd
     spec:
       containers:
       - name: statsd-metrics-exporter

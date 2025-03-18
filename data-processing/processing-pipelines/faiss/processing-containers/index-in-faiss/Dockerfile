@@ -1,6 +1,6 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="send-to-faiss"
+LABEL IMAGE="index-in-faiss"
 LABEL VERSION="0.1.0"
 LABEL BUILD_IGNORE="False"
 
@@ -21,4 +21,4 @@ RUN pip3 install --upgrade pip && pip3 install -r /kaapana/app/requirements.txt
 
 COPY files/* /kaapana/app/
 
-CMD ["python3","-u","/kaapana/app/send_to_faiss.py"]
+CMD ["python3","-u","/kaapana/app/index_in_faiss.py"]

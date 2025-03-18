@@ -4,7 +4,7 @@
       "0x0008,0x0060": "CT,MR,DX,CR"
     },
     "dag_ids": {
-      "service-faiss": {
+      "service-index-in-faiss": {
         "single_execution": true
       }
     }

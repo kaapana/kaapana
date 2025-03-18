@@ -1,4 +1,4 @@
 ---
 global:
-    image: "dag-service-faiss"
+    image: "dag-service-index-in-faiss"
     action: "copy"

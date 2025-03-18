@@ -80,5 +80,5 @@ dependencies:
     version: 0.0.0
   # - name: desktop-container-chart
   #   version: 0.0.0
-  - name: faiss-workflow
+  - name: index-in-faiss-workflow
     version: 0.0.0

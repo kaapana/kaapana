@@ -7,11 +7,11 @@ from kaapana.blueprints.kaapana_global_variables import (
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
 
-class SendToFaissOperator(KaapanaBaseOperator):
+class IndexInFaissOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
-        name="send-to-faiss",
+        name="index-in-faiss",
         execution_timeout=timedelta(minutes=120),
         *args,
         **kwargs,
@@ -19,7 +19,7 @@ class SendToFaissOperator(KaapanaBaseOperator):
         super().__init__(
             dag=dag,
             name=name,
-            image=f"{DEFAULT_REGISTRY}/send-to-faiss:{KAAPANA_BUILD_VERSION}",
+            image=f"{DEFAULT_REGISTRY}/index-in-faiss:{KAAPANA_BUILD_VERSION}",
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             ram_mem_mb=2000,

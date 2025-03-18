@@ -3,7 +3,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from SendToFaissOperator import SendToFaissOperator
+from IndexInFaissOperator import IndexInFaissOperator
 
 
 max_active_runs = 5
@@ -34,7 +34,7 @@ args = {
 
 
 dag = DAG(
-    dag_id="service-faiss",
+    dag_id="service-index-in-faiss",
     default_args=args,
     concurrency=10,
     max_active_runs=max_active_runs,
@@ -44,11 +44,11 @@ dag = DAG(
 
 get_input = GetInputOperator(dag=dag)
 
-send_to_faiss = SendToFaissOperator(
+index_in_faiss = IndexInFaissOperator(
     dag=dag, input_operator=get_input, labels={"network-access-external-ips": "true"}
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 
-get_input >> send_to_faiss >> clean
+get_input >> index_in_faiss >> clean

@@ -1,3 +1,7 @@
 ---
-global:
-  postgres_user: "kaapanauser"
+kaapana_database:
+  admin: false
+  postgres_user: kaapanauser
+  postgres_password: kaapanapassword
+  postgres_db: kaapanauser
+  appName: access-information-interface

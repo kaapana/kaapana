@@ -1,8 +1,9 @@
 {{- define "devPersistentVolumes" }}
+{{- $is_admin_namespace := .Values.admin | default false }}
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: {{ .Release.Name }}-dev-pv-volume
+  name: {{ .Chart.Name }}-dev-pv-volume
   labels:
     type: local
 spec:
@@ -14,7 +15,7 @@ spec:
     - ReadWriteMany
   nfs:
     server: "10.152.183.15"
-    path: "/dev_{{ .Release.Name }}"
+    path: /dev_{{ .Chart.Name }}
 {{- else }}
   storageClassName: host-dir
   accessModes:
@@ -24,14 +25,14 @@ spec:
 {{- end }}
   persistentVolumeReclaimPolicy: Retain
   claimRef:
-    namespace: "{{ .Values.global.services_namespace }}"
-    name: {{ .Release.Name }}-dev-pv-claim
+    namespace: "{{ ternary .Values.global.admin_namespace .Values.global.services_namespace $is_admin_namespace }}"
+    name: {{ .Chart.Name }}-dev-pv-claim
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Release.Name }}-dev-pv-claim
-  namespace: "{{ .Values.global.services_namespace }}"
+  name: {{ .Chart.Name }}-dev-pv-claim
+  namespace: "{{ ternary .Values.global.admin_namespace .Values.global.services_namespace $is_admin_namespace }}"
 spec:
   storageClassName: nfs
   accessModes:
@@ -39,5 +40,5 @@ spec:
   resources:
     requests:
       storage: "1Mi"
-  volumeName: "{{ .Release.Name }}-dev-pv-volume"
+  volumeName: "{{ .Chart.Name }}-dev-pv-volume"
 {{- end }}

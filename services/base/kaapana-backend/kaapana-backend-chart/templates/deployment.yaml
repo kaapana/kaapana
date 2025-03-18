@@ -154,6 +154,6 @@ spec:
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:
-          claimName: {{ .Release.Name }}-dev-pv-claim
+          claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}
 ---

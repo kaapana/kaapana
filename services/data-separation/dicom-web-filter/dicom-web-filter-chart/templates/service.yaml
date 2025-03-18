@@ -5,9 +5,11 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
   labels: 
     app.kubernetes.io/name: dicom-web-filter
+    app.kubernetes.io/component: backend
 spec:
   selector:
     app.kubernetes.io/name: dicom-web-filter
+    app.kubernetes.io/component: backend
   ports:
 {{- if .Values.global.dev_files }}
     - name: dicom-web-http

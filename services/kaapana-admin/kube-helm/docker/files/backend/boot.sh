@@ -2,7 +2,7 @@
 
 if [ -z "${DEV_FILES}" ]; then
     # Production
-    gunicorn main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:5000 --access-logfile - --error-logfile -
+    gunicorn app.main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:5000 --access-logfile - --error-logfile -
 else
     # DEV ENV
     export APPLICATION_ROOT="/kube-helm-api"
@@ -17,5 +17,5 @@ else
     export KUBECTL_PATH="/snap/bin/microk8s.kubectl"
 
     # DEV cmd
-    uvicorn main:app --reload --host 0.0.0.0 --port 5000 --workers 4 --root-path $APPLICATION_ROOT
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 5000 --workers 4 --root-path $APPLICATION_ROOT
 fi

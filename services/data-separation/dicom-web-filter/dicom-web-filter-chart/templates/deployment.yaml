@@ -81,7 +81,7 @@ spec:
       {{- if .Values.global.dev_files }}
       - name: dicom-web-filter-dev
         persistentVolumeClaim:
-          claimName: dicom-web-filter-dev-pv-claim
+          claimName: {{ .Release.Name }}-dev-pv-claim
       {{- end }}
       - name: kaapana-cert
         secret:

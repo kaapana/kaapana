@@ -84,7 +84,7 @@ spec:
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:
-          claimName: kh-dev-pv-claim
+          claimName: {{ .Release.Name }}-dev-pv-claim
 {{- end }}
       serviceAccountName: kaapana-kube-admin
       priorityClassName: kaapana-high-priority

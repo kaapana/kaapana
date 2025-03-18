@@ -107,7 +107,10 @@ spec:
           value: "{{ .Values.global.oidc_client_secret }}"
         - name: KEYCLOAK_URL
           value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80"
-
+{{- if .Values.global.dev_files }}
+        - name: DEV_FILES
+          value: "True"
+{{- end }}
         ports:
           - containerPort: 5000
         resources:
@@ -151,6 +154,6 @@ spec:
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:
-          claimName: backend-dev-pv-claim
+          claimName: {{ .Release.Name }}-dev-pv-claim
 {{- end }}
 ---

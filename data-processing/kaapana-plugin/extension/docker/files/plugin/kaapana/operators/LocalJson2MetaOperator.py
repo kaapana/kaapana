@@ -36,22 +36,11 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
     * If successful, the given JSON data is included in OpenSearch
 
     """
-
-    def push_to_project_index(self, json_dict):
-        logger.info(f"Pushing JSON to project index")
-        id = json_dict["0020000E SeriesInstanceUID_keyword"]
-        clinical_trial_protocol_id = json_dict.get(
-            "00120020 ClinicalTrialProtocolID_keyword"
-        )
-        try:
-            project = self.get_project_by_name(clinical_trial_protocol_id)
-        except:
-            logger.warning(f"No project found for {clinical_trial_protocol_id}")
-            return None
+    def push_json(self, json_dict, index, id):
         try:
             json_dict = self.produce_inserts(json_dict)
             response = self.os_client.index(
-                index=project.get("opensearch_index"),
+                index=index,
                 body=json_dict,
                 id=id,
                 refresh=True,
@@ -60,26 +49,34 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             logger.error("Error while pushing JSON ...")
             raise (e)
 
-    def push_json(self, json_dict):
+    def push_to_project_index(self, json_dict, **kwargs):
+        logger.info(f"Pushing JSON to project index")
+        id = json_dict["0020000E SeriesInstanceUID_keyword"]
+        if self.from_other_project:
+            from_data = self.conf.get("form_data")
+            projects = from_data.get("projects")
+            for project_name in projects:
+                project = self.get_project_by_name(project_name)
+                logger.info(f"Project name: {project_name}")
+                self.push_json(json_dict=json_dict, index=project.get("opensearch_index"), id=id)
+        else:
+            clinical_trial_protocol_id = json_dict.get("00120020 ClinicalTrialProtocolID_keyword")
+            try:
+                project = self.get_project_by_name(clinical_trial_protocol_id)
+            except:
+                logger.warning(f"No project found for {clinical_trial_protocol_id}")
+                return None
+
+            self.push_json(json_dict=json_dict,index=project.get("opensearch_index"),id=id)
+
+    def push_to_admin_index(self, json_dict):
         logger.info("Pushing JSON to admin-project index")
         if "0020000E SeriesInstanceUID_keyword" in json_dict:
             id = json_dict["0020000E SeriesInstanceUID_keyword"]
-        elif self.instanceUID is not None:
-            id = self.instanceUID
         else:
             logger.error("No ID found! - exit")
             exit(1)
-        try:
-            json_dict = self.produce_inserts(json_dict)
-            response = self.os_client.index(
-                index=self.opensearch_index,
-                body=json_dict,
-                id=id,
-                refresh=True,
-            )
-        except Exception as e:
-            logger.error("Error while pushing JSON ...")
-            raise (e)
+        self.push_json(json_dict=json_dict, index=self.opensearch_index, id=id)
 
     def produce_inserts(self, new_json):
         logger.info("get old json from index.")
@@ -119,14 +116,10 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         logger.info("Starting module json2meta")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
+        self.conf = kwargs["dag_run"].conf
         batch_folder = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
         ]
-
-        if self.dicom_operator is not None:
-            self.rel_dicom_dir = self.dicom_operator.operator_out_dir
-        else:
-            self.rel_dicom_dir = self.operator_in_dir
 
         self.run_id = kwargs["dag_run"].run_id
 
@@ -141,7 +134,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     with open(json_file, encoding="utf-8") as f:
                         for line in f:
                             obj = json.loads(line)
-                            self.push_json(obj)
+                            self.push_to_admin_index(obj)
                             self.push_to_project_index(obj)
             else:
                 json_dir = os.path.join(
@@ -155,7 +148,8 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
                     logger.info(f"Pushing file: {json_file} to META!")
                     with open(json_file, encoding="utf-8") as f:
                         new_json = json.load(f)
-                    self.push_json(new_json)
+                    if not self.from_other_project:
+                        self.push_to_admin_index(new_json)
                     self.push_to_project_index(new_json)
 
     def set_id(self, dcm_file=None):
@@ -208,6 +202,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         avalability_check_delay: int = 10,
         avalability_check_max_tries: int = 15,
         check_in_pacs: bool = True,
+        from_other_project: bool = False,
         **kwargs,
     ):
         """
@@ -231,6 +226,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.no_update = no_update
         self.instanceUID = None
         self.check_in_pacs = check_in_pacs
+        self.from_other_project = from_other_project
 
         super().__init__(
             dag=dag,

@@ -4,7 +4,7 @@ LABEL IMAGE="kube-helm"
 LABEL VERSION="0.1.4"
 LABEL BUILD_IGNORE="False"
 
-WORKDIR /kaapana/app
+WORKDIR /kaapana/app/backend
 
 # Set versions for cli tools
 ENV KUBE_VERSION="v1.31.2"

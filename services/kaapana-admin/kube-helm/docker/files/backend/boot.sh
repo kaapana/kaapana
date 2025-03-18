@@ -14,7 +14,7 @@ else
     export LOG_LEVEL="debug"
     export HELM_EXTENSIONS_CACHE="/home/kaapana/extensions"
     export HELM_PLATFORMS_CACHE="/home/kaapana/platforms"
-    export HELM_PATH="/usr/bin/local/helm"
+    export HELM_PATH="/usr/local/bin/helm"
     export HELM_NAMESPACE="admin"
     export KUBECTL_PATH="/usr/local/bin/kubectl"
 

@@ -12,7 +12,7 @@ class SendToFaissOperator(KaapanaBaseOperator):
         self,
         dag,
         name="send-to-faiss",
-        execution_timeout=timedelta(minutes=20),
+        execution_timeout=timedelta(minutes=120),
         *args,
         **kwargs,
     ):

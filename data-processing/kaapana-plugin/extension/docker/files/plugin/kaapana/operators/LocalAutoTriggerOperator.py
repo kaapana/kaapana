@@ -265,7 +265,7 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             dcm_dataset = (
                 str(incoming_dcm[0x0012, 0x0020].value).lower()
                 if (0x0012, 0x0020) in incoming_dcm
-                else "N/A"
+                else "admin"
             )
             series_uid = str(incoming_dcm[0x0020, 0x000E].value)
 

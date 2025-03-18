@@ -110,7 +110,7 @@ index_template_body = {
                             "method": {
                                 "name": "hnsw",
                                 "engine": "faiss",
-                                "space_type": "l2",
+                                "space_type": "innerproduct",
                                 "parameters": {"ef_construction": 128, "m": 24},
                             },
                         },
@@ -228,7 +228,7 @@ index_body = {
                         "method": {
                             "name": "hnsw",
                             "engine": "faiss",
-                            "space_type": "l2",
+                            "space_type": "innerproduct",
                             "parameters": {"ef_construction": 128, "m": 24},
                         },
                     },

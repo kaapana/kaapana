@@ -50,8 +50,8 @@
         </v-col>
         <v-col cols="5">
           <v-autocomplete :disabled="filter.key_select == null" v-model="filter.item_select" :items="mapping[filter.key_select] != null
-              ? mapping[filter.key_select]['items']
-              : null
+            ? mapping[filter.key_select]['items']
+            : null
             " auto-select-first chips clearable deletable-chips multiple small-chips dense
             hide-details></v-autocomplete>
         </v-col>
@@ -186,58 +186,80 @@ export default {
     },
     async composeQuery() {
       const mustClauses = [];
+      const filterClauses = [];
+      const shouldClauses = [];
 
       // Add dataset query if present.
       const datasetQuery = this.constructDatasetQuery();
       if (datasetQuery) {
-        mustClauses.push(datasetQuery);
+        filterClauses.push(datasetQuery);
       }
 
       // Add filter queries.
       this.filters.forEach(filter => {
         const q = this.queryFromFilter(filter);
         if (q) {
-          mustClauses.push(q);
+          filterClauses.push(q);
         }
       });
 
-      // Always add the text query.
-      mustClauses.push({
+      // Handle text query based on presence of queryItem.
+      const textQuery = {
         query_string: {
           query: this.query_string || "*"
         }
-      });
+      };
+      if (this.queryItem) {
+        // Add text query to filter to avoid affecting the score.
+        filterClauses.push(textQuery);
+      } else {
+        // Add text query to must to contribute to the score.
+        mustClauses.push(textQuery);
+      }
 
-      // Retrieve embeddings for the seriesInstanceUID stored in queryItem.
+      // Process queryItem for similarity search.
       if (this.queryItem) {
         const embeddings = await this.getEmbeddingsForSeries(this.queryItem);
         if (embeddings.length > 0) {
-          // Build a knn clause for each embedding.
           const knnQueries = embeddings.map(embedding => ({
             nested: {
               path: "instances",
-              score_mode: "max",
+              score_mode: "max", // take the maximum constant score from matching embeddings
               query: {
                 knn: {
                   "instances.image_embedding": {
                     vector: embedding,
-                    k: 1
+                    // use k=10.000 so that up to 10.000 results are scored for sorting 
+                    // based on similarity to the queryItem
+                    k: 10000
                   }
                 }
               }
             }
           }));
-          // Wrap all knn queries in a bool should clause.
-          mustClauses.push({
-            bool: {
-              should: knnQueries,
-              minimum_should_match: 1
-            }
-          });
+          // Add K-NN queries to shouldClauses so they influence the scoring.
+          shouldClauses.push(...knnQueries);
         }
       }
 
-      return { bool: { must: mustClauses } };
+      // Construct the final query.
+      const boolQuery = { bool: {} };
+
+      if (mustClauses.length > 0) {
+        boolQuery.bool.must = mustClauses;
+      }
+
+      if (filterClauses.length > 0) {
+        boolQuery.bool.filter = filterClauses;
+      }
+
+      if (shouldClauses.length > 0) {
+        boolQuery.bool.should = shouldClauses;
+        // Set minimum_should_match to 0 so that a missing knn match doesn't filter out documents.
+        boolQuery.bool.minimum_should_match = 0;
+      }
+
+      return boolQuery;
     },
     async search() {
       // this is a manual search, reset the queryItem in store, in case it was set before

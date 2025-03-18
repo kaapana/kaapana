@@ -1,7 +1,6 @@
 import os
-import shutil
 from pathlib import Path
-from os.path import exists, join, isdir
+from os.path import exists, join
 from glob import glob
 from multiprocessing.pool import ThreadPool
 
@@ -91,7 +90,7 @@ def get_required_env_var(var_name: str, default: Optional[Any] = None) -> Any:
 
 def process_batches(
     batch_dir: Path,
-    operator_input_dir: Path,
+    operator_in_dir: Path,
     operator_out_dir: Path,
     processing_function: Callable,
     operator_get_ref_series_dir: Optional[Path] = None,
@@ -103,7 +102,7 @@ def process_batches(
 
     Args:
         batch_dir (PathType): The path to the directory containing the batches.
-        operator_input_dir (PathType): The path to the input directory for each batch.
+        operator_in_dir (PathType): The path to the input directory for each batch.
         operator_out_dir (PathType): The path to the output directory for each batch.
         processing_function (ProcessingFunction): The function to be applied to each batch.
         operator_get_ref_series_dir (Optional[PathType]): The reference series input directory. Optional.
@@ -122,7 +121,7 @@ def process_batches(
         operator_out_dir.mkdir(exist_ok=True)
         process_single(
             base_dir=batch,
-            operator_input_dir=operator_input_dir,
+            operator_in_dir=operator_in_dir,
             operator_out_dir=operator_out_dir,
             operator_get_ref_series_dir=operator_get_ref_series_dir,
             processing_function=processing_function,
@@ -136,7 +135,7 @@ def process_batches(
 
 def process_single(
     base_dir: Path,
-    operator_input_dir: Path,
+    operator_in_dir: Path,
     operator_out_dir: Path,
     processing_function: Callable,
     operator_get_ref_series_dir: Optional[Path] = None,
@@ -148,26 +147,26 @@ def process_single(
 
     Args:
         base_dir (PathType): The base directory where input and output directories are located.
-        operator_input_dir (PathType): The input directory for the single batch.
+        operator_in_dir (PathType): The input directory for the single batch.
         operator_out_dir (PathType): The output directory where results will be saved.
         processing_function (ProcessingFunction):
             - The function to process the data.
             - Arguments:
-                - operator_input_dir
+                - operator_in_dir
                 - operator_out_dir
                 - operator_get_ref_series_dir (Optional)
                 - any extra parameters passed to the process_single as kwargs
-                
+
             Example:
                 ```python
                 def generate_thumbnail(
-                    operator_input_dir: Path,
+                    operator_in_dir: Path,
                     operator_out_dir: Path,
                     operator_get_ref_series_dir: Path,
                     thumbnail_size: int,
                 )
                 ```
-        
+
         operator_get_ref_series_dir (Optional[PathType]): The reference series input directory, optional.
         thread_count (int): The number of threads to use for parallel processing. Defaults to 3.
         **kwargs: Additional keyword arguments to pass to the processing function.
@@ -178,8 +177,8 @@ def process_single(
     queue = []
     logger.info("Starting processing SINGLE BATCH ...")
 
-    if not exists(base_dir / operator_input_dir):
-        logger.warning(f"Input-dir: {base_dir / operator_input_dir} does not exist!")
+    if not exists(base_dir / operator_in_dir):
+        logger.warning(f"Input-dir: {base_dir / operator_in_dir} does not exist!")
         logger.warning("# -> skipping")
         return
 
@@ -187,14 +186,16 @@ def process_single(
 
     task_args = {
         "processing_function": processing_function,
-        "operator_input_dir": base_dir / operator_input_dir,
+        "operator_in_dir": base_dir / operator_in_dir,
         "operator_out_dir": base_dir / operator_out_dir,
         **kwargs,
     }
 
-    # Only add ref_input_dir if it's provided
+    # Only add ref_in_dir if it's provided
     if operator_get_ref_series_dir:
-        task_args["operator_get_ref_series_dir"] = base_dir / operator_get_ref_series_dir
+        task_args["operator_get_ref_series_dir"] = (
+            base_dir / operator_get_ref_series_dir
+        )
 
     queue.append(task_args)
 

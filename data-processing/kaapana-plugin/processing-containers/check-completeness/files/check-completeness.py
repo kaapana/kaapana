@@ -1,11 +1,8 @@
 import os
-from pydantic import BaseModel, ValidationError
-import pydicom
-
 from pathlib import Path
 from typing import List
-from opensearchpy import OpenSearch
 
+import pydicom
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
@@ -17,10 +14,10 @@ from kaapanapy.utils import (
     process_single,
     validate_directory,
 )
+from opensearchpy import OpenSearch
+from pydantic import BaseModel, ValidationError
 
 logger = get_logger(__name__)
-
-processed_count = 0
 
 
 class SeriesCompletenessMetadata(BaseModel):
@@ -87,17 +84,16 @@ def update_opensearch(
     logger.info(f"missing={series_metadata.missing_instance_numbers}")
 
 
-def check_completeness(operator_input_dir: Path, operator_out_dir: Path):
+def check_completeness(operator_in_dir: Path, operator_out_dir: Path):
     """
-    Checks if a DICOM series in `operator_input_dir` is complete by comparing
+    Checks if a DICOM series in `operator_in_dir` is complete by comparing
     the expected number of instances with the actual number of files present.
 
     Push updated metadata to OpenSearch
 
     Args:
-        operator_input_dir (Path): The directory containing DICOM files.
+        operator_in_dir (Path): The directory containing DICOM files.
     """
-    global processed_count
 
     workflow_config = load_workflow_config()
     client = get_opensearch_client()
@@ -108,7 +104,7 @@ def check_completeness(operator_input_dir: Path, operator_out_dir: Path):
     else:
         opensearch_index = project_form.get("opensearch_index")
 
-    dicom_filenames = sorted(list(operator_input_dir.glob("*.dcm")))
+    dicom_filenames = sorted(list(operator_in_dir.glob("*.dcm")))
     if not dicom_filenames:
         return False, "No DICOM files found in the directory."
 
@@ -118,7 +114,16 @@ def check_completeness(operator_input_dir: Path, operator_out_dir: Path):
     series_uid = dicom_files[0].SeriesInstanceUID
     modality = dicom_files[0].Modality
 
-    if all([hasattr(ds, "InstanceNumber") for ds in dicom_files]):
+    if len(dicom_files) == 1:
+        dicom_files[0].InstanceNumber = "1"
+
+    if all(
+        [
+            hasattr(ds, "InstanceNumber") and str(ds.InstanceNumber).isdigit()
+            for ds in dicom_files
+        ]
+    ):
+
         instance_numbers = [ds.InstanceNumber for ds in dicom_files]
         min_instance_number = min(instance_numbers)
         max_instance_number = max(instance_numbers)
@@ -146,14 +151,11 @@ def check_completeness(operator_input_dir: Path, operator_out_dir: Path):
             )
 
         update_opensearch(client, opensearch_index, series_uid, updated_series_metadata)
-        processed_count += 1
         return True, f"Successfully updated series: {series_uid}"
-
     else:
         logger.error(
             "Required Dicom Tag InstanceNumber must be present in all instances"
         )
-        processed_count += 1
         return (
             False,
             f"Required Dicom Tag missing in series: {series_uid} for modality {modality}.",
@@ -261,7 +263,7 @@ def main():
         process_batches(
             # Required
             batch_dir=Path(batch_dir),
-            operator_input_dir=Path(operator_in_dir),
+            operator_in_dir=Path(operator_in_dir),
             operator_out_dir=Path(operator_out_dir),
             processing_function=check_completeness,
             thread_count=thread_count,
@@ -270,17 +272,11 @@ def main():
         process_single(
             # Required
             base_dir=Path(workflow_dir),
-            operator_input_dir=Path(operator_in_dir),
+            operator_in_dir=Path(operator_in_dir),
             operator_out_dir=Path(operator_out_dir),
             processing_function=check_completeness,
             thread_count=thread_count,
         )
-
-    if processed_count == 0:
-        logger.error("No files have been processed!")
-        raise Exception("No files have been processed!")
-    else:
-        logger.info(f"{processed_count} files have been processed!")
 
 
 if __name__ == "__main__":

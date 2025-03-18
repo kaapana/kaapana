@@ -50,6 +50,10 @@ spec:
         - name: PROXY
           value: "{{ $.Values.global.http_proxy }}"
 {{- end }}
+{{- if .Values.global.dev_files }}
+        - name: DEV_FILES
+          value: "True"
+{{- end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

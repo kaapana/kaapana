@@ -1,8 +1,5 @@
-FROM docker.io/postgres:17.2-alpine
+FROM local-only/postgres-base:latest
 
-LABEL REGISTRY="local-only"
-LABEL IMAGE="postgres-base"
-LABEL VERSION="latest"
-LABEL BUILD_IGNORE="False"
-
-RUN apk update && apk upgrade libxml2
+LABEL IMAGE="postgres-17.2-alpine"
+LABEL VERSION="17.2-alpine"
+LABEL CI_IGNORE="False"

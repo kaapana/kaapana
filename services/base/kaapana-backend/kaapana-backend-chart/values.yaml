@@ -1,6 +1,6 @@
 ---
 global:
-  dev_files: /home/ubuntu/kaapana/services/base/kaapana-backend/docker/files
+  dev_files: false
   dynamicVolumes:
   - name: alembic
     host_path: /alembic

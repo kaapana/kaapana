@@ -79,7 +79,8 @@ data:
       { "software_uuid": "tag-train-test-split-dataset"},
       { "software_uuid": "tfda-spe-orchestrator"},
       { "software_uuid": "total-segmentator"},
-      { "software_uuid": "validate-dicoms"}
+      { "software_uuid": "validate-dicoms"},
+      { "software_uuid": "project-dicom-transfer"}
     ]
 
   # Init User, Project and Role mapping will be done at a later stage (FastAPI lifespan init function) to dynamically incorporate the keycloak id.

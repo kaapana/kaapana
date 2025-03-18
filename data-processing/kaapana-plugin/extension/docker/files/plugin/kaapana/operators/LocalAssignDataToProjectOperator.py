@@ -27,12 +27,14 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
     def __init__(
         self,
         dag,
+        from_other_project=False,
         **kwargs,
     ):
         """
         Constructor for the LocalAssignDataToProjectOperator.
         """
         self.dcmweb_helper = HelperDcmWeb()
+        self.from_other_project = from_other_project
         super().__init__(
             dag=dag,
             name="assign-data-to-project",
@@ -59,17 +61,24 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
             path_to_metadata = glob.glob(os.path.join(operator_in_dir, "*.json"))
             assert len(path_to_metadata) == 1
             path_to_metadata = path_to_metadata[0]
-            self.assign_data_to_projects(path_to_metadata)
+            with open(path_to_metadata) as f:
+                metadata = json.load(f)
+            if self.from_other_project:
+                config = kwargs["dag_run"].conf
+                from_data = config.get("form_data")
+                projects = from_data.get("projects")
+                series_instance_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
+                for project in projects:
+                    self.add_data_to_project(series_instance_uid, project_name=project)
+            else:    
+                self.assign_data_to_projects(metadata)
 
-    def assign_data_to_projects(self, path_to_metadata: str) -> None:
+    def assign_data_to_projects(self, metadata) -> None:
         """
         Map a dicom series to a project in the Dicom-Web-Filter based on the dicom metadata stored in path_to_metadata.
         The project name is stored in the metadata as the key '00120020 ClinicalTrialProtocolID_keyword'
         Additionally map the series to the admin project.
         """
-        with open(path_to_metadata) as f:
-            metadata = json.load(f)
-
         series_instance_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
         study_uid = metadata.get("0020000D StudyInstanceUID_keyword")
         clinical_trial_protocol_id = metadata.get(
@@ -84,9 +93,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         response.raise_for_status()
 
         ### Create the project-data mapping for the admin project
-        url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/1/data/{series_instance_uid}"
-        response = self.dcmweb_helper.session.put(url)
-        response.raise_for_status()
+        self.add_data_to_project(series_instance_uid, project_id=1)
         logger.debug(f"Added {series_instance_uid} to admin project with id 1.")
 
         if type(clinical_trial_protocol_id) == list:
@@ -95,17 +102,41 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
 
         ### Create the project-data mapping for the project stored in the dicom tag: ClinicalTrialProtocolID_keyword
         try:
-            project = self.get_project_by_name(clinical_trial_protocol_id)
-            project_id = project.get("id")
-            url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
-            response = self.dcmweb_helper.session.put(url)
-            response.raise_for_status()
-            logger.debug(f"Added {series_instance_uid} to project with {project_id=}")
+            self.add_data_to_project(series_instance_uid, project_name=clinical_trial_protocol_id)
         except (IndexError, requests.exceptions.HTTPError) as e:
             logger.warning(
                 f"{series_instance_uid=} is not assigned to a project! This does not fail the task. The series will still be assigned to the default admin project, when the data arrives at the Dicom-Web-Filter: {e}"
             )
             return None
+
+    def add_data_to_project(self, series_instance_uid, project_id=None, project_name=None):
+        """
+        Assigns a DICOM series to a project using either the project ID or project name.
+
+        Args:
+            series_instance_uid (str): The unique identifier of the DICOM series.
+            project_id (str, optional): The ID of the project to assign the series to.
+            project_name (str, optional): The name of the project to assign the series to.
+
+        Raises:
+            ValueError: If neither `project_id` nor `project_name` is provided.
+            ValueError: If `project_name` is provided but does not resolve to a valid project.
+            requests.HTTPError: If the request to assign the data fails.
+        """
+        if not project_id and not project_name:
+            raise ValueError("Either 'project_id' or 'project_name' must be provided.")
+
+        if project_name:
+            project = self.get_project_by_name(project_name)
+            if not project:
+                raise ValueError(f"Project with name '{project_name}' not found.")
+            project_id = project.get("id")
+
+        url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
+        response = self.dcmweb_helper.session.put(url)
+        response.raise_for_status()
+        
+        logger.debug(f"Added {series_instance_uid} to project with {project_id=}")
 
     def get_project_by_name(self, project_name: str):
         """

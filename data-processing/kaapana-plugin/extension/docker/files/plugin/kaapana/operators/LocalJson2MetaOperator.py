@@ -47,6 +47,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         avalability_check_delay: int = 10,
         avalability_check_max_tries: int = 15,
         check_in_pacs: bool = True,
+        from_other_project: bool = False,
         **kwargs,
     ):
         """
@@ -58,6 +59,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         :param avalability_check_delay: When checking for series availability in PACS, this parameter determines how many seconds are waited between checks in case series is not found.
         :param avalability_check_max_tries: When checking for series availability in PACS, this parameter determines how often to check for series in case it is not found.
         :param check_in_pacs: Determines whether or not to search for series in PACS. If set to True and series is not found in PACS, the data will not be put into OpenSearch.
+        :param from_other_project: Determines whether or not to use project destination from a user speicifc input.
         """
 
         self.dicom_operator = dicom_operator
@@ -70,6 +72,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.replace = replace
         self.instanceUID = None
         self.check_in_pacs = check_in_pacs
+        self.from_other_project = from_other_project
 
         super().__init__(
             dag=dag,
@@ -86,6 +89,17 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         - admin-project index: Derived from OpensearchSettings().default_index
         """
         logger.info(f"Pushing document to project index")
+        if self.from_other_project:
+            workflow_form = self.conf.get("workflow_form")
+            projects = workflow_form.get("projects")
+            for project_name in projects:
+                project = self.get_project_by_name(project_name)
+                logger.info(f"Project name: {project_name}")
+                self.push_to_opensearch_index(
+                    new_document=meta_information,
+                    opensearch_index=project.get("opensearch_index"),
+                )
+            return
         try:
             clinical_trial_protocol_id = meta_information.get(
                 "00120020 ClinicalTrialProtocolID_keyword"

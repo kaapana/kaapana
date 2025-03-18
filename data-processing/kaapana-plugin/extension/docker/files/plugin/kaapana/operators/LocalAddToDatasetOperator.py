@@ -36,31 +36,48 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                 with open(meta_files) as fs:
                     metadata = json.load(fs)
                     series_uid = metadata["0020000E SeriesInstanceUID_keyword"]
-                    try:
-                        project = get_project_by_name(
-                            metadata.get("00120020 ClinicalTrialProtocolID_keyword")
-                        )
-                    except:
-                        project = get_project_by_name("admin")
+                    if not self.from_other_project:
+                        try:
+                            project = get_project_by_name(
+                                metadata.get("00120020 ClinicalTrialProtocolID_keyword")
+                            )
+                        except:
+                            project = get_project_by_name("admin")
 
-                    # extract datasets from dicom tags
-                    datasets = [
-                        metadata.get(dicom_tags)
-                        for dicom_tags in self.tags_to_add_from_file
-                        if metadata.get(dicom_tags) is not None
-                    ]
-                    assert datasets
-                    for dataset in datasets:
-                        add_identifier_to_dataset_in_project(
-                            identifiers=[series_uid],
-                            dataset_name=dataset,
-                            project=project,
-                        )
-                        add_identifier_to_dataset_in_project(
-                            identifiers=[series_uid],
-                            dataset_name=dataset,
-                            project=admin_project,
-                        )
+                        # extract datasets from dicom tags
+                        datasets = [
+                            metadata.get(dicom_tags)
+                            for dicom_tags in self.tags_to_add_from_file
+                            if metadata.get(dicom_tags) is not None
+                        ]
+                        assert datasets
+                        for dataset in datasets:
+                            add_identifier_to_dataset_in_project(
+                                identifiers=[series_uid],
+                                dataset_name=dataset,
+                                project=project,
+                            )
+                            add_identifier_to_dataset_in_project(
+                                identifiers=[series_uid],
+                                dataset_name=dataset,
+                                project=admin_project,
+                            )
+                    else:
+                        config = kwargs["dag_run"].conf
+                        from_data = config.get("form_data")
+                        data_form = config.get("data_form")
+                        dataset_name = data_form.get("dataset_name", None)
+                        self.log.info(f"Copying {dataset_name=}")
+                        if dataset_name:
+                            projects = from_data.get("projects")
+                            for project_name in projects:
+                                self.log.info(f"Add {series_uid} to dataset {dataset_name} of project {project_name}")
+                                project = get_project_by_name(project_name)
+                                add_identifier_to_dataset_in_project(
+                                    identifiers=[series_uid],
+                                    dataset_name=dataset_name,
+                                    project=project,
+                                )
 
     def __init__(
         self,
@@ -69,6 +86,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         tags_to_add_from_file: List[str] = [
             "00120010 ClinicalTrialSponsorName_keyword"
         ],
+        from_other_project=False,
         *args,
         **kwargs,
     ):
@@ -77,6 +95,7 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         """
 
         self.tags_to_add_from_file = tags_to_add_from_file
+        self.from_other_project=from_other_project
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)
 
 

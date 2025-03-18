@@ -9,10 +9,12 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: keycloak
+      app.kubernetes.io/component: keycloak
   template:
     metadata:
       labels:
         app.kubernetes.io/name: keycloak
+        app.kubernetes.io/component: keycloak
     spec:
       initContainers:
       - name: init
@@ -20,7 +22,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
           - name: WAIT
-            value: "postgres,postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc,5432"
+            value: "{{ .Values.kaapana_database.appName | default .Release.Name }}-database-,{{ .Values.kaapana_database.appName | default .Release.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc,5432"
           - name: DELAY
             value: "2"
           - name: TIMEOUT
@@ -37,26 +39,13 @@ spec:
           - name: KC_DB 
             value: "postgres"
           - name: KC_DB_URL 
-            value: "jdbc:postgresql://postgres-keycloak-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
+            value: "jdbc:postgresql://{{ .Values.kaapana_database.appName | default .Release.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
           - name: KC_DB_USERNAME 
-            value: "keycloak"
+            value: {{ .Values.kaapana_database.postgres_user }}
           - name: KC_DB_PASSWORD
-            value: "keycloak"
+            value: {{ .Values.kaapana_database.postgres_password }}
           - name: KC_LOG_LEVEL
             value: "DEBUG"
-          # {{- if ne (.Values.global.https_port | default "443") "443" }}
-          # - name: KC_HOSTNAME_ADMIN_URL
-          #   value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth" 
-          # - name: KC_HOSTNAME_URL
-          #   value: "https://{{ .Values.global.hostname }}:{{ .Values.global.https_port }}/auth" 
-          # {{- else }}
-          # - name: KC_HOSTNAME_ADMIN_URL
-          #   value: "https://{{ .Values.global.hostname }}/auth" 
-          # - name: KC_HOSTNAME_URL
-          #   value: "https://{{ .Values.global.hostname }}/auth" 
-          # {{- end }}
-          # - name: KC_PROXY
-          #   value: edge
           - name: KC_HTTP_RELATIVE_PATH
             value: "/auth/"
           - name: KC_HTTPS_CERTIFICATE_KEY_FILE

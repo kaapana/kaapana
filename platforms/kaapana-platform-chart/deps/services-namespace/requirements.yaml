@@ -65,3 +65,5 @@ dependencies:
     version: 0.0.0
   - name: project-management-ui
     version: 0.0.0
+  - name: kaapana-documentation
+    version: 0.0.0

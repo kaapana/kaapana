@@ -602,8 +602,6 @@ export default {
         })
         .then((response) => {
           if(this.dag_id == "download-selected-files") {
-            console.log(this.$store);
-            console.log(response.data['workflow_name']);
             const payload = {dagId: this.dag_id, workflowName: response.data['workflow_name']}
             this.$store.dispatch(TRIGGER_DOWNLOAD_TRACKER, payload);
           }

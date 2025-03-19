@@ -164,22 +164,7 @@
                         </template>
                         <span>Start Workflow</span>
                       </v-tooltip>
-                      <v-tooltip bottom>
-                        <template v-slot:activator="{ on }">
-                          <span v-on="on">
-                            <v-btn :disabled="identifiersOfInterest.length == 0" icon>
-                              <v-icon
-                                v-on="on"
-                                color="primary"
-                                @click="() => console.log('clicked')"
-                              >
-                                mdi-download-circle
-                              </v-icon>
-                            </v-btn>
-                          </span>
-                        </template>
-                        <span>Download {{ this.$store.getters.downloadDagId }}</span>
-                      </v-tooltip>
+                      <DownloadDropdown/>
                     </v-col>
                   </v-row>
                 </v-card-title>
@@ -399,6 +384,7 @@ import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import EditDatasetsDialog from "@/components/EditDatasetsDialog.vue";
+import DownloadDropdown from "@/components/DownloadDropdown.vue";
 import KeyController from "keycon";
 import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
@@ -456,6 +442,7 @@ export default {
     Pane,
     ElementsFromHTML,
     Paginate,
+    DownloadDropdown
   },
   created() {
     this.settings = JSON.parse(localStorage["settings"]);

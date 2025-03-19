@@ -10,3 +10,4 @@ export const UPDATE_SELECTED_PROJECT = 'update_selected_project'
 export const UPDATE_AVAILABLE_PROJECTS = 'update_available_projects'
 // downloads module actions
 export const TRIGGER_DOWNLOAD_TRACKER = 'trigger_download_tracker'
+export const CHECK_DOWNLOAD_STATUS = 'check_download_status'

@@ -4,7 +4,6 @@ from datetime import timedelta
 from pathlib import Path
 
 from airflow.models import DAG
-from airflow.operators.python import PythonOperator
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
@@ -13,20 +12,18 @@ from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalAddToDatasetOperator import LocalAddToDatasetOperator
-from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
-from kaapana.operators.LocalRemoveDicomTagsOperator import (
-    LocalRemoveDicomTagsOperator,
-)
-from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
 from kaapana.operators.LocalAssignDataToProjectOperator import (
     LocalAssignDataToProjectOperator,
 )
+from kaapana.operators.LocalAutoTriggerOperator import LocalAutoTriggerOperator
 from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
+from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
 from kaapana.operators.LocalDicomSendOperator import LocalDicomSendOperator
 from kaapana.operators.LocalGetInputDataOperator import LocalGetInputDataOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
+from kaapana.operators.LocalRemoveDicomTagsOperator import LocalRemoveDicomTagsOperator
 from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
@@ -98,6 +95,71 @@ put_html_to_minio = LocalMinioOperator(
 )
 
 
+def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
+    # Fetch the Project Bucket name and store the validation results
+    # html file if the project is not a admin project
+    import json
+
+    import requests
+    from kaapanapy.helper import get_minio_client
+    from kaapanapy.settings import KaapanaSettings
+
+    kaapana_settings = KaapanaSettings()
+    minio = get_minio_client()
+
+    target_dir_prefix = "staticwebsiteresults"
+
+    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
+    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
+    for batch_element_dir in batch_folder:
+        json_dir = Path(batch_element_dir) / extract_metadata.operator_out_dir
+        json_files = [f for f in json_dir.glob("*.json")]
+        assert len(json_files) == 1
+        metadata_file = json_files[0]
+        with open(metadata_file, "r") as f:
+            metadata = json.load(f)
+
+        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")[0]
+
+        validator_results_dir = Path(batch_element_dir) / validate.operator_out_dir
+        result_files = [f for f in validator_results_dir.glob("*.html")]
+
+        if len(result_files) > 0 and project_name != "admin":
+            response = requests.get(
+                f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
+            )
+            response.raise_for_status()  # Raise an error if the request fails
+
+            project = response.json()
+
+            root_path = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id
+            for file_path in result_files:
+                object_path = (
+                    f"{target_dir_prefix}/{str(file_path.relative_to(root_path))}"
+                )
+                minio.fput_object(
+                    bucket_name=project.get("s3_bucket"),
+                    object_name=object_path,
+                    file_path=file_path,
+                )
+
+
+# Task to put the validation results in minio admin bucket for non-admin projects
+put_results_html_to_minio_admin_bucket = KaapanaPythonBaseOperator(
+    name="put-results-html-to-minio-admin-bucket",
+    python_callable=fetch_bucket_name_and_put_html_to_minio_admin_bucket,
+    dag=dag,
+)
+
+get_ref_ct_series = LocalGetRefSeriesOperator(
+    dag=dag,
+    input_operator=get_input,
+    search_policy="reference_uid",
+    parallel_downloads=5,
+    parallel_id="ct",
+)
+
+
 def has_ref_series(ds) -> bool:
     return ds.Modality in ["SEG", "RTSTRUCT"]
 
@@ -115,13 +177,6 @@ branch_by_has_ref_series = LocalDcmBranchingOperator(
     condition=has_ref_series,
     branch_true_operator="get-ref-series-ct",
     branch_false_operator="generate-thumbnail",
-)
-get_ref_ct_series = LocalGetRefSeriesOperator(
-    dag=dag,
-    input_operator=get_input,
-    search_policy="reference_uid",
-    parallel_downloads=5,
-    parallel_id="ct",
 )
 generate_thumbnail = GenerateThumbnailOperator(
     dag=dag,
@@ -143,9 +198,9 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
 
     import requests
     from kaapanapy.helper import get_minio_client
-    from kaapanapy.settings import KaapanaSettings
     from kaapanapy.logger import get_logger
-    
+    from kaapanapy.settings import KaapanaSettings
+
     logger = get_logger(__name__)
 
     kaapana_settings = KaapanaSettings()
@@ -164,17 +219,17 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
             metadata = json.load(f)
 
         project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
-        
+
         response = requests.get(
             f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_name}"
         )
         project = response.json()
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
-        
+
         if len(thumbnails) == 0:
             logger.info("No thumbnail generated -> Skipping")
-            continue 
-        
+            continue
+
         assert len(thumbnails) == 1
         thumbnail_path = thumbnails[0]
         series_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
@@ -229,7 +284,7 @@ extract_metadata >> [
 (remove_tags >> dcm_send)
 
 (
-    push_json 
+    push_json
     >> check_completeness
     >> branch_by_has_ref_series
     >> get_ref_ct_series

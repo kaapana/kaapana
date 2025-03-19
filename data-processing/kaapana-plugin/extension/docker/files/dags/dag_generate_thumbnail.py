@@ -8,6 +8,7 @@ from pathlib import Path
 import requests
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapanapy.helper import get_minio_client
 from kaapanapy.settings import KaapanaSettings
 from airflow.models import DAG
@@ -24,15 +25,6 @@ from airflow.utils.trigger_rule import TriggerRule
 ui_forms = {
     "workflow_form": {
         "type": "object",
-        "properties": {
-            "modalities_whitelist": {
-                "type": "array",
-                "title": "Modalities Whitelist",
-                "description": "List of DICOM modalities, that will be ignored while generating thumbnail",
-                "items": {"type": "string", "title": "DICOM tag"},
-                "default": [],
-            },
-        },
     }
 }
 
@@ -47,12 +39,14 @@ args = {
     "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(dag_id="generate-thumbnails", default_args=args, schedule_interval=None)
-
-
+dag = DAG(dag_id="generate-thumbnail", default_args=args, schedule_interval=None)
 get_input = GetInputOperator(dag=dag)
-
-check_completeness = CheckCompletenessOperator(dag=dag)
+extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=get_input)
+check_completeness = CheckCompletenessOperator(
+    dag=dag,
+    name="check-completeness",
+    input_operator=get_input,
+)
 
 
 def has_ref_series(ds) -> bool:
@@ -142,8 +136,10 @@ put_thumbnail_to_project_bucket = KaapanaPythonBaseOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
+get_input >> [extract_metadata, check_completeness]
+
 (
-    get_input
+    extract_metadata
     >> check_completeness
     >> branch_by_has_ref_series
     >> get_ref_ct_series

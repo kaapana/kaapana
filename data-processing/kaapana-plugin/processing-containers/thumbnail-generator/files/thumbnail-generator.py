@@ -100,9 +100,9 @@ def generate_thumbnail(
         thumbnail = generate_histopathology_thumbnail(operator_in_dir, thumbnail_size)
 
     elif SOPClassUID == EncapsulatedPDFStorage:
-        thumbnail = Image.open("static/pdf.png")
+        thumbnail = Image.open("/kaapana/app/pdf.png")
     elif SOPClassUID == RawDataStorage:
-        thumbnail = Image.open("static/raw.png")
+        thumbnail = Image.open("/kaapana/app/raw.png")
     else:
         thumbnail = generate_generic_thumbnail(
             operator_in_dir=operator_in_dir,

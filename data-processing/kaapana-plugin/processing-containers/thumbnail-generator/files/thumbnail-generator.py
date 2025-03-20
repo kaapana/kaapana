@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 import pydicom
-from document import generate_document_thumbnail
 from generic import generate_generic_thumbnail
 from histopathology import generate_histopathology_thumbnail
 from kaapanapy.logger import get_logger

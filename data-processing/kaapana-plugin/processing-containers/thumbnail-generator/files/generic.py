@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import traceback
 from pathlib import Path
+from typing import Optional
 
 import cv2
 import numpy as np
@@ -13,7 +14,7 @@ from PIL import Image
 logger = get_logger(__name__)
 
 
-def generate_thumbnail_with_dcm2pnm(dcm_file: Path, thumbnail_size: int) -> Image:
+def generate_thumbnail_with_dcm2pnm(dcm_file: Path, thumbnail_size: int) -> Image.Image:
     """
     Converts a DICOM file to a PNG image with a specified thumbnail size using dcmtk.
     https://support.dcmtk.org/docs-snapshot/dcm2pnm.html
@@ -155,7 +156,7 @@ def dcm2pixel_array(dicom_ds: pydicom.FileDataset, expected_dim: int) -> np.ndar
         return pixel_array
 
 
-def _convert_monochrome2(dicom_ds: pydicom.FileDataset) -> Image:
+def _convert_monochrome2(dicom_ds: pydicom.FileDataset) -> Image.Image:
     """
     Convert a DICOM image to a thumbnail image using monochrome2 format used by most CT and MR
 
@@ -176,7 +177,7 @@ def _convert_monochrome2(dicom_ds: pydicom.FileDataset) -> Image:
     return image
 
 
-def _convert_rgb(dicom_ds: pydicom.FileDataset) -> Image:
+def _convert_rgb(dicom_ds: pydicom.FileDataset) -> Image.Image:
     """
     Convert a DICOM image to a thumbnail using RGB format.
 
@@ -190,7 +191,7 @@ def _convert_rgb(dicom_ds: pydicom.FileDataset) -> Image:
     return Image.fromarray(pixel_array)
 
 
-def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image:
+def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image.Image:
     """
     Convert a DICOM image to a thumbnail using YBR format.
 
@@ -222,19 +223,21 @@ def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image:
             cr_channel.shape[0] != y_channel.shape[0]
             or cr_channel.shape[1] != y_channel.shape[1]
         ):
-            cr_channel = cv2.resize(
+            cr_channel_resized = cv2.resize(
                 cr_channel,
                 (y_channel.shape[1], y_channel.shape[0]),
                 interpolation=cv2.INTER_LINEAR,
             )
-            cb_channel = cv2.resize(
+            cb_channel_resized = cv2.resize(
                 cb_channel,
                 (y_channel.shape[1], y_channel.shape[0]),
                 interpolation=cv2.INTER_LINEAR,
             )
 
         # Stack the channels back together
-        ycrcb_image = np.stack([y_channel, cb_channel, cr_channel], axis=-1)
+        ycrcb_image = np.stack(
+            [y_channel, cb_channel_resized, cr_channel_resized], axis=-1
+        )
 
         # Convert from YCrCb to BGR (OpenCV uses BGR, but PIL uses RGB)
         bgr_image = cv2.cvtColor(ycrcb_image, cv2.COLOR_YCrCb2BGR)
@@ -250,7 +253,7 @@ def _convert_ybr(dicom_ds: pydicom.FileDataset) -> Image:
     return Image.fromarray(rgb_image)
 
 
-def _convert_palette(dicom_ds: pydicom.FileDataset) -> Image:
+def _convert_palette(dicom_ds: pydicom.FileDataset) -> Image.Image:
     """
     Convert a DICOM image to a thumbnail image using palette format, typically used by X-ray and ultrasound images.
 
@@ -312,7 +315,9 @@ def _convert_palette(dicom_ds: pydicom.FileDataset) -> Image:
     return img
 
 
-def convert_dicom_to_thumbnail(dcm_file: str, thumbnail_size: int) -> Image:
+def convert_dicom_to_thumbnail(
+    dcm_file: Path, thumbnail_size: int
+) -> Optional[Image.Image]:
     """
     Convert a DICOM file to a PNG image, applying windowing, VOI LUT, and rescaling.
 
@@ -350,7 +355,9 @@ def convert_dicom_to_thumbnail(dcm_file: str, thumbnail_size: int) -> Image:
     return image
 
 
-def generate_generic_thumbnail(operator_in_dir: Path, thumbnail_size: int) -> Image:
+def generate_generic_thumbnail(
+    operator_in_dir: Path, thumbnail_size: int
+) -> Optional[Image.Image]:
     """
     Generates a thumbnail for DICOM files in a given directory.
     1. Try dcm2pnm
@@ -366,13 +373,13 @@ def generate_generic_thumbnail(operator_in_dir: Path, thumbnail_size: int) -> Im
     dcm_file = list(operator_in_dir.iterdir())[0]
     try:
         return generate_thumbnail_with_dcm2pnm(dcm_file, thumbnail_size)
-    except Exception as e:
+    except Exception:
         logger.warning("dcm2pnm failed")
         logger.warning(traceback.format_exc())
 
     try:
         return convert_dicom_to_thumbnail(dcm_file, thumbnail_size)
-    except Exception as e:
+    except Exception:
         logger.error(traceback.format_exc())
 
     return None

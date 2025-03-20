@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import pydicom
 from kaapanapy.helper import get_opensearch_client, load_workflow_config
@@ -8,11 +8,10 @@ from kaapanapy.helper.HelperOpensearch import DicomTags
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings, OperatorSettings
 from kaapanapy.utils import (
-    get_required_env_var,
+    ConfigError,
     is_batch_mode,
     process_batches,
     process_single,
-    validate_directory,
 )
 from opensearchpy import OpenSearch
 from pydantic import BaseModel, ValidationError
@@ -31,30 +30,31 @@ class SeriesCompletenessMetadata(BaseModel):
 
 def get_opensearch_series_metadata(
     client: OpenSearch, index: str, series_uid: str
-) -> SeriesCompletenessMetadata | None:
+) -> Optional[SeriesCompletenessMetadata]:
     response = client.search(
         index=index,
         body={"query": {"match": {DicomTags.series_uid_tag: series_uid}}},
     )
 
     hits = response.get("hits", {}).get("hits", [])
-    if hits:
-        source = hits[0].get("_source", {})
-        try:
-            series_metadata = SeriesCompletenessMetadata(
-                min_instance_number=source.get(DicomTags.min_instance_number_tag),
-                max_instance_number=source.get(DicomTags.max_instance_number_tag),
-                is_series_complete=source.get(DicomTags.is_series_complete_tag),
-                missing_instance_numbers=source.get(
-                    DicomTags.missing_instance_numbers_tag
-                ),
-            )
-            return series_metadata
-        except ValidationError as e:
-            logger.error(
-                "Series found in OpenSearch, but series completeness metadata are missing."
-            )
-            logger.error(e)
+    if not hits:
+        return None
+
+    source = hits[0].get("_source", {})
+    try:
+        series_metadata = SeriesCompletenessMetadata(
+            min_instance_number=source.get(DicomTags.min_instance_number_tag),
+            max_instance_number=source.get(DicomTags.max_instance_number_tag),
+            is_series_complete=source.get(DicomTags.is_series_complete_tag),
+            missing_instance_numbers=source.get(DicomTags.missing_instance_numbers_tag),
+        )
+        return series_metadata
+    except ValidationError as e:
+        logger.error(
+            "Series found in OpenSearch, but series completeness metadata are missing."
+        )
+        logger.error(e)
+        return None
 
 
 def update_opensearch(
@@ -229,17 +229,24 @@ def main():
         # Airflow variables
         operator_settings = OperatorSettings()
 
-        # Load required environment variables
-        thread_count = int(get_required_env_var("THREADS", "3"))
+        thread_count = int(os.getenv("THREADS", "3"))
+        if thread_count is None:
+            logger.error("Missing required environment variable: THREADS")
+            raise ConfigError("Missing required environment variable: THREADS")
 
         workflow_dir = Path(operator_settings.workflow_dir)
         batch_name = operator_settings.batch_name
         operator_in_dir = Path(operator_settings.operator_in_dir)
         operator_out_dir = Path(operator_settings.operator_out_dir)
 
-        # Validate required directories
-        workflow_dir = validate_directory(workflow_dir, "Workflow")
-        batch_dir = validate_directory(os.path.join(workflow_dir, batch_name), "Batch")
+        if not workflow_dir.exists():
+            logger.error(f"{workflow_dir} directory does not exist")
+            raise ConfigError(f"{workflow_dir} directory does not exist")
+
+        batch_dir = workflow_dir / batch_name
+        if not batch_dir.exists():
+            logger.error(f"{batch_dir} directory does not exist")
+            raise ConfigError(f"{batch_dir} directory does not exist")
 
         logger.info(
             "All required directories and environment variables are validated successfully."

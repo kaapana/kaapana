@@ -34,7 +34,7 @@ def generate_thumbnail_for_middle_slice(
     study_uid: str,
     series_uid: str,
     thumbnail_size: int,
-) -> Image:
+) -> Optional[Image.Image]:
     """
     Generate a thumbnail image for the DICOM series by selecting the middle slice.
     Thumbnail will be CREATED even from incomplete series if no thumbnail found.
@@ -112,7 +112,7 @@ def generate_thumbnail_for_middle_slice(
 
 def _get_instance_uid_from_local(
     operator_in_dir: Path, operator_out_dir: Path, middle_instance_number: int
-) -> str:
+) -> Optional[str]:
     """
     Retrieve the SOP Instance UID of the DICOM file in the middle of a series from local workflow_data.
 
@@ -128,6 +128,7 @@ def _get_instance_uid_from_local(
         if dcm_file.InstanceNumber == middle_instance_number:
             shutil.copy(filename, operator_out_dir / filename.name)
             return dcm_file.SOPInstanceUID
+    return None
 
 
 def _get_instance_uid_from_pacs(
@@ -161,7 +162,7 @@ def _get_instance_uid_from_pacs(
             study_uid=study_uid,
             series_uid=series_uid,
             instance_uid=instance_uid,
-            target_dir=operator_out_dir,
+            target_dir=str(operator_out_dir),
         )
         return instance_uid
 

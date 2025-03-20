@@ -1,9 +1,8 @@
 import os
-from pathlib import Path
-from os.path import exists, join
 from glob import glob
 from multiprocessing.pool import ThreadPool
-
+from os.path import exists, join
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from kaapanapy.logger import get_logger
@@ -45,49 +44,6 @@ def is_batch_mode(workflow_dir: Path, batch_name: Path) -> bool:
     return False
 
 
-def validate_directory(path: str, description: str) -> Path:
-    """
-    Validates that a directory exists. If the directory does not exist, logs an error and raises a ConfigError.
-
-    Args:
-        path (str): The path to the directory to validate.
-        description (str): A description to be included in the error message if the directory does not exist.
-
-    Returns:
-        PathType: The validated path as a Path object.
-
-    Raises:
-        ConfigError: If the directory does not exist.
-    """
-    path = Path(path)
-    if not path.exists():
-        logger.error(f"{description} directory does not exist: {path}")
-        raise ConfigError(f"{description} directory does not exist: {path}")
-    return path
-
-
-def get_required_env_var(var_name: str, default: Optional[Any] = None) -> Any:
-    """
-    Retrieves an environment variable, ensuring it exists. If the environment variable is missing,
-    logs an error and raises a ConfigError.
-
-    Args:
-        var_name (str): The name of the environment variable to retrieve.
-        default (Optional[Any]): The default value to return if the environment variable is not found. Defaults to None.
-
-    Returns:
-        Any: The value of the environment variable.
-
-    Raises:
-        ConfigError: If the environment variable does not exist and no default is provided.
-    """
-    value = os.getenv(var_name, default)
-    if value is None:
-        logger.error(f"Missing required environment variable: {var_name}")
-        raise ConfigError(f"Missing required environment variable: {var_name}")
-    return value
-
-
 def process_batches(
     batch_dir: Path,
     operator_in_dir: Path,
@@ -120,7 +76,7 @@ def process_batches(
 
         operator_out_dir.mkdir(exist_ok=True)
         process_single(
-            base_dir=batch,
+            base_dir=Path(batch),
             operator_in_dir=operator_in_dir,
             operator_out_dir=operator_out_dir,
             operator_get_ref_series_dir=operator_get_ref_series_dir,

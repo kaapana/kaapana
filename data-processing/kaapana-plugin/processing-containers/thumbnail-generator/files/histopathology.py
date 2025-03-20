@@ -1,12 +1,16 @@
 from pathlib import Path
+from typing import Optional
 
 from generic import convert_dicom_to_thumbnail
 from kaapanapy.logger import get_logger
+from PIL import Image
 
 logger = get_logger(__name__)
 
 
-def generate_histopathology_thumbnail(operator_in_dir: Path, thumbnail_size: int):
+def generate_histopathology_thumbnail(
+    operator_in_dir: Path, thumbnail_size: int
+) -> Optional[Image.Image]:
     """
     Generates a thumbnail from a microscopy image.
 

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from random import randint
 
 import cv2
@@ -68,7 +69,7 @@ def resample_to_reference_image(
 
 
 def generate_segmentation_thumbnail(
-    operator_in_dir: str, operator_ref_dir: str, thumbnail_size: int
+    operator_in_dir: Path, operator_ref_dir: Path, thumbnail_size: int
 ) -> Image:
     """
     Generate a thumbnail image for a DICOM SEG-based segmentation.
@@ -183,7 +184,7 @@ def load_ref_series_and_segmentation(image_dir: str, seg_dir: str) -> tuple:
     return image_array, np.array(seg_arrays), segment_colors
 
 
-def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image:
+def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image.Image:
     """
     Create a thumbnail by overlaying a DICOM segmentation on the most representative slice.
 
@@ -328,8 +329,8 @@ def overlay_thumbnail(image_array, seg_arrays, segment_colors) -> Image:
 
 
 def generate_rtstruct_thumbnail(
-    dcm_incoming_dir: str, dcm_ref_dir: str, thumbnail_size: int
-) -> Image:
+    operator_in_dir: Path, operator_ref_dir: Path, thumbnail_size: int
+) -> Image.Image:
     """
     Generate a thumbnail image for an RTSTRUCT-based DICOM segmentation.
 
@@ -345,7 +346,7 @@ def generate_rtstruct_thumbnail(
         Image: A PIL Image object representing the thumbnail with segmentation overlay.
     """
     image_array, seg_arrays, segment_colors = load_ref_image_and_rtstruct(
-        dcm_ref_dir, dcm_incoming_dir
+        operator_ref_dir, operator_in_dir
     )
     thumbnail = overlay_thumbnail(image_array, seg_arrays, segment_colors)
     return thumbnail

@@ -2,22 +2,18 @@ import os
 from pathlib import Path
 
 import pydicom
+from document import generate_document_thumbnail
 from generic import generate_generic_thumbnail
 from histopathology import generate_histopathology_thumbnail
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OperatorSettings
-from kaapanapy.utils import (
-    ConfigError,
-    get_required_env_var,
-    is_batch_mode,
-    process_batches,
-    process_single,
-    validate_directory,
-)
+from kaapanapy.utils import ConfigError, is_batch_mode, process_batches, process_single
 from overlay_modalities import (
     generate_rtstruct_thumbnail,
     generate_segmentation_thumbnail,
 )
+from PIL import Image
+from pydicom.uid import EncapsulatedPDFStorage, RawDataStorage
 from slice_based_modalities import generate_thumbnail_for_middle_slice
 
 logger = get_logger(__name__)
@@ -70,6 +66,8 @@ def generate_thumbnail(
     dicom_files = [pydicom.dcmread(filename) for filename in operator_in_dir.iterdir()]
     first_dcm = dicom_files[0]
     modality = first_dcm.Modality
+    SOPClassUID = first_dcm.SOPClassUID
+
     study_uid = first_dcm.StudyInstanceUID
     series_uid = first_dcm.SeriesInstanceUID
 
@@ -81,6 +79,7 @@ def generate_thumbnail(
     ), "Instances have different SeriesUID"
     del dicom_files
 
+    # thumbnail: Optional[Image.Image]
     if modality in ["CT", "MR", "PET", "NM"]:
         thumbnail = generate_thumbnail_for_middle_slice(
             operator_in_dir=operator_in_dir,
@@ -98,8 +97,13 @@ def generate_thumbnail(
         thumbnail = generate_segmentation_thumbnail(
             operator_in_dir, operator_get_ref_series_dir, thumbnail_size
         )
-    elif modality in ["SM", "VL", "DX"]:
+    elif modality == "SM":
         thumbnail = generate_histopathology_thumbnail(operator_in_dir, thumbnail_size)
+
+    elif SOPClassUID == EncapsulatedPDFStorage:
+        thumbnail = Image.open("static/pdf.png")
+    elif SOPClassUID == RawDataStorage:
+        thumbnail = Image.open("static/raw.png")
     else:
         thumbnail = generate_generic_thumbnail(
             operator_in_dir=operator_in_dir,
@@ -121,20 +125,38 @@ def main():
         operator_settings = OperatorSettings()
 
         # Load required environment variables
-        thumbnail_size = int(get_required_env_var("SIZE", "300"))
-        thread_count = int(get_required_env_var("THREADS", "3"))
-        operator_get_ref_series_dir = Path(
-            get_required_env_var("GET_REF_SERIES_OPERATOR_DIR")
-        )
+        thumbnail_size = int(os.getenv("SIZE", "300"))
+        if thumbnail_size is None:
+            logger.error("Missing required environment variable: SIZE")
+            raise ConfigError("Missing required environment variable: SIZE")
+
+        thread_count = int(os.getenv("THREADS", "3"))
+        if thread_count is None:
+            logger.error("Missing required environment variable: THREADS")
+            raise ConfigError("Missing required environment variable: THREADS")
+
+        operator_get_ref_series_dir = os.getenv("GET_REF_SERIES_OPERATOR_DIR")
+        if operator_get_ref_series_dir is None:
+            logger.error(
+                "Missing required environment variable: GET_REF_SERIES_OPERATOR_DIR"
+            )
+            raise ConfigError(
+                "Missing required environment variable: GET_REF_SERIES_OPERATOR_DIR"
+            )
 
         workflow_dir = Path(operator_settings.workflow_dir)
         batch_name = operator_settings.batch_name
         operator_in_dir = Path(operator_settings.operator_in_dir)
         operator_out_dir = Path(operator_settings.operator_out_dir)
 
-        # Validate required directories
-        workflow_dir = validate_directory(workflow_dir, "Workflow")
-        batch_dir = validate_directory(os.path.join(workflow_dir, batch_name), "Batch")
+        if not workflow_dir.exists():
+            logger.error(f"{workflow_dir} directory does not exist")
+            raise ConfigError(f"{workflow_dir} directory does not exist")
+
+        batch_dir = workflow_dir / batch_name
+        if not batch_dir.exists():
+            logger.error(f"{batch_dir} directory does not exist")
+            raise ConfigError(f"{batch_dir} directory does not exist")
 
         logger.info(
             "All required directories and environment variables are validated successfully."

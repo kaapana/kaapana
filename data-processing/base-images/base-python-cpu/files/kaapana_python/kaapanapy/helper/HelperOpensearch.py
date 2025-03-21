@@ -15,7 +15,13 @@ class DicomTags:
     curated_modality_tag = "00000000 CuratedModality_keyword"
     dcmweb_endpoint_tag = "00020026 SourcePresentationAddress_keyword"
     custom_tag = "00000000 Tags_keyword"
+    clinical_trial_protocol_id_tag = "00120020 ClinicalTrialProtocolID_keyword"
 
+    is_series_complete_tag = "00000000 IsSeriesComplete_boolean"
+    min_instance_number_tag = "00000000 MinInstanceNumber_integer"
+    max_instance_number_tag = "00000000 MaxInstanceNumber_integer"
+    thumbnail_instance_uid_tag = "00000000 ThumbnailInstanceUID_keyword"
+    missing_instance_numbers_tag = "00000000 MissingInstanceNumbers_integer"
 
 class HelperOpensearch:
     def __init__(self):

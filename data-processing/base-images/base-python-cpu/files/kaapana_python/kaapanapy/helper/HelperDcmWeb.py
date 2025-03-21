@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from os.path import join
 from pathlib import Path
-from typing import List
+from typing import Any, Dict, List
 
 import pydicom
 import requests
@@ -380,7 +380,9 @@ class HelperDcmWeb:
             response.raise_for_status()
             return response.json()
 
-    def get_instances_of_series(self, study_uid: str, series_uid: str) -> List[dict]:
+    def get_instances_of_series(
+        self, study_uid: str, series_uid: str, params: Dict[str, Any] = None
+    ) -> List[dict]:
         """This function retrieves all instances of a series from the PACS.
 
         Args:
@@ -390,8 +392,11 @@ class HelperDcmWeb:
         Returns:
             List[dict]: List of instances of the series. Each instance is represented as a dictionary containing the instance metadata
         """
+        if not params:
+            params = {}
+
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances"
-        response = self.session.get(url)
+        response = self.session.get(url, params=params)
         if response.status_code == 204:
             return []
         elif response.status_code == 404:

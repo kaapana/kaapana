@@ -1,7 +1,7 @@
 FROM local-only/base-python-cpu:latest
 
-LABEL IMAGE="seg-thumbnail-generator"
-LABEL VERSION="0.1.0"
+LABEL IMAGE="thumbnail-generator"
+LABEL VERSION="0.4.0"
 LABEL BUILD_IGNORE="False"
 
 RUN apt-get update -y && apt-get install -y --no-install-recommends \
@@ -17,4 +17,4 @@ RUN pip3 install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0
 
 COPY files/* /kaapana/app/
 
-CMD ["python3", "-u", "/kaapana/app/seg-thumbnail-generator.py"]
+CMD ["python3", "-u", "/kaapana/app/thumbnail-generator.py"]

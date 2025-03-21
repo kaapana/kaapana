@@ -1,4 +1,5 @@
 import base64
+import os
 
 from app.datasets import utils
 from app.dependencies import get_minio, get_opensearch, get_project_index
@@ -211,23 +212,11 @@ async def get_data(
     metadata = await utils.get_metadata(os_client, project_index, series_instance_uid)
     # sanitize path params
     series_instance_uid = sanitize_inputs(series_instance_uid)
-    modality = metadata["Modality"]
-    dcmweb_endpoint = metadata.get("Source Presentation Address")
-    if dcmweb_endpoint:
-        thumbnail_src = f"/thumbnails/batch/{series_instance_uid}/external_thumbnail_operator/{series_instance_uid}.png"
 
-    elif modality in ["SEG", "RTSTRUCT"]:
-        # TODO: We could actually check if this file already exists.
+    thumbnail_src = f"/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
+    if os.path.exists(thumbnail_src):
         #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
-
-        thumbnail_src = (
-            f"/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
-        )
-    else:
-        thumbnail_src = (
-            f"/dicom-web-filter/studies/{metadata['Study Instance UID']}/"
-            f"series/{series_instance_uid}/thumbnail?viewport=300,300"
-        )
+        return thumbnail_src
 
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))
 

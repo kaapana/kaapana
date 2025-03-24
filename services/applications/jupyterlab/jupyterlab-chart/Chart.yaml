@@ -7,3 +7,5 @@ keywords:
 - kaapanaapplication
 - kaapanaint
 - kaapanamultiinstallable
+annotations:
+  documentation: "user_guide/extensions.html#jupyterlab"

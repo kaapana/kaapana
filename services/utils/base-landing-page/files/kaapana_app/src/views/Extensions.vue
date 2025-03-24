@@ -19,31 +19,55 @@
                     | mdi-cloud-refresh-outline
                 span Click to download latest extensions, this might take some time.
             br
-            span(style="font-size: 14px") Read more about the extensions in 
-              a(href="https://kaapana.readthedocs.io/", target="_blank") docs
           v-col
-            v-row(justify="end")
-              v-col(cols="12", sm="2")
-                v-select(
-                  label="Kind",
-                  :items="['All', 'Workflows', 'Applications']",
-                  v-model="extensionKind",
-                  hide-details=""
-                )
-              v-col(cols="12", sm="2")
-                v-select(
-                  label="Version",
-                  :items="['All', 'Stable', 'Experimental']",
+            v-row(justify="start")
+              v-col(cols="4", sm="4")
+                v-btn-toggle(
                   v-model="extensionExperimental",
-                  hide-details=""
+                  dense=true,
+                  multiple=true,
+                  rounded=true,
                 )
-              v-col(cols="12", sm="2")
-                v-select(
-                  label="Resources",
-                  :items="['Any', 'GPU', 'CPU']",
+                    v-btn(
+                      :disabled="false"
+                      :class="{ 'custom-disabled-button': !extensionExperimental.includes(1), 'custom-active-button': extensionExperimental.includes(0), 'custom-inactive': !extensionExperimental.includes(0) }"
+                      ) Experimental
+                    v-btn(
+                      :disabled="false" 
+                      :class="{ 'custom-disabled-button': !extensionExperimental.includes(0), 'custom-active-button': extensionExperimental.includes(1), 'custom-inactive': !extensionExperimental.includes(1) }"
+                      ) Stable
+              v-col(cols="4", sm="4")
+                v-btn-toggle(
+                  v-model="extensionKind",
+                  dense=true,
+                  background-color="primary",
+                  dark=true,
+                  multiple=true,
+                  rounded=true,
+                )
+                    v-btn(:disabled="!extensionKind.includes(1)") Applications
+                    v-btn(:disabled="!extensionKind.includes(0)") Workflows
+              v-col(cols="4", sm="4")
+                v-btn-toggle(
                   v-model="extensionResources",
-                  hide-details=""
+                  dense=true,
+                  background-color="primary",
+                  dark=true,
+                  multiple=true,
+                  rounded=true,
                 )
+                    v-btn(:disabled="!extensionResources.includes(1)") CPU
+                    v-btn(:disabled="!extensionResources.includes(0)") GPU
+              //- v-col(cols="12", sm="8")
+              //-   v-btn-toggle(
+              //-     v-model="extensionFilter",
+              //-     dense=false,
+              //-     background-color="primary",
+              //-     dark=false,
+              //-     multiple=true,
+              //-     rounded=true,
+              //-   )
+              //-       v-btn(v-for="(item, index) in extensionFilterNames") {{ item }}
               v-col(cols="12", sm="2")
                 v-text-field(
                   v-model="search",
@@ -61,32 +85,9 @@
         :loading="loading",
         :search="search",
         sort-by="releaseName",
-        loading-text="Waiting a few seconds..."
+        loading-text="Waiting a few seconds...",
+        calculate-widths=true
       )
-        template(v-slot:item.releaseName="{ item }")
-          span {{ item.releaseName }} &nbsp;
-            a(
-              :href="getHref(link)",
-              target="_blank",
-              v-for="link in item.links",
-              :key="item.link"
-            )
-              v-icon(color="primary") mdi-open-in-new
-        template(v-slot:item.versions="{ item }") 
-          v-select(
-            :items="item.versions",
-            v-model="item.version",
-            hide-details=""
-          )
-          //- span(v-if="item.installed === 'yes'") {{ item.version }}
-        template(v-slot:item.successful="{ item }")
-          v-progress-circular(
-            v-if="item.successful === 'pending'",
-            indeterminate,
-            color="primary"
-          )
-          v-icon(v-if="checkDeploymentReady(item) === true && item.successful !== 'pending'", color="green") mdi-check-circle
-          v-icon(v-if="item.successful === 'no'", color="red") mdi-alert-circle
         template(v-slot:item.kind="{ item }")
           v-tooltip(bottom="", v-if="item.kind === 'dag'")
             template(v-slot:activator="{ on, attrs }")
@@ -98,10 +99,68 @@
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
                 | mdi-application-outline
             span An application to work with
-        template(v-slot:item.helmStatus="{ item }")
-          span {{ getHelmStatus(item) }}
-        template(v-slot:item.kubeStatus="{ item }")
-          span {{ getKubeStatus(item) }}
+        template(v-slot:item.releaseName="{ item }")
+          span {{ item.releaseName }} &nbsp;
+            v-tooltip(right)
+              template(v-slot:activator="{ on, attrs }")
+                v-icon(color="primary", dark="", v-bind="attrs", v-on="on") mdi-information
+              span {{ item.description }}
+            a(
+              :href="getHref(link)",
+              target="_blank",
+              v-for="link in item.links",
+              :key="item.link"
+            )
+              v-icon(color="primary") mdi-open-in-new
+        template(v-slot:item.documentation="{ item }")
+            a(
+                :href="getHref('/docs/' + item.documentation)",
+                target="_blank",
+                :key="item.documentation"
+              )
+              v-icon(color="primary") mdi-open-in-new
+        template(v-slot:item.versions="{ item }") 
+          v-select(
+            :items="item.versions",
+            v-model="item.version",
+            hide-details="",
+          )
+          //- span(v-if="item.installed === 'yes'") {{ item.version }}
+        template(v-slot:item.successful="{ item }")
+          v-tooltip(
+            right, 
+            v-if="item.successful === 'pending'"
+            :key="checkDeploymentReady(item)"
+            )
+            template(v-slot:activator="{ on, attrs }")
+              v-progress-circular(
+                  indeterminate,
+                  color="primary",
+                  v-bind="attrs", 
+                  v-on="on"
+                )          
+            span Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}
+          v-tooltip(
+            right, 
+            v-else-if="item.successful === 'no'")
+            template(v-slot:activator="{ on, attrs }")
+              v-icon(
+                color="red", 
+                v-bind="attrs", 
+                v-on="on"
+                ) mdi-alert-circle
+            span Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}
+          v-tooltip(
+            right,
+            v-if="checkDeploymentReady(item) === true")
+            template(v-slot:activator="{ on, attrs }")
+              v-icon(
+                color="green", 
+                v-bind="attrs", 
+                v-on="on"
+                ) mdi-check-circle
+            span Helm status: {{ getHelmStatus(item) }} <br /> Kubernetes status: {{ getKubeStatus(item) }}
+          
         template(v-slot:item.experimental="{ item }")
           v-tooltip(bottom="", v-if="item.experimental === 'yes'")
             template(v-slot:activator="{ on, attrs }")
@@ -254,9 +313,18 @@ export default Vue.extend({
     polling: 0,
     launchedAppLinks: [] as any,
     search: "",
-    extensionExperimental: "Stable",
-    extensionResources: "Any",
-    extensionKind: "All",
+    extensionExperimental: [0, 1],
+    extensionResources: [0, 1],
+    extensionKind: [0, 1],
+    extensionFilterNames: [
+      "Experimental",
+      "Stable",
+      "Applications",
+      "Workflows",
+      "GPU",
+      "CPU",
+    ],
+    extensionFilter: [0, 1, 2, 3, 4, 5],
     popUpDialog: {} as any,
     popUpItem: {} as any,
     popUpChartName: "",
@@ -270,49 +338,57 @@ export default Vue.extend({
     ],
     headers: [
       {
+        text: "",
+        align: "center",
+        value: "kind",
+      },
+      {
         text: "Name",
         align: "start",
         value: "releaseName",
       },
       {
+        text: "Documentation",
+        align: "center",
+        value: "documentation",
+        // width: "10%",
+      },
+      {
         text: "Version",
         align: "start",
         value: "versions",
+        // width: "10%",
       },
       {
-        text: "Kind",
-        align: "start",
-        value: "kind",
-      },
-      {
-        text: "Description",
-        align: "start",
-        value: "description",
-      },
-      {
-        text: "Helm Status",
-        align: "start",
-        value: "helmStatus",
-      },
-      {
-        text: "Kube Status",
-        align: "start",
-        value: "kubeStatus",
-      },
-      {
-        text: "Experimental",
-        align: "start",
+        text: "",
+        align: "center",
         value: "experimental",
-      },
-      {
-        text: "Ready",
-        align: "start",
-        value: "successful",
+        // width: "1%",
       },
       { text: "Action", value: "installed" },
+      {
+        text: "Ready",
+        align: "center",
+        value: "successful",
+      },
+      // {
+      //   text: "Description",
+      //   align: "start",
+      //   value: "description",
+      // },
+      // {
+      //   text: "Helm Status",
+      //   align: "start",
+      //   value: "helmStatus",
+      // },
+      // {
+      //   text: "Kube Status",
+      //   align: "start",
+      //   value: "kubeStatus",
+      // },
     ],
   }),
-  created() { },
+  created() {},
   mounted() {
     this.getHelmCharts();
     this.startExtensionsInterval();
@@ -321,29 +397,29 @@ export default Vue.extend({
     filteredLaunchedAppLinks(): any {
       if (this.launchedAppLinks !== null) {
         return this.launchedAppLinks.filter((i: any) => {
-          let devFilter = true;
-          let kindFilter = true;
-          let resourceFilter = true;
+          let devFilter = false;
+          let kindFilter = false;
+          let resourceFilter = false;
 
-          if (this.extensionExperimental == "Stable" && i.experimental === "yes") {
-            devFilter = false;
+          if (this.extensionExperimental.includes(0) && i.experimental === "yes") {
+            devFilter = true;
+          } else if (this.extensionExperimental.includes(1) && i.experimental === "no") {
+            devFilter = true;
+          }
+
+          if (this.extensionKind.includes(0) && i.kind === "application") {
+            kindFilter = true;
+          } else if (this.extensionKind.includes(1) && i.kind === "dag") {
+            kindFilter = true;
+          }
+
+          if (this.extensionResources.includes(0) && i.resourceRequirement == "cpu") {
+            resourceFilter = true;
           } else if (
-            this.extensionExperimental == "Experimental" &&
-            i.experimental === "no"
+            this.extensionResources.includes(1) &&
+            i.resourceRequirement == "gpu"
           ) {
-            devFilter = false;
-          }
-
-          if (this.extensionKind == "Workflows" && i.kind === "application") {
-            kindFilter = false;
-          } else if (this.extensionKind == "Applications" && i.kind === "dag") {
-            kindFilter = false;
-          }
-
-          if (this.extensionResources == "GPU" && i.resourceRequirement == "cpu") {
-            resourceFilter = false;
-          } else if (this.extensionResources == "CPU" && i.resourceRequirement == "gpu") {
-            resourceFilter = false;
+            resourceFilter = true;
           }
 
           return devFilter && kindFilter && resourceFilter;
@@ -498,6 +574,11 @@ export default Vue.extend({
         .helmApiGet("/extensions", params)
         .then((response: any) => {
           this.launchedAppLinks = response.data;
+          this.launchedAppLinks = this.launchedAppLinks.map((item: any) => ({
+            documentation: item.annotations?.documentation ?? null,
+            ...item,
+          }));
+          // console.log(JSON.stringify(this.launchedAppLinks));
           if (this.launchedAppLinks !== null) {
             this.loading = false;
           }
@@ -650,6 +731,23 @@ export default Vue.extend({
 <style lang="scss">
 a {
   text-decoration: none;
+}
+
+.custom-disabled-button {
+  pointer-events: none; /* Prevent clicking */
+  opacity: 1 !important; /* Ensure the button doesn't turn grey */
+  background-color: #6ebd06 !important; /* Keep the inactive color */
+  color: black !important;
+}
+
+.custom-active-button {
+  background-color: #1976d2 !important; /* Change to desired active color */
+  color: black !important;
+}
+
+.custom-inactive:not(.custom-active) {
+  background-color: "primary" !important; /* Change inactive color only for these buttons */
+  color: white !important;
 }
 
 .dragdrop {

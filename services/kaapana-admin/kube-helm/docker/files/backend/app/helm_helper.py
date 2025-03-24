@@ -38,12 +38,12 @@ global_extensions_list = []
 global_platforms_list = []
 global_collected_tgz_charts = {}
 global_collected_tgz_charts_platforms = {}
-global_extension_states: Dict[
-    str, schemas.ExtensionState
-] = {}  # keys are in form <name>__<version>
-global_recently_updated: Set[
-    str
-] = set()  # list of keys for recently updated ( < refresh_delay) extensions
+global_extension_states: Dict[str, schemas.ExtensionState] = (
+    {}
+)  # keys are in form <name>__<version>
+global_recently_updated: Set[str] = (
+    set()
+)  # list of keys for recently updated ( < refresh_delay) extensions
 global_extensions_release_names: Set[str] = set()
 
 
@@ -203,28 +203,33 @@ def add_extension_to_dict(
         if "extension_params" in extension_dict:
             logger.debug("add_extension_to_dict found extension_params")
             ext_params = extension_dict["extension_params"]
-        global_extensions_dict[extension_name] = schemas.KaapanaExtension.construct(
-            latest_version=None,
-            chart_name=extension_name,
-            name=extension_name,  # TODO: for backwards compat w/ landing page, delete later
-            links=[],
-            available_versions={},
-            description=extension_dict["description"],
-            keywords=extension_dict["keywords"],
-            experimental=(
-                "yes" if "kaapanaexperimental" in extension_dict["keywords"] else "no"
-            ),
-            multiinstallable=(
-                "yes"
-                if "kaapanamultiinstallable" in extension_dict["keywords"]
-                else "no"
-            ),
-            kind=extension_kind,
-            resourceRequirement=(
-                "gpu" if "gpurequired" in extension_dict["keywords"] else "cpu"
-            ),
-            extension_params=ext_params,
-            # "values": extension_dict["values"]
+        global_extensions_dict[extension_name] = (
+            schemas.KaapanaExtension.model_construct(
+                latest_version=None,
+                chart_name=extension_name,
+                name=extension_name,  # TODO: for backwards compat w/ landing page, delete later
+                links=[],
+                available_versions={},
+                description=extension_dict["description"],
+                keywords=extension_dict["keywords"],
+                experimental=(
+                    "yes"
+                    if "kaapanaexperimental" in extension_dict["keywords"]
+                    else "no"
+                ),
+                multiinstallable=(
+                    "yes"
+                    if "kaapanamultiinstallable" in extension_dict["keywords"]
+                    else "no"
+                ),
+                kind=extension_kind,
+                resourceRequirement=(
+                    "gpu" if "gpurequired" in extension_dict["keywords"] else "cpu"
+                ),
+                extension_params=ext_params,
+                annotations=extension_dict.get("annotations"),
+                # "values": extension_dict["values"]
+            )
         )
 
     all_links = []

@@ -14,6 +14,9 @@ from radiomics.RadiomicsOperator import RadiomicsOperator
 log = LoggingMixin().log
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#radiomics-radiomics-dcmseg",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -39,7 +42,7 @@ ui_forms = {
                 "readOnly": False,
             },
         },
-    }
+    },
 }
 
 args = {

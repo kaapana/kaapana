@@ -10,6 +10,9 @@ available_pretrained_task_names, installed_tasks, all_selectable_tasks = get_tas
 
 installed_protocol_names = list(installed_tasks.keys())
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#nnunet-uninstall-models",
+    },
     "data_form": {},
     "workflow_form": {
         "type": "object",

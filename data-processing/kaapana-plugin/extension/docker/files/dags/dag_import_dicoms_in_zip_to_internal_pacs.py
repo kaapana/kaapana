@@ -15,6 +15,9 @@ log = LoggingMixin().log
 
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#import-dicoms-in-zip-to-internal-pacs",
+    },
     **schema_upload_form(whitelisted_file_formats=(".zip",)),
     "workflow_form": {
         "type": "object",

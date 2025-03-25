@@ -19,6 +19,9 @@ ui_forms = {
     **schema_upload_form(
         whitelisted_file_formats=(".zip"),
     ),
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#convert-niftis-to-dicom-and-import-to-pacs",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {

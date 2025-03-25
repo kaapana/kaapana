@@ -10,10 +10,13 @@ from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#clear-validation-results",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {},
-    }
+    },
 }
 
 log = LoggingMixin().log

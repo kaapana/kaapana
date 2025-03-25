@@ -31,7 +31,7 @@ properties_template = {
         "description": "Description of the model.",
         "type": "string",
         "readOnly": True,
-    },    
+    },
     "instance_name": {
         "title": "Instance Name",
         "description": "Name of the central instance.",
@@ -125,7 +125,9 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
     print(f"{task_values=}")
     task_selection = {
         "title": task_name,  # task_values["model"][0],
-        "properties": {"task_ids": {"type": "string", "const": to_task_name(task_name)}},
+        "properties": {
+            "task_ids": {"type": "string", "const": to_task_name(task_name)}
+        },
     }
     task_properties = copy.deepcopy(properties_template)
     for key, item in task_properties.items():
@@ -148,6 +150,9 @@ for idx, (task_name, task_values) in enumerate(installed_tasks.items()):
 
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#nnunet-predict",
+    },
     "publication_form": {
         "type": "object",
         "properties": {
@@ -178,7 +183,7 @@ ui_forms = {
                 "required": True,
             },
         },
-    }
+    },
 }
 ui_forms["workflow_form"] = workflow_form
 

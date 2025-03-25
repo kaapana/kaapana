@@ -5,7 +5,7 @@
     v-card
       v-card-title
         v-row
-          v-col(cols="12", md="3")
+          v-col(cols="12", md="12")
             span Applications and workflows &nbsp;
               v-tooltip(bottom="")
                 template(v-slot:activator="{ on, attrs }")
@@ -15,8 +15,7 @@
                     dark="",
                     v-bind="attrs",
                     v-on="on"
-                  )
-                    | mdi-cloud-refresh-outline
+                  ) mdi-cloud-refresh-outline
                 span Click to download latest extensions, this might take some time.
       //- TODO: set max file size limit
       upload(:labelIdle="labelIdle", url="/kube-helm-api/filepond-upload", :onProcessFileStart="fileStart", :onProcessFile="fileComplete", :acceptedFileTypes="allowedFileTypes")
@@ -44,7 +43,6 @@
             template( v-slot:activator="{ on, attrs }")
               v-btn( icon v-bind="attrs" v-on="on")
                 v-icon mdi-filter
-
             v-card(min-width="200px")
               v-checkbox(
                 v-model="selectedFilters"
@@ -115,7 +113,6 @@
                 a(
                   :href="getHref('/docs/' + item.documentation)",
                   target="_blank",
-                  :key="item.documentation"
                 )
                   v-icon(class="cell-icon", color="primary", dark="", v-bind="attrs", v-on="on") mdi-information
               span Link to the documentation.
@@ -727,23 +724,6 @@ export default Vue.extend({
 <style lang="scss">
 a {
   text-decoration: none;
-}
-
-.custom-disabled-button {
-  pointer-events: none; /* Prevent clicking */
-  opacity: 1 !important; /* Ensure the button doesn't turn grey */
-  background-color: #6ebd06 !important; /* Keep the inactive color */
-  color: black !important;
-}
-
-.custom-active-button {
-  background-color: #1976d2 !important; /* Change to desired active color */
-  color: black !important;
-}
-
-.custom-inactive:not(.custom-active) {
-  background-color: "primary" !important; /* Change inactive color only for these buttons */
-  color: white !important;
 }
 
 .dragdrop {

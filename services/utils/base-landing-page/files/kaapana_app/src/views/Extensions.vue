@@ -5,7 +5,7 @@
     v-card
       v-card-title
         v-row
-          v-col(cols="12", sm="4")
+          v-col(cols="12", md="3")
             span Applications and workflows &nbsp;
               v-tooltip(bottom="")
                 template(v-slot:activator="{ on, attrs }")
@@ -18,66 +18,17 @@
                   )
                     | mdi-cloud-refresh-outline
                 span Click to download latest extensions, this might take some time.
-            br
-          v-col
-            v-row(justify="start")
-              v-col(cols="4", sm="4")
-                v-btn-toggle(
-                  v-model="extensionExperimental",
-                  dense=true,
-                  multiple=true,
-                  rounded=true,
-                )
-                    v-btn(
-                      :disabled="false"
-                      :class="{ 'custom-disabled-button': !extensionExperimental.includes(1), 'custom-active-button': extensionExperimental.includes(0), 'custom-inactive': !extensionExperimental.includes(0) }"
-                      ) Experimental
-                    v-btn(
-                      :disabled="false" 
-                      :class="{ 'custom-disabled-button': !extensionExperimental.includes(0), 'custom-active-button': extensionExperimental.includes(1), 'custom-inactive': !extensionExperimental.includes(1) }"
-                      ) Stable
-              v-col(cols="4", sm="4")
-                v-btn-toggle(
-                  v-model="extensionKind",
-                  dense=true,
-                  background-color="primary",
-                  dark=true,
-                  multiple=true,
-                  rounded=true,
-                )
-                    v-btn(:disabled="!extensionKind.includes(1)") Applications
-                    v-btn(:disabled="!extensionKind.includes(0)") Workflows
-              v-col(cols="4", sm="4")
-                v-btn-toggle(
-                  v-model="extensionResources",
-                  dense=true,
-                  background-color="primary",
-                  dark=true,
-                  multiple=true,
-                  rounded=true,
-                )
-                    v-btn(:disabled="!extensionResources.includes(1)") CPU
-                    v-btn(:disabled="!extensionResources.includes(0)") GPU
-              //- v-col(cols="12", sm="8")
-              //-   v-btn-toggle(
-              //-     v-model="extensionFilter",
-              //-     dense=false,
-              //-     background-color="primary",
-              //-     dark=false,
-              //-     multiple=true,
-              //-     rounded=true,
-              //-   )
-              //-       v-btn(v-for="(item, index) in extensionFilterNames") {{ item }}
-              v-col(cols="12", sm="2")
-                v-text-field(
-                  v-model="search",
-                  append-icon="mdi-magnify",
-                  label="Search",
-                  hide-details=""
-                )
       //- TODO: set max file size limit
       upload(:labelIdle="labelIdle", url="/kube-helm-api/filepond-upload", :onProcessFileStart="fileStart", :onProcessFile="fileComplete", :acceptedFileTypes="allowedFileTypes")
 
+      v-row()
+        v-col(cols="12", sm="6")
+          v-text-field(
+            v-model="search",
+            prepend-icon="mdi-magnify",
+            label="Search",
+            hide-details=""
+          )
       v-data-table.elevation-1(
         :headers="headers",
         :items="filteredLaunchedAppLinks",
@@ -88,6 +39,55 @@
         loading-text="Waiting a few seconds...",
         calculate-widths=true
       )
+        template(v-slot:header.kind="{ header }") {{ header.text }}
+          v-menu(offset-y)
+            template( v-slot:activator="{ on, attrs }")
+              v-btn( icon v-bind="attrs" v-on="on")
+                v-icon mdi-filter
+
+            v-card(min-width="200px")
+              v-checkbox(
+                v-model="selectedFilters"
+                dense=true
+                label="Applications"
+                value="Applications")
+              v-checkbox(
+                v-model="selectedFilters"
+                dense=true
+                label="Workflows"
+                value="Workflows")
+        template(v-slot:header.experimental="{ header }") {{ header.text }}
+          v-menu(offset-y)
+            template( v-slot:activator="{ on, attrs }")
+              v-btn( icon v-bind="attrs" v-on="on")
+                v-icon mdi-filter
+            v-card(min-width="200px")
+              v-checkbox(
+                v-model="selectedFilters"
+                dense=true
+                label="Experimental"
+                value="Experimental")
+              v-checkbox(
+                v-model="selectedFilters"
+                dense=true
+                label="Stable"
+                value="Stable")
+        template(v-slot:header.resourceRequirement="{ header }") {{ header.text }}
+          v-menu(offset-y)
+            template( v-slot:activator="{ on, attrs }")
+              v-btn( icon v-bind="attrs" v-on="on")
+                v-icon mdi-filter
+            v-card(min-width="200px")
+              v-checkbox(
+                v-model="selectedFilters"
+                dense=true
+                label="CPU"
+                value="CPU")
+              v-checkbox(
+                v-model="selectedFilters"
+                dense=true
+                label="GPU"
+                value="GPU")
         template(v-slot:item.kind="{ item }")
           v-tooltip(bottom="", v-if="item.kind === 'dag'")
             template(v-slot:activator="{ on, attrs }")
@@ -100,25 +100,33 @@
                 | mdi-application-outline
             span An application to work with
         template(v-slot:item.releaseName="{ item }")
-          span {{ item.releaseName }} &nbsp;
-            v-tooltip(right)
+          div(class="cell-content")
+            v-tooltip(bottom)
               template(v-slot:activator="{ on, attrs }")
-                v-icon(color="primary", dark="", v-bind="attrs", v-on="on") mdi-information
+                div(
+                  class="text-content",
+                  v-bind="attrs", 
+                  v-on="on")
+                  span(class="first-line") {{ item.releaseName }}
+                  span(class="second-line") {{ item.description.length > 32 ? item.description.slice(0, 32) + "..." : item.description }}
               span {{ item.description }}
-            a(
-              :href="getHref(link)",
-              target="_blank",
-              v-for="link in item.links",
-              :key="item.link"
-            )
-              v-icon(color="primary") mdi-open-in-new
-        template(v-slot:item.documentation="{ item }")
-            a(
-                :href="getHref('/docs/' + item.documentation)",
-                target="_blank",
-                :key="item.documentation"
-              )
-              v-icon(color="primary") mdi-open-in-new
+            v-tooltip(bottom)
+              template(v-slot:activator="{ on, attrs }")
+                a(
+                  :href="getHref('/docs/' + item.documentation)",
+                  target="_blank",
+                  :key="item.documentation"
+                )
+                  v-icon(class="cell-icon", color="primary", dark="", v-bind="attrs", v-on="on") mdi-information
+              span Link to the documentation.
+        template(v-slot:item.links="{ item }")
+          a(
+            :href="getHref(link)",
+            target="_blank",
+            v-for="link in item.links",
+            :key="item.link"
+          )
+            v-icon(color="primary") mdi-open-in-new
         template(v-slot:item.versions="{ item }") 
           v-select(
             :items="item.versions",
@@ -166,7 +174,12 @@
             template(v-slot:activator="{ on, attrs }")
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
                 | mdi-test-tube
-            span Experimental extension or DAG, not tested yet!
+            span Experimental extension, not tested yet!
+          v-tooltip(bottom="", v-else)
+            template(v-slot:activator="{ on, attrs }")
+              v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
+                | mdi-check-decagram
+            span Extension was tested extensively.
         template(v-slot:item.installed="{ item }")
           v-btn(
             @click="deleteChart(item)",
@@ -313,10 +326,7 @@ export default Vue.extend({
     polling: 0,
     launchedAppLinks: [] as any,
     search: "",
-    extensionExperimental: [0, 1],
-    extensionResources: [0, 1],
-    extensionKind: [0, 1],
-    extensionFilterNames: [
+    selectedFilters: [
       "Experimental",
       "Stable",
       "Applications",
@@ -338,7 +348,7 @@ export default Vue.extend({
     ],
     headers: [
       {
-        text: "",
+        text: "Type",
         align: "center",
         value: "kind",
       },
@@ -348,22 +358,18 @@ export default Vue.extend({
         value: "releaseName",
       },
       {
-        text: "Documentation",
-        align: "center",
-        value: "documentation",
-        // width: "10%",
-      },
-      {
         text: "Version",
         align: "start",
         value: "versions",
-        // width: "10%",
       },
       {
-        text: "",
+        text: "Maturity",
         align: "center",
         value: "experimental",
-        // width: "1%",
+        filterable: true,
+      },
+      {
+        text: "Requires GPU", value: "resourceRequirement"
       },
       { text: "Action", value: "installed" },
       {
@@ -371,21 +377,11 @@ export default Vue.extend({
         align: "center",
         value: "successful",
       },
-      // {
-      //   text: "Description",
-      //   align: "start",
-      //   value: "description",
-      // },
-      // {
-      //   text: "Helm Status",
-      //   align: "start",
-      //   value: "helmStatus",
-      // },
-      // {
-      //   text: "Kube Status",
-      //   align: "start",
-      //   value: "kubeStatus",
-      // },
+      {
+        text: "Application links",
+        align: "start",
+        value: "links",
+      },
     ],
   }),
   created() {},
@@ -401,22 +397,22 @@ export default Vue.extend({
           let kindFilter = false;
           let resourceFilter = false;
 
-          if (this.extensionExperimental.includes(0) && i.experimental === "yes") {
+          if (this.selectedFilters.includes("Experimental") && i.experimental === "yes") {
             devFilter = true;
-          } else if (this.extensionExperimental.includes(1) && i.experimental === "no") {
+          } else if (this.selectedFilters.includes("Stable") && i.experimental === "no") {
             devFilter = true;
           }
 
-          if (this.extensionKind.includes(0) && i.kind === "application") {
+          if (this.selectedFilters.includes("Applications") && i.kind === "application") {
             kindFilter = true;
-          } else if (this.extensionKind.includes(1) && i.kind === "dag") {
+          } else if (this.selectedFilters.includes("Workflows") && i.kind === "dag") {
             kindFilter = true;
           }
 
-          if (this.extensionResources.includes(0) && i.resourceRequirement == "cpu") {
+          if (this.selectedFilters.includes("CPU") && i.resourceRequirement == "cpu") {
             resourceFilter = true;
           } else if (
-            this.extensionResources.includes(1) &&
+            this.selectedFilters.includes("GPU") &&
             i.resourceRequirement == "gpu"
           ) {
             resourceFilter = true;
@@ -828,5 +824,33 @@ a {
   margin-top: 10px;
   padding-top: 100px;
   padding-bottom: 10px;
+}
+
+.cell-content {
+  display: flex;
+  align-items: center; /* Align text and icon */
+  justify-content: space-between; /* Ensures text stays left, icon stays right */
+  width: 100%;
+  height: 100%;
+}
+
+.text-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.first-line {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.second-line {
+  font-size: 12px;
+  color: gray;
+}
+
+.cell-icon {
+  font-size: 1.5em; /* Adjust as needed */
+  align-self: stretch; /* Ensures icon takes max cell height */
 }
 </style>

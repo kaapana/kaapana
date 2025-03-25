@@ -19,15 +19,15 @@
                 span Click to download latest extensions, this might take some time.
       //- TODO: set max file size limit
       upload(:labelIdle="labelIdle", url="/kube-helm-api/filepond-upload", :onProcessFileStart="fileStart", :onProcessFile="fileComplete", :acceptedFileTypes="allowedFileTypes")
-
-      v-row()
-        v-col(cols="12", sm="6")
-          v-text-field(
-            v-model="search",
-            prepend-icon="mdi-magnify",
-            label="Search",
-            hide-details=""
-          )
+      v-card-title
+        v-row
+          v-col(cols="12", sm="6")
+            v-text-field(
+              v-model="search",
+              prepend-icon="mdi-magnify",
+              label="Search",
+              hide-details=""
+            )
       v-data-table.elevation-1(
         :headers="headers",
         :items="filteredLaunchedAppLinks",
@@ -91,12 +91,12 @@
             template(v-slot:activator="{ on, attrs }")
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
                 | mdi-gamepad-variant
-            span A workflow or algorithm that will be added to Airflow DAGs
+            span One or multiple workflows that will trigger Airflow DAGs
           v-tooltip(bottom="", v-if="item.kind === 'application'")
             template(v-slot:activator="{ on, attrs }")
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
                 | mdi-application-outline
-            span An application to work with
+            span An application with a user interface
         template(v-slot:item.releaseName="{ item }")
           div(class="cell-content")
             v-tooltip(bottom)
@@ -130,7 +130,8 @@
             v-model="item.version",
             hide-details="",
           )
-          //- span(v-if="item.installed === 'yes'") {{ item.version }}
+        template(v-slot:item.resourceRequirement="{ item }") 
+          span {{ item.resourceRequirement.toUpperCase() }}
         template(v-slot:item.successful="{ item }")
           v-tooltip(
             right, 
@@ -171,12 +172,12 @@
             template(v-slot:activator="{ on, attrs }")
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
                 | mdi-test-tube
-            span Experimental extension, not tested yet!
+            span Experimental extension
           v-tooltip(bottom="", v-else)
             template(v-slot:activator="{ on, attrs }")
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
                 | mdi-check-decagram
-            span Extension was tested extensively.
+            span Stable extension
         template(v-slot:item.installed="{ item }")
           v-btn(
             @click="deleteChart(item)",
@@ -366,9 +367,14 @@ export default Vue.extend({
         filterable: true,
       },
       {
-        text: "Requires GPU", value: "resourceRequirement"
+        text: "Hardware requirement", 
+        value: "resourceRequirement",
+        align: "start",
       },
-      { text: "Action", value: "installed" },
+      { text: "Action", 
+        value: "installed",
+        align: "start"
+      },
       {
         text: "Ready",
         align: "center",

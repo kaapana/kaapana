@@ -1,13 +1,26 @@
 import base64
 import os
+from typing import List
+import shutil
+from io import BytesIO
+import zipfile
 
 from app.datasets import utils
-from app.dependencies import get_minio, get_opensearch, get_project_index
+from app.dependencies import (
+    get_minio,
+    get_opensearch,
+    get_project_index,
+    get_dcmweb_helper,
+)
 from app.middlewares import sanitize_inputs
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from minio.error import S3Error
+import os
+from pathlib import Path
+import random
 from starlette.responses import StreamingResponse
+from time import gmtime, strftime
 import json
 
 router = APIRouter(tags=["datasets"])
@@ -380,3 +393,105 @@ async def get_fields(
         return JSONResponse(mapping[field])
     else:
         return JSONResponse(mapping)
+
+
+def get_dir_size(start_dir: str):
+    if not os.path.exists(start_dir):
+        return 0
+
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_dir):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+
+    return total_size / (1024 * 1024)
+
+
+@router.get("/download")
+async def download_multiple_series(
+    series_uids: str = Query(
+        ..., description="semicolon-separated (;) all the series UID to download"
+    ),
+    study_uids: str = Query(
+        ...,
+        description="semicolon-separated (;) all the associated study UI for all the given series in same order",
+    ),
+    dcmweb_helper=Depends(get_dcmweb_helper),
+):
+    series_list = series_uids.split(";")
+    study_list = study_uids.split(";")
+
+    max_dir_size = 256
+
+    assert len(series_list) == len(study_list), "mismatched series and study id list"
+
+    # Parse and validate study, series tuple
+    parsed_pairs = [
+        (study.strip(), series.strip())
+        for study, series in zip(study_list, series_list)
+    ]
+
+    # create the filename with the combination of random number and current time
+    download_filename = f"""\
+kaapana_dataset_downloads_{random.randint(11111, 99999)}_\
+{strftime("%Y%m%d%H%M%S", gmtime())}"""
+    tmp_dir = Path(f"/tmp/{download_filename}")
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    def check_if_dir_size_exceed():
+        total_size = get_dir_size(tmp_dir)
+        if total_size > max_dir_size:
+            return True
+        return False
+
+    ## Iteraion over all the study, series pair and download them to
+    ## temporary directory
+    ## TODO
+    ## 1. Check the number of successfull downloads
+    ## 2. Parralelize the multiple series downloads
+    for study, series in parsed_pairs:
+        target_dir = tmp_dir / study / series
+        download_successful = dcmweb_helper.download_series(
+            study_uid=study, series_uid=series, target_dir=target_dir
+        )
+        # no need to further download series if exceeds the limit
+        if check_if_dir_size_exceed():
+            break
+
+    if check_if_dir_size_exceed():
+        # delete the downloaded series if exceeds the limit and return exception
+        shutil.rmtree(tmp_dir)
+        raise HTTPException(
+            status_code=413,
+            detail=f"Requested files total size exceeds the limit of {max_dir_size} MB. Please use standard 'download-selected-file' workflow to downoad large files.",
+        )
+
+    # Create in-memory ZIP archive
+    zip_buffer = BytesIO()
+
+    # Create ZIP archive in memory
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        base_path = Path(tmp_dir)
+        for file_path in base_path.rglob("*"):  # Recursively include all files
+            if file_path.is_file():
+                # Write file to ZIP archive with relative path
+                zipf.write(file_path, file_path.relative_to(base_path))
+
+    # Reset buffer pointer to start
+    zip_buffer.seek(0)
+
+    # delete the downloaded series after the in-memory zip
+    shutil.rmtree(tmp_dir)
+
+    return StreamingResponse(
+        iter(
+            [zip_buffer.getvalue()]
+        ),  # Generator-like behavior for efficient streaming
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename={download_filename}.zip"
+        },
+    )

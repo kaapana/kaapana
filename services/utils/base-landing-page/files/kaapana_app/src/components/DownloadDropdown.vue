@@ -14,7 +14,9 @@
         </template>
         <v-list>
             <v-list-item>
-                <v-list-item-title>Download List</v-list-item-title>
+                <v-list-item-title>
+                    <a href="https://e230-pc25.inet.dkfz-heidelberg.de/kaapana-backend/get-static-website-results-html?object_name=downloads/download-selected-files-250319164821061096_25-03-19-17:48:38653660.zip" download>Download List</a>
+                </v-list-item-title>
             </v-list-item>
             <v-list-item>
                 <v-list-item-title>Download List 2</v-list-item-title>
@@ -27,13 +29,18 @@
 </template>
 
 <script lang="ts">
+import Vue from "vue";
+import { mapGetters } from "vuex";
 import { CHECK_DOWNLOAD_STATUS } from "@/store/actions.type";
 
-export default {
+export default Vue.extend({
     name: "DownloadDropdown",
     props: {},
+    data: () => ({
+        intervalId: null as number | null, // Properly typed for TypeScript        
+    }),
     computed: {
-        downloadStarted() {
+        downloadStarted(): boolean {
             return this.$store.getters.downloadStarted;
         },
         totalDownloadTasks():number {
@@ -47,40 +54,35 @@ export default {
         checkStatus() {
             this.$store.dispatch(CHECK_DOWNLOAD_STATUS);
             if (this.totalDownloadTasks > 0 && this.completedDownloadTasks == this.totalDownloadTasks) {
-                clearInterval(this.intervalId);
-                this.intervalId = null;
+                this.resetInterval();
                 console.log("Download Processing Complete: ", this.completedDownloadTasks, this.totalDownloadTasks);
             }
+        },
+        resetInterval() {
+            if (this.intervalId) {
+                clearInterval(this.intervalId);
+                this.intervalId = null;
+            }            
         }
     },
     watch: {
         downloadStarted(newval: boolean) {
             if (newval) {
                 if (!this.intervalId) {
-                    this.intervalId = window.setInterval(this.checkStatus, 3000); // Trigger every 3 second
+                    this.intervalId = window.setInterval(this.checkStatus, 5000); // Trigger every 3 second
                 }
-            } else {
-                if (this.intervalId) {
-                    clearInterval(this.intervalId);
-                    this.intervalId = null;
-                }
+            } else {                
+                this.resetInterval();                
             }
         },
-    },
-    data() {
-        return {
-            intervalId: null as number | null, // Properly typed for TypeScript
-        };
     },
     mounted() {
         // console.log(this.$store.getters.downloadStarted);
     },
-    beforeUnmount() {
-        if (this.intervalId) {
-            clearInterval(this.intervalId);
-        }
+    beforeDestroy() {
+        this.resetInterval();
     },
-};
+});
 </script>
 
 <style scoped></style>

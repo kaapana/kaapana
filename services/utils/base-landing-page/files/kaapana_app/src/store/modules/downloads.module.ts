@@ -53,24 +53,49 @@ const getters = {
 
 }
 
+async function fetchJobsWithRetry(workflowName: string, retries = 0): Promise<any> {
+  const MAX_RETRIES = 5;
+  const RETRY_DELAY = 2000; // 2 seconds delay between retries
+
+  try {
+    const response = await httpClient.get(`${KAAPANA_BACKEND_CLIENT}/jobs?workflow_name=${workflowName}`);
+    const allJobs = response.data;
+    if (allJobs.length > 0) {
+      const job = allJobs[0];      
+      return job; // Stop further retries if successful
+    }
+
+    if (retries < MAX_RETRIES) {
+      console.warn(`Workflow not found. Retrying... (${retries + 1}/${MAX_RETRIES})`);
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      return await fetchJobsWithRetry(workflowName, retries + 1); // Return the result of the next retry
+    } else {
+      console.error(`Failed to connect download workflow after ${MAX_RETRIES} attempts. Workflow name: ${workflowName}`);
+      return null; // Indicate failure
+    }
+  } catch (error) {
+    if (retries < MAX_RETRIES) {
+      console.warn(`Error fetching runs. Retrying... (${retries + 1}/${MAX_RETRIES})`);
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+      return await fetchJobsWithRetry(workflowName, retries + 1); // Continue retrying
+    } else {
+      console.error("Error fetching all runs:", error);
+      return null; // Indicate failure
+    }
+  }
+}
+
 const actions = {
     [TRIGGER_DOWNLOAD_TRACKER](context: any, payload: any) {
-        httpClient.get(`${KAAPANA_BACKEND_CLIENT}/jobs?workflow_name=${payload.workflowName}`).then((response: any) => {
-            const allJobs = response.data;
-            let found = false;
-            if (allJobs.length > 0) {
-              const job = allJobs[0];
-              payload.runId = job['run_id'];
-              context.commit(SET_DOWNLOAD_START, payload);
-              found = true;
-            }
-
-            if (!found) {
-                console.error(`Failed to connect download workflow. Workflow with the name ${payload.workflowName} not found.`)
-            }
-          }).catch((error: any) => {
-            console.error("Error fetching all runs:", error);
-          })
+        fetchJobsWithRetry(payload.workflowName).then((job: any) => {
+          if (job) {
+            payload.runId = job['run_id'];
+            console.log(job['status']);
+            context.commit(SET_DOWNLOAD_START, payload);
+          } else {
+            console.error("Failed to retrieve updated payload after retries.");
+          }
+        });        
     },
     [CHECK_DOWNLOAD_STATUS](context: any) {
       return new Promise((resolve: any) => {

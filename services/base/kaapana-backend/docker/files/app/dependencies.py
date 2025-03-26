@@ -12,6 +12,7 @@ from .config import settings
 from .database import SessionLocal
 from .workflows.utils import HelperMinio
 from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 
 
 def get_db():
@@ -93,3 +94,7 @@ def get_access_token(request: Request):
         )
     return decoded_access_token
 
+
+
+def get_dcmweb_helper(request: Request):
+    return HelperDcmWeb()

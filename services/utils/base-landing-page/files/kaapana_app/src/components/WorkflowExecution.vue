@@ -123,7 +123,6 @@ import kaapanaApiService from "@/common/kaapanaApi.service";
 import VJsf from "@koumoul/vjsf/lib/VJsf.js";
 import "@koumoul/vjsf/lib/VJsf.css";
 import "@koumoul/vjsf/lib/deps/third-party.js";
-import { TRIGGER_DOWNLOAD_TRACKER } from "@/store/actions.type";
 
 export default {
   name: "WorkflowExecution",
@@ -600,12 +599,8 @@ export default {
           remote: this.remote,
           federated: this.federated_data,
         })
-        .then((response) => {
-          if(this.dag_id == "download-selected-files") {
-            const payload = {dagId: this.dag_id, workflowName: response.data['workflow_name']}
-            this.$store.dispatch(TRIGGER_DOWNLOAD_TRACKER, payload);
-          }
-          
+        .then((response) => {  
+          // console.log(response);      
           this.$notify({
             type: "success",
             title: "Workflow successfully created!",

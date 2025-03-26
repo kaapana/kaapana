@@ -415,24 +415,35 @@ async def download_multiple_series(
     series_uids: str = Query(
         ..., description="semicolon-separated (;) all the series UID to download"
     ),
-    study_uids: str = Query(
-        ...,
-        description="semicolon-separated (;) all the associated study UI for all the given series in same order",
-    ),
     dcmweb_helper=Depends(get_dcmweb_helper),
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
 ):
-    series_list = series_uids.split(";")
-    study_list = study_uids.split(";")
 
+    series_uid_list = [uid.strip() for uid in series_uids.split(";")]
     max_dir_size = 256
 
-    assert len(series_list) == len(study_list), "mismatched series and study id list"
+    study_series_pairs = []
+    # fetch the study id for the given series and
+    # create study-series pairs.
+    for series_uid in series_uid_list:
+        try:
+            metadata_response = await utils.get_metadata(
+                os_client, project_index, series_uid
+            )
+        except Exception as e:
+            print(
+                f"Study Id for the Series {series_uid} could not be fetched. {str(e)}"
+            )
+            continue
 
-    # Parse and validate study, series tuple
-    parsed_pairs = [
-        (study.strip(), series.strip())
-        for study, series in zip(study_list, series_list)
-    ]
+        study_uid = metadata_response["Study Instance UID"]
+        study_series_pairs.append((study_uid, series_uid))
+
+    if len(study_series_pairs) == 0:
+        raise HTTPException(
+            status_code=404, detail="No appropriate series found to download."
+        )
 
     # create the filename with the combination of random number and current time
     download_filename = f"""\
@@ -452,7 +463,7 @@ kaapana_dataset_downloads_{random.randint(11111, 99999)}_\
     ## TODO
     ## 1. Check the number of successfull downloads
     ## 2. Parralelize the multiple series downloads
-    for study, series in parsed_pairs:
+    for study, series in study_series_pairs:
         target_dir = tmp_dir / study / series
         download_successful = dcmweb_helper.download_series(
             study_uid=study, series_uid=series, target_dir=target_dir

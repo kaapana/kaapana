@@ -164,7 +164,7 @@
                         </template>
                         <span>Start Workflow</span>
                       </v-tooltip>
-                      <DownloadDropdown/>
+                      <DownloadDatasetBtn :selected-series="identifiersOfInterest"/>
                     </v-col>
                   </v-row>
                 </v-card-title>
@@ -384,7 +384,7 @@ import SaveDatasetDialog from "@/components/SaveDatasetDialog.vue";
 import WorkflowExecution from "@/components/WorkflowExecution.vue";
 import ConfirmationDialog from "@/components/ConfirmationDialog.vue";
 import EditDatasetsDialog from "@/components/EditDatasetsDialog.vue";
-import DownloadDropdown from "@/components/DownloadDropdown.vue";
+import DownloadDatasetBtn from "@/components/DownloadDatasetBtn.vue";
 import KeyController from "keycon";
 import { debounce } from "@/utils/utils.js";
 import { Splitpanes, Pane } from "splitpanes";
@@ -442,7 +442,7 @@ export default {
     Pane,
     ElementsFromHTML,
     Paginate,
-    DownloadDropdown
+    DownloadDatasetBtn
   },
   created() {
     this.settings = JSON.parse(localStorage["settings"]);

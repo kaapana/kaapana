@@ -200,6 +200,46 @@ const loadDicomTagMapping = async () => {
     .data;
 };
 
+const downloadDatasets = async (concatenatedSeriesUIDs) => {
+  try {
+    const encodedSeriesUIDs = encodeURIComponent(concatenatedSeriesUIDs);
+    const response = await httpClient.get(
+      KAAPANA_BACKEND_ENDPOINT + `dataset/download?series_uids=${encodedSeriesUIDs}`,
+      { responseType: 'blob' }  // Important for file downloads
+    );
+
+    // Create a download link for the received blob
+    const blob = new Blob([response.data], { type: response.headers['content-type'] });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+
+    // Extract filename from headers or define a fallback
+    const contentDisposition = response.headers['content-disposition'];
+    const fileName = contentDisposition
+      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+      : 'downloaded_file.zip'; // Default file name
+
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    URL.revokeObjectURL(link.href);
+    document.body.removeChild(link);
+
+  } catch (error) {
+    Vue.notify({
+      title: "Error",
+      text:
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : error,
+      type: "error",
+    });
+    throw error;
+  }
+};
+
 const fetchProjects = async () => {
   const currentUser = store.getters.currentUser
   try {
@@ -236,4 +276,5 @@ export {
   loadValues,
   getAggregatedSeriesNum,
   fetchProjects,
+  downloadDatasets
 };

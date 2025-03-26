@@ -115,7 +115,7 @@ if [ ! -z $INSTANCE_UID ]; then
 
     FAST_DATA_DIR="$FAST_DATA_DIR-$INSTANCE_UID"
     SLOW_DATA_DIR="$SLOW_DATA_DIR-$INSTANCE_UID"
-    
+
     INCLUDE_REVERSE_PROXY=true
 fi
 echo ""
@@ -274,12 +274,12 @@ function delete_deployment {
         echo -e "${GREEN}Removing all pvs from cluster ...${NC}"
         microk8s.kubectl delete pv --all
     fi
-    
+
     if [ "$idx" -eq "$WAIT_UNINSTALL_COUNT" ]; then
         echo "${RED}Something went wrong while undeployment please check manually if there are still namespaces or pods floating around. Everything must be delete before the deployment:${NC}"
         echo "${RED}kubectl get pods -A${NC}"
         echo "${RED}kubectl get namespaces${NC}"
-        echo "${RED}Executing './deploy_platform.sh --no-hooks' is an option to force the resources to be removed.${NC}"        
+        echo "${RED}Executing './deploy_platform.sh --no-hooks' is an option to force the resources to be removed.${NC}"
         echo "${RED}Once everything is deleted you can re-deploy the platform!${NC}"
         exit 1
     fi
@@ -290,11 +290,11 @@ function delete_deployment {
 
 function nuke_pods {
     for namespace in $EXTENSIONS_NAMESPACE $SERVICES_NAMESPACE $ADMIN_NAMESPACE $HELM_NAMESPACE; do
-        echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}"; 
+        echo "${RED}Deleting all pods from namespaces: $namespace ...${NC}";
         for mypod in $(microk8s.kubectl get pods -n $namespace -o jsonpath="{.items[*].metadata.name}");
         do
-            echo "${RED}Deleting: $mypod ${NC}"; 
-            microk8s.kubectl delete pod -n $namespace $mypod --grace-period=0 --force 
+            echo "${RED}Deleting: $mypod ${NC}";
+            microk8s.kubectl delete pod -n $namespace $mypod --grace-period=0 --force
         done
     done
 }
@@ -333,7 +333,7 @@ function deploy_chart {
     fi
 
     get_domain
-    
+
     if [ -z "$INSTANCE_NAME" ]; then
         INSTANCE_NAME=$DOMAIN
         echo "${YELLOW}No INSTANCE_NAME is set, setting it to $DOMAIN!${NC}"
@@ -390,8 +390,8 @@ function deploy_chart {
     else
         PULL_POLICY_IMAGES="Always"
     fi
-        
-    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH 
+
+    if [ ! -z "$CHART_PATH" ]; then # Note: OFFLINE_MODE requires CHART_PATH
         echo -e "${YELLOW}We assume that that all images are already presented inside the microk8s.${NC}"
         echo -e "${YELLOW}Images are uploaded either with a previous deployment from a docker registry or uploaded from a tar or directly uploaded during building the platform.${NC}"
 
@@ -437,7 +437,6 @@ function deploy_chart {
         pull_chart $SCRIPT_PATH
         CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
-
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
@@ -463,9 +462,10 @@ function deploy_chart {
     --set-string global.home_dir="$HOME" \
     --set-string global.hostname="$DOMAIN" \
     --set-string global.http_port="$HTTP_PORT" \
-    --set-string global.http_proxy="$http_proxy" \
     --set-string global.https_port="$HTTPS_PORT" \
-    --set-string global.https_proxy="$https_proxy" \
+    --set-string squid-proxy.upstreamHttpProxy="$http_proxy" \
+    --set-string squid-proxy.upstreamHttpsProxy="$https_proxy" \
+    # --set-string squid-proxy.upstreamNoProxy=".my-hospital.tld\,a-particular.server.local\,127.0.0.1" \
     --set global.offline_mode=$OFFLINE_MODE \
     --set global.prefetch_extensions=$PREFETCH_EXTENSIONS \
     --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \
@@ -876,36 +876,36 @@ function create_report {
 cat << "EOF"
 
 
-                           .=#%@@@%#-                                 
-                          .@@@@@@@@@@                                 
-                     .::::*@@@@@@@@+      :+##*+=.                    
-                 .+%@@@@@@#  -@@@-       *@@@@@@@@#:                  
-                -@@@@@@@@@+   #@#       -@@@@@@@@@@@=.=#%*=           
-                #@@@@@@@@#. :#@@@#=---=#@@@@@@@@@@@#+#@@@@@@*         
-           .:::=@@@@@@@%- -%@@@@@@@@@@@+.   .-===-.   #@@@@@@%        
-         +@@@@@@-:+@@@=  +@@@@@@@@@@@@=                +@@@@@@=       
-       :@@@@@@@#   %@=   @@@@@@@@@@@@@=                 .#@@@#  =##=  
-       %@@@@@@@=  =@@%.  +@@@@@@@@@@@@@+.    .:---.       +@%  :@@@@% 
+                           .=#%@@@%#-
+                          .@@@@@@@@@@
+                     .::::*@@@@@@@@+      :+##*+=.
+                 .+%@@@@@@#  -@@@-       *@@@@@@@@#:
+                -@@@@@@@@@+   #@#       -@@@@@@@@@@@=.=#%*=
+                #@@@@@@@@#. :#@@@#=---=#@@@@@@@@@@@#+#@@@@@@*
+           .:::=@@@@@@@%- -%@@@@@@@@@@@+.   .-===-.   #@@@@@@%
+         +@@@@@@-:+@@@=  +@@@@@@@@@@@@=                +@@@@@@=
+       :@@@@@@@#   %@=   @@@@@@@@@@@@@=                 .#@@@#  =##=
+       %@@@@@@@=  =@@%.  +@@@@@@@@@@@@@+.    .:---.       +@%  :@@@@%
        *@@@@@@= .#@@@@@=  -%@@@@@@@@##*#@@@@@@@@@@@@*.    .@#  :@@@@@*
  .*@@#. #@@@*. +@@@@@@@@%.  -%@@@=.      *@@@@@@@@@@@@-  .#@@+  %@@@@@
 .@@@@@#  %@=  *@@@@@@@@@@*   .@@=         +@@@@@@@@@@@@ -@@@@@#..%@@@#
 #@@@@@%  %@.  %@@@@@@@@@@*   -@@+          *@@@@@@@@@@@:@@@@@@@@  %@@.
-%@@@@@= *@@%: +@@@@@@@@@@.  =@@@@*.         -%@@@@@@@%:=@@@@@@@@= .@- 
-=@@@@=.%@@@@@+ =@@@@@@@*. -%@@@@@@@=          :=+**+-  .@@@@@@@@- :@. 
- .-:  %@@@@@@@+  :===-   +@@@@@@@@@@#             .::.  =@@@@@@#:*@@* 
+%@@@@@= *@@%: +@@@@@@@@@@.  =@@@@*.         -%@@@@@@@%:=@@@@@@@@= .@-
+=@@@@=.%@@@@@+ =@@@@@@@*. -%@@@@@@@=          :=+**+-  .@@@@@@@@- :@.
+ .-:  %@@@@@@@+  :===-   +@@@@@@@@@@#             .::.  =@@@@@@#:*@@*
      .@@@@@@@@%   :-:   .@@@@@@@@@@@@-         -#@@@@@@#-.-++=.*@@@@@-
       %@@@@@@@+ =@@@@@*..@@@@@@@@@@@@:        +@@@@@@@@@@%-   +@@@@@@+
        *@@@@@*  @@@@@@@% =@@@@@@@@@@#        .@@@@@@@@@@@@@@%@@@@@@@@=
-        .---    +@@@@@@@  :#@@@@@@@@#:----.   @@@@@@@@@@@@+:.:#@@@@@% 
-                 -#@@@*.     :---..%@@@@@@@%= :@@@@@@@@@@:     :#@%+  
-                                   @@@@@@@@@@%  =#@@@@@@:             
-                                  :@@@@@@@@@@@#   .-#@@*              
-                                   #@@@@@@@@@@@*     +@%              
- | |/ /                                   +@@@@@@@@@@@%+--+@@@@*-           
- | ' / __ _  __ _ _ __   __ _ _ __   __ _  -+*#*+=-::+@@@@@@@@@@#          
- |  < / _` |/ _` | '_ \ / _` | '_ \ / _` |            :@@@@@@@@@@:         
- | . \ (_| | (_| | |_) | (_| | | | | (_| |             +@@@@@@@@=          
- |_|\_\__,_|\__,_| .__/ \__,_|_| |_|\__,_|              #@@@@@*. 
+        .---    +@@@@@@@  :#@@@@@@@@#:----.   @@@@@@@@@@@@+:.:#@@@@@%
+                 -#@@@*.     :---..%@@@@@@@%= :@@@@@@@@@@:     :#@%+
+                                   @@@@@@@@@@%  =#@@@@@@:
+                                  :@@@@@@@@@@@#   .-#@@*
+                                   #@@@@@@@@@@@*     +@%
+ | |/ /                                   +@@@@@@@@@@@%+--+@@@@*-
+ | ' / __ _  __ _ _ __   __ _ _ __   __ _  -+*#*+=-::+@@@@@@@@@@#
+ |  < / _` |/ _` | '_ \ / _` | '_ \ / _` |            :@@@@@@@@@@:
+ | . \ (_| | (_| | |_) | (_| | | | | (_| |             +@@@@@@@@=
+ |_|\_\__,_|\__,_| .__/ \__,_|_| |_|\__,_|              #@@@@@*.
                  | |
   _   _          |_|       _____                       _
  | \ | |         | |      |  __ \                     | |
@@ -1046,7 +1046,7 @@ do
             QUIET=true
             shift # past argument
         ;;
-        
+
         --offline)
             OFFLINE_MODE=true
             echo -e "${GREEN}Deploying in offline mode!${NC}"
@@ -1081,7 +1081,7 @@ do
             while true; do
                 read -e -p "Do you really want to nuke all pods? -> Not recommended!" -i " no" yn
                 case $yn in
-                    [Yy]* ) 
+                    [Yy]* )
                     nuke_pods
                     delete_deployment
                     clean_up_kubernetes
@@ -1121,7 +1121,7 @@ preflight_checks
 
 echo -e "${YELLOW}Get helm deployments...${NC}"
 deployments=$(helm -n $HELM_NAMESPACE ls -a |cut -f1 |tail -n +2)
-echo "Current deployments: " 
+echo "Current deployments: "
 echo $deployments
 
 if [[ $deployments == *"$PLATFORM_NAME"* ]] && [[ ! $QUIET = true ]];then

@@ -1,0 +1,11 @@
+---
+global:
+  pull_policy_images: "IfNotPresent"
+  admin_namespace: "Admin"
+
+# HTTP Proxy for upstream traffic (e.g. https://myproxy:8080)
+upstreamHttpProxy: ""
+# HTTPS Proxy for upstream traffic (e.g. https://myproxy:8080)
+upstreamHttpsProxy: ""
+# comma separaterd list of hosts for direct connectoin (e.g. localhost,my-internal-webserver)
+upstreamNoProxy: ""

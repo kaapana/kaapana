@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: squid-config
+  namespace: "{{ .Values.global.admin_namespace }}"
+  labels:
+    app.kubernetes.io/name: squid-proxy
+data:
+  squid.conf: |
+    http_port 3128
+
+    acl SSL_ports port 443
+    acl CONNECT method CONNECT
+
+    # Proxy is only exposed inside the cluster therfore allowing all connections
+    http_access allow CONNECT SSL_ports
+    http_access allow all
+
+    {{- if .Values.upstreamNoProxy }}
+    # Define ACL for hosts that should bypass the upstream proxy
+    acl no_proxy dstdomain {{ .Values.upstreamNoProxy | replace "," " " }}
+    # For hosts matching no_proxy, force direct connections even if an upstream is defined
+    always_direct allow no_proxy
+    {{- end }}
+
+    {{- $httpProxy := .Values.upstreamHttpProxy | trim }}
+    {{- $httpsProxy := .Values.upstreamHttpsProxy | trim }}
+
+    {{- if and $httpProxy $httpsProxy (eq $httpProxy $httpsProxy) }}
+      {{- /* Both proxy settings are defined and equal – render a single cache_peer entry */}}
+      {{- $proxyUrl := $httpProxy }}
+      {{- $scheme := regexReplaceAll "^(https?)://.*" $proxyUrl "$1" }}
+      {{- $host := regexReplaceAll "^(https?)://([^:/]+).*" $proxyUrl "$2" }}
+      {{- $portStr := regexFind ":(\\d+)" $proxyUrl | regexReplaceAll ":" "" }}
+      {{- $defaultPort := "80" }}
+      {{- if eq $scheme "https" }}
+        {{- $defaultPort = "443" }}
+      {{- end }}
+      {{- $port := $portStr | default $defaultPort }}
+      {{- $sslFlag := "" }}
+      {{- if eq $scheme "https" }}
+        {{- $sslFlag = "ssl" }}
+      {{- end }}
+    cache_peer {{ $host }} parent {{ $port }} 0 no-query default{{ if $sslFlag }} {{ $sslFlag }}{{ end }}
+    never_direct allow all
+    {{- else }}
+      {{- if $httpProxy }}
+        {{- /* Render HTTP proxy block */}}
+        {{- $scheme := regexReplaceAll "^(https?)://.*" $httpProxy "$1" }}
+        {{- $host := regexReplaceAll "^(https?)://([^:/]+).*" $httpProxy "$2" }}
+        {{- $portStr := regexFind ":(\\d+)" $httpProxy | regexReplaceAll ":" "" }}
+        {{- $defaultPort := "80" }}
+        {{- if eq $scheme "https" }}
+          {{- $defaultPort = "443" }}
+        {{- end }}
+        {{- $port := $portStr | default $defaultPort }}
+        {{- $sslFlag := "" }}
+        {{- if eq $scheme "https" }}
+          {{- $sslFlag = "ssl" }}
+        {{- end }}
+    cache_peer {{ $host }} parent {{ $port }} 0 no-query default{{ if $sslFlag }} {{ $sslFlag }}{{ end }}
+    never_direct allow all
+      {{- end }}
+
+      {{- if $httpsProxy }}
+        {{- /* Render HTTPS proxy block */}}
+        {{- $scheme := regexReplaceAll "^(https?)://.*" $httpsProxy "$1" }}
+        {{- $host := regexReplaceAll "^(https?)://([^:/]+).*" $httpsProxy "$2" }}
+        {{- $portStr := regexFind ":(\\d+)" $httpsProxy | regexReplaceAll ":" "" }}
+        {{- $defaultPort := "443" }}
+        {{- if eq $scheme "http" }}
+          {{- $defaultPort = "80" }}
+        {{- end }}
+        {{- $port := $portStr | default $defaultPort }}
+        {{- $sslFlag := "" }}
+        {{- if eq $scheme "https" }}
+          {{- $sslFlag = "ssl" }}
+        {{- end }}
+    cache_peer {{ $host }} parent {{ $port }} 0 no-query default{{ if $sslFlag }} {{ $sslFlag }}{{ end }}
+    never_direct allow all
+      {{- end }}
+    {{- end }}

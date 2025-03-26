@@ -412,6 +412,7 @@ def get_dir_size(start_dir: str):
 
 @router.get("/download")
 async def download_multiple_series(
+    request: Request,
     series_uids: str = Query(
         ..., description="semicolon-separated (;) all the series UID to download"
     ),
@@ -422,6 +423,9 @@ async def download_multiple_series(
 
     series_uid_list = [uid.strip() for uid in series_uids.split(";")]
     max_dir_size = 256
+
+    user = request.headers.get("x-forwarded-preferred-username")
+    project = json.loads(request.headers.get("project"))
 
     study_series_pairs = []
     # fetch the study id for the given series and
@@ -446,9 +450,7 @@ async def download_multiple_series(
         )
 
     # create the filename with the combination of random number and current time
-    download_filename = f"""\
-kaapana_dataset_downloads_{random.randint(11111, 99999)}_\
-{strftime("%Y%m%d%H%M%S", gmtime())}"""
+    download_filename = f"kaapana_dataset_downloads_{random.randint(11111, 99999)}_{strftime('%Y%m%d%H%M%S', gmtime())}"
     tmp_dir = Path(f"/tmp/{download_filename}")
     tmp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -496,6 +498,13 @@ kaapana_dataset_downloads_{random.randint(11111, 99999)}_\
 
     # delete the downloaded series after the in-memory zip
     shutil.rmtree(tmp_dir)
+
+    # logging downloads
+    print("=" * 75)
+    log_str = f"{strftime('%Y-%m-%d %H:%M:%S', gmtime())}: User {user} from project {project['name']} downloaded following {len(series_uid_list)} series:"
+    print(log_str)
+    print(series_uid_list)
+    print("=" * 75)
 
     return StreamingResponse(
         iter(

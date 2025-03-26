@@ -599,8 +599,8 @@ export default {
           remote: this.remote,
           federated: this.federated_data,
         })
-        .then((response) => {  
-          // console.log(response);      
+        .then((response) => {
+          // console.log(response);
           this.$notify({
             type: "success",
             title: "Workflow successfully created!",

@@ -229,7 +229,7 @@ const downloadDatasets = async (concatenatedSeriesUIDs) => {
 
   } catch (error) {
     Vue.notify({
-      title: "Error",
+      title: "Download Error",
       text:
         error.response && error.response.data && error.response.data.detail
           ? error.response.data.detail

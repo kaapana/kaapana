@@ -47,7 +47,7 @@ ui_forms = {
         "properties": {
             "projects": {
                 "title": "Destination Projects",
-                "description": "The project(s) to which the data will be moved or copied.",
+                "description": "The project(s) to which the data will be copied.",
                 "type": "array",
                 "items": {"type": "string", "enum": get_all_projects()},
                 "required": True,
@@ -61,13 +61,7 @@ ui_forms = {
             "keep_tags": {
                 "title": "Keep Tags",
                 "type": "boolean",
-                "description": "Should tags also be moved or copied?",
-                "default": True,
-            },
-            "copy": {
-                "title": "Copy Data",
-                "type": "boolean",
-                "description": "If selected, the data will be copied to the destination project. Otherwise, it will be moved (removed from the original project after copying).",
+                "description": "Should tags also be copied?",
                 "default": True,
             },
             "single_execution": {
@@ -216,30 +210,7 @@ class LocalCopyThumbnails(KaapanaPythonBaseOperator):
             **kwargs,
         )
 
-
-class BranchTriggerDeleteFromOrignialProject(KaapanaBranchPythonBaseOperator):
-    def branch_if_nifti(self, ds, **kwargs):
-        conf = kwargs["dag_run"].conf
-        log.info(f"{conf=}")
-
-        copy = bool(conf["form_data"]["copy"])
-
-        if copy:
-            return "workflow-cleaner"
-        else:
-            return "delete-from-pacs"
-
-    def __init__(self, dag, **kwargs):
-        super().__init__(
-            dag=dag,
-            name="branch-trigger-delete-from-orignial-project",
-            python_callable=self.branch_if_nifti,
-            **kwargs,
-        )
-
-
 get_input = GetInputOperator(dag=dag, data_type="json")
-branch_delete_or_not = BranchTriggerDeleteFromOrignialProject(dag=dag)
 clean_tags = LocalCleanCustumTagsOperator(dag=dag, input_operator=get_input)
 ## use local operator to push to different projects
 assign_to_project = LocalAssignDataToProjectOperator(
@@ -252,12 +223,7 @@ push_json = LocalJson2MetaOperator(
     dag=dag, json_operator=clean_tags, from_other_project=True
 )
 copy_thumbnails = LocalCopyThumbnails(dag=dag, input_operator=clean_tags)
-delete_dcm_pacs = DeleteFromPacsOperator(
-    dag=dag, input_operator=get_input, delete_complete_study=False, retries=1
-)
-delete_dcm_meta = DeleteFromMetaOperator(
-    dag=dag, input_operator=get_input, delete_complete_study=False, retries=1
-)
+
 
 clean = LocalWorkflowCleanerOperator(
     dag=dag, clean_workflow_dir=True, trigger_rule="none_failed_or_skipped"
@@ -270,7 +236,5 @@ clean = LocalWorkflowCleanerOperator(
     >> push_json
     >> add_datasets
     >> copy_thumbnails
-    >> branch_delete_or_not
+    >> clean
 )
-branch_delete_or_not >> clean
-branch_delete_or_not >> delete_dcm_pacs >> delete_dcm_meta >> clean

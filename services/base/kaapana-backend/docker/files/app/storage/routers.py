@@ -1,90 +1,70 @@
-from fastapi import APIRouter, Response, HTTPException, Depends
-from datetime import datetime
-from app.dependencies import get_minio
-from app.config import settings
-import json
-import os
-import socket
+from app.dependencies import get_minio, get_project
+from fastapi import APIRouter, Depends, HTTPException
+from minio.error import S3Error
 
 router = APIRouter(tags=["storage"])
 
 
-@router.get("/buckets")
-def listbuckets(minio=Depends(get_minio)):
-    """Return List of Minio buckets"""
-    buckets = minio.list_buckets()
-    data = []
-    for bucket in buckets:
-        data.append(
-            {
-                "name": str(bucket.name),
-                "creation_date": bucket.creation_date,
-                "webui": f"https://{settings.hostname}/minio/{bucket.name}",
-            }
-        )
-    return data
-
-
-@router.post("/buckets/{bucketname}")
-def makebucket(bucketname: str, minio=Depends(get_minio)):
-    """
-    To Create a Bucket
-    """
-    bucketname = bucketname.lower().strip()
-    if minio.bucket_exists(bucketname):
-        raise HTTPException(
-            status_code=409, detail=f"Bucket {bucketname} already exists."
-        )
-    else:
-        minio.make_bucket(bucketname)
-        return {}
-
-
-@router.get("/buckets/{bucketname}")
-def listbucketitems(bucketname: str, minio=Depends(get_minio)):
-    """
-    To List  Bucket Items
-    """
-    bucket_items = []
-    bucketname = bucketname.lower().strip()
-    if minio.bucket_exists(bucketname):
-        objects = minio.list_objects(bucketname, recursive=True)
-        for obj in objects:
-            bucket_items.append(
-                {
-                    "bucket_name": str(obj.bucket_name),
-                    "object_name": str(obj.object_name),
-                    "last_modified": obj.last_modified,
-                    "etag": obj.etag,
-                    "size": obj.size,
-                    "type": obj.content_type,
-                }
-            )
-
-        return bucket_items
+@router.get("/projectbucket")
+def projectbucket(prefix: str = "", minio=Depends(get_minio), project=Depends(get_project)):
+    
+    if project and "s3_bucket" in project:
+        bucket_name = project.get("s3_bucket")
     else:
         raise HTTPException(
-            status_code=404, detail=f"Bucket {bucketname} does not exist"
+            status_code=404,
+            detail="Bucket name not found or don't have access to the bucket",
         )
-
-
-@router.delete("/buckets/{bucketname}")
-def removebucket(bucketname: str, minio=Depends(get_minio)):
-    """
-    To remove a bucket
-    """
-    bucketname = bucketname.lower().strip()
-
-    if minio.bucket_exists(bucketname):
-        objects = list(minio.list_objects(bucketname))
-        if objects:
-            raise HTTPException(
-                status_code=409, detail=f"Bucket {bucketname} not empty"
-            )
-        else:
-            minio.remove_bucket(bucketname)
-            return {}
-    else:
+    
+    # Ensure prefix ends with a slash if it's not empty
+    if prefix and not prefix.endswith('/'):
+        prefix = prefix + '/'
+    
+    try:
+        # Get all objects at the current level
+        objects_list = list(minio.list_objects(bucket_name, prefix=prefix, recursive=False))
+        print(objects_list)
+        # Process the results into a tree structure
+        result = []
+        directories = set()
+        
+        # First pass: collect directories
+        for obj in objects_list:
+            object_name = obj.object_name
+            
+            # Skip the directory itself
+            if object_name == prefix:
+                continue
+                
+            # Get the relative path from the prefix
+            rel_path = object_name[len(prefix):]
+            
+            # Check if this path contains a directory
+            if '/' in rel_path:
+                # Extract directory name (first level only)
+                dir_name = rel_path.split('/')[0]
+                if dir_name and dir_name not in directories:
+                    directories.add(dir_name)
+                    result.append({
+                        "name": dir_name,
+                        "path": prefix + dir_name + '/',
+                        "file": False,
+                        "children": [],
+                        "hasChildren": True
+                    })
+            else:
+                # This is a file at the current level
+                result.append({
+                    "name": rel_path,
+                    "path": object_name,
+                    "file": True,
+                    "hasChildren": False
+                })
+        
+        return result
+        
+    except S3Error as e:
         raise HTTPException(
-            status_code=404, detail=f"Bucket {bucketname} does not exist"
+            status_code=404,
+            detail=f"Error accessing bucket: {str(e)}",
         )

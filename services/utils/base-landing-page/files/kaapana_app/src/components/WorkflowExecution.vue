@@ -51,6 +51,33 @@
               <!-- <p>{{name}}</p> -->
               <v-jsf v-model="formData[name]" :schema="schema" required="required"></v-jsf>
             </v-col>
+            <div v-if="hasBackendField">
+              <v-row>
+                  <v-card>
+                  <v-treeview
+                      v-model="selectedItems"
+                      :items="treeItems"
+                      item-key="path"
+                      selectable
+                      activatable
+                      open-on-click
+                      :load-children="fetchChildren"
+                  >
+                      <template v-slot:prepend="{ item, open }">
+                      <v-icon v-if="!item.file">
+                          {{ open ? "mdi-folder-open" : "mdi-folder" }}
+                      </v-icon>
+                      <v-icon v-else>
+                          mdi-file-document-outline
+                        </v-icon>
+                      </template>
+                      <template v-slot:label="{ item }">
+                      <span class="text-wrap">{{ item.name }}</span>
+                      </template>
+                  </v-treeview>
+                  </v-card>
+              </v-row>
+          </div>
           </v-row>
           <!-- Select remote instance for remote workflow -->
           <v-row v-show="remote_instances_w_external_dag_available.length">
@@ -194,6 +221,20 @@ export default {
         if (this.identifiers.length > 0) {
           delete schemas["data_form"];
         }
+        if (schemas["backend_form"]){
+          // if there is a include-dataset (True) in the backend_form the data_form is kept
+          if (!schemas.backend_form['include-dataset']) {
+              delete schemas.data_form;
+          }
+          this.hasBackendField = true;
+          this.backendRoute = schemas.backend_form['backend-route']
+          this.getBackendRootItems();
+
+        }
+        else {
+          this.hasBackendField = false;
+        }
+
         this.form_requiredFields = this.findRequiredFields(schemas);
         if ("external_schemas" in schemas) {
           this.external_dag_id = schemas["external_schemas"];
@@ -276,7 +317,11 @@ export default {
         workflow_name: null, // or to ''
         showConfData: false,
         datasets_available: true,
-        workflowsSettings: {}
+        workflowsSettings: {},
+        hasBackendField: false,
+        backendRoute: null,
+        treeItems: [],
+        selectedItems: [],
       };
     },
     reset() {
@@ -315,6 +360,45 @@ export default {
         }
       });
       return formDataFormatted;
+    },
+    async getBackendRootItems() {
+      try {
+          //clear values
+          this.selectedItems = [];
+          this.treeItems = [];
+          if (!this.backendRoute) {
+            console.error("Backend route is not set. Cannot fetch root items.");
+            this.treeItems = [];
+            return;
+          }
+          const response = await kaapanaApiService.kaapanaApiGet(this.backendRoute);          
+          if (response && response.data) {
+            this.treeItems = response.data;
+          } else {
+            console.error("Unexpected response format:", response);
+            this.treeItems = [];
+          }
+          } catch (err) {
+          console.error("Failed to load backend data:", err);
+          this.treeItems = [];
+        }
+    },
+    async fetchChildren(item) {
+      // This method is called when a node is expanded
+      if (item.file || (item.children && item.children.length > 0)) {
+        // Don't fetch for files or already loaded directories
+        return;
+      }
+ 
+      try {
+        // Fetch the children for this directory
+        const response = await kaapanaApiService.kaapanaApiGet(this.backendRoute, {prefix :item.path});
+        item.children = response.data;
+      } catch (error) {
+        console.error('Error fetching children:', error);
+        // Set empty children to avoid repeated failed requests
+        item.children = [];
+      }
     },
     /**
     * Set the default value for VJsf schema (workflow form)
@@ -574,6 +658,11 @@ export default {
       if (this.identifiers.length > 0) {
         this.formData["data_form"] = {
           identifiers: this.identifiers,
+        };
+      }
+      if(this.hasBackendField){
+        this.formData["backend_form"] ={
+          selectedFilesAndFolders : this.selectedItems,
         };
       }
       kaapanaApiService

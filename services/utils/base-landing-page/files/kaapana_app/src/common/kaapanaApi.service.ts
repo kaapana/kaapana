@@ -232,10 +232,10 @@ import httpClient from './httpClient'
   }
   const kaapanaApiGet = (subUrl: any, params: any = null) => {
     return new Promise((resolve, reject) => {
-      httpClient.get('/kaapana-backend' + subUrl, { params }).then((response: any) => {
+      httpClient.get('/kaapana-backend' + subUrl, { params: params }).then((response: any) => {
         resolve(response)
       }).catch((error: any) => {
-        console.log('Failed: ' + error.data)
+        console.log('Failed:', error.response ? error.response.data : error.message);
         reject(error)
       })
     })

@@ -83,6 +83,8 @@ spec:
           claimName: hello-world-pv-claim
 ```
 
+These template do **not** work for the `devPersistentVolumes` template.
+
 ### devPersistentVolumes
 
 This template can be used to mount a volume from the host machine into a container.
@@ -141,7 +143,7 @@ spec:
 ### projectPersistentVolumes
 This template is used in multiinstallable applications like jupyterlab or tensorboard.
 The usage is the same as for `dynamicPersistentVolumes`.
-The difference is that the `host_path` will automatically include the project context.
+The difference is that the `host_path` and `claimName` will automatically include the project context.
 
 ### dynamicEnvs & dynamicEnvsFromSecretRef & dynamicLabels
 

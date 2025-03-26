@@ -42,7 +42,7 @@ To use the template for persisent volumes do the following:
 1. Add a `global.dynamicVolumes` object to the values.yaml, e.g.:
 
 ```yaml
-gloabl:
+global:
   namespace: <namespace> ### The namespace in which the volume should live.
   dynamicVolumes:
   - name: hello-world

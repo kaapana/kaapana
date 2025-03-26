@@ -24,7 +24,7 @@ spec:
             imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
             env:
               - name: WAIT
-                value: "dcm4che,dcm4chee-service.{{  .Values.global.services_namespace  }}.svc,8080;{{ .Values.kaapana_database.appName | default .Release.Name }}-database-,{{ .Values.kaapana_database.appName | default .Release.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc,80,/auth/realms/kaapana/.well-known/openid-configuration"
+                value: "dcm4che,dcm4chee-service.{{  .Values.global.services_namespace  }}.svc,8080;{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-,{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc,80,/auth/realms/kaapana/.well-known/openid-configuration"
               - name: DELAY
                 value: "2"
               - name: TIMEOUT
@@ -43,7 +43,7 @@ spec:
         - name: DICOMWEB_BASE_URL_WADO_URI
           value: "http://dcm4chee-service.{{  .Values.global.services_namespace  }}.svc:8080/dcm4chee-arc/aets/KAAPANA/wado"
         - name: DATABASE_URL
-          value: postgresql+asyncpg://{{ .Values.kaapana_database.postgres_user}}:{{ .Values.kaapana_database.postgres_password}}@{{ .Values.kaapana_database.appName | default .Release.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc:5432
+          value: postgresql+asyncpg://{{ .Values.kaapana_database.postgres_user}}:{{ .Values.kaapana_database.postgres_password}}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc:5432
         - name: DWF_IDENTITY_OPENID_CONFIG_URL
           value: "http://keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc:80/auth/realms/kaapana/.well-known/openid-configuration"
         - name: DWF_IDENTITY_OPENID_CLIENT_ID

@@ -28,7 +28,7 @@ Note, that the Kubernetes service for the postgres database matches to pods with
 ```yaml
 spec:
   selector:
-    app.kubernetes.io/name: {{ .Values.appName | default .Release.Name }}
+    app.kubernetes.io/name: {{ .Values.appName | default .Chart.Name }}
     app.kubernetes.io/component: database
 ```
 Hence, Pods and Services in the parent chart should also use these both labels to match Pod and Service together.

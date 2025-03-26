@@ -22,7 +22,7 @@ spec:
         imagePullPolicy:  {{ .Values.global.pull_policy_images }}
         env:
           - name: WAIT
-            value: "{{ .Values.kaapana_database.appName | default .Release.Name }}-database-,{{ .Values.kaapana_database.appName | default .Release.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc,5432"
+            value: "{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-,{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc,5432"
           - name: DELAY
             value: "2"
           - name: TIMEOUT
@@ -39,7 +39,7 @@ spec:
           - name: KC_DB 
             value: "postgres"
           - name: KC_DB_URL 
-            value: "jdbc:postgresql://{{ .Values.kaapana_database.appName | default .Release.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
+            value: "jdbc:postgresql://{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.admin_namespace  }}.svc/keycloak" 
           - name: KC_DB_USERNAME 
             value: {{ .Values.kaapana_database.postgres_user }}
           - name: KC_DB_PASSWORD

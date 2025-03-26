@@ -13,6 +13,16 @@ spec:
       labels:
         app: {{ .Values.loki.name }}
     spec:
+      initContainers:
+        - name: volume-permissions
+          image: "{{ .Values.global.registry_url }}/busybox:{{ .Values.global.kaapana_build_version  }}"
+          imagePullPolicy:  {{ .Values.global.pull_policy }}
+          command: ["sh", "-c", "chown -R 10001:10001 /data && chmod -R 775 /data"]
+          volumeMounts:
+          - name: loki-data
+            mountPath: /data
+          securityContext:
+            runAsUser: 0
       containers:
       - name: {{ .Values.loki.container_name }}
         image: "{{ .Values.global.registry_url }}/loki:{{ .Values.global.kaapana_build_version  }}"
@@ -37,11 +47,15 @@ spec:
         configMap:
           name: loki-config
           items:
-            - key: loki-config.yaml
-              path: loki-config.yaml
+            - key: local-config.yaml
+              path: local-config.yaml
       - name: loki-data
         persistentVolumeClaim:
           claimName: loki-pv-claim
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
       imagePullSecrets:
         - name: registry-secret
 ---

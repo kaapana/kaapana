@@ -9,30 +9,19 @@ dependencies:
   version: 0.0.0
   repository: file://<relativ path to your chart> ### Only required, if you package the chart manually.
 ```
-Note, that this entree in `requirements.yaml` is not necessary, if the chart is used as a dependency in another chart that already depends on the kaapana-library-chart, i.e.
-* Extensions that want to use any of the provided templates require this entree.
+Note, that this entry in `requirements.yaml` is not necessary if the chart is used as a dependency in another chart that already depends on the kaapana-library-chart, i.e.
+* Extensions that want to use any of the provided templates require this entry.
 * Charts that are part of the kaapana-admin-chart or the kaapana-platform-chart can use the templates without specifying the kaapana-library-chart as a dependency.
-
 
 The field `repository` is only required in case you want to debug your helm chart (see section below).
 
 ### Developing a new standalone chart 
-Do check if everything looks correct you can use inside of your helm-chart directory
+To check if everything looks correct you can run the following commands inside your helm-chart directory
 
 ```bash
 helm install --dry-run --debug .
 helm template .
 ```
-
-
-Depending on which template you use, more or less values are required. 
-For usage inside the development the name of the persisent volume is created by appending pv-claim to the name: e.g. hello-world-pv-claim.  
-
-
-
-
-
-
 
 ## Templates
 
@@ -51,12 +40,13 @@ global:
     storage: "1Mi" ### optional
     minior_mirror: true ### Used in combination with a minio-mirror container
 ```
+Depending on which template you use, more or less values are required. 
 
 2. Create a file called persistent_volumes.yaml with the following content:
 ```yaml
-        {{ include "dynamicPersistentVolumes" $ }}
+{{ include "dynamicPersistentVolumes" $ }}
 ```
-This will render the template inside your persistent volume
+This will render the template inside your persistent volume.
 
 **Note:**
 If `host_path` matches `"^(/minio|/dcm4che/dicom_data|/dcm4che/server_data)"` the volume will be mounted in the `SLOW_DATA_DIR`, otherwise in the `FAST_DATA_DIR`.

@@ -80,7 +80,7 @@ data:
       { "software_uuid": "tfda-spe-orchestrator"},
       { "software_uuid": "total-segmentator"},
       { "software_uuid": "validate-dicoms"},
-      { "software_uuid": "project-dicom-transfer"}
+      { "software_uuid": "project-dicom-transfer"},
       { "software_uuid": "project-minio-transfer"}
     ]
 

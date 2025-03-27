@@ -217,7 +217,7 @@ const downloadDatasets = async (concatenatedSeriesUIDs) => {
     const contentDisposition = response.headers['content-disposition'];
     const fileName = contentDisposition
       ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-      : 'downloaded_file.zip'; // Default file name
+      : 'kaapana_datasets_download.zip'; // Default file name
 
     link.setAttribute('download', fileName);
     document.body.appendChild(link);

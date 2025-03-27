@@ -29,6 +29,8 @@ import {
   downloadDatasets
 } from "../common/api.service";
 
+const MAX_DOWNLOADABLE_ITEM = 20
+
 export default Vue.extend({
     name: "DownloadDatasetBtn",
     props: {
@@ -80,8 +82,8 @@ export default Vue.extend({
     },
     watch: {
         selectedSeries(this: Vue & { status: string; canDownload: boolean }, newval: string[]) {
-            if (newval.length > 20) {
-                this.status = 'Too many items selected to download. Please use "download-selected-files" to download large amount files';
+            if (newval.length > MAX_DOWNLOADABLE_ITEM) {
+                this.status = 'Too many items selected to download. Please use "download-selected-files" to download large amount of files';
                 this.canDownload = false;
             }else {
                 this.status = `Download ${newval.length} items`;

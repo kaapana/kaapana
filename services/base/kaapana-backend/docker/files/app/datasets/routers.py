@@ -1,6 +1,6 @@
 import base64
+import logging
 import os
-from typing import List
 import shutil
 from io import BytesIO
 import zipfile
@@ -11,8 +11,10 @@ from app.dependencies import (
     get_opensearch,
     get_project_index,
     get_dcmweb_helper,
+    get_project,
 )
 from app.middlewares import sanitize_inputs
+from app.logger import get_logger
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from minio.error import S3Error
@@ -22,6 +24,10 @@ import random
 from starlette.responses import StreamingResponse
 from time import gmtime, strftime
 import json
+
+MAX_DOWNLOAD_FILE_SIZE_MB = 256
+
+logger = get_logger(__name__, logging.DEBUG)
 
 router = APIRouter(tags=["datasets"])
 
@@ -419,13 +425,11 @@ async def download_multiple_series(
     dcmweb_helper=Depends(get_dcmweb_helper),
     os_client=Depends(get_opensearch),
     project_index=Depends(get_project_index),
+    project=Depends(get_project),
 ):
 
     series_uid_list = [uid.strip() for uid in series_uids.split(";")]
-    max_dir_size = 256
-
     user = request.headers.get("x-forwarded-preferred-username")
-    project = json.loads(request.headers.get("project"))
 
     study_series_pairs = []
     # fetch the study id for the given series and
@@ -456,7 +460,7 @@ async def download_multiple_series(
 
     def check_if_dir_size_exceed():
         total_size = get_dir_size(tmp_dir)
-        if total_size > max_dir_size:
+        if total_size > MAX_DOWNLOAD_FILE_SIZE_MB:
             return True
         return False
 
@@ -479,7 +483,7 @@ async def download_multiple_series(
         shutil.rmtree(tmp_dir)
         raise HTTPException(
             status_code=413,
-            detail=f"Requested files total size exceeds the limit of {max_dir_size} MB. Please use standard 'download-selected-file' workflow to downoad large files.",
+            detail=f"Requested files total size exceeds the limit of {MAX_DOWNLOAD_FILE_SIZE_MB} MB. Please use standard 'download-selected-file' workflow to downoad large files.",
         )
 
     # Create in-memory ZIP archive
@@ -500,11 +504,11 @@ async def download_multiple_series(
     shutil.rmtree(tmp_dir)
 
     # logging downloads
-    print("=" * 75)
+    logging.info("=" * 75)
     log_str = f"{strftime('%Y-%m-%d %H:%M:%S', gmtime())}: User {user} from project {project['name']} downloaded following {len(series_uid_list)} series:"
-    print(log_str)
-    print(series_uid_list)
-    print("=" * 75)
+    logging.info(log_str)
+    logging.info(series_uid_list)
+    logging.info("=" * 75)
 
     return StreamingResponse(
         iter(

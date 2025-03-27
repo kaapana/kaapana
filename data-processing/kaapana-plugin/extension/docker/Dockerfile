@@ -21,6 +21,7 @@ COPY files/dags/dag_tag_seg_ct_tuples.py /kaapana/tmp/dags/
 COPY files/dags/dag_tag_train_test_split_dataset.py /kaapana/tmp/dags/
 COPY files/dags/dag_validate_dicoms.py /kaapana/tmp/dags/
 COPY files/dags/dag_project_dicom_transfer.py /kaapana/tmp/dags
+COPY files/dags/dag_project_minio_transfer.py /kaapana/tmp/dags
 
 COPY files/mounted_scripts/ /kaapana/tmp/mounted_scripts
 

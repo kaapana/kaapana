@@ -19,6 +19,9 @@ concurrency = max_active_runs * 3
 alg_name = "TotalSegmentator"
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#totalsegmentator",
+    },
     "publication_form": {
         "type": "object",
         "properties": {

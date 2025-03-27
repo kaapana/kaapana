@@ -15,6 +15,9 @@ from kaapana.operators.ValidationResult2MetaOperator import (
 )
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#validate-dicoms",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -40,7 +43,7 @@ ui_forms = {
                 "default": [],
             },
         },
-    }
+    },
 }
 
 log = LoggingMixin().log

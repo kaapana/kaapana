@@ -16,6 +16,9 @@ from kaapanapy.helper.HelperOpensearch import DicomTags
 
 log = LoggingMixin().log
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/system/airflow.html#delete-series",
+    },
     "workflow_form": {
         "type": "object",
         "properties": {
@@ -33,7 +36,7 @@ ui_forms = {
                 "readOnly": False,
             },
         },
-    }
+    },
 }
 
 

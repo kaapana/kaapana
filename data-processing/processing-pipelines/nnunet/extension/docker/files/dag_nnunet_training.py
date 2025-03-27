@@ -54,6 +54,9 @@ max_active_runs = GPU_COUNT if GPU_COUNT != 0 else 1
 print(f"### nnunet-training max_active_runs {max_active_runs}")
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#nnunet-training",
+    },
     "publication_form": {
         "type": "object",
         "properties": {

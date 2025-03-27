@@ -8,6 +8,9 @@ from kaapana.operators.Bin2DcmOperator import Bin2DcmOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#nnunet-install-model",
+    },
     "data_form": {
         "type": "object",
         "properties": {

@@ -49,7 +49,16 @@
           <v-row v-if="datasets_available" :key="dag_id">
             <v-col v-for="(schema, name) in schemas" cols="12">
               <!-- <p>{{name}}</p> -->
-              <v-jsf v-model="formData[name]" :schema="schema" required="required"></v-jsf>
+              <v-tooltip v-if="name === 'documentation_form'" bottom>
+                <template v-slot:activator="{ on, attrs }">
+                  <a :href="getHref('/docs/' + schema.path)"
+                    target="_blank">
+                    <v-icon color="primary" dark="" v-bind="attrs" v-on="on"> mdi-information </v-icon>
+                  </a>
+                </template>
+                <span> Link to the documentation. </span>
+              </v-tooltip>
+              <v-jsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="schema" required="required"></v-jsf>
             </v-col>
           </v-row>
           <!-- Select remote instance for remote workflow -->
@@ -278,6 +287,11 @@ export default {
         datasets_available: true,
         workflowsSettings: {}
       };
+    },
+    getHref(link) {
+      return link.match(/^:(\d+)(.*)/)
+        ? "http://" + window.location.hostname + link
+        : link;
     },
     reset() {
       Object.assign(this.$data, this.initialState());

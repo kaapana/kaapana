@@ -1,7 +1,7 @@
-FROM local-only/base-python-cpu:latest
+FROM local-only/base-python-cpu:latest AS build-stage
 
 LABEL IMAGE="kaapana-documentation"
-LABEL VERSION="0.1.2"
+LABEL VERSION="0.0.0"
 LABEL BUILD_IGNORE="False"
 
 COPY ./ /src
@@ -16,6 +16,10 @@ RUN make html
 ###############################
 ######### Production ##########
 ###############################
-FROM docker.io/nginx:1.25.4-alpine
+FROM nginxinc/nginx-unprivileged:1.27.2-alpine
+WORKDIR /app
 
-COPY --from=build-stage /src/build/html/ /usr/share/nginx/html/
+COPY --from=build-stage /src/build/html/ /app/docs
+COPY files/nginx.conf /etc/nginx/nginx.conf
+
+USER 1000

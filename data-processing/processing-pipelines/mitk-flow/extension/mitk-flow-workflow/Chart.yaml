@@ -6,3 +6,5 @@ name: mitk-flow-workflow
 version: "0.0.0"
 keywords:
 - kaapanaworkflow
+annotations:
+  documentation: "user_guide/extensions.html#mitk-flow"

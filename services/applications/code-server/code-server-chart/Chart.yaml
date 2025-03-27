@@ -6,3 +6,5 @@ version: "0.0.0"
 keywords:
 - kaapanaapplication
 - kaapanaint
+annotations:
+  documentation: "user_guide/extensions.html#code-server"

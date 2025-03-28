@@ -13,8 +13,6 @@ global:
     host_path: /workflows/plugins
   - name: af-data
     host_path: /workflows/data
-  - name: af-postgres
-    host_path: /postgres-airflow
   - name: models
     host_path: /workflows/models
   - name: mounted-scripts
@@ -22,3 +20,10 @@ global:
   - name: uploads
     host_path: /uploads
     
+
+kaapana_database:
+  admin: false
+  postgres_user: root
+  postgres_password: root
+  postgres_db: airflow
+  appName: airflow

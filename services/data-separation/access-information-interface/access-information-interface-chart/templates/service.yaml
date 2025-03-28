@@ -4,10 +4,12 @@ metadata:
   name: aii-service
   namespace: "{{ .Values.global.services_namespace }}"
   labels: 
-    app.kubernetes.io/name: aii-service
+    app.kubernetes.io/name: access-information-interface
+    app.kubernetes.io/component: backend
 spec:
   selector: 
-    app.kubernetes.io/name: access-information-interface 
+    app.kubernetes.io/name: access-information-interface
+    app.kubernetes.io/component: backend
   ports:
     - port: 8080
       targetPort: 8080

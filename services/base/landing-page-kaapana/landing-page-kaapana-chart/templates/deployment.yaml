@@ -81,7 +81,7 @@ spec:
 {{- if .Values.global.dev_files }}
       - name: landing-dev-files
         persistentVolumeClaim:
-          claimName: landing-dev-pv-claim
+          claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}
       - name: tmpfs
         emptyDir: {}

@@ -6,9 +6,11 @@ metadata:
   namespace: "{{  .Values.global.admin_namespace  }}"
   labels:
     app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: keycloak
 spec:
   selector:
     app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: keycloak
   type: ClusterIP
   ports:
   - name: kc-http-port
@@ -23,9 +25,11 @@ metadata:
   namespace: "{{  .Values.global.admin_namespace  }}"
   labels:
     app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: keycloak
 spec:
   selector:
     app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: keycloak
   type: ClusterIP
   ports:
   - name: kc-https-port

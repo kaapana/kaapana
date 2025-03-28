@@ -6,7 +6,8 @@ metadata:
   namespace: "{{ .Values.global.services_namespace }}"
 spec:
   selector:
-    app.kubernetes.io/name: airflow-statsd
+    app.kubernetes.io/name: airflow
+    app.kubernetes.io/component: statsd
   ports:
     - name: web-listen
       protocol: TCP

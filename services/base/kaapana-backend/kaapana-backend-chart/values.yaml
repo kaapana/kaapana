@@ -2,7 +2,12 @@
 global:
   dev_files: false
   dynamicVolumes:
-  - name: backend
-    host_path: /postgres-backend
   - name: alembic
     host_path: /alembic
+
+kaapana_database:
+  admin: false
+  postgres_user: kaapanauser
+  postgres_password: kaapanapassword
+  postgres_db: kaapanauser
+  appName: kaapana-backend

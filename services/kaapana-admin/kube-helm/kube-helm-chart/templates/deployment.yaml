@@ -50,12 +50,16 @@ spec:
         - name: PROXY
           value: "{{ $.Values.global.http_proxy }}"
 {{- end }}
+{{- if .Values.global.dev_files }}
+        - name: DEV_FILES
+          value: "True"
+{{- end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:
 {{- if .Values.global.dev_files }}
           - name: kaapana-dev-files
-            mountPath: /kaapana/app
+            mountPath: /kaapana/app/backend
 {{- end }}
           - name: helmextensions
             mountPath: "/kaapana/mounted/extensions"
@@ -84,7 +88,7 @@ spec:
 {{- if .Values.global.dev_files }}
       - name: kaapana-dev-files
         persistentVolumeClaim:
-          claimName: kh-dev-pv-claim
+          claimName: {{ .Chart.Name }}-dev-pv-claim
 {{- end }}
       serviceAccountName: kaapana-kube-admin
       priorityClassName: kaapana-high-priority

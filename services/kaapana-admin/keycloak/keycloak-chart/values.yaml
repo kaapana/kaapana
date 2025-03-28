@@ -5,3 +5,10 @@ global:
   dynamicVolumes:
   - name: keycloak
     host_path: /keycloak
+
+kaapana_database:
+  admin: true
+  postgres_user: keycloak
+  postgres_password: keycloak
+  postgres_db: keycloak
+  appName: keycloak

@@ -74,25 +74,41 @@ export default Vue.extend({
             this.downloadCompleted = false;
             this.canDownload = true;
             if (this.selectedSeries) {
-                this.status = `Download ${this.selectedSeries.length} items`;
+                this.updateStatusFromSeries(this.selectedSeries);
             } else {
                 this.status = "Download";
+            }
+        },
+        updateStatusFromSeries(newSeries: string[]) {
+            if (newSeries.length > MAX_DOWNLOADABLE_ITEM) {
+                this.status = 'Too many items selected to download. Please use "download-selected-files" to download large amount of files';
+                this.canDownload = false;
+            }else {
+                this.status = `Download ${newSeries.length} items`;
+                this.canDownload = true; 
+            }
+        },
+        // Prevent reloading the window while downloading
+        preventReload(event: any) {
+            if (this.downloading) {
+                event.preventDefault();
+                event.returnValue = ""; // Required for Chrome
             }
         }
     },
     watch: {
-        selectedSeries(this: Vue & { status: string; canDownload: boolean }, newval: string[]) {
-            if (newval.length > MAX_DOWNLOADABLE_ITEM) {
-                this.status = 'Too many items selected to download. Please use "download-selected-files" to download large amount of files';
-                this.canDownload = false;
-            }else {
-                this.status = `Download ${newval.length} items`;
-            }
+        selectedSeries(this: any, newval: string[]) {
+            this.updateStatusFromSeries(newval);
         } 
     },
     mounted() {
-        // console.log(this.$store.getters.downloadStarted);
+        if (this.selectedSeries) {
+            this.updateStatusFromSeries(this.selectedSeries);
+        }
     },
+    beforeMount() {
+        window.addEventListener("beforeunload", this.preventReload)
+    }
 });
 </script>
 

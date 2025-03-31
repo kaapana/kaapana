@@ -15,6 +15,7 @@ from app.dependencies import (
 )
 from app.middlewares import sanitize_inputs
 from app.logger import get_logger
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from minio.error import S3Error
@@ -464,19 +465,31 @@ async def download_multiple_series(
             return True
         return False
 
-    ## Iteraion over all the study, series pair and download them to
-    ## temporary directory
-    ## TODO
-    ## 1. Check the number of successfull downloads
-    ## 2. Parralelize the multiple series downloads
-    for study, series in study_series_pairs:
+    def download_task(study, series, tmp_dir):
         target_dir = tmp_dir / study / series
-        download_successful = dcmweb_helper.download_series(
+        return dcmweb_helper.download_series(
             study_uid=study, series_uid=series, target_dir=target_dir
         )
-        # no need to further download series if exceeds the limit
-        if check_if_dir_size_exceed():
-            break
+
+    with ThreadPoolExecutor(
+        max_workers=4
+    ) as executor:  # Adjust `max_workers` based on system's capability
+        futures = {
+            executor.submit(download_task, study, series, tmp_dir): (study, series)
+            for study, series in study_series_pairs
+        }
+
+        for future in as_completed(futures):
+            study, series = futures[future]
+            try:
+                download_successful = future.result()
+                if not download_successful:
+                    logging.info(f"Downloading failed for {study}/{series}")
+                if check_if_dir_size_exceed():
+                    executor.shutdown(wait=False)
+                    break
+            except Exception as e:
+                logging.info(f"Error downloading {study}/{series}: {e}")
 
     if check_if_dir_size_exceed():
         # delete the downloaded series if exceeds the limit and return exception

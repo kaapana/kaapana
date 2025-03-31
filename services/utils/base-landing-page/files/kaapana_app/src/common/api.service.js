@@ -1,5 +1,5 @@
 import Vue from "vue";
-import httpClient from "./httpClient";
+import httpClient, {httpClientWithoutTimeout} from "./httpClient";
 import store from '../store/index';
 
 const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT;
@@ -203,7 +203,7 @@ const loadDicomTagMapping = async () => {
 const downloadDatasets = async (concatenatedSeriesUIDs) => {
   try {
     const encodedSeriesUIDs = encodeURIComponent(concatenatedSeriesUIDs);
-    const response = await httpClient.get(
+    const response = await httpClientWithoutTimeout.get(
       KAAPANA_BACKEND_ENDPOINT + `dataset/download?series_uids=${encodedSeriesUIDs}`,
       { responseType: 'blob' }  // Important for file downloads
     );
@@ -228,14 +228,28 @@ const downloadDatasets = async (concatenatedSeriesUIDs) => {
     document.body.removeChild(link);
 
   } catch (error) {
-    Vue.notify({
-      title: "Download Error",
-      text:
-        error.response && error.response.data && error.response.data.detail
-          ? error.response.data.detail
-          : error,
-      type: "error",
-    });
+    if (error.response && error.response.data) {
+      // Convert blob error response to JSON
+      const reader = new FileReader();
+      reader.onload = function () {
+        let errorText = ""
+        try {
+          const errorJson = JSON.parse(reader.result);
+          errorText = 'Download failed:' + errorJson.detail;
+        } catch (parseError) {
+          errorText ='Failed to parse error response:' + parseError;
+        }
+        Vue.notify({
+          title: "Download Error",
+          text: errorText,
+          type: "error",
+        });        
+      };
+      reader.readAsText(error.response.data);
+    } else {
+      console.error('Unexpected error:', error);
+    }
+
     throw error;
   }
 };

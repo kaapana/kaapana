@@ -4,7 +4,6 @@ The functions in this module are used to create an issue in the current sprint w
 """
 
 import json
-import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,12 +13,6 @@ import gitlab
 import gitlab.v4
 import gitlab.v4.objects
 import requests
-
-logging.basicConfig(
-    level=logging.INFO,  # Use DEBUG for more details
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__file__)
 
 
 def create_title(project: gitlab.v4.objects.Project, commit_sha: str) -> str:
@@ -48,15 +41,13 @@ def get_days_since_commit(project: gitlab.v4.objects.Project, commit_sha: str) -
     Returns:
         int: The number of days since the commit was made.
     """
-    logging.info(commit_sha)
-    print(commit_sha)
     commit = project.commits.get(commit_sha)
     commit_time = datetime.strptime(commit.committed_date, "%Y-%m-%dT%H:%M:%S.%f%z")
     days_since_commit = (datetime.now(timezone.utc) - commit_time).days
     return days_since_commit
 
 
-def get_artifacts_dict(artifacts_dir: str) -> Dict[str, List[str]]:
+def get_artifacts_dict(artifacts_dir: str) -> Dict[str, str]:
     """
     Returns a dictionary mapping artifact names to their corresponding file paths.
 
@@ -158,9 +149,10 @@ def submit_ai_request(
         "frequency_penalty": 0.5,
         "user": "kaapana-ci",
     }
+    payload = json.dumps(payload)
     url = "https://helmholtz-blablador.fz-juelich.de:8000/v1/chat/completions"
 
-    response = requests.post(url=url, headers=headers, data=json.dumps(payload))
+    response = requests.post(url=url, headers=headers, data=payload)
     response.raise_for_status()
     return response
 
@@ -203,7 +195,7 @@ def create_ai_report(
 
         response = submit_ai_request(instructions, model, token)
         return response.json()["choices"][0]["message"]["content"]
-    except Exception:
+    except Exception as e:
         print("AI logs analysis was not successfull. Skipping.")
     return "AI report failed"
 
@@ -377,9 +369,8 @@ def create_issue_for_commit(
         "labels": ["CI", "Sprint"],
         "description": issue_description,
     }
-    # issue = project.issues.create(issue)
-    # issue.save()
-    return None
+    issue = project.issues.create(issue)
+    issue.save()
 
 
 def update_issue_title(
@@ -398,9 +389,8 @@ def update_issue_title(
     Returns:
         None
     """
-    # issue.title = create_title(project, commit_sha)
-    # issue.save()
-    return None
+    issue.title = create_title(project, commit_sha)
+    issue.save()
 
 
 def main():
@@ -408,7 +398,7 @@ def main():
     project_id = os.getenv("CI_PROJECT_ID")
     ci_pipeline_url = os.getenv("CI_PIPELINE_URL")
     ci_pipeline_id = os.getenv("CI_PIPELINE_ID")
-    commit_sha = os.getenv("CI_COMMIT_SHA_SHORT")
+    commit_sha = os.getenv("CI_COMMIT_SHORT_SHA")
     artifacts_dir = os.getenv("ARTIFACTS_DIR")
 
     gl = gitlab.Gitlab(

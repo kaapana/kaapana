@@ -13,7 +13,7 @@ RUN userdel -r ubuntu
 
 # Install apt packages
 WORKDIR /app
-RN apt-get update -y && apt-get install -y --no-install-recommends \
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
     git \
     htop \
     zip \

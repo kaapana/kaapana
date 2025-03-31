@@ -198,7 +198,6 @@ if_ci_failing:
     when: on_failure
   - if: $CI_COMMIT_BRANCH == "master"
     when: on_failure
-  - if: $CI_COMMIT_BRANCH == "maintenance/ci-reporting-fix"
   - when: never
   allow_failure: true
 

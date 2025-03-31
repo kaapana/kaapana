@@ -377,8 +377,8 @@ def create_issue_for_commit(
         "labels": ["CI", "Sprint"],
         "description": issue_description,
     }
-    issue = project.issues.create(issue)
-    issue.save()
+    # issue = project.issues.create(issue)
+    # issue.save()
     return None
 
 
@@ -398,8 +398,8 @@ def update_issue_title(
     Returns:
         None
     """
-    issue.title = create_title(project, commit_sha)
-    issue.save()
+    # issue.title = create_title(project, commit_sha)
+    # issue.save()
     return None
 
 

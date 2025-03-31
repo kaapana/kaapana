@@ -3,13 +3,13 @@ This script implements functions that make requests to the Gitlab REST API.
 The functions in this module are used to create an issue in the current sprint with a link to the failed pipeline.
 """
 
-import os
 import json
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
-import gitlab
-from datetime import datetime, timezone
 
+import gitlab
 import gitlab.v4
 import gitlab.v4.objects
 import requests
@@ -117,7 +117,9 @@ def get_ai_model_data(api_key: str) -> List[Dict]:
     return response.json()["data"]
 
 
-def submit_ai_request(messages: List[Dict[str, str]], model: str, token: str) -> requests.Response:
+def submit_ai_request(
+    messages: List[Dict[str, str]], model: str, token: str
+) -> requests.Response:
     """
     Submits a message request to the AI model for processing.
 
@@ -198,7 +200,9 @@ def create_ai_report(
     return "AI report failed"
 
 
-def create_failed_jobs_report(failed_jobs: List[gitlab.v4.objects.ProjectPipelineJob]) -> str:
+def create_failed_jobs_report(
+    failed_jobs: List[gitlab.v4.objects.ProjectPipelineJob],
+) -> str:
     """
     Retrieves failed jobs from a pipeline.
 
@@ -289,7 +293,7 @@ def create_description(
         - List of failed jobs
         - Errorneous logs (using error keywords, whitelisted phrases and context window) found in log files
         - AI Report using BlaBlaDor and Error log files
-        
+
     Args:
         project (gitlab.v4.objects.Project): The project object from the GitLab API.
         ci_pipeline_url (str): The URL for the CI pipeline.
@@ -367,7 +371,6 @@ def create_issue_for_commit(
     }
     issue = project.issues.create(issue)
     issue.save()
-    
 
 
 def update_issue_title(
@@ -395,7 +398,7 @@ def main():
     project_id = os.getenv("CI_PROJECT_ID")
     ci_pipeline_url = os.getenv("CI_PIPELINE_URL")
     ci_pipeline_id = os.getenv("CI_PIPELINE_ID")
-    commit_sha = os.getenv("CI_COMMIT_SHA_SHORT")
+    commit_sha = os.getenv("CI_COMMIT_SHORT_SHA")
     artifacts_dir = os.getenv("ARTIFACTS_DIR")
 
     gl = gitlab.Gitlab(
@@ -408,7 +411,9 @@ def main():
 
     # We won't create a new issue if the there is already open ticket.
     # New ticket however, can be created if one issue is already closed, but different error persists
-    existing_issues = project_kaapana.issues.list(state="opened", labels=["CI"], search=commit_sha)
+    existing_issues = project_kaapana.issues.list(
+        state="opened", labels=["CI"], search=commit_sha
+    )
     if not existing_issues:
         create_issue_for_commit(
             project=project_kaapana,
@@ -420,7 +425,7 @@ def main():
         )
 
     else:
-        update_issue_title(project_kaapana, existing_issues[0], commit_sha)   
+        update_issue_title(project_kaapana, existing_issues[0], commit_sha)
 
 
 if __name__ == "__main__":

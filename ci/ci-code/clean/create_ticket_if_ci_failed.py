@@ -3,16 +3,23 @@ This script implements functions that make requests to the Gitlab REST API.
 The functions in this module are used to create an issue in the current sprint with a link to the failed pipeline.
 """
 
-import os
 import json
+import logging
+import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List
-import gitlab
-from datetime import datetime, timezone
 
+import gitlab
 import gitlab.v4
 import gitlab.v4.objects
 import requests
+
+logging.basicConfig(
+    level=logging.INFO,  # Use DEBUG for more details
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__file__)
 
 
 def create_title(project: gitlab.v4.objects.Project, commit_sha: str) -> str:
@@ -41,13 +48,15 @@ def get_days_since_commit(project: gitlab.v4.objects.Project, commit_sha: str) -
     Returns:
         int: The number of days since the commit was made.
     """
+    logging.info(commit_sha)
+    print(commit_sha)
     commit = project.commits.get(commit_sha)
     commit_time = datetime.strptime(commit.committed_date, "%Y-%m-%dT%H:%M:%S.%f%z")
     days_since_commit = (datetime.now(timezone.utc) - commit_time).days
     return days_since_commit
 
 
-def get_artifacts_dict(artifacts_dir: str) -> Dict[str, str]:
+def get_artifacts_dict(artifacts_dir: str) -> Dict[str, List[str]]:
     """
     Returns a dictionary mapping artifact names to their corresponding file paths.
 
@@ -117,7 +126,9 @@ def get_ai_model_data(api_key: str) -> List[Dict]:
     return response.json()["data"]
 
 
-def submit_ai_request(messages: List[Dict[str, str]], model: str, token: str) -> requests.Response:
+def submit_ai_request(
+    messages: List[Dict[str, str]], model: str, token: str
+) -> requests.Response:
     """
     Submits a message request to the AI model for processing.
 
@@ -147,10 +158,9 @@ def submit_ai_request(messages: List[Dict[str, str]], model: str, token: str) ->
         "frequency_penalty": 0.5,
         "user": "kaapana-ci",
     }
-    payload = json.dumps(payload)
     url = "https://helmholtz-blablador.fz-juelich.de:8000/v1/chat/completions"
 
-    response = requests.post(url=url, headers=headers, data=payload)
+    response = requests.post(url=url, headers=headers, data=json.dumps(payload))
     response.raise_for_status()
     return response
 
@@ -193,12 +203,14 @@ def create_ai_report(
 
         response = submit_ai_request(instructions, model, token)
         return response.json()["choices"][0]["message"]["content"]
-    except Exception as e:
+    except Exception:
         print("AI logs analysis was not successfull. Skipping.")
     return "AI report failed"
 
 
-def create_failed_jobs_report(failed_jobs: List[gitlab.v4.objects.ProjectPipelineJob]) -> str:
+def create_failed_jobs_report(
+    failed_jobs: List[gitlab.v4.objects.ProjectPipelineJob],
+) -> str:
     """
     Retrieves failed jobs from a pipeline.
 
@@ -289,7 +301,7 @@ def create_description(
         - List of failed jobs
         - Errorneous logs (using error keywords, whitelisted phrases and context window) found in log files
         - AI Report using BlaBlaDor and Error log files
-        
+
     Args:
         project (gitlab.v4.objects.Project): The project object from the GitLab API.
         ci_pipeline_url (str): The URL for the CI pipeline.
@@ -367,7 +379,7 @@ def create_issue_for_commit(
     }
     issue = project.issues.create(issue)
     issue.save()
-    
+    return None
 
 
 def update_issue_title(
@@ -388,6 +400,7 @@ def update_issue_title(
     """
     issue.title = create_title(project, commit_sha)
     issue.save()
+    return None
 
 
 def main():
@@ -408,7 +421,9 @@ def main():
 
     # We won't create a new issue if the there is already open ticket.
     # New ticket however, can be created if one issue is already closed, but different error persists
-    existing_issues = project_kaapana.issues.list(state="opened", labels=["CI"], search=commit_sha)
+    existing_issues = project_kaapana.issues.list(
+        state="opened", labels=["CI"], search=commit_sha
+    )
     if not existing_issues:
         create_issue_for_commit(
             project=project_kaapana,
@@ -420,7 +435,7 @@ def main():
         )
 
     else:
-        update_issue_title(project_kaapana, existing_issues[0], commit_sha)   
+        update_issue_title(project_kaapana, existing_issues[0], commit_sha)
 
 
 if __name__ == "__main__":

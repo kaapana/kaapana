@@ -1,3 +1,7 @@
+<#-- This file is copied from the Keycloak repository following their documentation on creating custom themes:
+     https://www.keycloak.org/docs/latest/server_development/index.html#_themes -->
+
+
 <#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
 <!DOCTYPE html>
 <html class="${properties.kcHtmlClass!}"<#if realm.internationalizationEnabled> lang="${locale.currentLanguageTag}"</#if>>

@@ -1,7 +1,5 @@
 global:
-  registry_url: ""
   pull_policy: "IfNotPresent"
-  kaapana_build_version: "latest"
 
 loki:
   name: "loki"

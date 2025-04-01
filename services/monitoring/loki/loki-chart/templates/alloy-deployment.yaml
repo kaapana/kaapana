@@ -37,5 +37,8 @@ spec:
           items:
             - key: config.alloy
               path: config.alloy
+      securityContext:
+        runAsUser: 473
+        runAsGroup: 473
       imagePullSecrets:
         - name: registry-secret

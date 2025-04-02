@@ -6,9 +6,14 @@ from datetime import datetime
 
 import pydicom
 from base import ValidationItem, ensure_dir, merge_similar_validation_items
+from check_completeness import check_completeness
 from dciodvfy import DCIodValidator
 from htmlgen import generate_html
+from kaapanapy.logger import get_logger
+from pathlib import Path
 from pydicomvfy import PyDicomValidator
+
+logger = get_logger(__name__)
 
 
 def get_series_description(all_dicoms: list):
@@ -91,6 +96,13 @@ if __name__ == "__main__":
             batch_element_dir, os.environ["OPERATOR_OUT_DIR"]
         )
         ensure_dir(element_output_dir)
+
+        success, message = check_completeness(
+            Path(element_input_dir), Path(element_output_dir), update_os=True
+        )
+
+        logger.info(f"Series Completeness validation success: {success}")
+        logger.info(message)
 
         # The processing algorithm
         print(f"Checking {element_input_dir} for dcm files")

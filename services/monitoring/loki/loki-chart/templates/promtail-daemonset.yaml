@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  namespace: "{{ .Values.global.services_namespace }}"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki-promtail
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loki-promtail
+    spec:
+      serviceAccountName: promtail-serviceaccount
+      containers:
+      - name: promtail
+        image: "{{ .Values.global.registry_url }}/promtail:{{ .Values.global.kaapana_build_version  }}"
+        imagePullPolicy:  {{ .Values.global.pull_policy_images }}
+        args:
+        - -config.file=/etc/promtail/promtail.yaml
+        env:
+        - name: HOSTNAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: spec.nodeName
+        ports:
+        - containerPort: 3101
+          name: http-metrics
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 250m
+            memory: 500Mi
+          requests:
+            cpu: 102m
+            memory: 200Mi
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /etc/promtail
+          name: promtail-config
+        - mountPath: /run/promtail
+          name: run
+        - mountPath: /var/lib/docker/containers
+          name: containers
+          readOnly: true
+        - mountPath: /var/log/pods
+          name: pods
+          readOnly: true
+      imagePullSecrets:
+        - name: registry-secret
+      volumes:
+      - name: promtail-config
+        configMap:
+          name: promtail-config
+          items:
+            - key: promtail.yaml
+              path: promtail.yaml
+      - name: run
+        hostPath:
+          path: /run/promtail
+      - name: containers
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: pods
+        hostPath:
+          path: /var/log/pods

@@ -53,6 +53,8 @@ data:
       { "software_uuid": "delete-series"},
       { "software_uuid": "download-selected-files"},
       { "software_uuid": "evaluate-segmentations"},
+      { "software_uuid": "external-pacs-add"},
+      { "software_uuid": "external-pacs-remove"},
       { "software_uuid": "federated-setup-central-test"},
       { "software_uuid": "federated-setup-node-test"},
       { "software_uuid": "import-WSI"},

@@ -419,8 +419,8 @@ class HelperDcmWeb:
         """
         headers = {"X-Endpoint-URL": dcmweb_endpoint} if dcmweb_endpoint else None
         url = f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series"
-        r = self.session.get(url, headers=headers)
-        if r.status_code == 204:
+        response = self.session.get(url, headers=headers)
+        if response.status_code == 204:
             return []
         elif response.status_code == 404:
             return None

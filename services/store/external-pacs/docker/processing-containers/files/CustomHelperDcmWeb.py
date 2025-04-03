@@ -23,3 +23,19 @@ class CustomHelperDcmWeb(HelperDcmWeb):
         super().__init__(access_token)
         self.session.headers.update({"X-Endpoint-URL": dcmweb_endpoint})
         self.dcmweb_endpoint = dcmweb_endpoint
+
+    def get_instance_metadata(
+        self,
+        study_uid: str,
+        series_uid: str,
+        instance_uid: str,
+    ):
+        response = self.session.get(
+            f"{self.dcmweb_rs_endpoint}/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}/metadata"
+        )
+        response.raise_for_status()
+        if response.status_code == 204:
+            return []
+
+        if response.status_code == 200:
+            return response.json()

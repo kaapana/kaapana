@@ -6,11 +6,11 @@ from pathlib import Path
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
 from kaapana.operators.DeleteFromPacsOperator import DeleteFromPacsOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapanapy.helper.HelperOpensearch import DicomTags
 
@@ -58,41 +58,6 @@ dag = DAG(
 )
 
 get_input = GetInputOperator(dag=dag, data_type="json")
-
-
-def set_skip_if_dcm_is_external(ds, **kwargs):
-    batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
-    batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]
-
-    print(batch_folder)
-    for batch_element_dir in batch_folder:
-        input_dir = Path(batch_element_dir) / get_input.operator_out_dir
-        json_files = sorted(
-            glob.glob(
-                os.path.join(input_dir, "*.json*"),
-                recursive=True,
-            )
-        )
-        print(json_files)
-        for json_file in json_files:
-            with open(json_file, "r") as f:
-                metadata = json.load(f)
-            if (
-                metadata.get("00020016 SourceApplicationEntityTitle")
-                == "kaapana_external"
-            ):
-                raise AirflowSkipException("DICOM file is comes from external PACS")
-    return
-
-
-skip_if_dcm_is_external = KaapanaPythonBaseOperator(
-    name="skip_if_dcm_is_external",
-    pool="default_pool",
-    pool_slots=1,
-    python_callable=set_skip_if_dcm_is_external,
-    dag=dag,
-)
-
 
 delete_dcm_pacs = DeleteFromPacsOperator(
     dag=dag, input_operator=get_input, delete_complete_study=False, retries=1

@@ -1,18 +1,17 @@
 import logging
 
+from app.auth_middleware import AuthMiddleware
+from app.middleware import ProxyMiddleware
+from fastapi import FastAPI
 from fastapi.middleware import Middleware
 
-from app.middleware import ProxyMiddleware
-from app.auth_middleware import AuthMiddleware
-from fastapi import FastAPI
-
 from .config import DWF_IDENTITY_OPENID_CLIENT_ID, DWF_IDENTITY_OPENID_CONFIG_URL
-from .QIDO_RS.routes import router as qido_router
-from .WADO_RS.routes import router as wado_router
-from .SUPPLEMENTS.routes import router as supplement_router
-from .STOW_RS.routes import router as stow_router
 from .CUSTOM.routes import router as custom_router
 from .MANAGEMENT.routes import router as management_router
+from .QIDO_RS.routes import router as qido_router
+from .STOW_RS.routes import router as stow_router
+from .SUPPLEMENTS.routes import router as supplement_router
+from .WADO_RS.routes import router as wado_router
 
 tags_metadata = [
     {
@@ -38,7 +37,6 @@ tags_metadata = [
 ]
 
 logger = logging.getLogger(__name__)
-
 
 
 app = FastAPI(

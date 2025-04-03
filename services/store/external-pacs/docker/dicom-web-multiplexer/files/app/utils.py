@@ -1,11 +1,11 @@
 from app.config import DICOMWEB_BASE_URL
 from app.logger import get_logger
-from fastapi.datastructures import URL
+from fastapi import Request
 
 logger = get_logger(__name__)
 
 
-def dicom_web_filter_url(request: URL) -> str:
+def dicom_web_filter_url(request: Request) -> str:
     """Generates a filtered DICOMWeb URL based on the incoming request.
 
     Args:
@@ -17,7 +17,7 @@ def dicom_web_filter_url(request: URL) -> str:
     return "/".join([DICOMWEB_BASE_URL, *str(request.url).split("/")[3:]])
 
 
-def wado_endpoint_url(request: URL) -> str:
+def wado_endpoint_url(request: Request) -> str:
     """Generates the WADO-RS endpoint URL for DICOMWeb.
 
     Args:
@@ -36,7 +36,7 @@ def wado_endpoint_url(request: URL) -> str:
         raise NotImplementedError(f"Not supported endpoint: {dcmweb_endpoint}")
 
 
-def rs_endpoint_url(request: URL) -> str:
+def rs_endpoint_url(request: Request) -> str:
     """Generates the QIDO-RS/RS endpoint URL for DICOMWeb.
 
     Args:

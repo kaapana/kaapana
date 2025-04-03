@@ -1,21 +1,18 @@
 import json
+import logging
 import re
 from typing import List
-
 
 from app.logger import get_logger
 from app.proxy_request import proxy_request
 from app.utils import dicom_web_filter_url
-
 from fastapi import Request, Response
 from fastapi.concurrency import iterate_in_threadpool
 from fastapi.datastructures import URL
 from fastapi.responses import StreamingResponse
-from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
 from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper.HelperOpensearch import DicomTags, HelperOpensearch
 from starlette.middleware.base import BaseHTTPMiddleware
-
-import logging
 
 logger = get_logger(__name__, level=logging.DEBUG)
 
@@ -79,7 +76,7 @@ class ProxyMiddleware(BaseHTTPMiddleware):
             )
 
 
-def get_study_uid_from_request(request: URL) -> str | None:
+def get_study_uid_from_request(request: Request) -> str | None:
     """
     Extracts the Study UID from the request URL if present.
 
@@ -93,7 +90,7 @@ def get_study_uid_from_request(request: URL) -> str | None:
     return match.group(1) if match else None
 
 
-def get_series_uid_from_request(request: URL) -> str | None:
+def get_series_uid_from_request(request: Request) -> str | None:
     """
     Extracts the Series UID from the request URL if present.
 
@@ -335,7 +332,7 @@ async def dicom_web_multiplexer_responses(
         Optional[Response]: The merged response if at least one endpoint responds successfully,
                              or None if no successful responses are received.
     """
-    
+
     merged_result = None
     for endpoint in endpoints:
         request.state.endpoint = endpoint

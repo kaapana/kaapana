@@ -57,6 +57,7 @@ data:
       { "software_uuid": "external-pacs-remove"},
       { "software_uuid": "federated-setup-central-test"},
       { "software_uuid": "federated-setup-node-test"},
+      { "software_uuid": "generate-thumbnail"},
       { "software_uuid": "import-WSI"},
       { "software_uuid": "import-dicoms-in-zip-to-internal-pacs"},
       { "software_uuid": "isolated-container-workflow"},

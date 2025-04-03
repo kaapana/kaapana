@@ -5,9 +5,8 @@ import re
 import httpx
 from app.auth import authorize_headers, get_external_token
 from app.logger import get_logger
-from app.utils import rs_endpoint_url
 from app.streaming_helpers import metadata_replace_stream
-
+from app.utils import rs_endpoint_url
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
@@ -370,7 +369,7 @@ async def stream_rendered(url: str, headers: dict):
 
 
 @router.get("/studies/{study}/rendered", tags=["WADO-RS"])
-async def retrieve_series_rendered(
+async def retrieve_studies_rendered(
     study: str,
     request: Request,
 ):

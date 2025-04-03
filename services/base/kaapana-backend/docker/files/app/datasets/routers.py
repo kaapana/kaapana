@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 
 from app.datasets import utils
@@ -8,7 +9,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from minio.error import S3Error
 from starlette.responses import StreamingResponse
-import json
 
 router = APIRouter(tags=["datasets"])
 
@@ -214,10 +214,6 @@ async def get_data(
     series_instance_uid = sanitize_inputs(series_instance_uid)
 
     thumbnail_src = f"/kaapana-backend/dataset/series/{series_instance_uid}/thumbnail"
-    if os.path.exists(thumbnail_src):
-        #  If not, we could either point to the default dcm4chee thumbnail or trigger the process
-        return thumbnail_src
-
     return JSONResponse(dict(metadata=metadata, thumbnail_src=thumbnail_src))
 
 

@@ -5,6 +5,7 @@ from kaapana.operators.DcmConverterOperator import DcmConverterOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 from kaapana.operators.MinioOperator import MinioOperator
+from kaapana.operators.DcmSendOperator import DcmSendOperator
 
 
 from body_and_organ_analysis.BodyAndOrganAnalysisOperator import BodyAndOrganAnalysisOperator
@@ -57,7 +58,11 @@ push_to_minio = MinioOperator(
     whitelisted_file_extensions=[".json",".xlsx",".pdf",".nii.gz"]
 )
 
+send_dicoms = DcmSendOperator(
+    dag=dag, ae_title="body-organ-analysis-results", input_operator=boa, level="batch"
+)
+
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> dcm2nifti >> boa >> push_to_minio >> clean
+get_input >> dcm2nifti >> boa >> [push_to_minio, send_dicoms] >> clean

@@ -44,7 +44,7 @@ ui_forms = {
                 "type": "boolean",
                 "readOnly": False,
                 "required": True,
-                "description": "I will cite the publication above if applicable."
+                "description": "I will cite the publications above if applicable."
             },
         },
     },
@@ -53,7 +53,7 @@ ui_forms = {
         "properties": {
             "models": {
                 "title": "Model selection",
-                "description": "Select all models that should be used during analysis.",
+                "description": "Select the models that should be used during analysis.",
                 "type": "array",
                 "items": {
                     "type": "string",

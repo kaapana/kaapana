@@ -24,18 +24,19 @@ from kaapanapy.utils import (
 )
 from pathlib import Path
 from pydicomvfy import PyDicomValidator
+from validation_results_to_os import ValdationResultItem, ValidationResult2Meta
 
 logger = get_logger(__name__)
 
 
-def get_series_description(all_dicoms: list):
+def get_series_description(all_dicoms: list, meta_key: str = "SeriesDescription"):
     desc = "Unnamed Series"
     for dcm in all_dicoms:
         ds = pydicom.dcmread(dcm)
         try:
-            elem = ds["SeriesDescription"]
+            elem = ds[meta_key]
         except KeyError:
-            print("Series Description not found for dicoms")
+            print(f"{meta_key} not found for dicoms")
             break
         if elem:
             desc = elem.value
@@ -76,6 +77,7 @@ def run_dicom_validation(
     workflow_id: str,
     tags_whitelist: list = [],
     exit_on_error: bool = False,
+    results_2_meta: ValidationResult2Meta = None,
 ):
     completeness_items = check_completeness(
         Path(operator_in_dir), Path(operator_out_dir), update_os=True
@@ -118,6 +120,7 @@ def run_dicom_validation(
     errors = merge_similar_validation_items(all_errors)
     warnings = merge_similar_validation_items(all_warnings)
     seriesdsc = get_series_description(dcm_files)
+    validation_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
     attributes = {
         "Series Name": seriesdsc,
         "Validation Algorithm": validator_alg,
@@ -125,13 +128,33 @@ def run_dicom_validation(
         "Workflow ID": workflow_id,
         "Total number of slices": len(dcm_files),
         "Number of Valid / Invalid slices": str(n_valid) + " / " + str(n_fail),
-        "Validataion Time": f"{datetime.now().strftime('%d/%m/%Y %H:%M:%S')} CEST",
+        "Validataion Time": f"{validation_time} CEST",
     }
 
     if not completeness_items.is_series_complete:
         attributes["Series Complete"] = False
         attributes["Missing instances"] = len(
             completeness_items.missing_instance_numbers
+        )
+
+    if results_2_meta:
+        n_errors = len(errors.keys())
+        n_warnings = len(errors.keys())
+
+        tags_tuple = [
+            ValdationResultItem(
+                "Errors", "integer", n_errors
+            ),  # (key, opensearch datatype, value)
+            ValdationResultItem("Warnings", "integer", n_warnings),
+            ValdationResultItem("Date", "datetime", validation_time),
+        ]
+
+        series_uid = get_series_description(dcm_files, meta_key="SeriesInstanceUID")
+
+        results_2_meta.add_tags_to_opensearch(
+            series_uid,
+            validation_tags=tags_tuple,
+            clear_results=True,
         )
 
     if len(errors.keys()) > 0 or len(warnings.keys()) > 0:
@@ -216,6 +239,8 @@ if __name__ == "__main__":
     else:
         validator = DCIodValidator()
 
+    results_2_meta = ValidationResult2Meta()
+
     if batch_mode:
         process_batches(
             # Required
@@ -228,6 +253,7 @@ if __name__ == "__main__":
             workflow_id=workflow_id,
             tags_whitelist=tags_whitelist,
             exit_on_error=exit_on_error,
+            results_2_meta=results_2_meta,
         )
     else:
         process_single(
@@ -241,4 +267,5 @@ if __name__ == "__main__":
             workflow_id=workflow_id,
             tags_whitelist=tags_whitelist,
             exit_on_error=exit_on_error,
+            results_2_meta=results_2_meta,
         )

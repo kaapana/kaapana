@@ -120,12 +120,16 @@ def replace_html_like_tags(target: str):
 def get_html_from_validation_item(vitem: ValidationItem, htmlclass: str = "error"):
     validtn_dicoms = ""
     if len(vitem.list_of_dicoms) > 0 and vitem.list_of_dicoms[0] != "all":
-        validtn_dicoms = "</br>" + ", ".join(vitem.list_of_dicoms)
+        validtn_dicoms = (
+            f"<span>Slices With {htmlclass}: <b>"
+            + ", ".join(vitem.list_of_dicoms)
+            + "</b></span>"
+        )
 
     validation_str = f"""
     <div class="row validation-item mt-n3">
     <div class="col col-2"><div class="item-label {htmlclass}">{vitem.tag}</div></div>
-    <div class="col col-10"> {vitem.name} {escape(vitem.message)} {validtn_dicoms}</div>
+    <div class="col col-10"> {vitem.name} {escape(vitem.message)}. {validtn_dicoms}</div>
     </div>
     """
     return validation_str

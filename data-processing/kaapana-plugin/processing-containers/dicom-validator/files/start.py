@@ -83,9 +83,6 @@ def run_dicom_validation(
         Path(operator_in_dir), Path(operator_out_dir), update_os=True
     )
 
-    logger.info(f"Series Completeness validation items: ")
-    logger.info(completeness_items)
-
     # The processing algorithm
     print(f"Checking {operator_in_dir} for dcm files")
     dcm_files = sorted(
@@ -139,7 +136,7 @@ def run_dicom_validation(
 
     if results_2_meta:
         n_errors = len(errors.keys())
-        n_warnings = len(errors.keys())
+        n_warnings = len(warnings.keys())
 
         tags_tuple = [
             ValdationResultItem(

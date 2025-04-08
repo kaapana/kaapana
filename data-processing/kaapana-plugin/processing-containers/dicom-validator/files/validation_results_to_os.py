@@ -63,14 +63,11 @@ class ValidationResult2Meta:
         # set the opensearch_index if not provided
         # Set the project index from workflow config or else default index from settings
         if not opensearch_index:
-            project_opensearch_index = workflow_config["project_form"][
-                "opensearch_index"
-            ]
-            self.opensearch_index = (
-                project_opensearch_index
-                if project_opensearch_index is not None
-                else OpensearchSettings().default_index
-            )
+            project_form = workflow_config.get("project_form")
+            if not project_form:
+                self.opensearch_index = OpensearchSettings().default_index
+            else:
+                self.opensearch_index = project_form.get("opensearch_index")
 
         self.os_client = get_opensearch_client()
 

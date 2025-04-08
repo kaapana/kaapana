@@ -24,9 +24,6 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalRemoveDicomTagsOperator import LocalRemoveDicomTagsOperator
-from kaapana.operators.LocalValidationResult2MetaOperator import (
-    LocalValidationResult2MetaOperator,
-)
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 args = {
@@ -73,15 +70,6 @@ validate = DcmValidatorOperator(
     dag=dag,
     input_operator=get_input,
     exit_on_error=False,
-)
-
-save_to_meta = LocalValidationResult2MetaOperator(
-    dag=dag,
-    input_operator=extract_metadata,
-    validator_output_dir=validate.operator_out_dir,
-    validation_tag="00111001",
-    apply_project_context=True,
-    index_to_default_project=True,
 )
 
 put_html_to_minio = LocalMinioOperator(
@@ -164,12 +152,6 @@ def has_ref_series(ds) -> bool:
     return ds.Modality in ["SEG", "RTSTRUCT"]
 
 
-check_completeness = CheckCompletenessOperator(
-    dag=dag,
-    name="check-completeness",
-    input_operator=get_input,
-    # dev_server="code-server",
-)
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
     name="branch-has-ref",
@@ -265,7 +247,7 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 get_input >> auto_trigger_operator
-get_input >> [extract_metadata, check_completeness]
+get_input >> [extract_metadata]
 extract_metadata >> [
     push_json,
     add_to_dataset,
@@ -274,23 +256,13 @@ extract_metadata >> [
     remove_tags,
 ]
 
-(
-    validate
-    >> save_to_meta
-    >> put_html_to_minio
-    >> put_results_html_to_minio_admin_bucket
-    >> clean
-)
+(validate >> put_html_to_minio >> put_results_html_to_minio_admin_bucket >> clean)
 (remove_tags >> dcm_send)
 
-(
-    push_json
-    >> check_completeness
-    >> branch_by_has_ref_series
-    >> get_ref_ct_series
-    >> generate_thumbnail
-    >> put_thumbnail_to_project_bucket
-)
+(push_json >> branch_by_has_ref_series >> get_ref_ct_series)
+
+validate >> generate_thumbnail
+get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket
 
 (branch_by_has_ref_series >> generate_thumbnail)
 

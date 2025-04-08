@@ -872,6 +872,14 @@ export default {
   border-radius: 15px;
   margin-left: 8px;
 }
+
+/deep/ .incomplete-alert {
+  padding: 15px;
+  background-color: #f44336;
+  color: white;
+  margin-bottom: 10px;
+  border-radius: 5px;
+}
 </style>
 
 <style>

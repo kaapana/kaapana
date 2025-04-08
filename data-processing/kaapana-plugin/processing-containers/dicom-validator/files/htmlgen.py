@@ -91,12 +91,20 @@ html_template = """
         padding: 2px 8px;
         border-radius: 50%;
         margin-left: 8px;
-    }    
+    }
+    .incomplete-alert {
+        padding: 15px;
+        background-color: #f44336;
+        color: white;
+        margin-bottom: 10px;
+        border-radius: 5px;
+    }
     </style>
 </head>
 <body>
   <div class="container">
     <h1 class="pb-5">$title</h1>
+    $series_completeness
     $attributes
     $errors
     $warnings
@@ -143,7 +151,13 @@ def get_attributes_html_from_dict(attrs: dict):
     return attr_html
 
 
-def generate_html(title: str, attrs: dict, errors: list, warnings: list):
+def generate_html(
+    title: str,
+    attrs: dict,
+    errors: list,
+    warnings: list,
+    series_completete_stat: dict = None,
+):
     """
     Generate an HTML string from the given title, attributes, errors, and warnings.
 
@@ -160,6 +174,14 @@ def generate_html(title: str, attrs: dict, errors: list, warnings: list):
 
     attrs_str = get_attributes_html_from_dict(attrs)
 
+    series_completeness_str = ""
+    if series_completete_stat and not series_completete_stat.is_series_complete:
+        missing_slices = ", ".join(
+            str(x) for x in series_completete_stat.missing_instance_numbers
+        )
+        series_completeness_str = f"""\
+        <div class='incomplete-alert'><strong>Broken / Incomplete Series:</strong> Following Slice indexes are missing in the Series: {missing_slices}</div>"""
+
     err_str = ""
     if len(errors) > 0:
         err_str = f"<h3 class='py-3 mb-3'>Errors <span class='item-count-label error'>{len(errors)}</span></h3>\n"
@@ -173,5 +195,9 @@ def generate_html(title: str, attrs: dict, errors: list, warnings: list):
             warn_str += get_html_from_validation_item(warn, htmlclass="warning")
 
     return html.substitute(
-        title=title, attributes=attrs_str, errors=err_str, warnings=warn_str
+        title=title,
+        series_completeness=series_completeness_str,
+        attributes=attrs_str,
+        errors=err_str,
+        warnings=warn_str,
     )

@@ -43,11 +43,11 @@
                 {{ validationResults['warnings'] }} <v-icon left class="mr-1" color="warning">mdi-alert-circle</v-icon>
               </v-btn>
               <v-btn 
-                small class="v-btn--error-rslt pa-0" 
+                small class="pa-0" 
                 v-if="!isSeriesComplete"
                 @click="triggerValidationResultDetails"
               >
-                Broken <v-icon left class="mr-1" color="warning">mdi-file-alert</v-icon>
+                Broken <v-icon left class="mr-1" color="warning">mdi-format-page-break</v-icon>
               </v-btn>
           </v-bottom-navigation>
         </v-row>

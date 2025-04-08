@@ -163,6 +163,7 @@ def run_dicom_validation(
             attrs=attributes,
             errors=[errors[tag] for tag in errors.keys()],
             warnings=[warnings[tag] for tag in warnings.keys()],
+            series_completete_stat=completeness_items,
         )
 
         with open(os.path.join(operator_out_dir, f"results-{run_id}.html"), "w") as f:

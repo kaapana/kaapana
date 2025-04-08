@@ -24,6 +24,9 @@ from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperato
 from kaapana.operators.LocalJson2MetaOperator import LocalJson2MetaOperator
 from kaapana.operators.LocalMinioOperator import LocalMinioOperator
 from kaapana.operators.LocalRemoveDicomTagsOperator import LocalRemoveDicomTagsOperator
+from kaapana.operators.LocalValidationResult2MetaOperator import (
+    LocalValidationResult2MetaOperator,
+)
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
 args = {
@@ -70,6 +73,15 @@ validate = DcmValidatorOperator(
     dag=dag,
     input_operator=get_input,
     exit_on_error=False,
+)
+
+save_to_meta = LocalValidationResult2MetaOperator(
+    dag=dag,
+    input_operator=extract_metadata,
+    validator_output_dir=validate.operator_out_dir,
+    validation_tag="00111001",
+    apply_project_context=True,
+    index_to_default_project=True,
 )
 
 put_html_to_minio = LocalMinioOperator(
@@ -256,7 +268,13 @@ extract_metadata >> [
     remove_tags,
 ]
 
-(validate >> put_html_to_minio >> put_results_html_to_minio_admin_bucket >> clean)
+(
+    validate
+    >> save_to_meta
+    >> put_html_to_minio
+    >> put_results_html_to_minio_admin_bucket
+    >> clean
+)
 (remove_tags >> dcm_send)
 
 (push_json >> branch_by_has_ref_series >> get_ref_ct_series)

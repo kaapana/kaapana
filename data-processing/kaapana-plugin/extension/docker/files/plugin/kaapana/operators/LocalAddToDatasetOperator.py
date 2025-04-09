@@ -7,6 +7,9 @@ from kaapana.blueprints.kaapana_global_variables import (
     SERVICES_NAMESPACE,
 )
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapanapy.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
@@ -74,12 +77,13 @@ def select_project_from_other_project(series_uid: str, **kwargs):
     """
     config = kwargs["dag_run"].conf
     workflow_form = config.get("workflow_form")
-    dataset_name = workflow_form.get("dataset_name", None)
-    self.log.info(f"Copying {dataset_name=}")
+    data_form = config.get("data_form")
+    dataset_name = data_form.get("dataset_name", None)
+    logger.info(f"Copying {dataset_name=}")
     if dataset_name:
         projects = workflow_form.get("projects")
         for project_name in projects:
-            self.log.info(
+            logger.info(
                 f"Add {series_uid} to dataset {dataset_name} of project {project_name}"
             )
             project = get_project_by_name(project_name)

@@ -50,18 +50,6 @@ def trigger_dag(dag_id):
     else:
         tmp_conf["x_auth_token"] = request.headers.get("X-Auth-Token")
 
-    ################################################################################################
-    #### Deprecated! Will be removed with the next version 0.3.0
-
-    if (
-        "workflow_form" in tmp_conf
-    ):  # in the future only workflow_form should be included in the tmp_conf
-        tmp_conf["form_data"] = tmp_conf["workflow_form"]
-    elif "form_data" in tmp_conf:
-        tmp_conf["workflow_form"] = tmp_conf["form_data"]
-
-    ################################################################################################
-
     run_id = generate_run_id(dag_id)
 
     print(json.dumps(tmp_conf, indent=2))

@@ -43,9 +43,9 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
         """
         self.label_filter = []
         # check whether self.label_filter_key is set
-        if self.label_filter_key in conf["form_data"]:
-            val = conf["form_data"][self.label_filter_key]
-            if conf["form_data"][self.label_filter_key]:
+        if self.label_filter_key in conf["workflow_form"]:
+            val = conf["workflow_form"][self.label_filter_key]
+            if conf["workflow_form"][self.label_filter_key]:
                 if ":" in val:
                     self.mode = val.split(":")[0]
                     self.label_filter = val.split(":")[1].split(",")
@@ -85,7 +85,7 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
         # load user input's label renaming look-up table
         conf = kwargs["dag_run"].conf
         print("CONF:")
-        print(conf["form_data"])
+        print(conf["workflow_form"])
 
         self.set_label_filters(conf)
 
@@ -175,9 +175,9 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                             temp_incoming_metainfo_segment_attributes.append(
                                 segment_attribute
                             )
-                incoming_metainfo[
-                    "segmentAttributes"
-                ] = temp_incoming_metainfo_segment_attributes
+                incoming_metainfo["segmentAttributes"] = (
+                    temp_incoming_metainfo_segment_attributes
+                )
                 # write incoming_metainfo to output_dir
                 with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
                     json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)
@@ -217,9 +217,9 @@ class LocalFilterMasksOperator(KaapanaPythonBaseOperator):
                             temp_incoming_metainfo_segment_attributes.append(
                                 segment_attribute
                             )
-                    incoming_metainfo[
-                        "segmentAttributes"
-                    ] = temp_incoming_metainfo_segment_attributes
+                    incoming_metainfo["segmentAttributes"] = (
+                        temp_incoming_metainfo_segment_attributes
+                    )
                     # write incoming_metainfo to output_dir
                     with open(metainfo_output_path, "w", encoding="utf-8") as jsonData:
                         json.dump(incoming_metainfo, jsonData, indent=4, sort_keys=True)

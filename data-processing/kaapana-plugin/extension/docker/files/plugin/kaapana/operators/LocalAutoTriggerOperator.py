@@ -352,12 +352,12 @@ class LocalAutoTriggerOperator(KaapanaPythonBaseOperator):
             if "get_settings_from_api" in conf and conf["get_settings_from_api"]:
                 # make a request to settings backend to get dag settings using the dag name
                 # remove the service prefix from the service dag name
-                workflow_form_data = self.get_workflow_settings_from_api(
+                workflow_form = self.get_workflow_settings_from_api(
                     ignore_service_prefix(triggering["dag_id"])
                 )
                 if "service" not in triggering["dag_id"]:
-                    workflow_form_data["username"] = "system"
-                conf["form_data"] = workflow_form_data
+                    workflow_form["username"] = "system"
+                conf["workflow_form"] = workflow_form
                 # delete `get_settings_from_api` from the config
                 del conf["get_settings_from_api"]
 

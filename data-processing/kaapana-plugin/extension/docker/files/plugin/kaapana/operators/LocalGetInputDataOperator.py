@@ -48,11 +48,11 @@ class LocalGetInputDataOperator(KaapanaPythonBaseOperator):
         input_modality = input_modality.lower()
         if (
             config is not None
-            and "form_data" in config
-            and config["form_data"] is not None
-            and "input" in config["form_data"]
+            and "workflow_form" in config
+            and config["workflow_form"] is not None
+            and "input" in config["workflow_form"]
         ):
-            dag_modalities = config["form_data"]["input"].lower()
+            dag_modalities = config["workflow_form"]["input"].lower()
             if input_modality not in dag_modalities:
                 raise Exception(
                     "check_dag_modality failed! Wrong modality for this DAG! ABORT. DAG modality vs input modality: {} vs {}".format(

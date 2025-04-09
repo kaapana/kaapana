@@ -294,16 +294,16 @@ class KaapanaFederatedTrainingBase(ABC):
                     "before_previous_dag_run"
                 ] = None
             else:
-                self.remote_conf_data["federated_form"][
-                    "before_previous_dag_run"
-                ] = self.tmp_federated_site_info[site_info["instance_name"]][
-                    "before_previous_dag_run"
-                ]
-                self.remote_conf_data["federated_form"][
-                    "from_previous_dag_run"
-                ] = self.tmp_federated_site_info[site_info["instance_name"]][
-                    "from_previous_dag_run"
-                ]
+                self.remote_conf_data["federated_form"]["before_previous_dag_run"] = (
+                    self.tmp_federated_site_info[site_info["instance_name"]][
+                        "before_previous_dag_run"
+                    ]
+                )
+                self.remote_conf_data["federated_form"]["from_previous_dag_run"] = (
+                    self.tmp_federated_site_info[site_info["instance_name"]][
+                        "from_previous_dag_run"
+                    ]
+                )
 
             # create at local instance jobs for remote sites
             with requests.Session() as s:
@@ -723,7 +723,7 @@ class KaapanaFederatedTrainingBase(ABC):
                 instance_name
                 for instance_name, _ in self.tmp_federated_site_info.items()
             ],
-            "form_data": {
+            "workflow_form": {
                 **self.local_conf_data,
                 **{f"external_schema_{k}": v for k, v in self.remote_conf_data.items()},
                 "tmp_federated_site_info": self.tmp_federated_site_info,

@@ -50,7 +50,7 @@ class CustomTestCase(unittest.TestCase):
             logger.warning(f"DAG {dag_id=} not available on the platform!")
             logger.warning(f"Skip test!")
             return None
-        ### Adjust payload/form_data before triggering the workflow
+        ### Adjust payload/workflow_form before triggering the workflow
         form["workflow_name"] = "ci_" + dag_id
         logger.info(f"Start testcase for {dag_id=}")
         instance_names = form.get("instance_names", [])

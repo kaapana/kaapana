@@ -83,7 +83,7 @@ class LocalCleanCustomTagsOperator(KaapanaPythonBaseOperator):
     def clean(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
         log.info(f"{conf=}")
-        keep_tags = bool(conf["form_data"]["keep_tags"])
+        keep_tags = bool(conf["workflow_form"]["keep_tags"])
         log.info(f"{keep_tags=}")
         batch_dir = Path(AIRFLOW_WORKFLOW_DIR) / kwargs["dag_run"].run_id / BATCH_NAME
         batch_folder = [f for f in glob.glob(os.path.join(batch_dir, "*"))]

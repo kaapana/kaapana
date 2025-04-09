@@ -4,15 +4,26 @@ The functions in this module are used to create an issue in the current sprint w
 """
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, cast
 
 import gitlab
 import gitlab.v4
 import gitlab.v4.objects
 import requests
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+    ],
+)
+
+logger = logging.getLogger(__file__)
 
 
 def create_title(project: gitlab.v4.objects.Project, commit_sha: str) -> str:
@@ -47,7 +58,7 @@ def get_days_since_commit(project: gitlab.v4.objects.Project, commit_sha: str) -
     return days_since_commit
 
 
-def get_artifacts_dict(artifacts_dir: str) -> Dict[str, str]:
+def get_artifacts_dict(artifacts_dir: Path) -> Dict[str, list[str]]:
     """
     Returns a dictionary mapping artifact names to their corresponding file paths.
 
@@ -58,7 +69,7 @@ def get_artifacts_dict(artifacts_dir: str) -> Dict[str, str]:
         Dict[str, str]: A dictionary where each key is an artifact name and each value is the file path of that artifact.
     """
     artifacts_dict = {}
-    for filename in Path(artifacts_dir).glob("*.log"):
+    for filename in artifacts_dir.glob("*.log"):
         with open(filename, "r") as f:
             content = f.readlines()
         artifacts_dict[filename.name] = content
@@ -149,10 +160,10 @@ def submit_ai_request(
         "frequency_penalty": 0.5,
         "user": "kaapana-ci",
     }
-    payload = json.dumps(payload)
+    payload_json = json.dumps(payload)
     url = "https://helmholtz-blablador.fz-juelich.de:8000/v1/chat/completions"
 
-    response = requests.post(url=url, headers=headers, data=payload)
+    response = requests.post(url=url, headers=headers, data=payload_json)
     response.raise_for_status()
     return response
 
@@ -172,7 +183,8 @@ def create_ai_report(
         str: The AI report of the error logs.
     """
     try:
-        model = get_ai_model_data(token)[0]["id"]
+        # model = get_ai_model_data(token)[0]["id"]
+        model = "alias-fast-experimental"
 
         instructions = [
             {
@@ -194,9 +206,11 @@ def create_ai_report(
         ]
 
         response = submit_ai_request(instructions, model, token)
-        return response.json()["choices"][0]["message"]["content"]
+        ai_report = response.json()["choices"][0]["message"]["content"]
+        if ai_report:
+            return ai_report
     except Exception as e:
-        print("AI logs analysis was not successfull. Skipping.")
+        logger.error(f"AI logs analysis was not successfull: {e}. Skipping.")
     return "AI report failed"
 
 
@@ -214,13 +228,13 @@ def create_failed_jobs_report(
         str: A tuple containing the failed jobs string and an empty string.
     """
     if not failed_jobs:
-        return ("No failed jobs found in the pipeline.",)
+        return "No failed jobs found in the pipeline."
 
     failed_jobs_strs = [f"- Job {job.id}: {job.name} (Failed)" for job in failed_jobs]
     return "\n".join(failed_jobs_strs)
 
 
-def extract_error_logs(artifacts_dir: str) -> Dict[str, str]:
+def extract_error_logs(artifacts_dir: Path) -> Dict[str, str]:
     """
     Extracts error logs from artifacts in the artifacts directory.
 
@@ -284,9 +298,9 @@ def create_error_logs_report(error_logs: Dict[str, str]) -> str:
 def create_description(
     project: gitlab.v4.objects.Project,
     ci_pipeline_url: str,
-    ci_pipeline_id: str,
+    ci_pipeline_id: int,
     registry_token: str,
-    artifacts_dir: str,
+    artifacts_dir: Path,
 ):
     """
     Creates a description for the issue. Description consists of
@@ -299,13 +313,14 @@ def create_description(
         ci_pipeline_url (str): The URL for the CI pipeline.
         ci_pipeline_id (str): The ID for the CI pipeline.
         registry_token (str): The token to access the Docker registry.
-        artifacts_dir (str): The directory containing the artifacts.
+        artifacts_dir (Path): The directory containing the artifacts.
 
     Returns:
         str: The formatted description for the issue.
     """
     failed_jobs = project.pipelines.get(ci_pipeline_id).jobs.list(scope="failed")
-    failed_jobs_report = create_failed_jobs_report(failed_jobs)
+    failed_jobs_retyped = cast(list[gitlab.v4.objects.ProjectPipelineJob], failed_jobs)
+    failed_jobs_report = create_failed_jobs_report(failed_jobs_retyped)
 
     error_logs = extract_error_logs(artifacts_dir)
     error_logs_report = create_error_logs_report(error_logs)
@@ -342,7 +357,7 @@ def create_issue_for_commit(
     ci_pipeline_url: str,
     ci_pipeline_id: int,
     commit_sha: str,
-    artifacts_dir: str,
+    artifacts_dir: Path,
 ) -> gitlab.v4.objects.ProjectIssue:
     """Creates a new issue for a commit when a CI pipeline fails.
 
@@ -369,8 +384,9 @@ def create_issue_for_commit(
         "labels": ["CI", "Sprint"],
         "description": issue_description,
     }
-    issue = project.issues.create(issue)
-    issue.save()
+    project_issue = project.issues.create(issue)
+
+    return cast(gitlab.v4.objects.ProjectIssue, project_issue)
 
 
 def update_issue_title(
@@ -390,7 +406,7 @@ def update_issue_title(
         None
     """
     issue.title = create_title(project, commit_sha)
-    issue.save()
+    return issue
 
 
 def main():
@@ -399,7 +415,7 @@ def main():
     ci_pipeline_url = os.getenv("CI_PIPELINE_URL")
     ci_pipeline_id = os.getenv("CI_PIPELINE_ID")
     commit_sha = os.getenv("CI_COMMIT_SHORT_SHA")
-    artifacts_dir = os.getenv("ARTIFACTS_DIR")
+    artifacts_dir = Path(os.getenv("ARTIFACTS_DIR"))
 
     gl = gitlab.Gitlab(
         url="https://codebase.helmholtz.cloud",
@@ -415,7 +431,7 @@ def main():
         state="opened", labels=["CI"], search=commit_sha
     )
     if not existing_issues:
-        create_issue_for_commit(
+        issue = create_issue_for_commit(
             project=project_kaapana,
             ci_pipeline_url=ci_pipeline_url,
             ci_pipeline_id=ci_pipeline_id,
@@ -423,9 +439,9 @@ def main():
             registry_token=registry_token,
             artifacts_dir=artifacts_dir,
         )
-
     else:
-        update_issue_title(project_kaapana, existing_issues[0], commit_sha)
+        issue = update_issue_title(project_kaapana, existing_issues[0], commit_sha)
+    issue.save()
 
 
 if __name__ == "__main__":

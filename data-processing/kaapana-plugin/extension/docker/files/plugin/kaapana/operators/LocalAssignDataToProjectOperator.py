@@ -65,12 +65,12 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
                 metadata = json.load(f)
             if self.from_other_project:
                 config = kwargs["dag_run"].conf
-                from_data = config.get("form_data")
-                projects = from_data.get("projects")
+                workflow_form = config.get("workflow_form")
+                projects = workflow_form.get("projects")
                 series_instance_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
                 for project in projects:
                     self.add_data_to_project(series_instance_uid, project_name=project)
-            else:    
+            else:
                 self.assign_data_to_projects(metadata)
 
     def assign_data_to_projects(self, metadata) -> None:
@@ -102,14 +102,18 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
 
         ### Create the project-data mapping for the project stored in the dicom tag: ClinicalTrialProtocolID_keyword
         try:
-            self.add_data_to_project(series_instance_uid, project_name=clinical_trial_protocol_id)
+            self.add_data_to_project(
+                series_instance_uid, project_name=clinical_trial_protocol_id
+            )
         except (IndexError, requests.exceptions.HTTPError) as e:
             logger.warning(
                 f"{series_instance_uid=} is not assigned to a project! This does not fail the task. The series will still be assigned to the default admin project, when the data arrives at the Dicom-Web-Filter: {e}"
             )
             return None
 
-    def add_data_to_project(self, series_instance_uid, project_id=None, project_name=None):
+    def add_data_to_project(
+        self, series_instance_uid, project_id=None, project_name=None
+    ):
         """
         Assigns a DICOM series to a project using either the project ID or project name.
 
@@ -135,7 +139,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         url = f"{self.dcmweb_helper.dcmweb_rs_endpoint}/projects/{project_id}/data/{series_instance_uid}"
         response = self.dcmweb_helper.session.put(url)
         response.raise_for_status()
-        
+
         logger.debug(f"Added {series_instance_uid} to project with {project_id=}")
 
     def get_project_by_name(self, project_name: str):

@@ -8,6 +8,7 @@ from pathlib import Path
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
+from kaapana.blueprints.json_schema_templates import get_all_projects
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
 from kaapana.operators.DeleteFromMetaOperator import DeleteFromMetaOperator
 from kaapana.operators.DeleteFromPacsOperator import DeleteFromPacsOperator
@@ -25,21 +26,6 @@ from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerO
 
 log = LoggingMixin().log
 import requests
-
-
-def get_all_projects():
-    try:
-        r = requests.get("http://aii-service.services.svc:8080/projects")
-        projects = r.json()
-        # Filter out the admin project with id 1
-        filtered_projects = [project for project in projects if project["id"] != 1]
-        project_names = [project["name"] for project in filtered_projects]
-        return project_names
-
-    except Exception as e:
-        print("Error in get projects: ", e)
-        return []
-
 
 ui_forms = {
     "workflow_form": {
@@ -93,7 +79,7 @@ dag = DAG(
 )
 
 
-class LocalCleanCustumTagsOperator(KaapanaPythonBaseOperator):
+class LocalCleanCustomTagsOperator(KaapanaPythonBaseOperator):
     def clean(self, ds, **kwargs):
         conf = kwargs["dag_run"].conf
         log.info(f"{conf=}")
@@ -169,8 +155,8 @@ class LocalCopyThumbnails(KaapanaPythonBaseOperator):
             source_bucket = source_project.get("s3_bucket")
 
             # Get form data and target projects
-            from_data = kwargs["dag_run"].conf.get("form_data")
-            projects = from_data.get("projects")
+            workflow_form = kwargs["dag_run"].conf.get("workflow_form")
+            projects = workflow_form.get("projects")
 
             # Copy to each target project
             for project_name in projects:
@@ -210,8 +196,9 @@ class LocalCopyThumbnails(KaapanaPythonBaseOperator):
             **kwargs,
         )
 
+
 get_input = GetInputOperator(dag=dag, data_type="json")
-clean_tags = LocalCleanCustumTagsOperator(dag=dag, input_operator=get_input)
+clean_tags = LocalCleanCustomTagsOperator(dag=dag, input_operator=get_input)
 ## use local operator to push to different projects
 assign_to_project = LocalAssignDataToProjectOperator(
     dag=dag, from_other_project=True, input_operator=clean_tags

@@ -7,6 +7,7 @@ from queue import Queue
 from typing import List, Set, Tuple
 
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper import get_minio_client
@@ -168,26 +169,27 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
         """
         all_objects = self.list_objects(client, source_bucket, files_and_folders)
         error_queue = Queue()
-        threads = []
-
-        for obj_name, size in all_objects:
-            for dest_bucket in dest_buckets:
-                thread = threading.Thread(
-                    target=self.copy_object,
-                    args=(
+        with ThreadPoolExecutor(max_workers=self.parallel_copy) as executor:
+            futures = []
+            for obj_name, size in all_objects:
+                for dest_bucket in dest_buckets:
+                    future = executor.submit(
+                        self.copy_object,
                         client,
                         source_bucket,
                         dest_bucket,
                         obj_name,
                         size,
                         error_queue,
-                    ),
-                )
-                thread.start()
-                threads.append(thread)
+                    )
+                    futures.append(future)
 
-        for thread in threads:
-            thread.join()
+            # Wait for all futures to complete
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    error_queue.put(e)
 
         if not error_queue.empty():
             errors = []
@@ -211,7 +213,7 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
         """
         dag_run = kwargs["dag_run"]
         conf = kwargs["dag_run"].conf
-        print("conf", conf)
+        logger.info(f"{conf=}")
         source_bucket = conf["project_form"]["s3_bucket"]
         destination_projects = conf["workflow_form"]["projects"]
         destination_buckets = []
@@ -245,6 +247,7 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
         self,
         dag,
         name="minio-data-transfer",
+        parallel_copy: int = 5,
         **kwargs,
     ):
         """
@@ -254,6 +257,8 @@ class LocalMinioDataTransferOperator(KaapanaPythonBaseOperator):
         :param name: Name of the operator (default: minio-data-transfer)
         :param kwargs: Additional keyword arguments
         """
+        self.parallel_copy = parallel_copy
+
         super(LocalMinioDataTransferOperator, self).__init__(
             dag=dag,
             name=name,

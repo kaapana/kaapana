@@ -2,7 +2,10 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.dates import days_ago
 from datetime import timedelta
 from airflow.models import DAG
-from kaapana.operators.LocalMinioDataTransferOperator import LocalMinioDataTransferOperator
+from kaapana.blueprints.json_schema_templates import get_all_projects
+from kaapana.operators.LocalMinioDataTransferOperator import (
+    LocalMinioDataTransferOperator,
+)
 import os
 import json
 import shutil
@@ -12,34 +15,26 @@ import glob
 log = LoggingMixin().log
 import requests
 
-def get_all_projects():
-    try:
-        r = requests.get("http://aii-service.services.svc:8080/projects")
-        projects = r.json()
-        project_names = [project["name"] for project in projects]
-        return project_names
-
-    except Exception as e:
-        print("Error in get projects: ", e)
-        return []
-
 ui_forms = {
     "workflow_form": {
         "type": "object",
-        "properties":  {     
+        "properties": {
             "projects": {
                 "title": "Destination Projects",
                 "description": "The project(s) to which the data will be copied.",
                 "type": "array",
-                "items": {"type": "string", "enum": get_all_projects()},
+                "items": {
+                    "type": "string",
+                    "enum": get_all_projects(without_admin_project=False),
+                },
                 "required": True,
             },
         },
     },
-    "backend_form":{
+    "backend_form": {
         "include-dataset": False,
-        "backend-route": "/storage/projectbucket"
-    }
+        "backend-route": "/storage/project-bucket-tree",
+    },
 }
 
 args = {

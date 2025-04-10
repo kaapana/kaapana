@@ -124,7 +124,7 @@ build_packages:
   - prepare_pipeline
   script:
   - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
-  - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml; fi
+  - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_and_push.log; fi
   retry: 1
   resource_group: build-1
   environment: build-1
@@ -135,7 +135,7 @@ build_documentation:
   - prepare_pipeline
   script:
   - cd $REPO_DIR/ci-code/build
-  - ansible-playbook build_documentation.yaml
+  - ansible-playbook build_documentation.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_documentation.log
   - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
   rules:
   - if: $EXECUTE_BUILD == "false"
@@ -150,8 +150,8 @@ prepare_deployment_instance:
   needs:
   - prepare_pipeline
   script:
-  - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml
-  - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+  - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_prepare_instance.log
+  - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME" 2>&1 | tee $ARTIFACTS_DIR/ansible_server_installation.log
   artifacts:
     reports:
       dotenv: prepare.env

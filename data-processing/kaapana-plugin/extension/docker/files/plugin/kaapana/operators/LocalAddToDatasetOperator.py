@@ -37,18 +37,73 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
                     metadata = json.load(fs)
                     series_uid = metadata["0020000E SeriesInstanceUID_keyword"]
                     if self.from_other_project:
-                        select_project_from_other_project(
+                        self.select_project_from_other_project(
                             series_uid=series_uid, **kwargs
                         )
                     else:
-                        clinical_trail_tag = metadata.get(
-                            "00120020 ClinicalTrialProtocolID_keyword"
+                        self.select_project_and_add_dataset(
+                            metadata=metadata, series_uid=series_uid
                         )
-                        select_project_and_add_dataset(
-                            series_uid=series_uid,
-                            clinical_trail_tag=clinical_trail_tag,
-                            **kwargs,
-                        )
+
+    def select_project_and_add_dataset(self, metadata: dict, series_uid: str):
+        """
+        Select the project based on the clinical trial tag and add the series to the dataset.
+        Of both the admin project and the project of the clinical trial tag.
+        """
+        clinical_trail_tag = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
+        try:
+            project = get_project_by_name(
+                metadata.get("00120020 ClinicalTrialProtocolID_keyword")
+            )
+        except:
+            project = get_project_by_name("admin")
+
+        admin_project = get_project_by_name("admin")
+        # extract datasets from dicom tags
+        datasets = [
+            metadata.get(dicom_tags)
+            for dicom_tags in self.tags_to_add_from_file
+            if metadata.get(dicom_tags) is not None
+        ]
+        assert datasets
+        for dataset in datasets:
+            add_identifier_to_dataset_in_project(
+                identifiers=[series_uid],
+                dataset_name=dataset,
+                project=project,
+            )
+            add_identifier_to_dataset_in_project(
+                identifiers=[series_uid],
+                dataset_name=dataset,
+                project=admin_project,
+            )
+
+    def select_project_from_other_project(self, series_uid: str, **kwargs):
+        """
+        Select the project from the other project.
+        This function is used when the user wants to select a project from the other project.
+        """
+        config = kwargs["dag_run"].conf
+        workflow_form = config.get("workflow_form")
+        copy_dataset = bool(workflow_form["copy_dataset"])
+        if not copy_dataset:
+            logger.info("Copy dataset is set to False. No dataset name will be copied.")
+            return
+        data_form = config.get("data_form")
+        dataset_name = data_form.get("dataset_name", None)
+        logger.info(f"Copying {dataset_name=}")
+        if dataset_name:
+            projects = workflow_form.get("projects")
+            for project_name in projects:
+                logger.info(
+                    f"Add {series_uid} to dataset {dataset_name} of project {project_name}"
+                )
+                project = get_project_by_name(project_name)
+                add_identifier_to_dataset_in_project(
+                    identifiers=[series_uid],
+                    dataset_name=dataset_name,
+                    project=project,
+                )
 
     def __init__(
         self,
@@ -68,64 +123,6 @@ class LocalAddToDatasetOperator(KaapanaPythonBaseOperator):
         self.tags_to_add_from_file = tags_to_add_from_file
         self.from_other_project = from_other_project
         super().__init__(dag=dag, name=name, python_callable=self.start, **kwargs)
-
-
-def select_project_from_other_project(series_uid: str, **kwargs):
-    """
-    Select the project from the other project.
-    This function is used when the user wants to select a project from the other project.
-    """
-    config = kwargs["dag_run"].conf
-    workflow_form = config.get("workflow_form")
-    data_form = config.get("data_form")
-    dataset_name = data_form.get("dataset_name", None)
-    logger.info(f"Copying {dataset_name=}")
-    if dataset_name:
-        projects = workflow_form.get("projects")
-        for project_name in projects:
-            logger.info(
-                f"Add {series_uid} to dataset {dataset_name} of project {project_name}"
-            )
-            project = get_project_by_name(project_name)
-            add_identifier_to_dataset_in_project(
-                identifiers=[series_uid],
-                dataset_name=dataset_name,
-                project=project,
-            )
-
-
-def select_project_and_add_dataset(series_uid: str, clinical_trail_tag: str):
-    """
-    Select the project based on the clinical trial tag and add the series to the dataset.
-    Of both the admin project and the project of the clinical trial tag.
-    """
-
-    try:
-        project = get_project_by_name(
-            metadata.get("00120020 ClinicalTrialProtocolID_keyword")
-        )
-    except:
-        project = get_project_by_name("admin")
-
-    admin_project = get_project_by_name("admin")
-    # extract datasets from dicom tags
-    datasets = [
-        metadata.get(dicom_tags)
-        for dicom_tags in self.tags_to_add_from_file
-        if metadata.get(dicom_tags) is not None
-    ]
-    assert datasets
-    for dataset in datasets:
-        add_identifier_to_dataset_in_project(
-            identifiers=[series_uid],
-            dataset_name=dataset,
-            project=project,
-        )
-        add_identifier_to_dataset_in_project(
-            identifiers=[series_uid],
-            dataset_name=dataset,
-            project=admin_project,
-        )
 
 
 def add_identifier_to_dataset_in_project(

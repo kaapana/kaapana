@@ -66,12 +66,6 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
             if self.from_other_project:
                 config = kwargs["dag_run"].conf
                 workflow_form = config.get("workflow_form")
-                copy_dataset = bool(workflow_form["copy_dataset"])
-                if not copy_dataset:
-                    logger.info(
-                        "Copy dataset is set to False. No dataset name will be copied."
-                    )
-                    return None
                 projects = workflow_form.get("projects")
                 series_instance_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
                 for project in projects:

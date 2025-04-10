@@ -880,6 +880,9 @@ export default {
   margin-bottom: 10px;
   border-radius: 5px;
 }
+/deep/ .hidden {
+  display: none;
+}
 </style>
 
 <style>

@@ -12,8 +12,23 @@ from kaapana.blueprints.kaapana_global_variables import SERVICES_NAMESPACE
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings
+from opensearchpy import OpenSearch
 from pytz import timezone
+
+from pydantic import BaseModel
+
+logger = get_logger(__name__)
+
+
+class SeriesCompletenessMetadata(BaseModel):
+    """Represents metadata about a DICOM series completeness retrieved from OpenSearch."""
+
+    min_instance_number: int
+    max_instance_number: int
+    is_series_complete: bool
+    missing_instance_numbers: List[int]
 
 
 @dataclass
@@ -204,6 +219,33 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
 
         return
 
+    def update_completeness_to_opensearch(
+        self,
+        index: str,
+        series_uid: str,
+        series_metadata: SeriesCompletenessMetadata,
+    ):
+        self.os_client.update(
+            index=index,
+            id=series_uid,
+            body={
+                "doc": {
+                    DicomTags.min_instance_number_tag: series_metadata.min_instance_number,
+                    DicomTags.max_instance_number_tag: series_metadata.max_instance_number,
+                    DicomTags.is_series_complete_tag: series_metadata.is_series_complete,
+                    DicomTags.missing_instance_numbers_tag: series_metadata.missing_instance_numbers,
+                },
+                "doc_as_upsert": False,  # Do not insert if not exist and fail instead
+            },
+            refresh=True,
+        )
+        logger.info(f"Adding to the index {index}")
+        logger.info(f"Updated OpenSearch for Series {series_uid}")
+        logger.info(f"min={series_metadata.min_instance_number}")
+        logger.info(f"max={series_metadata.max_instance_number}")
+        logger.info(f"is_series_complete={series_metadata.is_series_complete}")
+        logger.info(f"missing={series_metadata.missing_instance_numbers}")
+
     def _extract_validation_results_from_html(self, html_output_path: str):
         """
         Extracts validation results from an HTML file.
@@ -224,14 +266,54 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
 
         n_errors = error_parser.data[0] if len(error_parser.data) > 0 else ""
         n_warnings = warning_parser.data[0] if len(warning_parser.data) > 0 else ""
+
+        incomplete_slices_parser = ClassHTMLParser("missing-slices-list-label")
+        with open(html_output_path, "r") as file:
+            incomplete_slices_parser.feed(file.read())
+
+        min_instance_num_parser = ClassHTMLParser("min-instance-number-label")
+        with open(html_output_path, "r") as file:
+            min_instance_num_parser.feed(file.read())
+
+        max_instance_num_parser = ClassHTMLParser("max-instance-number-label")
+        with open(html_output_path, "r") as file:
+            max_instance_num_parser.feed(file.read())
+
+        min_instance_num = (
+            min_instance_num_parser.data[0]
+            if len(min_instance_num_parser.data) > 0
+            else "0"
+        )
+        max_instance_num = (
+            max_instance_num_parser.data[0]
+            if len(max_instance_num_parser.data) > 0
+            else "0"
+        )
+        incomplete_slices_str = (
+            incomplete_slices_parser.data[0]
+            if len(incomplete_slices_parser.data) > 0
+            else ""
+        )
+        incomplete_slices = []
+        if incomplete_slices_str != "":
+            incomplete_slices = incomplete_slices_str.split(", ")
+
+        completeses_metadata = SeriesCompletenessMetadata(
+            min_instance_number=int(min_instance_num),
+            max_instance_number=int(max_instance_num),
+            is_series_complete=len(incomplete_slices) == 0,
+            missing_instance_numbers=sorted(incomplete_slices),
+        )
+
         validation_time = get_file_creation_time(html_output_path)
 
-        return n_errors, n_warnings, validation_time
+        return n_errors, n_warnings, completeses_metadata, validation_time
 
     def add_validation_results_using_uid_from_metadata(
         self,
         metadata: dict,
         validation_result_tags: tuple,
+        completeness_metadata: SeriesCompletenessMetadata,
         apply_project_context: bool = True,
         os_index: str = "",
     ):
@@ -259,6 +341,12 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                 f"Warning!! Data found on tag {self.tag_field}. Will be replaced by newer results"
             )
             clear_old_results = True
+
+        self.update_completeness_to_opensearch(
+            index=os_index,
+            series_uid=series_uid,
+            series_metadata=completeness_metadata,
+        )
 
         return self.add_tags_to_opensearch(
             series_uid,
@@ -306,7 +394,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                 )
                 continue
 
-            n_errors, n_warnings, validation_time = (
+            n_errors, n_warnings, completeses_metadata, validation_time = (
                 self._extract_validation_results_from_html(html_outputs[0])
             )
 
@@ -333,6 +421,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                 self.add_validation_results_using_uid_from_metadata(
                     metadata=metadata,
                     validation_result_tags=tags_tuple,
+                    completeness_metadata=completeses_metadata,
                     apply_project_context=self.apply_project_context,
                     os_index=self.opensearch_index,
                 )
@@ -351,6 +440,7 @@ class LocalValidationResult2MetaOperator(KaapanaPythonBaseOperator):
                     self.add_validation_results_using_uid_from_metadata(
                         metadata=metadata,
                         validation_result_tags=tags_tuple,
+                        completeness_metadata=completeses_metadata,
                         apply_project_context=False,
                         os_index=OpensearchSettings().default_index,
                     )

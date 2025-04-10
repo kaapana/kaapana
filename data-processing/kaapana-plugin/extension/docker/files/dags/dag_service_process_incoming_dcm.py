@@ -7,7 +7,6 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
-from kaapana.operators.CheckCompletnessOperator import CheckCompletenessOperator
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -279,7 +278,7 @@ extract_metadata >> [
 
 (push_json >> branch_by_has_ref_series >> get_ref_ct_series)
 
-validate >> generate_thumbnail
+save_to_meta >> generate_thumbnail
 get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket
 
 (branch_by_has_ref_series >> generate_thumbnail)

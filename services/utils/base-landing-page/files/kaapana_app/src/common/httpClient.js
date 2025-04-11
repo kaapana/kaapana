@@ -7,4 +7,10 @@ const httpClient = axios.create({
   timeout: 10000
 });
 
+const httpClientWithoutTimeout = axios.create({
+  headers: {},
+  timeout: 0
+});
+
 export default httpClient;
+export { httpClientWithoutTimeout };

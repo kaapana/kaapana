@@ -1,14 +1,34 @@
 import base64
+import logging
 import os
+import shutil
+from io import BytesIO
+import zipfile
 
 from app.datasets import utils
-from app.dependencies import get_minio, get_opensearch, get_project_index
+from app.dependencies import (
+    get_minio,
+    get_opensearch,
+    get_project_index,
+    get_dcmweb_helper,
+    get_project,
+)
 from app.middlewares import sanitize_inputs
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from app.logger import get_logger
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from minio.error import S3Error
+import os
+from pathlib import Path
+import random
 from starlette.responses import StreamingResponse
+from time import gmtime, strftime
 import json
+
+MAX_DOWNLOAD_FILE_SIZE_MB = 256
+
+logger = get_logger(__name__, logging.DEBUG)
 
 router = APIRouter(tags=["datasets"])
 
@@ -380,3 +400,135 @@ async def get_fields(
         return JSONResponse(mapping[field])
     else:
         return JSONResponse(mapping)
+
+
+def get_dir_size(start_dir: str):
+    if not os.path.exists(start_dir):
+        return 0
+
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(start_dir):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
+
+    return total_size / (1024 * 1024)
+
+
+@router.get("/download")
+async def download_multiple_series(
+    request: Request,
+    series_uids: str = Query(
+        ..., description="semicolon-separated (;) all the series UID to download"
+    ),
+    dcmweb_helper=Depends(get_dcmweb_helper),
+    os_client=Depends(get_opensearch),
+    project_index=Depends(get_project_index),
+    project=Depends(get_project),
+):
+
+    series_uid_list = [uid.strip() for uid in series_uids.split(";")]
+    user = request.headers.get("x-forwarded-preferred-username")
+
+    study_series_pairs = []
+    # fetch the study id for the given series and
+    # create study-series pairs.
+    for series_uid in series_uid_list:
+        try:
+            metadata_response = await utils.get_metadata(
+                os_client, project_index, series_uid
+            )
+        except Exception as e:
+            print(
+                f"Study Id for the Series {series_uid} could not be fetched. {str(e)}"
+            )
+            continue
+
+        study_uid = metadata_response["Study Instance UID"]
+        study_series_pairs.append((study_uid, series_uid))
+
+    if len(study_series_pairs) == 0:
+        raise HTTPException(
+            status_code=404, detail="No appropriate series found to download."
+        )
+
+    # create the filename with the combination of random number and current time
+    download_filename = f"kaapana_dataset_downloads_{random.randint(11111, 99999)}_{strftime('%Y%m%d%H%M%S', gmtime())}"
+    tmp_dir = Path(f"/tmp/{download_filename}")
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    def check_if_dir_size_exceed():
+        total_size = get_dir_size(tmp_dir)
+        if total_size > MAX_DOWNLOAD_FILE_SIZE_MB:
+            return True
+        return False
+
+    def download_task(study, series, tmp_dir):
+        target_dir = tmp_dir / study / series
+        return dcmweb_helper.download_series(
+            study_uid=study, series_uid=series, target_dir=target_dir
+        )
+
+    with ThreadPoolExecutor(
+        max_workers=4
+    ) as executor:  # Adjust `max_workers` based on system's capability
+        futures = {
+            executor.submit(download_task, study, series, tmp_dir): (study, series)
+            for study, series in study_series_pairs
+        }
+
+        for future in as_completed(futures):
+            study, series = futures[future]
+            try:
+                download_successful = future.result()
+                if not download_successful:
+                    logging.info(f"Downloading failed for {study}/{series}")
+                if check_if_dir_size_exceed():
+                    executor.shutdown(wait=False)
+                    break
+            except Exception as e:
+                logging.info(f"Error downloading {study}/{series}: {e}")
+
+    if check_if_dir_size_exceed():
+        # delete the downloaded series if exceeds the limit and return exception
+        shutil.rmtree(tmp_dir)
+        raise HTTPException(
+            status_code=413,
+            detail=f"Requested files total size exceeds the limit of {MAX_DOWNLOAD_FILE_SIZE_MB} MB. Please use standard 'download-selected-file' workflow to downoad large files.",
+        )
+
+    # Create in-memory ZIP archive
+    zip_buffer = BytesIO()
+
+    # Create ZIP archive in memory
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        base_path = Path(tmp_dir)
+        for file_path in base_path.rglob("*"):  # Recursively include all files
+            if file_path.is_file():
+                # Write file to ZIP archive with relative path
+                zipf.write(file_path, file_path.relative_to(base_path))
+
+    # Reset buffer pointer to start
+    zip_buffer.seek(0)
+
+    # delete the downloaded series after the in-memory zip
+    shutil.rmtree(tmp_dir)
+
+    # logging downloads
+    logging.info("=" * 75)
+    log_str = f"{strftime('%Y-%m-%d %H:%M:%S', gmtime())}: User {user} from project {project['name']} downloaded following {len(series_uid_list)} series:"
+    logging.info(log_str)
+    logging.info(series_uid_list)
+    logging.info("=" * 75)
+
+    return StreamingResponse(
+        iter(
+            [zip_buffer.getvalue()]
+        ),  # Generator-like behavior for efficient streaming
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename={download_filename}.zip"
+        },
+    )

@@ -1,5 +1,5 @@
 import Vue from "vue";
-import httpClient from "./httpClient";
+import httpClient, {httpClientWithoutTimeout} from "./httpClient";
 import store from '../store/index';
 
 const KAAPANA_BACKEND_ENDPOINT = process.env.VUE_APP_KAAPANA_BACKEND_ENDPOINT;
@@ -200,6 +200,60 @@ const loadDicomTagMapping = async () => {
     .data;
 };
 
+const downloadDatasets = async (concatenatedSeriesUIDs) => {
+  try {
+    const encodedSeriesUIDs = encodeURIComponent(concatenatedSeriesUIDs);
+    const response = await httpClientWithoutTimeout.get(
+      KAAPANA_BACKEND_ENDPOINT + `dataset/download?series_uids=${encodedSeriesUIDs}`,
+      { responseType: 'blob' }  // Important for file downloads
+    );
+
+    // Create a download link for the received blob
+    const blob = new Blob([response.data], { type: response.headers['content-type'] });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+
+    // Extract filename from headers or define a fallback
+    const contentDisposition = response.headers['content-disposition'];
+    const fileName = contentDisposition
+      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+      : 'kaapana_datasets_download.zip'; // Default file name
+
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup
+    URL.revokeObjectURL(link.href);
+    document.body.removeChild(link);
+
+  } catch (error) {
+    if (error.response && error.response.data) {
+      // Convert blob error response to JSON
+      const reader = new FileReader();
+      reader.onload = function () {
+        let errorText = ""
+        try {
+          const errorJson = JSON.parse(reader.result);
+          errorText = 'Download failed:' + errorJson.detail;
+        } catch (parseError) {
+          errorText ='Failed to parse error response:' + parseError;
+        }
+        Vue.notify({
+          title: "Download Error",
+          text: errorText,
+          type: "error",
+        });        
+      };
+      reader.readAsText(error.response.data);
+    } else {
+      console.error('Unexpected error:', error);
+    }
+
+    throw error;
+  }
+};
+
 const fetchProjects = async () => {
   const currentUser = store.getters.currentUser
   try {
@@ -236,4 +290,5 @@ export {
   loadValues,
   getAggregatedSeriesNum,
   fetchProjects,
+  downloadDatasets
 };

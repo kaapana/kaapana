@@ -178,20 +178,29 @@ def generate_html(
     attrs_str = get_attributes_html_from_dict(attrs)
 
     series_completeness_str = ""
-    if series_completete_stat and not series_completete_stat.is_series_complete:
+    if series_completete_stat:
         missing_slices = ", ".join(
             str(x) for x in series_completete_stat.missing_instance_numbers
         )
-        series_completeness_str = f"""
-        <div class='incomplete-alert'>
-        <strong>Broken / Incomplete Series:</strong> 
-        Following Slice indexes are missing in the Series: <span class='missing-slices-list-label'>{missing_slices}</span>
-        <div class='hidden'>
-        <span class='min-instance-number-label'>{series_completete_stat.min_instance_number}</span>
-        <span class='max-instance-number-label'>{series_completete_stat.max_instance_number}</span>
-        </div>
-        </div>
-        """
+        if not series_completete_stat.is_series_complete:
+            series_completeness_str = f"""
+            <div class='incomplete-alert'>
+            <strong>Broken / Incomplete Series:</strong> 
+            Following Slice indexes are missing in the Series: <span class='missing-slices-list-label'>{missing_slices}</span>
+            <div class='hidden'>
+            <span class='min-instance-number-label'>{series_completete_stat.min_instance_number}</span>
+            <span class='max-instance-number-label'>{series_completete_stat.max_instance_number}</span>
+            </div>
+            </div>
+            """
+        else:
+            series_completeness_str = f"""
+            <div class='hidden'>
+            <span class='missing-slices-list-label'>{missing_slices}</span>            
+            <span class='min-instance-number-label'>{series_completete_stat.min_instance_number}</span>
+            <span class='max-instance-number-label'>{series_completete_stat.max_instance_number}</span>
+            </div>
+            """
 
     err_str = ""
     if len(errors) > 0:

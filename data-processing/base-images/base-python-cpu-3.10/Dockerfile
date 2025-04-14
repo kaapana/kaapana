@@ -36,6 +36,4 @@ RUN wget https://code-server.dev/install.sh
 RUN /bin/bash install.sh --version 4.2.0
 RUN code-server --install-extension ms-python.python
 
-COPY files/kaapana_federated /kaapana_federated
-
 WORKDIR /kaapana/app

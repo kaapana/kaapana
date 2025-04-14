@@ -5,7 +5,6 @@ RUN git clone https://github.com/UMEssen/Body-and-Organ-Analysis.git /Body-and-O
 WORKDIR /Body-and-Organ-Analysis
 COPY files/kaapana_change.diff /Body-and-Organ-Analysis/
 RUN git checkout 0a3a344
-RUN git apply kaapana_change.diff
 RUN ./scripts/generate_version.sh
 
 ENV POETRY_HOME=/etc/poetry

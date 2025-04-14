@@ -10,7 +10,5 @@ for SERIES_UID in $IDENTIFIERS; do
     --output-dir ${WORKFLOW_DIR}/${OPERATOR_OUT_DIR}/${SERIES_UID} \
     --models ${MODELS_ARGUMENT} \
     --verbose
-    
-    python3 convert_nifti_to_dicom.py ${BATCHES_INPUT_DIR}/${SERIES_UID}/get-input-data ${WORKFLOW_DIR}/${OPERATOR_OUT_DIR}/${SERIES_UID}
 done
 

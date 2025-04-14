@@ -6,6 +6,8 @@ whitelisted_endpoints := [
     {"path": "^/oauth2/metrics", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/remote/.*", "methods": ["GET","POST","PUT","DELETE"]},
     {"path": "^/kaapana-backend/oidc-logout", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/docs/", "methods": ["GET","POST","PUT","DELETE"]},
+    {"path": "^/web/system/Documentation", "methods": ["GET","POST","PUT","DELETE"]},
 ]
 
 allowed_user_endpoints := [

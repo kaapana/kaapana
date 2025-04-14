@@ -49,15 +49,10 @@
           <v-row v-if="datasets_available" :key="dag_id">
             <v-col v-for="(schema, name) in schemas" cols="12">
               <!-- <p>{{name}}</p> -->
-              <v-tooltip v-if="name === 'documentation_form'" bottom>
-                <template v-slot:activator="{ on, attrs }">
-                  <a :href="getHref('/docs/' + schema.path)"
-                    target="_blank">
-                    <v-icon color="primary" dark="" v-bind="attrs" v-on="on"> mdi-information </v-icon>
-                  </a>
-                </template>
-                <span> Link to the documentation. </span>
-              </v-tooltip>
+              <a v-if="name === 'documentation_form'" :href="getHref('/docs/' + schema.path)"
+                target="_blank">
+                <span> Link to the documentation </span>
+              </a>
               <v-jsf v-if="name != 'documentation_form'" v-model="formData[name]" :schema="schema" required="required"></v-jsf>
             </v-col>
             <div v-if="hasBackendField">

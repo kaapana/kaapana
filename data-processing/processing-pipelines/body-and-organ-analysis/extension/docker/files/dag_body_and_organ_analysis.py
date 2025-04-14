@@ -13,6 +13,9 @@ max_active_runs = 5
 
 
 ui_forms = {
+    "documentation_form": {
+        "path": "/user_guide/extensions.html#body-and-organ-analysis",
+    },
     "publication_form": {
         "type": "object",
         "properties": {

@@ -8,3 +8,5 @@ keywords:
 - kaapanaworkflow
 - kaapanaexperimental
 - gpurequired
+annotations:
+  documentation: "user_guide/extensions.html#body-and-organ-analysis"

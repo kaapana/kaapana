@@ -45,6 +45,5 @@ ENV MPLCONFIGDIR=/app/configs
 ENV nnUNet_USE_TRITON=0
 
 COPY files/run_boa.sh /app/
-COPY files/convert_nifti_to_dicom.py /app/
 
 CMD ["/bin/bash", "run_boa.sh"]

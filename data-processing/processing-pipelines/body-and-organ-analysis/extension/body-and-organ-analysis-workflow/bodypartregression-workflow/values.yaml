@@ -1,0 +1,4 @@
+---
+global:
+    image: "dag-body-and-organ-analysis"
+    action: "copy"

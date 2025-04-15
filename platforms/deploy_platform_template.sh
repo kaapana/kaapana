@@ -437,6 +437,12 @@ function deploy_chart {
         pull_chart $SCRIPT_PATH
         CHART_PATH="$SCRIPT_PATH/$PLATFORM_NAME-$PLATFORM_VERSION.tgz"
     fi
+
+    # Kubernetes API endpoint
+    INTERNAL_CIDR=$(kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
+    # MicroK8s https://microk8s.io/docs/change-cidr
+    INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
+
     echo "${GREEN}Deploying $PLATFORM_NAME:$PLATFORM_VERSION${NC}"
     echo "${GREEN}CHART_PATH $CHART_PATH${NC}"
     helm -n $HELM_NAMESPACE install --create-namespace $CHART_PATH \
@@ -463,9 +469,9 @@ function deploy_chart {
     --set-string global.hostname="$DOMAIN" \
     --set-string global.http_port="$HTTP_PORT" \
     --set-string global.https_port="$HTTPS_PORT" \
+    --set global.internalCidrs="{$INTERNAL_CIDR}" \
     --set-string squid-proxy.upstreamHttpProxy="$http_proxy" \
     --set-string squid-proxy.upstreamHttpsProxy="$https_proxy" \
-    # --set-string squid-proxy.upstreamNoProxy=".my-hospital.tld\,a-particular.server.local\,127.0.0.1" \
     --set global.offline_mode=$OFFLINE_MODE \
     --set global.prefetch_extensions=$PREFETCH_EXTENSIONS \
     --set-string global.pull_policy_images="$PULL_POLICY_IMAGES" \

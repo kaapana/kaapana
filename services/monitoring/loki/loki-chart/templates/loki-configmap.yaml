@@ -31,3 +31,8 @@ data:
     storage_config:
       filesystem:
         directory: /data
+
+    compactor:
+      working_directory: /data/compactor
+      retention_enabled: true
+      retention_delete_delay: 7d

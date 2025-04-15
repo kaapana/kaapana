@@ -1,13 +1,37 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: "{{ .Values.loki.name }}-service"
-  namespace: services
+  name: loki-service
+  namespace: "{{ .Values.global.services_namespace }}"
+  labels:
+    app.kubernetes.io/name: loki
 spec:
-  ports:
-  - port: "{{ .Values.loki.port }}"
-    targetPort: http-metrics
-    name: http-metrics
   selector:
-    app: "{{ .Values.loki.name }}"
+    app.kubernetes.io/name: loki
+  ports:
+    - port: {{ .Values.loki.port }}
+      targetPort: {{ .Values.loki.port }}
+      name: http-metrics
+---
+apiVersion: networking.k8s.io/v1 
+kind: Ingress
+metadata:
+  name: loki-ingress
+  namespace: "{{ .Values.global.services_namespace }}"
+
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+spec:
+  rules:
+  - host:
+    http:
+      paths:
+      - path: /loki
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: loki-service
+            port:
+              number: {{ .Values.loki.port }}
 ---

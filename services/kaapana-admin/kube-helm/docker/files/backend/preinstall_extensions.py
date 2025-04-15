@@ -9,8 +9,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
 from app.config import settings
 from app.utils import all_successful, helm_install, helm_status
 from app.helm_helper import get_kube_objects, helm_show_chart, execute_shell_command
-
-import logging
 from app.logger import get_logger
 
 logger = get_logger(__name__)

@@ -809,6 +809,12 @@ function update_coredns_rewrite() {
         return 1
     fi
 
+    # If hostname starts with a number it is considerd an IP and dns rewrite is skipped
+    if [[ "$hostname" =~ ^[0-9] ]]; then
+        echo "Skipped DNS rewrite because ${hostname} seems to be an IP Adress"
+        return 0
+    fi
+
     # Build the new rewrite rule.
     # Ensure both hostname and target are FQDNs (with trailing dots).
     local new_rule="rewrite name exact ${hostname}. oauth2-proxy-service.$ADMIN_NAMESPACE.svc.cluster.local."

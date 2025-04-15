@@ -38,6 +38,9 @@ spec:
           - name: datasources-provisioning
             mountPath: /etc/grafana/provisioning/datasources/prometheus.yml
             subPath: prometheus.yml
+          - name: datasources-loki
+            mountPath: /etc/grafana/provisioning/datasources/loki.yml
+            subPath: loki.yml
           - name: dashboard-provisioning
             mountPath: /etc/grafana/provisioning/dashboards
           - name: grafana-dashboards
@@ -58,6 +61,9 @@ spec:
           - name: grafana-dashboards
             mountPath: /etc/grafana/dashboards/api/dashboards/api-dashboard.json
             subPath: api-dashboard.json
+          - name: grafana-dashboards
+            mountPath: /etc/grafana/dashboards/loki-logs/dashboards/loki-logs-dashboard.json
+            subPath: loki-logs-dashboard.json
           {{- if .Values.global.gpu_support }}
           - name: grafana-dashboards
             mountPath: /etc/grafana/dashboards/gpu/dashboards/gpu-dashboard.json
@@ -87,6 +93,12 @@ spec:
           items:
           - key: prometheus.yml
             path: prometheus.yml
+      - name: datasources-loki
+        configMap:
+          name: grafana-ds-loki
+          items:
+          - key: loki.yml
+            path: loki.yml
       - name: dashboard-provisioning
         configMap:
           name: grafana-provisioning-dashboards
@@ -106,6 +118,8 @@ spec:
             path: airflow-dag-dashboard.json
           - key: api-dashboard.json
             path: api-dashboard.json
+          - key: loki-logs-dashboard.json
+            path: loki-logs-dashboard.json
           {{- if .Values.global.gpu_support }}
           - key: gpu-dashboard.json
             path: gpu-dashboard.json

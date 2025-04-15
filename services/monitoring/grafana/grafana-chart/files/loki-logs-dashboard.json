@@ -1,0 +1,184 @@
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "target": {
+            "limit": 100,
+            "matchAny": false,
+            "tags": [],
+            "type": "dashboard"
+          },
+          "type": "dashboard"
+        }
+      ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": 8,
+    "links": [],
+    "panels": [
+      {
+        "datasource": {
+          "type": "loki",
+          "uid": "P982945308D3682D1"
+        },
+        "fieldConfig": {
+          "defaults": {},
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 19,
+          "w": 24,
+          "x": 0,
+          "y": 0
+        },
+        "id": 1,
+        "options": {
+          "dedupStrategy": "none",
+          "enableLogDetails": true,
+          "prettifyLogMessage": false,
+          "showCommonLabels": false,
+          "showLabels": true,
+          "showTime": true,
+          "sortOrder": "Descending",
+          "wrapLogMessage": false
+        },
+        "pluginVersion": "11.3.1",
+        "targets": [
+          {
+            "datasource": {
+              "type": "loki",
+              "uid": "P982945308D3682D1"
+            },
+            "editorMode": "code",
+            "expr": "{namespace=~\"$namespace\", pod=~\"$pod\", container=~\"$container\"} |= \"\"",
+            "hide": false,
+            "queryType": "range",
+            "refId": "B"
+          }
+        ],
+        "title": "Logs From Selected Kubernetes Namespace(s), Pod(s) and Container(s)",
+        "type": "logs"
+      }
+    ],
+    "preload": false,
+    "refresh": "Auto",
+    "schemaVersion": 40,
+    "tags": [],
+    "templating": {
+      "list": [
+        {
+          "allValue": ".+",
+          "current": {
+            "text": [
+              "gpu-operator-resources"
+            ],
+            "value": [
+              "gpu-operator-resources"
+            ]
+          },
+          "datasource": {
+            "type": "loki",
+            "uid": "P982945308D3682D1"
+          },
+          "definition": "",
+          "description": "Namespace to select",
+          "includeAll": true,
+          "label": "Namespace",
+          "multi": true,
+          "name": "namespace",
+          "options": [],
+          "query": {
+            "label": "namespace",
+            "refId": "LokiVariableQueryEditor-VariableQuery",
+            "stream": "{}",
+            "type": 1
+          },
+          "refresh": 1,
+          "regex": "",
+          "type": "query"
+        },
+        {
+          "allValue": ".+",
+          "current": {
+            "text": [
+              "gpu-feature-discovery-6nrbb"
+            ],
+            "value": [
+              "gpu-feature-discovery-6nrbb"
+            ]
+          },
+          "datasource": {
+            "type": "loki",
+            "uid": "P982945308D3682D1"
+          },
+          "definition": "",
+          "description": "Pods filtered by selected Namespace(s)",
+          "includeAll": true,
+          "label": "Pod",
+          "multi": true,
+          "name": "pod",
+          "options": [],
+          "query": {
+            "label": "pod",
+            "refId": "LokiVariableQueryEditor-VariableQuery",
+            "stream": "{namespace=~\"$namespace\"}",
+            "type": 1
+          },
+          "refresh": 1,
+          "regex": "",
+          "type": "query"
+        },
+        {
+          "allValue": ".+",
+          "current": {
+            "text": [
+              "gpu-feature-discovery"
+            ],
+            "value": [
+              "gpu-feature-discovery"
+            ]
+          },
+          "datasource": {
+            "type": "loki",
+            "uid": "P982945308D3682D1"
+          },
+          "definition": "",
+          "includeAll": true,
+          "label": "Container",
+          "multi": true,
+          "name": "container",
+          "options": [],
+          "query": {
+            "label": "container",
+            "refId": "LokiVariableQueryEditor-VariableQuery",
+            "stream": "{pod=~\"$pod\"}",
+            "type": 1
+          },
+          "refresh": 1,
+          "regex": "",
+          "type": "query"
+        }
+      ]
+    },
+    "time": {
+      "from": "now-5m",
+      "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "title": "Loki Log Querying Dashboard",
+    "uid": "deizx3i4idc00f",
+    "version": 26,
+    "weekStart": ""
+  }

@@ -14,7 +14,7 @@ dependencies:
     version: 0.0.0
   - name: node-exporter-chart
     version: 0.0.0
-  - name: loki-alloy-chart
+  - name: loki-promtail-chart
     version: 0.0.0
 # FLOW
   - name: airflow-chart

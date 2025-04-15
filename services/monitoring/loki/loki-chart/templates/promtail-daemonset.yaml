@@ -6,11 +6,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: loki-promtail
+      app.kubernetes.io/name: promtail
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: loki-promtail
+        app.kubernetes.io/name: promtail
     spec:
       serviceAccountName: promtail-serviceaccount
       containers:

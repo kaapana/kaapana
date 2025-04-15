@@ -14,7 +14,7 @@ data:
       
 
     clients:
-      - url: "http://{{ .Values.loki.name }}-service.{{  .Values.global.services_namespace  }}.svc:{{  .Values.loki.port  }}/loki/api/v1/push"
+      - url: "http://loki-service.{{  .Values.global.services_namespace  }}.svc:{{  .Values.loki.port  }}/loki/api/v1/push"
 
     positions:
       filename: /run/promtail/positions.yaml

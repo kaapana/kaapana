@@ -35,4 +35,7 @@ data:
     compactor:
       working_directory: /data/compactor
       retention_enabled: true
-      retention_delete_delay: 7d
+      delete_request_store: filesystem
+
+    limits_config:
+      retention_period: 7d

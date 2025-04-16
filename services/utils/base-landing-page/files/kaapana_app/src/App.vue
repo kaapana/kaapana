@@ -164,18 +164,36 @@
             <v-list-item-icon></v-list-item-icon>
           </v-list-item>
         </v-list>
+
+        <!-- Sidebar bottom section -->
+        <template v-slot:append>
+          <v-container>
+            <v-row class="pr-2 pb-2" v-if="!mini">
+              <v-btn text href="https://kaapana.readthedocs.io/en/latest/faq_root.html" target="_blank">
+                <v-icon left size="24">mdi-help-circle</v-icon>
+                Help
+              </v-btn>
+              <v-spacer></v-spacer>
+              <v-btn icon @click="logout()">
+                <v-icon>mdi-exit-to-app</v-icon>
+              </v-btn>
+            </v-row>
+            <!-- <v-row class="px-2">
+              &copy; DKFZ 2018 - DKFZ 2024
+            </v-row> -->
+            <v-row class="pa-2" v-else>
+              <v-btn icon href="https://kaapana.readthedocs.io/en/latest/faq_root.html" target="_blank">
+                <v-icon >mdi-help-circle</v-icon>
+              </v-btn>
+            </v-row>
+          </v-container>    
+        </template>
+
       </v-navigation-drawer>
 
       <v-main id="v-main-content">
         <router-view></router-view>
       </v-main>
-
-
-      <v-footer color="primary" app inset>
-        <span class="white--text">
-          &copy; DKFZ 2018 - DKFZ 2024 | {{ commonData.version }}
-        </span>
-      </v-footer>
     </v-app>
   </div>
 </template>
@@ -396,13 +414,12 @@ export default Vue.extend({
   color: #333;
 }
 
-.kaapana-iframe-container-side-navigation {
-  // 105px: Calculated by substracting the height of the whole screen by the hight of the embedded iframe.
-  height: calc(100vh - 105px);
+body {
+  overflow: hidden;
 }
 
-.kapaana-side-navigation {
-  min-height: calc(100vh - 81px);
+.kaapana-iframe-container-side-navigation {
+  height: 100vh;
 }
 
 .v-item-group.v-bottom-navigation {

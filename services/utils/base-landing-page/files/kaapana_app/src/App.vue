@@ -114,7 +114,7 @@
               :key="i"
               :to="to"
               :value="to"
-              v-if="isAuthenticated && _checkAuthR(policyData, to, currentUser)"
+              v-if="!mini && isAuthenticated && _checkAuthR(policyData, to, currentUser)"
             >
               <v-list-item-action></v-list-item-action>
               <v-list-item-title>{{ title }}</v-list-item-title>
@@ -134,6 +134,7 @@
             </template>
             <v-list-item dense
               v-if="
+                !mini && 
                 section.subSections &&
                 _checkAuthR(policyData, subSection.linkTo, currentUser)
               "

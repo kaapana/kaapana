@@ -852,7 +852,7 @@ export default {
 }
 
 .gallery-side-navigation {
-  height: calc(100vh - 258px);
+  height: calc(100vh - 180px);
 }
 
 /deep/ .item-label {

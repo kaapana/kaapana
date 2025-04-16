@@ -2,7 +2,7 @@
     <div>
       <v-dialog v-model="dialog" width="50vw">
         <template v-slot:activator="{ on, attrs }">
-          <v-btn icon v-bind="attrs" v-on="on">
+          <v-btn icon v-bind="attrs" v-on="on" title="About Platform">
             <v-icon>mdi-information-outline</v-icon>
           </v-btn>
         </template>
@@ -33,7 +33,7 @@
                   </v-btn>
                   <v-btn 
                     text target="_blank"
-                    href="https://kaapana.readthedocs.io/en/latest/faq_root.html" 
+                    href="/docs/faq_root.html" 
                   >
                     More Details 
                     <v-icon right>mdi-frequently-asked-questions</v-icon>

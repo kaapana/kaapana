@@ -9,13 +9,15 @@
         >
         <div class="blue py-2 mb-5">
           <v-list-item class="px-2 pb-2">
-            <v-list-item-avatar>
-              <v-img src="/favicon.ico"></v-img>
-            </v-list-item-avatar>
+            <router-link to="/" class="d-inline-block">
+              <v-list-item-avatar>
+                <v-img src="/favicon.ico" title="Kaapana"></v-img>
+              </v-list-item-avatar>
+            </router-link>
 
             <v-spacer></v-spacer>
 
-            <v-btn icon @click.stop="mini = !mini">
+            <v-btn icon @click.stop="mini = !mini" title="Collapse Sidebar">
               <v-icon>mdi-dock-left</v-icon>
             </v-btn>
             <About/>
@@ -25,7 +27,7 @@
               bottom left offset-y
             >
               <template v-slot:activator="{ on }">
-                <v-btn v-on="on" icon="icon">
+                <v-btn v-on="on" icon="icon" title="User">
                   <v-icon>mdi-account-circle</v-icon>
                 </v-btn>
               </template>
@@ -52,6 +54,15 @@
             </v-menu>
           </v-list-item>
 
+          <v-btn 
+            text block 
+            class="mb-n2"
+            @click.stop="mini = !mini" title="Collapse Sidebar" 
+            v-if="mini"
+          >
+            <v-icon>mdi-dock-left</v-icon>
+          </v-btn>
+
           <v-container v-if="!mini">
             <v-row>              
             <v-col class="px-2 py-0">
@@ -62,6 +73,7 @@
                 block depressed 
                 color="primary" class="blue darken-1"
                 @click.stop="toggleDarkMode"
+                :title="settings.darkMode ? 'Dark Mode: Off' : 'Dark Mode: On'"
               >
                 <v-icon>{{ settings.darkMode ? 'mdi-lightbulb-off' : 'mdi-lightbulb-on' }}</v-icon>
               </v-btn>
@@ -71,6 +83,7 @@
                 block depressed 
                 color="primary" class="blue darken-1"
                 href="/docs/" target="_blank"
+                title="Documentation"
               >
                 <v-icon>mdi-text-box-multiple-outline</v-icon>
               </v-btn>
@@ -84,6 +97,7 @@
               <template v-slot:activator="{ on }">
                 <v-btn v-on="on" 
                   block depressed
+                  title="Select Project"
                   color="primary"
                   class="blue darken-1"
                 >
@@ -170,12 +184,12 @@
         <template v-slot:append>
           <v-container>
             <v-row class="pr-2 pb-2" v-if="!mini">
-              <v-btn text href="https://kaapana.readthedocs.io/en/latest/faq_root.html" target="_blank">
+              <v-btn text href="/docs/faq_root.html" target="_blank" title="Help">
                 <v-icon left size="24">mdi-help-circle</v-icon>
                 Help
               </v-btn>
               <v-spacer></v-spacer>
-              <v-btn icon @click="logout()">
+              <v-btn icon @click="logout()" title="Log out">
                 <v-icon>mdi-exit-to-app</v-icon>
               </v-btn>
             </v-row>
@@ -183,7 +197,7 @@
               &copy; DKFZ 2018 - DKFZ 2024
             </v-row> -->
             <v-row class="pa-2" v-else>
-              <v-btn icon href="https://kaapana.readthedocs.io/en/latest/faq_root.html" target="_blank">
+              <v-btn icon href="/docs/faq_root.html" target="_blank" title="Help">
                 <v-icon >mdi-help-circle</v-icon>
               </v-btn>
             </v-row>

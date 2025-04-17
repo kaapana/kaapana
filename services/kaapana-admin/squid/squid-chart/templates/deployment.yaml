@@ -35,3 +35,5 @@ spec:
       - name: squid-config
         configMap:
           name: squid-config
+      imagePullSecrets:
+      - name: registry-secret

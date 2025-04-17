@@ -847,12 +847,12 @@ export default {
 }
 
 .side-navigation {
-  height: calc(100vh - 80px);
+  height: 100vh;
   overflow-y: auto;
 }
 
 .gallery-side-navigation {
-  height: calc(100vh - 258px);
+  height: calc(100vh - 180px);
 }
 
 /deep/ .item-label {

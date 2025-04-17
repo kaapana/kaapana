@@ -74,6 +74,7 @@ spec:
               -Dhttps.proxyHost={{ (regexFind "^(https?://)?([^:/]+)" .Values.global.http_proxy) | default "" | trimPrefix "http://" | trimPrefix "https://" }}
               -Dhttps.proxyPort={{ (regexFind ":([0-9]+)" .Values.global.http_proxy | trimPrefix ":") | default "80" }}
               -Dhttp.nonProxyHosts=*.svc|*.svc.cluster|*.svc.cluster.local|{{ .Values.global.hostname }}
+              -Dhttps.nonProxyHosts=*.svc|*.svc.cluster|*.svc.cluster.local|{{ .Values.global.hostname }}
               {{- end }}
           - name: SERVICES_NAMESPACE
             value: "{{ .Values.global.services_namespace }}"

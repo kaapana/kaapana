@@ -1,5 +1,8 @@
 global:
   pull_policy: "IfNotPresent"
+  dynamicVolumes:
+  - name: loki
+    host_path: /loki
 
 loki:
   port: 3100
@@ -11,5 +14,3 @@ loki:
       memory: "1Gi"
       cpu: "1000m"
   storage_size: 10Gi
-  retention:
-    period: 168h # Default retention period (1 week)

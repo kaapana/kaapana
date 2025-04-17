@@ -2,9 +2,14 @@
   <div>
     <v-dialog v-model="dialog" width="50vw">
       <template v-slot:activator="{ on, attrs }">
-        <v-list-item-title v-bind="attrs" v-on="on">
-          Settings
-        </v-list-item-title>
+        <v-btn 
+          block depressed 
+          color="primary" class="blue darken-1" 
+          title="Settings"
+          v-bind="attrs" v-on="on"
+        >
+          <v-icon>mdi-cog</v-icon>
+        </v-btn>
       </template>
 
       <v-card>

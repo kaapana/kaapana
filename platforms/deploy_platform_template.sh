@@ -440,6 +440,9 @@ function deploy_chart {
 
     # Kubernetes API endpoint
     INTERNAL_CIDR=$(microk8s.kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
+    # Server IP
+    SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
+    INTERNAL_CIDR="$SERVER_IP/32,$INTERNAL_CIDR"
     # MicroK8s https://microk8s.io/docs/change-cidr
     INTERNAL_CIDR="10.152.183.0/24,10.1.0.0/16,$INTERNAL_CIDR"
 

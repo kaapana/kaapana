@@ -441,6 +441,10 @@ function deploy_chart {
     # Kubernetes API endpoint
     INTERNAL_CIDR=$(microk8s.kubectl get endpoints kubernetes -n default -o jsonpath="{.subsets[0].addresses[0].ip}/32")
     # Server IP
+    if [[ "$DOMAIN" =~ ^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$ ]]; then
+        # external ip can differ from local ip, must be reachable due to keycloak (only in ip deployments)
+        INTERNAL_CIDR="$DOMAIN/32,$INTERNAL_CIDR"
+    fi
     SERVER_IP=$(hostname -I | awk -F ' ' '{print $1}')
     INTERNAL_CIDR="$SERVER_IP/32,$INTERNAL_CIDR"
     # MicroK8s https://microk8s.io/docs/change-cidr

@@ -93,7 +93,7 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
             workflow_form = self.conf.get("workflow_form")
             projects = workflow_form.get("projects")
             for project_name in projects:
-                project = self.get_project_by_name(project_name)
+                project = get_project_by_name(project_name)
                 logger.info(f"Project name: {project_name}")
                 self.push_to_opensearch_index(
                     new_document=meta_information,
@@ -177,18 +177,13 @@ class LocalJson2MetaOperator(KaapanaPythonBaseOperator):
         self.dcmweb_helper = get_dcmweb_helper()
         self.opensearch_index = OpensearchSettings().default_index
 
-        self.ti = kwargs["ti"]
+        self.conf = kwargs["dag_run"].conf
         logger.info("Starting module json2meta")
 
         run_dir = os.path.join(self.airflow_workflow_dir, kwargs["dag_run"].run_id)
         batch_folder = [
             f for f in glob.glob(os.path.join(run_dir, self.batch_name, "*"))
         ]
-
-        if self.dicom_operator is not None:
-            self.rel_dicom_dir = self.dicom_operator.operator_out_dir
-        else:
-            self.rel_dicom_dir = self.operator_in_dir
 
         self.run_id = kwargs["dag_run"].run_id
 

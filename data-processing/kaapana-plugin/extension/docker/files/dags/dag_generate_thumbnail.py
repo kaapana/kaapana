@@ -14,7 +14,6 @@ from kaapanapy.settings import KaapanaSettings
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from kaapana.operators.CheckCompletnessOperator import CheckCompletenessOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
@@ -42,11 +41,6 @@ args = {
 dag = DAG(dag_id="generate-thumbnail", default_args=args, schedule_interval=None)
 get_input = GetInputOperator(dag=dag)
 extract_metadata = LocalDcm2JsonOperator(dag=dag, input_operator=get_input)
-check_completeness = CheckCompletenessOperator(
-    dag=dag,
-    name="check-completeness",
-    input_operator=get_input,
-)
 
 
 def has_ref_series(ds) -> bool:
@@ -136,11 +130,10 @@ put_thumbnail_to_project_bucket = KaapanaPythonBaseOperator(
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
-get_input >> [extract_metadata, check_completeness]
+get_input >> extract_metadata
 
 (
     extract_metadata
-    >> check_completeness
     >> branch_by_has_ref_series
     >> get_ref_ct_series
     >> generate_thumbnail

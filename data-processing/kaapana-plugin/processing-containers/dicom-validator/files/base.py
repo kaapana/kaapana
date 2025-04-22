@@ -89,8 +89,16 @@ def merge_similar_validation_items(all_items: dict):
                 tag_item_pair[key].add_dicom(dicom)
 
     for tag in tag_item_pair:
-        if (len(tag_item_pair[tag].list_of_dicoms) % len(list(all_items.keys()))) == 0:
+        n_slices_with_error = len(tag_item_pair[tag].list_of_dicoms)
+        total_slices = len(list(all_items.keys()))
+        if (n_slices_with_error % total_slices) == 0 or (
+            n_slices_with_error / total_slices
+        ) > 1:
             tag_item_pair[tag].list_of_dicoms = ["all"]
+        else:
+            tag_item_pair[tag].list_of_dicoms = [
+                f"{n_slices_with_error}/{total_slices}"
+            ]
 
     return tag_item_pair
 

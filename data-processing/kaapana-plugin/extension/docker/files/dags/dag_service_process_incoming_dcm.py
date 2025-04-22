@@ -7,7 +7,6 @@ from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
 from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
-from kaapana.operators.CheckCompletnessOperator import CheckCompletenessOperator
 from kaapana.operators.DcmValidatorOperator import DcmValidatorOperator
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
@@ -164,12 +163,6 @@ def has_ref_series(ds) -> bool:
     return ds.Modality in ["SEG", "RTSTRUCT"]
 
 
-check_completeness = CheckCompletenessOperator(
-    dag=dag,
-    name="check-completeness",
-    input_operator=get_input,
-    # dev_server="code-server",
-)
 branch_by_has_ref_series = LocalDcmBranchingOperator(
     dag=dag,
     name="branch-has-ref",
@@ -265,7 +258,7 @@ clean = LocalWorkflowCleanerOperator(
 )
 
 get_input >> auto_trigger_operator
-get_input >> [extract_metadata, check_completeness]
+get_input >> [extract_metadata]
 extract_metadata >> [
     push_json,
     add_to_dataset,
@@ -283,14 +276,10 @@ extract_metadata >> [
 )
 (remove_tags >> dcm_send)
 
-(
-    push_json
-    >> check_completeness
-    >> branch_by_has_ref_series
-    >> get_ref_ct_series
-    >> generate_thumbnail
-    >> put_thumbnail_to_project_bucket
-)
+(push_json >> branch_by_has_ref_series >> get_ref_ct_series)
+
+save_to_meta >> generate_thumbnail
+get_ref_ct_series >> generate_thumbnail >> put_thumbnail_to_project_bucket
 
 (branch_by_has_ref_series >> generate_thumbnail)
 

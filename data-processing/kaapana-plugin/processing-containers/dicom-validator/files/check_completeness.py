@@ -84,7 +84,9 @@ def update_opensearch(
     logger.info(f"missing={series_metadata.missing_instance_numbers}")
 
 
-def check_completeness(operator_in_dir: Path, operator_out_dir: Path):
+def check_completeness(
+    operator_in_dir: Path, operator_out_dir: Path, update_os: bool = True
+):
     """
     Checks if a DICOM series in `operator_in_dir` is complete by comparing
     the expected number of instances with the actual number of files present.
@@ -150,16 +152,17 @@ def check_completeness(operator_in_dir: Path, operator_out_dir: Path):
                 new_series_metadata=new_series_metadata,
             )
 
-        update_opensearch(client, opensearch_index, series_uid, updated_series_metadata)
-        return True, f"Successfully updated series: {series_uid}"
+        if update_os:
+            update_opensearch(
+                client, opensearch_index, series_uid, updated_series_metadata
+            )
+
+        return updated_series_metadata
     else:
         logger.error(
             "Required Dicom Tag InstanceNumber must be present in all instances"
         )
-        return (
-            False,
-            f"Required Dicom Tag missing in series: {series_uid} for modality {modality}.",
-        )
+        return None
 
 
 def get_available_instance_numbers(metadata: SeriesCompletenessMetadata) -> set:
@@ -222,69 +225,3 @@ def update_metadata(
         is_series_complete=is_series_complete,
         missing_instance_numbers=sorted(list(missing_instance_numbers)),
     )
-
-
-def main():
-    try:
-        # Airflow variables
-        operator_settings = OperatorSettings()
-
-        thread_count = int(os.getenv("THREADS", "3"))
-        if thread_count is None:
-            logger.error("Missing required environment variable: THREADS")
-            raise ConfigError("Missing required environment variable: THREADS")
-
-        workflow_dir = Path(operator_settings.workflow_dir)
-        batch_name = operator_settings.batch_name
-        operator_in_dir = Path(operator_settings.operator_in_dir)
-        operator_out_dir = Path(operator_settings.operator_out_dir)
-
-        if not workflow_dir.exists():
-            logger.error(f"{workflow_dir} directory does not exist")
-            raise ConfigError(f"{workflow_dir} directory does not exist")
-
-        batch_dir = workflow_dir / batch_name
-        if not batch_dir.exists():
-            logger.error(f"{batch_dir} directory does not exist")
-            raise ConfigError(f"{batch_dir} directory does not exist")
-
-        logger.info(
-            "All required directories and environment variables are validated successfully."
-        )
-
-    except Exception as e:
-        logger.critical(f"Configuration error: {e}")
-        raise SystemExit(1)  # Gracefully exit the program
-
-    logger.info("Starting thumbnail generation")
-
-    logger.info(f"thread_count: {thread_count}")
-    logger.info(f"workflow_dir: {workflow_dir}")
-    logger.info(f"batch_name: {batch_name}")
-    logger.info(f"operator_in_dir: {operator_in_dir}")
-    logger.info(f"operator_out_dir: {operator_out_dir}")
-
-    batch_mode = is_batch_mode(workflow_dir=workflow_dir, batch_name=batch_name)
-
-    if batch_mode:
-        process_batches(
-            # Required
-            batch_dir=Path(batch_dir),
-            operator_in_dir=Path(operator_in_dir),
-            operator_out_dir=Path(operator_out_dir),
-            processing_function=check_completeness,
-            thread_count=thread_count,
-        )
-    else:
-        process_single(
-            # Required
-            base_dir=Path(workflow_dir),
-            operator_in_dir=Path(operator_in_dir),
-            operator_out_dir=Path(operator_out_dir),
-            processing_function=check_completeness,
-            thread_count=thread_count,
-        )
-
-
-if __name__ == "__main__":
-    main()

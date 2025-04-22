@@ -30,17 +30,24 @@
           >
               <v-btn 
                 small class="v-btn--error-rslt pa-0" 
-                v-if="'errors' in validationResults && validationResults['errors'] != 0"
+                v-if="'errors' in validationResults && validationResults['errors'] != 0 && isSeriesComplete"
                 @click="triggerValidationResultDetails"
               >
                 {{ validationResults['errors'] }} <v-icon left class="mr-1" color="error">mdi-close-circle</v-icon>
               </v-btn>
               <v-btn 
                 small class="v-btn--error-rslt pa-0" 
-                v-if="'warnings' in validationResults && validationResults['warnings'] != 0"
+                v-if="'warnings' in validationResults && validationResults['warnings'] != 0 && isSeriesComplete"
                 @click="triggerValidationResultDetails"
               >
                 {{ validationResults['warnings'] }} <v-icon left class="mr-1" color="warning">mdi-alert-circle</v-icon>
+              </v-btn>
+              <v-btn 
+                small class="pa-0" 
+                v-if="!isSeriesComplete"
+                @click="triggerValidationResultDetails"
+              >
+                Broken <v-icon left class="mr-1" color="warning">mdi-format-page-break</v-icon>
               </v-btn>
           </v-bottom-navigation>
         </v-row>
@@ -91,6 +98,7 @@ export default {
       modality: null,
       tags: [],
       settings: defaultSettings,
+      isSeriesComplete: true,
 
       img_loading_error: false,
 
@@ -120,6 +128,10 @@ export default {
             this.modality = data["metadata"]["Modality"] || "";
             this.seriesData = data["metadata"] || {};
             this.tags = data["metadata"]["Tags"] || [];
+            this.isSeriesComplete = data?.metadata?.["Is Series Complete"] ?? true;
+            if (!this.isSeriesComplete) {
+              console.log(this.seriesInstanceUID);
+            }
             if ("Validation Results" in this.seriesData) {
               this.processValidationResults(this.seriesData["Validation Results"]);
             }

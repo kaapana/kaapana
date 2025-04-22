@@ -6,7 +6,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/app")
 
 from app.utils import helm_prefetch_extension_docker, helm_status
 from app.config import settings
-import logging
 from app.logger import get_logger
 
 logger = get_logger(__name__, "DEBUG")

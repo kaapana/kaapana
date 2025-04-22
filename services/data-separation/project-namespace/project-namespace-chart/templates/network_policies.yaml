@@ -20,7 +20,7 @@ spec:
   podSelector: {}
   policyTypes:
   - Egress
-  egress: 
+  egress:
   - to:
     - namespaceSelector:
         matchLabels:
@@ -46,8 +46,30 @@ spec:
     - ipBlock:
         cidr: 0.0.0.0/0
         except:
-        - 10.152.183.0/24 ### Default range for services in microk8s https://microk8s.io/docs/change-cidr
-        - 10.1.0.0/16 ### Default range for pods in microk8s https://microk8s.io/docs/change-cidr
+          {{- range .Values.global.internalCidrs }}
+          - {{ . | quote }}
+          {{- end }}
+---
+## Allow access to the squid http proxy for internet access
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-access-to-squid-proxy
+  namespace: {{ .Values.global.project_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      network-access-external-ips: "true"
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Values.global.admin_namespace }}
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: squid-proxy
 ---
 ## Allow access to ctp
 kind: NetworkPolicy
@@ -146,7 +168,7 @@ spec:
     ports:
     - protocol: TCP
       port: 8080
---- 
+---
 ### Policy for proccessing-containers to keycloak, opensearch, dicom-web-filter, minio
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

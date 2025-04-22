@@ -400,7 +400,7 @@ def helm_install(
     helm_sets = ""
     if "sets" in payload:
         for key, value in payload["sets"].items():
-            if type(value) == str:
+            if isinstance(value, str):
                 value = (
                     str(value)
                     .replace(",", "\,")
@@ -411,6 +411,9 @@ def helm_install(
                     .replace("}", "\}")
                 )
                 helm_sets = helm_sets + f" --set-string {key}='{value}'"
+            elif isinstance(value, list):
+                val = "{" + ",".join(value) + "}"
+                helm_sets = helm_sets + f" --set '{key}={val}'"
             else:
                 helm_sets = helm_sets + f" --set {key}='{value}'"
 

@@ -27,3 +27,5 @@ dependencies:
     version: 0.0.0
   - name: admin-namespace
     version: 0.0.0
+  - name: squid-proxy
+    version: 0.0.0

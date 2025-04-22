@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: squid-proxy
+  namespace: "{{ .Values.global.admin_namespace }}"
+  labels:
+    app.kubernetes.io/name: squid-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: squid-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: squid-proxy
+    spec:
+      containers:
+      - name: squid
+        image: "{{ .Values.global.registry_url }}/squid:{{ .Values.global.kaapana_build_version  }}"
+        ports:
+        - containerPort: 3128
+        env:
+        - name: SQUID_CACHE_LOG
+          value: "/dev/stdout"
+        - name: SQUID_ACCESS_LOG
+          value: "/dev/stdout"
+        - name: SQUID_HTTP_PORT
+          value: "3128"
+        volumeMounts:
+        - name: squid-config
+          mountPath: /etc/squid/squid.conf
+          subPath: squid.conf
+      volumes:
+      - name: squid-config
+        configMap:
+          name: squid-config
+      imagePullSecrets:
+      - name: registry-secret

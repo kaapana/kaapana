@@ -8,9 +8,10 @@ from app import crud
 from app.config import DICOMWEB_BASE_URL
 from app.database import get_session
 from app.streaming_helpers import metadata_replace_stream
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from typing import AsyncGenerator, List
 
 # Create a router
 router = APIRouter()
@@ -47,19 +48,20 @@ def get_boundary() -> bytes:
     """
     return binascii.hexlify(os.urandom(16))
 
+
 async def stream(
     method="GET",
-    url: str = None,
+    urls: List[str] = [],
     request_headers: dict = None,
     new_boundary: bytes = None,
-):
+) -> AsyncGenerator[bytes, None]:
     """Stream the data to the DICOMWeb server. The boundary in the multipart message is replaced. We use this to set a custom boundary which is then also present in the headers.
        There was a problem with the original boundary not being present in the headers, which is why we need to replace it.
        There was a problem with the boundary being split across chunks, which is why we need to buffer the data and replace the boundary in the buffer.
 
     Args:
         method (str, optional): _description_. Defaults to "GET".
-        url (str, optional): _description_. Defaults to None.
+        urls List of url(str): _description_. Defaults to empty list.
         request_headers (dict, optional): _description_. Defaults to None.
         new_boundary (bytes, optional): _description_. Defaults to None.
 
@@ -67,38 +69,76 @@ async def stream(
         _type_: _description_
     """
     async with httpx.AsyncClient() as client:
-        async with client.stream(
-            method, url, headers=dict(request_headers)
-        ) as response:
-            # Boundary has to be replaced
-            buffer = b""  # We need the buffer, to ensure the boundary is not being split across chunks
-            pattern_size = (
-                len(new_boundary) + 4
-            )  # 2 bytes for "--" at the start and 2 bytes for "--" at the end
-            first_chunk = True
-            response_boundary = None
-            async for chunk in response.aiter_bytes():
-                # Get the boundary which will be replaced from the first chunk
-                if first_chunk:
-                    response_boundary = re.search(
-                        b"boundary=(.*)", response.headers["Content-Type"].encode()
-                    ).group(1)
-                    first_chunk = False
-                buffer += chunk
-                # Replace the boundary in the buffer
-                buffer = replace_boundary(
-                    buffer=buffer,
-                    old_boundary=response_boundary,
-                    new_boundary=new_boundary,
-                )
-                to_yield = buffer[:-pattern_size] if len(buffer) > pattern_size else b""
-                yield to_yield
-                buffer = buffer[-pattern_size:]
+        for url in urls:
+            try:
+                async with client.stream(
+                    method, url, headers=dict(request_headers)
+                ) as response:
+                    if response.status_code != 200:
+                        logging.warning(
+                            f"Upstream returned status {response.status_code} for URL: {url}"
+                        )
+                        raise httpx.HTTPStatusError(
+                            f"Upstream returned status {response.status_code}",
+                            request=response.request,
+                            response=response,
+                        )
+                    content_type = response.headers.get("Content-Type")
+                    if not content_type or "boundary=" not in content_type:
+                        logging.error(
+                            f"Missing or invalid Content-Type header: {content_type}"
+                        )
+                        raise ValueError(
+                            f"Invalid or missing Content-Type header: {content_type}"
+                        )
 
-            # Yield any remaining buffer after the last chunk
-            if buffer:
-                yield buffer
+                    match = re.search(b"boundary=(.*)", content_type.encode())
+                    if not match:
+                        if new_boundary:
+                            logging.error(
+                                f"Boundary not found in Content-Type header: {content_type}"
+                            )
+                            raise ValueError(
+                                f"Boundary not found in header: {content_type}"
+                            )
+                        buffer = None
+                    else:
+                        response_boundary = match.group(1)
+                        buffer = b""
+                        # Size of the boundary pattern (2 bytes for "--", (16 bytes for the boundary) and 2 bytes for "--"" at the end)
+                        pattern_size = len(new_boundary) + 4
 
+                    logging.debug(
+                        f"Streaming response from {url} with boundary replacement."
+                    )
+
+                    async for chunk in response.aiter_bytes():
+                        logging.debug(f"Received chunk of size {len(chunk)}")
+                        if new_boundary:
+                            buffer += chunk
+
+                            buffer = replace_boundary(
+                                buffer=buffer,
+                                old_boundary=response_boundary,
+                                new_boundary=new_boundary,
+                            )
+
+                            if len(buffer) > pattern_size:
+                                to_yield = buffer[:-pattern_size]
+                                yield to_yield
+                                buffer = buffer[-pattern_size:]
+                        else:
+                            yield chunk
+
+                    if buffer:
+                        yield buffer
+
+            except httpx.RequestError as e:
+                logging.error(f"Request error while connecting to {url}: {e}")
+                raise
+            except Exception as e:
+                logging.exception(f"Unexpected error during streaming from {url}: {e}")
+                raise
 
 
 def stream_study(study: str, request: Request) -> StreamingResponse:
@@ -106,7 +146,7 @@ def stream_study(study: str, request: Request) -> StreamingResponse:
     Streams a DICOM study from a remote DICOMweb server.
 
     This function sends a GET request to retrieve a study from the DICOMweb server
-    and returns a streaming response to the client. The response is sent using 
+    and returns a streaming response to the client. The response is sent using
     chunked transfer encoding with a multipart/related content type.
 
     Args:
@@ -121,7 +161,7 @@ def stream_study(study: str, request: Request) -> StreamingResponse:
     return StreamingResponse(
         stream(
             method="GET",
-            url=f"{DICOMWEB_BASE_URL}/studies/{study}",
+            urls=[f"{DICOMWEB_BASE_URL}/studies/{study}"],
             request_headers=request.headers,
             new_boundary=boundary,
         ),
@@ -171,7 +211,7 @@ def stream_study_rendered(study: str, request: Request) -> StreamingResponse:
     return StreamingResponse(
         stream(
             method="GET",
-            url=f"{DICOMWEB_BASE_URL}/studies/{study}/rendered",
+            urls=[f"{DICOMWEB_BASE_URL}/studies/{study}/rendered"],
             request_headers=request.headers,
             new_boundary=boundary,
         ),
@@ -180,6 +220,7 @@ def stream_study_rendered(study: str, request: Request) -> StreamingResponse:
             "Content-Type": f"multipart/related; boundary={boundary.decode()}",
         },
     )
+
 
 async def stream_rendered(
     method="GET", url: str = None, request_headers: dict = None, new_boundary=None
@@ -250,58 +291,17 @@ async def retrieve_study(
     if set(mapped_series_uids) == set(all_series):
         return stream_study(study, request)
 
-    async def stream_multiple_series(new_boundary: bytes = None):
-        """Get the subset if series of the study which are mapped to the project as a stream. The boundary in the multipart message is replaced, because each response has its own boundary.
-
-        Args:
-            new_boundary (bytes, optional): Our custom boundary. Defaults to None.
-
-        Yields:
-            bytes: Part of the response stream
-        """
-        buffer = b""  # Initialize an empty buffer
-        pattern_size = 20  # Size of the boundary pattern (2 bytes for "--", 16 bytes for the boundary and 2 bytes for "--"" at the end)
-        async with httpx.AsyncClient() as client:
-            for series_uid in mapped_series_uids:
-                async with client.stream(
-                    "GET",
-                    f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series_uid}",
-                    headers=dict(request.headers),
-                ) as response:
-
-                    boundary = re.search(
-                        b"boundary=(.*)", response.headers["Content-Type"].encode()
-                    ).group(1)
-
-                    async for chunk in response.aiter_bytes():
-                        buffer += chunk
-
-                        # Process the buffer
-                        buffer = replace_boundary(
-                            buffer=buffer,
-                            old_boundary=boundary,
-                            new_boundary=new_boundary,
-                        )
-
-                        # Decide how much of the buffer to yield and retain
-                        to_yield = (
-                            buffer[:-pattern_size]
-                            if len(buffer) > pattern_size
-                            else b""
-                        )
-                        yield to_yield
-                        buffer = buffer[
-                            -pattern_size:
-                        ]  # Retain this much of the buffer
-
-            # Yield any remaining buffer after the last chunk
-            if buffer:
-                yield buffer
-
     boundary = get_boundary()
-
+    forward_urls = []
+    for series_uid in mapped_series_uids:
+        forward_urls.append(f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series_uid}")
     return StreamingResponse(
-        stream_multiple_series(new_boundary=boundary),
+        stream(
+            method="GET",
+            urls=forward_urls,
+            request_headers=request.headers,
+            new_boundary=boundary,
+        ),
         headers={
             "Transfer-Encoding": "chunked",
             "Content-Type": f"multipart/related; boundary={boundary.decode()}",
@@ -309,14 +309,17 @@ async def retrieve_study(
     )
 
 
-@router.get("/studies/{study}/series/{series}", tags=["WADO-RS"])
-async def retrieve_series(
+@router.get("/studies/{study}/series/{series}{remaining_path:path}", tags=["WADO-RS"])
+async def proxy_series_requests(
     study: str,
     series: str,
+    remaining_path: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    """Retrieve the series from the DICOMWeb server. If the series is mapped to the project, the series is returned. If the series is not mapped, a 204 status code is returned.
+    """
+    Proxy any series-level DICOMWeb requests (e.g. including /instances/{instance},
+        /metadata, /rendered) with appropriate media types.
 
     Args:
         study (str): Study Instance UID
@@ -325,29 +328,46 @@ async def retrieve_series(
         session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
 
     Returns:
-        StreamingResponse: Response object
+        response: Response object
     """
-
-    # Get the project IDs of the projects the user is associated with
     project_ids_of_user = [
         project["id"] for project in request.scope.get("token")["projects"]
     ]
 
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
+    is_admin = request.scope.get("admin") is True
+    is_mapped = await crud.check_if_series_in_given_study_is_mapped_to_projects(
         session=session,
         project_ids=project_ids_of_user,
         study_instance_uid=study,
         series_instance_uid=series,
-    ):
+    )
 
+    if not (is_admin or is_mapped):
+        return Response(status_code=status.HTTP_403_FORBIDDEN)
+
+    # Build the upstream URL
+    forward_url = f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}{remaining_path}"
+
+    # Choose how to stream and what content-type to return
+    if remaining_path.endswith("/metadata"):
+        return StreamingResponse(
+            metadata_replace_stream(
+                "GET",
+                forward_url,
+                request=request,
+                search="/".join(
+                    DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
+                ).encode(),
+                replace=b"dicom-web-filter",
+            ),
+            media_type="application/dicom+json",
+        )
+    else:
         boundary = get_boundary()
-
         return StreamingResponse(
             stream(
                 method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}",
+                urls=[forward_url],
                 request_headers=request.headers,
                 new_boundary=boundary,
             ),
@@ -356,124 +376,6 @@ async def retrieve_series(
                 "Content-Type": f"multipart/related; boundary={boundary.decode()}",
             },
         )
-
-    else:
-
-        return Response(status_code=204)
-
-
-@router.get("/studies/{study}/series/{series}/instances/{instance}", tags=["WADO-RS"])
-async def retrieve_instance(
-    study: str,
-    series: str,
-    instance: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    """Retrieve the instance from the DICOMWeb server. If the series which the instance belongs to is mapped to the project, the instance is returned. If the series is not mapped, a 204 status code is returned.
-
-    Args:
-        study (str): Study Instance UID
-        series (str): Series Instance UID
-        instance (str): SOP Instance UID
-        request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
-
-    Returns:
-        StreamingResponse: Response object
-    """
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
-        project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
-        boundary = get_boundary()
-
-        return StreamingResponse(
-            stream(
-                method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}",
-                request_headers=request.headers,
-                new_boundary=boundary,
-            ),
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
-            },
-        )
-
-    else:
-
-        return Response(status_code=204)
-
-
-@router.get(
-    "/studies/{study}/series/{series}/instances/{instance}/frames/{frames}",
-    tags=["WADO-RS"],
-)
-async def retrieve_frames(
-    study: str,
-    series: str,
-    instance: str,
-    frames: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    """Retrieve the frames from the DICOMWeb server. If the series which the instance belongs to is mapped to the project, the frames are returned. If the series is not mapped, a 204 status code is returned.
-
-    Args:
-        study (str): Study Instance UID
-        series (str): Series Instance UID
-        instance (str): SOP Instance UID
-        frames (str): Frame numbers
-        request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
-
-    Returns:
-        StreamingResponse: Response object
-    """
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
-        project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
-        boundary = get_boundary()
-
-        return StreamingResponse(
-            stream(
-                method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/frames/{frames}",
-                request_headers=request.headers,
-                new_boundary=boundary,
-            ),
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
-            },
-        )
-    else:
-        return Response(status_code=204)
-
-
-# Routes for retrieve modifiers
 
 
 @router.get("/studies/{study}/metadata", tags=["WADO-RS"])
@@ -557,106 +459,6 @@ async def retrieve_study_metadata(
         ),
         media_type="application/dicom+json",
     )
-
-
-@router.get("/studies/{study}/series/{series}/metadata", tags=["WADO-RS"])
-async def retrieve_series_metadata(
-    study: str,
-    series: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    """Retrieve the metadata of the series. If the series is mapped to the project, the metadata is returned. If the series is not mapped, a 204 status code is returned.
-
-    Args:
-        study (str): Study Instance UID
-        series (str): Series Instance UID
-        request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
-
-    Returns:
-        StreamingResponse: Response object
-    """
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
-        project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
-        return StreamingResponse(
-            metadata_replace_stream(
-                "GET",
-                f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/metadata",
-                request=request,
-                search="/".join(
-                    DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
-                ).encode(),
-                replace=b"dicom-web-filter",
-            ),
-            media_type="application/dicom+json",
-        )
-    else:
-        return Response(status_code=204)
-
-
-@router.get(
-    "/studies/{study}/series/{series}/instances/{instance}/metadata", tags=["WADO-RS"]
-)
-async def retrieve_instance_metadata(
-    study: str,
-    series: str,
-    instance: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    """Retrieve the metadata of the instance. If the series which the instance belongs to is mapped to the project, the metadata is returned. If the series is not mapped, a 204 status code is returned.
-
-    Args:
-        study (str): Study Instance UID
-        series (str): Series Instance UID
-        instance (str): SOP Instance UID
-        request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
-
-    Returns:
-        response: Response object
-    """
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
-        project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
-        return StreamingResponse(
-            metadata_replace_stream(
-                "GET",
-                f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/metadata",
-                request=request,
-                search="/".join(
-                    DICOMWEB_BASE_URL.split(":")[-1].split("/")[1:]
-                ).encode(),
-                replace=b"dicom-web-filter",
-            ),
-            media_type="application/dicom+json",
-        )
-    else:
-        return Response(status_code=204)
 
 
 @router.get("/studies/{study}/rendered", tags=["WADO-RS"])
@@ -748,109 +550,3 @@ async def retrieve_study_rendered(
                         yield chunk
 
     return StreamingResponse(stream_filtered_series())
-
-
-@router.get("/studies/{study}/series/{series}/rendered", tags=["WADO-RS"])
-async def retrieve_series_rendered(
-    study: str,
-    series: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    """Retrieve the series from the DICOMWeb server. If the series is mapped to the project, the series is returned. If the series is not mapped, a 204 status code is returned.
-
-    Args:
-        study (str): Study Instance UID
-        series (str): Series Instance UID
-        request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
-
-    Returns:
-        StreamingResponse: Response object
-    """
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
-        project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
-
-        boundary = get_boundary()
-
-        return StreamingResponse(
-            stream_rendered(
-                method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/rendered",
-                request_headers=request.headers,
-            ),
-            media_type="multipart/related",
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
-            },
-        )
-
-    else:
-        return Response(status_code=204)
-
-
-@router.get(
-    "/studies/{study}/series/{series}/instances/{instance}/rendered", tags=["WADO-RS"]
-)
-async def retrieve_instance_rendered(
-    study: str,
-    series: str,
-    instance: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    """Retrieve the instance from the DICOMWeb server. If the series which the instance belongs to is mapped to the project, the instance is returned. If the series is not mapped, a 204 status code is returned.
-
-    Args:
-        study (str): Study Instance UID
-        series (str): Series Instance UID
-        instance (str): SOP Instance UID
-        request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
-
-    Returns:
-        StreamingResponse: Response object
-    """
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [
-        project["id"] for project in request.scope.get("token")["projects"]
-    ]
-
-    if request.scope.get(
-        "admin"
-    ) is True or await crud.check_if_series_in_given_study_is_mapped_to_projects(
-        session=session,
-        project_ids=project_ids_of_user,
-        study_instance_uid=study,
-        series_instance_uid=series,
-    ):
-        boundary = get_boundary()
-        return StreamingResponse(
-            stream_rendered(
-                method="GET",
-                url=f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series}/instances/{instance}/rendered",
-                request_headers=request.headers,
-                new_boundary=boundary,
-            ),
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": f"multipart/related; boundary={boundary.decode()}",
-            },
-        )
-
-    else:
-        return Response(status_code=204)

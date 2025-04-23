@@ -17,9 +17,9 @@ Hardware Requirements
      - Minimum
      - Recommended
    * - OS
-     - Ubuntu 20.04/22.04,
+     - Ubuntu 20.04/22.04/24.04,
 
-       Ubuntu Server 20.04/22.04,
+       Ubuntu Server 20.04/22.04/24.04,
 
        or AlmaLinux 9.3
      - –

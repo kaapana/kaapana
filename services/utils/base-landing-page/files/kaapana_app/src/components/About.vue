@@ -6,7 +6,7 @@
             <v-icon>mdi-information-outline</v-icon>
           </v-btn>
         </template>
-  
+
         <v-card>
             <v-container fluid>
               <v-card-title class="text-h5">
@@ -17,37 +17,37 @@
                   Important Links
                 </div>
                 <div class="py-2">
-                  <v-btn 
+                  <v-btn
                     text target="_blank"
-                    href="https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/" 
+                    href="https://join.slack.com/t/kaapana/shared_invite/zt-hilvek0w-ucabihas~jn9PDAM0O3gVQ/"
                   >
-                    Join Slack 
+                    Join Slack
                     <v-icon right>mdi-slack</v-icon>
                   </v-btn>
-                  <v-btn 
+                  <v-btn
                     text target="_blank"
-                    href="https://github.com/kaapana/kaapana/issues" 
+                    href="https://codebase.helmholtz.cloud/kaapana/kaapana/-/issues"
                   >
-                    Report Issue 
+                    Report Issue
                     <v-icon right>mdi-open-in-new</v-icon>
                   </v-btn>
-                  <v-btn 
+                  <v-btn
                     text target="_blank"
-                    href="/docs/faq_root.html" 
+                    href="/docs/faq_root.html"
                   >
-                    More Details 
+                    More Details
                     <v-icon right>mdi-frequently-asked-questions</v-icon>
                   </v-btn>
                 </div>
                 <div class="text-h6 py-4">
                   Version Information
                 </div>
-                <v-row v-for="(value, key) in versionObj" :key="key">                  
-                    <v-col cols="3" class="py-2"><b>{{ key }}:</b></v-col> 
+                <v-row v-for="(value, key) in versionObj" :key="key">
+                    <v-col cols="3" class="py-2"><b>{{ key }}:</b></v-col>
                     <v-col class="py-2">{{ value }}</v-col>
-                </v-row>           
+                </v-row>
               </v-card-text>
-              
+
               <v-card-actions>
                 &copy; DKFZ 2018 - DKFZ 2024
               </v-card-actions>
@@ -56,12 +56,12 @@
       </v-dialog>
     </div>
   </template>
-  
-  
-  
+
+
+
   <script>
   import { mapGetters } from "vuex";
-  
+
   export default {
     data: () => ({
       dialog: false,
@@ -70,16 +70,16 @@
     components: {
     },
     created() {
-      
+
     },
     computed: {
-      ...mapGetters([          
-        "commonData",          
-      ]),          
+      ...mapGetters([
+        "commonData",
+      ]),
     },
     created() {
-      this.versionObj['Repository URL'] = 'https://github.com/kaapana/kaapana';
-      this.formatVersions(this.commonData.version);      
+      this.versionObj['Repository URL'] = 'https://codebase.helmholtz.cloud/kaapana/kaapana';
+      this.formatVersions(this.commonData.version);
     },
     methods: {
       formatVersions(versionText) {
@@ -106,12 +106,11 @@
     },
   };
   </script>
-  
+
   <style lang="scss" scoped>
- 
+
   </style>
-  
+
   <style>
 
   </style>
-  

@@ -1,8 +1,10 @@
 import glob
+import json
 import os
 from datetime import timedelta
 from pathlib import Path
 
+import requests
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.trigger_rule import TriggerRule
@@ -27,6 +29,9 @@ from kaapana.operators.LocalValidationResult2MetaOperator import (
     LocalValidationResult2MetaOperator,
 )
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
+from kaapanapy.helper import get_minio_client
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.settings import KaapanaSettings
 
 args = {
     "ui_visible": False,
@@ -97,11 +102,6 @@ put_html_to_minio = LocalMinioOperator(
 def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
     # Fetch the Project Bucket name and store the validation results
     # html file if the project is not a admin project
-    import json
-
-    import requests
-    from kaapanapy.helper import get_minio_client
-    from kaapanapy.settings import KaapanaSettings
 
     kaapana_settings = KaapanaSettings()
     minio = get_minio_client()
@@ -118,7 +118,7 @@ def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
         with open(metadata_file, "r") as f:
             metadata = json.load(f)
 
-        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")[0]
+        project_name = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
 
         validator_results_dir = Path(batch_element_dir) / validate.operator_out_dir
         result_files = [f for f in validator_results_dir.glob("*.html")]
@@ -127,7 +127,7 @@ def fetch_bucket_name_and_put_html_to_minio_admin_bucket(ds, **kwargs):
             response = requests.get(
                 f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
             )
-            response.raise_for_status()  # Raise an error if the request fails
+            response.raise_for_status()
 
             project = response.json()
 
@@ -187,14 +187,6 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
     where project is determined from the "00120020 ClinicalTrialProtocolID_keyword" tag of the dicom metadata.
     Additionally uploads the thumbnails to the project bucket of the admin project.
     """
-    import json
-
-    import requests
-    from kaapanapy.helper import get_minio_client
-    from kaapanapy.logger import get_logger
-    from kaapanapy.settings import KaapanaSettings
-
-    logger = get_logger(__name__)
 
     kaapana_settings = KaapanaSettings()
     minio = get_minio_client()
@@ -211,35 +203,31 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
         with open(metadata_file, "r") as f:
             metadata = json.load(f)
 
-        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
+        project_name = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
+        series_uid = metadata.get(DicomTags.series_uid_tag)
 
         response = requests.get(
-            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_name}"
+            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
         )
-        project = response.json()
+        project = [
+            project for project in response.json() if project["name"] == project_name
+        ][0]
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
-
-        if len(thumbnails) == 0:
-            logger.info("No thumbnail generated -> Skipping")
-            continue
-
         assert len(thumbnails) == 1
         thumbnail_path = thumbnails[0]
-        series_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
         minio_object_path = f"thumbnails/{series_uid}.png"
         minio.fput_object(
             bucket_name=project.get("s3_bucket"),
             object_name=minio_object_path,
             file_path=thumbnail_path,
         )
-
-        if project_name != "admin":
+        if project["name"] != "admin":
             response = requests.get(
                 f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
             )
-            project = response.json()
+            admin_project = response.json()
             minio.fput_object(
-                bucket_name=project.get("s3_bucket"),
+                bucket_name=admin_project.get("s3_bucket"),
                 object_name=minio_object_path,
                 file_path=thumbnail_path,
             )

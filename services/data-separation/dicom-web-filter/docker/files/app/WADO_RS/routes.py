@@ -47,6 +47,7 @@ def get_boundary() -> bytes:
     """
     return binascii.hexlify(os.urandom(16))
 
+
 async def stream(
     method="GET",
     url: str = None,
@@ -100,13 +101,12 @@ async def stream(
                 yield buffer
 
 
-
 def stream_study(study: str, request: Request) -> StreamingResponse:
     """
     Streams a DICOM study from a remote DICOMweb server.
 
     This function sends a GET request to retrieve a study from the DICOMweb server
-    and returns a streaming response to the client. The response is sent using 
+    and returns a streaming response to the client. The response is sent using
     chunked transfer encoding with a multipart/related content type.
 
     Args:
@@ -181,6 +181,7 @@ def stream_study_rendered(study: str, request: Request) -> StreamingResponse:
         },
     )
 
+
 async def stream_rendered(
     method="GET", url: str = None, request_headers: dict = None, new_boundary=None
 ):
@@ -233,7 +234,9 @@ async def retrieve_study(
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session, project_ids=project_ids_of_user, study_instance_uid=study
+            session=session,
+            project_ids=project_ids_of_user,
+            study_instance_uid=study,
         )
     )
 
@@ -503,7 +506,9 @@ async def retrieve_study_metadata(
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session, project_ids=project_ids_of_user, study_instance_uid=study
+            session=session,
+            project_ids=project_ids_of_user,
+            study_instance_uid=study,
         )
     )
 
@@ -685,7 +690,9 @@ async def retrieve_study_rendered(
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = (
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session, project_ids=project_ids_of_user, study_instance_uid=study
+            session=session,
+            project_ids=project_ids_of_user,
+            study_instance_uid=study,
         )
     )
 

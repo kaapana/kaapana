@@ -1,6 +1,11 @@
-from pydantic import Field, AliasChoices
-from pydantic_settings import BaseSettings
 from typing import Optional
+
+from pydantic import AliasChoices, Field
+from pydantic_settings import BaseSettings
+
+
+class APISettings(BaseSettings):
+    access_information_interface: str = "http://aii-service.services.svc:8080"
 
 
 class KaapanaSettings(BaseSettings):
@@ -41,6 +46,7 @@ class ProjectSettings(KaapanaSettings):
     """
 
     project_name: str = Field("admin", validation_alias="KAAPANA_PROJECT_NAME")
+    project_id: str = Field("admin", validation_alias="KAAPANA_project_id")
     project_user_name: str = Field(
         "system", validation_alias="KAAPANA_PROJECT_USER_NAME"
     )
@@ -70,4 +76,5 @@ class AccessSettings(BaseSettings):
     """
     Settings for accesss control (e.g. AII Interface)
     """
+
     aii_service_url: str

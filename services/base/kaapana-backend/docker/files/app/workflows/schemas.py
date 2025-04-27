@@ -1,5 +1,6 @@
 import datetime
 from typing import List, Optional, Union
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 from typing_extensions import Self
@@ -265,7 +266,7 @@ class WorkflowCreate(WorkflowBase):
     kaapana_instance_id: int
     workflow_jobs: List = []  # List[Job] = []
     involved_kaapana_instances: list = []
-    project_id: int = 1
+    project_id: UUID
 
 
 class WorkflowUpdate(WorkflowBase):

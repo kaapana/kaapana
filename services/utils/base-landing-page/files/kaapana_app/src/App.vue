@@ -339,14 +339,17 @@ export default Vue.extend({
         }
       }
     );
+    
     // Watch for changes in selectedProject and reload the page when it changes
     this.$store.watch(
       () => this.$store.getters.selectedProject,
       (newValue, oldValue) => {
         if (newValue !== oldValue) {
-          const projectCookies = Vue.$cookies.get("Project-Name");
-          if (newValue && projectCookies != newValue.name) {
-            Vue.$cookies.set("Project-Name", newValue.name);
+          const projectCookie = Vue.$cookies.get("Project");
+
+          // If project cookie exists and the project doesn't match the cookie, set the cookies and reload
+          if (newValue && projectCookie && projectCookie.name !== newValue.name) {
+            Vue.$cookies.set("Project", { name: newValue.name, uuid: newValue.uuid });
             location.reload(); // Reload the page
           } else if (this.failedToFetchTraefik) {
             // for some cases selectedProject as well as Project-Name cookie sets

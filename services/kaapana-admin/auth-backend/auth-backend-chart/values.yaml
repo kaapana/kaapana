@@ -1,3 +1,5 @@
 ---
 global:
-  dummy: "dummy"
+  dev_files: false
+
+admin: true

@@ -1,9 +1,11 @@
 import json
 import logging
+from uuid import UUID
 
 import httpx
 from app import config, crud
 from app.database import get_session
+from app.utils import get_default_project_id
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from sqlalchemy.exc import IntegrityError
@@ -13,7 +15,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def __stream_data(request: Request, url: str = f"/studies"):
+async def __stream_data(request: Request, url: str = "/studies"):
     """Stream the data to the DICOMWeb server.
 
     Args:
@@ -36,7 +38,11 @@ async def __stream_data(request: Request, url: str = f"/studies"):
             response.raise_for_status()
 
 
-async def __map_dicom_series_to_project(session: AsyncSession, request: Request):
+async def __map_dicom_series_to_project(
+    session: AsyncSession,
+    request: Request,
+    project_id: UUID,
+):
     """Map the dicom series to the project. This is done by adding the dicom series to the database and mapping it to the project.
 
     Args:
@@ -44,8 +50,9 @@ async def __map_dicom_series_to_project(session: AsyncSession, request: Request)
         request (Request): Request object
 
     """
-
-    # Extract the 'clinical_trial_protocol_info' query parameter
+    logger.info(
+        project_id
+    )  # Extract the 'clinical_trial_protocol_info' query parameter
     # This parameter was set in the dcmweb helper
     clinical_trial_protocol_info = json.loads(
         request.query_params.get("clinical_trial_protocol_info")
@@ -71,7 +78,7 @@ async def __map_dicom_series_to_project(session: AsyncSession, request: Request)
             await crud.add_data_project_mapping(
                 session,
                 series_instance_uid=series_instance_uid,
-                project_id=config.DEFAULT_PROJECT_ID,
+                project_id=project_id,
             )
         except IntegrityError as e:
             await session.rollback()
@@ -82,7 +89,9 @@ async def __map_dicom_series_to_project(session: AsyncSession, request: Request)
 
 @router.post("/studies", tags=["STOW-RS"])
 async def store_instances(
-    request: Request, session: AsyncSession = Depends(get_session)
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_id: UUID = Depends(get_default_project_id),
 ):
     """This endpoint is used to store data in the DICOMWeb server. The data is being mapped to the project and then streamed to the DICOMWeb server.
 
@@ -94,7 +103,7 @@ async def store_instances(
         Response: Response object
     """
 
-    await __map_dicom_series_to_project(session, request)
+    await __map_dicom_series_to_project(session, request, project_id)
 
     await __stream_data(request, url=f"studies")
 
@@ -103,7 +112,10 @@ async def store_instances(
 
 @router.post("/studies/{study}", tags=["STOW-RS"])
 async def store_instances_in_study(
-    study: str, request: Request, session: AsyncSession = Depends(get_session)
+    study: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    project_id: UUID = Depends(get_default_project_id),
 ):
     """This endpoint is used to store data in the DICOMWeb server. The data is being mapped to the project and then streamed to the DICOMWeb server.
 
@@ -115,7 +127,7 @@ async def store_instances_in_study(
         Response: Response object
     """
 
-    await __map_dicom_series_to_project(session, request)
+    await __map_dicom_series_to_project(session, request, project_id)
 
     await __stream_data(request, url=f"studies/{study}")
 

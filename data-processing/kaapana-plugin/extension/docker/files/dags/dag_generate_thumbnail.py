@@ -1,25 +1,23 @@
-from datetime import timedelta
-
 import glob
 import json
 import os
+from datetime import timedelta
 from pathlib import Path
 
 import requests
-from kaapana.blueprints.kaapana_global_variables import AIRFLOW_WORKFLOW_DIR, BATCH_NAME
-from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
-from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
-from kaapanapy.helper import get_minio_client
-from kaapanapy.settings import KaapanaSettings
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
 from kaapana.operators.GenerateThumbnailOperator import GenerateThumbnailOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
+from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
+from kaapana.operators.LocalDcm2JsonOperator import LocalDcm2JsonOperator
 from kaapana.operators.LocalDcmBranchingOperator import LocalDcmBranchingOperator
 from kaapana.operators.LocalGetRefSeriesOperator import LocalGetRefSeriesOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
-from airflow.utils.trigger_rule import TriggerRule
+from kaapanapy.helper import get_minio_client
+from kaapanapy.helper.HelperOpensearch import DicomTags
+from kaapanapy.settings import KaapanaSettings
 
 ui_forms = {
     "workflow_form": {
@@ -94,29 +92,31 @@ def upload_thumbnails_into_project_bucket(ds, **kwargs):
         with open(metadata_file, "r") as f:
             metadata = json.load(f)
 
-        project_name = metadata.get("00120020 ClinicalTrialProtocolID_keyword")
+        project_name = metadata.get(DicomTags.clinical_trial_protocol_id_tag)
+        series_uid = metadata.get(DicomTags.series_uid_tag)
+
         response = requests.get(
-            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/{project_name}"
+            f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects"
         )
-        project = response.json()
+        project = [
+            project for project in response.json() if project["name"] == project_name
+        ][0]
         thumbnails = [f for f in thumbnail_dir.glob("*.png")]
         assert len(thumbnails) == 1
         thumbnail_path = thumbnails[0]
-        series_uid = metadata.get("0020000E SeriesInstanceUID_keyword")
         minio_object_path = f"thumbnails/{series_uid}.png"
         minio.fput_object(
             bucket_name=project.get("s3_bucket"),
             object_name=minio_object_path,
             file_path=thumbnail_path,
         )
-
-        if project_name != "admin":
+        if project["name"] != "admin":
             response = requests.get(
                 f"http://aii-service.{kaapana_settings.services_namespace}.svc:8080/projects/admin"
             )
-            project = response.json()
+            admin_project = response.json()
             minio.fput_object(
-                bucket_name=project.get("s3_bucket"),
+                bucket_name=admin_project.get("s3_bucket"),
                 object_name=minio_object_path,
                 file_path=thumbnail_path,
             )

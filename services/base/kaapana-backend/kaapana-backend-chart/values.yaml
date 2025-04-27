@@ -1,10 +1,7 @@
 ---
 global:
   dev_files: false
-  dynamicVolumes:
-  - name: alembic
-    host_path: /alembic
-
+  
 kaapana_database:
   admin: false
   postgres_user: kaapanauser

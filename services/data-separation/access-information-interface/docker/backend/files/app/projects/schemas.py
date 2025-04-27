@@ -1,7 +1,8 @@
+import re
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, field_validator
-import re
 
 
 class OrmBaseModel(BaseModel):
@@ -12,11 +13,12 @@ class CreateProject(OrmBaseModel):
     external_id: Optional[str] = None
     name: str
     description: str
+    default: bool = False
 
     @field_validator("name", mode="before")
     @classmethod
     def validate_project_name(cls, v):
-        from app.projects import minio, opensearch, kubehelm
+        from app.projects import kubehelm, minio, opensearch
 
         """
         Validate if the project name satisfies naming rules for buckets in minio, namespaces in kubernetes and indices in opensearch.
@@ -88,9 +90,10 @@ def is_valid_dicom_ae_title(ae_title: str) -> bool:
 
 
 class Project(OrmBaseModel):
-    id: int
+    id: UUID
     external_id: Optional[str] = None
     name: str
+    int_id: Optional[int] = None
     description: str
     kubernetes_namespace: str
     s3_bucket: str

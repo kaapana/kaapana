@@ -19,7 +19,7 @@
       <thead>
         <tr>
           <th class="text-left"></th>
-          <th class="text-left">Project ID</th>
+          <th class="text-left">Project UUID</th>
           <th class="text-left">Name</th>
           <th class="text-left">Description</th>
           <th class="text-left">External ID</th>
@@ -35,7 +35,7 @@
           <td>{{ item.external_id }}</td>
           <td class="text-center">
             <v-btn class="text-none" color="medium-emphasis" min-width="92" variant="outlined" size="small" rounded
-              append-icon="mdi-arrow-right" @click="goToProjects(item.name)">
+              append-icon="mdi-arrow-right" @click="goToProjects(item.id)">
               View
             </v-btn>
           </td>
@@ -136,8 +136,8 @@ export default defineComponent({
         this.userHasAdminAccess = true;
       }
     },
-    goToProjects(projectName: string) {
-      this.$router.push(`/project/${projectName}`);
+    goToProjects(projectUUID: string) {
+      this.$router.push(`/project/${projectUUID}`);
     },
   },
 });

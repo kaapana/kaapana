@@ -3,6 +3,13 @@
 export PYTHONPATH="$PWD" 
 APPLICATION_ROOT="/aii"
 
+# If no Alembic history yet, stamp the initial alembic revision
+if [ -z "$(alembic current)" ]; then
+  echo "Stamping DB to initial revision..."
+  alembic stamp 100ab450e292 # 0.4.0
+fi
+
+# Apply all migrations
 alembic upgrade head
 
 if [ -z "${DEV_FILES}" ]; then

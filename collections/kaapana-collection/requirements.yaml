@@ -78,6 +78,8 @@ dependencies:
     version: 0.0.0
   - name: dev-server-chart
     version: 0.0.0
+  - name: body-and-organ-analysis-workflow
+    version: 0.0.0
   # - name: desktop-container-chart
   #   version: 0.0.0
   #### EXAMPLE WORKFLOWS ####
@@ -92,5 +94,3 @@ dependencies:
   #   version: 0.0.0
   # - name: hello-world-chart
   #   version: 0.0.0
-  - name: body-and-organ-analysis-workflow
-    version: 0.0.0

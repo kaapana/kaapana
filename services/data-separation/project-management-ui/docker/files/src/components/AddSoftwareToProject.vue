@@ -66,6 +66,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  projectUUID: {
+    type: String,
+    required: true,
+  },
   currentSoftware: {
     type: Array<Software>,
   },
@@ -83,7 +87,7 @@ const software = ref<Software[]>([]);
 const softwareUuid = ref("");
 
 const valid = computed(() => {
-  return props.projectName.trim() !== "" && softwareUuid.value.trim() !== "";
+  return props.projectUUID.trim() !== "" && props.projectName.trim() !== "" && softwareUuid.value.trim() !== "";
 });
 
 onMounted(async () => {
@@ -119,7 +123,7 @@ const fetchAvailableSoftware = async () => {
 const submit = async () => {
   // console.log(props.projectName, roleName.value, userId.value);
   const data = {
-    project_name: props.projectName.trim(),
+    project_id: props.projectUUID.trim(),
     software_uuid: softwareUuid.value.trim(),
   };
   fetching.value = true;
@@ -137,7 +141,7 @@ const addNewSoftwareMapping = async (data: any) => {
     },
   ];
   try {
-    await aiiApiPost(`projects/${data["project_name"]}/software-mappings`, params);
+    await aiiApiPost(`projects/${data["project_id"]}/software-mappings`, params);
     fetching.value = false;
     props.onsuccess?.();
   } catch (error: unknown) {

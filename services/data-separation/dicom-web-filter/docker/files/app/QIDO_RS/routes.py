@@ -221,7 +221,9 @@ async def query_series(
     # Retrieve series mapped to the project for the given study
     mapped_series_uids = set(
         await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session, project_ids=project_ids_of_user, study_instance_uid=study
+            session=session,
+            project_ids=project_ids_of_user,
+            study_instance_uid=study,
         )
     )
 

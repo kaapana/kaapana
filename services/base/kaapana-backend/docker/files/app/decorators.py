@@ -5,6 +5,7 @@ from functools import wraps
 from traceback import format_exception
 from typing import Any, Callable, Coroutine, Optional, Union
 
+from filelock import FileLock, Timeout
 from starlette.concurrency import run_in_threadpool
 
 NoArgsNoReturnFuncT = Callable[[], None]
@@ -47,7 +48,7 @@ def repeat_every(
     """
 
     def decorator(
-        func: Union[NoArgsNoReturnAsyncFuncT, NoArgsNoReturnFuncT]
+        func: Union[NoArgsNoReturnAsyncFuncT, NoArgsNoReturnFuncT],
     ) -> NoArgsNoReturnAsyncFuncT:
         """
         Converts the decorated function into a repeated, periodically-called version of itself.
@@ -84,3 +85,15 @@ def repeat_every(
         return wrapped
 
     return decorator
+
+
+def only_one_process(func):
+    def wrapper(*args, **kwargs):
+        lock = FileLock("/tmp/airflow_sync.lock", timeout=1)
+        try:
+            with lock:
+                return func(*args, **kwargs)
+        except Timeout:
+            logging.info("Another process is already handling this task.")
+
+    return wrapper

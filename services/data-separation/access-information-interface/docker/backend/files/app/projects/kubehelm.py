@@ -25,6 +25,7 @@ def install_project_helm_chart(project: Project):
             "project": project.name,
             "project_namespace": project.kubernetes_namespace,
             "namespace": project.kubernetes_namespace,
+            "project_id": str(project.id),
         },
     }
     response = requests.post(f"{kube_helm_api}/helm-install-chart", json=payload)

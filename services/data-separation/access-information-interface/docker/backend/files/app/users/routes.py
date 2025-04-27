@@ -5,7 +5,7 @@ from app.database import get_session
 from app.keycloak_helper import KeycloakHelper, get_keycloak_helper
 from app.schemas import AiiProjectResponse, KeycloakUser, KeycloakUserExtended
 from app.users import crud
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()

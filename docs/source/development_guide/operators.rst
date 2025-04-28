@@ -357,14 +357,6 @@ LocalAssignDataToProjectOperator
    :undoc-members:
    :show-inheritance:
 
-LocalSanitizeProjectAndDatasetOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. automodule:: kaapana.operators.LocalSanitizeProjectAndDatasetOperator
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Uncategorized operators
 ---------------------------
 

@@ -136,7 +136,7 @@ A new project management UI is introduced for viewing all available projects for
 
 Project-Based Data Ingestion
 ----------------------------
-Incoming data assignments depend on calling and called AE title conventions (:code:`kp-<project-name>` and :code:`kp-<dataset-name>`). Both arguments have a size limit of 16 chars.
+Incoming data assignments depend on calling and called AE title conventions (:code:`kp-<project-name>` and :code:`kp-<dataset-name>`). Both arguments have a size limit of 16 chars, modify conventions via the :code:`LocalDcm2JsonOperator._sanitize_project_and_dataset`.
 
 Extension Development Kit (EDK)
 -------------------------------

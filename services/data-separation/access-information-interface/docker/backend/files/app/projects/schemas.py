@@ -66,7 +66,7 @@ def is_valid_dicom_ae_title(ae_title: str) -> bool:
     * Leading and trailing spaces (hex 0x20) are non-significant.
     * Maximum 16 characters (once non-significant characters are removed).
     * Valid characters belong to the DICOM Default Character Repertoire, which is the basic G0 Set
-        of the ISO/IEC 646:1991 (ASCII) standard excluding backslash (\ - hex 0x5C) and all control
+        of the ISO/IEC 646:1991 (ASCII) standard excluding backslash (\\ - hex 0x5C) and all control
         characters (such as '\n').
     * An AE title made entirely of spaces is not allowed.
     """

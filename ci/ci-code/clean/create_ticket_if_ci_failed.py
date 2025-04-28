@@ -256,6 +256,7 @@ def extract_error_logs(artifacts_dir: Path) -> Dict[str, str]:
             "exit_on_error",
             "vulnerability_severity_level='CRITICAL,HIGH'",
             "faq",
+            "failed=0",
         ]
 
         context_lines = 3  # Number of surrounding lines to include

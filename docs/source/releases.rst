@@ -136,7 +136,7 @@ A new project management UI is introduced for viewing all available projects for
 
 Project-Based Data Ingestion
 ----------------------------
-Incoming data assignments depend on calling and called AE title conventions (:code:`kp-<project-name>` and :code:`kp-<dataset-name>`). Both arguments have a size limit of 16 chars, modify conventions via the :code:`LocalSanitizeProjectAndDatasetOperator`.
+Incoming data assignments depend on calling and called AE title conventions (:code:`kp-<project-name>` and :code:`kp-<dataset-name>`). Both arguments have a size limit of 16 chars.
 
 Extension Development Kit (EDK)
 -------------------------------
@@ -576,7 +576,7 @@ May 18, 2023
 -------------------------
 
 New Features
-============
+------------
 
 .. figure:: https://www.kaapana.ai/kaapana-downloads/kaapana-docs/stable/img/datasets.png
    :align: center
@@ -818,19 +818,19 @@ Updated extensions:
 
 
 0.1.3-beta
-==========
+----------
 
 Date: May 30, 2022
 
 0.1.2
-=====
+-----
 
 Date: May 15, 2022
 
 * Last release with support for kubernetes v1.19 
 
 0.1.0
-=====
+-----
 
 Date: Oct 24, 2020
 

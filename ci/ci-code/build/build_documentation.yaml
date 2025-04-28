@@ -1,7 +1,7 @@
 ---
 - name: Build documentation
   hosts: localhost
-  
+
   vars:
     artifacts_dir: "{{ lookup('ansible.builtin.env', 'ARTIFACTS_DIR') }}"
     kaapana_dir: "{{ lookup('ansible.builtin.env', 'KAAPANA_DIR') }}"
@@ -41,7 +41,7 @@
     #   ansible.builtin.copy:
     #     content: "{{ build_doc_pdf.stdout }} {{ build_doc_pdf.stderr }}"
     #     dest: "{{ artifacts_dir }}/build_documentation_pdf.log"
-    
+
     - name: Fail if build failed
       when: build_doc_html.rc != 0
       ansible.builtin.fail:
@@ -51,13 +51,14 @@
     #   ansible.builtin.fail:
     #     msg: "Building the documentation failed"
 
-    - name: Check if ERROR in logs of building the html documentation -> build_html_error.changed = True if "ERROR" found in the file
+    - name: Check logs if building the html documentation was successful
       register: build_html_error
       check_mode: true
       ansible.builtin.lineinfile:
         path: "{{ artifacts_dir }}/build_documentation_html.log"
         regexp: "ERROR"
         state: absent
+
     - name: Fail playbook if ERROR found in build output
       ansible.builtin.fail:
         msg: "ERROR in build_documentation_html.log"

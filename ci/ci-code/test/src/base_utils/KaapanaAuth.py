@@ -1,8 +1,7 @@
-import json as js
+import json
 import os
 
 import requests
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 
 class KaapanaAuth:
@@ -53,7 +52,7 @@ class KaapanaAuth:
         self,
         endpoint,
         request_type=requests.get,
-        json={},
+        _json={},
         data={},
         params={},
         raise_for_status=True,
@@ -63,31 +62,29 @@ class KaapanaAuth:
     ):
         project_header = {
             "id": self.admin_project["id"],
-            "external_id": self.admin_project["id"],
+            "external_id": self.admin_project["external_id"],
             "name": self.admin_project["name"],
             "description": self.admin_project["description"],
         }
-        headers.update({"Project": js.dumps(project_header)})
-        headers.update({"Project-Name": self.admin_project["name"]})
-        headers.update({"Project-UUID": self.admin_project["id"]})
-
-        project_cookie_value = json.dumps(
+        headers.update({"Project": json.dumps(project_header)})
+        headers.update({"Authorization": f"Bearer {self.access_token}"})
+        project_cookie = json.dumps(
             {
                 "name": self.admin_project["name"],
                 "uuid": self.admin_project["id"],
             }
         )
-        headers.update({"Authorization": f"Bearer {self.access_token}"})
+
         for _ in range(retries):
             r = request_type(
                 url=f"https://{self.host}/{endpoint}",
                 verify=False,
-                json=json,
+                json=_json,
                 data=data,
                 params=params,
                 headers=headers,
                 timeout=timeout,
-                cookies={"Project": project_cookie_value},
+                cookies={"Project": project_cookie},
             )
             if r.status_code < 400:
                 break

@@ -5,9 +5,7 @@ dependencies:
     version: 0.0.0
   - name: system-user-password-chart
     version: 0.0.0
-  - name: notifications-api
-    version: 0.0.0
-  - name: notifications-postgres-chart
+  - name: notification-service
     version: 0.0.0
 # MONITORING
   - name: prometheus-chart

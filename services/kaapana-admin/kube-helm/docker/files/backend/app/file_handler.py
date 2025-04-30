@@ -239,12 +239,12 @@ def check_file_namespace(filename: str) -> bool:
         if type(value) == str:
             value = (
                 str(value)
-                .replace(",", "\,")
-                .replace("'", "'\"'")
-                .replace(" ", "")
-                .replace(" ", "")
-                .replace("{", "\{")
-                .replace("}", "\}")
+                .replace(",", r"\,")
+                .replace("'", r"'\"'")
+                .replace(" ", r"")
+                .replace(" ", r"")
+                .replace("{", r"\{")
+                .replace("}", r"\}")
             )
             helm_sets = helm_sets + f" --set-string {key}='{value}'"
         else:

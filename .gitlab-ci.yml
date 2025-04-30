@@ -206,6 +206,20 @@ if_ci_failing:
   - when: never
   allow_failure: true
 
+security:
+  stage: clean
+  script: 
+    - cd $REPO_DIR/ci-code/clean
+    - export GIT_DESCRIBE=$(git describe)
+    - python3 create_vulneribility_report.py $REPO_DIR/build/security-reports/$GIT_DESCRIBE/$GIT_DESCRIBE_cves.json > gl-container-report.json
+  artifacts:
+    reports:
+      container_scanning: gl-container-report.json
+    paths:
+      - gl-container-report.json
+  allow_failure: true
+
+
 logs:
   stage: clean
   script: cp -r $ARTIFACTS_DIR/ $CI_PROJECT_DIR/artifacts/

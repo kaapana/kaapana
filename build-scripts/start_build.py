@@ -6,10 +6,16 @@ import logging
 from os.path import join, dirname, exists
 from time import time
 from argparse import ArgumentParser
-from build_helper.charts_helper import HelmChart, init_helm_charts, helm_registry_login
+from build_helper.charts_helper import (
+    HelmChart,
+    init_helm_charts,
+    helm_registry_login,
+    successful_built_containers,
+)
 from build_helper.container_helper import Container, container_registry_login
 from build_helper.build_utils import BuildUtils
 from build_helper.security_utils import TrivyUtils
+import signal
 
 
 supported_log_levels = ["DEBUG", "INFO", "WARN", "ERROR"]
@@ -206,8 +212,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-cevdatabase,"
-        "--vulnerability-database",
+        "-cevdatabase," "--vulnerability-database",
         dest="check_expired_vulnerabilities_database",
         default=False,
         action="store_true",
@@ -660,8 +665,9 @@ if __name__ == "__main__":
     BuildUtils.version_latest = version_latest
     BuildUtils.enable_image_stats = enable_image_stats
     BuildUtils.create_sboms = create_sboms
-    BuildUtils.check_expired_vulnerabilities_database = conf_check_expired_vulnerabilities_database
-    
+    BuildUtils.check_expired_vulnerabilities_database = (
+        conf_check_expired_vulnerabilities_database
+    )
 
     if (
         BuildUtils.vulnerability_scan
@@ -702,6 +708,37 @@ if __name__ == "__main__":
     logger.info("")
 
     HelmChart.generate_platform_build_tree()
+
+    if BuildUtils.vulnerability_scan or BuildUtils.create_sboms:
+        trivy_utils = BuildUtils.trivy_utils
+        trivy_utils.tag = BuildUtils.platform_build_version
+
+        def handler(signum, frame):
+            BuildUtils.logger.info("Exiting...")
+
+            trivy_utils.kill_flag = True
+
+            with trivy_utils.semaphore_threadpool:
+                if trivy_utils.threadpool is not None:
+                    trivy_utils.threadpool.terminate()
+                    trivy_utils.threadpool = None
+            trivy_utils.error_clean_up()
+
+            if BuildUtils.create_sboms:
+                trivy_utils.safe_sboms()
+            if BuildUtils.vulnerability_scan:
+                trivy_utils.safe_vulnerability_reports()
+
+            exit(1)
+
+        signal.signal(signal.SIGTSTP, handler)
+
+    # Create SBOMs if enabled
+    if BuildUtils.create_sboms:
+        trivy_utils.create_sboms(successful_built_containers)
+    # Scan for vulnerabilities if enabled
+    if BuildUtils.vulnerability_scan:
+        trivy_utils.create_vulnerability_reports(successful_built_containers)
 
     # Check charts for configuation errors
     if BuildUtils.configuration_check:

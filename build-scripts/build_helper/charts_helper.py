@@ -16,7 +16,6 @@ from alive_progress import alive_bar
 from build_helper.container_helper import get_image_stats
 from build_helper.offline_installer_helper import OfflineInstallerHelper
 import threading
-import signal
 from datetime import datetime
 from timeit import default_timer as timer
 
@@ -803,7 +802,9 @@ class HelmChart:
                         if "#" in line.split("image:")[0]:
                             BuildUtils.logger.debug(f"Commented: {line} -> skip")
                             continue
-                        elif ("-if." in line and "{{else}}" in line) or ("test_pull_image" in line): # edge case for the job of custom-registry-chart
+                        elif ("-if." in line and "{{else}}" in line) or (
+                            "test_pull_image" in line
+                        ):  # edge case for the job of custom-registry-chart
                             BuildUtils.logger.debug(f"Templated: {line} -> skip")
                             continue
 
@@ -856,7 +857,9 @@ class HelmChart:
 
     def lint_chart(self, build_version=False):
         if self.ignore_linting:
-            BuildUtils.logger.info(f"{self.chart_id} has ignore_linting: true - skipping")
+            BuildUtils.logger.info(
+                f"{self.chart_id} has ignore_linting: true - skipping"
+            )
             return
         if self.helmlint_done:
             BuildUtils.logger.debug(f"{self.chart_id}: lint_chart already done - skip")
@@ -895,7 +898,9 @@ class HelmChart:
 
     def lint_kubeval(self, build_version=False):
         if self.ignore_linting:
-            BuildUtils.logger.info(f"{self.chart_id} has ignore_linting: true - skipping")
+            BuildUtils.logger.info(
+                f"{self.chart_id} has ignore_linting: true - skipping"
+            )
             return
         if self.kubeval_done:
             BuildUtils.logger.debug(
@@ -1431,41 +1436,11 @@ class HelmChart:
         BuildUtils.logger.info("")
         BuildUtils.logger.info("PLATFORM BUILD DONE.")
 
-        if BuildUtils.vulnerability_scan or BuildUtils.create_sboms:
-            trivy_utils = BuildUtils.trivy_utils
-            trivy_utils.tag = build_version
-
-            def handler(signum, frame):
-                BuildUtils.logger.info("Exiting...")
-
-                trivy_utils.kill_flag = True
-
-                with trivy_utils.semaphore_threadpool:
-                    if trivy_utils.threadpool is not None:
-                        trivy_utils.threadpool.terminate()
-                        trivy_utils.threadpool = None
-                trivy_utils.error_clean_up()
-
-                if BuildUtils.create_sboms:
-                    trivy_utils.safe_sboms()
-                if BuildUtils.vulnerability_scan:
-                    trivy_utils.safe_vulnerability_reports()
-
-                exit(1)
-
-            signal.signal(signal.SIGTSTP, handler)
-
-        # Create SBOMs if enabled
-        if BuildUtils.create_sboms:
-            trivy_utils.create_sboms(successful_built_containers)
-        # Scan for vulnerabilities if enabled
-        if BuildUtils.vulnerability_scan:
-            trivy_utils.create_vulnerability_reports(successful_built_containers)
         if BuildUtils.create_offline_installation is True:
 
             OfflineInstallerHelper.generate_microk8s_offline_version(
                 dirname(platform_chart.build_chart_dir)
-                )
+            )
             images_tarball_path = join(
                 dirname(platform_chart.build_chart_dir),
                 f"{platform_chart.name}-{platform_chart.build_version}-images.tar",

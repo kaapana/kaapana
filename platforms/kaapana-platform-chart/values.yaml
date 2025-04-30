@@ -98,6 +98,11 @@ extension_params:
         definition: ""
         type: string
         value: ""
+    credentials_postgres_notifications_password:
+        default: Kaapana2020
+        definition: ""
+        type: string
+        value: ""
     admin_namespace:
         default: admin
         definition: "Namespace for Kubernetes resources with admin access, such as reverse proxy and authentication"

@@ -211,9 +211,9 @@ def pull_docker_image(
     helper_chart_file = list(
         Path(settings.helm_helpers_cache).glob("pull-docker-chart-*.tgz")
     )[0]
-    helper_chart_version = (
-        str(helper_chart_file).removeprefix("pull-docker-chart-").removesuffix(".tgz")
-    )
+    helper_chart_version = helper_chart_file.name.removeprefix(
+        "pull-docker-chart-"
+    ).removesuffix(".tgz")
 
     payload = {
         "name": "pull-docker-chart",

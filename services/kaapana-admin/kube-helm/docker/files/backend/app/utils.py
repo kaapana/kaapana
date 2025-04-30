@@ -5,7 +5,7 @@ import re
 import json
 import subprocess
 import hashlib
-
+from pathlib import Path
 import yaml
 import secrets
 
@@ -15,7 +15,6 @@ from fastapi import Response
 from config import settings
 import schemas
 import helm_helper
-import logging
 from logger import get_logger
 
 logger = get_logger(__name__)
@@ -209,20 +208,16 @@ def pull_docker_image(
         f"Pulling {docker_registry_url}/{docker_image}:{docker_version} , shell={shell}"
     )
 
-    try:
-        helm_helper.helm_repo_index(settings.helm_helpers_cache)
-    except subprocess.CalledProcessError as e:
-        return Response(f"Could not create index.yaml!", 500)
-
-    with open(os.path.join(settings.helm_helpers_cache, "index.yaml"), "r") as stream:
-        try:
-            helper_charts = list(yaml.load_all(stream, yaml.FullLoader))[0]
-        except yaml.YAMLError as exc:
-            logger.error(exc)
+    helper_chart_file = list(
+        Path(settings.helm_helpers_cache).glob("pull-docker-chart-*.tgz")
+    )[0]
+    helper_chart_version = helper_chart_file.name.removeprefix(
+        "pull-docker-chart-"
+    ).removesuffix(".tgz")
 
     payload = {
         "name": "pull-docker-chart",
-        "version": helper_charts["entries"]["pull-docker-chart"][0]["version"],
+        "version": helper_chart_version,
         "sets": {
             "registry_url": docker_registry_url or os.getenv("REGISTRY_URL"),
             "image": docker_image,
@@ -352,7 +347,7 @@ def helm_install(
         suffix_param = default_sets.get("global.suffix_param_key")
         if suffix_param is not None:
             logger.info(f"suffix_param exists {suffix_param=}")
-            suffix = default_sets[f"global.{suffix_param}"][:20] # get first 20 chars
+            suffix = default_sets[f"global.{suffix_param}"][:20]  # get first 20 chars
         release_name = f"{name}-{suffix}"
         logger.info(f"suffixed {release_name=}")
     else:
@@ -403,12 +398,12 @@ def helm_install(
             if isinstance(value, str):
                 value = (
                     str(value)
-                    .replace(",", "\,")
-                    .replace("'", "'\"'")
-                    .replace(" ", "")
-                    .replace(" ", "")
-                    .replace("{", "\{")
-                    .replace("}", "\}")
+                    .replace(",", r"\,")
+                    .replace("'", r"'\"'")
+                    .replace(" ", r"")
+                    .replace(" ", r"")
+                    .replace("{", r"\{")
+                    .replace("}", r"\}")
                 )
                 helm_sets = helm_sets + f" --set-string {key}='{value}'"
             elif isinstance(value, list):

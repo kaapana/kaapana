@@ -782,7 +782,7 @@ def get_kube_objects(
             job_completed = False
             if kind == "job" and single_status_for_jobs:
                 for row in stdout:
-                    name, ready, status, restarts, age = re.split("\s\s+", row)
+                    name, ready, status, restarts, age = re.split(r"\s\s+", row)
                     if status.lower() == "completed":
                         # ignore other pods and only return the completed pod status
                         job_completed = True
@@ -799,7 +799,7 @@ def get_kube_objects(
             if not job_completed:
                 # return all pod states if no pod is completed or if resource kind is not Job
                 for row in stdout:
-                    name, ready, status, restarts, age = re.split("\s\s+", row)
+                    name, ready, status, restarts, age = re.split(r"\s\s+", row)
                     states.name.append(name)
                     states.ready.append(ready)
                     states.status.append(status.lower())
@@ -899,11 +899,6 @@ def helm_show_values(name, version, platforms=False) -> Dict:
         return list(yaml.load_all(stdout, yaml.FullLoader))[0]
     else:
         return {}
-
-
-def helm_repo_index(repo_dir):
-    helm_command = f"{settings.helm_path} repo index {repo_dir}"
-    _, _ = execute_shell_command(helm_command)
 
 
 def helm_show_chart(name=None, version=None, package=None, platforms=False) -> Dict:

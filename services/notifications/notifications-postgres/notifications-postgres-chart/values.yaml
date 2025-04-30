@@ -1,6 +1,0 @@
----
-global:
-  dynamicVolumes:
-  - name: notifications-postgres
-    host_path: /postgres-noitifications
-    mount_path: "/var/lib/postgresql/data"

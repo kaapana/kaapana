@@ -73,7 +73,8 @@ def main():
         with open(input_path, "r") as f:
             trivy_data = json.load(f)
     except FileNotFoundError:
-        trivy_data = []
+        print(f"INFO - No security file was found at {input_path}!")
+        trivy_data = {}
 
     gitlab_data = convert_vulnerability_report_to_gitlab(trivy_data)
     print(json.dumps(gitlab_data, indent=2))

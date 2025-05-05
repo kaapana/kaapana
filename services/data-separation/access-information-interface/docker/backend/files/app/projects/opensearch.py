@@ -213,7 +213,7 @@ def get_payload_for_claim_and_index(claim_value: str, index):
 
 
 def is_valid_opensearch_index_name(index_name: str) -> bool:
-    """
+    r"""
     https://opensearch.org/docs/1.1/opensearch/rest-api/index-apis/create-index/
     Index naming restrictions
     OpenSearch indices have the following naming restrictions:

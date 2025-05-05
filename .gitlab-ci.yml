@@ -211,7 +211,7 @@ security:
   script: 
     - cd $REPO_DIR/ci-code/clean
     - export GIT_DESCRIBE=$(git describe)
-    - python3 create_vulnerability_report.py $REPO_DIR/build/security-reports/${GIT_DESCRIBE}/${GIT_DESCRIBE}_cves.json > gl-container-report.json
+    - python3 create_vulnerability_report.py $KAAPANA_DIR/build/security-reports/${GIT_DESCRIBE}/${GIT_DESCRIBE}_cves.json gl-container-report.json
   artifacts:
     reports:
       container_scanning: ci/ci-code/clean/gl-container-report.json

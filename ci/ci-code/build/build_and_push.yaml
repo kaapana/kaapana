@@ -92,22 +92,12 @@
     - name: Create list with information about desired files
       register: file_stats
       ansible.builtin.stat:
-        path: "{{ kaapana_dir }}/build/{{ item }}"
-      loop:
-      - "chart_report.json"
-      - "commpressed_chart_report.json"
-      - "commpressed_vulnerability_reports.json"
-      - "dockerfile_report.json"
-      - "sboms.json"
-      - "vulnerability_report.json"
+        path: "{{ kaapana_dir }}/build/security_reports"
     - name: Copy results of security scan to subdirectory of the artifacts directory
-      loop: "{{ file_stats.results }}"
-      loop_control:
-        label: "{{ item.item }} exists: {{ item.stat.exists }}"
-      when: item.stat.exists == true
+      when: file_stats.exists == true
       ansible.builtin.copy:
-        src: "{{ item.stat.path }}"
-        dest: "{{ security_artifacts_path }}/{{ item.item | basename }}"
+        src: "{{ file_stats.path }}"
+        dest: "{{ security_artifacts_path }}/"
 
 
   - name: Fail playbook and job if build failed

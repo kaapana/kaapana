@@ -83,13 +83,7 @@
     block:
     - name: Set global directory paths
       ansible.builtin.set_fact:
-        security_artifacts_path: "{{ artifacts_dir }}/security-scan"
-        security_report_dir: "{{ kaapana_dir }}/build/security_reports"
-    - name: Create additional directory in the artifacts dir for results of security scans
-      ansible.builtin.file:
-        path: "{{ security_artifacts_path }}"
-        state: directory
-        mode: '0755'
+        security_report_dir: "{{ kaapana_dir }}/build/security-reports"
     - name: Get stats about the security report directory to check if it exists
       register: source_dir_stats
       ansible.builtin.stat:
@@ -98,7 +92,7 @@
       when: source_dir_stats.stat.exists == true
       ansible.builtin.copy:
         src: "{{ security_report_dir }}"
-        dest: "{{ security_artifacts_path }}/"
+        dest: "{{ artifacts_dir }}"
 
 
   - name: Fail playbook and job if build failed

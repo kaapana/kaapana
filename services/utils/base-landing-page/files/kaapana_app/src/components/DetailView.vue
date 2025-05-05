@@ -21,11 +21,7 @@
     </v-card-title>
     <v-divider />
     <v-card-text>
-      <IFrameWindow
-        :iFrameUrl="iFrameURL"
-        :fullSize="false"
-        customStyle="aspect-ratio: 1 / 1; max-height: 80vh;"
-      />
+      <IFrameWindow :iFrameUrl="iFrameURL" :fullSize="false" customStyle="aspect-ratio: 1 / 1; max-height: 80vh;" />
       <TagsTable :series-instance-u-i-d="seriesInstanceUID" />
     </v-card-text>
   </v-card>
@@ -80,10 +76,11 @@ export default {
   computed: {
     iFrameURL() {
       return (
-        "/ohif-iframe/viewer?StudyInstanceUIDs=" +
+        "/ohif/viewer?StudyInstanceUIDs=" +
         this.studyInstanceUID +
         "&initialSeriesInstanceUID=" +
-        this.seriesInstanceUID
+        this.seriesInstanceUID +
+        "&mode=iframe"
       );
     },
   },

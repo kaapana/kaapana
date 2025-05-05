@@ -257,6 +257,10 @@ def extract_error_logs(artifacts_dir: Path) -> Dict[str, str]:
             "vulnerability_severity_level='CRITICAL,HIGH'",
             "faq",
             "failed=0",
+            "[Fail if build failed]",
+            "[Fail playbook if ERROR found in build output]",
+            "[Fail playbook and job if build failed]",
+            "[Fail playbook and job if server installation failed]",
         ]
 
         context_lines = 3  # Number of surrounding lines to include

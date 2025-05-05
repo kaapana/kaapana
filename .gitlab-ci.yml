@@ -214,9 +214,9 @@ security:
     - python3 create_vulnerability_report.py $REPO_DIR/build/security-reports/${GIT_DESCRIBE}/${GIT_DESCRIBE}_cves.json > gl-container-report.json
   artifacts:
     reports:
-      container_scanning: gl-container-report.json
+      container_scanning: ci/ci-code/clean/gl-container-report.json
     paths:
-      - gl-container-report.json
+      - ci/ci-code/clean/gl-container-report.json
   allow_failure: true
 
 

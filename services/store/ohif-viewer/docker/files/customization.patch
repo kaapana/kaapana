@@ -1,0 +1,180 @@
+diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+index 19cf891d0..c21b30289 100644
+--- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
++++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+@@ -157,18 +157,7 @@ function OHIFCornerstoneRTViewport(props: withAppTypes) {
+     if (rtIsLoading) {
+       return;
+     }
+-
+-    promptHydrateRT({
+-      servicesManager,
+-      viewportId,
+-      rtDisplaySet,
+-      preHydrateCallbacks: [storePresentationState],
+-      hydrateRTDisplaySet,
+-    }).then(isHydrated => {
+-      if (isHydrated) {
+-        setIsHydrated(true);
+-      }
+-    });
++    setIsHydrated(true);
+   }, [servicesManager, viewportId, rtDisplaySet, rtIsLoading]);
+ 
+   useEffect(() => {
+diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+index 2d7ae9105..0a9614bea 100644
+--- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
++++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+@@ -171,17 +171,7 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
+       return;
+     }
+ 
+-    promptHydrateSEG({
+-      servicesManager,
+-      viewportId,
+-      segDisplaySet,
+-      preHydrateCallbacks: [storePresentationState],
+-      hydrateCallback: hydrateSEG,
+-    }).then(isHydrated => {
+-      if (isHydrated) {
+-        setIsHydrated(true);
+-      }
+-    });
++    setIsHydrated(true)
+   }, [servicesManager, viewportId, segDisplaySet, segIsLoading, hydrateSEG]);
+ 
+   useEffect(() => {
+diff --git a/extensions/default/src/ViewerLayout/ViewerHeader.tsx b/extensions/default/src/ViewerLayout/ViewerHeader.tsx
+index 6e1afb651..60fd451f5 100644
+--- a/extensions/default/src/ViewerLayout/ViewerHeader.tsx
++++ b/extensions/default/src/ViewerLayout/ViewerHeader.tsx
+@@ -75,52 +75,54 @@ function ViewerHeader({ appConfig }: withAppTypes<{ appConfig: AppTypes.Config }
+   }
+ 
+   return (
+-    <Header
+-      menuOptions={menuOptions}
+-      isReturnEnabled={!!appConfig.showStudyList}
+-      onClickReturnButton={onClickReturnButton}
+-      WhiteLabeling={appConfig.whiteLabeling}
+-      Secondary={
+-        <Toolbar
+-          servicesManager={servicesManager}
+-          buttonSection="secondary"
+-        />
+-      }
+-      PatientInfo={
+-        appConfig.showPatientInfo !== PatientInfoVisibility.DISABLED && (
+-          <HeaderPatientInfo
++    <div className={appConfig.showHeader ? '' : 'hidden'}>
++      <Header
++        menuOptions={menuOptions}
++        isReturnEnabled={!!appConfig.showStudyList}
++        onClickReturnButton={onClickReturnButton}
++        WhiteLabeling={appConfig.whiteLabeling}
++        Secondary={
++          <Toolbar
+             servicesManager={servicesManager}
+-            appConfig={appConfig}
++            buttonSection="secondary"
+           />
+-        )
+-      }
+-      UndoRedo={
+-        <div className="text-primary flex cursor-pointer items-center">
+-          <Button
+-            variant="ghost"
+-            className="hover:bg-primary-dark"
+-            onClick={() => {
+-              commandsManager.run('undo');
+-            }}
+-          >
+-            <Icons.Undo className="" />
+-          </Button>
+-          <Button
+-            variant="ghost"
+-            className="hover:bg-primary-dark"
+-            onClick={() => {
+-              commandsManager.run('redo');
+-            }}
+-          >
+-            <Icons.Redo className="" />
+-          </Button>
++        }
++        PatientInfo={
++          appConfig.showPatientInfo !== PatientInfoVisibility.DISABLED && (
++            <HeaderPatientInfo
++              servicesManager={servicesManager}
++              appConfig={appConfig}
++            />
++          )
++        }
++        UndoRedo={
++          <div className="text-primary flex cursor-pointer items-center">
++            <Button
++              variant="ghost"
++              className="hover:bg-primary-dark"
++              onClick={() => {
++                commandsManager.run('undo');
++              }}
++            >
++              <Icons.Undo className="" />
++            </Button>
++            <Button
++              variant="ghost"
++              className="hover:bg-primary-dark"
++              onClick={() => {
++                commandsManager.run('redo');
++              }}
++            >
++              <Icons.Redo className="" />
++            </Button>
++          </div>
++        }
++      >
++        <div className="relative flex justify-center gap-[4px]">
++          <Toolbar servicesManager={servicesManager} />
+         </div>
+-      }
+-    >
+-      <div className="relative flex justify-center gap-[4px]">
+-        <Toolbar servicesManager={servicesManager} />
+-      </div>
+-    </Header>
++      </Header>
++    </div>
+   );
+ }
+ 
+diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
+index b29afdf07..548e0d396 100644
+--- a/extensions/default/src/ViewerLayout/index.tsx
++++ b/extensions/default/src/ViewerLayout/index.tsx
+@@ -151,13 +151,15 @@ function ViewerLayout({
+       />
+       <div
+         className="relative flex w-full flex-row flex-nowrap items-stretch overflow-hidden bg-black"
+-        style={{ height: 'calc(100vh - 52px' }}
++        style={{
++          height: appConfig.showHeader ? 'calc(100vh - 52px)' : '100vh',
++        }}
+       >
+         <React.Fragment>
+           {showLoadingIndicator && <LoadingIndicatorProgress className="h-full w-full bg-black" />}
+           <ResizablePanelGroup {...resizablePanelGroupProps}>
+             {/* LEFT SIDEPANELS */}
+-            {hasLeftPanels ? (
++            {appConfig.showLeftPanel && hasLeftPanels ? (
+               <>
+                 <ResizablePanel {...resizableLeftPanelProps}>
+                   <SidePanelWithServices
+@@ -189,7 +191,7 @@ function ViewerLayout({
+                 </div>
+               </div>
+             </ResizablePanel>
+-            {hasRightPanels ? (
++            {appConfig.showRightPanel && hasRightPanels ? (
+               <>
+                 <ResizableHandle
+                   onDragging={onHandleDragging}

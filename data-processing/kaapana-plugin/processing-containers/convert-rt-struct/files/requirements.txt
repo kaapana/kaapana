@@ -1,0 +1,7 @@
+Pillow==11.0.0
+colormath==3.0.0
+opencv-python==4.10.0.84
+pydicom-seg==0.4.1
+pydicom==2.4.4
+dcmrtstruct2nii==5
+rt-utils==1.2.7

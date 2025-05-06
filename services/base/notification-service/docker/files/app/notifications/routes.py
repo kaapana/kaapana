@@ -22,9 +22,7 @@ async def add_notification(
     db.add(notification)
     await db.commit()
     await db.refresh(notification)
-    await con_mgr.notify_user(
-        user_ids=notification.receivers, message={"id": notification.id}
-    )
+    await con_mgr.notify_new_notification(user_ids=notification.receivers, id=notification.id)
     return notification
 
 
@@ -129,6 +127,7 @@ async def mark_read(
     notification_id: UUID,
     x_forwarded_user: Annotated[str | None, Header()] = None,
     db=Depends(get_async_db),
+    con_mgr=Depends(get_connection_manager),
 ):
     if not x_forwarded_user:
         raise HTTPException(400, "Missing user info")
@@ -162,6 +161,7 @@ async def mark_read(
     )
     await db.execute(stmt)
     await db.commit()
+    await con_mgr.notify_read_notification(user_ids=[user], id=notification_id)
 
     # If notification is read by all recipients it is delete form the database
     notification = (

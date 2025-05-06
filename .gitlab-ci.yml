@@ -218,7 +218,7 @@ security:
       - ci/ci-code/clean/vulnerability_report.html
   allow_failure: true
   rules:
-  - if: $BUILD_ARGUMENTS ~= /.*--vulnerability-scan.*/
+  - if: $BUILD_ARGUMENTS =~ /.*--vulnerability-scan.*/
     when: always
   - when: never
 

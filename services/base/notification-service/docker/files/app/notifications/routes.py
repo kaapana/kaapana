@@ -36,7 +36,7 @@ async def get_users(project_id: str, access_service):
     return users
 
 
-@router.post("/{project_id}", response_model=Notification)
+@router.post("/{project_id}", response_model=Notification, tags=["Service"])
 async def post_notification_project(
     project_id: str,
     n: NotificationCreateNoReceivers,
@@ -56,7 +56,7 @@ async def post_notification_project(
     return await add_notification(notification, db, con_mgr)
 
 
-@router.post("/{project_id}/{user_id}", response_model=Notification)
+@router.post("/{project_id}/{user_id}", response_model=Notification, tags=["Service"])
 async def post_notification_user(
     project_id: str,
     user_id: str,
@@ -82,7 +82,7 @@ async def post_notification_user(
     return await add_notification(notification, db, con_mgr)
 
 
-@router.post("/", response_model=Notification)
+@router.post("/", response_model=Notification, tags=["Service"])
 async def post_notification(
     n: NotificationCreate,
     db=Depends(get_async_db),
@@ -104,7 +104,7 @@ async def post_notification(
     return await add_notification(notification, db, con_mgr)
 
 
-@router.get("/", response_model=list[NotificationUser])
+@router.get("/", response_model=list[NotificationUser], tags=["Frontend API"])
 async def get_notifications(
     db=Depends(get_async_db), x_forwarded_user: Annotated[str | None, Header()] = None
 ):
@@ -122,7 +122,7 @@ async def get_notifications(
     return result.scalars().all()
 
 
-@router.put("/{notification_id}/read")
+@router.put("/{notification_id}/read", tags=["Frontend API"])
 async def mark_read(
     notification_id: UUID,
     x_forwarded_user: Annotated[str | None, Header()] = None,
@@ -170,7 +170,7 @@ async def mark_read(
         )
     ).scalar_one_or_none()
     if not notification:
-        # Notificatin is already deleted
+        # Notification is already deleted
         return
 
     all_read = all(

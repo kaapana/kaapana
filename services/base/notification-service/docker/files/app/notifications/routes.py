@@ -6,7 +6,7 @@ from app.notifications.schemas import (
     NotificationCreateNoReceivers,
 )
 from app.notifications.models import Notification as NotificationModel
-from app.dependencies import get_async_db, get_connection_manager, get_aii_helper
+from app.dependencies import get_async_db, get_connection_manager, get_access_service
 from uuid import UUID
 from sqlalchemy import select, delete, update, func, cast
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY, TEXT
@@ -28,9 +28,9 @@ async def add_notification(
     return notification
 
 
-async def get_users(project_id: str, aii_helper):
+async def get_users(project_id: str, access_service):
     try:
-        users = await aii_helper.fetch_user_ids(project_id)
+        users = await access_service.fetch_user_ids(project_id)
     except Exception as e:
         raise HTTPException(502, "Upsream AII request failed")
     if not users:
@@ -43,10 +43,10 @@ async def post_notification_project(
     project_id: str,
     n: NotificationCreateNoReceivers,
     db=Depends(get_async_db),
-    aii_helper=Depends(get_aii_helper),
+    access_service=Depends(get_access_service),
     con_mgr=Depends(get_connection_manager),
 ):
-    users = await get_users(project_id, aii_helper)
+    users = await get_users(project_id, access_service)
     notification = NotificationModel(
         topic=n.topic,
         title=n.title,
@@ -64,10 +64,10 @@ async def post_notification_user(
     user_id: str,
     n: NotificationCreateNoReceivers,
     db=Depends(get_async_db),
-    aii_helper=Depends(get_aii_helper),
+    access_service=Depends(get_access_service),
     con_mgr=Depends(get_connection_manager),
 ):
-    users = await get_users(project_id, aii_helper)
+    users = await get_users(project_id, access_service)
 
     if user_id not in users:
         raise HTTPException(
@@ -88,11 +88,11 @@ async def post_notification_user(
 async def post_notification(
     n: NotificationCreate,
     db=Depends(get_async_db),
-    aii_helper=Depends(get_aii_helper),
+    access_service=Depends(get_access_service),
     con_mgr=Depends(get_connection_manager),
 ):
     for user_id in n.receivers:
-        if not await aii_helper.user_exists(user_id):
+        if not await access_service.user_exists(user_id):
             raise HTTPException(404, f"User ID {user_id} not valid")
 
     notification = NotificationModel(

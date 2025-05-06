@@ -1,34 +1,10 @@
-import requests
-from app.config import settings
 from fastapi import WebSocket
 from fastapi.encoders import jsonable_encoder
 
 
-class AiiHelper:
-    def __init__(self, base_url: str = settings.AII_SERVICE_URL):
-        self.base_url = base_url
 
-    async def fetch_user_ids(self, project_id: str) -> list[str]:
-        response = requests.get(f"{self.base_url}/projects/{project_id}/users")
-        if response.status_code == 404:
-            return None
-        response.raise_for_status()
-        try:
-            data = response.json()
-        except requests.JSONDecodeError:
-            data = []
 
-        return [user["id"] for user in data]
 
-    async def user_exists(self, user_id: str) -> bool:
-        response = requests.get(f"{self.base_url}/users/{user_id}")
-        if response.status_code < 300:
-            return True
-        elif response.status_code == 404:
-            return False
-        else:
-            response.raise_for_status()
-            raise Exception("THis should not happen")
 
 
 class ConnectionManager:

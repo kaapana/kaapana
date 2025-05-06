@@ -79,14 +79,7 @@
               </v-btn>
             </v-col>
             <v-col class="px-2 py-0">
-              <v-btn
-                block depressed
-                color="primary" class="blue darken-1"
-                href="/docs/" target="_blank"
-                title="Documentation"
-              >
-                <v-icon>mdi-text-box-multiple-outline</v-icon>
-              </v-btn>
+              <NotificationButton />
             </v-col>
             </v-row>
           </v-container>
@@ -218,6 +211,7 @@ import Settings from "@/components/Settings.vue";
 import About from "@/components/About.vue";
 import IdleTracker from "@/components/IdleTracker.vue";
 import ProjectSelection from "@/components/ProjectSelection.vue";
+import NotificationButton from "@/components/NotificationButton.vue";
 import { settings as defaultSettings } from "@/static/defaultUIConfig";
 import {
   CHECK_AVAILABLE_WEBSITES,
@@ -232,7 +226,7 @@ import { checkAuthR } from "@/utils/utils.js";
 
 export default Vue.extend({
   name: "App",
-  components: { Settings, IdleTracker, ProjectSelection, About },
+  components: { Settings, IdleTracker, ProjectSelection, About, NotificationButton },
   data: () => ({
     drawer: true,
     federatedBackendAvailable: false,
@@ -393,34 +387,6 @@ export default Vue.extend({
 
     this.getSettingsFromDb();
     this.updateSettings();
-
-
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.host;
-    const notifcations_endpoint = process.env.VUE_APP_NOTIFICATIONS_API_ENDPOINT;
-    const wsPath = `${notifcations_endpoint}/ws`;
-
-    console.log("Starting connection to WebSocket Server")
-    this.connection = new WebSocket(`${wsProtocol}//${wsHost}${wsPath}`);
-
-    this.connection.onmessage = (event: MessageEvent) => {
-      let parsed = JSON.parse(event.data);
-      console.log(parsed);
-
-      this.$notify({
-        title: "Notification",
-        text: parsed['message'],
-        type: "success",
-        duration: 10000,
-      });
-    }
-
-    this.connection.onopen = function (event: Event) {
-      console.log(event)
-      console.log("Successfully connected to the echo websocket server...")
-    }
-
-
   },
   mounted() {
     httpClient

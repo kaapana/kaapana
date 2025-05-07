@@ -30,10 +30,17 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 20
         resources:
+{{- if .Values.global.dev_files }}
+          requests:
+            memory: 1Gi
+          limits:
+            memory: 10Gi
+ {{- else }}
           requests:
             memory: 10Mi
           limits:
             memory: 10Mi
+ {{- end }}
         volumeMounts:
           - name: common-data-file
             mountPath: /app/jsons
@@ -41,9 +48,17 @@ spec:
             mountPath: /var/run
           - name: cache
             mountPath: /var/cache/nginx
+{{- if .Values.global.dev_files }}
+          - name: maintenance-dev-files
+            mountPath: /kaapana/app/src
+ {{- end }}
         securityContext:
           allowPrivilegeEscalation: false
+  {{- if .Values.global.dev_files }}
+          readOnlyRootFilesystem: false
+  {{- else }}
           readOnlyRootFilesystem: true
+  {{- end }}
       volumes:
       - name: common-data-file
         configMap:
@@ -52,5 +67,10 @@ spec:
         emptyDir: {}
       - name: tmp
         emptyDir: {}
+{{- if .Values.global.dev_files }}
+      - name: maintenance-dev-files
+        persistentVolumeClaim:
+          claimName: {{ .Chart.Name }}-dev-pv-claim
+{{- end }}
       imagePullSecrets:
       - name: registry-secret

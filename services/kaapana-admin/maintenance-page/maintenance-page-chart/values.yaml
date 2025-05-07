@@ -1,3 +1,4 @@
 ---
+admin: true
 global:
     pull_policy_pods: "IfNotPresent"

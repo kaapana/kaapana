@@ -424,8 +424,7 @@ async def extensions():
 @router.get("/platforms")
 async def get_platforms():
     try:
-        platforms = helm_helper.get_extensions_list(platforms=True)
-
+        platforms = helm_helper.get_platforms_list()
         return platforms
 
     except Exception as e:

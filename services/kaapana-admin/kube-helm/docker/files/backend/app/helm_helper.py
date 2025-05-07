@@ -418,11 +418,6 @@ def add_info_from_deployments(
         logger.warning(f"multiple extensions added for {extension_info.releaseName}")
     return result_list
 
-    # import debugpy
-    # debugpy.listen(("localhost", 17777))
-    # debugpy.wait_for_client()
-    # debugpy.breakpoint()
-
 
 def get_extensions_list() -> Union[List[schemas.KaapanaExtension], None]:
     """

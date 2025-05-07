@@ -6,6 +6,18 @@
           v-row
             v-col(cols="12", sm="5")
               span Platforms &nbsp;
+                v-tooltip(bottom="")
+                  template(v-slot:activator="{ on, attrs }")
+                    v-icon(
+                      @click="showDialog = true",
+                      color="primary",
+                      dark="",
+                      v-bind="attrs",
+                      v-on="on"
+                    )
+                      | mdi-cloud-refresh-outline
+                  span Click to download platforms from different registries, this might take some time.
+              br
             v-col(cols="12", sm="2")
               v-select(
                 label="Kind",
@@ -125,7 +137,7 @@
                           :label="key"
                           v-model="popUpExtension[key]"
                           clearable,
-                          :rules="popUpRulesStr"
+                          :rules="param.required ? popUpRulesStr : []"                        
                         )
                         v-checkbox(
                           v-if="param.type == 'bool' || param.type == 'boolean'"
@@ -137,7 +149,7 @@
                           :items="param.value"
                           :label="key"
                           v-model="popUpExtension[key]"
-                          :rules="popUpRulesSingleList"
+                          :rules="param.required ? popUpRulesSingleList : []"
                           clearable
                         )
                         v-select(
@@ -147,7 +159,7 @@
                           :item-text="param.default"
                           :label="key"
                           v-model="popUpExtension[key]"
-                          :rules="popUpRulesMultiList"
+                          :rules="param.required ? popUpRulesMultiList : []"
                           clearable
                         )
                   v-card-actions
@@ -178,16 +190,75 @@
                   ) 
                     span(v-if="item.multiinstallable === 'yes'") Force Delete
                     span(v-if="item.multiinstallable === 'no'") Force Uninstall
-  </template>
-  
+
+      //- Dialog for registry configuration - moved outside the data table
+      v-dialog(v-model="showDialog", max-width="600px")
+        v-card
+          v-card-title
+            span.text-h5 Registry Configuration
+          v-card-text
+            v-container
+              v-form(ref="form", v-model="valid")
+                v-row
+                  v-col(cols="12")
+                    v-text-field(
+                      v-model="formData.container_registry_url",
+                      label="Container Registry URL",
+                      required,
+                      outlined,
+                      :rules="[v => !!v || 'Registry URL is required']"
+                    )
+                  v-col(cols="12")
+                    v-text-field(
+                      v-model="formData.container_registry_username",
+                      label="Registry Username",
+                      outlined
+                    )
+                  v-col(cols="12")
+                    v-text-field(
+                      v-model="formData.container_registry_password",
+                      label="Registry Password",
+                      type="password",
+                      outlined
+                    )
+                  v-col(cols="12")
+                    v-text-field(
+                      v-model="formData.platform_name",
+                      label="Platform Name",
+                      outlined,
+                      hint="Default: kaapana-admin-chart"
+                    )
+                  v-col(cols="12")
+                    v-text-field(
+                      v-model="formData.auth_url",
+                      label="Auth URL",
+                      outlined,
+                      hint="registry auth URL example: https://codebase.helmholtz.cloud/jwt/auth"
+                    )
+          v-card-actions
+            v-spacer
+            v-btn(color="blue darken-1", text, @click="showDialog = false") Cancel
+            v-btn(
+              color="blue darken-1",
+              text,
+              @click="submitFormRegistry",
+              :loading="loading",
+              :disabled="!valid"
+            ) Submit
+      //- Snackbar for showing response messages - moved outside the data table
+      v-snackbar(v-model="snackbar", :color="snackbarColor", timeout="5000")
+        | {{ snackbarText }}
+        template(v-slot:action="{ attrs }")
+          v-btn(text, v-bind="attrs", @click="snackbar = false") Close
+    </template>
   <script lang="ts">
+
   import Vue from "vue";
   import { mapGetters } from "vuex";
   import kaapanaApiService from "@/common/kaapanaApi.service";
   
   export default Vue.extend({
     data: () => ({
-      loading: true,
       polling: 0,
       launchedAppLinks: [] as any,
       search: "",
@@ -197,6 +268,8 @@
       popUpItem: {} as any,
       popUpChartName: "",
       popUpExtension: {} as any,
+      showOptionalFields: false,
+      loading: true,
       popUpRulesStr: [
         (v: any) => v && v.length > 0 || 'Empty string field'
       ],
@@ -206,6 +279,18 @@
       popUpRulesMultiList: [
         (v: any) => v.length > 0 || "Empty multi-selectable list field"
       ],
+      showDialog: false,
+      valid: false,
+      formData: {
+        container_registry_url: "",
+        container_registry_username: "",
+        container_registry_password: "",
+        platform_name: "kaapana-admin-chart",
+        auth_url: ""
+      },
+      snackbar: false,
+      snackbarText: "",
+      snackbarColor: "success",
       headers: [
         {
           text: "Name",
@@ -393,21 +478,6 @@
       clearExtensionsInterval() {
         window.clearInterval(this.polling);
       },
-      updateExtensions() {
-        this.loading = true;
-        this.clearExtensionsInterval();
-        this.startExtensionsInterval();
-        kaapanaApiService
-          .helmApiGet("/update-extensions", {})
-          .then((response: any) => {
-            this.loading = false;
-            console.log(response.data);
-          })
-          .catch((err: any) => {
-            this.loading = false;
-            console.log(err);
-          });
-      },
       deleteChart(item: any, helmCommandAddons: any = '') {
         let params = {
           release_name: item.releaseName,
@@ -448,14 +518,7 @@
         if (item["extension_params"] && Object.keys(item["extension_params"]).length > 0) {
           this.popUpDialog[item.releaseName] = true;
           this.popUpItem = item;
-          for (let key of Object.keys(item["extension_params"])) {
-            let defaultVal = item["extension_params"][key]["default"]
-            if (key.startsWith("credentials_") && !(key.startsWith("credentials_registry"))) {
-              let rand = (Math.random()).toString(36).substring(4);
-              defaultVal = key.split("_")[1] + "_" + rand;
-            }
-            this.popUpExtension[key] = defaultVal;
-          }
+
         } else {
           this.installChart(item);
         }
@@ -527,6 +590,42 @@
             this.loading = false;
           });
       },
+      submitFormRegistry() {
+        //if (!this.$refs.form.validate()) return;
+        
+        this.loading = true;
+        
+          // Construct query parameters
+          const params = new URLSearchParams();
+          for (const [key, value] of Object.entries(this.formData)) {
+            if (value) params.append(key, value);
+          }
+          kaapanaApiService
+            .helmApiGet("/available-platforms", params)
+            .then((response: any) => {
+              this.showSnackbar("Platforms retrieved successfully", "success");
+              this.showDialog = false;
+              console.log(response.data);
+              // Emit event to parent component with the data
+              this.showSnackbar(response.data, "success");
+            })
+            .catch((err: any) => {
+              this.loading = false;
+              this.showSnackbar(`Network error: ${err.message}`, "error");
+              console.log(err);
+            })
+            .finally(() => {
+              this.loading = false;
+            });
+      },
+      showSnackbar(text: any, color = "success") {
+        this.snackbarText = text;
+        this.snackbarColor = color;
+        this.snackbar = true;
+      },
+      getPlatforms() {
+        this.showDialog = true;
+      },
     },
     beforeDestroy() {
       this.clearExtensionsInterval();
@@ -538,5 +637,4 @@
   a {
     text-decoration: none;
   }
-  
   </style>

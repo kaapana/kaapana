@@ -8,6 +8,7 @@ from typing import Optional, List
 import file_handler
 import helm_helper
 import schemas
+import httpx
 from config import settings
 from fastapi import APIRouter, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse
@@ -430,6 +431,76 @@ async def get_platforms():
     except Exception as e:
         logger.error(f"/platforms FAILED {e}", exc_info=True)
         return Response(f"Failed to get platforms", 500)
+
+
+@router.get("/available-platforms")
+async def available_platforms(
+    request: Request,
+    container_registry_url: str = "",
+    container_registry_username: str = "",
+    container_registry_password: str = "",
+    platform_name: str = "kaapana-admin-chart",
+    auth_url: str = "https://codebase.helmholtz.cloud/jwt/auth"
+) -> List[str]:
+
+    if not container_registry_url:
+        raise HTTPException(status_code=400, detail="container_registry_url must be provided")
+
+    try:
+        # Extract host and path
+        registry_parts = container_registry_url.split('/')
+        registry_host = registry_parts[0]
+        registry_path = '/'.join(registry_parts[1:])
+
+        scope = f"repository:{registry_path}/{platform_name}:pull"
+        logger.info(f"Using scope: {scope}")
+
+        # Get JWT token
+        params = {
+            "client_id": "docker",
+            "offline_token": "true",
+            "service": "container_registry",
+            "scope": scope
+        }
+        logger.info(f"Requesting token from: {auth_url} with params: {params}")
+
+        async with httpx.AsyncClient() as client:
+            token_response = await client.get(
+                auth_url,
+                params=params,
+                auth=(container_registry_username, container_registry_password),
+                timeout=10.0,
+            )
+            token_response.raise_for_status()
+            token_json = token_response.json()
+            logger.info(f"Token response: {token_json}")
+            token = token_json.get("token")
+
+            if not token:
+                raise HTTPException(status_code=401, detail="Authentication failed, token not received")
+
+            # Get tags
+            headers = {
+                "Accept": "application/vnd.docker.distribution.manifest.v2+json",
+                "Authorization": f"Bearer {token}"
+            }
+            tags_url = f"https://{registry_host}/v2/{registry_path}/{platform_name}/tags/list"
+            logger.info(f"Fetching tags from: {tags_url}")
+
+            tags_response = await client.get(tags_url, headers=headers)
+            tags_response.raise_for_status()
+            tags_json = tags_response.json()
+            logger.info(f"Tags response: {tags_json}")
+            tags = tags_json.get("tags", [])
+
+        return sorted(tags, reverse=True)
+
+    except httpx.HTTPStatusError as e:
+        logger.error(f"HTTP error: {e.response.status_code} - {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=e.response.text)
+    except Exception as e:
+        logger.exception("Unexpected error occurred")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 @router.get("/view-chart-status")

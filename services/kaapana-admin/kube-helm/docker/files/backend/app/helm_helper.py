@@ -175,6 +175,27 @@ def execute_shell_command(
         logger.error("")
         return success, stderr
 
+def check_if_extension_param_is_needed(
+    extension_name: str,
+    ext_params: dict,
+) -> dict:      
+    """
+    Checks if the extension_params are needed for the extension by comparing them with the global values
+    Args:
+        ext_params (dict): The extension parameters to check
+    Returns:
+        dict: The updated extension parameters
+    """
+
+    #get global values
+    exctension_values = helm_get_values("kaapana-admin-chart","default")
+    for key in ext_params:
+        if key in exctension_values.get("global", {}):
+            ext_params[key]["required"] = False
+        else:
+            ext_params[key]["required"] = True
+
+    return ext_params
 
 def add_extension_to_dict(
     extension_id: str,
@@ -204,6 +225,7 @@ def add_extension_to_dict(
         if "extension_params" in extension_dict:
             logger.debug("add_extension_to_dict found extension_params")
             ext_params = extension_dict["extension_params"]
+            ext_params = check_if_extension_param_is_needed(extension_name, ext_params)
         global_extensions_dict[extension_name] = (
             schemas.KaapanaExtension.model_construct(
                 latest_version=None,
@@ -396,6 +418,10 @@ def add_info_from_deployments(
         logger.warning(f"multiple extensions added for {extension_info.releaseName}")
     return result_list
 
+    # import debugpy
+    # debugpy.listen(("localhost", 17777))
+    # debugpy.wait_for_client()
+    # debugpy.breakpoint()
 
 
 def get_extensions_list() -> Union[List[schemas.KaapanaExtension], None]:

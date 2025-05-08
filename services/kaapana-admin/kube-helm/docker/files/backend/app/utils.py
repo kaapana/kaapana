@@ -839,7 +839,7 @@ def get_active_apps_from_ingresses(
                 paths=paths,
                 annotations=annotations,
                 release_name=release_name,
-                from_workflow_run=type.lower() == "debug",
+                from_workflow_run=type.lower() == "triggered",
                 ready=False,
             )
         )

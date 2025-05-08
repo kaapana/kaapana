@@ -373,12 +373,12 @@ async def complete_active_application(request: Request):
 async def get_active_applications() -> List[schemas.ActiveApplication]:
     """
     Returns a list of all active applications (i.e. applications that have an ingress) that match the annotation filter:
-        `'kaapana.ai/type' == 'application'` OR `'kaapana.ai/type' == 'debug'`
+        `'kaapana.ai/type' == 'application'` OR `'kaapana.ai/type' == 'triggered'`
     """
     try:
         ingress_annotation_filters = [
             {"kaapana.ai/type": "application"},
-            {"kaapana.ai/type": "debug"},
+            {"kaapana.ai/type": "triggered"},
         ]
         # get all ingress objects
         active_apps = utils.get_active_apps_from_ingresses(ingress_annotation_filters)

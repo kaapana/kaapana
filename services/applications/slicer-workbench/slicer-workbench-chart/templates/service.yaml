@@ -34,6 +34,8 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-{{ .Release.Name }}-redirect@kubernetescrd
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/display-name: {{ if eq .Values.global.display_name "-" }}{{ .Release.Name }}{{ else }}{{ .Values.global.display_name }}{{ end }}
+    kaapana.ai/type: application
 spec:
   rules:
   - host:

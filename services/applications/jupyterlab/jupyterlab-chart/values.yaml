@@ -10,3 +10,12 @@ global:
     storage: "10Mi"
     minio_mirror : true
   envVars:
+  - name: WORKSPACE
+    value: "/kaapana"
+
+extension_params:
+  display_name:
+      default: "-"
+      definition: Display name for the launched application
+      type: string
+      value: ""

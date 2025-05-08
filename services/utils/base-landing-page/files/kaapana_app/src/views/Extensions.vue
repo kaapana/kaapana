@@ -285,15 +285,15 @@
                 v-icon mdi-chevron-down
             v-card(max-width="300px" text-left)
               v-card-title Pending states
-              v-card-text In case your installation gets stuck in the "pending" state there is most probably something wrong with the helm chart. In that case you can here force to delete/uninstall the extension.
+              v-card-text If an installation gets stuck in the "Pending" state, it is likely due to an error in the Helm chart. You can force to uninstall the extension to resolve the issue.
               v-card-actions
                 v-btn(
                   @click="deleteChart(item, helmCommandAddons='--no-hooks');",
                   color="primary",
                   min-width="160px",
                 ) 
-                  span(v-if="item.multiinstallable === 'yes'") Delete forcefully
-                  span(v-if="item.multiinstallable === 'no'") Uninstall forcefully
+                  span(v-if="item.multiinstallable === 'yes'") Force Delete
+                  span(v-if="item.multiinstallable === 'no'") Force Uninstall
 </template>
 
 <script lang="ts">

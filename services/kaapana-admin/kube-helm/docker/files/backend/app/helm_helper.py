@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import fnmatch
 import subprocess
 import time
 from distutils.version import LooseVersion
@@ -774,7 +775,9 @@ def get_kube_objects(
             f"{settings.kubectl_path} -n {namespace} get pod -l={pod_label}={name}"
         )
         if success:
-            states = schemas.KubeInfo(name=[], ready=[], status=[], restarts=[], age=[])
+            states = schemas.KubeInfo(
+                name=[], ready=[], status=[], restarts=[], age=[], annotations={}
+            )
 
             stdout = stdout.splitlines()[1:]
 
@@ -817,7 +820,7 @@ def get_kube_objects(
     )
     paths = []
     concatenated_states = schemas.KubeInfo(
-        name=[], ready=[], status=[], restarts=[], age=[]
+        name=[], ready=[], status=[], restarts=[], age=[], annotations={}
     )
     if success:
         manifest_dict = list(yaml.load_all(stdout, yaml.FullLoader))
@@ -828,6 +831,18 @@ def get_kube_objects(
             if config is None:
                 continue
 
+            # collect annotations from every k8s resource that matches any of the patterns
+            annotation_keys_include_patterns = ["*/kaapana.ai/*"]
+            annotations = config.get("metadata", {}).get("annotations", {})
+            for key, value in annotations.items():
+                if any(
+                    fnmatch.fnmatch(key, pattern)
+                    for pattern in annotation_keys_include_patterns
+                ):
+                    if key not in concatenated_states.annotations:
+                        concatenated_states.annotations[key] = value
+
+            # based on the kind of resource, extract relevant information
             kind = config["kind"]
             if kind == "Ingress":
                 path = config["spec"]["rules"][0]["http"]["paths"][0]["path"]
@@ -863,8 +878,11 @@ def get_kube_objects(
 
                 if obj_kube_status != None:
                     for key, value in obj_kube_status.dict().items():
-                        concatenated_states[key].extend(value)
-                        logger.debug(f"{key=} {value=}")
+                        if key == "annotations":
+                            concatenated_states[key].update(value)
+                        else:
+                            concatenated_states[key].extend(value)
+
                         if (
                             key == "status"
                             and value[0] != KUBE_STATUS_COMPLETED

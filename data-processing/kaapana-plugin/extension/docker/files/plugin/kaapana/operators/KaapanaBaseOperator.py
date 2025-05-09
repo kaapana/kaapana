@@ -165,6 +165,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         pool_slots=None,
         api_version="v1",
         dev_server=None,
+        display_name="-",  # passed to the dev-server chart as display_name annotation for the ingress
         **kwargs,
     ):
         #  Deactivated till dynamic persistent volumes are supported
@@ -244,6 +245,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         self.data_dir = os.getenv("DATADIR", "")
         self.model_dir = os.getenv("MODELDIR", "")
         self.result_message = None
+        self.display_name = display_name
 
         # Namespaces
         self.services_namespace = os.getenv("SERVICES_NAMESPACE", "")
@@ -464,7 +466,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         Launch a dev-server as pending application.
         """
         url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
-                
+
         form_data = {}
         if (
             context["dag_run"].conf is not None
@@ -558,7 +560,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         # In case of debugging service_dag there is no self.project
         project_name = self.project.get("name") if self.project else "admin"
-            
+
         ingress_path = (
             f"applications/project/{project_name}/release/" + "{{ .Release.Name }}"
         )
@@ -567,6 +569,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             "global.complete_image": self.image,
             "global.namespace": self.namespace,
             "global.ingress_path": ingress_path,
+            "global.display_name": self.display_name,
             **env_vars_sets,
             **dynamic_volumes,
             **env_vars_from_secret_key_refs,

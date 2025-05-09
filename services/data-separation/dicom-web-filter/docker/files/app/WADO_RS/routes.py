@@ -162,112 +162,6 @@ def stream_study_metadata(study: str, request: Request) -> StreamingResponse:
     )
 
 
-@router.get("/studies/{study}{rendered_path:path}", tags=["WADO-RS"])
-async def retrieve_study_or_rendered(
-    study: str,
-    rendered_path: str,
-    request: Request,
-    session: AsyncSession = Depends(get_session),
-):
-    """Retrieve the study from the DICOMWeb server. If all series of the study are mapped to the project, the study is returned. If only some series are mapped, the study is filtered and only the mapped series are returned.
-        If there is a rendered path, the rendered study is returned.
-    Args:
-        study (str): Study Instance UID
-        request (Request): Request object
-        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
-
-    Returns:
-        StreamingResponse: Response object
-    """
-    # import debugpy
-
-    # debugpy.listen(("localhost", 17777))
-    # debugpy.wait_for_client()
-    # debugpy.breakpoint()
-
-    # Get the project IDs of the projects the user is associated with
-    project_ids_of_user = [p["id"] for p in request.scope.get("token")["projects"]]
-
-    query_string = request.url.query
-
-    def append_query(url: str) -> str:
-        return f"{url}?{query_string}" if query_string else url
-
-    # If user is admin, stream the entire study or rendered
-    if request.scope.get("admin") is True:
-        forward_url = append_query(
-            f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}"
-        )
-        content_type, body = await stream_passthrough(
-            method="GET",
-            url=forward_url,
-            headers=request.headers,
-        )
-        return StreamingResponse(
-            body,
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": content_type,
-            },
-        )
-
-    # Otherwise, filter series based on project access
-    mapped_series_uids = (
-        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
-            session=session,
-            project_ids=project_ids_of_user,
-            study_instance_uid=study,
-        )
-    )
-
-    logging.debug(f"mapped_series_uids: {mapped_series_uids}")
-
-    all_series = await crud.get_all_series_of_study(
-        session=session,
-        study_instance_uid=study,
-    )
-
-    logging.debug(f"all_series: {all_series}")
-    # If all series are mapped, stream the entire study or rendered
-    if set(mapped_series_uids) == set(all_series):
-        forward_url = append_query(
-            f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}"
-        )
-        content_type, body = await stream_passthrough(
-            method="GET",
-            url=forward_url,
-            headers=request.headers,
-        )
-        return StreamingResponse(
-            body,
-            headers={
-                "Transfer-Encoding": "chunked",
-                "Content-Type": content_type,
-            },
-        )
-
-    # Otherwise, build URL list only for allowed series
-    forward_urls = [
-        append_query(
-            f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series_uid}{rendered_path}"
-        )
-        for series_uid in mapped_series_uids
-    ]
-    content_type, body = await stream_multiple_multipart(
-        method="GET",
-        urls=forward_urls,
-        headers=request.headers,
-    )
-
-    return StreamingResponse(
-        body,
-        headers={
-            "Transfer-Encoding": "chunked",
-            "Content-Type": content_type,
-        },
-    )
-
-
 @router.get("/studies/{study}/series/{series}{remaining_path:path}", tags=["WADO-RS"])
 async def proxy_series_requests(
     study: str,
@@ -416,4 +310,105 @@ async def retrieve_study_metadata(
             b"dicom-web-filter",
         ),
         media_type="application/dicom+json",
+    )
+
+
+@router.get("/studies/{study}{rendered_path:path}", tags=["WADO-RS"])
+async def retrieve_study_or_rendered(
+    study: str,
+    rendered_path: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+):
+    """Retrieve the study from the DICOMWeb server. If all series of the study are mapped to the project, the study is returned. If only some series are mapped, the study is filtered and only the mapped series are returned.
+        If there is a rendered path, the rendered study is returned.
+    Args:
+        study (str): Study Instance UID
+        request (Request): Request object
+        session (AsyncSession, optional): Database session. Defaults to Depends(get_session).
+
+    Returns:
+        StreamingResponse: Response object
+    """
+
+    # Get the project IDs of the projects the user is associated with
+    project_ids_of_user = [p["id"] for p in request.scope.get("token")["projects"]]
+
+    query_string = request.url.query
+
+    def append_query(url: str) -> str:
+        return f"{url}?{query_string}" if query_string else url
+
+    # If user is admin, stream the entire study or rendered
+    if request.scope.get("admin") is True:
+        forward_url = append_query(
+            f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}"
+        )
+        content_type, body = await stream_passthrough(
+            method="GET",
+            url=forward_url,
+            headers=request.headers,
+        )
+        return StreamingResponse(
+            body,
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": content_type,
+            },
+        )
+
+    # Otherwise, filter series based on project access
+    mapped_series_uids = (
+        await crud.get_series_instance_uids_of_study_which_are_mapped_to_projects(
+            session=session,
+            project_ids=project_ids_of_user,
+            study_instance_uid=study,
+        )
+    )
+
+    logging.debug(f"mapped_series_uids: {mapped_series_uids}")
+
+    all_series = await crud.get_all_series_of_study(
+        session=session,
+        study_instance_uid=study,
+    )
+
+    logging.debug(f"all_series: {all_series}")
+    # If all series are mapped, stream the entire study or rendered
+    if set(mapped_series_uids) == set(all_series):
+        forward_url = append_query(
+            f"{DICOMWEB_BASE_URL}/studies/{study}{rendered_path}"
+        )
+        content_type, body = await stream_passthrough(
+            method="GET",
+            url=forward_url,
+            headers=request.headers,
+        )
+        return StreamingResponse(
+            body,
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Content-Type": content_type,
+            },
+        )
+
+    # Otherwise, build URL list only for allowed series
+    forward_urls = [
+        append_query(
+            f"{DICOMWEB_BASE_URL}/studies/{study}/series/{series_uid}{rendered_path}"
+        )
+        for series_uid in mapped_series_uids
+    ]
+    content_type, body = await stream_multiple_multipart(
+        method="GET",
+        urls=forward_urls,
+        headers=request.headers,
+    )
+
+    return StreamingResponse(
+        body,
+        headers={
+            "Transfer-Encoding": "chunked",
+            "Content-Type": content_type,
+        },
     )

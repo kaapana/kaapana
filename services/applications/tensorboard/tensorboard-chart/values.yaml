@@ -17,3 +17,10 @@ global:
     mount_path: /kaapana/mounted/tb-logs/minio
     host_path: /applications/tensorboard
     minio_mirror : true
+
+extension_params:
+    display_name:
+        default: "-"
+        definition: Display name for the launched application (max 20 chars)
+        type: string
+        value: ""

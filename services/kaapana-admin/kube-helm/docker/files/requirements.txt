@@ -9,3 +9,4 @@ python-multipart==0.0.20
 pydantic-settings==2.6.1
 PyYAML==6.0.2
 prometheus-fastapi-instrumentator==7.0.0
+kubernetes==32.0.1

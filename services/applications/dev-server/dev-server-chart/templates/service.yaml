@@ -32,6 +32,8 @@ metadata:
     traefik.ingress.kubernetes.io/router.middlewares: {{ tpl .Values.global.namespace . }}-cs-strip-prefix-{{ .Release.Name }}@kubernetescrd
     traefik.ingress.kubernetes.io/preserve-host: "true"
     kubernetes.io/ingress.global-static-ip-name: "kubernetes-ingress"
+    kaapana.ai/display-name: {{ if or (not .Values.global.display_name) (eq .Values.global.display_name "-") }}{{ .Release.Name }}{{ else }}{{ .Values.global.display_name }}{{ end }}
+    kaapana.ai/type: triggered
 spec:
   rules:
   - host: 

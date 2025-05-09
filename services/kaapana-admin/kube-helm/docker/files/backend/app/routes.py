@@ -3,10 +3,11 @@ import logging
 import secrets
 import subprocess
 from os.path import dirname, join
-from typing import Optional
+from typing import Optional, List
 
 import file_handler
 import helm_helper
+import schemas
 from config import settings
 from fastapi import APIRouter, HTTPException, Request, Response, UploadFile
 from fastapi.responses import HTMLResponse
@@ -333,15 +334,21 @@ async def complete_active_application(request: Request):
         payload = await request.json()
         logger.info(f"/complete-active-application called with {payload=}")
 
-        # validate if release name contains 'kaapanaint'
         release_name = payload.get("release_name")
         if not release_name:
             return Response(
                 "Payload does not have mandatory key: 'release_name'", status_code=400
             )
-        if "kaapanaint" not in release_name:
-            return Response(
-                f"'{release_name}' is not an active application", status_code=400
+        # check if the deployed release contains label: kaapanaint
+        if not utils.helm_ls(
+            release_filter=release_name, label_filter="kaapana.ai/kaapanaint=True"
+        ):
+            logger.error(
+                f"No deployed releases found with name: {release_name} and label: kaapana.ai/kaapanaint=True"
+            )
+            return HTTPException(
+                f"Failed to complete active application: release {release_name} does not have correct annotations",
+                status_code=500,
             )
 
         # delete chart
@@ -362,34 +369,43 @@ async def complete_active_application(request: Request):
         return Response(f"Internal server error: {str(e)}", status_code=500)
 
 
-@router.get("/active-applications")
-async def active_applications():
+@router.get("/active-applications", response_model=List[schemas.ActiveApplication])
+async def get_active_applications() -> List[schemas.ActiveApplication]:
+    """
+    Returns a list of all active applications (i.e. applications that have an ingress) that match the annotation filter:
+        `'kaapana.ai/type' == 'application'` OR `'kaapana.ai/type' == 'triggered'`
+    """
     try:
-        extensions_list = []
-        for chart in utils.helm_ls(release_filter="kaapanaint"):
-            _, _, ingress_paths, kube_status = helm_helper.get_kube_objects(
-                chart["name"]
+        ingress_annotation_filters = [
+            {"kaapana.ai/type": "application"},
+            {"kaapana.ai/type": "triggered"},
+        ]
+        # get all ingress objects
+        active_apps = utils.get_active_apps_from_ingresses(ingress_annotation_filters)
+        logger.info(
+            f"Found {active_apps=} ingresses with filter {ingress_annotation_filters}"
+        )
+        if not active_apps:
+            logger.warning(
+                f"No application ingresses found with filter {ingress_annotation_filters}"
             )
-            extension = {
-                "releaseName": chart["name"],
-                "links": ingress_paths,
-                "helmStatus": chart["status"].capitalize(),
-                "successful": utils.all_successful(
-                    set(kube_status["status"] + [chart["status"]])
-                ),
-                "kubeStatus": ", ".join(kube_status["status"]),
-            }
-            extensions_list.append(extension)
+            return []
 
-        # TODO: return Response with status code, fix front end accordingly
-        return extensions_list
+        # add "ready" status to the found ingress objects
+        for active_app in active_apps:
+            # get the release name of the chart from ingress
+            release_name = active_app["release_name"]
+            # get all k8s objects of the chart and the ready status
+            _, ready, _, _ = helm_helper.get_kube_objects(release_name)
+            # find the deployed chart inside the extension object
+            active_app["ready"] = ready
 
-    except subprocess.CalledProcessError as e:
-        logger.error(f"/active-applications failed {e}", exc_info=True)
-        return Response("Internal server error!", 500)
+        return active_apps
     except Exception as e:
         logger.error(f"/active-applications failed: {e}", exc_info=True)
-        return Response(f"Pending applications failed {e}", 400)
+        raise HTTPException(
+            status_code=500, detail=f"Getting active applications failed: {str(e)}"
+        )
 
 
 @router.get("/extensions")

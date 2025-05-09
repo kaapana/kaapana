@@ -20,30 +20,110 @@ router = APIRouter()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 
 
+def replace_boundary(buffer: bytes, old_boundary: bytes, new_boundary: bytes) -> bytes:
+    """Replace the boundary in the buffer.
+
+    Args:
+        buffer (bytes): Buffer
+        old_boundary (bytes): Old boundary
+        new_boundary (bytes): New boundary
+
+    Returns:
+        bytes: Buffer with replaced boundary
+    """
+    return buffer.replace(
+        f"--{old_boundary.decode()}".encode(),
+        f"--{new_boundary.decode()}".encode(),
+    ).replace(
+        f"--{old_boundary.decode()}--".encode(),
+        f"--{new_boundary.decode()}--".encode(),
+    )
+
+
+async def stream_multiple_multipart(
+    method: str,
+    urls: list[str],
+    headers: dict,
+) -> tuple[str, AsyncGenerator[bytes, None]]:
+    """
+    Streams multipart responses from multiple URLs. The first response is streamed as-is;
+    subsequent responses have their boundary replaced to match the first one's.
+
+    Returns:
+        content_type (str): The unified Content-Type header with boundary.
+        body (AsyncGenerator[bytes, None]): Streamed multipart body.
+    """
+    client = httpx.AsyncClient()
+
+    async def combined_stream() -> AsyncGenerator[bytes, None]:
+        try:
+            # First response: use as-is and extract boundary
+            async with client.stream(
+                method, urls[0], headers=headers
+            ) as first_response:
+                first_ct = first_response.headers.get("Content-Type", "")
+                match = re.search(r'boundary="?([^";]+)"?', first_ct)
+                if not match:
+                    raise ValueError("No boundary in first Content-Type header")
+                unified_boundary = match.group(1).encode()
+
+                async for chunk in first_response.aiter_bytes():
+                    yield chunk
+
+            # Remaining responses: replace boundaries to match the first
+            for url in urls[1:]:
+                async with client.stream(method, url, headers=headers) as resp:
+                    ct = resp.headers.get("Content-Type", "")
+                    match = re.search(r'boundary="?([^";]+)"?', ct)
+                    if not match:
+                        raise ValueError(f"No boundary in Content-Type from {url}")
+                    original_boundary = match.group(1).encode()
+
+                    buffer = b""
+                    pattern_size = len(original_boundary) + 4
+                    async for chunk in resp.aiter_bytes():
+                        buffer += chunk
+                        buffer = replace_boundary(
+                            buffer, original_boundary, unified_boundary
+                        )
+                        if len(buffer) > pattern_size:
+                            yield buffer[:-pattern_size]
+                            buffer = buffer[-pattern_size:]
+                    if buffer:
+                        yield buffer
+        finally:
+            await client.aclose()
+
+    # Get content-type from first URL
+    async with client.stream(method, urls[0], headers=headers) as r:
+        content_type = r.headers.get("Content-Type", "application/octet-stream")
+
+    return content_type, combined_stream()
+
+
 async def stream_passthrough(
     method: str,
-    urls: List[str],
+    url: str,
     headers: dict,
 ) -> Tuple[str, AsyncGenerator[bytes, None]]:
     client = httpx.AsyncClient()
 
     async def generator():
         try:
-            for url in urls:
-                async with client.stream(method, url, headers=headers) as response:
-                    if response.status_code not in (200, 204):
-                        raise httpx.HTTPStatusError(
-                            f"Upstream returned status {response.status_code} for URL: {url}",
-                            request=response.request,
-                            response=response,
-                        )
-                    async for chunk in response.aiter_bytes():
-                        yield chunk
+            async with client.stream(method, url, headers=headers) as response:
+                if response.status_code not in (200, 204):
+                    raise httpx.HTTPStatusError(
+                        f"Upstream returned status {response.status_code} for URL: {url}",
+                        request=response.request,
+                        response=response,
+                    )
+                async for chunk in response.aiter_bytes():
+                    yield chunk
         finally:
             await client.aclose()
 
     # Determine the content-type from the first URL
-    async with client.stream(method, urls[0], headers=headers) as first_response:
+    async with client.stream(method, url, headers=headers) as first_response:
         if first_response.status_code not in (200, 204):
             await first_response.aclose()
             raise httpx.HTTPStatusError(
@@ -99,6 +179,12 @@ async def retrieve_study_or_rendered(
     Returns:
         StreamingResponse: Response object
     """
+    # import debugpy
+
+    # debugpy.listen(("localhost", 17777))
+    # debugpy.wait_for_client()
+    # debugpy.breakpoint()
+
     # Get the project IDs of the projects the user is associated with
     project_ids_of_user = [p["id"] for p in request.scope.get("token")["projects"]]
 
@@ -114,7 +200,7 @@ async def retrieve_study_or_rendered(
         )
         content_type, body = await stream_passthrough(
             method="GET",
-            urls=[forward_url],
+            url=forward_url,
             headers=request.headers,
         )
         return StreamingResponse(
@@ -149,7 +235,7 @@ async def retrieve_study_or_rendered(
         )
         content_type, body = await stream_passthrough(
             method="GET",
-            urls=[forward_url],
+            url=forward_url,
             headers=request.headers,
         )
         return StreamingResponse(
@@ -167,11 +253,12 @@ async def retrieve_study_or_rendered(
         )
         for series_uid in mapped_series_uids
     ]
-    content_type, body = await stream_passthrough(
+    content_type, body = await stream_multiple_multipart(
         method="GET",
         urls=forward_urls,
         headers=request.headers,
     )
+
     return StreamingResponse(
         body,
         headers={
@@ -237,7 +324,7 @@ async def proxy_series_requests(
     else:
         content_type, body = await stream_passthrough(
             method="GET",
-            urls=[forward_url],
+            url=forward_url,
             headers=request.headers,
         )
         return StreamingResponse(

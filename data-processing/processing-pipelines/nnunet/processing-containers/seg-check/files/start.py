@@ -13,6 +13,8 @@ from typing import Tuple
 import sparse
 from kaapanapy.logger import get_logger
 import logging
+from monitoring import monitor_system_memory
+
 
 logger = get_logger(__name__, logging.DEBUG)
 
@@ -337,6 +339,12 @@ def load_sparse_nifti(proxy_array: nib.arrayproxy, dtype=int) -> sparse.COO:
     shape = proxy_array.shape
     logger.error(f"{shape=}")
 
+    dense_image = proxy_array.get_fdata()
+
+    sparse_image = sparse.COO.from_numpy(dense_image).astype(dtype)
+    del dense_image
+    return sparse_image
+
     if len(shape) == 3:
         for slice in range(shape[2]):
             slice_data = proxy_array.dataobj[:, :, slice]
@@ -410,6 +418,7 @@ def check_overlap(
         return False, None, None
 
 
+@monitor_system_memory(interval=10.0)
 def merge_niftis(queue_dict):
     global merge_found_niftis, global_labels_info, global_labels_info_count, merged_counter, delete_merged_data, fail_if_overlap, skipping_level
 
@@ -425,7 +434,7 @@ def merge_niftis(queue_dict):
     base_image_dimensions = base_image_loaded.shape
     try:
         sparse_new_groundtruth_mapping = sparse.COO(
-            [], shape=base_image_dimensions
+            coords=[], shape=base_image_dimensions
         ).astype(int)
         # new_gt_map = np.zeros_like(base_image_loaded.get_fdata().astype(int))
     except EOFError:
@@ -443,7 +452,7 @@ def merge_niftis(queue_dict):
             print(f"# Resetting local_labels_info...")
             # new_gt_map = np.zeros_like(base_image_loaded.get_fdata().astype(int))
             sparse_new_groundtruth_mapping = sparse.COO(
-                [], shape=base_image_dimensions
+                coords=[], shape=base_image_dimensions
             ).astype(int)
             local_labels_info = {"Clear Label": 0}
         print(f"# Processing NIFTI: {seg_nifti}")
@@ -500,7 +509,7 @@ def merge_niftis(queue_dict):
         sparse_loaded_seg_nifti = load_sparse_nifti(loaded_nib_nifti)
         # nifti_int_encodings = list(np.unique(loaded_seg_nifti_numpy))
         nifti_int_encodings = list(np.unique(sparse_loaded_seg_nifti.data))
-        if len(nifti_int_encodings) == 1:
+        if len(nifti_int_encodings) == 0:
             print("# No segmentation was found in result-NIFTI-file!")
             print(f"# NIFTI-file {seg_nifti}")
             continue
@@ -516,7 +525,9 @@ def merge_niftis(queue_dict):
             # )
             array_by_int_encoding = sparse_loaded_seg_nifti == int_encoding
             loaded_seg_nifti_label = sparse.COO(
-                array_by_int_encoding.coords, int_encoding
+                coords=array_by_int_encoding.coords,
+                data=int_encoding,
+                shape=sparse_loaded_seg_nifti.shape,
             ).astype(int)
             label_found = list(existing_configuration.keys())[
                 list(existing_configuration.values()).index(str(int_encoding))
@@ -535,7 +546,9 @@ def merge_niftis(queue_dict):
                     #     loaded_seg_nifti_label,
                     # )
                     loaded_seg_nifti_label = sparse.COO(
-                        array_by_int_encoding.coords, new_encoding
+                        coords=array_by_int_encoding.coords,
+                        data=new_encoding,
+                        shape=array_by_int_encoding.shape,
                     ).astype(int)
                     int_encoding = new_encoding
 
@@ -601,8 +614,8 @@ def merge_niftis(queue_dict):
             print("# -> no overlap ♥")
             print(f"# Merging new_gt_map + loaded_seg_nifti_label: {int_encoding}")
             # new_gt_map = np.maximum(new_gt_map, loaded_seg_nifti_label)
-            sparse_new_groundtruth_mapping = sparse_new_groundtruth_mapping.maximum(
-                loaded_seg_nifti_label
+            sparse_new_groundtruth_mapping = np.maximum(
+                sparse_new_groundtruth_mapping, loaded_seg_nifti_label
             )
         if not merge_found_niftis:
             print("# No NIFTI merge -> saving adusted NIFTI ...")
@@ -610,12 +623,14 @@ def merge_niftis(queue_dict):
             # combined = nib.Nifti1Image(
             #     new_gt_map, base_image_loaded.affine, base_image_loaded.header
             # )
+            tmp_ground_truth_mapping = sparse_new_groundtruth_mapping.todense()
             combined = nib.Nifti1Image(
-                SparseToDenseProxy(sparse_new_groundtruth_mapping),
+                tmp_ground_truth_mapping,
                 base_image_loaded.affine,
                 base_image_loaded.header,
             )
             combined.to_filename(target_nifti_path)
+            del tmp_ground_truth_mapping
             metadata_json = create_metadata_json(new_labels_dict=local_labels_info)
             metadata_json_path = join(target_dir, f"{seg_nifti_id}.json")
             with open(metadata_json_path, "w", encoding="utf-8") as f:
@@ -653,12 +668,14 @@ def merge_niftis(queue_dict):
         # combined = nib.Nifti1Image(
         #     new_gt_map, base_image_loaded.affine, base_image_loaded.header
         # )
+        tmp_ground_truth_mapping = sparse_new_groundtruth_mapping.todense()
         combined = nib.Nifti1Image(
-            SparseToDenseProxy(sparse_new_groundtruth_mapping),
+            tmp_ground_truth_mapping,
             base_image_loaded.affine,
             base_image_loaded.header,
         )
         combined.to_filename(target_path_merged)
+        del tmp_ground_truth_mapping
         print("# Checking if resampling is needed...")
         merged_nifti_shape = nib.load(target_path_merged).shape
         if base_image_dimensions != merged_nifti_shape:

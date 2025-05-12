@@ -1,7 +1,8 @@
 from app.database import async_session
-from app.utils import AiiHelper, ConnectionManager
+from app.utils import ConnectionManager
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import AsyncGenerator
+from kaapanapy.services import AccessService
 import functools
 
 
@@ -15,5 +16,5 @@ def get_connection_manager() -> ConnectionManager:
     return ConnectionManager()
 
 
-def get_aii_helper() -> AiiHelper:
-    return AiiHelper()
+def get_access_service() -> AccessService:
+    return AccessService()

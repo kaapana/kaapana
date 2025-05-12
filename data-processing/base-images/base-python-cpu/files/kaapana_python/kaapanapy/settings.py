@@ -64,3 +64,10 @@ class OperatorSettings(BaseSettings):
     batches_input_dir: str
 
     operator_in_dir: Optional[str] = None
+
+
+class AccessSettings(BaseSettings):
+    """
+    Settings for accesss control (e.g. AII Interface)
+    """
+    aii_service_url: str

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class OrmBaseModel(BaseModel):
@@ -32,6 +32,11 @@ class KeycloakUser(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     email_verified: bool
+
+    @computed_field
+    @property
+    def system(self) -> bool:
+        return self.last_name.lower() == "system"
 
 
 class KeycloakUserExtended(KeycloakUser):

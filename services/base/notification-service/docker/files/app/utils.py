@@ -1,34 +1,20 @@
-import requests
-from app.config import settings
 from fastapi import WebSocket
 from fastapi.encoders import jsonable_encoder
+from uuid import UUID
+from pydantic import BaseModel
 
 
-class AiiHelper:
-    def __init__(self, base_url: str = settings.AII_SERVICE_URL):
-        self.base_url = base_url
+class Event(BaseModel):
+    type: str
+    notification_id: UUID
 
-    async def fetch_user_ids(self, project_id: str) -> list[str]:
-        response = requests.get(f"{self.base_url}/projects/{project_id}/users")
-        if response.status_code == 404:
-            return None
-        response.raise_for_status()
-        try:
-            data = response.json()
-        except requests.JSONDecodeError:
-            data = []
 
-        return [user["id"] for user in data]
+class EventNew(Event):
+    type: str = "new"
 
-    async def user_exists(self, user_id: str) -> bool:
-        response = requests.get(f"{self.base_url}/users/{user_id}")
-        if response.status_code < 300:
-            return True
-        elif response.status_code == 404:
-            return False
-        else:
-            response.raise_for_status()
-            raise Exception("THis should not happen")
+
+class EventRead(Event):
+    type: str = "read"
 
 
 class ConnectionManager:
@@ -46,8 +32,14 @@ class ConnectionManager:
         user_id = websocket.headers.get("x-forwarded-user")
         self.active_connections[user_id].remove(websocket)
 
-    async def notify_user(self, user_ids: list[str], message) -> None:
-        json_message = jsonable_encoder(message)
+    async def notify_new_notification(self, user_ids: list[str], id: UUID) -> None:
+        await self.send(user_ids=user_ids, event=EventNew(notification_id=id))
+
+    async def notify_read_notification(self, user_ids: list[str], id: UUID) -> None:
+        await self.send(user_ids=user_ids, event=EventRead(notification_id=id))
+
+    async def send(self, user_ids: list[str], event: Event) -> None:
+        json_message = jsonable_encoder(event)
         for user_id in user_ids:
             for connection in self.active_connections.get(user_id, []):
                 await connection.send_json(json_message)

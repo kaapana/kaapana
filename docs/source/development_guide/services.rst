@@ -1,14 +1,20 @@
 ## Services
 
-You can access multiple services in processing containers.
+You can access Kpapana services in processing containers.
 
-There is a kaapanapy library package, that should allow you to easily use those services.
+- dicom-web-filter (Access to dcm4chee)
+- access-information-interface (Users, Roles, Software and other access control)
+- notifications (Send notifications to project or user)
+- minio (Store files in the persistent object store)
+
+There is a `kaapanapy` library package, that should allow you to easily use those services.
 
 ### Notification Service
 
-You can send notifications to the user or all users of the project (only within your authorization scope) with the following commands:
+You can send notifications to the user (yourself) or project within your authorization scope (project users)
+ with the following commands. You can also find example in `templates_and_examples/examples/processing-pipelines/example/processing-containers/notify/files/example-notify.py`
 
-```
+```python
 from kaapanapy.services import NotificationService
 
 NotificationService.post_notification_to_user(
@@ -25,5 +31,4 @@ class NotificationCreate(BaseModel):
     description: str
     icon: Optional[str]
     link: Optional[str]
-    receivers: list[str]
 ```

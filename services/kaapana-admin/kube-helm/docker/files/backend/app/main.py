@@ -1,14 +1,20 @@
 from os.path import dirname, join
 
 import uvicorn
-from config import settings
+from config import settings, timeouts
 from fastapi import APIRouter, FastAPI
 from fastapi.staticfiles import StaticFiles
 from helm_helper import get_extensions_list
 from prometheus_fastapi_instrumentator import Instrumentator
 from routes import router
+from logger import get_logger
 
 from middlewares import SanitizeBodyInputs, SanitizeQueryParams
+
+logger = get_logger(__name__)
+
+logger.info("Timeouts: %s", timeouts.model_dump_json())
+logger.info("Settings: %s", settings.model_dump_json())
 
 app = FastAPI(title="Kube-Helm API", root_path=settings.application_root)
 

@@ -36,7 +36,11 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
-
+from kaapanapy.services.NotificationService import (
+    NotificationCreate,
+    NotificationService,
+)
+from kaapanapy.settings import ServicesSettings
 
 # Backward compatibility
 default_registry = DEFAULT_REGISTRY
@@ -282,6 +286,18 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             # "HELM_NAMESPACE": str(self.helm_namespace),
         }
 
+        envs.update(
+            {
+                "KEYCLOAK_URL": os.environ["KEYCLOAK_URL"],
+                "KUBE_HELM_URL": os.environ["KUBE_HELM_URL"],
+                "OPENSEARCH_URL": os.environ["OPENSEARCH_URL"],
+                "DICOM_WEB_FILTER_URL": os.environ["DICOM_WEB_FILTER_URL"],
+                "NOTIFICATION_URL": os.environ["NOTIFICATION_URL"],
+                "AII_URL": os.environ["AII_URL"],
+                "KAAPANA_BACKEND_URL": os.environ["KAAPANA_BACKEND_URL"],
+                "MINIO_URL": os.environ["MINIO_URL"],
+            }
+        )
         if enable_proxy is True and os.getenv("PROXY", None) is not None:
             envs.update(
                 {
@@ -653,6 +669,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             {
                 "RUN_ID": context["dag_run"].run_id,
                 "DAG_ID": context["dag_run"].dag_id,
+                "TASK_ID": self.name,
                 "WORKFLOW_DIR": f"{PROCESSING_WORKFLOW_DIR}/{context['run_id']}",
                 "BATCH_NAME": str(self.batch_name),
                 "OPERATOR_OUT_DIR": str(self.operator_out_dir),
@@ -804,6 +821,45 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         )
         if send_email_on_workflow_failure:
             HelperSendEmailService.handle_task_failure_alert(context)
+
+        send_notification_on_workflow_failure = context["dag_run"].dag.default_args.get(
+            "send_notification_on_workflow_failure", False
+        )
+        if send_notification_on_workflow_failure:
+            KaapanaBaseOperator.post_notification_to_user_from_context(context)
+
+    @staticmethod
+    def post_notification_to_user_from_context(context):
+        form_data = context["dag_run"].conf.get("form_data", {})
+        username = form_data.get("username")
+        if not username:
+            raise ValueError("Missing username in form_data")
+
+        # Get user ID
+        user_resp = requests.get(
+            f"{ServicesSettings().aii_url}/users/username/{username}"
+        )
+        user_resp.raise_for_status()
+        user_id = user_resp.json()["id"]
+
+        project_form = context.get("params", {}).get("project_form", {})
+        project_id = project_form.get("name", "unknown")
+
+        dag_id = context["dag_run"].dag_id
+        run_id = context["dag_run"].run_id
+        task_id = context["task_instance"].task_id
+
+        notification = NotificationCreate(
+            topic=run_id,
+            title=f"Workflow {run_id} Failed",
+            description=f"<b>Failed</b> workflow <em>{dag_id}</em>.",
+            icon="mdi-information",
+            link=f"/flow/dags/{dag_id}/grid?dag_run_id={run_id}&task_id={task_id}&tab=logs",
+        )
+
+        return NotificationService.post_notification_to_user(
+            user_id=user_id, project_id=project_id, notification=notification
+        )
 
     @staticmethod
     def on_success(context):

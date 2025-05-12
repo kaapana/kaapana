@@ -37,9 +37,9 @@ async def get_current_user(
     """Get the Current User using the 'x-forwarded-user' parameter in Header"""
 
     headers = request.headers
-    user_id = headers["x-forwarded-user"]
+    user_id = headers.get("x-forwarded-user")
     if not user_id:
-        raise HTTPException(status_code=400, detail="User ID not provided")
+        raise HTTPException(status_code=401, detail="User ID not provided")
 
     return await get_keycloak_user_by_id(user_id, kc_client)
 

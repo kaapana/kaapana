@@ -7,12 +7,17 @@ exts="\.\(py\)$"
 black_formatter=$(which black)
 isort_formatter=$(which isort)
 
-# BLACK
-
 # Check availability of the formatter
 if [ -z "$black_formatter" ]; then
   echo 1>&2 black "$black_formatter not found."
   echo 1>&2 "Please install Black first 'pip install black' (see https://black.readthedocs.io/en/stable/getting_started.html)."
+  exit 1
+fi
+
+# Check availability of the formatter
+if [ -z "$isort_formatter" ]; then
+  echo 1>&2 isort formatter "$isort_formatter not found."
+  echo 1>&2 "Please install isort first 'pip install isort' (see https://pycqa.github.io/isort/docs/quick_start/1.-install.html)."
   exit 1
 fi
 
@@ -32,14 +37,6 @@ if $ISSUE_FOUND; then
   exit 1
 fi
 
-# ISORT
-
-# Check availability of the formatter
-if [ -z "$isort_formatter" ]; then
-  echo 1>&2 isort formatter "$isort_formatter not found."
-  echo 1>&2 "Please install isort first 'pip install isort' (see https://pycqa.github.io/isort/docs/quick_start/1.-install.html)."
-  exit 1
-fi
 # Format staged files
 ISSUE_FOUND=false
 for file in $(git diff --cached --name-only --diff-filter=ACMR | grep -E "$exts"); do

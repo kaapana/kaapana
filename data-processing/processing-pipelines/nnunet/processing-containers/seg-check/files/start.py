@@ -789,7 +789,6 @@ parallel_processes = (
     int(parallel_processes) if parallel_processes.lower() != "none" else None
 )
 assert parallel_processes is not None
-parallel_processes = 5
 
 fail_if_overlap = getenv("FAIL_IF_OVERLAP", "None")
 fail_if_overlap = True if fail_if_overlap.lower() == "true" else False

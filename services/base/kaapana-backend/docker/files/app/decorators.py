@@ -88,6 +88,19 @@ def repeat_every(
 
 
 def only_one_process(func):
+    """
+    This decorator is used for the syncing functions in main.py.
+    It prevents multiple workers syncing the database with the airflow and creating duplicates.
+    It uses filesystem lock.
+
+
+    Note: Previous implementation allow only first child Worker to sync, however it could get stuck,
+    if only second was chosen but was not permitted to work on the sync. (It was hard to debug in dev-mode)
+
+    Args:
+        func (function): function to be decorated
+    """
+
     def wrapper(*args, **kwargs):
         lock = FileLock("/tmp/airflow_sync.lock", timeout=1)
         try:

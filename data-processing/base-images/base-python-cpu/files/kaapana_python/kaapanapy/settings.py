@@ -4,10 +4,6 @@ from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 
-class APISettings(BaseSettings):
-    access_information_interface: str = "http://aii-service.services.svc:8080"
-
-
 class KaapanaSettings(BaseSettings):
     """
     These settings are imported in every module of the kaapana-pip library

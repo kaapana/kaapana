@@ -3,8 +3,7 @@ from datetime import timedelta
 from airflow.models import DAG
 from airflow.utils.dates import days_ago
 from airflow.utils.log.logging_mixin import LoggingMixin
-from example.NotifyingOperator import NotifyingOperator
-from kaapana.operators.DcmConverterOperator import DcmConverterOperator
+from example.NotifyOperator import NotifyOperator
 from kaapana.operators.GetInputOperator import GetInputOperator
 from kaapana.operators.LocalWorkflowCleanerOperator import LocalWorkflowCleanerOperator
 
@@ -34,11 +33,11 @@ args = {
     "retry_delay": timedelta(seconds=30),
 }
 
-dag = DAG(dag_id="example-notifying", default_args=args, schedule_interval=None)
+dag = DAG(dag_id="example-notify", default_args=args, schedule_interval=None)
 
 
 get_input = GetInputOperator(dag=dag)
-notify = NotifyingOperator(dag=dag)
+notify = NotifyOperator(dag=dag, input_operator=get_input)
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)
 
 get_input >> notify >> clean

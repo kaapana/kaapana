@@ -38,7 +38,7 @@ spec:
           value: "/notifications"
         - name: DATABASE_URL
           value: "postgresql+asyncpg://{{ .Values.kaapana_database.postgres_user}}:{{ .Values.kaapana_database.postgres_password}}@{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc:5432"
-        - name: AII_SERVICE_URL
+        - name: AII_URL
           value: "http://aii-service.{{ .Values.global.services_namespace }}.svc:8080"
         ports:
           - containerPort: 8080

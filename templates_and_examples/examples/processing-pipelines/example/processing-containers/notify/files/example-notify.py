@@ -68,7 +68,7 @@ def main():
             topic="Debug",
             title="Otsus Operator successful",
             description=f"{len(dicom_files)} dicom files found and processed! Operator was successful",
-            icon="mdi-martini",
+            icon="mdi-information",
             link=f"/flow/dags/{dag_id}/grid?root=&dag_run_id={run_id}&task_id={task_id}&tab=logs",
         )
         NotificationService.post_notification_to_user(
@@ -76,6 +76,7 @@ def main():
             project_id=project_name,
             notification=notification,
         )
+        return True, operator_in_dir
 
     if not config["workflow_form"]["single_execution"]:
         process_batches(

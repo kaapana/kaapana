@@ -68,20 +68,13 @@ class OperatorSettings(BaseSettings):
 
 class ServicesSettings(BaseSettings):
     # ADMIN
-    keycloak_url: str
-    kube_helm_url: str
+    keycloak_url: Optional[str] = None
+    kube_helm_url: Optional[str] = None
 
     # SERVICES
     aii_url: str
-    dicom_web_filter_url: str
-    opensearch_url: str
-    kaapana_backend_url: str
-    minio_url: str
-    notification_url: str
-
-
-class AccessSettings(BaseSettings):
-    """
-    Settings for accesss control (e.g. AII Interface)
-    """
-    aii_service_url: str
+    dicom_web_filter_url: Optional[str] = None
+    opensearch_url: Optional[str] = None
+    kaapana_backend_url: Optional[str] = None
+    minio_url: Optional[str] = None
+    notification_url: Optional[str] = None

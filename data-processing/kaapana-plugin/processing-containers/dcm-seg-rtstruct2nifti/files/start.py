@@ -22,7 +22,8 @@ def process_input_file(paras):
     global processed_count
     element_mask_dicom, element_base_dicom_in_dir, output_path, seg_filter = paras
 
-    dcm_modality = pydicom.dcmread(element_mask_dicom)[0x0008, 0x0060].value
+    with pydicom.dcmread(element_mask_dicom, stop_before_pixels=True) as dicom_data:
+        dcm_modality = dicom_data[0x0008, 0x0060].value
     if dcm_modality.lower() == "seg":
         logger.info(f"# {element_mask_dicom}: SEG")
         success = convert_dcmseg(
@@ -83,7 +84,7 @@ exit_on_issue = False if exit_on_issue.lower() != "true" else True
 input_file_extension = "*.dcm"
 
 # How many processes should be started?
-parallel_processes = 3
+parallel_processes = 1
 
 logger.info("##################################################")
 logger.info("#")

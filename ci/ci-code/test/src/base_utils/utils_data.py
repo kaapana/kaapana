@@ -1,19 +1,16 @@
-import glob
-import logging
-import os
-import re
 import subprocess
-import time
-import zipfile
-from io import BytesIO
-
+import os, time
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
+import zipfile
+from io import BytesIO
+import re
+import glob
 from .KaapanaAuth import KaapanaAuth
 from .logger import get_logger
+import logging
 
 logger = get_logger(__name__, logging.DEBUG)
 

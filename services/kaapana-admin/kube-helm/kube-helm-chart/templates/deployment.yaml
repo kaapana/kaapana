@@ -24,10 +24,6 @@ spec:
           requests:
             memory: "100Mi"
         env: # Environment variables
-        - name: WORKERS
-          value: "1"
-        - name: PORT
-          value: "5000"
         - name: SECRET_KEY
           value: "kaapana-secret"
         - name: APPLICATION_ROOT

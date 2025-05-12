@@ -14,7 +14,7 @@ ENV INTERPOLATOR 1
 ENV ORG_IMG_IN_DIR ""
 
 ENV EXECUTABLE /kaapana/app/apps/MitkMapImage.sh
-
+RUN python3 -m pip install sparse
 COPY files/start.py /kaapana/app/
 CMD ["python3","-u","/kaapana/app/start.py"]
 

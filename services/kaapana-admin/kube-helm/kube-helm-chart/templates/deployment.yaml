@@ -47,8 +47,12 @@ spec:
         - name: PREFETCH_EXTENSIONS
           value: "{{ $.Values.global.prefetch_extensions }}"
 {{- if $.Values.global.http_proxy }}
-        - name: PROXY
-          value: "{{ $.Values.global.http_proxy }}"
+        - name: http_proxy
+          value: {{ .Values.global.http_proxy }}
+        - name: https_proxy
+          value: {{ .Values.global.https_proxy }}
+        - name: no_proxy
+          value:  ".svc,.svc.cluster,.svc.cluster.local,{{ .Values.global.hostname }},{{ join "," .Values.global.internalCidrs }}"
 {{- end }}
 {{- if .Values.global.dev_files }}
         - name: DEV_FILES

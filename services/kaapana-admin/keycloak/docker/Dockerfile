@@ -38,6 +38,7 @@ RUN git clone --single-branch --depth 1 --branch 23.0.4 https://github.com/keycl
 RUN cp -r /app/keycloak-repo/themes/src/main/resources/theme/keycloak/ /app/kaapana
 COPY files/login.css /app/kaapana/login/resources/css/login.css
 COPY files/login.jpg /app/kaapana/login/resources/img/kaapana-bg.png
+COPY files/template.ftl /app/kaapana/login/template.ftl
 
 ## Fix for update to 23.0.4 -> https://github.com/keycloak/keycloak/issues/12719#issuecomment-1858575991
 ## Paths changed after 26.0.6 -> https://www.keycloak.org/docs/26.0.0/upgrading/#paths-for-common-theme-resources-have-changed

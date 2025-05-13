@@ -500,6 +500,10 @@ function deploy_chart {
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
+    # In case of timeout-issues in kube helm increase the default timeouts by setting
+    # --set kube-helm-chart.timeouts.helmInstallTimeout=45 \
+    # --set kube-helm-chart.timeouts.helmDeletionTimeout=60 \
+
     # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH
@@ -819,15 +823,16 @@ function update_coredns_rewrite() {
     # - If a rewrite rule for our hostname exists, update it.
     # - Otherwise, insert the new rule before the first line starting with "kubernetes"
     microk8s.kubectl get configmap coredns -n kube-system -o json | jq --arg new_rule "$new_rule" --arg ns "$ADMIN_NAMESPACE"  '
-    .data.Corefile = (
-        .data.Corefile | split("\n") as $lines |
-        if ($lines | map(select(test("^[[:space:]]*rewrite name exact .* oauth2-proxy-service\\.$ns\\.svc\\.cluster\\.local\\.$"))) | length) > 0 then
-        $lines | map(if test("^[[:space:]]*rewrite name exact .* oauth2-proxy-service\\.$ns\\.svc\\.cluster\\.local\\.$") then $new_rule else . end)
-        else
+    .data.Corefile |= (
+        # Remove any rewrite lines for oauth2-proxy-service.<namespace>.svc.cluster.local.
+        gsub("(?m)^[[:space:]]*rewrite name exact [^\\n]+ oauth2-proxy-service\\." + $ns + "\\.svc\\.cluster\\.local\\.";"") |
+        split("\n") as $lines |
         ($lines | to_entries) as $entries |
-        ( $entries | map(select(.value | test("^[[:space:]]*kubernetes "))) | .[0].key // ($lines | length) ) as $kube_index |
-        ($lines[0:$kube_index] + [$new_rule] + $lines[$kube_index:])
-        end | join("\n")
+        ( $entries
+          | map(select(.value | test("^[[:space:]]*kubernetes ")))
+          | .[0].key // ($lines | length)
+        ) as $kube_index |
+        ($lines[0:$kube_index] + [$new_rule] + $lines[$kube_index:]) | join("\n")
     )
     | del(.metadata.annotations["kubectl.kubernetes.io/last-applied-configuration"])
     | del(.metadata.managedFields)

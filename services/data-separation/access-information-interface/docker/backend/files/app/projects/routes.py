@@ -46,18 +46,27 @@ async def projects(
         await session.rollback()
         db_project = await crud.get_projects(session, project.name)
         created_project = db_project[0]
+    response_project = schemas.Project(**created_project.__dict__)
     await opensearch_helper.setup_new_project(project=created_project, session=session)
     await minio_helper.setup_new_project(project=created_project, session=session)
     kubehelm.install_project_helm_chart(created_project)
 
     with open("/app/config/default_software.json") as f:
         default_software = json.load(f)
-    for mapping in default_software:
-        await crud.create_software_mapping(
-            session, created_project.id, mapping.get("software_uuid")
-        )
 
-    return created_project
+    created_project_id = created_project.id
+    for mapping in default_software:
+        try:
+            await crud.create_software_mapping(
+                session, created_project_id, mapping.get("software_uuid")
+            )
+        except IntegrityError as e:
+            logger.warning(
+                f"Software mapping {mapping.get('software_uuid')} already exists!"
+            )
+            await session.rollback()
+
+    return response_project
 
 
 @router.get("", response_model=List[schemas.Project], tags=["Projects"])

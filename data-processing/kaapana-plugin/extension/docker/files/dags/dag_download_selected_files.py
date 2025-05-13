@@ -65,7 +65,7 @@ class BranchIfNiftiOperator(KaapanaBranchPythonBaseOperator):
         conf = kwargs["dag_run"].conf
         print("conf", conf)
 
-        convert_to_nifti = bool(conf["form_data"]["convert_to_nifti"])
+        convert_to_nifti = bool(conf["workflow_form"]["convert_to_nifti"])
 
         if convert_to_nifti:
             return "dcm-converter"

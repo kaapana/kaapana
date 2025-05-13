@@ -63,6 +63,19 @@ def schema_dataset_form(filter_keys: list = None):
         }
     }
 
+def get_all_projects(without_admin_project: bool = True):
+    try:
+        r = requests.get("http://aii-service.services.svc:8080/projects")
+        projects = r.json()
+        # Filter out the admin project with id 1
+        if without_admin_project:
+            projects = [project for project in projects if project["id"] != 1]
+        project_names = [project["name"] for project in projects]
+        return project_names
+
+    except Exception as e:
+        print("Error in get projects: ", e)
+        return []
 
 def schema_upload_form(
     whitelisted_file_formats: tuple = (),

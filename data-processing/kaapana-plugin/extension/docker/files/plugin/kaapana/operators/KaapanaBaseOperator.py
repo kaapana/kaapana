@@ -467,22 +467,22 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         """
         url = f"{KaapanaBaseOperator.HELM_API}/helm-install-chart"
 
-        form_data = {}
+        workflow_form = {}
         if (
             context["dag_run"].conf is not None
-            and "form_data" in context["dag_run"].conf
-            and context["dag_run"].conf["form_data"] is not None
+            and "workflow_form" in context["dag_run"].conf
+            and context["dag_run"].conf["workflow_form"] is not None
         ):
-            form_data = context["dag_run"].conf["form_data"]
-            print(f"{form_data=}")
+            workflow_form = context["dag_run"].conf["workflow_form"]
+            print(f"{workflow_form=}")
         env_vars_sets = {}
         for idx, (k, v) in enumerate(
             {"WORKSPACE": "/kaapana", **self.env_vars}.items()
         ):
-            if k.lower() in form_data:
-                ### Values in form_data are converted with str() before storing them in self.env_vars
+            if k.lower() in workflow_form:
+                ### Values in workflow_form are converted with str() before storing them in self.env_vars
                 ### In order to load them with json.loads later, we use the original value and convert it to a stringified json.
-                v = json.dumps(form_data[k.lower()])
+                v = json.dumps(workflow_form[k.lower()])
             try:
                 ### Json objects should be send as json-object, not stringified json. Especially needed, when environment variables represent lists, e.g. RUNNER_INSTANCES=["<ip-address>"]
                 json_decoded_value = json.loads(v)
@@ -639,13 +639,13 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
 
         if (
             context["dag_run"].conf is not None
-            and "form_data" in context["dag_run"].conf
-            and context["dag_run"].conf["form_data"] is not None
+            and "workflow_form" in context["dag_run"].conf
+            and context["dag_run"].conf["workflow_form"] is not None
         ):
-            form_data = context["dag_run"].conf["form_data"]
-            logging.info(form_data)
+            workflow_form = context["dag_run"].conf["workflow_form"]
+            logging.info(workflow_form)
 
-            for key, value in form_data.items():
+            for key, value in workflow_form.items():
                 key = key.upper()
                 self.env_vars[key] = str(value)
 

@@ -58,7 +58,7 @@ class CreateProject(OrmBaseModel):
 
 
 def is_valid_dicom_ae_title(ae_title: str) -> bool:
-    """
+    r"""
     https://pydicom.github.io/pynetdicom/dev/user/ae.html
     AE titles must meet the conditions of a DICOM data element with a Value Representation of AE:
     * Leading and trailing spaces (hex 0x20) are non-significant.

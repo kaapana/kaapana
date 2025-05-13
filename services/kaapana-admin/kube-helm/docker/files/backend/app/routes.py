@@ -285,7 +285,7 @@ async def helm_install_chart(request: Request):
             execute_cmd=False,
         )
         if not not_installed:
-            return Response(f"Chart is already installed {release_name}", 500)
+            return Response(f"Chart is already installed {release_name}", 204)
         success, stdout = await utils.helm_install_cmd_run_async(
             release_name, payload["version"], cmd, keywords
         )

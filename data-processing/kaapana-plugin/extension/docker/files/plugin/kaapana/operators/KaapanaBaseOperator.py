@@ -36,10 +36,7 @@ from kaapana.kubetools.volume_mount import VolumeMount
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.HelperCaching import cache_operator_output
 from kaapana.operators.HelperFederated import federated_sharing_decorator
-from kaapanapy.services.NotificationService import (
-    NotificationCreate,
-    NotificationService,
-)
+from kaapanapy.services.NotificationService import Notification, NotificationService
 from kaapanapy.settings import ServicesSettings
 
 # Backward compatibility
@@ -669,7 +666,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
             {
                 "RUN_ID": context["dag_run"].run_id,
                 "DAG_ID": context["dag_run"].dag_id,
-                "TASK_ID": self.name,
+                "TASK_ID": context["task_instance"].task_id,
                 "WORKFLOW_DIR": f"{PROCESSING_WORKFLOW_DIR}/{context['run_id']}",
                 "BATCH_NAME": str(self.batch_name),
                 "OPERATOR_OUT_DIR": str(self.operator_out_dir),
@@ -849,7 +846,7 @@ class KaapanaBaseOperator(BaseOperator, SkipMixin):
         run_id = context["dag_run"].run_id
         task_id = context["task_instance"].task_id
 
-        notification = NotificationCreate(
+        notification = Notification(
             topic=run_id,
             title=f"Workflow {run_id} Failed",
             description=f"<b>Failed</b> workflow <em>{dag_id}</em>.",

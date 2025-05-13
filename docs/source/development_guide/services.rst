@@ -18,14 +18,14 @@ You can send notifications to the user (yourself) or project within your authori
 from kaapanapy.services import NotificationService
 
 NotificationService.post_notification_to_user(
-    user_id: str, project_id: str, notification: NotificationCreate
+    user_id: str, project_id: str, notification: Notification
 )
 
 NotificationService.post_notification_to_project(
-    project_id: str, notification: NotificationCreate
+    project_id: str, notification: Notification
 )
 
-class NotificationCreate(BaseModel):
+class Notification(BaseModel):
     topic: Optional[str]
     title: str
     description: str

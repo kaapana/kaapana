@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 import requests
 from kaapanapy.settings import ServicesSettings
@@ -7,7 +7,7 @@ from pydantic import BaseModel
 NOTIFICATION_SERVICE_URL = ServicesSettings().notification_url
 
 
-class NotificationCreate(BaseModel):
+class Notification(BaseModel):
     topic: Optional[str] = None
     title: str
     description: str
@@ -17,21 +17,17 @@ class NotificationCreate(BaseModel):
 
 class NotificationService:
     @staticmethod
-    def post_notification_to_user(
-        user_id: str, project_id: str, notification: NotificationCreate
-    ):
-        response = requests.post(
-            f"{NOTIFICATION_SERVICE_URL}/v1/{project_id}/{user_id}",
-            json=notification.model_dump(),
-        )
+    def send(project_id: str, user_ids: List[str], notification: Notification) -> None:
+        data = notification.model_dump()
+        if not user_ids:
+            response = requests.post(
+                f"{NOTIFICATION_SERVICE_URL}/v1/{project_id}",
+                json=data,
+            )
+        else:
+            data["receivers"] = user_ids
+            response = requests.post(
+                f"{NOTIFICATION_SERVICE_URL}/v1/",
+                json=data,
+            )
         response.raise_for_status()
-        return response.status_code == 200
-
-    @staticmethod
-    def post_notification_to_project(project_id: str, notification: NotificationCreate):
-        response = requests.post(
-            f"{NOTIFICATION_SERVICE_URL}/v1/{project_id}",
-            json=notification.model_dump(),
-        )
-        response.raise_for_status()
-        return response.status_code == 200

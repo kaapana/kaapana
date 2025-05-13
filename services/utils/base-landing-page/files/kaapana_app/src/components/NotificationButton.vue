@@ -94,7 +94,6 @@ export default Vue.extend({
     methods: {
         updateNotifications() {
             fetch_notifications().then((n) => {
-                console.log("Fetched notifications:", n);
                 this.notifications = n ?? [];
             });
         },

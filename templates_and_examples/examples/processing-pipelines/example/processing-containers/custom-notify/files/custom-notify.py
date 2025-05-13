@@ -4,17 +4,9 @@ from pathlib import Path
 import pydicom
 from kaapanapy.helper import load_workflow_config
 from kaapanapy.logger import get_logger
-from kaapanapy.services.NotificationService import (
-    NotificationCreate,
-    NotificationService,
-)
+from kaapanapy.services.NotificationService import Notification, NotificationService
 from kaapanapy.settings import OperatorSettings
-from kaapanapy.utils import (
-    ConfigError,
-    get_keycloak_id,
-    process_batches,
-    process_single,
-)
+from kaapanapy.utils import ConfigError, get_user_id, process_batches, process_single
 
 logger = get_logger(__name__)
 
@@ -64,15 +56,15 @@ def main():
             pydicom.dcmread(filename) for filename in operator_in_dir.iterdir()
         ]
         # Do whatever you need with the DCMs files
-        notification = NotificationCreate(
-            topic="Debug",
+        notification = Notification(
+            topic=dag_id,
             title="Otsus Operator successful",
             description=f"{len(dicom_files)} dicom files found and processed! Operator was successful",
             icon="mdi-information",
             link=f"/flow/dags/{dag_id}/grid?root=&dag_run_id={run_id}&task_id={task_id}&tab=logs",
         )
-        NotificationService.post_notification_to_user(
-            user_id=get_keycloak_id(username),
+        NotificationService.send(
+            user_ids=[get_user_id(username)],
             project_id=project_name,
             notification=notification,
         )

@@ -17,7 +17,7 @@ from .settings import routers as settings
 from .workflows import models
 from .workflows.crud import get_remote_updates, sync_states_from_airflow
 from .workflows.routers import client, remote
-
+from .storage import routers as storage
 from . import middlewares
 
 models.Base.metadata.create_all(bind=engine)
@@ -112,5 +112,7 @@ app.include_router(monitoring.router, prefix="/monitoring")
 # app.include_router(users.router, prefix="/users")
 
 # # Not used yet
-# app.include_router(storage.router, prefix="/storage")
+app.include_router(storage.router, prefix="/storage",
+    responses={418: {"description": "I'm the storage backend..."}},
+)
 Instrumentator().instrument(app).expose(app)

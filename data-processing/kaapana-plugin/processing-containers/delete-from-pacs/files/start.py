@@ -45,7 +45,7 @@ class DeleteFromPacsOperator:
 
         project_form: dict = self.conf.get("project_form")
 
-        self.delete_complete_study = self.conf.get("form_data", {}).get(
+        self.delete_complete_study = self.conf.get("workflow_form", {}).get(
             "delete_complete_study", self.delete_complete_study
         )
         logging.info(f"Delete entire study set to {self.delete_complete_study}")

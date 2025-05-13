@@ -13,7 +13,7 @@ from typing import Dict, List, Set, Tuple, Union
 
 import schemas
 import yaml
-from config import settings
+from config import settings, timeouts
 from logger import get_logger
 
 logger = get_logger(__name__)
@@ -48,7 +48,7 @@ global_extensions_release_names: Set[str] = set()
 
 
 async def exec_shell_cmd_async(
-    command, shell=False, timeout: float = 5
+    command, shell=False, timeout: int = timeouts.shell_cmd_default_timeout
 ) -> Tuple[bool, str]:
     """Runs given command via asyncio.create_subprocess_shell()
 
@@ -97,7 +97,7 @@ async def exec_shell_cmd_async(
 
 
 def execute_shell_command(
-    command, shell=False, blocking=True, timeout=5, skip_check=False
+    command, shell=False, blocking=True, timeout=timeouts.shell_cmd_default_timeout, skip_check=False
 ) -> Tuple[bool, str]:
     """Runs given command via subprocess.run or subprocess.Popen
 

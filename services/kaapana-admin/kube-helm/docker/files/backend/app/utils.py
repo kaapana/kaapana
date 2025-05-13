@@ -12,7 +12,7 @@ import secrets
 from typing import Tuple
 from fastapi import Response
 
-from config import settings
+from config import settings, timeouts
 import schemas
 import helm_helper
 import logging
@@ -186,7 +186,7 @@ def helm_prefetch_extension_docker(helm_namespace=settings.helm_namespace):
         if helm_status(dag["name"]):
             logger.info(f'Skipping {dag["name"]} since it is already installed')
             continue
-        helm_command_suffix = f'--wait --atomic --timeout=120m0s; sleep 10; {settings.helm_path} -n {helm_namespace} delete {dag["release_name"]}'
+        helm_command_suffix = f'--wait --atomic --timeout={timeouts.helm_pull_container_timeout}s; sleep 10; {settings.helm_path} -n {helm_namespace} delete {dag["release_name"]}'
         success, stdout, helm_result_dict, release_name, _ = helm_install(
             dag, helm_command_suffix=helm_command_suffix, shell=True
         )
@@ -200,7 +200,6 @@ def pull_docker_image(
     docker_image,
     docker_version,
     docker_registry_url,
-    timeout="120m0s",
     helm_namespace=settings.helm_namespace,
     shell=True,
     blocking=False,
@@ -231,7 +230,7 @@ def pull_docker_image(
         "release_name": release_name,
     }
 
-    helm_command_suffix = f"--wait --atomic --timeout {timeout}; sleep 10; {settings.helm_path} -n {helm_namespace} delete {release_name}"
+    helm_command_suffix = f"--wait --atomic --timeout {timeouts.helm_pull_container_timeout}s; sleep 10; {settings.helm_path} -n {helm_namespace} delete {release_name}"
     success, stdout, helm_result_dict, _, _ = helm_install(
         payload,
         helm_command_suffix=helm_command_suffix,
@@ -430,9 +429,10 @@ def helm_install(
             logger.error(
                 f"helm delete prefix failed: cmd={helm_delete_prefix} success={success} stdout={stdout}"
             )
-    timeout = 15
     if platforms:
-        timeout = 45  # plaforms usually take longer due to multiple sub-charts involved
+        timeout = timeouts.helm_install_platform_timeout  # plaforms usually take longer due to multiple sub-charts involved
+    else:
+        timeout = timeouts.helm_install_timeout
     success, stdout = helm_helper.execute_shell_command(
         helm_command, shell=shell, blocking=blocking, timeout=timeout
     )
@@ -465,7 +465,7 @@ def helm_install(
 
 async def helm_delete_cmd_run_async(release_name, version, cmd, multiinstallable):
     success, stdout = await helm_helper.exec_shell_cmd_async(
-        cmd, shell=True, timeout=20
+        cmd, shell=True, timeout=timeouts.helm_deletion_timeout
     )
 
     if success and version is not None:
@@ -483,7 +483,7 @@ async def helm_delete_cmd_run_async(release_name, version, cmd, multiinstallable
 
 async def helm_install_cmd_run_async(release_name, version, cmd, keywords):
     success, stdout = await helm_helper.exec_shell_cmd_async(
-        cmd, shell=True, timeout=10
+        cmd, shell=True, timeout=timeouts.helm_install_timeout
     )
 
     if success and version is not None:
@@ -552,9 +552,10 @@ def helm_delete(
         return False, helm_command
 
     # run blocking if deleting a platform
-    timeout = 5
     if platforms:
-        timeout = 60
+        timeout = timeouts.helm_deletion_platform_timeout
+    else:
+        timeout = timeouts.helm_deletion_timeout
     success, stdout = helm_helper.execute_shell_command(
         helm_command, shell=True, blocking=platforms, timeout=timeout
     )

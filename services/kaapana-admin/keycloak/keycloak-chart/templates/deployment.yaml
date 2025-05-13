@@ -52,6 +52,8 @@ spec:
             value: "/etc/x509/https/tls.key"
           - name: KC_HTTPS_CERTIFICATE_FILE
             value: "/etc/x509/https/tls.crt"
+          - name: KC_HTTP_MAX_QUEUED_REQUESTS
+            value: "100"
           ports:
           - name: http
             containerPort: 8080

@@ -1,3 +1,4 @@
+import base64
 import json
 import logging
 import secrets
@@ -10,7 +11,7 @@ import helm_helper
 import schemas
 import httpx
 from config import settings
-from fastapi import APIRouter, HTTPException, Request, Response, UploadFile
+from fastapi import APIRouter, HTTPException, Query, Request, Response, UploadFile 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from logger import get_logger
@@ -435,16 +436,16 @@ async def get_platforms():
 
 @router.get("/available-platforms")
 async def available_platforms(
-    request: Request,
-    container_registry_url: str = "",
-    container_registry_username: str = "",
-    container_registry_password: str = "",
+    container_registry_url: str,
+    encoded_auth: str = Query(...),
     platform_name: str = "kaapana-admin-chart",
     auth_url: str = "https://codebase.helmholtz.cloud/jwt/auth"
 ) -> List[str]:
-
-    if not container_registry_url:
-        raise HTTPException(status_code=400, detail="container_registry_url must be provided")
+    try:
+        decoded = base64.b64decode(encoded_auth).decode()
+        container_registry_username, container_registry_password = decoded.split(":", 1)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid encoded_auth format")
 
     try:
         # Extract host and path
@@ -462,7 +463,7 @@ async def available_platforms(
             "service": "container_registry",
             "scope": scope
         }
-        logger.info(f"Requesting token from: {auth_url} with params: {params}")
+        logger.info(f"Fetching token from: {auth_url} with params: {params}")
 
         async with httpx.AsyncClient() as client:
             token_response = await client.get(
@@ -495,6 +496,9 @@ async def available_platforms(
 
         return sorted(tags, reverse=True)
 
+    except httpx.TimeoutException:
+        logger.error("Request timed out")
+        raise HTTPException(status_code=504, detail="Gateway Timeout: The request to the container registry timed out.")
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error: {e.response.status_code} - {e.response.text}")
         raise HTTPException(status_code=e.response.status_code, detail=e.response.text)

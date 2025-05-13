@@ -592,16 +592,17 @@
       },
       submitFormRegistry() {
         //if (!this.$refs.form.validate()) return;
-        
         this.loading = true;
-        
-          // Construct query parameters
-          const params = new URLSearchParams();
-          for (const [key, value] of Object.entries(this.formData)) {
-            if (value) params.append(key, value);
-          }
-          kaapanaApiService
-            .helmApiGet("/available-platforms", params)
+        const credentials = `${this.formData.container_registry_username}:${this.formData.container_registry_password}`;
+        const encodedAuth = btoa(credentials); // Base64 encode
+        console.log("encodedAuth", encodedAuth);
+        const params = new URLSearchParams({
+          container_registry_url: this.formData.container_registry_url,
+          platform_name: this.formData.platform_name,
+          encoded_auth: encodedAuth,
+        });
+
+        kaapanaApiService.helmApiGet("/available-platforms", params) 
             .then((response: any) => {
               this.showSnackbar("Platforms retrieved successfully", "success");
               this.showDialog = false;

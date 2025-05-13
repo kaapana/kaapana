@@ -38,7 +38,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py \
 
 #current pip pyradiomics==3.1.0 is not working with python3.10, install from git:
 RUN apt-get update && apt-get install -y python-dev-is-python3 \
-    && git clone https://github.com/AIM-Harvard/pyradiomics.git pyradiomics \
+    && git clone -b "v3.1.0" --single-branch https://github.com/AIM-Harvard/pyradiomics.git pyradiomics \
     && cd pyradiomics \
     # && git checkout v3.1.0 \
     && python3.10 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt -r requirements.txt \

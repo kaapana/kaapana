@@ -108,33 +108,34 @@ async def stream_passthrough(
 ) -> Tuple[str, AsyncGenerator[bytes, None]]:
     client = httpx.AsyncClient()
 
+    # 1) Build the request
+    req = client.build_request(method, url, headers=headers)
+    # 2) Send it with streaming turned on
+    response = await client.send(req, stream=True)
+
+    if response.status_code not in (200, 204):
+        await response.aclose()
+        await client.aclose()
+        raise httpx.HTTPStatusError(
+            f"Upstream returned status {response.status_code} for URL: {url}",
+            request=response.request,
+            response=response,
+        )
+
+    # Grab the full Content-Type (boundary included)
+    content_type = response.headers.get(
+        "Content-Type",
+        headers.get("Content-Type", "application/octet-stream"),
+    )
+
     async def generator():
         try:
-            async with client.stream(method, url, headers=headers) as response:
-                if response.status_code not in (200, 204):
-                    raise httpx.HTTPStatusError(
-                        f"Upstream returned status {response.status_code} for URL: {url}",
-                        request=response.request,
-                        response=response,
-                    )
-                async for chunk in response.aiter_bytes():
-                    yield chunk
+            async for chunk in response.aiter_bytes():
+                yield chunk
         finally:
+            # Always close both response *and* client
+            await response.aclose()
             await client.aclose()
-
-    # Determine the content-type from the first URL
-    async with client.stream(method, url, headers=headers) as first_response:
-        if first_response.status_code not in (200, 204):
-            await first_response.aclose()
-            raise httpx.HTTPStatusError(
-                f"Upstream returned status {first_response.status_code} for first URL",
-                request=first_response.request,
-                response=first_response,
-            )
-        content_type = first_response.headers.get("Content-Type") or headers.get(
-            "Content-Type", "application/octet-stream"
-        )
-        await first_response.aclose()
 
     return content_type, generator()
 

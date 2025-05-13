@@ -3,6 +3,25 @@
 Changelog
 #########
 
+.. _release-0.4.2:
+
+------------------------
+
+********************
+Release Notes v0.4.2
+********************
+
+May 13, 2025
+
+-------------------------
+
+* Fix hard-coded timeouts :code:`kube-helm` to be adjustable on slower machines
+* Fix UI redirect to 403 error page caused by expired state variable
+* Fix build issue in :code:`kaapana-persistence-chart`
+* Fix issue of adding multiple rewrite rules to :code:`coredns`
+* Fix overwriting of tags when resending images residing in two projects
+
+
 .. _release-0.4.1:
 
 ------------------------
@@ -56,7 +75,7 @@ December 20, 2024
 
 Data Separation
 ---------------
-* Opensearch authentication with OIDC 
+* Opensearch authentication with OIDC
 * Metadata exists in project context, i.e., project indices
 * Minio authentication with OIDC
 * Minio project bucket
@@ -317,7 +336,7 @@ Release Notes v0.3.0
 April 15, 2024
 
 -------------------------
- 
+
 DAGs and Operators
 ------------------
 * advanced-collect-metadata workflow
@@ -439,7 +458,7 @@ January 09, 2024
 Bug fixes
 ---------
 
-* Fix behaviour when missing filename or '---' in filenames in Bin2DcmOperator 
+* Fix behaviour when missing filename or '---' in filenames in Bin2DcmOperator
 * Changed storaged path for TotalSegmentator radiomics results from 'thumbnail' to 'totalsegmentator'
 
 .. _release-0.2.5:
@@ -559,7 +578,7 @@ Bug fixes
 Upcoming
 --------
 
-* Maintenance UI for UI-based platform management and maintenance 
+* Maintenance UI for UI-based platform management and maintenance
 * Multi Instance support for different Kaapana deployments within a single K8S Cluster
 * New persistence layer for Kapaana
 
@@ -629,7 +648,7 @@ Extension Upload / Data Upload mechanism
 
 Results page
 ------------
-* A new results page has been introduced which allows users to explore results of their workflows by visualizing HTMLs 
+* A new results page has been introduced which allows users to explore results of their workflows by visualizing HTMLs
 
 MISC:
 -----
@@ -638,7 +657,7 @@ MISC:
 * New extension and container upload & import features
 * Improved landing-page navigation to make workflows more present and more intuitive to interact with
 * git-describe-based versioning for Kaapana
-* Switch to `persistent-volumes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>`_ for better security and better cloud provider support 
+* Switch to `persistent-volumes <https://kubernetes.io/docs/concepts/storage/persistent-volumes/>`_ for better security and better cloud provider support
 * Security vulnerability improvements
 * Included `Trivy <https://trivy.dev//>`_ container scanning for automatic CVE detection + SBOM creation in the build system
 * Improved security check for all ingress requests
@@ -693,7 +712,7 @@ New Extensions
 Upcoming
 --------
 
-* Maintenance UI for UI-based platform management and maintenance 
+* Maintenance UI for UI-based platform management and maintenance
 * Multi Instance support for different Kaapana deployments within a single K8S Cluster
 * New persistence layer for Kapaana
 
@@ -776,7 +795,7 @@ Changelog
     * New Guides (Write Dockerfiles for Kaapana, Automatic Triggering, Send images to platform, Building the Platform, How does the Build System Work, Provide Workflow as Extension, How Kaapana uses Helm Charts, How to stop and restart a workflow, How to remove data from the platform, How to backup a Kaapana instance, How to install TLS certificates)
     * FAQ extension
     * New examples for workflows and processing containers
-    
+
 * many other smaller bug-fixes and adjustments
 
 Incompatible Changes
@@ -805,7 +824,7 @@ Extensions
 
 New integrations:
 
-* openEDC 
+* openEDC
 * doccano-image-tagging
 * Federated learning extension
 
@@ -827,7 +846,7 @@ Date: May 30, 2022
 
 Date: May 15, 2022
 
-* Last release with support for kubernetes v1.19 
+* Last release with support for kubernetes v1.19
 
 0.1.0
 =====

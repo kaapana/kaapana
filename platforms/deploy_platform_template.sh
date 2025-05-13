@@ -508,6 +508,10 @@ function deploy_chart {
     {% endfor -%}
     --name-template "$PLATFORM_NAME"
 
+    # In case of timeout-issues in kube helm increase the default timeouts by setting
+    # --set kube-helm-chart.timeouts.helmInstallTimeout=45 \
+    # --set kube-helm-chart.timeouts.helmDeletionTimeout=60 \
+
     # pull_policy_jobs and pull_policy_pods only there for backward compatibility as of version 0.2.0
     if [ ! -z "$CONTAINER_REGISTRY_USERNAME" ] && [ ! -z "$CONTAINER_REGISTRY_PASSWORD" ]; then
         rm $CHART_PATH

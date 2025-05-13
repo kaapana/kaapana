@@ -1,4 +1,5 @@
 from pydantic_settings  import BaseSettings
+from pydantic import computed_field
 import os
 
 
@@ -45,4 +46,24 @@ class Settings(BaseSettings):
     containerd_sock: str = os.getenv("CONTAINERD_SOCK", None)
 
 
+class TimeoutConfig(BaseSettings):
+    shell_cmd_default_timeout: int = 10  # 5
+    helm_pull_container_timeout: int = 2 * 60 * 60
+    helm_install_timeout: int = 15
+    helm_deletion_timeout: int = 20
+
+    # old: helm_install_platform_timeout: int = 45
+    @computed_field
+    @property
+    def helm_install_platform_timeout(self) -> int:
+        return self.helm_install_timeout * 3
+
+    # old: helm_deletion_platform_timeout: int = 60
+    @computed_field
+    @property
+    def helm_deletion_platform_timeout(self) -> int:
+        return self.helm_deletion_timeout * 3
+
+
+timeouts = TimeoutConfig()
 settings = Settings()

@@ -54,6 +54,25 @@ spec:
         - name: DEV_FILES
           value: "True"
 {{- end }}
+
+{{- with .Values.timeouts }}
+  {{- if hasKey . "shellCmdDefaultTimeout" }}
+        - name: SHELL_CMD_DEFAULT_TIMEOUT
+          value: "{{ .shellCmdDefaultTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmPullContainerTimeout" }}
+        - name: HELM_PULL_CONTAINER_TIMEOUT
+          value: "{{ .helmPullContainerTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmInstallTimeout" }}
+        - name: HELM_INSTALL_TIMEOUT
+          value: "{{ .helmInstallTimeout }}"
+  {{- end }}
+  {{- if hasKey . "helmDeletionTimeout" }}
+        - name: HELM_DELETION_TIMEOUT
+          value: "{{ .helmDeletionTimeout }}"
+  {{- end }}
+{{- end }}
         ports: # Port(s) on which your application runs
           - containerPort: 5000
         volumeMounts:

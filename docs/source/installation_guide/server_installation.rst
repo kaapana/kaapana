@@ -137,9 +137,6 @@ To do this, you can use the :term:`server-installation-script`.
 
    | :code:`sudo reboot`
 
-5. (optional) Enable GPU support for Microk8s
-
-   | :code:`sudo ./server_installation.sh -gpu`
 
 .. hint::
 

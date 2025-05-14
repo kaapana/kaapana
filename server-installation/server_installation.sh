@@ -204,28 +204,6 @@ function install_packages_ubuntu {
     fi
 }
 
-function enable_gpu {
-    if [ ! "$QUIET" = "true" ];then
-        while true; do
-            read -p "Do you want to enable GPU support (Only if Nvidia GPU is installed)?" yn
-            case $yn in
-                [Yy]* ) GPU_SUPPORT=true;break;;
-                [Nn]* ) GPU_SUPPORT=false;break;;
-                * ) echo "Please answer yes or no.";;
-            esac
-        done
-    else
-        GPU_SUPPORT=false;
-    fi
-
-    if [ $GPU_SUPPORT == true ];then
-        echo "${YELLOW}Activating GPU ...${NC}"
-        microk8s.enable gpu && echo "${GREEN}OK${NC}" || (echo "${YELLOW}Trying with LD_LIBRARY_PATH to activate GPU ...${NC}" && LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+LD_LIBRARY_PATH:}/lib64" microk8s.enable nvidia) || (echo "${RED}######################## ERROR WHILE ACTIVATING GPU! ########################${NC}" && exit 1)
-        echo "${YELLOW}Waiting for nvidia-device-plugin-daemonset ...${NC}"
-    else
-        echo "${YELLOW}No GPU support.${NC}"
-    fi
-}
 
 function insert_text {
     search_string=$(echo "$1" | sed "s/--//")
@@ -389,8 +367,6 @@ function install_microk8s {
         insert_text "--service-node-port-range=80-32000" /var/snap/microk8s/current/args/kube-apiserver
         echo "${YELLOW}Disable insecure port ...${NC}";
         insert_text "--insecure-port=0" /var/snap/microk8s/current/args/kube-apiserver
-        echo "${YELLOW}Enable ValidatingAdmissionPolicy ...${NC}";
-        insert_text "--feature-gates=ValidatingAdmissionPolicy=true" /var/snap/microk8s/current/args/kube-apiserver
         insert_text "--runtime-config=admissionregistration.k8s.io/v1beta1=true" /var/snap/microk8s/current/args/kube-apiserver
         
         echo "${YELLOW}Set limit of completed pods to 50 ...${NC}";
@@ -505,13 +481,12 @@ echo -e "${GREEN}REAL_USER: $REAL_USER ${NC}";
 echo -e "${GREEN}USER_HOME: $USER_HOME ${NC}";
 echo ""
 
-DEFAULT_MICRO_VERSION=1.31/stable
+DEFAULT_MICRO_VERSION=1.33/stable
 DEFAULT_HELM_VERSION=latest/stable
 
 ### Parsing command line arguments:
 usage="$(basename "$0")
 
-_Flag: -gpu --enable-gpu will activate gpu support for kubernetes (default: false)
 _Flag: -q   --quiet      will activate quiet mode (default: false)
 _Flag:      --uninstall  removes microk8s and helm from the system
 _Flag:      --offline    offline installation for snap packages (expects '*.snap' and '*.assert' files within the working dir)
@@ -540,12 +515,6 @@ do
         -h|--help)
             echo -e "${YELLOW}$usage ${NC}";
             exit 0
-        ;;
-
-        -gpu|--enable-gpu)
-            echo -e "${GREEN}Enabling GPU support... ${NC}";
-            OS_PRESENT="GPUSUPPORT"
-            shift # past argument
         ;;
 
         -os|--operating-system)
@@ -617,10 +586,6 @@ case "$OS_PRESENT" in
         install_core core24 # for helm
         install_helm
         install_microk8s
-    ;;
-
-    "GPUSUPPORT")
-        enable_gpu
     ;;
 
     *)  

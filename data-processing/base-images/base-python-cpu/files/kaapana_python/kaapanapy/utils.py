@@ -17,7 +17,7 @@ class ConfigError(Exception):
     pass
 
 
-def get_keycloak_id(username):
+def get_user_id(username):
     user_resp = requests.get(f"{ServicesSettings().aii_url}/users/username/{username}")
     user_resp.raise_for_status()
     user_id = user_resp.json()["id"]

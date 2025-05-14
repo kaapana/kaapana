@@ -49,7 +49,6 @@ def main():
         logger.critical(f"Configuration error: {e}")
         raise SystemExit(1)  # Gracefully exit the program
 
-    # Do whatever you need with the DCMs files
     notification = Notification(
         topic=notification_settings.topic if notification_settings.topic else dag_id,
         title=notification_settings.title,
@@ -65,7 +64,7 @@ def main():
             else f"/flow/dags/{dag_id}/grid?root=&dag_run_id={run_id}&task_id={task_id}&tab=logs"
         ),
     )
-    NotificationService.send_notification(
+    NotificationService.send(
         user_ids=[get_user_id(username)],
         project_id=project_name,
         notification=notification,

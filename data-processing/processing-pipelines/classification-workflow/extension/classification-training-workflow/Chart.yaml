@@ -7,3 +7,5 @@ version: "0.0.0"
 keywords:
 - kaapanaworkflow
 - gpurequired
+annotations:
+  ui-visible-name: "Classification workflows"

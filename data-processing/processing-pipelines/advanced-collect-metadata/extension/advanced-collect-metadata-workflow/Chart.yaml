@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
 appVersion: "0.1.1"
-description: Advanced collect metadata workflow
+description: "Collect metada from DICOM Segmentation objects and store the result in MinIO"
 name: advanced-collect-metadata-workflow
 version: "0.0.0"
 keywords:

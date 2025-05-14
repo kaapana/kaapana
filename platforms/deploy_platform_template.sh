@@ -374,7 +374,7 @@ function deploy_chart {
                     exit 1
                 fi
             else
-                microk8s.enable gpu
+                microk8s.enable nvidia
             fi
         fi
     fi

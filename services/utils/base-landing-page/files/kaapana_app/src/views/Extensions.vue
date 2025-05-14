@@ -353,7 +353,7 @@ export default Vue.extend({
       {
         text: "Name",
         align: "start",
-        value: "displayName",
+        value: "ui-visible-name",
       },
       {
         text: "Version",
@@ -578,7 +578,7 @@ export default Vue.extend({
             ...item,
           }));
           this.launchedAppLinks = this.launchedAppLinks.map((item: any) => ({
-            displayName: item.annotations?.displayName ?? item.releaseName,
+            ui-visible-name: item.annotations?.ui-visible-name ?? item.releaseName,
             ...item,
           }));
           // console.log(JSON.stringify(this.launchedAppLinks));

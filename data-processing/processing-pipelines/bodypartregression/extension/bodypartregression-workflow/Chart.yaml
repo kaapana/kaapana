@@ -9,4 +9,4 @@ keywords:
 - kaapanaexperimental
 - gpurequired
 annotations:
-  displayName: "Bodypart regression"
+  ui-visible-name: "Bodypart regression"

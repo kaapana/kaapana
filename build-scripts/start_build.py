@@ -3,6 +3,7 @@ from shutil import copyfile, rmtree
 import yaml
 import os
 import logging
+import re
 from os.path import join, dirname, exists
 from time import time
 from argparse import ArgumentParser
@@ -206,8 +207,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-cevdatabase,"
-        "--vulnerability-database",
+        "-cevdatabase," "--vulnerability-database",
         dest="check_expired_vulnerabilities_database",
         default=False,
         action="store_true",
@@ -600,20 +600,40 @@ if __name__ == "__main__":
     logger.info("")
     logger.info("-----------------------------------------------------------")
 
-    if not build_only and not no_login:
-        if registry_user is None:
-            registry_user = os.getenv("REGISTRY_USER", None)
-        if registry_pwd is None:
-            registry_pwd = os.getenv("REGISTRY_PW", None)
-
-        if registry_user == None or registry_pwd == None:
-            logger.error("REGISTRY CREDENTIALS ERROR:")
-            logger.error(
-                f"{build_only=} -> registry_user == None or registry_pwd == None"
+    if not build_only:
+        if default_registry:
+            # Validates the default_registry
+            # Ensures lowercase, correct structure (registry/namespace/repo)
+            pattern = re.compile(
+                r"^([a-z0-9.-]+(?::[0-9]+)?)/"  # Registry (host:port)
+                r"([a-z0-9._-]+(?:/[a-z0-9._-]+)*)$"  # Namespace/repo path
             )
-            logger.error("You have to either specify --username & --password ")
-            logger.error("Or use the ENVs: 'REGISTRY_USER' & 'REGISTRY_PW' !")
-            exit(1)
+
+            match = pattern.match(default_registry)
+            if not match:
+                if any(c.isupper() for c in default_registry):
+                    raise ValueError(
+                        f"Invalid default_registry '{default_registry}': contains uppercase characters, "
+                        "which are not allowed in registry or repository names."
+                    )
+                raise ValueError(
+                    f"Invalid default_registry format: '{default_registry}'. "
+                    "Expected format: registry/namespace/repo (lowercase, alphanumerics, '.', '-', '_'). "
+                )
+        if not no_login:
+            if registry_user is None:
+                registry_user = os.getenv("REGISTRY_USER", None)
+            if registry_pwd is None:
+                registry_pwd = os.getenv("REGISTRY_PW", None)
+
+            if registry_user == None or registry_pwd == None:
+                logger.error("REGISTRY CREDENTIALS ERROR:")
+                logger.error(
+                    f"{build_only=} -> registry_user == None or registry_pwd == None"
+                )
+                logger.error("You have to either specify --username & --password ")
+                logger.error("Or use the ENVs: 'REGISTRY_USER' & 'REGISTRY_PW' !")
+                exit(1)
 
     if log_level not in supported_log_levels:
         logger.error(f"Log level {log_level} not supported.")
@@ -660,8 +680,9 @@ if __name__ == "__main__":
     BuildUtils.version_latest = version_latest
     BuildUtils.enable_image_stats = enable_image_stats
     BuildUtils.create_sboms = create_sboms
-    BuildUtils.check_expired_vulnerabilities_database = conf_check_expired_vulnerabilities_database
-    
+    BuildUtils.check_expired_vulnerabilities_database = (
+        conf_check_expired_vulnerabilities_database
+    )
 
     if (
         BuildUtils.vulnerability_scan

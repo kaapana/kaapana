@@ -12,7 +12,6 @@
       pip:
         requirements: requirements.txt
         state: present
-        extra_args: --user
         executable: pip3
       args:
         chdir: "{{ kaapana_dir }}/docs"

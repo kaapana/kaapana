@@ -27,6 +27,8 @@ def mock_modules():
     sys.modules["kaapanapy"] = MagicMock()
     sys.modules["kaapanapy.settings"] = MagicMock()
     sys.modules["kaapanapy.helper"] = MagicMock()
+    sys.modules["kaapanapy.services"] = MagicMock()
+    sys.modules["kaapanapy.services.NotificationService"] = MagicMock()
 
     from kaapanapy.settings import KaapanaSettings
 

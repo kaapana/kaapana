@@ -105,6 +105,7 @@ unit_tests:
   needs:
   - prepare_pipeline
   script:
+  - source /home/$USER/venv/bin/activate
   - pip install -r $KAAPANA_DIR/tests/requirements.txt
   - pytest $KAAPANA_DIR/tests/ --junitxml=unittest_report.xml
   artifacts:
@@ -123,6 +124,7 @@ build_packages:
   needs:
   - prepare_pipeline
   script:
+  - source /home/$USER/venv/bin/activate
   - if [[ $DOCKER_PRUNE == "true" ]]; then docker system prune --all --volumes -f; fi
   - if [[ $EXECUTE_BUILD == "true" ]]; then ansible-playbook $REPO_DIR/ci-code/build/build_and_push.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_and_push.log; fi
   retry: 1
@@ -134,6 +136,7 @@ build_documentation:
   needs:
   - prepare_pipeline
   script:
+  - source /home/$USER/venv/bin/activate
   - cd $REPO_DIR/ci-code/build
   - ansible-playbook build_documentation.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_build_documentation.log
   - if [[ $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "develop" ]]; then bash check_readthedocs.sh; fi
@@ -150,6 +153,7 @@ prepare_deployment_instance:
   needs:
   - prepare_pipeline
   script:
+  - source /home/$USER/venv/bin/activate
   - ansible-playbook $REPO_DIR/ci-code/prepare/prepare_instance.yaml 2>&1 | tee $ARTIFACTS_DIR/ansible_prepare_instance.log
   - ansible-playbook $REPO_DIR/ci-code/prepare/server_installation.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME" 2>&1 | tee $ARTIFACTS_DIR/ansible_server_installation.log
   artifacts:
@@ -188,6 +192,7 @@ deploy_and_test:
 if_ci_failing:
   stage: clean
   script:
+    - source /home/$USER/venv/bin/activate
     - cd $REPO_DIR/ci-code/clean 
     - python3 create_ticket_if_ci_failed.py
     - python3 notify_slack.py

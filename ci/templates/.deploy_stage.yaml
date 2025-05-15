@@ -18,6 +18,7 @@ workflow:
 platform_deployment:
   stage: deploy
   script:
+    - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/deploy/deploy_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
     - ansible-playbook $REPO_DIR/ci-code/deploy/wait_for_platform.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
     - ansible-playbook $REPO_DIR/ci-code/deploy/check_pods.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
@@ -32,6 +33,7 @@ platform_deployment:
 first_login:
   stage: test
   script:
+    - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/test/get_client_secret.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
     - ansible-playbook $REPO_DIR/ci-code/test/jobs/ui_tests/first_login.yaml
   artifacts: ### Save environment such that upcoming tasks can depend on this task and have all variables available
@@ -44,7 +46,9 @@ first_login:
 
 send_testdata:
   stage: test
-  script: ansible-playbook $REPO_DIR/ci-code/test/jobs/testdata/prepare_data.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
+  script:
+    - source /home/$USER/venv/bin/activate 
+    - ansible-playbook $REPO_DIR/ci-code/test/jobs/testdata/prepare_data.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
   needs:
     - first_login
   allow_failure: false
@@ -56,6 +60,7 @@ send_testdata:
 install_extensions:
   stage: test
   script:
+    - source /home/$USER/venv/bin/activate
     - cd $REPO_DIR/ci-code/test/src
     - python3 install_extensions.py --host $ip_address --install-all --log-file $ARTIFACTS_DIR/install_extensions.log --timeout 600
   needs:
@@ -69,6 +74,7 @@ install_extensions:
 download_models:
   stage: test
   script:
+    - source /home/$USER/venv/bin/activate
     - ansible-playbook ${REPO_DIR}/ci-code/test/jobs/integration_tests/download_models.yaml --extra-vars "ansible_groupname=$DEPLOYMENT_INSTANCE_NAME"
   allow_failure: true
   rules:
@@ -79,6 +85,7 @@ download_models:
 integration_tests:
   stage: test
   script:
+    - source /home/$USER/venv/bin/activate
     - ansible-playbook $REPO_DIR/ci-code/test/jobs/integration_tests/integration_tests.yaml
   needs:
     - first_login
@@ -93,6 +100,8 @@ integration_tests:
 
 port_scan:
   stage: test
-  script: python3 $REPO_DIR/ci-code/test/src/scan_ports.py
+  script:
+    - source /home/$USER/venv/bin/activate 
+    - python3 $REPO_DIR/ci-code/test/src/scan_ports.py
   variables:
     ALLOWED_PORTS: "22,80,443"

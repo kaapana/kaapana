@@ -12,7 +12,6 @@
       pip:
         requirements: requirements.txt
         state: present
-        extra_args: --user
         executable: pip3
       args:
         chdir: "{{ kaapana_dir }}/docs"
@@ -25,31 +24,16 @@
       args:
         chdir: "{{ kaapana_dir }}/docs"
 
-    # - name: build documentation with sphinx
-    #   ignore_errors: true
-    #   register: build_doc_pdf
-    #   ansible.builtin.command:
-    #     cmd: make pdf
-    #   args:
-    #     chdir: "{{ kaapana_dir }}/docs"
 
     - name: save output of building documentation
       ansible.builtin.copy:
         content: "{{ build_doc_html.stdout }} {{ build_doc_html.stderr }}"
         dest: "{{ artifacts_dir }}/build_documentation_html.log"
-    # - name: save output of building documentation
-    #   ansible.builtin.copy:
-    #     content: "{{ build_doc_pdf.stdout }} {{ build_doc_pdf.stderr }}"
-    #     dest: "{{ artifacts_dir }}/build_documentation_pdf.log"
 
     - name: Fail if build failed
       when: build_doc_html.rc != 0
       ansible.builtin.fail:
         msg: "Building the documentation failed"
-    # - name: Fail if build failed
-    #   when: build_doc_html.rc != 0
-    #   ansible.builtin.fail:
-    #     msg: "Building the documentation failed"
 
     - name: Check logs if building the html documentation was successful
       register: build_html_error

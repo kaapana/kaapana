@@ -41,9 +41,8 @@ get_input = GetInputOperator(dag=dag)
 custom_notify = CustomNotifyOperator(dag=dag, input_operator=get_input)
 notify = NotifyOperator(
     dag=dag,
-    topic="nnUnet",
-    title="Training finished",
-    description="<p>The <strong>nnU-Net</strong> training has successfully completed.</p>",
+    title="Notify Operator",
+    description="<p>The <strong>DAG</strong> reached notification Operator.</p>",
 )
 
 clean = LocalWorkflowCleanerOperator(dag=dag, clean_workflow_dir=True)

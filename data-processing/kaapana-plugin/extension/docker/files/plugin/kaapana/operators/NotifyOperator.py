@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 
 from kaapana.blueprints.kaapana_global_variables import (
     DEFAULT_REGISTRY,
@@ -11,12 +12,12 @@ class NotifyOperator(KaapanaBaseOperator):
     def __init__(
         self,
         dag,
+        title: str,
+        description: str,
         name="notify",
-        topic=None,
-        title=None,
-        description=None,
-        icon=None,
-        link=None,
+        topic: Optional[str] = None,
+        icon: Optional[str] = None,
+        link: Optional[str] = None,
         execution_timeout=timedelta(seconds=30),
         env_vars=None,
         **kwargs,
@@ -27,10 +28,10 @@ class NotifyOperator(KaapanaBaseOperator):
 
         envs = {
             "TITLE": str(title),
-            "TOPIC": str(topic),
             "DESCRIPTION": str(description),
-            "ICON": str(icon),
-            "LINK": str(link),
+            "TOPIC": topic or "",
+            "ICON": icon or "",
+            "LINK": link or "",
         }
         env_vars.update(envs)
         super().__init__(

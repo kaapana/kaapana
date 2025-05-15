@@ -58,8 +58,8 @@ def main():
         # Do whatever you need with the DCMs files
         notification = Notification(
             topic=dag_id,
-            title="Otsus Operator successful",
-            description=f"{len(dicom_files)} dicom files found and processed! Operator was successful",
+            title="Custom Notify Operator",
+            description=f"{len(dicom_files)} dicom files found and processed! Custom Notify Operator processed files and sent notification from within.",
             icon="mdi-information",
             link=f"/flow/dags/{dag_id}/grid?root=&dag_run_id={run_id}&task_id={task_id}&tab=logs",
         )

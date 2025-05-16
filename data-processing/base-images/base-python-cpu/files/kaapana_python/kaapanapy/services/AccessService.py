@@ -1,14 +1,16 @@
 import requests
-from kaapanapy.settings import AccessSettings
+from kaapanapy.settings import ServicesSettings
 
-access_settings = AccessSettings()
+access_settings = ServicesSettings()
 
 
 class AccessService:
-    def __init__(self, base_url: str = access_settings.aii_service_url):
+    def __init__(self, base_url: str = access_settings.aii_url):
         self.base_url = base_url
 
-    async def fetch_user_ids(self, project_id: str, include_system: bool = False) -> list[str]:
+    async def fetch_user_ids(
+        self, project_id: str, include_system: bool = False
+    ) -> list[str]:
         response = requests.get(f"{self.base_url}/projects/{project_id}/users")
         if response.status_code == 404:
             return None

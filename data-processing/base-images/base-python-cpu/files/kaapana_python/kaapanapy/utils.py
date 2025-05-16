@@ -1,11 +1,12 @@
-import os
 from glob import glob
 from multiprocessing.pool import ThreadPool
 from os.path import exists, join
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
+import requests
 from kaapanapy.logger import get_logger
+from kaapanapy.settings import ServicesSettings
 
 logger = get_logger(__name__)
 
@@ -14,6 +15,13 @@ class ConfigError(Exception):
     """Custom exception for configuration errors."""
 
     pass
+
+
+def get_user_id(username):
+    user_resp = requests.get(f"{ServicesSettings().aii_url}/users/username/{username}")
+    user_resp.raise_for_status()
+    user_id = user_resp.json()["id"]
+    return user_id
 
 
 def is_batch_mode(workflow_dir: Path, batch_name: Path) -> bool:

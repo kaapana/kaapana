@@ -54,11 +54,11 @@ RUN /bin/bash install.sh --version 4.95.2
 RUN code-server --install-extension ms-python.python
 
 # Copy federated files
-COPY files/kaapana_federated /kaapana_federated
+COPY files/kaapana_federated /app/kaapana_federated
 
 # Install kaapanapy pip package
-COPY files/kaapana_python /kaapana_python
-WORKDIR /kaapana_python
+COPY files/kaapana_python /app/kaapana_python
+WORKDIR /app/kaapana_python
 RUN python3 -m build 
 RUN python3 -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraints/-/raw/0.4.0/constraints.txt dist/kaapanapy-0.0.1.tar.gz
 

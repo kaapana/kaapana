@@ -84,7 +84,7 @@
         server: "{{ os_instance_name }}"
         api_timeout: 120
     - name: delete the instance
-      when: instance_info.openstack_servers | length > 0
+      when: instance_info.servers | length > 0
       register: del_instance
       openstack.cloud.server:
         state: absent
@@ -97,11 +97,11 @@
         name: "{{ os_instance_name }}"
         timeout: 120
     - name: if instance deleted
-      when: instance_info.openstack_servers | length != 0
+      when: instance_info.servers | length != 0
       debug:
         msg: "INSTANCE DELETED SUCCESSFULLY"
     - name: if instance not found
-      when: instance_info.openstack_servers | length == 0
+      when: instance_info.servers | length == 0
       debug: 
         msg: "Instance not found!"
       

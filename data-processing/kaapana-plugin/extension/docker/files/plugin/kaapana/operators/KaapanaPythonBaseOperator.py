@@ -1,7 +1,7 @@
 from datetime import timedelta
 
-from airflow.operators.python import PythonOperator
 from airflow.models.skipmixin import SkipMixin
+from airflow.operators.python import PythonOperator
 from kaapana.operators import HelperSendEmailService
 from kaapana.operators.KaapanaBaseOperator import KaapanaBaseOperator
 
@@ -97,3 +97,8 @@ class KaapanaPythonBaseOperator(PythonOperator, SkipMixin):
         )
         if send_email_on_workflow_failure:
             HelperSendEmailService.handle_task_failure_alert(context)
+        send_notification_on_workflow_failure = context["dag_run"].dag.default_args.get(
+            "send_notification_on_workflow_failure", False
+        )
+        if send_notification_on_workflow_failure:
+            KaapanaBaseOperator.post_notification_to_user_from_context(context)

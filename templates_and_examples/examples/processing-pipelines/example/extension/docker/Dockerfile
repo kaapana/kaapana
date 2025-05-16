@@ -8,4 +8,5 @@ COPY files/dag_example_dcm2nrrd.py /kaapana/tmp/dags/
 COPY files/dag_example_extract_multiple_study_ids.py /kaapana/tmp/dags/
 COPY files/dag_example_extract_study_id.py /kaapana/tmp/dags/
 COPY files/dag_example_pool_study_ids.py /kaapana/tmp/dags/
+COPY files/dag_example_notify.py /kaapana/tmp/dags/
 COPY files/example /kaapana/tmp/dags/example

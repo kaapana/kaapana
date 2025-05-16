@@ -40,6 +40,12 @@ How to create a new user
 6. Click `Create`
 7. Change to the `Credentials` tab of the new user and set a password.
 
+.. note::
+
+   After creating a new user, **do not forget to assign the user to a project** in :ref:`Projects <projects>` section.
+   If a user logs in without being assigned to any project, they may end up in an
+   undefined or broken state (such as an endless reload loop).
+
 Authorization
 ***************
 

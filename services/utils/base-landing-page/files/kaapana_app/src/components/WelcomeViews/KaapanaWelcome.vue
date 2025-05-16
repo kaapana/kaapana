@@ -29,6 +29,12 @@
                   v-icon(x-large) mdi-email
                 v-card-text
                   span kaapana@dkfz.de
+            v-flex(py-1)
+              v-card(to="/web/system/Documentation" elevation=0)
+                v-card-title.justify-center
+                  v-icon(x-large) mdi-book-open
+                v-card-text
+                  span Documentation
 </template>
 
 <script>

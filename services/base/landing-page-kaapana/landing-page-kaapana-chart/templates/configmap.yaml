@@ -107,6 +107,11 @@ data:
             "label": "Projects",
             "endpoint": "/projects-ui",
             "linkTo": "/projects-ui/"
+          },
+          "Documentation": {
+            "label": "Documentation",
+            "endpoint": "/docs/",
+            "linkTo": "/docs/"
           }
         }
       }

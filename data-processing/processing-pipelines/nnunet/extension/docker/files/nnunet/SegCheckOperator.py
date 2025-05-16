@@ -43,9 +43,11 @@ class SegCheckOperator(KaapanaBaseOperator):
             "FORCE_SAME_LABELS": str(force_same_labels),
             "DELETE_MERGED_DATA": str(delete_merged_data),
             "MERGE_FOUND_NIFTIS": str(merge_found_niftis),
-            "TARGET_DICT_DIR": str(target_dict_operator.operator_out_dir)
-            if target_dict_operator is not None
-            else str(None),
+            "TARGET_DICT_DIR": (
+                str(target_dict_operator.operator_out_dir)
+                if target_dict_operator is not None
+                else str(None)
+            ),
             "DELETE_NON_TARGET_LABELS": str(delete_non_target_labels),
             "INTERPOLATOR": str(interpolator),
         }
@@ -58,6 +60,6 @@ class SegCheckOperator(KaapanaBaseOperator):
             image_pull_secrets=["registry-secret"],
             execution_timeout=execution_timeout,
             env_vars=env_vars,
-            ram_mem_mb=40000,
+            ram_mem_mb=10000,
             **kwargs,
         )

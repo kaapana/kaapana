@@ -176,7 +176,7 @@
         - name: Reset ssh key for ip address
           ignore_errors: yes
           ansible.builtin.command: 
-            cmd: "ssh-keygen -R {{ openstack_result.server.addresses['E230-GPU-Kaapana-intern'][1].addr }}"   
+            cmd: "ssh-keygen -R {{ openstack_result.server.addresses['e230-gpu-kaapana-net'][1].addr }}"   
         
         - name: Wait for SSH on the Instance
           register: result
@@ -184,4 +184,4 @@
           retries: 30
           delay: 10
           ansible.builtin.command: 
-            cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ openstack_result.server.addresses['E230-GPU-Kaapana-intern'][1].addr }} true"
+            cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ openstack_result.server.addresses['e230-gpu-kaapana-net'][1].addr }} true"

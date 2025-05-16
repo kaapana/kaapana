@@ -7,8 +7,10 @@ spec:
   schedule: "*/1 * * * *"
   jobTemplate:
     spec:
+      ttlSecondsAfterFinished: 60
       template:
         spec:
+          ttlSecondsAfterFinished: 60
           initContainers:
           - name: init
             image: "{{ .Values.global.registry_url }}/service-checker:{{ .Values.global.kaapana_build_version  }}"
@@ -27,9 +29,9 @@ spec:
             command: ["/bin/sh","backup-security.sh"]
             resources:
               requests:
-                memory: "2000Mi"
+                memory: "100Mi"
               limits:
-                memory: "5000Mi"
+                memory: "500Mi"
             volumeMounts:
               - name: os-security-backup
                 mountPath: /kaapana/opensearch-security-backup

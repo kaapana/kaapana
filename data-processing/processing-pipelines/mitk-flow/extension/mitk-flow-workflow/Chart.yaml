@@ -1,10 +1,11 @@
 ---
 apiVersion: v1
 appVersion: "2022.10"
-description: Interactive MITK segmenation
+description: "Workflow that deploys a MITK workbench with a task list of segmentation tasks"
 name: mitk-flow-workflow
 version: "0.0.0"
 keywords:
 - kaapanaworkflow
 annotations:
   documentation: "user_guide/extensions.html#mitk-flow"
+  ui-visible-name: "Interactive MITK segmenation"

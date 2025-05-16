@@ -8,3 +8,5 @@ keywords:
 - kaapanaworkflow
 - kaapanaexperimental
 - gpurequired
+annotations:
+  ui-visible-name: "Bodypart regression"

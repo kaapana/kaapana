@@ -74,10 +74,18 @@ A deployment-instance is used to deploy a Kaapana platform.
     ```bash
     cp file_templates/ci-settings-template.yaml file_templates/ci-settings.yaml
     ```
-5. Run the `ci/setup_playbooks/setup_ci.yaml`.
-6. SSH to the kaapana-ci instance
-7. On the ci-instance, there should be a file `$HOME/.gitlab-runner/config.toml`
-8. This file should contain a section similar to the one below. 
+5. In `setup_ci.yaml` set a path to a python interpreter in a virtual environment, where you have installed all required dependencies
+```yaml
+  vars:
+    ansible_python_interpreter: "<path-to-python3-interpreter in virtualenv>"
+
+  environment:
+    PYTHONPATH: "<path-to-python3-interpreter in virtualenv>"
+```
+6. Run the `ci/setup_playbooks/setup_ci.yaml`.
+7. SSH to the kaapana-ci instance
+8. On the ci-instance, there should be a file `$HOME/.gitlab-runner/config.toml`
+9. This file should contain a section similar to the one below. 
     Make sure, that the subsection `[runners.custom_build_dir]` exists.
       ```bash
       [[runners]]
@@ -94,8 +102,8 @@ A deployment-instance is used to deploy a Kaapana platform.
           enabled = true
       ```
 
-9. Start the gitlab-runner service in the background `nohup gitlab-runner run </dev/null &>/dev/null &`
-10. Check if everything works, by triggering a web-pipeline in your GitLab project.
+10. Start the gitlab-runner service in the background `nohup gitlab-runner run </dev/null &>/dev/null &`
+11. Check if everything works, by triggering a web-pipeline in your GitLab project.
 
 The playbook at `ci/setup_playbooks/setup_ci.yaml` automates the following steps to get your ci instance up and running:
 

@@ -27,8 +27,11 @@
 - name: install python requirements
   become: yes
   pip:
-    name: ['docker', 'docker-compose']
+    name: 
+      - docker
     state: present
+    virtualenv: "{{ ansible_env.HOME }}/venv"
+    virtualenv_python: python3.12
 
 - name: groupadd
   command: groupadd docker

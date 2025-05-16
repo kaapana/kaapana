@@ -7,14 +7,9 @@
   become: yes
   snap:
     classic: yes
-    channel: 3.7/stable
+    channel: latest/stable
     name:
       - helm
-
-# - name: install helm push
-#   become: no
-#   command: /snap/bin/helm plugin install https://github.com/chartmuseum/helm-push
-#   ignore_errors: yes
 
 - name: Check helm push installed
   become: no

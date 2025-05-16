@@ -39,7 +39,7 @@
       register: result_slurp
       no_log: true
     - name: delete instance
-      no_log: true
+      no_log: false
       vars:
         os_action: absent
         os_password: "{{ result_slurp.content | b64decode | regex_replace('[\\r\\n\\t]+','') }}"

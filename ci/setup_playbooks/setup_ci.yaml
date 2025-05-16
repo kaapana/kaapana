@@ -18,10 +18,10 @@
   vars_files:
     - file_templates/setup_vars.yaml
   vars:
-    ansible_python_interpreter: "<path-to-python3-interpreter in virtualenv"
+    ansible_python_interpreter: "<path-to-python3-interpreter in virtualenv>"
 
   environment:
-    PYTHONPATH: "<path-to-python3-interpreter in virtualenv"
+    PYTHONPATH: "<path-to-python3-interpreter in virtualenv>"
   
   tasks:
 

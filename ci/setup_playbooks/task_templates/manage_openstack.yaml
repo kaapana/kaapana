@@ -169,10 +169,8 @@
           delay: 10
           ansible.builtin.command: 
             cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ openstack_result.server.addresses['E230-Kaapana-CI-intern'][1].addr }} true"
-        - name: Set ip address for the next task  
 
-
-    - name: Project E230-Kaapana
+    - name: Project "E230-GPU-Kaapana"
       when: os_project_name == "E230-GPU-Kaapana"
       block:
         - name: Reset ssh key for ip address
@@ -187,4 +185,3 @@
           delay: 10
           ansible.builtin.command: 
             cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ openstack_result.server.addresses['E230-GPU-Kaapana-intern'][1].addr }} true"
-        - name: Set ip address for the next task  

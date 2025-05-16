@@ -9,7 +9,7 @@ Workflow fails without logs
 
 If there are no logs in the Airflow UI and the workflow fails, try to retrace your steps. If you changed some module inside the Airflow scheduler, 
 it might be that Airflow can no longer parse the DAG file due to the changes. This is usually caused by a Python error such as an ImportError, 
-including issues with imported packages.
+including issues with imported packages, or by a file that cannot be parsed by Airflow as a DAG or operator — for example, a `.zip` file or other unsupported formats.
 
 In such cases, Airflow cannot register the workflow, and therefore cannot show you logs.
 

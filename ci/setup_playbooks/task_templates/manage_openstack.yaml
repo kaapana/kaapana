@@ -134,7 +134,7 @@
           username: "{{ os_username }}"
           password: "{{ os_password }}"
           user_domain_name: "AD"
-          project_name: "{{ os_project_name}}"
+          project_name: "{{ os_project_name }}"
         name: "{{ os_instance_name }}"
         key_name: "{{ os_key_name }}"
         image: "{{ os_instance_image }}"
@@ -150,15 +150,41 @@
         timeout: 300
         meta:
           hostname: openstack_result.localdomain
-    - name: Reset ssh key for ip address
-      ignore_errors: yes
-      ansible.builtin.command: 
-        cmd: "ssh-keygen -R {{ openstack_result.openstack.accessIPv4 }}"   
-    - name: Wait for SSH on the Instance
-      register: result
-      until: result.rc == 0
-      retries: 30
-      delay: 10
-      ansible.builtin.command: 
-        cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ openstack_result.openstack.accessIPv4 }} true"
-      
+
+    - debug:
+        msg: "{{ openstack_result }}"
+
+    - name: Project E230-Kaapana
+      when: os_project_name == "E230-Kaapana"
+      block:
+        - name: Reset ssh key for ip address
+          ignore_errors: yes
+          ansible.builtin.command: 
+            cmd: "ssh-keygen -R {{ openstack_result.server.addresses['E230-Kaapana-CI-intern'][1].addr }}"   
+        
+        - name: Wait for SSH on the Instance
+          register: result
+          until: result.rc == 0
+          retries: 30
+          delay: 10
+          ansible.builtin.command: 
+            cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ openstack_result.server.addresses['E230-Kaapana-CI-intern'][1].addr }} true"
+        - name: Set ip address for the next task  
+
+
+    - name: Project E230-Kaapana
+      when: os_project_name == "E230-GPU-Kaapana"
+      block:
+        - name: Reset ssh key for ip address
+          ignore_errors: yes
+          ansible.builtin.command: 
+            cmd: "ssh-keygen -R {{ openstack_result.server.addresses['E230-GPU-Kaapana-intern'][1].addr }}"   
+        
+        - name: Wait for SSH on the Instance
+          register: result
+          until: result.rc == 0
+          retries: 30
+          delay: 10
+          ansible.builtin.command: 
+            cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ openstack_result.server.addresses['E230-GPU-Kaapana-intern'][1].addr }} true"
+        - name: Set ip address for the next task  

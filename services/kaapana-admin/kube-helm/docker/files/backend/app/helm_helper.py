@@ -98,7 +98,11 @@ async def exec_shell_cmd_async(
 
 
 def execute_shell_command(
-    command, shell=False, blocking=True, timeout=timeouts.shell_cmd_default_timeout, skip_check=False
+    command,
+    shell=False,
+    blocking=True,
+    timeout=timeouts.shell_cmd_default_timeout,
+    skip_check=False,
 ) -> Tuple[bool, str]:
     """Runs given command via subprocess.run or subprocess.Popen
 
@@ -434,37 +438,37 @@ def get_extensions_list() -> Union[List[schemas.KaapanaExtension], None]:
     keywords_filter = ["kaapanaapplication", "kaapanaworkflow"]
 
     try:
-        logger.info(f"update_running: {update_running}")
-        logger.info(f"last_refresh_timestamp: {last_refresh_timestamp}")
-        if last_refresh_timestamp is not None:
-            logger.info(
-                f"time since last refresh: {time.time() - last_refresh_timestamp:.2f} seconds"
-            )
-        logger.info(f"refresh delay: {REFRESH_DELAY}")
         # Check if we need a refresh
-        needs_refresh = (
-            not update_running
-            and global_extensions_list  # != None
-            and (
-                last_refresh_timestamp == None
-                or (time.time() - last_refresh_timestamp) >= REFRESH_DELAY
+        check = (
+            update_running
+            or global_extensions_list == None
+            or (
+                last_refresh_timestamp != None
+                and (time.time() - last_refresh_timestamp) < REFRESH_DELAY
             )
         )
-        if not needs_refresh:
+
+        if check:
             logger.info("skipping list generation -> returning cached list")
             return global_extensions_list
 
         # Check  for recently updated extensions
-        global_extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
+        extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
         if settings.recent_update_cache:
-            global_extensions_list = update_recently_changed_extensions(keywords_filter)
+            global_extensions_list = update_recently_changed_extensions(
+                keywords_filter, extensions_dict
+            )
             if global_extensions_list:
                 return global_extensions_list
 
         # Generate a completely new list
         logger.info("Generating new extension-list ...")
         last_refresh_timestamp = time.time()
-        result_list = generate_fresh_extensions_list(keywords_filter)
+        result_list = generate_fresh_extensions_list(
+            keywords_filter=keywords_filter,
+            platforms=False,
+            extensions_dict=extensions_dict,
+        )
         global_extensions_release_names = set()
         # Filter out duplicates by releaseName
         filtered_result_list = []
@@ -500,23 +504,22 @@ def get_platforms_list() -> Union[List[schemas.KaapanaExtension], None]:
     try:
 
         # Check if we need a refresh
-        needs_refresh = (
-            not update_running
-            and global_platforms_list  # != None
-            and (
-                last_refresh_timestamp == None
-                or (time.time() - last_refresh_timestamp) >= REFRESH_DELAY
+        check = (
+            update_running
+            or global_platforms_list == None
+            or (
+                last_refresh_timestamp_platforms != None
+                and (time.time() - last_refresh_timestamp_platforms) < REFRESH_DELAY
             )
         )
 
-        if not needs_refresh:
+        if check:
             # logger.debug("skipping platform list generation -> returning cached list")
             return global_platforms_list
 
         # Generate a completely new list
         logger.info("Generating new platforms-list ...")
         last_refresh_timestamp_platforms = time.time()
-        global_extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
         global_platforms_list = generate_fresh_extensions_list(
             keywords_filter=keywords_filter, platforms=True
         )
@@ -530,6 +533,7 @@ def get_platforms_list() -> Union[List[schemas.KaapanaExtension], None]:
 
 def update_recently_changed_extensions(
     keywords_filter: List,
+    extensions_dict: Dict[str, schemas.KaapanaExtension],
 ) -> Union[List[schemas.KaapanaExtension], None]:
     """
     Updates only the extensions that have changed recently
@@ -567,16 +571,16 @@ def update_recently_changed_extensions(
             logger.debug(f"{dep=}, {tgz=}")
 
         extension_id, extension_dict = list(tgz.items())[0]
-        global_extensions_dict = add_extension_to_dict(
+        extensions_dict = add_extension_to_dict(
             extension_id=extension_id,
             extension_dict=extension_dict,
-            global_extensions_dict=global_extensions_dict,
+            global_extensions_dict=extensions_dict,
             deployed_extensions_dict=dep,
         )
 
         # Add to cache if a new extension is uploaded
         if ind >= len(global_extensions_list):
-            extension = global_extensions_dict[extension_dict["name"]]
+            extension = extensions_dict[extension_dict["name"]]
             name = extension.chart_name
             if name in global_extensions_release_names:
                 logger.info(f"{name} already in the list, avoiding duplicate entries")
@@ -586,7 +590,7 @@ def update_recently_changed_extensions(
 
     # Convert dictionary to list format
     res: List[schemas.KaapanaExtension] = []
-    for _, extension_info in global_extensions_dict.items():
+    for _, extension_info in extensions_dict.items():
         res = add_info_from_deployments(
             extension_info,
             res,
@@ -608,7 +612,9 @@ def update_recently_changed_extensions(
 
 
 def generate_fresh_extensions_list(
-    keywords_filter, platforms: bool = False
+    keywords_filter,
+    platforms: bool = False,
+    extensions_dict: Dict[str, schemas.KaapanaExtension] = {},
 ) -> List[schemas.KaapanaExtension]:
     """
     Generates a completely new list of extensions
@@ -620,7 +626,7 @@ def generate_fresh_extensions_list(
     Returns:
         List[schemas.KaapanaExtension]
     """
-    global update_running, global_extensions_dict
+    global update_running
 
     update_running = True
     # Collect available charts and deployed extensions
@@ -631,17 +637,17 @@ def generate_fresh_extensions_list(
 
     # Build extension dictionary
     for extension_id, extension_dict in available_extension_charts_tgz.items():
-        global_extensions_dict = add_extension_to_dict(
+        extensions_dict = add_extension_to_dict(
             extension_id=extension_id,
             extension_dict=extension_dict,
-            global_extensions_dict=global_extensions_dict,
+            global_extensions_dict=extensions_dict,
             deployed_extensions_dict=deployed_extensions_dict,
         )
 
     # Convert dictionary to list format
     update_running = False
     result_list = []
-    for _, extension_info in global_extensions_dict.items():
+    for _, extension_info in extensions_dict.items():
         result_list = add_info_from_deployments(extension_info, result_list)
 
     return result_list

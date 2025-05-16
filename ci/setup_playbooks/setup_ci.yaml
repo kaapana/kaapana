@@ -17,6 +17,11 @@
       private: yes
   vars_files:
     - file_templates/setup_vars.yaml
+  vars:
+    ansible_python_interpreter: "<path-to-python3-interpreter in virtualenv"
+
+  environment:
+    PYTHONPATH: "<path-to-python3-interpreter in virtualenv"
   
   tasks:
 
@@ -32,7 +37,7 @@
           cmd: "ssh -oBatchMode=yes -oStrictHostKeyChecking=no -i {{ ssh_key_file }} ubuntu@{{ ci_instance_ip  }} true"
 
 
-  - name: Use openstack instance as CI-instance
+  - name: Launch a new openstack instance as CI-instance
     when: ci_instance_ip is not defined
     environment:
       OS_IDENTITY_API_VERSION: 2
@@ -46,7 +51,7 @@
           task_templates/manage_openstack.yaml
       - name: Set ip-address corresponding to openstack instance
         ansible.builtin.set_fact:
-          ci_instance_ip: "{{ openstack_result.openstack.accessIPv4 }}"
+          ci_instance_ip: "{{ openstack_result.server.addresses['E230-Kaapana-CI-intern'][1].addr }}"
 
   - debug:
       msg: "{{ ci_instance_ip }}"

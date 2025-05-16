@@ -72,8 +72,13 @@
     - name: create instance
       ansible.builtin.import_tasks: "{{ repo_dir }}/setup_playbooks/task_templates/manage_openstack.yaml"
     - name: Set ip address for the next task
+      when: os_project_name == "E230-Kaapana"
       set_fact: 
-        ip_address: "{{ openstack_result.openstack.accessIPv4 }}"
+        ip_address: "{{ openstack_result.server.addresses['E230-Kaapana-CI-intern'][1].addr }}"
+    - name: Set ip address for the next task
+      when: os_project_name == "E230-GPU-Kaapana"
+      set_fact: 
+        ip_address: "{{ openstack_result.server.addresses['e230-gpu-kaapana-net'][1].addr }}"
 
   - name: Use an existing instance with the ip address specified as DEPLOYMENT_INSTANCE_IP
     when: deployment_instance_ip | lower != "none" and deployment_instance_ip | lower != ""

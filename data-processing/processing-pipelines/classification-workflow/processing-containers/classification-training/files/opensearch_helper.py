@@ -1,7 +1,7 @@
 import os
 from typing import List
 import logging
-from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.settings import OpensearchSettings
 
 # Create a custom logger
@@ -20,8 +20,11 @@ logger.addHandler(c_handler)
 SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]
 HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
 PORT = "9200"
-INDEX = OpensearchSettings().default_index
-
+workflow_config = load_workflow_config()
+project_form = workflow_config.get("project_form", {})
+opensearch_index = project_form.get(
+    "opensearch_index", OpensearchSettings().default_index
+)
 os_client = get_opensearch_client()
 
 
@@ -34,7 +37,7 @@ class OpenSearchHelper:
             size = 10
             while True:
                 response = os_client.search(
-                    index=INDEX,
+                    index=opensearch_index,
                     body={
                         "query": {"term": {"00000000 Tags_keyword.keyword": tag}},
                         "from": from_index,

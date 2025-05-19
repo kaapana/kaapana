@@ -1,6 +1,6 @@
 import os
 
-from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.settings import OpensearchSettings
 
 SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]

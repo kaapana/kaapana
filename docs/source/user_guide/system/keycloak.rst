@@ -44,7 +44,7 @@ How to create a new user
 
    After creating a new user, **do not forget to assign the user to a project** in :ref:`Projects <projects>` section.
    If a user logs in without being assigned to any project, they may end up in an
-   undefined or broken state (such as an endless reload loop).
+   undefined or broken state, such as an endless reload loop. In the case this happens, delete browser cookies manually to reset the state.
 
 Authorization
 ***************

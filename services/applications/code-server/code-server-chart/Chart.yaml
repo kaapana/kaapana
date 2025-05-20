@@ -8,3 +8,4 @@ keywords:
 - kaapanaint
 annotations:
   documentation: "user_guide/extensions.html#code-server"
+  ui-visible-name: "Code Server for Airflow"

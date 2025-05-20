@@ -7,3 +7,4 @@ keywords:
 - kaapanaapplication
 annotations:
   documentation: "user_guide/extensions.html#collabora"
+  ui-visible-name: "Collabora"

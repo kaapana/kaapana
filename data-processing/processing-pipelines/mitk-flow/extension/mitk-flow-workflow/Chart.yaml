@@ -8,4 +8,4 @@ keywords:
 - kaapanaworkflow
 annotations:
   documentation: "user_guide/extensions.html#mitk-flow"
-  ui-visible-name: "Interactive MITK Segmenation"
+  ui-visible-name: "Interactive MITK Segmentation"

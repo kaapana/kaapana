@@ -8,3 +8,4 @@ keywords:
 - kaapanamultiinstallable
 annotations:
   documentation: "user_guide/extensions.html#tensorboard"
+  ui-visible-name: "Tensorboard"

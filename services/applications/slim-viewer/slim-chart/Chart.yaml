@@ -7,3 +7,5 @@ version: "0.0.0"
 keywords:
 - kaapanaapplication
 - kaapanaexperimental
+annotations:
+  ui-visible-name: "Slim Viewer"

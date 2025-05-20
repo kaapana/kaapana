@@ -1,7 +1,7 @@
 ---
 apiVersion: v1
 appVersion: 0.1.0
-description: Add new registry secrets to platform
+description: Chart for adding new registry secrets to platform
 name: custom-registry-chart
 version: "0.0.0"
 ignore_linting: true
@@ -9,3 +9,5 @@ keywords:
 - kaapanaapplication
 - kaapanaexperimental
 - kaapanamultiinstallable
+annotations:
+  ui-visible-name: "New Registry"

@@ -5,13 +5,21 @@ from glob import glob
 from os.path import basename, exists, join, normpath
 from typing import Dict
 
-from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
+from kaapanapy.helper import (
+    get_opensearch_client,
+    get_project_user_access_token,
+    load_workflow_config,
+)
 from kaapanapy.settings import OpensearchSettings
 
 # instatiate opensearch access
 access_token = get_project_user_access_token()
 os_client = get_opensearch_client(access_token=access_token)
-index = OpensearchSettings().default_index
+workflow_config = load_workflow_config()
+project_form = workflow_config.get("project_form", {})
+opensearch_index = project_form.get(
+    "opensearch_index", OpensearchSettings().default_index
+)
 
 
 def _get_dataset_json(model_path, installed_task):
@@ -220,12 +228,16 @@ def get_tasks():
         installed_tasks = _get_installed_tasks(af_home_path=af_home_path)
         all_selectable_tasks = installed_tasks.copy()
         all_selectable_tasks.update(tasks)
-        
+
         sorted_available_pretrained_task_names = sorted(available_pretrained_task_names)
         sorted_installed_tasks = dict(sorted(installed_tasks.items()))
         sorted_all_selectable_tasks = dict(sorted(all_selectable_tasks.items()))
 
-        return sorted_available_pretrained_task_names, sorted_installed_tasks, sorted_all_selectable_tasks
+        return (
+            sorted_available_pretrained_task_names,
+            sorted_installed_tasks,
+            sorted_all_selectable_tasks,
+        )
     except Exception as e:
         print("Error in getTasks.py: ", e)
         return [], {}, {}
@@ -263,7 +275,7 @@ def get_available_protocol_names():
     }
     queryDict["_source"] = {}
     try:
-        res = os_client.search(index=[index], body=queryDict)
+        res = os_client.search(index=[opensearch_index], body=queryDict)
         hits = res["hits"]["hits"]
         print(f"HITS: {hits=}")
 

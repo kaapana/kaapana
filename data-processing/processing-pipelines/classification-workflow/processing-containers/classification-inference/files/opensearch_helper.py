@@ -1,12 +1,16 @@
 import os
 
-from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.settings import OpensearchSettings
 
 SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]
 HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
 PORT = "9200"
-INDEX = OpensearchSettings().default_index
+workflow_config = load_workflow_config()
+project_form = workflow_config.get("project_form", {})
+opensearch_index = project_form.get(
+    "opensearch_index", OpensearchSettings().default_index
+)
 
 os_client = get_opensearch_client()
 
@@ -26,4 +30,4 @@ class OpenSearchHelper:
             update_body = {"doc": {"00000000 Tags_keyword": current_tags}}
 
             # Execute the update
-            os_client.update(index=INDEX, id=doc_id, body=update_body)
+            os_client.update(index=opensearch_index, id=doc_id, body=update_body)

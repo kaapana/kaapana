@@ -1163,8 +1163,8 @@ def create_dataset(
     db: Session, dataset: schemas.DatasetCreate, project_id: Optional[UUID] = None
 ):
     logging.debug(f"Creating Dataset: {dataset.name}")
-    if not project_uuid:
-        project_uuid = UUID(fetch_default_project_uuid())
+    if not project_id:
+        project_id = UUID(fetch_default_project_id())
 
     if dataset.kaapana_instance_id is None:
         db_kaapana_instance = (

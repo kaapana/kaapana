@@ -25,22 +25,24 @@ def upgrade():
     # Add UUID columns to tables
     op.add_column(
         "projects",
-        sa.Column("uuid_id", UUID(as_uuid=True), nullable=True, default=uuid.uuid4),
+        sa.Column(
+            "project_uuid", UUID(as_uuid=True), nullable=True, default=uuid.uuid4
+        ),
     )
     op.add_column(
         "software_mappings",
-        sa.Column("project_id", UUID(as_uuid=True), nullable=True),
+        sa.Column("project_uuid", UUID(as_uuid=True), nullable=True),
     )
     op.add_column(
         "users_projects_roles",
-        sa.Column("project_id", UUID(as_uuid=True), nullable=True),
+        sa.Column("project_uuid", UUID(as_uuid=True), nullable=True),
     )
 
     # Update UUID column with new UUID values
     # Use Python's `uuid.uuid4()` for generating UUIDs for each row
     op.execute(
         """
-        UPDATE projects SET uuid_id = '"""
+        UPDATE projects SET project_uuid = '"""
         + str(uuid.uuid4())
         + """';
         """
@@ -49,19 +51,19 @@ def upgrade():
     op.execute(
         """
         UPDATE software_mappings
-        SET project_id = (SELECT uuid_id FROM projects WHERE projects.id = software_mappings.project_id)
+        SET project_uuid = (SELECT project_uuid FROM projects WHERE projects.id = software_mappings.project_id)
         """
     )
     op.execute(
         """
         UPDATE users_projects_roles
-        SET project_id = (SELECT uuid_id FROM projects WHERE projects.id = users_projects_roles.project_id)
+        SET project_uuid = (SELECT project_uuid FROM projects WHERE projects.id = users_projects_roles.project_id)
     """
     )
 
-    op.alter_column("projects", "uuid_id", nullable=False)
-    op.alter_column("software_mappings", "project_id", nullable=False)
-    op.alter_column("users_projects_roles", "project_id", nullable=False)
+    op.alter_column("projects", "project_uuid", nullable=False)
+    op.alter_column("software_mappings", "project_uuid", nullable=False)
+    op.alter_column("users_projects_roles", "project_uuid", nullable=False)
 
     # Drop old foreign key constraints
     op.drop_constraint(
@@ -86,16 +88,31 @@ def upgrade():
         nullable=True,
     )
 
-    # Rename new uuid_id to sid
+    # Rename new uuid_id to uuid
     op.alter_column(
         "projects",
-        "uuid_id",
+        "project_uuid",
         new_column_name="id",
         existing_type=UUID(as_uuid=True),
     )
 
     # Add a new primary key constraint on the UUID `id` column in `projects`
     op.create_primary_key("projects_pkey", "projects", ["id"])
+
+    op.drop_column("software_mappings", "project_id")
+    op.drop_column("users_projects_roles", "project_id")
+    op.alter_column(
+        "software_mappings",
+        "project_uuid",
+        new_column_name="project_id",
+        nullable=False,
+    )
+    op.alter_column(
+        "users_projects_roles",
+        "project_uuid",
+        new_column_name="project_id",
+        nullable=False,
+    )
 
     # Create new foreign keys on the `project_id` columns, now pointing to the new `id` column in `projects`
     op.create_foreign_key(

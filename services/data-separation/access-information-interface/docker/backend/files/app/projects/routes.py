@@ -43,7 +43,7 @@ async def projects(
     try:
         created_project = await crud.create_project(session, project)
         if project.default:
-            await crud.set_admin_project(session, project_uuid=created_project.id)
+            await crud.set_admin_project(session, project_id=created_project.id)
 
     except IntegrityError:
         logger.warning(f"{project=} already exists!")
@@ -76,12 +76,14 @@ async def projects(
 
 @router.get("", response_model=List[schemas.Project], tags=["Projects"])
 async def get_projects(session: AsyncSession = Depends(get_session)):
+    print(crud.get_projects(session))
     return await crud.get_projects(session)
 
 
 @router.get("/admin", response_model=schemas.Project, tags=["Projects"])
 async def get_admin_project(session: AsyncSession = Depends(get_session)):
     project = await crud.get_admin_project(session)
+    print(project)
     return project
 
 
@@ -107,11 +109,11 @@ async def get_project(
         projects = await crud.get_admin_project(session)
 
     if isinstance(project_identifier, UUID):
-        projects = await crud.get_projects(session, project_uuid=project_identifier)
+        projects = await crud.get_projects(session, project_id=project_identifier)
     else:
         try:
-            project_uuid = UUID(project_identifier)
-            projects = await crud.get_projects(session, project_uuid=project_uuid)
+            project_id = UUID(project_identifier)
+            projects = await crud.get_projects(session, project_id=project_id)
         except ValueError:
             projects = await crud.get_projects(session, project_name=project_identifier)
 
@@ -120,15 +122,13 @@ async def get_project(
     return projects[0]
 
 
-@router.get(
-    "/{project_uuid}/users", response_model=List[KeycloakUser], tags=["Projects"]
-)
+@router.get("/{project_id}/users", response_model=List[KeycloakUser], tags=["Projects"])
 async def get_project_users(
-    project_uuid: UUID,
+    project_id: UUID,
     session: AsyncSession = Depends(get_session),
     kc_client: KeycloakHelper = Depends(get_keycloak_helper),
 ):
-    project: schemas.Project = await get_project(str(project_uuid), session)
+    project: schemas.Project = await get_project(str(project_id), session)
 
     project_users = await crud.get_project_users_roles_mapping(session, project.id)
 
@@ -151,38 +151,38 @@ async def get_keycloak_user(keycloak_id: str):
 
 
 @router.get(
-    "/{project_uuid}/users/{user_id}/roles",
+    "/{project_id}/users/{user_id}/roles",
     response_model=schemas.Role,
     tags=["Projects"],
 )
 async def get_project_user_role(
-    project_uuid: UUID, user_id: str, session: AsyncSession = Depends(get_session)
+    project_id: UUID, user_id: str, session: AsyncSession = Depends(get_session)
 ):
-    project: schemas.Project = await get_project(project_uuid, session)
+    project: schemas.Project = await get_project(project_id, session)
     user: KeycloakUser = await get_keycloak_user(user_id)
 
     try:
         return await crud.get_user_role_in_project(
-            session, keycloak_id=user.id, project_uuid=project.id
+            session, keycloak_id=user.id, project_id=project.id
         )
     except Exception:
         raise HTTPException(status_code=204, detail="No Role found for the User")
 
 
 @router.get(
-    "/{project_uuid}/users/{user_id}/rights",
+    "/{project_id}/users/{user_id}/rights",
     response_model=List[schemas.Right],
     tags=["Projects"],
 )
 async def get_project_user_rights(
-    project_uuid: UUID, user_id: str, session: AsyncSession = Depends(get_session)
+    project_id: UUID, user_id: str, session: AsyncSession = Depends(get_session)
 ):
-    project: schemas.Project = await get_project(project_uuid, session)
+    project: schemas.Project = await get_project(project_id, session)
     user: KeycloakUser = await get_keycloak_user(user_id)
 
     try:
         result = await crud.get_user_rights_in_project(
-            session, keycloak_id=user.id, project_uuid=project.id
+            session, keycloak_id=user.id, project_id=project.id
         )
     except Exception:
         raise HTTPException(status_code=204, detail="No Rights found for the User")
@@ -193,15 +193,15 @@ async def get_project_user_rights(
     return result
 
 
-@router.post("/{project_uuid}/role/{role_name}/user/{user_id}", tags=["Projects"])
+@router.post("/{project_id}/role/{role_name}/user/{user_id}", tags=["Projects"])
 async def post_user_project_role_mapping(
-    project_uuid: UUID,
+    project_id: UUID,
     role_name: str,
     user_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """Create a UserProjectRole mapping"""
-    db_project = await crud.get_projects(session, project_uuid)
+    db_project = await crud.get_projects(session, project_id)
     db_role = await crud.get_roles(session, role_name)
 
     if len(db_project) == 0 or len(db_role) == 0:
@@ -222,15 +222,15 @@ async def post_user_project_role_mapping(
         )
 
 
-@router.put("/{project_uuid}/user/{user_id}/rolemapping", tags=["Projects"])
+@router.put("/{project_id}/user/{user_id}/rolemapping", tags=["Projects"])
 async def update_user_project_role_mapping(
-    project_uuid: UUID,
+    project_id: UUID,
     user_id: str,
     role_name: str,
     session: AsyncSession = Depends(get_session),
 ):
     """Update a UserProjectRole mapping"""
-    db_project = await crud.get_projects(session, project_uuid)
+    db_project = await crud.get_projects(session, project_id)
     db_role = await crud.get_roles(session, role_name)
 
     if len(db_project) == 0 or len(db_role) == 0:
@@ -251,14 +251,14 @@ async def update_user_project_role_mapping(
         raise HTTPException(status_code=404, detail="Mapping not found")
 
 
-@router.delete("/{project_uuid}/user/{user_id}/rolemapping", tags=["Projects"])
+@router.delete("/{project_id}/user/{user_id}/rolemapping", tags=["Projects"])
 async def delete_user_project_role_mapping(
-    project_uuid: UUID,
+    project_id: UUID,
     user_id: str,
     session: AsyncSession = Depends(get_session),
 ):
     """Delete a UserProjectRole mapping"""
-    db_project = await crud.get_projects(session, project_uuid)
+    db_project = await crud.get_projects(session, project_id)
 
     if len(db_project) == 0:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -279,50 +279,50 @@ async def delete_user_project_role_mapping(
 
 
 @router.get(
-    "/{project_uuid}/software-mappings",
+    "/{project_id}/software-mappings",
     response_model=List[schemas.Software],
     tags=["Projects"],
 )
 async def get_software_mappings(
-    project_uuid: UUID, session: AsyncSession = Depends(get_session)
+    project_id: UUID, session: AsyncSession = Depends(get_session)
 ) -> List[schemas.Software]:
-    project: schemas.Project = await get_project(str(project_uuid), session)
-    return await crud.get_software_mappings_by_project_uuid(session, project.id)
+    project: schemas.Project = await get_project(str(project_id), session)
+    return await crud.get_software_mappings_by_project_id(session, project.id)
 
 
 @router.post(
-    "/{project_uuid}/software-mappings",
+    "/{project_id}/software-mappings",
     response_model=List[schemas.Software],
     tags=["Projects"],
 )
 async def create_software_mappings(
-    project_uuid: UUID,
+    project_id: UUID,
     softwares: List[schemas.Software],
     session: AsyncSession = Depends(get_session),
 ):
-    project: schemas.Project = await get_project(project_uuid, session)
+    project: schemas.Project = await get_project(project_id, session)
 
     return [
         await crud.create_software_mapping(
-            session, project_uuid=project.id, software_uuid=software.software_uuid
+            session, project_id=project.id, software_uuid=software.software_uuid
         )
         for software in softwares
     ]
 
 
 @router.delete(
-    "/{project_uuid}/software-mappings",
+    "/{project_id}/software-mappings",
     tags=["Projects"],
 )
 async def delete_software_mappings(
-    project_uuid: UUID,
+    project_id: UUID,
     softwares: List[schemas.Software],
     session: AsyncSession = Depends(get_session),
 ):
-    project: schemas.Project = await get_project(project_uuid, session)
+    project: schemas.Project = await get_project(project_id, session)
     for software in softwares:
         await crud.delete_software_mapping(
-            session, project_uuid=project.id, software_uuid=software.software_uuid
+            session, project_id=project.id, software_uuid=software.software_uuid
         )
 
     return Response(status_code=204)

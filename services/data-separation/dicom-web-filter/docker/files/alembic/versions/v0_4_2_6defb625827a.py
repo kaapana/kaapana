@@ -41,12 +41,13 @@ def upgrade() -> None:
     id_uuid_map = fetch_project_id_uuid_mapping()
 
     connection = op.get_bind()
-    op.add_column("data_projects", sa.Column("project_id", UUID(), nullable=True))
     op.drop_constraint(
         "data_projects_project_id_series_instance_uid_key",
         "data_projects",
         type_="unique",
     )
+    op.alter_column("data_projects", "project_id", new_column_name="old_project_id")
+    op.add_column("data_projects", sa.Column("project_id", UUID(), nullable=True))
 
     # Update existing records using the map
     for old_id, new_uuid in id_uuid_map.items():
@@ -54,7 +55,7 @@ def upgrade() -> None:
             connection.execute(
                 sa.text(
                     """
-                    UPDATE data_projects SET project_id = :uuid WHERE project_id = :old_id
+                    UPDATE data_projects SET project_id = :uuid WHERE old_project_id = :old_id
                 """
                 ),
                 {"uuid": new_uuid, "old_id": old_id},

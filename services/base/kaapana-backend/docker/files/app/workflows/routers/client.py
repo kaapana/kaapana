@@ -754,7 +754,7 @@ def create_workflow(
                 "involved_instances"
             ],
             "federated": json_schema_data.federated,
-            "project_uuid": project.get("id"),
+            "project_id": project.get("id"),
         }
     )
     db_workflow = crud.create_workflow(db=db, workflow=workflow)

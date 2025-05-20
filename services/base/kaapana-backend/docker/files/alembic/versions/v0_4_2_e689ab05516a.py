@@ -38,11 +38,12 @@ def upgrade() -> None:
     id_uuid_map = fetch_project_id_uuid_mapping()
 
     connection = op.get_bind()
+    op.drop_constraint("dataset_project_id_name_key", "dataset", type_="unique")
+    op.alter_column("dataset", "project_id", new_column_name="old_project_id")
+    op.alter_column("workflow", "project_id", new_column_name="old_project_id")
 
     op.add_column("dataset", sa.Column("project_id", UUID(), nullable=True))
     op.add_column("workflow", sa.Column("project_id", UUID(), nullable=True))
-
-    op.drop_constraint("dataset_project_id_name_key", "dataset", type_="unique")
     op.create_unique_constraint(None, "dataset", ["project_id", "name"])
 
     # Update existing records using the map
@@ -51,7 +52,7 @@ def upgrade() -> None:
             connection.execute(
                 sa.text(
                     """
-                        UPDATE dataset SET project_id = :uuid WHERE project_id = :old_id
+                        UPDATE dataset SET project_id = :uuid WHERE old_project_id = :old_id
                     """
                 ),
                 {"uuid": new_uuid, "old_id": old_id},
@@ -59,7 +60,7 @@ def upgrade() -> None:
             connection.execute(
                 sa.text(
                     """
-                    UPDATE workflow SET project_id = :uuid WHERE project_id = :old_id
+                    UPDATE workflow SET project_id = :uuid WHERE old_project_id = :old_id
                 """
                 ),
                 {"uuid": new_uuid, "old_id": old_id},

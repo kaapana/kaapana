@@ -1,0 +1,194 @@
+diff --git a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+index 19cf891d0..f0c32550e 100644
+--- a/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
++++ b/extensions/cornerstone-dicom-rt/src/viewports/OHIFCornerstoneRTViewport.tsx
+@@ -157,18 +157,10 @@ function OHIFCornerstoneRTViewport(props: withAppTypes) {
+     if (rtIsLoading) {
+       return;
+     }
+-
+-    promptHydrateRT({
+-      servicesManager,
+-      viewportId,
+-      rtDisplaySet,
+-      preHydrateCallbacks: [storePresentationState],
+-      hydrateRTDisplaySet,
+-    }).then(isHydrated => {
+-      if (isHydrated) {
+-        setIsHydrated(true);
+-      }
+-    });
++    // Always hydrate -> show rt struct by default when loading the
++    // RT struct series. The default behaviour was to show just the CT
++    // and click on the RT struct was necessarry (Even when using initialSeriesUID)
++    setIsHydrated(true);
+   }, [servicesManager, viewportId, rtDisplaySet, rtIsLoading]);
+ 
+   useEffect(() => {
+diff --git a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+index 2d7ae9105..0fcb8a73f 100644
+--- a/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
++++ b/extensions/cornerstone-dicom-seg/src/viewports/OHIFCornerstoneSEGViewport.tsx
+@@ -170,18 +170,10 @@ function OHIFCornerstoneSEGViewport(props: withAppTypes) {
+     if (segIsLoading) {
+       return;
+     }
+-
+-    promptHydrateSEG({
+-      servicesManager,
+-      viewportId,
+-      segDisplaySet,
+-      preHydrateCallbacks: [storePresentationState],
+-      hydrateCallback: hydrateSEG,
+-    }).then(isHydrated => {
+-      if (isHydrated) {
+-        setIsHydrated(true);
+-      }
+-    });
++    // Always hydrate -> show SEG by default when loading the
++    // SEG series. The default behaviour was to show just the CT
++    // and click on the SEG was necessarry (Even when using initialSeriesUID)
++    setIsHydrated(true)
+   }, [servicesManager, viewportId, segDisplaySet, segIsLoading, hydrateSEG]);
+ 
+   useEffect(() => {
+diff --git a/extensions/default/src/ViewerLayout/ViewerHeader.tsx b/extensions/default/src/ViewerLayout/ViewerHeader.tsx
+index 6e1afb651..24f790292 100644
+--- a/extensions/default/src/ViewerLayout/ViewerHeader.tsx
++++ b/extensions/default/src/ViewerLayout/ViewerHeader.tsx
+@@ -75,52 +75,58 @@ function ViewerHeader({ appConfig }: withAppTypes<{ appConfig: AppTypes.Config }
+   }
+ 
+   return (
+-    <Header
+-      menuOptions={menuOptions}
+-      isReturnEnabled={!!appConfig.showStudyList}
+-      onClickReturnButton={onClickReturnButton}
+-      WhiteLabeling={appConfig.whiteLabeling}
+-      Secondary={
+-        <Toolbar
+-          servicesManager={servicesManager}
+-          buttonSection="secondary"
+-        />
+-      }
+-      PatientInfo={
+-        appConfig.showPatientInfo !== PatientInfoVisibility.DISABLED && (
+-          <HeaderPatientInfo
++    // Wrap header in a div. If appConfig.showHeader is set to false,
++    // set div to hidden. This is necessarry because header element computes
++    // patient data, which is necessarry further in the OHIF. Hidden still hides,
++    // the header from being visible.
++    <div className={appConfig.showHeader ? '' : 'hidden'}>
++      <Header
++        menuOptions={menuOptions}
++        isReturnEnabled={!!appConfig.showStudyList}
++        onClickReturnButton={onClickReturnButton}
++        WhiteLabeling={appConfig.whiteLabeling}
++        Secondary={
++          <Toolbar
+             servicesManager={servicesManager}
+-            appConfig={appConfig}
++            buttonSection="secondary"
+           />
+-        )
+-      }
+-      UndoRedo={
+-        <div className="text-primary flex cursor-pointer items-center">
+-          <Button
+-            variant="ghost"
+-            className="hover:bg-primary-dark"
+-            onClick={() => {
+-              commandsManager.run('undo');
+-            }}
+-          >
+-            <Icons.Undo className="" />
+-          </Button>
+-          <Button
+-            variant="ghost"
+-            className="hover:bg-primary-dark"
+-            onClick={() => {
+-              commandsManager.run('redo');
+-            }}
+-          >
+-            <Icons.Redo className="" />
+-          </Button>
++        }
++        PatientInfo={
++          appConfig.showPatientInfo !== PatientInfoVisibility.DISABLED && (
++            <HeaderPatientInfo
++              servicesManager={servicesManager}
++              appConfig={appConfig}
++            />
++          )
++        }
++        UndoRedo={
++          <div className="text-primary flex cursor-pointer items-center">
++            <Button
++              variant="ghost"
++              className="hover:bg-primary-dark"
++              onClick={() => {
++                commandsManager.run('undo');
++              }}
++            >
++              <Icons.Undo className="" />
++            </Button>
++            <Button
++              variant="ghost"
++              className="hover:bg-primary-dark"
++              onClick={() => {
++                commandsManager.run('redo');
++              }}
++            >
++              <Icons.Redo className="" />
++            </Button>
++          </div>
++        }
++      >
++        <div className="relative flex justify-center gap-[4px]">
++          <Toolbar servicesManager={servicesManager} />
+         </div>
+-      }
+-    >
+-      <div className="relative flex justify-center gap-[4px]">
+-        <Toolbar servicesManager={servicesManager} />
+-      </div>
+-    </Header>
++      </Header>
++    </div>
+   );
+ }
+ 
+diff --git a/extensions/default/src/ViewerLayout/index.tsx b/extensions/default/src/ViewerLayout/index.tsx
+index b29afdf07..bcface035 100644
+--- a/extensions/default/src/ViewerLayout/index.tsx
++++ b/extensions/default/src/ViewerLayout/index.tsx
+@@ -151,13 +151,17 @@ function ViewerLayout({
+       />
+       <div
+         className="relative flex w-full flex-row flex-nowrap items-stretch overflow-hidden bg-black"
+-        style={{ height: 'calc(100vh - 52px' }}
++        // If appConfig.showHeader set to false, remove any padding from the sides
++        style={{
++          height: appConfig.showHeader ? 'calc(100vh - 52px)' : '100vh',
++        }}
+       >
+         <React.Fragment>
+           {showLoadingIndicator && <LoadingIndicatorProgress className="h-full w-full bg-black" />}
+           <ResizablePanelGroup {...resizablePanelGroupProps}>
+             {/* LEFT SIDEPANELS */}
+-            {hasLeftPanels ? (
++            {/* if appConfig.showLeftPanel set to false, returns none instead of left panel */}
++            {appConfig.showLeftPanel && hasLeftPanels ? (
+               <>
+                 <ResizablePanel {...resizableLeftPanelProps}>
+                   <SidePanelWithServices
+@@ -189,7 +193,8 @@ function ViewerLayout({
+                 </div>
+               </div>
+             </ResizablePanel>
+-            {hasRightPanels ? (
++            {/* if appConfig.showRightPanel set to false, returns none instead of right panel */}
++            {appConfig.showRightPanel && hasRightPanels ? (
+               <>
+                 <ResizableHandle
+                   onDragging={onHandleDragging}

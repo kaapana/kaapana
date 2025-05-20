@@ -1,12 +1,16 @@
 import os
 
-from kaapanapy.helper import get_opensearch_client
+from kaapanapy.helper import get_opensearch_client, load_workflow_config
 from kaapanapy.settings import OpensearchSettings
 
 SERVICES_NAMESPACE = os.environ["SERVICES_NAMESPACE"]
 HOST = f"opensearch-service.{SERVICES_NAMESPACE}.svc"
 PORT = "9200"
-INDEX = OpensearchSettings().default_index
+workflow_config = load_workflow_config()
+project_form = workflow_config.get("project_form", {})
+opensearch_index = project_form.get(
+    "opensearch_index", OpensearchSettings().default_index
+)
 
 os_client = get_opensearch_client()
 
@@ -24,7 +28,7 @@ def get_ref_series_instance_uid(id: str) -> str:
     }
 
     # Exec query
-    response = os_client.search(index=INDEX, body=query_body)
+    response = os_client.search(index=opensearch_index, body=query_body)
 
     hits = response["hits"]["hits"]
     if len(hits) > 1:

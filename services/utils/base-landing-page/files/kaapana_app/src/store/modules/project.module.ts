@@ -43,18 +43,30 @@ const actions = {
 
           // if project name is stored in cookie set that as selected project
           // else set the first project from the retrived project as selected project
-          const projectCookies = Vue.$cookies.get("Project-Name");
-          if (projectCookies) {
-            for (var project in response.data){
-              const currentProject = response.data[project];
-              if (currentProject.name == projectCookies) {
-                defaultProject = currentProject;
+          const projectCookie = Vue.$cookies.get("Project");
+          
+          let found = false;
+          if (projectCookie && projectCookie.name && projectCookie.uuid) {
+            for (let project of response.data) {
+              if (project.name === projectCookie.name && project.id === projectCookie.uuid) {
+                defaultProject = project;
+                found = true;
                 break;
               }
             }
-          }else {
-            Vue.$cookies.set("Project-Name", defaultProject.name);
           }
+          
+          if (!found) {
+            // Save default project to cookie if no cookie exists
+            Vue.$cookies.remove("Project");
+            Vue.$cookies.set("Project", {
+              name: defaultProject.name,
+              uuid: defaultProject.id, // or defaultProject.uuid if you use that
+            });
+          }
+            
+          
+
 
           context.dispatch(UPDATE_SELECTED_PROJECT, defaultProject)
           context.commit(SET_AVAILABLE_PROJECTS, response.data)

@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -15,11 +16,11 @@ class AiiRightResponse(OrmBaseModel):
     description: str
     claim_key: str
     claim_value: str
-    project_id: int
+    project_id: UUID
 
 
 class AiiProjectResponse(OrmBaseModel):
-    id: int
+    id: UUID
     name: str
     description: str
     role_id: int

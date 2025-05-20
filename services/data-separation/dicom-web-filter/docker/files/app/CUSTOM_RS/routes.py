@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 import httpx
 from app import crud
@@ -79,7 +80,7 @@ async def delete_instance_dcm4chee(
 
 @router.delete("/projects/{project_id}/studies/{study}", tags=["Custom"])
 async def del_study(
-    project_id: int,
+    project_id: UUID,
     study: str,
     request: Request,
     session: AsyncSession = Depends(get_session),
@@ -147,7 +148,7 @@ async def del_study(
     "/projects/{project_id}/studies/{study}/series/{series}", tags=["Custom"]
 )
 async def del_series(
-    project_id: int,
+    project_id: UUID,
     study: str,
     series: str,
     request: Request,

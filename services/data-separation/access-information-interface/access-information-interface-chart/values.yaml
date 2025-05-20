@@ -1,4 +1,7 @@
 ---
+global:
+  dev_files: false
+
 kaapana_database:
   admin: false
   postgres_user: kaapanauser

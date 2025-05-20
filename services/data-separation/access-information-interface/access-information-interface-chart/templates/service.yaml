@@ -11,5 +11,16 @@ spec:
     app.kubernetes.io/name: access-information-interface
     app.kubernetes.io/component: backend
   ports:
-    - port: 8080
+{{- if .Values.global.dev_files }}
+    - name: aii-http
+      port: 8080 
       targetPort: 8080
+      nodePort: 8081 # only for development!
+  type: NodePort # only for development!
+{{- else }}
+    - name: aii-http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
+{{- end }}

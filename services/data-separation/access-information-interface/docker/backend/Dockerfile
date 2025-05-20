@@ -12,4 +12,4 @@ RUN python -m pip install -c https://codebase.helmholtz.cloud/kaapana/constraint
 COPY files/ /app
 RUN chmod +x /app/boot.sh
 
-CMD ["/app/boot.sh"]
+CMD ["/bin/sh", "/app/boot.sh"]

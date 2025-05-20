@@ -1,15 +1,14 @@
 import asyncio
-import httpx
 import re
 
+import httpx
 import requests
+from app.projects.crud import get_rights
+from app.projects.schemas import Project
 from kaapanapy.helper import get_opensearch_client, get_project_user_access_token
 from kaapanapy.logger import get_logger
 from kaapanapy.settings import OpensearchSettings
 from opensearchpy.exceptions import RequestError
-
-from app.projects.schemas import Project
-from app.projects.crud import get_rights
 
 logger = get_logger(__name__)
 
@@ -219,9 +218,9 @@ def is_valid_opensearch_index_name(index_name: str) -> bool:
     OpenSearch indices have the following naming restrictions:
 
     All letters must be lowercase.
-    Index names can’t begin with underscores (_) or hyphens (-).
-    Index names can’t contain spaces, commas, or the following characters:
-        :, ", *, +, /, \, |, ?, #, >, or <
+    Index names can't begin with underscores (_) or hyphens (-).
+    Index names can't contain spaces, commas, or the following characters:
+        :, ", *, +, /, \\, |, ?, #, >, or <
     """
     # Check for lowercase, length, and valid characters based on OpenSearch restrictions
     if not (1 <= len(index_name) <= 255):

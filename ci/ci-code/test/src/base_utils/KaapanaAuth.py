@@ -1,7 +1,7 @@
-import requests
+import json
 import os
-import json as js
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+import requests
 
 
 class KaapanaAuth:
@@ -12,6 +12,18 @@ class KaapanaAuth:
         else:
             self.client_secret = os.environ.get("CLIENT_SECRET")
         self.access_token = self.get_access_token(self.host, self.client_secret)
+        self.admin_project = self.get_admin_project()
+
+    def get_admin_project(self):
+        url = f"https://{self.host}/aii/projects/admin"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        r = requests.get(url, verify=False, headers=headers)
+        r.raise_for_status()
+        admin_project = r.json()
+        return admin_project
 
     def get_access_token(
         self,
@@ -40,7 +52,7 @@ class KaapanaAuth:
         self,
         endpoint,
         request_type=requests.get,
-        json={},
+        _json={},
         data={},
         params={},
         raise_for_status=True,
@@ -49,24 +61,30 @@ class KaapanaAuth:
         headers={},
     ):
         project_header = {
-            "id": 1,
-            "external_id": None,
-            "name": "admin",
-            "description": "Initial admin project",
+            "id": self.admin_project["id"],
+            "external_id": self.admin_project["external_id"],
+            "name": self.admin_project["name"],
+            "description": self.admin_project["description"],
         }
-        headers.update({"Project": js.dumps(project_header)})
-        headers.update({"Project-Name": "admin"})
+        headers.update({"Project": json.dumps(project_header)})
         headers.update({"Authorization": f"Bearer {self.access_token}"})
+        project_cookie = json.dumps(
+            {
+                "name": self.admin_project["name"],
+                "uuid": self.admin_project["id"],
+            }
+        )
+
         for _ in range(retries):
             r = request_type(
                 url=f"https://{self.host}/{endpoint}",
                 verify=False,
-                json=json,
+                json=_json,
                 data=data,
                 params=params,
                 headers=headers,
                 timeout=timeout,
-                cookies={"Project-Name": "admin"},
+                cookies={"Project": project_cookie},
             )
             if r.status_code < 400:
                 break

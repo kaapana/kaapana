@@ -10,6 +10,7 @@ import time
 from distutils.version import LooseVersion
 from os.path import basename
 from typing import Dict, List, Set, Tuple, Union
+from utils import helm_get_values
 
 import schemas
 import yaml
@@ -175,6 +176,29 @@ def execute_shell_command(
         return success, stderr
 
 
+def check_if_extension_param_is_needed(
+    extension_name: str,
+    ext_params: dict,
+) -> dict:
+    """
+    Checks if the extension_params are needed for the extension by comparing them with the global values
+    Args:
+        ext_params (dict): The extension parameters to check
+    Returns:
+        dict: The updated extension parameters
+    """
+
+    # get global values
+    exctension_values = helm_get_values("kaapana-admin-chart", "default")
+    for key in ext_params:
+        if key in exctension_values.get("global", {}):
+            ext_params[key]["required"] = False
+        else:
+            ext_params[key]["required"] = True
+
+    return ext_params
+
+
 def add_extension_to_dict(
     extension_id: str,
     extension_dict: dict,
@@ -203,6 +227,7 @@ def add_extension_to_dict(
         if "extension_params" in extension_dict:
             logger.debug("add_extension_to_dict found extension_params")
             ext_params = extension_dict["extension_params"]
+            ext_params = check_if_extension_param_is_needed(extension_name, ext_params)
         global_extensions_dict[extension_name] = (
             schemas.KaapanaExtension.model_construct(
                 latest_version=None,
@@ -433,7 +458,6 @@ def get_extensions_list(platforms=False) -> Union[List[schemas.KaapanaExtension]
         global_extensions_dict: Dict[str, schemas.KaapanaExtension] = {}
         if (not platforms) and settings.recent_update_cache and check:
             states_w_indexes = get_recently_updated_extensions()
-
             if len(states_w_indexes) == 0:
                 # nothing updated recently, return cached
                 logger.info(f"no recent updates -> returning cached list")
@@ -662,7 +686,7 @@ def collect_all_tgz_charts(
             fname = ".".join(f.split("/")[-1].split(".")[:-1])
             current_tgz_charts.pop(fname)
 
-    logger.debug(f"{current_tgz_charts=}")
+    # logger.debug(f"{current_tgz_charts=}")
     if name_filter != "":
         if len(collected_tgz_charts) > 0:
             logger.debug(f"returning {collected_tgz_charts=}")

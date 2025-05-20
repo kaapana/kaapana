@@ -1,16 +1,6 @@
 from app.database import Base
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    ForeignKey,
-    Identity,
-    Integer,
-    String,
-    Table,
-    Text,
-)
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.schema import Index, UniqueConstraint
 from sqlalchemy_json import mutable_json_type
@@ -49,7 +39,7 @@ class Dataset(Base):
     # many-to-one relationship
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))
     kaapana_instance = relationship("KaapanaInstance", back_populates="datasets")
-    project_id = Column(Integer, default=1)
+    project_id = Column(UUID(as_uuid=True), nullable=False)
     __table_args__ = (UniqueConstraint("project_id", "name"),)
 
 
@@ -111,7 +101,7 @@ class Workflow(Base):
     automatic_execution = Column(Boolean(), default=False, index=True)
     service_workflow = Column(Boolean(), default=False, index=True)
     federated = Column(Boolean(), default=False, index=True)
-    project_id = Column(Integer, default=1)
+    project_id = Column(UUID(as_uuid=True), nullable=False)
 
     # many-to-one relationships
     kaapana_id = Column(Integer, ForeignKey("kaapana_instance.id"))

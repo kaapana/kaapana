@@ -6,10 +6,13 @@ import os
 import string
 import uuid
 from typing import List, Optional
+from uuid import UUID
 
+import httpx
 import requests
 from app.config import settings
 from app.database import SessionLocal
+from app.dependencies import fetch_default_project_id
 from cryptography.fernet import Fernet
 from fastapi import HTTPException, Response
 from psycopg2.errors import UniqueViolation
@@ -58,12 +61,6 @@ def delete_kaapana_instances(db: Session):
 
 
 def get_kaapana_instance(db: Session, instance_name: str = None):
-    # db_kaapana_instance = (db.query(models.KaapanaInstance)
-    #     .filter_by(instance_name=instance_name or settings.instance_name)
-    #     .first())
-    # # workaround that backend isn't crashing if remote kaapana instance is not reachable
-    # db.close()
-    # return db_kaapana_instance
     return (
         db.query(models.KaapanaInstance)
         .filter_by(instance_name=instance_name or settings.instance_name)
@@ -75,13 +72,6 @@ def get_kaapana_instances(
     db: Session, filter_kaapana_instances: schemas.FilterKaapanaInstances = None
 ):
     if filter_kaapana_instances is not None and filter_kaapana_instances.instance_names:
-        # db_kaapana_instances = (db.query(models.KaapanaInstance)
-        #                         .filter(models.KaapanaInstance.instance_name.in_(
-        #                             filter_kaapana_instances.instance_names),
-        #                         ).all()
-        #                         )
-        # db.close()
-        # return db_kaapana_instances
         return (
             db.query(models.KaapanaInstance)
             .filter(
@@ -95,13 +85,6 @@ def get_kaapana_instances(
         filter_kaapana_instances is not None
         and filter_kaapana_instances.dag_id is not None
     ):
-        # db_kaapana_instances = (db.query(models.KaapanaInstance)
-        #                         .filter(models.KaapanaInstance.allowed_dags.contains(
-        #                             filter_kaapana_instances.dag_id),
-        #                         ).all()
-        #                         )
-        # db.close()
-        # return db_kaapana_instances
         return (
             db.query(models.KaapanaInstance)
             .filter(
@@ -116,15 +99,6 @@ def get_kaapana_instances(
         and filter_kaapana_instances.instance_names
         and filter_kaapana_instances.dag_id is not None
     ):
-        # db_kaapana_instances = (db.query(models.KaapanaInstance)
-        #                         .filter(models.KaapanaInstance.allowed_dags.contains(
-        #                                 filter_kaapana_instances.dag_id),
-        #                             models.KaapanaInstance.instance_name.in_(
-        #                                 filter_kaapana_instances.instance_names),
-        #                         ).all()
-        #                         )
-        # db.close()
-        # return db_kaapana_instances
         return (
             db.query(models.KaapanaInstance)
             .filter(
@@ -138,12 +112,6 @@ def get_kaapana_instances(
             .all()
         )
     else:
-        # db_kaapana_instances = (db.query(models.KaapanaInstance)
-        #     .order_by(models.KaapanaInstance.remote, models.KaapanaInstance.instance_name)
-        #     .all()
-        # )
-        # db.close()
-        # return db_kaapana_instances
         return (
             db.query(models.KaapanaInstance)
             .order_by(
@@ -156,7 +124,7 @@ def get_kaapana_instances(
 def create_and_update_client_kaapana_instance(
     db: Session,
     client_kaapana_instance: schemas.ClientKaapanaInstanceCreate,
-    project_id: int,
+    project_id: UUID,
     action="create",
 ):
     def _get_fernet_key(fernet_encrypted):
@@ -740,7 +708,7 @@ def update_external_job(db: Session, db_job):
                     json=payload,
                     headers={
                         "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                        "User-Agent": f"kaapana",
+                        "User-Agent": "kaapana",
                     },
                     timeout=TIMEOUT,
                 )
@@ -787,7 +755,7 @@ def get_remote_updates(db: Session, periodically=False):
                 verify=db_remote_kaapana_instance.ssl_check,
                 headers={
                     "FederatedAuthorization": f"{db_remote_kaapana_instance.token}",
-                    "User-Agent": f"kaapana",
+                    "User-Agent": "kaapana",
                 },
                 timeout=TIMEOUT,
             )
@@ -833,6 +801,7 @@ def get_remote_updates(db: Session, periodically=False):
                 # incoming_workflow["involved_kaapana_instances"] = json.dumps(incoming_workflow[
                 #     "involved_kaapana_instances"
                 # ])
+                incoming_workflow["project_id"] = fetch_default_project_id()
                 workflow = schemas.WorkflowCreate(**incoming_workflow)
                 db_workflow = create_workflow(db, workflow)
                 logging.debug(f"Created incoming remote workflow: {db_workflow}")
@@ -1075,6 +1044,7 @@ def create_and_update_service_workflows_and_jobs(
                     "dag_id": db_job.dag_id,
                     "service_workflow": True,
                     "username": "system",
+                    "project_id": fetch_default_project_id(),
                     # "username": request.headers["x-forwarded-preferred-username"],
                 }
             )
@@ -1189,8 +1159,12 @@ def create_or_get_identifier(db: Session, identifier: string) -> models.Identifi
             return db.query(models.Identifier).filter_by(id=identifier).one()
 
 
-def create_dataset(db: Session, dataset: schemas.DatasetCreate, project_id: int = 1):
+def create_dataset(
+    db: Session, dataset: schemas.DatasetCreate, project_id: Optional[UUID] = None
+):
     logging.debug(f"Creating Dataset: {dataset.name}")
+    if not project_id:
+        project_id = UUID(fetch_default_project_id())
 
     if dataset.kaapana_instance_id is None:
         db_kaapana_instance = (
@@ -1236,7 +1210,7 @@ def create_dataset(db: Session, dataset: schemas.DatasetCreate, project_id: int 
     return db_dataset
 
 
-def get_dataset(db: Session, name: str, project_id: int, raise_if_not_existing=True):
+def get_dataset(db: Session, name: str, project_id: UUID, raise_if_not_existing=True):
     db_query = db.query(models.Dataset).filter_by(name=name)
     db_query = db_query.filter(models.Dataset.project_id == project_id)
     db_dataset = db_query.first()
@@ -1246,7 +1220,7 @@ def get_dataset(db: Session, name: str, project_id: int, raise_if_not_existing=T
 
 
 def get_datasets(
-    db: Session, project_id: int, limit=None, username: str = None
+    db: Session, project_id: UUID, limit=None, username: str = None
 ) -> List[models.Dataset]:
     logging.debug(username)
     db_query = (
@@ -1259,7 +1233,7 @@ def get_datasets(
     return db_datasets
 
 
-def delete_dataset(db: Session, name: str, project_id: int):
+def delete_dataset(db: Session, name: str, project_id: UUID):
     db_dataset = get_dataset(db, name, project_id=project_id)
     db.delete(db_dataset)
     db.commit()
@@ -1273,7 +1247,7 @@ def delete_datasets(db: Session):
     return {"ok": True}
 
 
-def update_dataset(db: Session, dataset: schemas.DatasetUpdate, project_id: int):
+def update_dataset(db: Session, dataset: schemas.DatasetUpdate, project_id: UUID):
     logging.debug(f"Updating dataset {dataset.name}")
     db_dataset = get_dataset(
         db, dataset.name, raise_if_not_existing=False, project_id=project_id

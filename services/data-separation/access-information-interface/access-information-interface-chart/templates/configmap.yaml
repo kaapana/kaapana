@@ -30,7 +30,8 @@ data:
     [
       {
         "name": "admin",
-        "description": "Initial admin project"
+        "description": "Initial admin project",
+        "default": true
       }
     ]
   initial_roles_rights_mapping.json: | # This is the mapping of roles to rights

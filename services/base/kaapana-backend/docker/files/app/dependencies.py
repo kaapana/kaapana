@@ -1,18 +1,19 @@
-from fastapi import Header, HTTPException, Depends, Request
-from sqlalchemy.orm import Session
-from .monitoring.services import MonitoringService
-from .users.services import UserService
 import json
-import jwt
-import httpx
 
-# from .workflows.services import WorkflowService
-from .workflows.models import KaapanaInstance
-from .config import settings
-from .database import SessionLocal
-from .workflows.utils import HelperMinio
+import httpx
+import jwt
+import requests
+from fastapi import Depends, Header, HTTPException, Request
 from kaapanapy.helper import get_opensearch_client
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
+from sqlalchemy.orm import Session
+
+from .config import settings
+from .database import SessionLocal
+from .monitoring.services import MonitoringService
+from .users.services import UserService
+from .workflows.models import KaapanaInstance
+from .workflows.utils import HelperMinio
 
 
 def get_db():
@@ -68,21 +69,23 @@ def get_opensearch(request: Request):
     x_auth_token = request.headers.get("x-forwarded-access-token")
     yield get_opensearch_client(access_token=x_auth_token)
 
-def get_project(request:Request):
+
+def get_project(request: Request):
     project = request.headers.get("Project")
     return json.loads(project)
+
 
 def get_project_index(project=Depends(get_project)):
     return project.get("opensearch_index")
 
 
 def get_allowed_software(project=Depends(get_project)) -> list:
+    project_id = project.get("id")
     enabled_software_in_project = httpx.get(
-        f"http://aii-service.services.svc:8080/projects/{project.get("name")}/software-mappings"
+        f"http://aii-service.services.svc:8080/projects/{project_id}/software-mappings"
     ).json()
-    return [
-        software.get("software_uuid") for software in enabled_software_in_project
-    ]
+    return [software.get("software_uuid") for software in enabled_software_in_project]
+
 
 def get_access_token(request: Request):
     access_token = request.headers.get("x-forwarded-access-token", None)
@@ -95,6 +98,11 @@ def get_access_token(request: Request):
     return decoded_access_token
 
 
-
 def get_dcmweb_helper(request: Request):
     return HelperDcmWeb()
+
+
+def fetch_default_project_id() -> str:
+    response = requests.get("http://aii-service.services.svc:8080/projects/admin")
+    response.raise_for_status()
+    return response.json().get("id")

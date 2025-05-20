@@ -7,6 +7,7 @@ from io import BytesIO
 from os.path import join
 from pathlib import Path
 from typing import Any, Dict, List
+from uuid import UUID
 
 import pydicom
 import requests
@@ -320,7 +321,7 @@ class HelperDcmWeb:
         response.raise_for_status()
         return response
 
-    def delete_study(self, project_id: int, study_uid: str) -> requests.Response:
+    def delete_study(self, project_id: UUID, study_uid: str) -> requests.Response:
         """This function deletes a study from the PACS. It first rejects the study and then deletes it.
 
         Args:
@@ -342,7 +343,7 @@ class HelperDcmWeb:
 
         return response
 
-    def delete_series(self, project_id: int, study_uid: str, series_uid: str):
+    def delete_series(self, project_id: UUID, study_uid: str, series_uid: str):
         """This function deletes a series from the PACS.
 
         Args:

@@ -7,7 +7,7 @@ from kaapana.blueprints.kaapana_global_variables import (
     ADMIN_NAMESPACE,
     PROCESSING_WORKFLOW_DIR,
 )
-from kaapana.blueprints.kaapana_utils import cure_invalid_name, get_release_name
+from kaapana.blueprints.kaapana_utils import get_release_name
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 
 
@@ -54,6 +54,7 @@ class KaapanaApplicationOperator(KaapanaPythonBaseOperator):
                 "global.namespace": self.namespace,
                 "global.project_namespace": self.namespace,
                 "global.project_name": project_form.get("name"),
+                "global.project_id": project_form.get("id"),
                 **dynamic_volumes,
                 "mount_path": f'{self.data_dir}/{kwargs["run_id"]}',
                 "workflow_dir": f'{str(PROCESSING_WORKFLOW_DIR)}/{kwargs["run_id"]}',

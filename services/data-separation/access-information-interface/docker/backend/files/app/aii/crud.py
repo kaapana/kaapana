@@ -36,6 +36,7 @@ async def get_user_rights(session: AsyncSession, keycloak_id: str):
 
     return result.all()
 
+
 async def get_projects(session: AsyncSession, name: str = None):
     stmt = select(Projects)
     stmt = stmt.filter(Projects.name == name) if name else stmt

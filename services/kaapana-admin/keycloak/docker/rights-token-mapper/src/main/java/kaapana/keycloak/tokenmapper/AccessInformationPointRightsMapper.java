@@ -93,7 +93,7 @@ public class AccessInformationPointRightsMapper extends AbstractOIDCProtocolMapp
                 for (JsonNode node : jsonNode) {
                     String claimKey = node.get("claim_key").asText();
                     String claimValue = node.get("claim_value").asText();
-                    int projectId = node.get("project_id").asInt();
+                    String projectId = node.get("project_id").asText();
                     
                     // Add project ID to claim value
                     String fullClaimValue = claimValue + "_" + projectId;

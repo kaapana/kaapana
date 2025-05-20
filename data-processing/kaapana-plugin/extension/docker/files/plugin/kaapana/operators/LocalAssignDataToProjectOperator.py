@@ -6,7 +6,7 @@ import requests
 from kaapana.operators.KaapanaPythonBaseOperator import KaapanaPythonBaseOperator
 from kaapanapy.helper.HelperDcmWeb import HelperDcmWeb
 from kaapanapy.logger import get_logger
-from kaapanapy.settings import AccessSettings, KaapanaSettings
+from kaapanapy.settings import KaapanaSettings, ServicesSettings
 
 logger = get_logger(__name__)
 
@@ -93,7 +93,7 @@ class LocalAssignDataToProjectOperator(KaapanaPythonBaseOperator):
         response.raise_for_status()
 
         ### Get admin project
-        r = requests.get(f"{AccessSettings().aii_service_url}/projects/admin")
+        r = requests.get(f"{ServicesSettings().aii_url}/projects/admin")
         project_id = r.json()["id"]
 
         ### Create the project-data mapping for the admin project

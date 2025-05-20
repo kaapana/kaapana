@@ -76,7 +76,6 @@ async def projects(
 
 @router.get("", response_model=List[schemas.Project], tags=["Projects"])
 async def get_projects(session: AsyncSession = Depends(get_session)):
-    print(crud.get_projects(session))
     return await crud.get_projects(session)
 
 

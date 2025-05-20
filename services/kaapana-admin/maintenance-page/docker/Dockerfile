@@ -21,10 +21,16 @@ RUN npm run build
 # # # ############# Dev #############
 # # # ###############################
 # # # # In the maintenance-page deployment, adjust the resource limits to at least 12Gi and change the docker image to the one you are pushing 
-# WORKDIR / 
-# COPY files/dev.sh .
-# # RUN chmod +x dev.sh
-# CMD ["/bin/sh", "dev.sh"]
+# USER 0
+# RUN chown -R 1000:1000 /kaapana/app && \
+#     ln -s /kaapana/app/jsons /kaapana/app/public
+
+# USER 1000
+# WORKDIR /kaapana/app
+
+# RUN npm run build
+
+# CMD ["npm", "run", "serve"]
 # # ###############################
 
 ###############################

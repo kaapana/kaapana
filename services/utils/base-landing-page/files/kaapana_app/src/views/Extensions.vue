@@ -34,7 +34,7 @@
         :items-per-page="20",
         :loading="loading",
         :search="search",
-        sort-by="releaseName",
+        sort-by="uiVisibleName",
         loading-text="Waiting a few seconds...",
         calculate-widths=true
       )
@@ -97,7 +97,7 @@
               v-icon(color="primary", dark="", v-bind="attrs", v-on="on")
                 | mdi-application-outline
             span An application with a user interface
-        template(v-slot:item.releaseName="{ item }")
+        template(v-slot:item.uiVisibleName="{ item }")
           div(class="cell-content")
             v-tooltip(bottom)
               template(v-slot:activator="{ on, attrs }")
@@ -105,8 +105,8 @@
                   class="text-content",
                   v-bind="attrs", 
                   v-on="on")
-                  span(class="first-line") {{ item.releaseName }}
-                  span(class="second-line") {{ item.description.length > 32 ? item.description.slice(0, 32) + "..." : item.description }}
+                  span(class="first-line") {{ item.uiVisibleName }}
+                  span(class="second-line") {{ item.description.length > 28 ? item.description.slice(0, 28) + "..." : item.description }}
               span {{ item.description }}
             v-tooltip(bottom)
               template(v-slot:activator="{ on, attrs }")
@@ -325,7 +325,6 @@ export default Vue.extend({
     launchedAppLinks: [] as any,
     search: "",
     selectedFilters: [
-      "Experimental",
       "Stable",
       "Applications",
       "Workflows",
@@ -373,7 +372,7 @@ export default Vue.extend({
       },
       { text: "Action", 
         value: "installed",
-        align: "start"
+        align: "center"
       },
       {
         text: "Ready",
@@ -381,8 +380,8 @@ export default Vue.extend({
         value: "successful",
       },
       {
-        text: "Application links",
-        align: "start",
+        text: "Links",
+        align: "center",
         value: "links",
       },
     ],
@@ -578,7 +577,7 @@ export default Vue.extend({
             ...item,
           }));
           this.launchedAppLinks = this.launchedAppLinks.map((item: any) => ({
-            uiVisibleName: item.annotations?.get("ui-visible-name") ?? item.releaseName,
+            uiVisibleName: item.annotations?.["ui-visible-name"] ?? item.releaseName,
             ...item,
           }));
           // console.log(JSON.stringify(this.launchedAppLinks));

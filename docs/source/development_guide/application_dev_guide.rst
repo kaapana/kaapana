@@ -52,7 +52,7 @@ First of all we build the docker container with:
 
 ::
 
-   sudo docker build -t <docker-registry><docker-repo>/hello-world:0.1.0 .
+   docker build -t <docker-registry><docker-repo>/hello-world:0.1.0 .
 
 .. hint::
 
@@ -63,7 +63,7 @@ Then check locally if the docker container works as expected:
 
 ::
 
-   sudo docker run -p 5000:5000 -e SECRET_KEY='some-secret-key' -e HELLO_WORLD_USER='Kaapana' -e APPLICATION_ROOT='/hello-world' <docker-registry><docker-repo>/hello-world:0.1.0
+   docker run -p 5000:5000 -e SECRET_KEY='some-secret-key' -e HELLO_WORLD_USER='Kaapana' -e APPLICATION_ROOT='/hello-world' <docker-registry><docker-repo>/hello-world:0.1.0
 
 Again you should be able to access the application via ``http://localhost:5000/hello-world``
 
@@ -73,12 +73,12 @@ If not already done, log in to the docker registry:
 
 ::
 
-   sudo docker login <docker-registry>
+   docker login <docker-registry>
 
 and push the docker image with:
 ::
 
-   sudo docker push <docker-registry><docker-repo>/hello-world:0.1.0
+   docker push <docker-registry><docker-repo>/hello-world:0.1.0
 
 
 Step 3: Write the Kubernetes deployments 

@@ -106,6 +106,8 @@ To utilize our base image, we have to build and push it to our registry.
     docker build -t <docker-registry><docker-repo>/example-extract-study-id:0.1.0 .
     docker push <docker-registry><docker-repo>/example-extract-study-id:0.1.0
 
+If you don't have access to the docker registry used to deploy the platform, simply don't push the image to the registry, just build it (including the ``<docker-registry><docker-repo>`` part). You can later save your images locally to a tar file using ``docker save`` and upload them to the platform (see :ref:`extensions`).
+
 Since we just used a generic python image as a template for our algorithm and made it available in the Kaapana registry, we can also reuse it for any other
 python based algorithm.
 

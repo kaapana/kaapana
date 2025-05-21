@@ -18,7 +18,7 @@ The results of this build (containers and charts) are usually pushed into a regi
 
 Build Requirements
 ------------------
-Perform these steps on the build-machine! Recommended operating system is Ubuntu 24.04.
+Perform these steps on the build-machine. Recommended operating system is Ubuntu 24.04.
 
 .. important::
 

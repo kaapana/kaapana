@@ -62,7 +62,6 @@ async def check_if_series_in_given_study_is_mapped_to_projects(
     study_instance_uid: str,
     series_instance_uid: str,
 ) -> bool:
-    print(project_ids)
     stmt = (
         select(DicomData.series_instance_uid)
         .join(

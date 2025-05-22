@@ -71,7 +71,7 @@ class KaapanaAuth:
         project_cookie = json.dumps(
             {
                 "name": self.admin_project["name"],
-                "uuid": self.admin_project["id"],
+                "id": self.admin_project["id"],
             }
         )
 

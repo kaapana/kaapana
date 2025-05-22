@@ -70,7 +70,7 @@ async def auth_check(request: Request, response: Response):
         if project_cookie:
             decoded_string = urllib.parse.unquote(project_cookie)
             project = json.loads(decoded_string)
-            project_id = project["id"]
+            project_id = project["uuid"]
             aii_response = requests.get(
                 f"http://aii-service.services.svc:8080/projects/{project_id}"
             )

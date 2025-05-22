@@ -48,13 +48,12 @@ async def projects(
     except IntegrityError:
         logger.warning(f"{project=} already exists!")
         await session.rollback()
-        created_projects = await crud.get_projects(session, project_name=project.name)
-        created_project = created_projects[0]
+        created_project = await crud.get_projects(session, project_name=project.name)
+        return created_project[0]
 
     response_project = schemas.Project(**created_project.__dict__)
     await opensearch_helper.setup_new_project(project=created_project, session=session)
     await minio_helper.setup_new_project(project=created_project, session=session)
-    logger.info(created_project)
     kubehelm.install_project_helm_chart(created_project)
 
     with open("/app/config/default_software.json") as f:

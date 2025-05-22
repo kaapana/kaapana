@@ -1,0 +1,34 @@
+{
+    "all_results": {
+        "STUNetTrainer_base_ft__nnUNetPlans__3d_fullres": 0.7818952582782815
+    },
+    "best_model_or_ensemble": {
+        "postprocessing_file": "F:/LiverTumors/STUNET/STU-Net/nnUNet-2.2/nnunetv2/nnUNet_results\\Dataset123_ATLAS\\STUNetTrainer_base_ft__nnUNetPlans__3d_fullres\\crossval_results_folds_0_1_2_3_4\\postprocessing.pkl",
+        "result_on_crossval_post_pp": 0.7819960327814445,
+        "result_on_crossval_pre_pp": 0.7818952582782815,
+        "selected_model_or_models": [
+            {
+                "configuration": "3d_fullres",
+                "plans_identifier": "nnUNetPlans",
+                "trainer": "STUNetTrainer_base_ft"
+            }
+        ],
+        "some_plans_file": "F:/LiverTumors/STUNET/STU-Net/nnUNet-2.2/nnunetv2/nnUNet_results\\Dataset123_ATLAS\\STUNetTrainer_base_ft__nnUNetPlans__3d_fullres\\crossval_results_folds_0_1_2_3_4\\plans.json"
+    },
+    "considered_models": [
+        {
+            "configuration": "3d_fullres",
+            "plans": "nnUNetPlans",
+            "trainer": "STUNetTrainer_base_ft"
+        }
+    ],
+    "dataset_name_or_id": "123",
+    "ensembling_allowed": true,
+    "folds": [
+        0,
+        1,
+        2,
+        3,
+        4
+    ]
+}

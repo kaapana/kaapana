@@ -1,0 +1,248 @@
+{
+    "description": "ATLAS",
+    "labels": {
+        "background": 0,
+        "liver": 1,
+        "tumor": 2
+    },
+    "licence": "see challenge website",
+    "channel_names": {
+        "0": "MRI"
+    },
+    "name": "ATLAS",
+    "numTest": 5,
+    "numTraining": 55,
+    "reference": "see challenge website",
+    "release": "0.0",
+    "tensorImageSize": "4D",
+	"file_ending": ".nii.gz",
+    "test": [
+        "./imagesTs/test_1.nii.gz",
+        "./imagesTs/test_39.nii.gz",
+        "./imagesTs/test_43.nii.gz",
+        "./imagesTs/test_54.nii.gz",
+        "./imagesTs/test_57.nii.gz"
+    ],
+    "training": [
+        {
+            "image": "./imagesTr/train_0.nii.gz",
+            "label": "./labelsTr/train_0.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_10.nii.gz",
+            "label": "./labelsTr/train_10.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_11.nii.gz",
+            "label": "./labelsTr/train_11.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_12.nii.gz",
+            "label": "./labelsTr/train_12.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_13.nii.gz",
+            "label": "./labelsTr/train_13.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_14.nii.gz",
+            "label": "./labelsTr/train_14.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_15.nii.gz",
+            "label": "./labelsTr/train_15.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_16.nii.gz",
+            "label": "./labelsTr/train_16.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_17.nii.gz",
+            "label": "./labelsTr/train_17.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_18.nii.gz",
+            "label": "./labelsTr/train_18.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_19.nii.gz",
+            "label": "./labelsTr/train_19.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_2.nii.gz",
+            "label": "./labelsTr/train_2.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_20.nii.gz",
+            "label": "./labelsTr/train_20.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_21.nii.gz",
+            "label": "./labelsTr/train_21.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_22.nii.gz",
+            "label": "./labelsTr/train_22.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_23.nii.gz",
+            "label": "./labelsTr/train_23.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_24.nii.gz",
+            "label": "./labelsTr/train_24.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_25.nii.gz",
+            "label": "./labelsTr/train_25.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_26.nii.gz",
+            "label": "./labelsTr/train_26.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_27.nii.gz",
+            "label": "./labelsTr/train_27.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_28.nii.gz",
+            "label": "./labelsTr/train_28.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_29.nii.gz",
+            "label": "./labelsTr/train_29.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_3.nii.gz",
+            "label": "./labelsTr/train_3.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_30.nii.gz",
+            "label": "./labelsTr/train_30.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_31.nii.gz",
+            "label": "./labelsTr/train_31.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_32.nii.gz",
+            "label": "./labelsTr/train_32.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_33.nii.gz",
+            "label": "./labelsTr/train_33.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_34.nii.gz",
+            "label": "./labelsTr/train_34.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_35.nii.gz",
+            "label": "./labelsTr/train_35.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_36.nii.gz",
+            "label": "./labelsTr/train_36.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_37.nii.gz",
+            "label": "./labelsTr/train_37.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_38.nii.gz",
+            "label": "./labelsTr/train_38.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_4.nii.gz",
+            "label": "./labelsTr/train_4.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_40.nii.gz",
+            "label": "./labelsTr/train_40.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_41.nii.gz",
+            "label": "./labelsTr/train_41.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_42.nii.gz",
+            "label": "./labelsTr/train_42.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_44.nii.gz",
+            "label": "./labelsTr/train_44.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_45.nii.gz",
+            "label": "./labelsTr/train_45.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_46.nii.gz",
+            "label": "./labelsTr/train_46.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_47.nii.gz",
+            "label": "./labelsTr/train_47.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_48.nii.gz",
+            "label": "./labelsTr/train_48.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_49.nii.gz",
+            "label": "./labelsTr/train_49.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_5.nii.gz",
+            "label": "./labelsTr/train_5.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_50.nii.gz",
+            "label": "./labelsTr/train_50.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_51.nii.gz",
+            "label": "./labelsTr/train_51.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_52.nii.gz",
+            "label": "./labelsTr/train_52.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_53.nii.gz",
+            "label": "./labelsTr/train_53.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_55.nii.gz",
+            "label": "./labelsTr/train_55.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_56.nii.gz",
+            "label": "./labelsTr/train_56.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_58.nii.gz",
+            "label": "./labelsTr/train_58.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_59.nii.gz",
+            "label": "./labelsTr/train_59.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_6.nii.gz",
+            "label": "./labelsTr/train_6.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_7.nii.gz",
+            "label": "./labelsTr/train_7.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_8.nii.gz",
+            "label": "./labelsTr/train_8.nii.gz"
+        },
+        {
+            "image": "./imagesTr/train_9.nii.gz",
+            "label": "./labelsTr/train_9.nii.gz"
+        }
+    ]
+}

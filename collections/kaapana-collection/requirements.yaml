@@ -94,3 +94,5 @@ dependencies:
   #   version: 0.0.0
   - name: body-and-organ-analysis-workflow
     version: 0.0.0
+  - name: liver-tumor-segmentation-workflow
+    version: 0.0.0

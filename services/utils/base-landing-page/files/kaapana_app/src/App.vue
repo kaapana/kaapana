@@ -348,8 +348,8 @@ export default Vue.extend({
           const projectCookie = Vue.$cookies.get("Project");
 
           // If project cookie exists and the project doesn't match the cookie, set the cookies and reload
-          if (newValue && projectCookie && projectCookie.name !== newValue.name) {
-            Vue.$cookies.set("Project", { name: newValue.name, uuid: newValue.uuid });
+          if (newValue && projectCookie && projectCookie.name !== newValue.name ) {
+            Vue.$cookies.set("Project", { name: newValue.name, id: newValue.id });
             location.reload(); // Reload the page
           } else if (this.failedToFetchTraefik) {
             // for some cases selectedProject as well as Project-Name cookie sets

@@ -91,7 +91,7 @@ public class AccessInformationPointProjectsMapper extends AbstractOIDCProtocolMa
 
                 for (JsonNode node : jsonNode) {
                     Map<String, Object> project = new HashMap<>();
-                    project.put("id", node.get("id").asInt());
+                    project.put("id", node.get("id").asText());
                     project.put("name", node.get("name").asText());
                     project.put("description", node.get("description").asText());
                     project.put("role_id", node.get("role_id").asInt());

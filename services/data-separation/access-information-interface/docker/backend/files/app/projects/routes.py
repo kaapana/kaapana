@@ -48,8 +48,8 @@ async def projects(
     except IntegrityError:
         logger.warning(f"{project=} already exists!")
         await session.rollback()
-        created_project = await crud.get_projects(session, project_name=project.name)[0]
-        return created_project
+        created_project = await crud.get_projects(session, project_name=project.name)
+        return created_project[0]
 
     response_project = schemas.Project(**created_project.__dict__)
     await opensearch_helper.setup_new_project(project=created_project, session=session)
@@ -82,7 +82,6 @@ async def get_projects(session: AsyncSession = Depends(get_session)):
 @router.get("/admin", response_model=schemas.Project, tags=["Projects"])
 async def get_admin_project(session: AsyncSession = Depends(get_session)):
     project = await crud.get_admin_project(session)
-    print(project)
     return project
 
 

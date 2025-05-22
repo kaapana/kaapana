@@ -11,7 +11,7 @@ if __name__ == "__main__":
     project_user = os.getenv("PROJECT_USER")
     project_user_password = os.getenv("PROJECT_USER_PASSWORD")
     project_name = os.getenv("PROJECT_NAME")
-    project_id = os.getenv("PROJECT_ID")
+    project_id = os.getenv("project_id")
     user_payload = {
         "username": project_user,
         "credentials": [{"type": "password", "value": project_user_password}],

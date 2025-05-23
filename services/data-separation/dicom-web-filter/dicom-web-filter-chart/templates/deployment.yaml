@@ -24,7 +24,7 @@ spec:
             imagePullPolicy: "{{ .Values.global.pull_policy_images }}"
             env:
               - name: WAIT
-                value: "dcm4che,dcm4chee-service.{{  .Values.global.services_namespace  }}.svc,8080;{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-,{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc,80,/auth/realms/kaapana/.well-known/openid-configuration;access-information-interface,aii-service.{{   .Values.global.services_namespace   }}.svc,8080"
+                value: "dcm4che,dcm4chee-service.{{  .Values.global.services_namespace  }}.svc,8080;{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-,{{ .Values.kaapana_database.appName | default .Chart.Name }}-database-service.{{  .Values.global.services_namespace  }}.svc,5432;keycloak,keycloak-external-service.{{  .Values.global.admin_namespace  }}.svc,80,/auth/realms/kaapana/.well-known/openid-configuration;access-information-interface,aii-service.{{   .Values.global.services_namespace   }}.svc,8080,/projects/admin"
               - name: DELAY
                 value: "2"
               - name: TIMEOUT

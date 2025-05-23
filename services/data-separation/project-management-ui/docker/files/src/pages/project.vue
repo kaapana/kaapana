@@ -146,15 +146,15 @@
 
     </v-container>
     <v-dialog v-model="softwareDialog" max-width="1000">
-        <AddSoftwareToProject :projectUUID="project?.id || ''" :projectName="project?.name || ''" :current-software="allowedSoftware"
+        <AddSoftwareToProject :projectId="project?.id || ''" :projectName="project?.name || ''" :current-software="allowedSoftware"
             :oncancel="resetSoftwareFormValues" :onsuccess="handleSoftwareSubmit" />
     </v-dialog>
     <v-dialog v-model="userDialog" max-width="1000">
-        <AddUserToProject :projectUUID="project?.id || ''" :projectName="project?.name || ''" :current-user-ids="userIds" :onsuccess="handleUserSubmit"
+        <AddUserToProject :projectId="project?.id || ''" :projectName="project?.name || ''" :current-user-ids="userIds" :onsuccess="handleUserSubmit"
             :oncancel="resetUserFormValues" />
     </v-dialog>
     <v-dialog v-model="userEditDialog" max-width="1000">
-        <AddUserToProject :projectUUID="project?.id || ''" :projectName="project?.name || ''" action-type="update" :selected-user="selectedUser"
+        <AddUserToProject :projectId="project?.id || ''" :projectName="project?.name || ''" action-type="update" :selected-user="selectedUser"
             :current-role="selectedUser?.role" :onsuccess="handleUserSubmit" :oncancel="resetUserFormValues" />
     </v-dialog>
     <confirm ref="confirm"></confirm>
@@ -181,7 +181,7 @@ export default defineComponent({
     data() {
         return {
             // @ts-ignore
-            projectUUID: this.$route.params.id as string, // Access the route param
+            projectId: this.$route.params.id as string, // Access the route param
             project: null as ProjectItem | null,
             users: [] as User[],
             userDialog: false,
@@ -211,8 +211,8 @@ export default defineComponent({
     },
     watch: {
         // Watch the route to handle dynamic changes to the route param
-        '$route.params.id': function (newprojectUUID: string) {
-            this.projectUUID = newprojectUUID;
+        '$route.params.id': function (newprojectId: string) {
+            this.projectId = newprojectId;
         },
         'users': function (newUsers: User[]) {
             let tempUserIds: string[] = []
@@ -256,9 +256,9 @@ export default defineComponent({
             this.$router.push(`/`);
         },
         fetchProject() {
-            if (this.projectUUID) {
+            if (this.projectId) {
                 try {
-                    aiiApiGet(`projects/${this.projectUUID}`).then((project: ProjectItem) => {
+                    aiiApiGet(`projects/${this.projectId}`).then((project: ProjectItem) => {
                         this.project = project;
                     })
                 } catch (error: unknown) {
@@ -267,10 +267,10 @@ export default defineComponent({
             }
         },
         fetchProjectUsers() {
-            if (this.projectUUID) {
+            if (this.projectId) {
                 this.fetchingUser = true;
                 try {
-                    aiiApiGet(`projects/${this.projectUUID}/users`).then((users: UserItem[]) => {
+                    aiiApiGet(`projects/${this.projectId}/users`).then((users: UserItem[]) => {
                         this.users = users;
                         this.fetchingUser = false;
                     })
@@ -281,9 +281,9 @@ export default defineComponent({
             }
         },
         fetchProjectUserRole(userId: string, userIdx: number) {
-            if (this.projectUUID) {
+            if (this.projectId) {
                 try {
-                    aiiApiGet(`projects/${this.projectUUID}/users/${userId}/roles`).then((role: UserRole) => {
+                    aiiApiGet(`projects/${this.projectId}/users/${userId}/roles`).then((role: UserRole) => {
                         this.users[userIdx].role = role
                     })
                 } catch (error: unknown) {
@@ -292,9 +292,9 @@ export default defineComponent({
             }
         },
         deleteProjectUsers(userId: string) {
-            if (this.projectUUID) {
+            if (this.projectId) {
                 try {
-                    aiiApiDelete(`projects/${this.projectUUID}/user/${userId}/rolemapping`).then((success: boolean) => {
+                    aiiApiDelete(`projects/${this.projectId}/user/${userId}/rolemapping`).then((success: boolean) => {
                         if (success) {
                             this.fetchProjectUsers();
                         }
@@ -305,9 +305,9 @@ export default defineComponent({
             }
         },
         fetchProjectSoftware() {
-            if (this.projectUUID) {
+            if (this.projectId) {
                 try {
-                    aiiApiGet(`projects/${this.projectUUID}/software-mappings`).then((software: any) => {
+                    aiiApiGet(`projects/${this.projectId}/software-mappings`).then((software: any) => {
                         console.log(software)
                         this.allowedSoftware = software.sort((a: Software, b: Software) => {
                             return a.software_uuid.localeCompare(b.software_uuid);
@@ -324,9 +324,9 @@ export default defineComponent({
                     software_uuid: softwareUuid,
                 },
             ];
-            if (this.projectUUID) {
+            if (this.projectId) {
                 try {
-                    aiiApiDelete(`projects/${this.projectUUID}/software-mappings`, {}, data).then((success: boolean) => {
+                    aiiApiDelete(`projects/${this.projectId}/software-mappings`, {}, data).then((success: boolean) => {
                         if (success) {
                             this.fetchProjectSoftware();
                         }

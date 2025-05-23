@@ -46,7 +46,7 @@ const props = defineProps({
         type: String,
         required: true,
     },
-    projectUUID: {
+    projectId: {
         type: String,
         required: true,
     },
@@ -132,7 +132,7 @@ const fetchAllUsers = async () => {
 const submit = async () => {
     // console.log(props.projectName, roleName.value, userId.value);
     const data = {
-        "project_id": props.projectUUID.trim(),
+        "project_id": props.projectId.trim(),
         "role_name": roleName.value.trim(),
         "user_id": userId.value.trim()
     }

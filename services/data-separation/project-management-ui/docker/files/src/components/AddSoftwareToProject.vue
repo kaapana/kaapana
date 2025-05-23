@@ -66,7 +66,7 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  projectUUID: {
+  projectId: {
     type: String,
     required: true,
   },
@@ -87,7 +87,7 @@ const software = ref<Software[]>([]);
 const softwareUuid = ref("");
 
 const valid = computed(() => {
-  return props.projectUUID.trim() !== "" && props.projectName.trim() !== "" && softwareUuid.value.trim() !== "";
+  return props.projectId.trim() !== "" && props.projectName.trim() !== "" && softwareUuid.value.trim() !== "";
 });
 
 onMounted(async () => {
@@ -123,7 +123,7 @@ const fetchAvailableSoftware = async () => {
 const submit = async () => {
   // console.log(props.projectName, roleName.value, userId.value);
   const data = {
-    project_id: props.projectUUID.trim(),
+    project_id: props.projectId.trim(),
     software_uuid: softwareUuid.value.trim(),
   };
   fetching.value = true;
